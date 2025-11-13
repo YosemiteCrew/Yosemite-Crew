@@ -2,153 +2,171 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {AddCompanionPayload, Companion} from './types';
-import {generateId} from '@/shared/utils/helpers';
+import {companionApi} from './services/companionService';
+import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
 
-// Mock API delay
-const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const buildStorageKey = (userId: string) => `companions_${userId}`;
 
-// Mock API: Fetch companions for the current user
+const readCompanionsFromStorage = async (userId: string): Promise<Companion[]> => {
+  const key = buildStorageKey(userId);
+  const stored = await AsyncStorage.getItem(key);
+
+  if (!stored) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(stored) as Companion[];
+  } catch (error) {
+    console.warn('[Companion] Failed to parse companions from storage', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to read companions from storage');
+  }
+};
+
+const writeCompanionsToStorage = async (
+  userId: string,
+  companions: Companion[],
+): Promise<void> => {
+  const key = buildStorageKey(userId);
+  await AsyncStorage.setItem(key, JSON.stringify(companions));
+};
+
+const ensureAccessToken = async (): Promise<string> => {
+  const tokens = await loadStoredTokens();
+  const accessToken = tokens?.accessToken;
+
+  if (!accessToken) {
+    throw new Error('Missing access token. Please sign in again.');
+  }
+
+  return accessToken;
+};
+
+const refreshCompanionsFromBackend = async (
+  userId: string,
+  companions: Companion[],
+): Promise<Companion[]> => {
+  if (companions.length === 0) {
+    return companions;
+  }
+
+  try {
+    const tokens = await loadStoredTokens();
+    if (!tokens?.accessToken) {
+      return companions;
+    }
+
+    const refreshed = await Promise.all(
+      companions.map(async companion => {
+        try {
+          return await companionApi.getById({
+            companionId: companion.id,
+            userId,
+            accessToken: tokens.accessToken,
+            fallback: companion,
+          });
+        } catch (error) {
+          console.warn('[Companion] Failed to refresh companion', {
+            companionId: companion.id,
+            error,
+          });
+          return companion;
+        }
+      }),
+    );
+
+    await writeCompanionsToStorage(userId, refreshed);
+    return refreshed;
+  } catch (error) {
+    console.warn('[Companion] Unable to refresh companions from backend', error);
+    return companions;
+  }
+};
+
 export const fetchCompanions = createAsyncThunk<
   Companion[],
   string,
   {rejectValue: string}
 >('companion/fetchCompanions', async (userId, {rejectWithValue}) => {
   try {
-    // Simulate API call
-    await mockDelay(800);
-
-    // Mock: Retrieve companions from local storage
-    // In production, this would be an actual API call
-    const stored = await AsyncStorage.getItem(`companions_${userId}`);
-
-    if (stored) {
-      return JSON.parse(stored) as Companion[];
-    }
-
-    return [];
+    const localCompanions = await readCompanionsFromStorage(userId);
+    return await refreshCompanionsFromBackend(userId, localCompanions);
   } catch (error) {
     return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to fetch companions'
+      error instanceof Error ? error.message : 'Failed to fetch companions',
     );
   }
 });
 
-// Mock API: Add a new companion
 export const addCompanion = createAsyncThunk<
   Companion,
   {userId: string; payload: AddCompanionPayload},
   {rejectValue: string}
 >('companion/addCompanion', async ({userId, payload}, {rejectWithValue}) => {
   try {
-    console.log('=== Thunk: addCompanion started ===');
-    console.log('UserId:', userId);
-    console.log('Payload:', JSON.stringify(payload, null, 2));
-
-    // Simulate API call
-    await mockDelay(1000);
-
-    // Create companion object
-    const newCompanion: Companion = {
-      id: `companion_${Date.now()}_${generateId()}`,
-      userId,
-      ...payload,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    console.log('New companion created:', JSON.stringify(newCompanion, null, 2));
-
-    // Mock: Save to local storage
-    // In production, this would be an actual API call
-    const stored = await AsyncStorage.getItem(`companions_${userId}`);
-    const companions: Companion[] = stored ? JSON.parse(stored) : [];
-    companions.push(newCompanion);
-    await AsyncStorage.setItem(`companions_${userId}`, JSON.stringify(companions));
-
-    console.log('Companion saved to AsyncStorage');
-    console.log('Total companions:', companions.length);
-
-    return newCompanion;
+    const accessToken = await ensureAccessToken();
+    const created = await companionApi.create({userId, payload, accessToken});
+    const companions = await readCompanionsFromStorage(userId);
+    companions.push(created);
+    await writeCompanionsToStorage(userId, companions);
+    return created;
   } catch (error) {
-    console.error('Thunk error:', error);
+    console.error('[Companion] addCompanion failed', error);
     return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to add companion'
+      error instanceof Error ? error.message : 'Failed to add companion',
     );
   }
 });
 
-// Mock API: Update existing companion
 export const updateCompanionProfile = createAsyncThunk<
   Companion,
   {userId: string; updatedCompanion: Companion},
   {rejectValue: string}
 >('companion/updateCompanion', async ({userId, updatedCompanion}, {rejectWithValue}) => {
   try {
-    console.log('=== Thunk: updateCompanionProfile started ===');
-    console.log('UserId:', userId);
-    console.log('Updated Companion:', JSON.stringify(updatedCompanion, null, 2));
+    const accessToken = await ensureAccessToken();
+    const updated = await companionApi.update({
+      companion: updatedCompanion,
+      accessToken,
+    });
 
-    // Simulate API latency
-    await mockDelay(600);
+    const companions = await readCompanionsFromStorage(userId);
+    const index = companions.findIndex(c => c.id === updated.id);
 
-    // Retrieve existing companions
-    const stored = await AsyncStorage.getItem(`companions_${userId}`);
-    const companions: Companion[] = stored ? JSON.parse(stored) : [];
-
-    const index = companions.findIndex(c => c.id === updatedCompanion.id);
     if (index === -1) {
-      return rejectWithValue('Companion not found.');
+      companions.push(updated);
+    } else {
+      companions[index] = updated;
     }
 
-    // Update companion in the array
-    companions[index] = {
-      ...companions[index],
-      ...updatedCompanion,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Save back to AsyncStorage
-    await AsyncStorage.setItem(`companions_${userId}`, JSON.stringify(companions));
-
-    console.log('Companion updated successfully in AsyncStorage');
-    return companions[index];
+    await writeCompanionsToStorage(userId, companions);
+    return updated;
   } catch (error) {
-    console.error('updateCompanionProfile error:', error);
+    console.error('[Companion] updateCompanionProfile failed', error);
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to update companion',
     );
   }
 });
 
-
 export const deleteCompanion = createAsyncThunk<
-  string, // Return the ID of the deleted companion on success
+  string,
   {userId: string; companionId: string},
   {rejectValue: string}
 >('companion/deleteCompanion', async ({userId, companionId}, {rejectWithValue}) => {
   try {
-    // Simulate API call
-    await mockDelay(800);
+    const companions = await readCompanionsFromStorage(userId);
+    const next = companions.filter(c => c.id !== companionId);
 
-    // Mock: Remove from local storage
-    const stored = await AsyncStorage.getItem(`companions_${userId}`);
-    if (!stored) {
-      throw new Error('No companions found for this user.');
-    }
-
-    let companions: Companion[] = JSON.parse(stored);
-    const initialLength = companions.length;
-
-    companions = companions.filter(c => c.id !== companionId);
-
-    if (companions.length === initialLength) {
-      // Companion with the given ID was not found
+    if (next.length === companions.length) {
       return rejectWithValue('Companion not found.');
     }
 
-    await AsyncStorage.setItem(`companions_${userId}`, JSON.stringify(companions));
-
-    return companionId; // Return the deleted ID
+    await writeCompanionsToStorage(userId, next);
+    return companionId;
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to delete companion',

@@ -214,7 +214,7 @@ describe('OTPVerificationScreen', () => {
       resolveSignIn!({
         user: {userId: 'user-123', username: 'test@example.com'},
         attributes: {email: 'test@example.com'},
-        profile: {exists: true, profileToken: 'token-abc'},
+        profile: {exists: true, isComplete: true, profileToken: 'token-abc'},
         tokens: {accessToken: 'abc', idToken: 'def'},
       });
       await Promise.resolve();
@@ -238,7 +238,7 @@ describe('OTPVerificationScreen', () => {
     mockedCompleteSignIn.mockResolvedValue({
       user: {userId: 'user-123', username: 'test@example.com'},
       attributes: {email: 'test@example.com'},
-      profile: {exists: true, profileToken: 'token-abc'},
+      profile: {exists: true, isComplete: true, profileToken: 'token-abc'},
       tokens: mockTokens,
     });
 
@@ -271,7 +271,7 @@ describe('OTPVerificationScreen', () => {
     mockedCompleteSignIn.mockResolvedValue({
       user: {userId: 'user-123', username: 'test@example.com'},
       attributes: {email: 'test@example.com', given_name: 'Test'},
-      profile: {exists: false, profileToken: 'token-abc'},
+      profile: {exists: false, isComplete: false, profileToken: 'token-abc'},
       tokens: mockTokens,
     });
 

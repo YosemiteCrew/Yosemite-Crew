@@ -40,7 +40,22 @@ const mockedDeviceEventEmitter = DeviceEventEmitter as jest.Mocked<
 type MockAuthResult = Awaited<ReturnType<typeof signInWithSocialProvider>>;
 
 const mockBaseResult: MockAuthResult = {
-  user: { id: 'user-123', email: 'test@example.com' },
+  user: {
+    id: 'user-123',
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    phone: '+1234567890',
+    dateOfBirth: '1990-01-01',
+    profilePicture: 'http://example.com/img.png',
+    address: {
+      addressLine: '123 Main St',
+      city: 'San Francisco',
+      stateProvince: 'CA',
+      postalCode: '94105',
+      country: 'USA',
+    },
+  },
   tokens: {
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
@@ -49,6 +64,8 @@ const mockBaseResult: MockAuthResult = {
   profile: {
     profileToken: 'profile-token',
     exists: false,
+    isComplete: false,
+    parent: null,
     // FIXED: Use 'as any' to bypass the specific ProfileStatusSource type check
     source: 'google.com' as any,
   },
@@ -56,6 +73,8 @@ const mockBaseResult: MockAuthResult = {
     firstName: 'Test',
     lastName: 'User',
     profilePicture: 'http://example.com/img.png',
+    phone: '+1234567890',
+    dateOfBirth: '1990-01-01',
   },
 };
 
@@ -64,6 +83,7 @@ const mockExistingProfileResult: MockAuthResult = {
   profile: {
     ...mockBaseResult.profile,
     exists: true,
+    isComplete: true,
   },
 };
 
@@ -72,20 +92,31 @@ const mockNewProfileResult: MockAuthResult = {
   profile: {
     ...mockBaseResult.profile,
     exists: false,
+    isComplete: false,
   },
 };
 
-const mockCreateAccountPayload: AuthStackParamList['CreateAccount'] = {
-  email: mockNewProfileResult.user.email,
-  userId: mockNewProfileResult.user.id,
-  profileToken: mockNewProfileResult.profile.profileToken,
-  tokens: mockNewProfileResult.tokens,
+const buildCreateAccountPayload = (
+  result: MockAuthResult,
+): AuthStackParamList['CreateAccount'] => ({
+  email: result.user.email,
+  userId: result.user.id,
+  profileToken: result.profile.profileToken,
+  tokens: result.tokens,
   initialAttributes: {
-    firstName: mockNewProfileResult.initialAttributes.firstName,
-    lastName: mockNewProfileResult.initialAttributes.lastName,
-    profilePicture: mockNewProfileResult.initialAttributes.profilePicture,
+    firstName: result.initialAttributes.firstName,
+    lastName: result.initialAttributes.lastName,
+    profilePicture: result.initialAttributes.profilePicture,
+    phone: result.initialAttributes.phone,
+    dateOfBirth: result.initialAttributes.dateOfBirth,
+    address: result.user.address,
   },
-};
+  hasRemoteProfile: result.profile.exists,
+  existingParentProfile: result.profile.parent ?? null,
+});
+
+const mockCreateAccountPayload: AuthStackParamList['CreateAccount'] =
+  buildCreateAccountPayload(mockNewProfileResult);
 
 // --- Test Suite ---
 
