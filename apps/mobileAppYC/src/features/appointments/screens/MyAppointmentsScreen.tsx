@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {SectionList, View, Text, StyleSheet, TouchableOpacity, ScrollView} from 'react-native';
+import {SectionList, View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -19,7 +19,6 @@ import type {AppointmentStackParamList} from '@/navigation/types';
 import {openMapsToAddress} from '@/shared/utils/openMaps';
 import {RootState as RS} from '@/app/store';
 import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/mockStreamBackend';
-import {Alert} from 'react-native';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -85,6 +84,79 @@ export const MyAppointmentsScreen: React.FC = () => {
     });
   }, [past, filter, businessMap]);
 
+  type AppointmentItem = (typeof filteredUpcoming)[number];
+  type EmployeeRecord = ReturnType<typeof employeeMap.get>;
+
+  const handleChatPress = React.useCallback(
+    ({
+      appointment,
+      employee,
+      doctorName,
+      petName,
+    }: {
+      appointment: AppointmentItem;
+      employee?: EmployeeRecord;
+      doctorName: string;
+      petName?: string;
+    }) => {
+      const appointmentDateTime = `${appointment.date}T${appointment.time}:00`;
+      const activationMinutes = 5;
+      const chatIsActive = isChatActive(appointmentDateTime, activationMinutes);
+
+      const openChat = () => {
+        navigation.navigate('ChatChannel', {
+          appointmentId: appointment.id,
+          vetId: employee?.id || 'vet-1',
+          appointmentTime: appointmentDateTime,
+          doctorName,
+          petName,
+        });
+      };
+
+      if (!chatIsActive) {
+        const timeRemaining = getTimeUntilChatActivation(appointmentDateTime, activationMinutes);
+
+        if (timeRemaining) {
+          const {minutes, seconds} = timeRemaining;
+          const formattedTime = formatAppointmentTime(appointmentDateTime);
+
+          Alert.alert(
+            'Chat Locked 🔒',
+            `Chat will be available ${activationMinutes} minutes before your appointment.\n\n` +
+              `Appointment: ${formattedTime}\n` +
+              `Unlocks in: ${minutes}m ${seconds}s\n\n` +
+              `(This restriction comes from your clinic's settings)`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+              {
+                text: 'Mock Chat (Testing)',
+                style: 'default',
+                onPress: () => {
+                  console.log('[MOCK] Bypassing chat time restriction for testing');
+                  openChat();
+                },
+              },
+            ],
+            {cancelable: true},
+          );
+        } else {
+          Alert.alert(
+            'Chat Unavailable',
+            'This appointment has ended and chat is no longer available.',
+            [{text: 'OK'}],
+          );
+        }
+        return;
+      }
+
+      openChat();
+    },
+    [navigation],
+  );
+
   const renderEmptyCard = (title: string, subtitle: string) => (
     <LiquidGlassCard
       key={`${title}-empty`}
@@ -136,6 +208,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       .filter(Boolean)
       .join(' • ');
     const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+    const petName = companions.find(c => c.id === item.companionId)?.name;
     let assignmentNote: string | undefined;
     if (!hasAssignedVet) {
       assignmentNote = 'A vet will be assigned once the clinic approves your request.';
@@ -177,72 +250,14 @@ export const MyAppointmentsScreen: React.FC = () => {
             onGetDirections={() => {
               if (biz?.address) openMapsToAddress(biz.address);
             }}
-            onChat={() => {
-              // Construct full date-time ISO string for the appointment
-              const appointmentDateTime = `${item.date}T${item.time}:00`;
-
-              // Mock: Get activation time from backend (currently hardcoded to 5 mins)
-              const activationMinutes = 5; // In future, fetch from backend API
-
-              // Check if chat is currently active
-              const chatIsActive = isChatActive(appointmentDateTime, activationMinutes);
-
-              // Function to navigate to chat (reusable)
-              const navigateToChat = () => {
-                navigation.navigate('ChatChannel', {
-                  appointmentId: item.id,
-                  vetId: emp?.id || 'vet-1', // Use employee ID or fallback to mock vet
-                  appointmentTime: appointmentDateTime,
-                  doctorName: cardTitle,
-                  petName: companions.find(c => c.id === item.companionId)?.name,
-                });
-              };
-
-              if (!chatIsActive) {
-                // Get time remaining until chat activation
-                const timeRemaining = getTimeUntilChatActivation(appointmentDateTime, activationMinutes);
-
-                if (timeRemaining) {
-                  const {minutes, seconds} = timeRemaining;
-                  const formattedTime = formatAppointmentTime(appointmentDateTime);
-
-                  Alert.alert(
-                    'Chat Locked 🔒',
-                    `Chat will be available ${activationMinutes} minutes before your appointment.\n\n` +
-                    `Appointment: ${formattedTime}\n` +
-                    `Unlocks in: ${minutes}m ${seconds}s\n\n` +
-                    `(This restriction comes from your clinic's settings)`,
-                    [
-                      {
-                        text: 'Cancel',
-                        style: 'cancel',
-                      },
-                      {
-                        text: 'Mock Chat (Testing)',
-                        style: 'default',
-                        onPress: () => {
-                          // Mock bypass for testing - remove in production
-                          console.log('[MOCK] Bypassing chat time restriction for testing');
-                          navigateToChat();
-                        },
-                      },
-                    ],
-                    {cancelable: true},
-                  );
-                } else {
-                  // Appointment has passed
-                  Alert.alert(
-                    'Chat Unavailable',
-                    'This appointment has ended and chat is no longer available.',
-                    [{text: 'OK'}],
-                  );
-                }
-                return;
-              }
-
-              // Chat is active - navigate normally
-              navigateToChat();
-            }}
+            onChat={() =>
+              handleChatPress({
+                appointment: item,
+                employee: emp,
+                doctorName: cardTitle,
+                petName,
+              })
+            }
             onCheckIn={() => dispatch(updateAppointmentStatus({appointmentId: item.id, status: 'completed'}))}
             footer={footer}
           />

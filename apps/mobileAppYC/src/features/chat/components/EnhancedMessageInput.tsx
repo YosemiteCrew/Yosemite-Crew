@@ -183,7 +183,7 @@ export const EnhancedMessageInput: React.FC = () => {
         saveToPhotos: true,
       });
 
-      if (result.assets && result.assets[0]?.uri && channel) {
+      if (result.assets?.[0]?.uri && channel) {
         ReactNativeHapticFeedback.trigger('impactMedium');
         await channel.sendImage(result.assets[0].uri);
         ReactNativeHapticFeedback.trigger('notificationSuccess');
@@ -258,15 +258,21 @@ export const EnhancedMessageInput: React.FC = () => {
       [
         {
           text: 'Photo from Gallery',
-          onPress: pickImageFromGallery,
+          onPress: () => {
+            pickImageFromGallery();
+          },
         },
         {
           text: 'Take Photo',
-          onPress: takePhoto,
+          onPress: () => {
+            takePhoto();
+          },
         },
         {
           text: 'Send File',
-          onPress: pickDocument,
+          onPress: () => {
+            pickDocument();
+          },
         },
         {
           text: 'Cancel',
@@ -289,13 +295,17 @@ export const EnhancedMessageInput: React.FC = () => {
         </View>
         <View style={styles.recordingActions}>
           <TouchableOpacity
-            onPress={cancelVoiceRecording}
+            onPress={() => {
+              cancelVoiceRecording();
+            }}
             style={[styles.recordButton, styles.cancelButton]}
             disabled={isRecordingLoading}>
             <Icon name="close" size={24} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={stopVoiceRecording}
+            onPress={() => {
+              stopVoiceRecording();
+            }}
             style={[styles.recordButton, styles.stopButton]}
             disabled={isRecordingLoading}>
             {isRecordingLoading ? (
@@ -314,7 +324,9 @@ export const EnhancedMessageInput: React.FC = () => {
       <View style={styles.actionsRow}>
         {/* Voice Message Button */}
         <TouchableOpacity
-          onPress={startVoiceRecording}
+          onPress={() => {
+            startVoiceRecording();
+          }}
           style={styles.actionButton}
           disabled={isRecordingLoading}>
           {isRecordingLoading ? (

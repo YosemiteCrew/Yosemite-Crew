@@ -44,15 +44,13 @@ export const EnhancedMessage: React.FC = () => {
     // Share option
     if (hasText) {
       options.push('Share Message');
-      handlers.push(async () => {
+      handlers.push(() => {
         ReactNativeHapticFeedback.trigger('impactLight');
-        try {
-          await Share.open({
-            message: messageText,
-          });
-        } catch (error) {
+        Share.open({
+          message: messageText,
+        }).catch(() => {
           // User cancelled
-        }
+        });
       });
     }
 
@@ -66,6 +64,19 @@ export const EnhancedMessage: React.FC = () => {
     // Delete option (only for own messages)
     if (isMyMessage) {
       options.push('Delete Message');
+      const confirmDeleteMessage = async () => {
+        ReactNativeHapticFeedback.trigger('notificationWarning');
+        try {
+          if (channel && message.id) {
+            await channel.getClient().deleteMessage(message.id);
+          }
+          Toast.success('Message deleted');
+        } catch (error) {
+          console.error('Failed to delete message:', error);
+          Toast.error('Failed to delete message');
+        }
+      };
+
       handlers.push(() => {
         ReactNativeHapticFeedback.trigger('impactMedium');
         Alert.alert(
@@ -80,17 +91,8 @@ export const EnhancedMessage: React.FC = () => {
             {
               text: 'Delete',
               style: 'destructive',
-              onPress: async () => {
-                ReactNativeHapticFeedback.trigger('notificationWarning');
-                try {
-                  if (channel && message.id) {
-                    await channel.getClient().deleteMessage(message.id);
-                  }
-                  Toast.success('Message deleted');
-                } catch (error) {
-                  console.error('Failed to delete message:', error);
-                  Toast.error('Failed to delete message');
-                }
+              onPress: () => {
+                confirmDeleteMessage();
               },
             },
           ],
