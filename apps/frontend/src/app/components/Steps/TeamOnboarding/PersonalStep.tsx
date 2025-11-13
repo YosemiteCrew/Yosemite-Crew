@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { Primary, Secondary } from "../../Buttons";
-import { IoCamera } from "react-icons/io5";
-import { FiMinusCircle } from "react-icons/fi";
 import classNames from "classnames";
 
 import FormInput from "../../Inputs/FormInput/FormInput";
 import CountryDropdown from "../../Inputs/CountryDropdown/CountryDropdown";
 import GoogleSearchDropDown from "../../Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
+import LogoUploader from "../../UploadImage/LogoUploader";
 
 import "./Step.css";
 
@@ -26,8 +25,6 @@ const GenderTypes = [
 ];
 
 const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
-  const [image, setImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [formDataErrors, setFormDataErrors] = useState<{
     firstName?: string;
     lastName?: string;
@@ -41,21 +38,7 @@ const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
     postalCode?: string;
   }>({});
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setImage(null);
-    setPreview(null);
-  };
-
-  const handleNext = () => {
-    console.log(image);
+  const handleNext = async () => {
     const errors: {
       firstName?: string;
       lastName?: string;
@@ -82,49 +65,37 @@ const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
     if (Object.keys(errors).length > 0) {
       return;
     }
-    nextStep();
+    try {
+      const payload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        gender: formData.gender ?? null,
+        country: formData.country,
+        phoneNumber: formData.number,
+        addressLine1: formData.address,
+        area: formData.area,
+        city: formData.city,
+        state: formData.state,
+        postalCode: formData.postalCode,
+        profileImageUrl: formData.profileImageUrl || null,
+      };
+      console.log(payload)
+      nextStep();
+    } catch (error: any) {
+      console.error("Error creating profile:", error);
+    }
   };
 
   return (
     <div className="team-container">
       <div className="team-title">Personal details</div>
 
-      <div className="team-logo-container">
-        <div className="team-logo-upload">
-          {preview ? (
-            <>
-              <img
-                src={preview}
-                alt="Logo Preview"
-                style={{
-                  width: 100,
-                  height: 100,
-                  objectFit: "cover",
-                  borderRadius: "50%",
-                }}
-                className="team-logo-preview"
-              />
-              <button className="team-remove-icon" onClick={handleRemoveImage}>
-                <FiMinusCircle color="#247AED" size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <input
-                type="file"
-                id="logo-upload"
-                accept="image/*"
-                onChange={handleImageChange}
-                style={{ display: "none" }}
-              />
-              <label htmlFor="logo-upload" style={{ cursor: "pointer" }}>
-                <IoCamera color="#247AED" size={40} />
-              </label>
-            </>
-          )}
-        </div>
-        <div className="team-logo-title">Add profile picture (optional)</div>
-      </div>
+      <LogoUploader
+        title="Add profile picture (optional)"
+        apiUrl="/api/profile-logo"
+        setFormData={setFormData}
+      />
 
       <div className="team-personal-container">
         <div className="team-personal-two">

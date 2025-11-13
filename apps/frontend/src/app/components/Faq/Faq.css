@@ -94,6 +94,9 @@
   color: var(--black-text);
   margin: 0;
 }
+.accordion-collapse.show {
+  visibility: visible;
+}
 
 @media screen and (max-width: 1280px) {
   .FaqSection .FaqData .faqhead h2 {
