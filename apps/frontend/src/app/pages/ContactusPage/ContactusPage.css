@@ -32,7 +32,7 @@
   display: flex;
   flex-direction: column;
   width: 45%;
-  justify-content: space-between;
+  justify-content: start;
 }
 .ContactUsData .LeftContactUs img {
   object-fit: cover;

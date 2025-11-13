@@ -89,66 +89,55 @@
   box-sizing: border-box;
   scroll-behavior: smooth;
 }
+@theme {
+  --color-black-text: #302f2e;
+  --color-black-bg: #302f2e;
+  --color-black-hover: #1a1a19;
+  --color-black-light: #312943;
+  --color-black-pure: #000;
+  --color-grey-bg: #747473;
+  --color-grey-text: #747473;
+  --color-grey-border: #a09f9f;
+  --color-grey-light: #eaeaea;
+  --color-grey-noti: #595958;
+  --color-blue-text: #247aed;
+  --color-blue-light: #e9f2fd;
+  --color-blue-light: #eaf3ff;
+  --color-blue-sky: #428bec;
+  --color-white-text: #fff;
+  --color-white-bg: #fff;
+  --color-white-text: #eaeaea;
+  --color-white-pending: #fef3e9;
+  --color-pink-border: #37223cb2;
+  --color-error: #ee5f54;
+  --color-delete: #ea3729;
+  --color-pending-text: #f68523;
+  --font-satoshi: "Satoshi", sans-serif;
+  --font-grotesk: "ClashGrotesk", sans-serif;
+}
 :root {
   --black-text: #302f2e;
   --black-bg: #302f2e;
   --black-hover: #1a1a19;
-  --darkblackbg: #141413;
-  --blck: #333333;
   --lightblack: #312943;
-  --purple-text: #37223c;
   --pureblack: #000000;
   --black-grey: #747473;
   --black-grey-Text: #747473;
-  --black-grey1: #302f2e;
   --blue-text: #247aed;
   --light-blue: #e9f2fd;
-  --darklight-blue: #f5f8fd;
   --white-text: #ffffff;
   --whitebg: #ffffff;
   --greyborder: #a09f9f;
-  --greybg: #a09f9f;
   --lightgrey: #eaeaea;
-  --greytext: #bfbfbe;
   --lightwhiteText: #eaeaea;
-  --slectedbg: #76767617;
-  --opacityBlue: #f8fbff;
-  --opsbg: #fcd9bb;
-  --foungbg: #f8c1bd;
-  --popupbg: #eaeaea;
   --lightblue: #eaf3ff;
   --skytext: #428bec;
   --pinkborder: #37223cb2;
-  --profileborder: #5d412f26;
-  --warnggrdt:
-    linear-gradient(0deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
-    linear-gradient(0deg, #f68523, #f68523);
-  --greenbg: #b0dccd;
   --error-color: #ee5f54;
-  --errorbg: #fdebea;
   --notibg: #595958;
-  --avilblebg: #8ac1b133;
-  --avilbleText: #8ac1b1;
-  --lightgreen: #54b492;
-  --offdutybg: #302f2e26;
-  --counslingbg: #d0412226;
-  --counslingtext: #d04122;
-  --orange: #ff9500;
-  --red: #ff3b30;
-  --ddd: linear-gradient(
-    180deg,
-    rgba(191, 191, 190, 0.35) 0%,
-    rgba(191, 191, 190, 0) 100%
-  );
-  --checkbg: #e6f4ef;
   --delete: #ea3729;
-  --checkgreen: #008f5d;
-  --greenopt: #8ac1b126;
-  --halforange: #fdbd7426;
-  --darkFawn: #d09b5e;
   --pendingbg: #fef3e9;
   --pendingtext: #f68523;
-  --redopacity: #d041221a;
   --grotesk-font: "ClashGrotesk", sans-serif;
   --satoshi-font: "Satoshi", sans-serif;
 }

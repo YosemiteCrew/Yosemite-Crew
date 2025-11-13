@@ -38,7 +38,11 @@ describe("UserHeader", () => {
       .find((el) => el.classList.contains("mobile-menu-item-button"));
     expect(orgButton).toBeDefined();
 
-    fireEvent.click(orgButton!);
+    if (!orgButton) {
+      throw new Error("Organisation button not found in mobile menu");
+    }
+
+    fireEvent.click(orgButton);
     act(() => {
       jest.advanceTimersByTime(400);
     });

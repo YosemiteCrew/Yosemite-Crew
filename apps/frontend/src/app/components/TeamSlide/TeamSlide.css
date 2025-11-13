@@ -1,13 +1,18 @@
-.team-slider{
+.team-slider {
   display: flex;
   justify-content: center;
   width: 100%;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 48px;
   margin-bottom: 20px;
 }
 .team-slide-item .TeamSlideImg {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+@media screen and (max-width: 1500px) {
+  .team-slider {
+    gap: 24px;
+  }
 }
