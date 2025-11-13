@@ -35,10 +35,8 @@ jest.mock('@react-native-firebase/auth', () => mockFirebaseAuth);
 
 // Mock profile service with safe hoisted names
 const mockFetchProfileStatus = jest.fn();
-const mockBootstrapProfile = jest.fn();
-jest.mock('@/features/profile/services/profileService', () => ({
+jest.mock('@/features/account/services/profileService', () => ({
   fetchProfileStatus: mockFetchProfileStatus,
-  bootstrapProfile: mockBootstrapProfile,
 }));
 
 jest.mock('react-native-fbsdk-next', () => ({
@@ -123,9 +121,13 @@ describe('socialAuth', () => {
       jest.unmock('@/features/auth/services/socialAuth');
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
-    // Profile does not exist; bootstrap creates it and returns token
-    mockFetchProfileStatus.mockResolvedValueOnce({ exists: false });
-    mockBootstrapProfile.mockResolvedValueOnce({ profileToken: 'profile-token' });
+    // Profile does not exist yet
+    mockFetchProfileStatus.mockResolvedValueOnce({
+      exists: false,
+      isComplete: false,
+      profileToken: 'profile-token',
+      source: 'remote'
+    });
 
     const result = await signInWithSocialProvider('google');
 
@@ -144,10 +146,9 @@ describe('socialAuth', () => {
     expect(result.user.firstName).toBe('Ada');
     expect(result.user.lastName).toBe('Lovelace');
     expect(result.user.email).toBe('test@example.com');
-    
-    // Profile bootstrap path
+
+    // Profile fetch path
     expect(mockFetchProfileStatus).toHaveBeenCalled();
-    expect(mockBootstrapProfile).toHaveBeenCalled();
     expect(result.profile.profileToken).toBe('profile-token');
   });
 
@@ -163,14 +164,14 @@ describe('socialAuth', () => {
     });
     mockFetchProfileStatus.mockResolvedValueOnce({
       exists: true,
+      isComplete: true,
       profileToken: 'existing-token',
       source: 'remote',
     });
 
     const result = await signInWithSocialProvider('google');
 
-    // Should not bootstrap when profile already exists
-    expect(mockBootstrapProfile).not.toHaveBeenCalled();
+    // Profile already exists
     expect(result.profile.profileToken).toBe('existing-token');
   });
 
@@ -192,8 +193,12 @@ describe('socialAuth', () => {
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
 
-    mockFetchProfileStatus.mockResolvedValueOnce({ exists: false });
-    mockBootstrapProfile.mockResolvedValueOnce({ profileToken: 'fb-profile-token' });
+    mockFetchProfileStatus.mockResolvedValueOnce({
+      exists: false,
+      isComplete: false,
+      profileToken: 'fb-profile-token',
+      source: 'remote'
+    });
 
     const result = await signInWithSocialProvider('facebook');
     expect(result.tokens.idToken).toBe('id-jwt');
@@ -231,7 +236,7 @@ describe('socialAuth', () => {
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
 
-    mockFetchProfileStatus.mockResolvedValueOnce({ exists: true, profileToken: 'p' });
+    mockFetchProfileStatus.mockResolvedValueOnce({ exists: true, isComplete: true, profileToken: 'p', source: 'remote' });
     const result = await signInWithSocialProvider('apple');
     expect(result.user.firstName).toBe('Ada');
     expect(result.user.lastName).toBe('Lovelace');
@@ -413,7 +418,7 @@ describe('socialAuth', () => {
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
 
-    mockFetchProfileStatus.mockResolvedValueOnce({ exists: true, profileToken: 'androidP' });
+    mockFetchProfileStatus.mockResolvedValueOnce({ exists: true, isComplete: true, profileToken: 'androidP', source: 'remote' });
     const result = await signInWithSocialProvider('apple');
     expect(result.tokens.idToken).toBe('id-jwt');
     expect(result.user.firstName).toBe('Ada');

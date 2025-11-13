@@ -55,7 +55,7 @@ export const useSocialAuth = ({
       try {
         const result = await signInWithSocialProvider(provider);
 
-        if (result.profile.exists) {
+        if (result.profile.isComplete) {
           await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
           DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
           await onExistingProfile(result);
@@ -71,7 +71,12 @@ export const useSocialAuth = ({
             firstName: result.initialAttributes.firstName,
             lastName: result.initialAttributes.lastName,
             profilePicture: result.initialAttributes.profilePicture,
+            phone: result.initialAttributes.phone,
+            dateOfBirth: result.initialAttributes.dateOfBirth,
+            address: result.user.address,
           },
+          hasRemoteProfile: result.profile.exists,
+          existingParentProfile: result.profile.parent ?? null,
         };
 
         await AsyncStorage.setItem(

@@ -369,6 +369,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
     openSheet,
     closeSheet,
     deleteSheetRef,
+    handlerOptions: {mode: 'images-only'},
   });
 
   // Ensure upload sheet is available and wired to handlers like DocumentForm

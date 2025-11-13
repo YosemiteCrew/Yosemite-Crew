@@ -41,6 +41,7 @@ const expensesSlice = createSlice({
     clearExpenseError: state => {
       state.error = null;
     },
+    resetExpensesState: () => initialState,
     injectMockExpenses: (state, action: PayloadAction<{companionId: string; expenses: Expense[]}>) => {
       const {companionId, expenses} = action.payload;
       state.items = state.items.filter(item => item.companionId !== companionId);
@@ -161,6 +162,6 @@ const expensesSlice = createSlice({
   },
 });
 
-export const {clearExpenseError, injectMockExpenses} = expensesSlice.actions;
+export const {clearExpenseError, resetExpensesState, injectMockExpenses} = expensesSlice.actions;
 
 export default expensesSlice.reducer;

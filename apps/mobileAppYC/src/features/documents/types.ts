@@ -21,6 +21,7 @@ export interface DocumentFile {
   type: string;
   size: number;
   s3Url?: string;
+  status?: 'pending' | 'ready';
 }
 
 export interface DocumentCategory {
