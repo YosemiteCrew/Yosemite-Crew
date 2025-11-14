@@ -169,7 +169,9 @@ function navigateFromNotificationIntent(
   }
 
   if (intent.root && intent.root !== 'Main') {
-    navigationRef.navigate(intent.root as keyof RootStackParamList);
+    navigationRef.navigate({
+      name: intent.root as keyof RootStackParamList,
+    } as never);
     return;
   }
 

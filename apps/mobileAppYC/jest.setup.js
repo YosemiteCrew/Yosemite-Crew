@@ -11,6 +11,16 @@ if (typeof global.__DEV__ === 'undefined') {
   global.__DEV__ = true;
 }
 
+try {
+  const {Platform} = require('react-native');
+  Platform.constants = Platform.constants || {};
+  Platform.constants.reactNativeVersion = Platform.constants.reactNativeVersion ?? {
+    major: 0,
+    minor: 81,
+    patch: 4,
+  };
+} catch {}
+
 // Suppress warnings from Animated (path changed across RN versions; omit if unavailable)
 try {
   jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
@@ -215,6 +225,71 @@ jest.mock('react-native-safe-area-context', () => {
     initialWindowMetrics: {
       frame: {x: 0, y: 0, width: 0, height: 0},
       insets: {top: 0, right: 0, bottom: 0, left: 0},
+    },
+  };
+});
+
+// Mock NetInfo native module so libraries relying on connectivity checks can run in Jest
+jest.mock('@react-native-community/netinfo', () => {
+  const listeners = new Set();
+  const defaultState = {isConnected: true, isInternetReachable: true};
+  return {
+    __esModule: true,
+    addEventListener: jest.fn((handler) => {
+      listeners.add(handler);
+      handler(defaultState);
+      return () => listeners.delete(handler);
+    }),
+    fetch: jest.fn(() => Promise.resolve(defaultState)),
+    configure: jest.fn(),
+    useNetInfo: () => defaultState,
+  };
+});
+
+// Mock haptic feedback native module
+jest.mock('react-native-haptic-feedback', () => {
+  const trigger = jest.fn();
+  return {
+    __esModule: true,
+    default: {trigger},
+    trigger,
+  };
+});
+
+// Mock Nitro sound recorder used for voice messages
+jest.mock('react-native-nitro-sound', () => {
+  const playListeners = new Set();
+  const recordListeners = new Set();
+  const mockSoundInstance = {
+    setSubscriptionDuration: jest.fn(),
+    addPlayBackListener: jest.fn((listener) => {
+      playListeners.add(listener);
+      return listener;
+    }),
+    addRecordBackListener: jest.fn((listener) => {
+      recordListeners.add(listener);
+      return listener;
+    }),
+    removeRecordBackListener: jest.fn((listener) => recordListeners.delete(listener)),
+    startRecorder: jest.fn(async () => '/tmp/mock-recording.m4a'),
+    stopRecorder: jest.fn(async () => '/tmp/mock-recording.m4a'),
+    startPlayer: jest.fn(async () => undefined),
+    pausePlayer: jest.fn(async () => undefined),
+    resumePlayer: jest.fn(async () => undefined),
+    stopPlayer: jest.fn(async () => undefined),
+  };
+
+  const createSound = jest.fn(() => mockSoundInstance);
+
+  return {
+    __esModule: true,
+    createSound,
+    default: {
+      ...mockSoundInstance,
+      addRecordBackListener: mockSoundInstance.addRecordBackListener,
+      removeRecordBackListener: mockSoundInstance.removeRecordBackListener,
+      startRecorder: mockSoundInstance.startRecorder,
+      stopRecorder: mockSoundInstance.stopRecorder,
     },
   };
 });
