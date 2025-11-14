@@ -1,0 +1,107 @@
+name: CD Frontend
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  detect-frontend:
+    name: Detect if frontend build is affected
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.set.outputs.should_deploy }}
+    steps:
+      - name: Checkout (push-safe)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Compute base SHA
+        id: base
+        run: |
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            # PR scenario (kept for parity, though this workflow is push-only)
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_BRANCH="${{ github.ref_name }}"
+            git fetch origin "$BASE_BRANCH" --depth=50 || true
+            BASE_SHA=$(git merge-base origin/"$BASE_BRANCH" HEAD 2>/dev/null)
+            if [ -z "$BASE_SHA" ]; then
+                BASE_SHA=$(git rev-parse HEAD)
+            fi
+          fi
+          echo "sha=$BASE_SHA" >> $GITHUB_OUTPUT
+
+      - name: Compute if frontend is affected (Turborepo)
+        run: |
+          BASE_SHA="${{ steps.base.outputs.sha }}"
+          echo "Diff base => $BASE_SHA"
+
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            # Only ask Turbo for frontend build tasks since BASE_SHA
+            pnpm dlx turbo run build --filter=frontend...[${BASE_SHA}] --dry=json > affected-frontend.json || echo '{"tasks":[]}' > affected-frontend.json
+          else
+            echo "⚠️ Base SHA not found, assuming frontend is affected"
+            echo '{"tasks":[{"package":"frontend"}]}' > affected-frontend.json
+          fi
+
+          cat affected-frontend.json
+
+      - name: Decide whether to deploy
+        id: set
+        shell: bash
+        run: |
+          node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync("affected-frontend.json","utf8")); const tasks=a.tasks||[]; const has=tasks.length>0; process.stdout.write(`should_deploy=${has}\n`);' >> $GITHUB_OUTPUT
+
+      - name: Show decision
+        run: echo "should-deploy=${{ steps.set.outputs.should_deploy }}"
+
+  deploy-frontend:
+    name: Trigger Amplify deploy (frontend)
+    needs: detect-frontend
+    if: needs.detect-frontend.outputs.should-deploy == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AMPLIFY_WEBHOOK_URL: ${{ secrets.AMPLIFY_WEBHOOK_URL }}
+    steps:
+      - name: Call Amplify webhook
+        run: |
+          if [ -z "$AMPLIFY_WEBHOOK_URL" ]; then
+            echo "AMPLIFY_WEBHOOK_URL secret is not set"
+            exit 1
+          fi
+
+          echo "Triggering Amplify webhook..."
+          status_code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$AMPLIFY_WEBHOOK_URL")
+
+          echo "Webhook HTTP status: $status_code"
+
+          if [ "$status_code" -lt 200 ] || [ "$status_code" -ge 300 ]; then
+            echo "Amplify webhook call failed"
+            exit 1
+          fi
+
+          echo "Amplify webhook triggered successfully ✅"
