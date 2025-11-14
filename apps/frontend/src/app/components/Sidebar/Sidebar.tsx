@@ -17,7 +17,7 @@ const routes = [
   },
   {
     name: "Appointments",
-    href: "#",
+    href: "/appointments",
   },
   {
     name: "Tasks",
@@ -25,7 +25,7 @@ const routes = [
   },
   {
     name: "Chat",
-    href: "#",
+    href: "/chat",
   },
   {
     name: "Finance",
