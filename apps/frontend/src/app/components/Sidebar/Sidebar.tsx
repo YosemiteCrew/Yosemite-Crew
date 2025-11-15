@@ -17,7 +17,7 @@ const routes = [
   },
   {
     name: "Appointments",
-    href: "#",
+    href: "/appointments",
   },
   {
     name: "Tasks",
