@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   BackHandler,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -30,6 +31,12 @@ import DeleteAccountBottomSheet, {
 import {AccountMenuList} from '@/features/account/components/AccountMenuList';
 import {Header} from '@/shared/components/common/Header/Header';
 import {calculateAgeFromDateOfBirth, truncateText} from '@/shared/utils/helpers';
+import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
+import {deleteParentProfile} from '@/features/account/services/profileService';
+import {
+  deleteAmplifyAccount,
+  deleteFirebaseAccount,
+} from '@/features/auth/services/accountDeletion';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -52,12 +59,13 @@ type MenuItem = {
 
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
-  const {logout} = useAuth();
+  const {logout, provider} = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const authUser = useSelector(selectAuthUser);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Get companions from the Redux store
   const companionsFromStore = useSelector(selectCompanions);
@@ -164,10 +172,58 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     deleteSheetRef.current?.open();
   }, []);
 
+  const deriveDeletionErrorMessage = (error: unknown): string => {
+    const baseMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : 'Failed to delete your account. Please try again.';
+
+    const normalized = baseMessage.toLowerCase();
+    if (
+      normalized.includes('recent login') ||
+      normalized.includes('requires-recent-login') ||
+      normalized.includes('reauthenticate')
+    ) {
+      return 'For security reasons, please sign out, sign back in, and then try deleting your account again.';
+    }
+
+    return baseMessage || 'Failed to delete your account. Please try again.';
+  };
+
   const handleDeleteAccount = React.useCallback(async () => {
-    setIsDeleteSheetOpen(false);
-    await logout();
-  }, [logout]);
+    if (!authUser?.id) {
+      throw new Error('Unable to delete account. Missing user identifier.');
+    }
+
+    try {
+      setIsDeletingAccount(true);
+      const tokens = await loadStoredTokens();
+      const accessToken = tokens?.accessToken;
+
+      if (!accessToken) {
+        throw new Error('Please sign in again before deleting your account.');
+      }
+
+      await deleteParentProfile(authUser.id, accessToken);
+
+      if (provider === 'amplify') {
+        await deleteAmplifyAccount();
+      } else if (provider === 'firebase') {
+        await deleteFirebaseAccount();
+      }
+
+      setIsDeleteSheetOpen(false);
+      await logout();
+    } catch (error) {
+      const message = deriveDeletionErrorMessage(error);
+      Alert.alert('Delete Failed', message);
+      throw new Error(message);
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }, [authUser?.id, logout, provider]);
 
   const handleLogoutPress = React.useCallback(() => {
     logout().catch(error => {
@@ -346,6 +402,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         ref={deleteSheetRef}
         email={authUser?.email}
         onDelete={handleDeleteAccount}
+        isProcessing={isDeletingAccount}
       />
     </SafeAreaView>
   );
