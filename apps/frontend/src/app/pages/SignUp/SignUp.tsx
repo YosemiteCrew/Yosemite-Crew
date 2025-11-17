@@ -1,7 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Col, Form, Row } from "react-bootstrap";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { GoCheckCircleFill } from "react-icons/go";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
@@ -14,9 +15,24 @@ import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 
 import "./SignUp.css";
 
-const SignUp = () => {
+type SignUpProps = {
+  postAuthRedirect?: string;
+  signinHref?: string;
+  allowNext?: boolean;
+  isDeveloper?: boolean;
+};
+
+const SignUp = ({
+  postAuthRedirect = "/create-org",
+  signinHref = "/signin",
+  allowNext = true,
+  isDeveloper = false,
+}: Readonly<SignUpProps>) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
-  const { signUp } = useAuthStore();
+  const { signUp, user } = useAuthStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = allowNext ? searchParams.get("next") : null;
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -37,6 +53,15 @@ const SignUp = () => {
     subscribe?: string;
     agree?: string;
   }>({});
+
+  useEffect(() => {
+    if (user) {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("devAuth", isDeveloper ? "true" : "false");
+      }
+      router.push(next || postAuthRedirect);
+    }
+  }, [user, router, next, postAuthRedirect, isDeveloper]);
 
   const validateSignUpInputs = (
     firstName: string,
@@ -100,11 +125,21 @@ const SignUp = () => {
     }
 
     try {
-      const result = await signUp(email, password, firstName, lastName);
+      const result = await signUp(
+        email,
+        password,
+        firstName,
+        lastName,
+        isDeveloper ? "developer" : "member"
+      );
 
       if (result) {
         if (globalThis.window) {
           window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        if (typeof window !== "undefined") {
+          // Temporary fallback until custom:role is available in the pool
+          window.sessionStorage.setItem("devAuth", isDeveloper ? "true" : "false");
         }
         setShowVerifyModal(true);
       }
@@ -290,8 +325,8 @@ const SignUp = () => {
                 />
                 {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
                 <h6>
-                  {" "}
-                  Already have an account? <Link href="/signin">Sign In</Link>
+              {" "}
+                  Already have an account? <Link href={signinHref}>Sign In</Link>
                 </h6>
               </div>
             </Form>

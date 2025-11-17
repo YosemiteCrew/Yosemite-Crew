@@ -6,12 +6,14 @@ import Cookies from "./Cookies/Cookies";
 import Github from "./Github/Github";
 import { useAuthStore } from "../stores/authStore";
 import Sidebar from "./Sidebar/Sidebar";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const publicRoutes = new Set([
   "/",
   "/signin",
   "/signup",
+  "/developers/signin",
+  "/developers/signup",
   "/forgot-password",
   "/about",
   "/application",
@@ -22,15 +24,34 @@ const publicRoutes = new Set([
   "/pricing",
   "/privacy-policy",
   "/terms-and-conditions",
+  "/settings",
 ]);
-
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
-  const { checkSession } = useAuthStore();
+  const { checkSession, status, role, signout } = useAuthStore();
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     checkSession();
   }, [checkSession]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    const isDevRoute = pathname.startsWith("/developers");
+    const isPublic = publicRoutes.has(pathname);
+    const devFlag =
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in the token
+    const isDevRole = role === "developer" || (!role && devFlag);
+
+    if (isDevRoute && !isDevRole && !isPublic) {
+      signout();
+      router.replace("/developers/signin");
+    } else if (!isDevRoute && isDevRole && !isPublic) {
+      router.replace("/developers/home");
+    }
+  }, [pathname, router, role, status, signout]);
 
   return (
     <>

@@ -6,51 +6,34 @@ import { useAuthStore } from "@/app/stores/authStore";
 
 import "./Sidebar.css";
 
-const routes = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-  },
-  {
-    name: "Organisation",
-    href: "/organizations",
-  },
-  {
-    name: "Appointments",
-    href: "#",
-  },
-  {
-    name: "Tasks",
-    href: "#",
-  },
-  {
-    name: "Chat",
-    href: "/chat",
-  },
-  {
-    name: "Finance",
-    href: "#",
-  },
-  {
-    name: "Companions",
-    href: "/companions",
-  },
-  {
-    name: "Inventory",
-    href: "#",
-  },
-  {
-    name: "Forms",
-    href: "#",
-  },
-  {
-    name: "Settings",
-    href: "#",
-  },
-  {
-    name: "Sign out",
-    href: "#",
-  },
+type RouteItem = {
+  name: string;
+  href: string;
+  icon?: string;
+};
+
+const appRoutes: RouteItem[] = [
+  { name: "Dashboard", href: "/dashboard" },
+  { name: "Organisation", href: "/organizations" },
+  { name: "Appointments", href: "#" },
+  { name: "Tasks", href: "#" },
+  { name: "Chat", href: "/chat" },
+  { name: "Finance", href: "#" },
+  { name: "Companions", href: "/companions" },
+  { name: "Inventory", href: "#" },
+  { name: "Forms", href: "#" },
+  { name: "Settings", href: "/settings" },
+  { name: "Sign out", href: "#" },
+];
+
+const devRoutes: RouteItem[] = [
+  { name: "Dashboard", href: "/developers/home" },
+  { name: "API Keys", href: "/developers/api-keys" },
+  { name: "Website - Builder", href: "/developers/website-builder" },
+  { name: "Plugins", href: "/developers/plugins" },
+  { name: "Documentation", href: "/developers/documentation" },
+  { name: "Settings", href: "/developers/settings" },
+  { name: "Sign out", href: "#" },
 ];
 
 const Sidebar = () => {
@@ -58,10 +41,14 @@ const Sidebar = () => {
   const router = useRouter();
   const { signout } = useAuthStore();
 
+  const isDevPortal = pathname?.startsWith("/developers") || false;
+  const routes = isDevPortal ? devRoutes : appRoutes;
+
   const handleLogout = async () => {
     try {
       signout();
       console.log("✅ Signed out using Cognito signout");
+      router.replace(isDevPortal ? "/developers/signin" : "/signin");
     } catch (error) {
       console.error("⚠️ Cognito signout error:", error);
     }
@@ -84,7 +71,7 @@ const Sidebar = () => {
           href={route.href}
           onClick={() => handleClick(route)}
         >
-          {route.name}
+          <span className="route-label">{route.name}</span>
         </Link>
       ))}
     </div>
