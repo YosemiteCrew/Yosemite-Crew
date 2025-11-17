@@ -7,6 +7,8 @@ import {
   GoogleAuthProvider,
   FacebookAuthProvider,
   AppleAuthProvider,
+  getIdToken,
+  getIdTokenResult,
 } from '@react-native-firebase/auth';
 import type {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import {GoogleSignin, statusCodes as GoogleStatusCodes} from '@react-native-google-signin/google-signin';
@@ -77,8 +79,8 @@ const buildTokens = async (
   user: FirebaseAuthTypes.User,
 ): Promise<Pick<AuthTokens, 'idToken' | 'accessToken' | 'expiresAt' | 'userId'>> => {
   // Avoid forcing refresh to reduce deprecation noise; rely on Firebase to refresh as needed
-  const idToken = await user.getIdToken();
-  const idTokenResult = await user.getIdTokenResult();
+  const idToken = await getIdToken(user);
+  const idTokenResult = await getIdTokenResult(user);
   const expiresAtTimestamp = idTokenResult?.expirationTime
     ? new Date(idTokenResult.expirationTime).getTime()
     : undefined;
