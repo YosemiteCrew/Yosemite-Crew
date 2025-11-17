@@ -17,6 +17,9 @@
   border-radius: 16px;
   border: 1px solid var(--lightgrey);
   color: var(--notibg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--grotesk-font);
   font-size: 19px;
   font-style: normal;
@@ -29,6 +32,13 @@
   color: var(--blue-text);
   background-color: var(--lightblue) !important;
   border: 1px solid var(--blue-text);
+}
+.route-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .route:hover {
   background-color: var(--lightgrey);

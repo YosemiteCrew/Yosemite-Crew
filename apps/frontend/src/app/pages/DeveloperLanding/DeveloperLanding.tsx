@@ -1,14 +1,27 @@
 "use client";
 import React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import LaunchGrowTab from "@/app/components/LaunchGrowTab/LaunchGrowTab";
 import Footer from "@/app/components/Footer/Footer";
 
 import "./DeveloperLanding.css";
 import { Primary } from "@/app/components/Buttons";
+import { useAuthStore } from "@/app/stores/authStore";
 
 const DeveloperLanding = () => {
+  const router = useRouter();
+  const { status, user } = useAuthStore();
+
+  const handleDeveloperCTA = () => {
+    const target =
+      status === "authenticated" && user
+        ? "/developers/home"
+        : "/developers/signin";
+    router.push(target);
+  };
+
   return (
     <>
       <section className="DevlpHeroSec">
@@ -28,7 +41,11 @@ const DeveloperLanding = () => {
                 </p>
               </div>
               <div className="DevbanrBtn">
-                <Primary href="/developers" text="Developer portal" />
+                <Primary
+                  href="/developers/signin"
+                  onClick={handleDeveloperCTA}
+                  text="Developer portal"
+                />
               </div>
             </div>
             <div className="RytDevBanr ">
@@ -174,7 +191,12 @@ const DeveloperLanding = () => {
           <div className="StepsData">
             <div className="leftSimpleStep">
               <h2>Get started in three simple steps</h2>
-              <Primary href="/developers" text="Developer portal" style={{ width: "100%" }} />
+              <Primary
+                href="/developers/signin"
+                onClick={handleDeveloperCTA}
+                text="Developer portal"
+                style={{ width: "100%" }}
+              />
             </div>
             <div className="RytSimpleStep">
               <div className="Stepitems">

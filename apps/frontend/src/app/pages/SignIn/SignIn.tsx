@@ -14,14 +14,26 @@ import { Primary } from "@/app/components/Buttons";
 
 import "./SignIn.css";
 
-const SignIn = () => {
+type SignInProps = {
+  redirectPath?: string;
+  signupHref?: string;
+  allowNext?: boolean;
+  isDeveloper?: boolean;
+};
+
+const SignIn = ({
+  redirectPath = "/organizations",
+  signupHref = "/signup",
+  allowNext = true,
+  isDeveloper = false,
+}: Readonly<SignInProps>) => {
   const { signIn, resendCode } = useAuthStore();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next");
-  const { user, status } = useAuthStore();
+  const next = allowNext ? searchParams.get("next") : null;
+  const { user, status, role } = useAuthStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,10 +45,26 @@ const SignIn = () => {
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated" && user) {
-      router.replace(next || "/organizations");
+    if (status !== "authenticated" || !user) return;
+    const isDevRole = role === "developer";
+    const devFlag =
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in place
+
+    if (isDeveloper) {
+      if (isDevRole || (!role && devFlag)) {
+        router.replace(next || redirectPath);
+      } else {
+        router.replace("/signin");
+      }
+    } else {
+      if (isDevRole || (!role && devFlag)) {
+        router.replace("/developers/home");
+      } else {
+        router.replace(next || redirectPath);
+      }
     }
-  }, [status, user, next, router]);
+  }, [status, user, next, router, redirectPath, isDeveloper, role]);
 
   const handleCodeResendonError = async () => {
     try {
@@ -77,6 +105,10 @@ const SignIn = () => {
 
     try {
       await signIn(email, password);
+      if (typeof window !== "undefined") {
+        // Temporary fallback until custom:role attribute is available in the pool
+        window.sessionStorage.setItem("devAuth", isDeveloper ? "true" : "false");
+      }
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
         await handleCodeResendonError();
@@ -135,7 +167,7 @@ const SignIn = () => {
             />
             <h6>
               {" "}
-              Don&apos;t have an account? <Link href="/signup">Sign up</Link>
+              Don&apos;t have an account? <Link href={signupHref}>Sign up</Link>
             </h6>
           </div>
         </Form>
