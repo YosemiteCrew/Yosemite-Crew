@@ -173,12 +173,14 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   }, []);
 
   const deriveDeletionErrorMessage = (error: unknown): string => {
-    const baseMessage =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : 'Failed to delete your account. Please try again.';
+    let baseMessage: string;
+    if (error instanceof Error) {
+      baseMessage = error.message;
+    } else if (typeof error === 'string') {
+      baseMessage = error;
+    } else {
+      baseMessage = 'Failed to delete your account. Please try again.';
+    }
 
     const normalized = baseMessage.toLowerCase();
     if (

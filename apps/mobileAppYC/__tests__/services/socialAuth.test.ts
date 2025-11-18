@@ -23,6 +23,8 @@ const mockAuthUser = () => ({
 jest.mock('uuid', () => ({ v4: jest.fn(() => 'nonce-123') }));
 
 const mockFirebaseAuth = {
+  getIdToken: jest.fn(async user => user.getIdToken()),
+  getIdTokenResult: jest.fn(async user => user.getIdTokenResult()),
   getAuth: jest.fn(() => ({ /* auth instance */ })),
   signInWithCredential: jest.fn(async (_auth, _cred) => ({
     user: mockAuthUser(),
