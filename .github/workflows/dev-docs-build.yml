@@ -13,6 +13,8 @@ jobs:
   build-dev-docs:
     name: Build dev-docs (Docusaurus)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
