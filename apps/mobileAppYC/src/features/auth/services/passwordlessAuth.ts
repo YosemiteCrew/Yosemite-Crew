@@ -252,6 +252,17 @@ export const completePasswordlessSignIn = async (
     userId: authUser.userId,
   });
 
+  // Console logs for Cognito/Amplify authentication
+  console.log('╔════════════════════════════════════════╗');
+  console.log('║   COGNITO/AMPLIFY - EMAIL OTP LOGIN   ║');
+  console.log('╚════════════════════════════════════════╝');
+  console.log('JWT (ID Token):', idToken);
+  console.log('Access Token:', accessToken);
+  console.log('User ID:', authUser.userId);
+  console.log('Email:', attributes.email);
+  console.log('Provider: amplify');
+  console.log('═══════════════════════════════════════');
+
   return {
     user: authUser,
     attributes,

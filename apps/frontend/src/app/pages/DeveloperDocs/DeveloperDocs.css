@@ -1,0 +1,72 @@
+.DocsWrapper {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100vh - 80px);
+  background: #f8fafc;
+  padding-bottom: 32px;
+}
+
+.DocsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.DocsBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #1c3f7a;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.DocsBackLink:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  text-decoration: none;
+}
+
+.DocsOpenLink {
+  color: #1c3f7a;
+  font-weight: 600;
+}
+
+.DocsOpenLink:hover {
+  text-decoration: underline;
+}
+
+.DocsFrame {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  min-height: calc(100vh - 140px);
+  height: calc(100vh - 140px);
+  max-height: none;
+}
+
+.DocsFrame iframe {
+  display: block;
+  border: none;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+}
+
+@media (max-width: 767px) {
+  .DocsFrame {
+    min-height: calc(100vh - 200px);
+    height: calc(100vh - 200px);
+  }
+}

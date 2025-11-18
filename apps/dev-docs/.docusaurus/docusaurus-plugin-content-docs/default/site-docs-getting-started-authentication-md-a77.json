@@ -1,0 +1,24 @@
+{
+  "id": "getting-started/authentication",
+  "title": "authentication",
+  "description": "title: Authentication",
+  "source": "@site/docs/getting-started/authentication.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/authentication",
+  "permalink": "/dev-docs/getting-started/authentication",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": null,
+  "frontMatter": {},
+  "sidebar": "docs",
+  "previous": {
+    "title": "quickstart",
+    "permalink": "/dev-docs/getting-started/quickstart"
+  },
+  "next": {
+    "title": "overview",
+    "permalink": "/dev-docs/api/overview"
+  }
+}
