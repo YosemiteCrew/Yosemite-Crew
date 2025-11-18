@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import logger from "src/utils/logger";
 
 // Resolve UserID
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
@@ -38,6 +39,7 @@ export const AuthUserMobileController = {
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Unable to sign up user.";
+      logger.error(`${message}`)
       return res.status(500).json({ success: false, message });
     }
   },
