@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import SignUp from "@/app/pages/SignUp/SignUp";
@@ -15,7 +15,11 @@ function Page() {
     }
   }, [user, router]);
 
-  return <SignUp />;
+  return (
+    <Suspense fallback={null}>
+      <SignUp />
+    </Suspense>
+  );
 }
 
 export default Page;
