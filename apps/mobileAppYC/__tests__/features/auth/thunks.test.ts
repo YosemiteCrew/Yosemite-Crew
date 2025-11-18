@@ -22,6 +22,7 @@ jest.mock('@react-native-firebase/auth', () => ({
     currentUser: null,
     signOut: jest.fn(),
   })),
+  signOut: jest.fn(async auth => auth?.signOut?.()),
 }));
 
 const createTestStore = () => {
