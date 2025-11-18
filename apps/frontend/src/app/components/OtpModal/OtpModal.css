@@ -1,20 +1,26 @@
 .VerifyModalSec {
   padding: 24px 44px;
   border-radius: 24px;
-  min-width: 595px;
+  width: 100%;
+  max-width: 595px;
   background: var(--whitebg);
+  box-sizing: border-box;
+  margin: 0 auto;
 }
+
 .VerifyModalSec .modal-body {
-  padding: 0px !important;
+  padding: 0 !important;
   display: flex;
   flex-direction: column;
   gap: 53px;
 }
+
 .VerifyModalSec .modal-body .VerifyModalTopInner {
   display: flex;
   flex-direction: column;
   gap: 50px;
 }
+
 .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted {
   display: flex;
   flex-direction: column;
@@ -22,6 +28,7 @@
   align-items: center;
   text-align: center;
 }
+
 .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h2 {
   font-weight: 500;
   font-size: 40px;
@@ -30,6 +37,7 @@
   margin: 0;
   color: var(--black-text);
 }
+
 .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h6 {
   font-weight: 700;
   font-size: 18px;
@@ -38,9 +46,11 @@
   margin: 0;
   color: var(--black-text);
 }
+
 .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h6 span {
   font-weight: 900;
 }
+
 .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted p {
   font-weight: 400;
   font-size: 18px;
@@ -49,11 +59,12 @@
   margin: 0;
   color: var(--black-text);
 }
+
 .VerifyModalSec .modal-body .VerifyModalTopInner .verifyInput {
   max-width: 415px;
   margin: 0 auto;
-  margin-bottom: 0 !important;
 }
+
 .VerifyModalSec .modal-body .VerifyModalBottomInner {
   display: flex;
   flex-direction: column;
@@ -61,6 +72,7 @@
   align-items: center;
   text-align: center;
 }
+
 .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv {
   display: flex;
   flex-direction: column;
@@ -68,11 +80,13 @@
   align-items: center;
   text-align: center;
 }
+
 .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv button {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 415px;
+  width: 100%;
+  max-width: 415px;
   min-height: 60px;
   border-radius: 36px;
   padding: 10px 32px;
@@ -85,6 +99,7 @@
   font-family: var(--grotesk-font);
   border: 1px solid var(--black-bg) !important;
 }
+
 .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv span {
   color: var(--notibg);
   font-weight: 500;
@@ -92,11 +107,14 @@
   line-height: 120%;
   font-family: var(--grotesk-font);
 }
+
 .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+  flex-wrap: wrap;
 }
+
 .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent a {
   font-family: var(--grotesk-font);
   font-weight: 500;
@@ -104,11 +122,8 @@
   line-height: 120%;
   color: var(--black-text);
 }
-.VerifyModalSec
-  .modal-body
-  .VerifyModalBottomInner
-  .VerifyResent
-  a:first-child {
+
+.VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent a:first-child {
   color: var(--blue-text);
 }
 
@@ -117,6 +132,7 @@
   flex-direction: column;
   gap: 12px;
 }
+
 .verifyInputDiv p {
   color: var(--delete);
   font-weight: 700;
@@ -136,6 +152,7 @@
   justify-content: center;
   gap: 10px;
 }
+
 .verifyInput input {
   width: 60px;
   height: 80px;
@@ -151,6 +168,24 @@
 }
 
 @media screen and (max-width: 768px) {
+  .VerifyModalSec {
+    padding: 20px 24px;
+    max-width: 90%;
+  }
+
+  .VerifyModalSec .modal-body {
+    gap: 40px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h2 {
+    font-size: 32px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted p,
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h6 {
+    font-size: 16px;
+  }
+
   .verifyInput input {
     width: 50px;
     height: 70px;
@@ -158,8 +193,98 @@
 }
 
 @media screen and (max-width: 500px) {
+  .VerifyModalSec {
+    padding: 16px 18px;
+    max-width: 95%;
+    border-radius: 16px;
+  }
+
+  .VerifyModalSec .modal-body {
+    gap: 32px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h2 {
+    font-size: 26px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted p,
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h6 {
+    font-size: 14px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv button {
+    min-height: 52px;
+    font-size: 18px;
+  }
+
   .verifyInput input {
-    width: 40px;
+    width: 42px;
     height: 55px;
+  }
+}
+
+.modal.show .modal-dialog {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 auto !important;
+}
+
+@media screen and (max-width: 500px) {
+  .modal.show .modal-dialog {
+    padding: 0 10px;
+  }
+}
+
+@media screen and (max-width: 360px) {
+  .VerifyModalSec {
+    min-width: unset;
+    width: 90vw;
+    padding: 16px 20px;
+    border-radius: 16px;
+  }
+
+  .verifyInput input {
+    width: 32px;
+    height: 48px;
+    font-size: 16px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h2 {
+    font-size: 28px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h6,
+  .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted p {
+    font-size: 15px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner {
+    gap: 22px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalTopInner .verifyInput {
+    margin-top: 6px;
+    margin-bottom: 6px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv button {
+    min-width: 100%;
+    min-height: 50px;
+    font-size: 18px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv {
+    gap: 8px;
+  }
+
+  .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent a,
+  .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv span {
+    font-size: 15px;
+  }
+
+  .modal.show .modal-dialog {
+    padding: 0 10px;
+    justify-content: center !important;
   }
 }

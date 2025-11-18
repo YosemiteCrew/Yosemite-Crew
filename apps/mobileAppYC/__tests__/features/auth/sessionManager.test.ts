@@ -17,13 +17,13 @@ import {
   loadStoredTokens,
   storeTokens,
 } from '@/features/auth/services/tokenStorage';
-import {fetchProfileStatus} from '@/features/profile/services/profileService';
+import {fetchProfileStatus} from '@/features/account/services/profileService';
 import type {User} from '@/features/auth/types';
 
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage');
 jest.mock('@/features/auth/services/tokenStorage');
-jest.mock('@/features/profile/services/profileService');
+jest.mock('@/features/account/services/profileService');
 jest.mock('@react-native-firebase/auth');
 jest.mock('aws-amplify/auth');
 
@@ -166,6 +166,7 @@ describe('sessionManager', () => {
       });
       mockFetchProfileStatus.mockResolvedValue({
         exists: true,
+        isComplete: true,
         profileToken: 'profile-token',
         source: 'remote',
       });
@@ -205,6 +206,7 @@ describe('sessionManager', () => {
       mockAsyncStorage.getItem.mockResolvedValue(null);
       mockFetchProfileStatus.mockResolvedValue({
         exists: false,
+        isComplete: false,
         profileToken: 'test-profile-token',
         source: 'remote',
       });
@@ -234,15 +236,26 @@ describe('sessionManager', () => {
         currentUser: mockFirebaseUser,
       } as any);
 
-      mockAsyncStorage.getItem.mockResolvedValue(
-        JSON.stringify({
-          id: 'firebase-user-123',
-          email: 'firebase@example.com',
-          firstName: 'Firebase',
-          lastName: 'User',
-          profileToken: 'firebase-profile-token',
-        }),
-      );
+      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === '@user_data') {
+          return JSON.stringify({
+            id: 'firebase-user-123',
+            email: 'firebase@example.com',
+            firstName: 'Firebase',
+            lastName: 'User',
+            profileToken: 'firebase-profile-token',
+            profileCompleted: true,
+          });
+        }
+        return null; // No pending profile
+      });
+
+      mockFetchProfileStatus.mockResolvedValue({
+        exists: true,
+        isComplete: true,
+        profileToken: 'firebase-profile-token',
+        source: 'remote',
+      });
 
       const result = await recoverAuthSession();
 
@@ -279,6 +292,7 @@ describe('sessionManager', () => {
 
       mockFetchProfileStatus.mockResolvedValue({
         exists: true,
+        isComplete: true,
         profileToken: 'new-profile-token',
         source: 'remote',
       });

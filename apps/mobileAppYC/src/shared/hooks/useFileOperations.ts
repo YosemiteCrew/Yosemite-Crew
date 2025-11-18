@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {useDocumentFileHandlers} from './useDocumentFileHandlers';
+import {useDocumentFileHandlers, type DocumentFileHandlerOptions} from './useDocumentFileHandlers';
 import type {DocumentFile} from '@/features/documents/types';
 
 interface FileOperationsConfig<T extends DocumentFile> {
@@ -9,6 +9,7 @@ interface FileOperationsConfig<T extends DocumentFile> {
   openSheet: (sheetName: string) => void;
   closeSheet: () => void;
   deleteSheetRef: React.RefObject<any>;
+  handlerOptions?: DocumentFileHandlerOptions;
 }
 
 export const useFileOperations = <T extends DocumentFile>({
@@ -18,6 +19,7 @@ export const useFileOperations = <T extends DocumentFile>({
   openSheet,
   closeSheet,
   deleteSheetRef,
+  handlerOptions,
 }: FileOperationsConfig<T>) => {
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
 
@@ -26,6 +28,7 @@ export const useFileOperations = <T extends DocumentFile>({
       files,
       setFiles,
       clearError,
+      options: handlerOptions,
     });
 
   const handleRemoveFile = (fileId: string) => {

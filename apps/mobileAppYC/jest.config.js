@@ -14,6 +14,7 @@ module.exports = {
   setupFilesAfterEnv: [
     // Load RN's setup after env so it is transformed by Babel (ESM in RN >=0.81)
     'react-native/jest/setup',
+    './node_modules/@react-native-documents/picker/jest/build/jest/setup.js',
     '<rootDir>/jest.setup.js',
   ],
   transform: {
@@ -21,7 +22,7 @@ module.exports = {
   },
   // Allow RN and related packages to be transformed, even within pnpm's virtual store
   transformIgnorePatterns: [
-    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|@react-native|@react-native-community|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid)/)'
+    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime)/)'
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   moduleNameMapper: {

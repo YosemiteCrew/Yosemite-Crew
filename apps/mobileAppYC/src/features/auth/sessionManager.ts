@@ -11,7 +11,8 @@ import {
   storeTokens,
   type StoredAuthTokens,
 } from '@/features/auth/services/tokenStorage';
-import {fetchProfileStatus} from '@/features/profile/services/profileService';
+import {fetchProfileStatus, type ParentProfileSummary} from '@/features/account/services/profileService';
+import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 
 import type {AuthProvider, NormalizedAuthTokens, User} from './types';
 
@@ -208,26 +209,33 @@ const resolveProfileTokenForUser = async (
     existingProfileToken?: string | null;
     accessToken: string;
     userId: string;
-    email: string;
   },
   sourceLabel: 'Amplify' | 'Firebase',
-): Promise<{status: 'resolved'; token?: string | null} | PendingProfileResult> => {
-  if (params.existingProfileToken) {
-    return {status: 'resolved', token: params.existingProfileToken};
-  }
-
+): Promise<
+  | {
+      status: 'resolved';
+      token?: string | null;
+      parent?: ParentProfileSummary;
+      isComplete?: boolean;
+    }
+  | PendingProfileResult
+> => {
   try {
     const profileStatus = await fetchProfileStatus({
       accessToken: params.accessToken,
       userId: params.userId,
-      email: params.email,
     });
 
-    if (!profileStatus.exists && profileStatus.source === 'remote') {
+    if (!profileStatus.isComplete && profileStatus.source === 'remote') {
       return {kind: 'pendingProfile'};
     }
 
-    return {status: 'resolved', token: profileStatus.profileToken};
+    return {
+      status: 'resolved',
+      token: profileStatus.profileToken ?? params.existingProfileToken,
+      parent: profileStatus.parent,
+      isComplete: profileStatus.isComplete,
+    };
   } catch (error) {
     console.warn(
       `[Auth] Failed to resolve profile status during ${sourceLabel} refresh`,
@@ -282,7 +290,6 @@ const attemptAmplifyRecovery = async (
         existingProfileToken,
         accessToken,
         userId: authUser.userId,
-        email: mapped.email ?? authUser.username,
       },
       'Amplify',
     );
@@ -291,11 +298,12 @@ const attemptAmplifyRecovery = async (
       return profileTokenResult;
     }
 
-    const hydratedUser = buildAmplifyUser(
-      authUser,
-      mapped,
-      profileTokenResult.token,
-    );
+    const baseUser = buildAmplifyUser(authUser, mapped, profileTokenResult.token);
+    const mergedUser = mergeUserWithParentProfile(baseUser, profileTokenResult.parent);
+    const hydratedUser: User = {
+      ...mergedUser,
+      profileCompleted: profileTokenResult.isComplete ?? mergedUser.profileCompleted,
+    };
 
     const expiresAtSeconds =
       session.tokens?.idToken?.payload?.exp ??
@@ -352,7 +360,6 @@ const attemptFirebaseRecovery = async (
         existingProfileToken,
         accessToken: idToken,
         userId: firebaseUser.uid,
-        email: firebaseUser.email ?? existingUser?.email ?? '',
       },
       'Firebase',
     );
@@ -366,7 +373,7 @@ const attemptFirebaseRecovery = async (
       ? new Date(tokenResult.expirationTime).getTime()
       : undefined;
 
-    const hydratedUser: User = {
+    const baseUser: User = {
       id: firebaseUser.uid,
       email: firebaseUser.email ?? existingUser?.email ?? '',
       firstName: existingUser?.firstName,
@@ -376,6 +383,12 @@ const attemptFirebaseRecovery = async (
       profilePicture:
         existingUser?.profilePicture ?? firebaseUser.photoURL ?? undefined,
       profileToken: profileTokenResult.token ?? existingProfileToken ?? undefined,
+      address: existingUser?.address,
+    };
+    const mergedUser = mergeUserWithParentProfile(baseUser, profileTokenResult.parent);
+    const hydratedUser: User = {
+      ...mergedUser,
+      profileCompleted: profileTokenResult.isComplete ?? mergedUser.profileCompleted,
     };
 
     const normalizedTokens = normalizeTokens(

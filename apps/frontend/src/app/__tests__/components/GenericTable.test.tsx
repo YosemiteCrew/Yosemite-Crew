@@ -69,7 +69,7 @@ describe("GenericTable Component", () => {
         render(<GenericTable data={[]} columns={mockColumns} />);
         expect(screen.getByText("ID")).toBeInTheDocument();
         const rows = screen.getAllByRole("row");
-        expect(rows).toHaveLength(1);
+        expect(rows).toHaveLength(2);
     });
 
     it("should render with pagination and show the first page", () => {

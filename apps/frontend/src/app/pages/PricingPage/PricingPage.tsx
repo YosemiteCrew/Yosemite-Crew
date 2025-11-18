@@ -1,303 +1,201 @@
 "use client";
 import React, { useState } from "react";
-import {
-  Card,
-  Container,
-  Form,
-  Table,
-  ToggleButton,
-  ToggleButtonGroup,
-} from "react-bootstrap";
-import { Icon } from "@iconify/react/dist/iconify.js";
-import Image from "next/image";
 import Link from "next/link";
+import { IoIosCheckmark } from "react-icons/io";
 
-import { getPlanConfig } from "@/app/pages/PricingPage/PricingConst";
 import Faq from "@/app/components/Faq/Faq";
 import Footer from "@/app/components/Footer/Footer";
-import { pricingPlans, planFeatures, featuresData } from "./data.json";
-import { Primary } from "@/app/components/Buttons";
+import { PricingPlans, TableData } from "./data";
 
 import "./PricingPage.css";
 
-const PricingPage = () => {
-  // Pricing Calculator Started
-  const [plan, setPlan] = useState<"self" | "custom">("self");
-  const [appointments, setAppointments] = useState(120);
-  const [assessments, setAssessments] = useState(200);
-  const [seats, setSeats] = useState(2);
-  const planConfig = getPlanConfig({
-    appointments,
-    setAppointments,
-    assessments,
-    setAssessments,
-    seats,
-    setSeats,
-  });
-  const currentPlan = planConfig[plan];
+const renderCell = (text: string) => {
+  if (text === "yes") {
+    return <IoIosCheckmark size={20} color="#595958" />
+  } else if (text === "no") {
+    return "-"
+  } else{
+    return text;
+  }
+}
 
-  // Add this useEffect to set initial progress values
-  React.useEffect(() => {
-    const sliders = document.querySelectorAll(".styled-range");
-    for (const el of sliders ?? []) {
-      const input = el as HTMLInputElement;
-      const min = Number(input.min) || 0;
-      const max = Number(input.max) || 100;
-      const value = Number(input.value) || 0;
-      const pct = ((value - min) / (max - min)) * 100;
-      input.style.setProperty("--progress", `${pct}%`);
-    }
-  }, [plan, appointments, assessments, seats]);
-  // Pricing Calculator Ended
+const PricingPage = () => {
+  const [activeCycle, setActiveCycle] = useState("monthly");
 
   return (
     <>
       <section className="pricingSection">
-        <Container>
-          <div className="PricingData">
-            <div className="PricingPage-header">
-              <div className="PriceBackdiv">
-                {/* <Link href="/"><Icon icon="solar:round-arrow-left-bold" width="24" height="24" /></Link> */}
-                <div className="PricinhHeadquote">
-                  <h2>Transparent pricing, no hidden fees</h2>
-                  <p>
-                    Choose a pricing plan that fits your preferred hosting
-                    option whether you go for our fully managed cloud hosting or
-                    take control with self-hosting.
-                  </p>
+        <div className="PricingData">
+          <div className="PricingPage-header">
+            <div className="PriceBackdiv">
+              <div className="PricinhHeadquote">
+                <h2>Transparent pricing, no hidden fees</h2>
+                <p>
+                  Choose a plan that fits your pet-care practice. Upgrade
+                  anytime as you grow.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 flex-col w-full max-w-5xl">
+              <div className="w-full flex items-center justify-between gap-3 flex-col sm:flex-row">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setActiveCycle("monthly")}
+                    className={`${activeCycle === "monthly" ? "border-blue-text! bg-blue-light text-blue-text" : "border-black-text!"} px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
+                  >
+                    Pay monthly
+                  </button>
+                  <button
+                    onClick={() => setActiveCycle("yearly")}
+                    className={`${activeCycle === "yearly" ? "border-blue-text! bg-blue-light text-blue-text" : "border-black-text!"} px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
+                  >
+                    Pay yearly
+                  </button>
+                </div>
+                <div className="flex-1 flex justify-between gap-3 sm:gap-0">
+                  <div className="text-[15px] font-satoshi text-blue-text font-bold">
+                    Save up to 20% with yearly
+                  </div>
+                  <div className="text-[15px] font-satoshi text-grey-noti font-bold">
+                    Price in USD
+                  </div>
                 </div>
               </div>
-              <div className="PricingCardDiv">
-                {pricingPlans.map((plan) => (
-                  <div key={plan.id} className="PricingcardItem">
-                    <Card
-                      className="pricing-card"
-                      style={{
-                        background: plan.bgColor,
-                        borderColor: plan.color,
-                      }}
-                    >
-                      <Card.Body>
-                        <div className="pricing-top">
-                          <Icon
-                            icon={plan.icon}
-                            width="60"
-                            height="60"
-                            color={plan.iconColor}
-                            className="pricing-card-icon"
-                          />
-                          <h4
-                            style={{ color: plan.color }}
-                            dangerouslySetInnerHTML={{ __html: plan.title }}
-                          />
-                          <p style={{ color: plan.color }}>
-                            {plan.description}
-                          </p>
+              <div className="flex gap-3 lg:gap-[30px] justify-between w-full flex-col md:flex-row">
+                {PricingPlans.map((plan: any) => (
+                  <div
+                    key={plan.id}
+                    className="p-3 flex flex-col gap-2 lg:gap-3 w-full md:w-[calc(33%-11px)] lg:w-[calc(33%-20px)] rounded-[20px]! border border-grey-light!"
+                  >
+                    <div className="flex items-center gap-2 font-medium h-[23px] lg:h-[38px]">
+                      <div
+                        className={`font-grotesk text-[14px] lg:text-[19px] ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                      >
+                        {plan.title}
+                      </div>
+                      {plan.recommended && (
+                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-semibold">
+                          Recommended
                         </div>
-                        <div className="pricing-bottom">
-                          <div className="pricing-info">
-                            <h3 style={{ color: plan.color }}>{plan.price}</h3>
-                            <p
-                              style={{ color: plan.color }}
-                              dangerouslySetInnerHTML={{ __html: plan.subText }}
-                            />
-                          </div>
-                          <div className="pricingbtndiv">
-                            <Primary
-                              style={{
-                                width: "142px",
-                                height: "48px",
-                                minHeight: "48px",
-                              }}
-                              text="Get Started"
-                              href="#pricing-info-div"
-                              onClick={() => {
-                                setPlan(plan.label as "self" | "custom");
-                                const el =
-                                  document.getElementById("pricing-info-div");
-                                if (el)
-                                  el.scrollIntoView({ behavior: "smooth" });
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="PricingHostingPlans">
-              <div className="HostingHead">
-                <h2>Comparison of hosting plans</h2>
-                <p>
-                  Explore the key differences between our cloud-hosted and
-                  self-hosted plans. Choose the one that best fits your
-                  clinic&apos;s needs.
-                </p>
-              </div>
-              <div className="hosting-table-wrapper">
-                <Table className="hosting-table">
-                  <thead>
-                    <tr>
-                      <th>Features</th>
-                      <th className="highlight">Self-hosting (free plan)</th>
-                      <th className="highlight">Pay-as-you-go</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {planFeatures.map((item) => (
-                      <tr key={item.feature}>
-                        <td>{item.feature}</td>
-                        <td>{item.selfHosting}</td>
-                        <td>{item.payAsYouGo}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
-            </div>
-
-            <div className="PricingKeyFeature">
-              <div className="HostingHead">
-                <h2>Key features</h2>
-                <p>
-                  No matter which hosting option you choose, you&apos;ll always
-                  get access to our full suite of essential features designed to
-                  help you manage your veterinary practice efficiently.
-                </p>
-              </div>
-              <div className="FeatureData">
-                {featuresData.map((feature) => (
-                  <div key={feature.title} className="FeatureItem">
-                    <div className="fethed">
-                      <h4>{feature.title}</h4>
+                      )}
                     </div>
-                    <div className="fetiner">
-                      {feature.items.map((item) => (
-                        <p key={item}>
-                          {item}{" "}
-                          <Image
-                            src={`https://d2il6osz49gpup.cloudfront.net/ftcheck.png`}
-                            alt="ftcheck"
-                            width={24}
-                            height={24}
-                          />
-                        </p>
+                    <div className="flex gap-2 items-end">
+                      <div
+                        className={`font-grotesk text-[28px] lg:text-[40px] font-medium ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                      >
+                        {activeCycle === "monthly"
+                          ? plan.amount
+                          : plan.amountYearly}
+                      </div>
+                      {plan.amountLabel && (
+                        <div className="mb-1.5! lg:mb-3! font-satoshi text-[13px] font-semibold text-black-text">
+                          {plan.amountLabel}
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      className={`font-satoshi text-[13px] lg:text-[15px] font-normal ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                    >
+                      {plan.description}
+                    </div>
+                    <Link
+                      className="w-full rounded-2xl! border-[1.5px]! border-black-text! h-12 flex items-center justify-center font-grotesk text-[19px] text-black-text! font-medium"
+                      href={plan.buttonSrc}
+                    >
+                      {plan.buttonText}
+                    </Link>
+                    <div>
+                      <div
+                        className={`font-satoshi text-[13px] lg:text-[15px] font-semibold ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                      >
+                        Includes:
+                      </div>
+                      {plan.includes.map((detail: string) => (
+                        <div
+                          key={detail}
+                          className={`flex font-satoshi text-[13px] lg:text-[15px] gap-2 font-normal ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        >
+                          &bull; <span>{detail}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-
-            <div className="EnterPlanDiv">
-              <h4>Enterprise plan</h4>
-              <h4>Coming soon</h4>
-            </div>
-
-            <div className="PricingCalculatorDiv" id="pricing-info-div">
-              <div className="pricingHeading">
-                <h2>Pricing calculator</h2>
-              </div>
-
-              <div className="CalculatorTabDiv">
-                <ToggleButtonGroup
-                  className="PricingPlan"
-                  type="radio"
-                  name="plans"
-                  value={plan}
-                  onChange={setPlan}
-                >
-                  <ToggleButton
-                    className={`planbtn ${plan === "self" ? "active" : ""}`}
-                    id="tbg-radio-1"
-                    value="self"
-                  >
-                    <div className="planText">
-                      <h2>$0</h2>
-                      <h5>Free plan</h5>
-                    </div>
-                  </ToggleButton>
-                  <ToggleButton
-                    className={`planbtn ${plan === "custom" ? "active" : ""}`}
-                    id="tbg-radio-2"
-                    value="custom"
-                  >
-                    <div className="planText">
-                      <h2>Custom</h2>
-                      <h5>Pay-as-you-go</h5>
-                    </div>
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </div>
-
-              <div className="PricingInfoDiv">
-                <div className="leftPriceInfo">
-                  {currentPlan.ranges.map(
-                    (item: {
-                      label: string;
-                      min: number;
-                      max: number;
-                      value: number;
-                      setter: (value: number) => void;
-                    }) => (
-                      <div key={item.label} className="pricingscrolldiv">
-                        <div className="scrolltext">
-                          <h5>{item.label}</h5>
-                          <span>{item.value}</span>
-                        </div>
-                        <Form.Range
-                          min={item.min}
-                          max={item.max}
-                          value={item.value}
-                          onChange={(e) => {
-                            const newValue = Number(e.target.value);
-                            item.setter(newValue);
-                            const percentage =
-                              ((newValue - item.min) / (item.max - item.min)) *
-                              100;
-                            e.target.style.setProperty(
-                              "--progress",
-                              `${percentage}%`
-                            );
-                          }}
-                          className="styled-range"
-                        />
-                      </div>
-                    )
-                  )}
-                </div>
-
-                <div className="RytPriceInfo">
-                  <div className="pricebox">
-                    <div className="pricetext">
-                      <h2>${currentPlan.calculatePrice()}</h2>
-                      <h5>Price Cap</h5>
-                      <p>
-                        This is the maximum price you will pay, even if you go
-                        over your limit.
-                      </p>
-                    </div>
-                    <Link
-                      href={plan === "self" ? "/developerslanding" : "/signup"}
-                    >
-                      Get started
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Faq />
-
-            {/* NeedHelpDiv */}
-            <NeedHealp />
           </div>
-        </Container>
-      </section>
 
+          <div className="flex flex-col gap-3 md:gap-9">
+            <div className="font-grotesk text-[23px] md:text-[33px] xl:text-[48px] text-black-text text-center font-medium">
+              Plans and features
+            </div>
+            <div className="flex gap-3">
+              <div className="w-[calc(33%-10px)]"></div>
+              {PricingPlans.slice(0, 2).map((plan: any) => (
+                <div
+                  key={plan.description}
+                  className="w-[calc(33%-10px)] flex flex-col gap-2"
+                >
+                  <div className="flex justify-between items-center flex-wrap">
+                    <div className="font-grotesk text-[14px] md:text-[19px] font-medium text-black-text">
+                      {plan.title.split(" ")[0]}
+                    </div>
+                    <div className="font-grotesk text-[14px] md:text-[19px] font-medium text-black-text">
+                      {activeCycle === "monthly"
+                        ? plan.amount
+                        : plan.amountYearly}
+                    </div>
+                  </div>
+                  <Link
+                    className="w-full rounded-2xl! border-[1.5px]! border-black-text! h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] text-black-text! font-medium"
+                    href={plan.buttonSrc}
+                  >
+                    {plan.buttonText}
+                  </Link>
+                </div>
+              ))}
+            </div>
+            <div className="w-full flex flex-col gap-10">
+              {TableData.map((table) => (
+                <div
+                  key={table.head}
+                  className="border! border-grey-light! rounded-2xl! pt-5!"
+                >
+                  <table className="w-full">
+                    <thead className="w-full">
+                      <tr>
+                        <th
+                          className="w-full pb-3 pl-4! md:pl-6! font-satoshi font-semibold text-[18px] text-black-text"
+                          colSpan={3}
+                        >
+                          {table.head}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="w-full">
+                      {table.rows.map((row) => (
+                        <tr key={row.name}>
+                          <td className="w-1/3 py-3 pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti">
+                            {row.name}
+                          </td>
+                          <td className="w-1/3 py-3 pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti">
+                            {renderCell(row.free)}
+                          </td>
+                          <td className="w-1/3 py-3 pl-4! md:pl-6! border-t! border-grey-light! font-satoshi font-semibold text-[15px] text-grey-noti">
+                            {renderCell(row.business)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Faq />
+          <NeedHealp />
+        </div>
+      </section>
       <Footer />
     </>
   );

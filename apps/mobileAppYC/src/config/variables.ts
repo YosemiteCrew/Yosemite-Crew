@@ -25,6 +25,15 @@ export interface GooglePlacesConfig {
   apiKey: string;
 }
 
+export interface ApiConfig {
+  baseUrl: string;
+  timeoutMs: number;
+}
+
+export interface StreamChatConfig {
+  apiKey: string;
+}
+
 // Default/test configuration (safe for CI/CD)
 const DEFAULT_PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   profileServiceUrl: '',
@@ -40,8 +49,19 @@ const DEFAULT_GOOGLE_PLACES_CONFIG: GooglePlacesConfig = {
   apiKey: '',
 };
 
+const DEFAULT_API_CONFIG: ApiConfig = {
+  baseUrl: 'http://localhost:4000',
+  timeoutMs: 15000,
+};
+
+const DEFAULT_STREAM_CHAT_CONFIG: StreamChatConfig = {
+  apiKey: '', // Add your Stream API key in variables.local.ts
+};
+
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
 let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
+let apiOverrides: Partial<ApiConfig> | undefined;
+let streamChatOverrides: Partial<StreamChatConfig> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
@@ -66,6 +86,12 @@ try {
   if (localConfig.GOOGLE_PLACES_CONFIG) {
     googlePlacesOverrides = localConfig.GOOGLE_PLACES_CONFIG;
   }
+  if (localConfig.API_CONFIG) {
+    apiOverrides = localConfig.API_CONFIG;
+  }
+  if (localConfig.STREAM_CHAT_CONFIG) {
+    streamChatOverrides = localConfig.STREAM_CHAT_CONFIG;
+  }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
     // No local config file found, using defaults (this is expected in CI/CD)
@@ -88,6 +114,16 @@ export const PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
 export const GOOGLE_PLACES_CONFIG: GooglePlacesConfig = {
   ...DEFAULT_GOOGLE_PLACES_CONFIG,
   ...googlePlacesOverrides,
+};
+
+export const API_CONFIG: ApiConfig = {
+  ...DEFAULT_API_CONFIG,
+  ...apiOverrides,
+};
+
+export const STREAM_CHAT_CONFIG: StreamChatConfig = {
+  ...DEFAULT_STREAM_CHAT_CONFIG,
+  ...streamChatOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

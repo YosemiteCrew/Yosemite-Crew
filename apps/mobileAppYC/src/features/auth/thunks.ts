@@ -1,6 +1,8 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 
 import {AppDispatch, type RootState} from '@/app/store';
+import {resetCompanionState} from '@/features/companion';
+import {resetExpensesState} from '@/features/expenses';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import {getAuth} from '@react-native-firebase/auth';
 
@@ -237,6 +239,8 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
     dispatch(setUnauthenticated());
     dispatch(setSessionExpiry(null));
     dispatch(setLastRefresh(null));
+    dispatch(resetCompanionState());
+    dispatch(resetExpensesState());
   },
 );
 

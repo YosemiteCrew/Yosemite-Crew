@@ -25,7 +25,7 @@ const routes = [
   },
   {
     name: "Chat",
-    href: "#",
+    href: "/chat",
   },
   {
     name: "Finance",
@@ -33,7 +33,7 @@ const routes = [
   },
   {
     name: "Companions",
-    href: "#",
+    href: "/companions",
   },
   {
     name: "Inventory",

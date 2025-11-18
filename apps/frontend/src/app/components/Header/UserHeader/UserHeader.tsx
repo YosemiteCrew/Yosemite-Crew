@@ -36,7 +36,7 @@ const routes = [
   },
   {
     name: "Companions",
-    href: "#",
+    href: "/companions",
   },
   {
     name: "Inventory",
