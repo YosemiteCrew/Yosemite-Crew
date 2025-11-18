@@ -125,22 +125,22 @@
   padding: 4px 10px;
   border-radius: 9999px;
   font-size: 12px;
-  background: #ecfeff;
-  color: #0ea5e9;
+  background: #0a66c2;
+  color: #ffffff;
   font-weight: 600;
-  border: 1px solid #bae6fd;
+  border: 1px solid #0a66c2;
 }
 
 .dev-card-pill.secondary {
-  background: #eef2ff;
-  color: #4338ca;
-  border-color: #c7d2fe;
+  background: #7928ca;
+  color: #ffffff;
+  border-color: #7928ca;
 }
 
 .dev-card-pill.muted {
-  background: #f3f4f6;
-  color: #6b7280;
-  border-color: #e5e7eb;
+  background: #4b5563;
+  color: #ffffff;
+  border-color: #4b5563;
 }
 
 .dev-portal-card ol {

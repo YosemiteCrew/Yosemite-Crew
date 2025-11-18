@@ -47,8 +47,8 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     const isDevRoute = pathname.startsWith("/developers");
     const isPublic = isPublicRoute;
     const devFlag =
-      typeof window !== "undefined" &&
-      window.sessionStorage.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in the token
+      typeof globalThis !== "undefined" &&
+      globalThis.sessionStorage?.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in the token
     const isDevRole = role === "developer" || (!role && devFlag);
 
     if (isDevRoute && !isDevRole && !isPublic) {

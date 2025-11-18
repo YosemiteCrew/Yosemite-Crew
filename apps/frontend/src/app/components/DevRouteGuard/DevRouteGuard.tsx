@@ -17,8 +17,8 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
 
     const isDevPath = pathname?.startsWith("/developers");
     const devFlag =
-      typeof window !== "undefined" &&
-      window.sessionStorage.getItem("devAuth") === "true"; // Temporary fallback until custom:role is present
+      typeof globalThis !== "undefined" &&
+      globalThis.sessionStorage?.getItem("devAuth") === "true"; // Temporary fallback until custom:role is present
     const isDevRole = role === "developer" || (!role && devFlag);
 
     if (!isDevPath) {

@@ -219,8 +219,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
   },
   signout: () => {
-    if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem("devAuth");
+    if (typeof globalThis !== "undefined") {
+      globalThis.sessionStorage?.removeItem("devAuth");
     }
     const user = get().user;
     set({
