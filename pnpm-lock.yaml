@@ -269,7 +269,7 @@ importers:
         version: 9.25.0
       stream-chat-react:
         specifier: ^13.11.0
-        version: 13.11.0(@types/react@19.1.12)(react-dom@19.1.1)(react@19.1.1)(stream-chat@9.25.0)(typescript@5.8.3)
+        version: 13.12.0(@types/react@19.1.12)(react-dom@19.1.1)(react@19.1.1)(stream-chat@9.25.0)(typescript@5.8.3)
       validator:
         specifier: ^13.15.20
         version: 13.15.20
@@ -555,7 +555,7 @@ importers:
         version: 6.0.0(react@19.1.0)(redux@5.0.1)
       stream-chat-react-native:
         specifier: ^8.8.0
-        version: 8.8.0(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.4.1)(@react-native-documents/picker@11.0.0)(@types/react@19.1.12)(react-native-blob-util@0.23.2)(react-native-gesture-handler@2.28.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.9)(react-native-reanimated@4.1.2)(react-native-safe-area-context@5.6.1)(react-native-share@12.2.1)(react-native-svg@15.13.0)(react-native-video@6.17.0)(react-native@0.81.4)(react@19.1.0)(typescript@5.8.3)
+        version: 8.8.1(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.4.1)(@react-native-documents/picker@11.0.0)(@types/react@19.1.12)(react-native-blob-util@0.23.2)(react-native-gesture-handler@2.28.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.9)(react-native-reanimated@4.1.2)(react-native-safe-area-context@5.6.1)(react-native-share@12.2.1)(react-native-svg@15.13.0)(react-native-video@6.17.0)(react-native@0.81.4)(react@19.1.0)(typescript@5.8.3)
       toastify-react-native:
         specifier: ^7.2.3
         version: 7.2.3(react-native@0.81.4)(react@19.1.0)
@@ -6925,7 +6925,7 @@ packages:
       '@babel/core': 7.28.4
       '@babel/helper-compilation-targets': 7.27.2
       '@babel/helper-plugin-utils': 7.27.1
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       lodash.debounce: 4.0.8
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -8143,7 +8143,7 @@ packages:
       '@babel/parser': 7.28.4
       '@babel/template': 7.27.2
       '@babel/types': 7.28.4
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -8608,7 +8608,7 @@ packages:
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       espree: 9.6.1
       globals: 13.24.0
       ignore: 5.3.2
@@ -8668,7 +8668,7 @@ packages:
       '@expo/plist': 0.3.5
       '@expo/sdk-runtime-versions': 1.0.0
       chalk: 4.1.2
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       getenv: 2.0.0
       glob: 10.4.5
       resolve-from: 5.0.0
@@ -9667,7 +9667,7 @@ packages:
     deprecated: Use @eslint/config-array instead
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -10187,49 +10187,6 @@ packages:
       jest-message-util: 29.7.0
       jest-util: 29.7.0
       slash: 3.0.0
-    dev: true
-
-  /@jest/core@29.7.0:
-    resolution: {integrity: sha512-n7aeXWKMnGtDA48y8TLWJPJmLmmZ642Ceo78cYWEpiD7FzDgmNDV/GCVRorPABdXLJZ/9wzzgZAlHjXjxDHGsg==}
-    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
-    peerDependencies:
-      node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
-    peerDependenciesMeta:
-      node-notifier:
-        optional: true
-    dependencies:
-      '@jest/console': 29.7.0
-      '@jest/reporters': 29.7.0
-      '@jest/test-result': 29.7.0
-      '@jest/transform': 29.7.0
-      '@jest/types': 29.6.3
-      '@types/node': 22.18.1
-      ansi-escapes: 4.3.2
-      chalk: 4.1.2
-      ci-info: 3.9.0
-      exit: 0.1.2
-      graceful-fs: 4.2.11
-      jest-changed-files: 29.7.0
-      jest-config: 29.7.0(@types/node@22.18.1)
-      jest-haste-map: 29.7.0
-      jest-message-util: 29.7.0
-      jest-regex-util: 29.6.3
-      jest-resolve: 29.7.0
-      jest-resolve-dependencies: 29.7.0
-      jest-runner: 29.7.0
-      jest-runtime: 29.7.0
-      jest-snapshot: 29.7.0
-      jest-util: 29.7.0
-      jest-validate: 29.7.0
-      jest-watcher: 29.7.0
-      micromatch: 4.0.8
-      pretty-format: 29.7.0
-      slash: 3.0.0
-      strip-ansi: 6.0.1
-    transitivePeerDependencies:
-      - babel-plugin-macros
-      - supports-color
-      - ts-node
     dev: true
 
   /@jest/core@29.7.0(ts-node@10.9.2):
@@ -11463,7 +11420,7 @@ packages:
       '@react-native-community/cli': 20.0.0(typescript@5.8.3)
       '@react-native/dev-middleware': 0.81.4
       '@react-native/metro-config': 0.81.4(@babel/core@7.28.4)
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       invariant: 2.2.4
       metro: 0.83.3
       metro-config: 0.83.3
@@ -11487,7 +11444,7 @@ packages:
       chrome-launcher: 0.15.2
       chromium-edge-launcher: 0.2.0
       connect: 3.7.0
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       invariant: 2.2.4
       nullthrows: 1.1.1
       open: 7.4.2
@@ -14329,6 +14286,12 @@ packages:
     dev: false
     optional: true
 
+  /@types/mdast@4.0.4:
+    resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
+    dependencies:
+      '@types/unist': 3.0.3
+    dev: false
+
   /@types/mime@1.3.5:
     resolution: {integrity: sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w==}
 
@@ -14619,7 +14582,7 @@ packages:
       '@typescript-eslint/types': 7.18.0
       '@typescript-eslint/typescript-estree': 7.18.0(typescript@5.8.3)
       '@typescript-eslint/visitor-keys': 7.18.0
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       eslint: 8.57.1
       typescript: 5.8.3
     transitivePeerDependencies:
@@ -14744,7 +14707,7 @@ packages:
     dependencies:
       '@typescript-eslint/typescript-estree': 7.18.0(typescript@5.8.3)
       '@typescript-eslint/utils': 7.18.0(eslint@8.57.1)(typescript@5.8.3)
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       eslint: 8.57.1
       ts-api-utils: 1.4.3(typescript@5.8.3)
       typescript: 5.8.3
@@ -14835,7 +14798,7 @@ packages:
     dependencies:
       '@typescript-eslint/types': 7.18.0
       '@typescript-eslint/visitor-keys': 7.18.0
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -15704,7 +15667,7 @@ packages:
   /axios@1.13.2:
     resolution: {integrity: sha512-VPk9ebNqPcy5lRGuSlKx752IlDatOjT9paPlm8A7yOuW2Fbvp4X3JznJtT4f0GzGLLiWE9W8onz51SqLYwzGaA==}
     dependencies:
-      follow-redirects: 1.15.11
+      follow-redirects: 1.15.11(debug@4.4.1)
       form-data: 4.0.4
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -16834,25 +16797,6 @@ packages:
       readable-stream: 4.7.0
     dev: true
 
-  /create-jest@29.7.0:
-    resolution: {integrity: sha512-Adz2bdH0Vq3F53KEMJOoftQFutWCukm6J24wbPWRO4k1kMY7gS7ds/uoJkNuV8wDCtWWnuwGcJwpWcih+zEW1Q==}
-    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
-    hasBin: true
-    dependencies:
-      '@jest/types': 29.6.3
-      chalk: 4.1.2
-      exit: 0.1.2
-      graceful-fs: 4.2.11
-      jest-config: 29.7.0(@types/node@22.18.1)
-      jest-util: 29.7.0
-      prompts: 2.4.2
-    transitivePeerDependencies:
-      - '@types/node'
-      - babel-plugin-macros
-      - supports-color
-      - ts-node
-    dev: true
-
   /create-jest@29.7.0(@types/node@20.19.13)(ts-node@10.9.2):
     resolution: {integrity: sha512-Adz2bdH0Vq3F53KEMJOoftQFutWCukm6J24wbPWRO4k1kMY7gS7ds/uoJkNuV8wDCtWWnuwGcJwpWcih+zEW1Q==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -17165,17 +17109,6 @@ packages:
 
   /debug@4.3.7:
     resolution: {integrity: sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ==}
-    engines: {node: '>=6.0'}
-    peerDependencies:
-      supports-color: '*'
-    peerDependenciesMeta:
-      supports-color:
-        optional: true
-    dependencies:
-      ms: 2.1.3
-
-  /debug@4.4.1:
-    resolution: {integrity: sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==}
     engines: {node: '>=6.0'}
     peerDependencies:
       supports-color: '*'
@@ -18152,7 +18085,7 @@ packages:
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.6
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       doctrine: 3.0.0
       escape-string-regexp: 4.0.0
       eslint-scope: 7.2.2
@@ -18797,16 +18730,6 @@ packages:
 
   /fn.name@1.1.0:
     resolution: {integrity: sha512-GRnmB5gPyJpAhTQdSZTSp9uaPSvl09KoYcMQtsB9rQoOmzs9dH6ffeccH+Z+cv6P68Hu5bC6JjRh4Ah/mHSNRw==}
-    dev: false
-
-  /follow-redirects@1.15.11:
-    resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
-    engines: {node: '>=4.0'}
-    peerDependencies:
-      debug: '*'
-    peerDependenciesMeta:
-      debug:
-        optional: true
     dev: false
 
   /follow-redirects@1.15.11(debug@4.4.1):
@@ -19474,7 +19397,7 @@ packages:
       mdast-util-mdxjs-esm: 2.0.1
       property-information: 7.1.0
       space-separated-tokens: 2.0.2
-      style-to-js: 1.1.19
+      style-to-js: 1.1.21
       unist-util-position: 5.0.0
       vfile-message: 4.0.3
     transitivePeerDependencies:
@@ -19766,8 +19689,8 @@ packages:
     resolution: {integrity: sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==}
     dev: false
 
-  /inline-style-parser@0.2.6:
-    resolution: {integrity: sha512-gtGXVaBdl5mAes3rPcMedEBm12ibjt1kDMFfheul1wUAOVEJW60voNdMVzVkfLN06O7ZaD/rxhfKgtlgtTbMjg==}
+  /inline-style-parser@0.2.7:
+    resolution: {integrity: sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA==}
     dev: false
 
   /internal-slot@1.1.0:
@@ -20362,14 +20285,14 @@ packages:
       node-notifier:
         optional: true
     dependencies:
-      '@jest/core': 29.7.0
+      '@jest/core': 29.7.0(ts-node@10.9.2)
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
       chalk: 4.1.2
-      create-jest: 29.7.0
+      create-jest: 29.7.0(@types/node@20.19.13)(ts-node@10.9.2)
       exit: 0.1.2
       import-local: 3.2.0
-      jest-config: 29.7.0(@types/node@22.18.1)
+      jest-config: 29.7.0(@types/node@20.19.13)(ts-node@10.9.2)
       jest-util: 29.7.0
       jest-validate: 29.7.0
       yargs: 17.7.2
@@ -20472,46 +20395,6 @@ packages:
       slash: 3.0.0
       strip-json-comments: 3.1.1
       ts-node: 10.9.2(@types/node@20.19.13)(typescript@5.8.3)
-    transitivePeerDependencies:
-      - babel-plugin-macros
-      - supports-color
-    dev: true
-
-  /jest-config@29.7.0(@types/node@22.18.1):
-    resolution: {integrity: sha512-uXbpfeQ7R6TZBqI3/TxCU4q4ttk3u0PJeC+E0zbfSoSjq6bJ7buBPxzQPL0ifrkY4DNu4JUdk0ImlBUYi840eQ==}
-    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
-    peerDependencies:
-      '@types/node': '*'
-      ts-node: '>=9.0.0'
-    peerDependenciesMeta:
-      '@types/node':
-        optional: true
-      ts-node:
-        optional: true
-    dependencies:
-      '@babel/core': 7.28.4
-      '@jest/test-sequencer': 29.7.0
-      '@jest/types': 29.6.3
-      '@types/node': 22.18.1
-      babel-jest: 29.7.0(@babel/core@7.28.4)
-      chalk: 4.1.2
-      ci-info: 3.9.0
-      deepmerge: 4.3.1
-      glob: 7.2.3
-      graceful-fs: 4.2.11
-      jest-circus: 29.7.0
-      jest-environment-node: 29.7.0
-      jest-get-type: 29.6.3
-      jest-regex-util: 29.6.3
-      jest-resolve: 29.7.0
-      jest-runner: 29.7.0
-      jest-util: 29.7.0
-      jest-validate: 29.7.0
-      micromatch: 4.0.8
-      parse-json: 5.2.0
-      pretty-format: 29.7.0
-      slash: 3.0.0
-      strip-json-comments: 3.1.1
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -20923,7 +20806,7 @@ packages:
       node-notifier:
         optional: true
     dependencies:
-      '@jest/core': 29.7.0
+      '@jest/core': 29.7.0(ts-node@10.9.2)
       '@jest/types': 29.6.3
       import-local: 3.2.0
       jest-cli: 29.7.0
@@ -22172,7 +22055,7 @@ packages:
       chalk: 4.1.2
       ci-info: 2.0.0
       connect: 3.7.0
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@5.5.0)
       error-stack-parser: 2.1.4
       flow-enums-runtime: 0.0.6
       graceful-fs: 4.2.11
@@ -22495,6 +22378,12 @@ packages:
     requiresBuild: true
     dev: false
     optional: true
+
+  /mime@4.1.0:
+    resolution: {integrity: sha512-X5ju04+cAzsojXKes0B/S4tcYtFAJ6tTMuSPBEn9CPGlrWr8Fiw7qYeLT0XyH80HSoAoqWCaz+MWKh22P7G1cw==}
+    engines: {node: '>=16'}
+    hasBin: true
+    dev: false
 
   /mimic-fn@2.1.0:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
@@ -23718,6 +23607,10 @@ packages:
 
   /property-expr@2.0.6:
     resolution: {integrity: sha512-SVtmxhRE/CGkn3eZY1T6pC8Nln6Fr/lu1mKSgRud0eC73whjGfoAogbn78LkD8aFL0zz3bAFerKSnOl7NlErBA==}
+
+  /property-information@7.1.0:
+    resolution: {integrity: sha512-TwEZ+X+yCJmYfL7TPUOcvBZ4QfoT5YenQiJuX//0th53DE6w0xxLEtfK3iyryQFddXuvkIk51EEgrJQ0WJkOmQ==}
+    dev: false
 
   /proto3-json-serializer@2.0.2:
     resolution: {integrity: sha512-SAzp/O4Yh02jGdRc+uIrGoe87dkN/XtwxfZ4ZyafJHymd79ozp5VG5nyZ7ygqPM5+cpLDjjGnYFUkngonyDPOQ==}
@@ -25536,6 +25429,207 @@ packages:
     engines: {node: '>= 0.10.0'}
     dev: false
 
+  /stream-chat-react-native-core@8.8.1(@react-native-community/netinfo@11.4.1)(@types/react@19.1.12)(react-native-gesture-handler@2.28.0)(react-native-reanimated@4.1.2)(react-native-safe-area-context@5.6.1)(react-native-svg@15.13.0)(react-native@0.81.4)(react@19.1.0)(typescript@5.8.3):
+    resolution: {integrity: sha512-R2DmBWCQ8u+yM7/UjigxSXslrJUBify0zfyXcYm5k6ojSbop5Yq726JGRb+vTSJStiSIZzYkVdL/fBxuJ5OfZw==}
+    peerDependencies:
+      '@emoji-mart/data': '>=1.1.0'
+      '@op-engineering/op-sqlite': '>=14.0.0'
+      '@react-native-community/netinfo': '>=11.3.1'
+      '@shopify/flash-list': '>=2.1.0'
+      emoji-mart: '>=5.4.0'
+      react-native: '>=0.73.0'
+      react-native-gesture-handler: '>=2.18.0'
+      react-native-reanimated: '>=3.16.0'
+      react-native-safe-area-context: '>=5.4.1'
+      react-native-svg: '>=15.8.0'
+    peerDependenciesMeta:
+      '@emoji-mart/data':
+        optional: true
+      '@op-engineering/op-sqlite':
+        optional: true
+      '@shopify/flash-list':
+        optional: true
+      emoji-mart:
+        optional: true
+    dependencies:
+      '@gorhom/bottom-sheet': 5.2.6(@types/react@19.1.12)(react-native-gesture-handler@2.28.0)(react-native-reanimated@4.1.2)(react-native@0.81.4)(react@19.1.0)
+      '@react-native-community/netinfo': 11.4.1(react-native@0.81.4)
+      '@ungap/structured-clone': 1.3.0
+      dayjs: 1.11.13
+      emoji-regex: 10.5.0
+      i18next: 25.5.3(typescript@5.8.3)
+      intl-pluralrules: 2.0.1
+      linkifyjs: 4.3.2
+      lodash-es: 4.17.21
+      mime-types: 2.1.35
+      path: 0.12.7
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
+      react-native-gesture-handler: 2.28.0(react-native@0.81.4)(react@19.1.0)
+      react-native-markdown-package: 1.8.2
+      react-native-reanimated: 4.1.2(@babel/core@7.28.4)(react-native-worklets@0.5.1)(react-native@0.81.4)(react@19.1.0)
+      react-native-safe-area-context: 5.6.1(react-native@0.81.4)(react@19.1.0)
+      react-native-svg: 15.13.0(react-native@0.81.4)(react@19.1.0)
+      react-native-url-polyfill: 2.0.0(react-native@0.81.4)
+      stream-chat: 9.25.0
+      use-sync-external-store: 1.5.0(react@19.1.0)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-native'
+      - bufferutil
+      - debug
+      - react
+      - typescript
+      - utf-8-validate
+    dev: false
+
+  /stream-chat-react-native@8.8.1(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.4.1)(@react-native-documents/picker@11.0.0)(@types/react@19.1.12)(react-native-blob-util@0.23.2)(react-native-gesture-handler@2.28.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.9)(react-native-reanimated@4.1.2)(react-native-safe-area-context@5.6.1)(react-native-share@12.2.1)(react-native-svg@15.13.0)(react-native-video@6.17.0)(react-native@0.81.4)(react@19.1.0)(typescript@5.8.3):
+    resolution: {integrity: sha512-sDzjPp7Z7Yyf0hiBbYpFZ8BvSgN6N4LTJdIy6+RWafefXlxynXTuC0j8ENiECrZZ2TR1lcy5wNMJ40GBoPonOw==}
+    peerDependencies:
+      '@react-native-camera-roll/camera-roll': '>=7.8.0'
+      '@react-native-clipboard/clipboard': '>=1.14.1'
+      '@react-native-documents/picker': '>=10.1.1'
+      '@stream-io/flat-list-mvcp': '>=0.10.3'
+      react-native: '>=0.73.0'
+      react-native-audio-recorder-player: '>=3.6.13'
+      react-native-blob-util: '>=0.21.1'
+      react-native-haptic-feedback: '>=2.3.0'
+      react-native-image-picker: '>=7.1.2'
+      react-native-nitro-sound: '>=0.2.9'
+      react-native-share: '>=11.0.0'
+      react-native-video: '>=6.4.2'
+    peerDependenciesMeta:
+      '@react-native-camera-roll/camera-roll':
+        optional: true
+      '@react-native-clipboard/clipboard':
+        optional: true
+      '@react-native-documents/picker':
+        optional: true
+      '@stream-io/flat-list-mvcp':
+        optional: true
+      react-native-audio-recorder-player:
+        optional: true
+      react-native-blob-util:
+        optional: true
+      react-native-haptic-feedback:
+        optional: true
+      react-native-image-picker:
+        optional: true
+      react-native-nitro-sound:
+        optional: true
+      react-native-share:
+        optional: true
+      react-native-video:
+        optional: true
+    dependencies:
+      '@react-native-clipboard/clipboard': 1.16.3(react-native@0.81.4)(react@19.1.0)
+      '@react-native-documents/picker': 11.0.0(react-native@0.81.4)(react@19.1.0)
+      es6-symbol: 3.1.4
+      mime: 4.1.0
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
+      react-native-blob-util: 0.23.2(react-native@0.81.4)(react@19.1.0)
+      react-native-haptic-feedback: 2.3.3(react-native@0.81.4)
+      react-native-image-picker: 8.2.1(react-native@0.81.4)(react@19.1.0)
+      react-native-nitro-sound: 0.2.9(react-native-nitro-modules@0.31.5)(react-native@0.81.4)(react@19.1.0)
+      react-native-share: 12.2.1
+      react-native-video: 6.17.0(react-native@0.81.4)(react@19.1.0)
+      stream-chat-react-native-core: 8.8.1(@react-native-community/netinfo@11.4.1)(@types/react@19.1.12)(react-native-gesture-handler@2.28.0)(react-native-reanimated@4.1.2)(react-native-safe-area-context@5.6.1)(react-native-svg@15.13.0)(react-native@0.81.4)(react@19.1.0)(typescript@5.8.3)
+    transitivePeerDependencies:
+      - '@emoji-mart/data'
+      - '@op-engineering/op-sqlite'
+      - '@react-native-community/netinfo'
+      - '@shopify/flash-list'
+      - '@types/react'
+      - '@types/react-native'
+      - bufferutil
+      - debug
+      - emoji-mart
+      - react
+      - react-native-gesture-handler
+      - react-native-reanimated
+      - react-native-safe-area-context
+      - react-native-svg
+      - typescript
+      - utf-8-validate
+    dev: false
+
+  /stream-chat-react@13.12.0(@types/react@19.1.12)(react-dom@19.1.1)(react@19.1.1)(stream-chat@9.25.0)(typescript@5.8.3):
+    resolution: {integrity: sha512-Rst5l8035eBx4hSBA8m97gyrtoiKOoTvRo1nO/femr18QbHoGDnGE5qxZlSyiAotp1E9Rl0rOmQr1U86yTiG0A==}
+    peerDependencies:
+      '@breezystack/lamejs': ^1.2.7
+      '@emoji-mart/data': ^1.1.0
+      '@emoji-mart/react': ^1.1.0
+      emoji-mart: ^5.4.0
+      react: ^19.0.0 || ^18.0.0 || ^17.0.0
+      react-dom: ^19.0.0 || ^18.0.0 || ^17.0.0
+      stream-chat: ^9.25.0
+    peerDependenciesMeta:
+      '@breezystack/lamejs':
+        optional: true
+      '@emoji-mart/data':
+        optional: true
+      '@emoji-mart/react':
+        optional: true
+      emoji-mart:
+        optional: true
+    dependencies:
+      '@braintree/sanitize-url': 6.0.4
+      '@floating-ui/react': 0.27.16(react-dom@19.1.1)(react@19.1.1)
+      '@react-aria/focus': 3.21.2(react-dom@19.1.1)(react@19.1.1)
+      clsx: 2.1.1
+      dayjs: 1.11.18
+      emoji-regex: 9.2.2
+      fix-webm-duration: 1.0.6
+      hast-util-find-and-replace: 5.0.1
+      i18next: 25.5.3(typescript@5.8.3)
+      linkifyjs: 4.3.2
+      lodash.debounce: 4.0.8
+      lodash.defaultsdeep: 4.6.1
+      lodash.mergewith: 4.6.2
+      lodash.throttle: 4.1.1
+      lodash.uniqby: 4.7.0
+      nanoid: 3.3.11
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
+      react-dropzone: 14.3.8(react@19.1.1)
+      react-fast-compare: 3.2.2
+      react-image-gallery: 1.2.12(react@19.1.1)
+      react-markdown: 9.1.0(@types/react@19.1.12)(react@19.1.1)
+      react-player: 2.10.1(react@19.1.1)
+      react-textarea-autosize: 8.5.9(@types/react@19.1.12)(react@19.1.1)
+      react-virtuoso: 2.19.1(react-dom@19.1.1)(react@19.1.1)
+      remark-gfm: 4.0.1
+      stream-chat: 9.25.0
+      tslib: 2.8.1
+      unist-builder: 4.0.0
+      unist-util-visit: 5.0.0
+      use-sync-external-store: 1.5.0(react@19.1.1)
+    optionalDependencies:
+      '@stream-io/transliterate': 1.5.5
+    transitivePeerDependencies:
+      - '@types/react'
+      - supports-color
+      - typescript
+    dev: false
+
+  /stream-chat@9.25.0:
+    resolution: {integrity: sha512-i5ZrTT2s1UIpHgHHUKDPFG8qtkjAffZYKiItS4wdj+rqWL3ovNt1X/P35QUvFRAFrawppfPDwpWp3StkpSm8oA==}
+    engines: {node: '>=18'}
+    dependencies:
+      '@types/jsonwebtoken': 9.0.10
+      '@types/ws': 8.18.1
+      axios: 1.13.2
+      base64-js: 1.5.1
+      form-data: 4.0.4
+      isomorphic-ws: 5.0.0(ws@8.18.3)
+      jsonwebtoken: 9.0.2
+      linkifyjs: 4.3.2
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - utf-8-validate
+    dev: false
+
   /stream-events@1.0.5:
     resolution: {integrity: sha512-E1GUzBSgvct8Jsb3v2X15pjzN1tYebtbLaMg+eBOUOAxgbLoSbT2NS91ckc5lJD1KfLjId+jXJRgo0qnV5Nerg==}
     requiresBuild: true
@@ -25770,6 +25864,18 @@ packages:
     requiresBuild: true
     dev: false
     optional: true
+
+  /style-to-js@1.1.21:
+    resolution: {integrity: sha512-RjQetxJrrUJLQPHbLku6U/ocGtzyjbJMP9lCNK7Ag0CNh690nSH8woqWH9u16nMjYBAok+i7JO1NP2pOy8IsPQ==}
+    dependencies:
+      style-to-object: 1.0.14
+    dev: false
+
+  /style-to-object@1.0.14:
+    resolution: {integrity: sha512-LIN7rULI0jBscWQYaSswptyderlarFkjQ+t79nzty8tcIAceVomEVlLzH5VP4Cmsv6MtKhs7qaAiwlcp+Mgaxw==}
+    dependencies:
+      inline-style-parser: 0.2.7
+    dev: false
 
   /styled-jsx@5.1.6(@babel/core@7.28.5)(react@19.1.1):
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}

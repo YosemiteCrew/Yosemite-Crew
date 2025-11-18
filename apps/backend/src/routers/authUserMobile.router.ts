@@ -4,6 +4,6 @@ import { authorizeCognitoMobile } from 'src/middlewares/auth'
 
 const router = Router()
 
-router.post('/signup', authorizeCognitoMobile, AuthUserMobileController.signup)
+router.post('/signup', authorizeCognitoMobile, (req, res) => AuthUserMobileController.signup(req, res))
 
 export default router;
