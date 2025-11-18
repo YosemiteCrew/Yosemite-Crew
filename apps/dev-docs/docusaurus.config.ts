@@ -1,5 +1,5 @@
 import type { Config } from "@docusaurus/types";
-import type { Preset } from "@docusaurus/preset-classic";
+import type { Options, ThemeConfig } from "@docusaurus/preset-classic";
 import { themes as prismThemes } from "prism-react-renderer";
 
 const config: Config = {
@@ -33,7 +33,7 @@ const config: Config = {
         theme: {
           customCss: "./src/css/custom.css",
         },
-      } satisfies Preset.Options,
+      } satisfies Options,
     ],
   ],
   plugins: [
@@ -130,7 +130,7 @@ const config: Config = {
       minHeadingLevel: 2,
       maxHeadingLevel: 4,
     },
-  } satisfies Preset.ThemeConfig,
+  } satisfies ThemeConfig,
 };
 
 export default config;
