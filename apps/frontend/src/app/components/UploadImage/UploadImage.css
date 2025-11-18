@@ -57,7 +57,7 @@
   min-height: 190px;
   max-height: 190px;
   position: relative;
-  border: 1px solid var(--profileborder);
+  border: 1px solid #5d412f26;
   border-radius: 12px;
   box-shadow: 0px 0px 30px 0px #4738271a;
 }
@@ -108,6 +108,6 @@
   cursor: pointer;
 }
 .delete-btn svg {
-  color: var(--red);
+  color: #ff3b30;
   font-size: 18px;
 }

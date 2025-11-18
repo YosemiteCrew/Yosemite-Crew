@@ -22,7 +22,7 @@
 .logo {
   padding: 0px;
   width: 80px;
-  height: 80px;
+  height: 72px;
 }
 
 .logo img {
@@ -32,7 +32,7 @@
 @media screen and (max-width: 1024px) {
   .logo {
     width: 72px;
-    height: 72px;
+    height: 67px;
   }
 }
 

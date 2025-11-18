@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { IoCamera } from "react-icons/io5";
-import { FiMinusCircle } from "react-icons/fi";
 import classNames from "classnames";
 import FormInput from "../../Inputs/FormInput/FormInput";
 import CountryDropdown from "../../Inputs/CountryDropdown/CountryDropdown";
 import GoogleSearchDropDown from "../../Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 import { Primary, Secondary } from "../../Buttons";
+import LogoUploader from "../../UploadImage/LogoUploader";
+import { convertOrgToFHIR } from "@/app/utils/fhir";
 
 import "./Step.css";
 
@@ -29,9 +29,6 @@ const businessTypes = [
 ];
 
 const OrgStep = ({ nextStep, formData, setFormData }: any) => {
-  const [image, setImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState(businessTypes[0].key);
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     country?: string;
@@ -39,21 +36,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
     taxId?: string;
   }>({});
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setImage(null);
-    setPreview(null);
-  };
-
-  const handleNext = () => {
-    console.log(image);
+  const handleNext = async () => {
     const errors: {
       name?: string;
       country?: string;
@@ -64,56 +47,28 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
     if (!formData.country) errors.country = "Country is required";
     if (!formData.number) errors.number = "Number is required";
     if (!formData.taxId) errors.taxId = "TaxID is required";
-
     setFormDataErrors(errors);
-
     if (Object.keys(errors).length > 0) {
       return;
     }
-
-    nextStep();
+    try {
+      const fhirPayload = convertOrgToFHIR(formData);
+      console.log(fhirPayload);
+      nextStep();
+    } catch (error: any) {
+      console.error("Error creating organization:", error);
+    }
   };
 
   return (
     <div className="step-container">
       <div className="step-title">Organisation</div>
 
-      <div className="step-logo-container">
-        <div className="step-logo-upload">
-          {preview ? (
-            <>
-              <img
-                src={preview}
-                alt="Logo Preview"
-                style={{
-                  width: 100,
-                  height: 100,
-                  objectFit: "cover",
-                  borderRadius: "50%",
-                }}
-                className="step-logo-preview"
-              />
-              <button className="remove-icon" onClick={handleRemoveImage}>
-                <FiMinusCircle color="#247AED" size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <input
-                type="file"
-                id="logo-upload"
-                accept="image/*"
-                onChange={handleImageChange}
-                style={{ display: "none" }}
-              />
-              <label htmlFor="logo-upload" style={{ cursor: "pointer" }}>
-                <IoCamera color="#247AED" size={40} />
-              </label>
-            </>
-          )}
-        </div>
-        <div className="step-logo-title">Add logo (optional)</div>
-      </div>
+      <LogoUploader
+        title="Add logo (optional)"
+        apiUrl="/fhir/v1/organization/logo/presigned-url"
+        setFormData={setFormData}
+      />
 
       <div className="step-type">
         <div className="step-type-title">Select your organisation type</div>
@@ -122,9 +77,11 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
             <button
               key={type.name}
               className={classNames("step-type-option", {
-                activetype: selectedType === type.key,
+                activetype: formData.businessType === type.key,
               })}
-              onClick={() => setSelectedType(type.key)}
+              onClick={() =>
+                setFormData({ ...formData, businessType: type.key })
+              }
             >
               {type.name}
             </button>
@@ -142,7 +99,9 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
           inname="name"
           value={formData.name}
           inlabel="Organisation name"
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e: any) =>
+            setFormData({ ...formData, name: e.target.value })
+          }
           error={formDataErrors.name}
           setFormData={setFormData}
         />

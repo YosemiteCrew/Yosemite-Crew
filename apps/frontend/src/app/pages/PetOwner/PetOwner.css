@@ -197,12 +197,28 @@
 }
 
 /* PawsPraisesSec */
-
 .PawsPraisesSec {
-  padding: 100px 0px 50px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0px;
 }
 .PawsPrasData {
-  padding: 50px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.PawsHead {
+  text-align: center;
+}
+.PawsHead h2 {
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  color: var(--pureblack);
+  margin: 0;
 }
 .BrownDiv img,
 .PurpleDiv img,
@@ -220,8 +236,8 @@
   background: url("https://d2il6osz49gpup.cloudfront.net/Images/Paws1after.png")
     no-repeat;
   background-size: 100% 100%;
-  left: 185px;
-  top: -25px;
+  left: 55px;
+  top: -55px;
   width: 137px;
   height: 132px;
   animation: rotate-image 10s linear infinite;
@@ -233,7 +249,7 @@
     no-repeat;
   background-size: 100% 100%;
   top: -10px;
-  right: 155px;
+  right: 95px;
   width: 107px;
   height: 107px;
   animation: rotate-image 10s linear infinite;
@@ -258,6 +274,75 @@
     transform: rotate(180deg);
   }
 }
+@media screen and (max-width: 1280px) {
+  .PawsHead h2 {
+    font-size: 33px;
+  }
+  .BrownDiv::after {
+    left: 50px;
+    top: -55px;
+    width: 90px;
+    height: 85px;
+  }
+  .PurpleDiv::after {
+    top: -10px;
+    right: 105px;
+    width: 80px;
+    height: 80px;
+  }
+  .GreenDiv::after {
+    left: 105px;
+    bottom: -22px;
+    width: 80px;
+    height: 80px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .PawsPraisesSec {
+    padding: 16px 0px;
+  }
+  .PawsHead h2 {
+    font-size: 23px;
+  }
+  .BrownDiv::after {
+    left: 50px;
+    top: -15px;
+    width: 60px;
+    height: 55px;
+  }
+  .PurpleDiv::after {
+    top: -10px;
+    right: 35px;
+    width: 60px;
+    height: 60px;
+  }
+  .GreenDiv::after {
+    left: 50px;
+    bottom: -12px;
+    width: 60px;
+    height: 60px;
+  }
+}
+@media screen and (max-width: 640px) {
+  .BrownDiv::after {
+    left: 20px;
+    top: -5px;
+    width: 40px;
+    height: 35px;
+  }
+  .PurpleDiv::after {
+    top: -10px;
+    right: 5px;
+    width: 40px;
+    height: 40px;
+  }
+  .GreenDiv::after {
+    left: 20px;
+    bottom: -12px;
+    width: 40px;
+    height: 40px;
+  }
+}
 
 /* GlimpseSec Started */
 
@@ -276,12 +361,10 @@
   gap: 20px;
   padding-top: 40px;
 }
-.GlimsData .GlimpsHead,
-.PawsHead {
+.GlimsData .GlimpsHead {
   text-align: center;
 }
-.GlimsData .GlimpsHead h2,
-.PawsHead h2 {
+.GlimsData .GlimpsHead h2 {
   font-size: 48px;
   font-weight: 500;
   line-height: 120%;

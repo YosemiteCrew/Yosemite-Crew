@@ -25,20 +25,25 @@
   }
 }
 
-.logo {
+.header-container .logo {
   padding: 0px;
-  width: 80px;
-  height: 80px;
+  width: 90px !important;
+  height: 83px !important;
 }
 
-.logo img {
-  width: auto;
-  height: 100%;
+.header-container .logo img {
+  width: 90px !important;
+  height: 83px !important;
 }
 @media screen and (max-width: 1024px) {
-  .logo {
-    width: 72px;
-    height: 72px;
+  .header-container .logo {
+    padding: 0px;
+    width: 72px !important;
+    height: 67px !important;
+  }
+  .header-container .logo img {
+    width: 72px !important;
+    height: 67px !important;
   }
 }
 

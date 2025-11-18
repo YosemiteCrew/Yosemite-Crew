@@ -12,7 +12,7 @@ export const InfoCards: InfoCard[] = [
     title: "Streamlined solutions for busy pet businesses",
     description:
       "Yosemite Crew helps veterinary practices optimise their operations, boost efficiency, and provide outstanding care, ensuring that pet parents receive the best services possible, whether on mobile or desktop.",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/landingimg1.png",
+    image: "https://d2il6osz49gpup.cloudfront.net/MainLanding/landing_pms.png",
     href: "/pms",
     background: "#f5f8fd",
   },
@@ -21,7 +21,7 @@ export const InfoCards: InfoCard[] = [
     title: "Designed for pet parents. Simple, intuitive, reliable",
     description:
       "Curated essential tools for your companions, whether they are cats, horses, or dogs in one place. Our app enhances communication with groomers, boarders, sitters, vets, and clinics, streamlining appointments, tasks, medical records, and educational resources for exceptional care.",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/landingimg2.png",
+    image: "https://d2il6osz49gpup.cloudfront.net/MainLanding/landing_app.png",
     href: "/application",
     background: "#e9f2fd",
   },
@@ -30,7 +30,7 @@ export const InfoCards: InfoCard[] = [
     title: "Pay as you grow, no strings attached",
     description:
       "Choose what works for you: host it for free or opt for our pay-as-you-go plan. There are no hidden fees or long-term contracts, and with the Yosemite Crew AGPL V3 license, you own the software!",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/landingimg3.png",
+    image: "https://d2il6osz49gpup.cloudfront.net/MainLanding/landing_pricing.png",
     href: "/pricing",
     background: "#f8fbff",
   },

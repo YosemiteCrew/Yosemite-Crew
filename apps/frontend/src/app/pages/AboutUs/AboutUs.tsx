@@ -78,7 +78,7 @@ const AboutUs = () => {
         <div className="Container">
           <div className="StoryData">
             <Image
-              src="https://d2il6osz49gpup.cloudfront.net/Images/aboutstory.png"
+              src="https://d2il6osz49gpup.cloudfront.net/aboutus-page/aboutnew.png"
               alt="aboutstory"
               width={605}
               height={515}
