@@ -48,22 +48,17 @@ const SignIn = ({
     if (status !== "authenticated" || !user) return;
     const isDevRole = role === "developer";
     const devFlag =
-      typeof window !== "undefined" &&
-      window.sessionStorage.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in place
+      typeof globalThis !== "undefined" &&
+      globalThis.sessionStorage?.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in place
 
+    let target = next || redirectPath;
     if (isDeveloper) {
-      if (isDevRole || (!role && devFlag)) {
-        router.replace(next || redirectPath);
-      } else {
-        router.replace("/signin");
-      }
-    } else {
-      if (isDevRole || (!role && devFlag)) {
-        router.replace("/developers/home");
-      } else {
-        router.replace(next || redirectPath);
-      }
+      target = isDevRole || (!role && devFlag) ? next || redirectPath : "/signin";
+    } else if (isDevRole || (!role && devFlag)) {
+      target = "/developers/home";
     }
+
+    router.replace(target);
   }, [status, user, next, router, redirectPath, isDeveloper, role]);
 
   const handleCodeResendonError = async () => {
@@ -105,9 +100,9 @@ const SignIn = ({
 
     try {
       await signIn(email, password);
-      if (typeof window !== "undefined") {
+      if (typeof globalThis !== "undefined") {
         // Temporary fallback until custom:role attribute is available in the pool
-        window.sessionStorage.setItem("devAuth", isDeveloper ? "true" : "false");
+        globalThis.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
       }
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
@@ -131,12 +126,23 @@ const SignIn = ({
   };
 
   return (
-    <section className="SignInSec">
+    <section
+      className="SignInSec"
+      style={
+        isDeveloper
+          ? {
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
+            }
+          : undefined
+      }
+    >
       {ErrorTostPopup}
       <div className="RightSignIn">
         <Form onSubmit={handleSignIn}>
           <div className="TopSignInner">
-            <h2>Sign in to your account</h2>
+            <h2>
+              {isDeveloper ? "Sign in to your developer account" : "Sign in to your account"}
+            </h2>
             <FormInput
               intype="email"
               inname="email"

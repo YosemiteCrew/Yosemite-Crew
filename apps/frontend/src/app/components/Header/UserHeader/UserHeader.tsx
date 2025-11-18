@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, {useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MdNotificationsActive } from "react-icons/md";
@@ -38,23 +38,12 @@ const UserHeader = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { signout, session } = useAuthStore();
+  const { signout } = useAuthStore();
   const isDev = pathname.startsWith("/developers");
   const routes = isDev ? devRoutes : appRoutes;
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
-  const idTokenPayload = session?.getIdToken().decodePayload();
 
-  const profileName = useMemo(() => {
-    const name = `${idTokenPayload?.given_name || ""} ${
-      idTokenPayload?.family_name || ""
-    }`.trim();
-    if (name) return name;
-    if (idTokenPayload?.email) return idTokenPayload.email;
-    return "Guest";
-  }, [idTokenPayload?.email, idTokenPayload?.family_name, idTokenPayload?.given_name]);
-
-  const roleLabel = pathname.startsWith("/developers") ? "Developer" : "User";
   const logoutRedirect = pathname.startsWith("/developers")
     ? "/developers/signin"
     : "/signin";
