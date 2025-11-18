@@ -14,7 +14,7 @@ interface Appointment {
 }
 
 type ViewType = "weekly" | "daily" | "person";
-type FilterStatus = "all" | "Requested" | "Upcoming" | "Checked-in" | "In progress" | "Completed";
+type FilterStatus = "all" | "emergency" | "Requested" | "Upcoming" | "Checked-in" | "In progress" | "Completed";
 
 // Sample data
 const generateAppointments = (): Appointment[] => {
@@ -70,60 +70,92 @@ const CalendarComponent: React.FC = () => {
     return slots;
   }, []);
 
-  const getStatusColor = (status: Appointment["status"] | "all"): string => {
-    const colors: Record<Appointment["status"], string> = {
+  const getFilterColor = (status: FilterStatus, isActive: boolean): string => {
+    if (!isActive) {
+      return "bg-gray-100 text-gray-700 border border-gray-300"; // default light style
+    }
+
+    const activeColors: Record<FilterStatus, string> = {
+      all: "bg-gray-600 text-white",
+      emergency: "bg-red-500 text-white",
+      Requested: "bg-gray-300 text-gray-700",
+      Upcoming: "bg-blue-600 text-white",
+      "Checked-in": "bg-orange-100 text-orange-500",
+      "In progress": "bg-green-100 text-green-500",
+      Completed: "bg-green-700 text-white",
+    };
+
+    return activeColors[status];
+  };
+
+
+
+  const getStatusColor = (status: FilterStatus): string => {
+    const colors: Record<string, string> = {
+      "all": "bg-gray-200 text-gray-700",
+      "emergency": "bg-gray-200 text-gray-700",
       "Requested": "bg-gray-200 text-gray-700",
       "Upcoming": "bg-blue-500 text-white",
-      "Checked-in": "bg-orange-400 text-white",
-      "In progress": "bg-green-600 text-white",
+      "Checked-in": "bg-orange-100 text-orange-500",
+      "In progress": "bg-green-100 text-green-500",
       "Completed": "bg-green-700 text-white"
     };
-    if (status === "all") return "bg-gray-200";
-    return colors[status] || "bg-gray-200";
+    return colors[status] || "bg-gray-200 text-gray-700";
   };
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter(apt => {
-      const matchesStatus = filterStatus === "all" || apt.status === filterStatus;
+      // Filter by status
+      const matchesStatus =
+        filterStatus === "all" ||
+        (filterStatus === "emergency" && apt.isEmergency) ||
+        apt.status === filterStatus;
+
+      // Filter by search query
       const matchesSearch = searchQuery === "" ||
         apt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.patient.toLowerCase().includes(searchQuery.toLowerCase());
+
       return matchesStatus && matchesSearch;
     });
   }, [appointments, filterStatus, searchQuery]);
 
   const AppointmentCard: React.FC<{ appointment: Appointment }> = ({ appointment }) => {
     const statusColors: { [key: string]: string } = {
-      Upcoming: "bg-[#2F6FED] text-white",
-      "In progress": "bg-[#16A34A] text-white",
-      Completed: "bg-[#16A34A] text-white",
-      Requested: "bg-[#F5F5F5] text-gray-700",
-      "Checked-in": "bg-[#FB923C] text-white"
+      "all": "bg-gray-200 text-gray-700",
+      "emergency": "bg-gray-200 text-gray-700",
+      "Requested": "bg-gray-200 text-gray-700",
+      "Upcoming": "bg-blue-500 text-white",
+      "Checked-in": "bg-orange-100 text-orange-500",
+      "In progress": "bg-green-100 text-green-500",
+      "Completed": "bg-green-700 text-white"
     };
     const statusColor = statusColors[appointment.status] || "bg-gray-200 text-gray-700";
 
     return (
-      <div className={`${statusColor} rounded-xl p-3 shadow-sm relative h-28`}>
+      <div className={`${statusColor} rounded-2xl p-4 shadow-sm relative min-h-[140px]`}>
         {appointment.isEmergency && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
+          <div className="absolute top-1 right-1 bg-red-200 text-red-500 text-xs px-2 py-1 rounded-full font-medium" style={{
+            fontSize:10
+          }}>
             Emergency
           </div>
         )}
-        
-        <div className="text-sm font-semibold mb-1.5">{appointment.title}</div>
 
-        <div className="flex items-center text-xs gap-1 mb-1">
+        <div className="text-base font-semibold mb-2">{appointment.title}</div>
+
+        <div className="flex items-center text-sm gap-1.5 mb-1.5">
           <span className="opacity-90">👤</span>
           <span className="opacity-90">{appointment.doctor}</span>
         </div>
 
-        <div className="flex items-center text-xs gap-1 mb-1.5">
+        <div className="flex items-center text-sm gap-1.5 mb-3">
           <span className="opacity-90">🏢</span>
           <span className="opacity-90">{appointment.patient}</span>
         </div>
 
-        <div className="text-xs font-medium">
+        <div className="text-sm font-medium">
           {appointment.time}
         </div>
       </div>
@@ -131,13 +163,13 @@ const CalendarComponent: React.FC = () => {
   };
 
   const WeeklyView: React.FC = () => (
-    <div className="flex-1 overflow-auto">
-      <div className="flex gap-0">
+    <div className="flex-1 overflow-auto bg-gray-50">
+      <div className="flex gap-0 min-w-max">
         {/* Time column */}
-        <div className="w-16 flex-shrink-0">
-          <div className="h-16"></div>
+        <div className="w-20 flex-shrink-0 bg-white">
+          <div className="h-16 border-b border-gray-200"></div>
           {timeSlots.map((slot) => (
-            <div key={slot} className="h-32 flex items-start justify-end pr-2 text-xs text-gray-400">
+            <div key={slot} className="h-40 flex items-start justify-end pr-3 pt-2 text-sm text-gray-500 border-b border-gray-100">
               {slot}
             </div>
           ))}
@@ -146,10 +178,10 @@ const CalendarComponent: React.FC = () => {
         {/* Doctors columns */}
         <div className="flex-1 grid grid-cols-4 gap-0">
           {doctors.map((doctor, doctorIndex) => (
-            <div key={doctor} className="flex flex-col border-l border-gray-200">
+            <div key={doctor} className="flex flex-col border-l border-gray-200 bg-white">
               {/* Doctor header */}
-              <div className="h-16 flex items-center justify-center border-b border-gray-200">
-                <span className={`text-sm font-medium ${doctorIndex === 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+              <div className="h-16 flex items-center justify-center border-b border-gray-200 px-4">
+                <span className={`text-base font-medium ${doctorIndex === 0 ? 'text-gray-900' : 'text-gray-400'}`}>
                   {doctor}
                 </span>
               </div>
@@ -157,11 +189,11 @@ const CalendarComponent: React.FC = () => {
               {/* Time slots */}
               <div className="relative">
                 {timeSlots.map((slot) => (
-                  <div key={slot} className="h-32 border-b border-gray-100"></div>
+                  <div key={slot} className="h-40 border-b border-gray-100"></div>
                 ))}
 
                 {/* Appointments */}
-                <div className="absolute inset-0 p-2 space-y-2 overflow-y-auto">
+                <div className="absolute inset-0 p-3 space-y-3 overflow-y-auto">
                   {filteredAppointments
                     .filter(a => a.doctor === doctor)
                     .map((a) => (
@@ -177,49 +209,98 @@ const CalendarComponent: React.FC = () => {
     </div>
   );
 
-
   const DailyView: React.FC = () => (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="max-w-2xl mx-auto">
-        <h3 className="text-xl font-semibold mb-4">Monday, January 5, 2026</h3>
-        {timeSlots.map(slot => {
-          const slotAppointments = filteredAppointments.filter(apt => apt.time.startsWith(slot));
-          return (
-            <div key={slot} className="mb-6">
-              <div className="text-sm font-medium text-gray-500 mb-2">{slot}</div>
-              {slotAppointments.length > 0 ? (
-                <div className="grid gap-2">
-                  {slotAppointments.map(apt => (
-                    <AppointmentCard key={apt.id} appointment={apt} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-gray-300 text-sm italic">No appointments</div>
-              )}
+    <div className="flex-1 overflow-auto bg-gray-50">
+      <div className="flex gap-0 min-w-max">
+        {/* Time column */}
+        <div className="w-20 flex-shrink-0 bg-white">
+          <div className="h-24 border-b border-gray-200 flex items-center justify-center">
+            <span className="text-lg font-medium">Mon 05</span>
+          </div>
+          {timeSlots.map((slot) => (
+            <div key={slot} className="h-52 flex items-start justify-end pr-3 pt-2 text-sm text-gray-500 border-b border-gray-100">
+              {slot}
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Doctors columns */}
+        <div className="flex-1 grid grid-cols-4 gap-0">
+          {doctors.map((doctor) => (
+            <div key={doctor} className="flex flex-col border-l border-gray-200 bg-white">
+              {/* Doctor header */}
+              <div className="h-24 flex items-center justify-center border-b border-gray-200 px-4">
+                <span className="text-base font-medium text-gray-900">
+                  {doctor}
+                </span>
+              </div>
+
+              {/* Time slots */}
+              <div className="relative">
+                {timeSlots.map((slot) => (
+                  <div key={slot} className="h-52 border-b border-gray-100"></div>
+                ))}
+
+                {/* Appointments */}
+                <div className="absolute inset-0 p-3 space-y-3 overflow-y-auto">
+                  {filteredAppointments
+                    .filter(a => a.doctor === doctor)
+                    .map((a) => (
+                      <AppointmentCard key={a.id} appointment={a} />
+                    ))
+                  }
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 
   const PersonView: React.FC = () => (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="grid grid-cols-2 gap-6">
-        {doctors.map(doctor => (
-          <div key={doctor}>
-            <h3 className="text-lg font-semibold mb-3 pb-2 border-b-2 border-gray-900">
-              {doctor}
-            </h3>
-            <div className="space-y-2">
-              {filteredAppointments
-                .filter(apt => apt.doctor === doctor)
-                .map(apt => (
-                  <AppointmentCard key={apt.id} appointment={apt} />
-                ))}
+    <div className="flex-1 overflow-auto bg-gray-50">
+      <div className="flex gap-0 min-w-max">
+        {/* Time column */}
+        <div className="w-20 flex-shrink-0 bg-white">
+          <div className="h-16 border-b border-gray-200"></div>
+          {timeSlots.map((slot) => (
+            <div key={slot} className="h-40 flex items-start justify-end pr-3 pt-2 text-sm text-gray-500 border-b border-gray-100">
+              {slot}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        {/* Doctors columns */}
+        <div className="flex-1 grid grid-cols-4 gap-0">
+          {doctors.map((doctor) => (
+            <div key={doctor} className="flex flex-col border-l border-gray-200 bg-white">
+              {/* Doctor header */}
+              <div className="h-16 flex items-center justify-center border-b border-gray-200 px-4">
+                <span className="text-base font-medium text-gray-900">
+                  {doctor}
+                </span>
+              </div>
+
+              {/* Time slots */}
+              <div className="relative">
+                {timeSlots.map((slot) => (
+                  <div key={slot} className="h-40 border-b border-gray-100"></div>
+                ))}
+
+                {/* Appointments */}
+                <div className="absolute inset-0 p-3 space-y-3 overflow-y-auto">
+                  {filteredAppointments
+                    .filter(a => a.doctor === doctor)
+                    .map((a) => (
+                      <AppointmentCard key={a.id} appointment={a} />
+                    ))
+                  }
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -254,40 +335,45 @@ const CalendarComponent: React.FC = () => {
           >
             <span className="text-lg">👤</span>
           </button>
-
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-4 px-6 py-4 border-b">
-        <button 
+        <button
           onClick={() => setFilterStatus("all")}
-          className={`px-4 py-2 rounded-full border ${filterStatus === 'all' ? 'border-blue-500 bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
+          className={`px-4 py-2 border ${filterStatus === 'all' ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}
+          style={{ borderRadius: 5 }}
         >
           All
         </button>
-        <button className="px-4 py-2 rounded-full border border-blue-500 bg-blue-50 text-blue-600">
+        <button
+          onClick={() => setFilterStatus(filterStatus === "emergency" ? "all" : "emergency")}
+          className={`px-4 py-2 border ${filterStatus === 'emergency' ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}
+          style={{ borderRadius: 5 }}
+        >
           Emergency
         </button>
         <div className="relative w-64">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
           <input
             type="text"
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-full border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+            className="w-full pl-3 pr-10 py-2 px-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none"
           />
         </div>
 
-
-        <div className="flex gap-2 ml-auto">
+        <div className="flex gap-2" style={{ marginLeft: "auto" }}>
           {(["Requested", "Upcoming", "Checked-in", "In progress", "Completed"] as const).map(status => (
             <button
               key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${filterStatus === status ? getStatusColor(status) : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+              onClick={() =>
+                setFilterStatus(filterStatus === status ? "all" : status)
+              }
+              className={`px-3 py-2 border text-xs font-medium ${filterStatus === status ? getStatusColor(status) : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'}`}
+              style={{ borderRadius: 5, fontSize: 12 }}
             >
               {status}
             </button>
@@ -306,7 +392,6 @@ const CalendarComponent: React.FC = () => {
 
         <button className="text-gray-400 text-2xl hover:text-gray-600">›</button>
       </div>
-
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
