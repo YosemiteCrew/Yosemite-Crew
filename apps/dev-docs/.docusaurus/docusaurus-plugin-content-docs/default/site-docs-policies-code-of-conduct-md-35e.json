@@ -1,0 +1,28 @@
+{
+  "id": "policies/code-of-conduct",
+  "title": "Code of Conduct",
+  "description": "(Source: CODEOFCONDUCT.md)",
+  "source": "@site/docs/policies/code-of-conduct.md",
+  "sourceDirName": "policies",
+  "slug": "/policies/code-of-conduct",
+  "permalink": "/dev-docs/policies/code-of-conduct",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "lastUpdatedAt": null,
+  "frontMatter": {
+    "id": "code-of-conduct",
+    "title": "Code of Conduct",
+    "slug": "/policies/code-of-conduct"
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Contributing Guide",
+    "permalink": "/dev-docs/policies/contributing"
+  },
+  "next": {
+    "title": "Security Policy",
+    "permalink": "/dev-docs/policies/security"
+  }
+}

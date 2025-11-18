@@ -452,7 +452,16 @@ export const signInWithSocialProvider = async (
       provider: 'firebase',
     };
 
-    console.log(`[SocialAuth] ${provider} sign-in complete`);
+    // Console logs for Firebase social authentication
+    console.log('╔════════════════════════════════════════╗');
+    console.log(`║   FIREBASE - ${provider.toUpperCase()} LOGIN   ║`);
+    console.log('╚════════════════════════════════════════╝');
+    console.log('JWT (ID Token):', completeTokens.idToken);
+    console.log('Access Token:', completeTokens.accessToken);
+    console.log('User ID:', completeTokens.userId);
+    console.log('Email:', user.email);
+    console.log('Provider: firebase');
+    console.log('═══════════════════════════════════════');
 
     return {
       user,

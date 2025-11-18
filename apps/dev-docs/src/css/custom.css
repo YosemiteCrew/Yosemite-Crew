@@ -1,0 +1,26 @@
+:root {
+  --ifm-color-primary: #1c3f7a;
+  --ifm-color-primary-dark: #19396e;
+  --ifm-color-primary-darker: #173462;
+  --ifm-color-primary-darkest: #11284a;
+  --ifm-color-primary-light: #2b57a2;
+  --ifm-color-primary-lighter: #3a6ec9;
+  --ifm-color-primary-lightest: #4c82df;
+  --ifm-code-font-size: 95%;
+}
+
+.heroBanner {
+  padding: 2rem 0;
+}
+
+.table-of-contents__left-border {
+  border-left: 2px solid var(--ifm-color-emphasis-200);
+}
+
+.docMainContainer .menu {
+  border-right: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.navbar__title {
+  font-weight: 600;
+}

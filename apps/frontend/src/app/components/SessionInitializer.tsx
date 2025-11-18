@@ -28,8 +28,14 @@ const publicRoutes = new Set([
 ]);
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const { checkSession, status, role, signout } = useAuthStore();
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
   const router = useRouter();
+
+  const hideSidebarRoutes = ["/developers/documentation"];
+  const shouldHideSidebar = hideSidebarRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+  const isPublicRoute = publicRoutes.has(pathname);
 
   useEffect(() => {
     checkSession();
@@ -39,7 +45,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     if (status !== "authenticated") return;
 
     const isDevRoute = pathname.startsWith("/developers");
-    const isPublic = publicRoutes.has(pathname);
+    const isPublic = isPublicRoute;
     const devFlag =
       typeof window !== "undefined" &&
       window.sessionStorage.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in the token
@@ -58,7 +64,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
       <Header />
       <Cookies />
       <Github />
-      {publicRoutes.has(pathname) ? (
+      {isPublicRoute || shouldHideSidebar ? (
         <div className="bodywrapper">{children}</div>
       ) : (
         <div className="sidebarwrapper">
