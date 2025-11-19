@@ -576,7 +576,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           id: mockCompanion.id,
           name: 'New Name',
@@ -595,7 +595,7 @@ describe('CompanionOverviewScreen', () => {
     fireEvent(weightInput, 'onSave', '20.5 kg');
     await waitFor(() =>
       expect(updateProfileMock).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           currentWeight: 20.5,
           updatedAt: expect.any(String),
@@ -608,7 +608,7 @@ describe('CompanionOverviewScreen', () => {
     fireEvent(weightInput, 'onSave', '21');
     await waitFor(() =>
       expect(updateProfileMock).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           currentWeight: 21,
           updatedAt: expect.any(String),
@@ -621,7 +621,7 @@ describe('CompanionOverviewScreen', () => {
     fireEvent(weightInput, 'onSave', '');
     await waitFor(() =>
       expect(updateProfileMock).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           currentWeight: null,
           updatedAt: expect.any(String),
@@ -634,7 +634,7 @@ describe('CompanionOverviewScreen', () => {
     fireEvent(weightInput, 'onSave', 'abc kg');
     await waitFor(() =>
       expect(updateProfileMock).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           currentWeight: null,
           updatedAt: expect.any(String),
@@ -659,7 +659,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           dateOfBirth: newDate.toISOString(),
           updatedAt: expect.any(String),
@@ -682,7 +682,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           gender: 'female',
           updatedAt: expect.any(String),
@@ -763,7 +763,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           neuteredStatus: 'intact',
           ageWhenNeutered: null,
@@ -811,7 +811,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           insuredStatus: 'not-insured',
           insuranceCompany: null,
@@ -916,7 +916,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           // Expect the full Breed object in the payload
           breed: {
@@ -940,7 +940,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           bloodGroup: 'DEA 1.2',
           updatedAt: expect.any(String),
@@ -959,7 +959,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           countryOfOrigin: 'Canada',
           updatedAt: expect.any(String),
@@ -977,7 +977,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           origin: 'rescue',
           updatedAt: expect.any(String),
@@ -994,7 +994,7 @@ describe('CompanionOverviewScreen', () => {
       expect(
         require('@/features/companion').updateCompanionProfile,
       ).toHaveBeenCalledWith({
-        userId: mockCompanion.userId,
+        parentId: mockCompanion.userId,
         updatedCompanion: expect.objectContaining({
           profileImage: 'file://new-image.jpg',
           updatedAt: expect.any(String),

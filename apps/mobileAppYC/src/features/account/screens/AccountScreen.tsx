@@ -258,7 +258,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     } finally {
       setIsDeletingAccount(false);
     }
-  }, [authUser?.id, logout, provider]);
+  }, [authUser?.parentId, logout, provider]);
 
   const handleLogoutPress = React.useCallback(() => {
     logout().catch(error => {
