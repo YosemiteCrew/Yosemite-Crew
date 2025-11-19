@@ -11,6 +11,8 @@ const publicRoutes = new Set([
   "/",
   "/signin",
   "/signup",
+  "/developers/signin",
+  "/developers/signup",
   "/forgot-password",
   "/about",
   "/application",

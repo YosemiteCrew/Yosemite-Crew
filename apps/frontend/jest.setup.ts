@@ -68,3 +68,17 @@ jest.mock('@iconify/react', () => ({
 jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: IconComponentMock,
 }));
+
+// Mock Next.js navigation hooks for tests
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+  useSearchParams: () => ({
+    get: jest.fn(() => null),
+    entries: jest.fn(() => [].entries()),
+  }),
+  usePathname: () => "/",
+}));
