@@ -1,0 +1,6134 @@
+[
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 3760,
+    "breedName": "Chihuahua - Teacup"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 7347,
+    "breedName": "Chihuahua (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 7348,
+    "breedName": "Griffon - Basset Vendeen (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 7351,
+    "breedName": "Bouvier (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 12969,
+    "breedName": "Abruzzenhund"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13634,
+    "breedName": "Affenpinscher"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13635,
+    "breedName": "African Boerboel (African Mastiff)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13636,
+    "breedName": "African Wild Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13637,
+    "breedName": "Akbash"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13638,
+    "breedName": "Akita (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13639,
+    "breedName": "Akita - American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13640,
+    "breedName": "Akita - Japanese Inu"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13641,
+    "breedName": "Alaskan Klee Kai"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13642,
+    "breedName": "Alaskan Malamute"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13643,
+    "breedName": "Alaunt"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13644,
+    "breedName": "Alopekis"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13645,
+    "breedName": "American Bullnese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13646,
+    "breedName": "American Dingo (Carolina Dog) (American Indian Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13647,
+    "breedName": "American Lamalese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13648,
+    "breedName": "American Lo-Size Pugg"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13649,
+    "breedName": "American Staghound"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13650,
+    "breedName": "Andalusian Mouse-Hunting Dog (Bodeguero Andaluz) (Perro Ratonero Andaluz)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13651,
+    "breedName": "Anglos-Francais de Moyenne Venerie"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13671,
+    "breedName": "Anglos-Francaises de Petite Venerie"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13672,
+    "breedName": "Arubian Cunucu Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13673,
+    "breedName": "Aryan Molossus"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13674,
+    "breedName": "Australian Bandog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13675,
+    "breedName": "Australian Kelpie"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13676,
+    "breedName": "Austrian Brandlbracke"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13677,
+    "breedName": "Auvergne Pointing Dog (Braque d'Auvergne)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13678,
+    "breedName": "Basenji (African Bush Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13679,
+    "breedName": "Basset (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13680,
+    "breedName": "Basset - Artesian Normand"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13681,
+    "breedName": "Basset - Bleu de Gascogne"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13682,
+    "breedName": "Basset - Fauve de Bretagne (Basset - Fawn Brittany)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13683,
+    "breedName": "Beagle (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13684,
+    "breedName": "Beagle - Elizabethan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13685,
+    "breedName": "Beagle - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13686,
+    "breedName": "Beagle - Harrier"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13687,
+    "breedName": "Beagle - Kerry"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13688,
+    "breedName": "Beagle - Rough"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13689,
+    "breedName": "Beagle - Smooth"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13690,
+    "breedName": "Belgian Street Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13711,
+    "breedName": "Berger Shetland"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13712,
+    "breedName": "Bichon (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13713,
+    "breedName": "Bichon - Bolognese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13714,
+    "breedName": "Bichon - Frise"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13715,
+    "breedName": "Bichon - Havanais"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13716,
+    "breedName": "Bichon - Teneriffe"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13717,
+    "breedName": "Billy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13718,
+    "breedName": "Bloodhound (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13719,
+    "breedName": "Bloodhound - Southern"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13720,
+    "breedName": "Bloodhound - St Hubert"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13721,
+    "breedName": "Bloodhound - Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13722,
+    "breedName": "Blue Lacy (Texas Blue Game Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13723,
+    "breedName": "Bosanski Ostrodlaki Gonic Barak"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13724,
+    "breedName": "Boxer (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13725,
+    "breedName": "Boxer - Bull"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13726,
+    "breedName": "Boxer - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13727,
+    "breedName": "Boxer - German (Boxer - Deutscher)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13728,
+    "breedName": "Braque (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13729,
+    "breedName": "Braque - Belge"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13730,
+    "breedName": "Braque - d'Ariege"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13751,
+    "breedName": "Braque - Dupuy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13752,
+    "breedName": "Braque - Francais de Grand Taille"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13753,
+    "breedName": "Braque - Francais de Petite Taille"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13754,
+    "breedName": "Brazilian Molosser"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13755,
+    "breedName": "Brazilian Tracker (Rastreador Brasileiro)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13756,
+    "breedName": "Briard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13757,
+    "breedName": "Bruno de Jura"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13758,
+    "breedName": "Bull Arab"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13759,
+    "breedName": "Bulldog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13760,
+    "breedName": "Bulldog - Alapaha Blue Blood"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13761,
+    "breedName": "Bulldog - American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13762,
+    "breedName": "Bulldog - Australian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13763,
+    "breedName": "Bulldog - Bordeaux"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13764,
+    "breedName": "Bulldog - Boston"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13765,
+    "breedName": "Bulldog - British (Bulldog - English)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13766,
+    "breedName": "Bulldog - Campeiro"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13767,
+    "breedName": "Bulldog - Catahoula"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13768,
+    "breedName": "Bulldog - French"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13769,
+    "breedName": "Bulldog - Italian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13770,
+    "breedName": "Bulldog - Mallorquin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13791,
+    "breedName": "Bulldog - Spanish (Alano Espanol)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13792,
+    "breedName": "Bulldog - Valley"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13793,
+    "breedName": "Bulldog - Victorian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13794,
+    "breedName": "Bulldog - Vilano (Villano De Las Encartaciones)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13795,
+    "breedName": "Bulldogge (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13796,
+    "breedName": "Bulldogge - Banter"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13797,
+    "breedName": "Bulldogge - Brazilian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13798,
+    "breedName": "Bulldogge - Dorset Olde Tyme"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13799,
+    "breedName": "Bulldogge - Larson Lakeview"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13800,
+    "breedName": "Bulldogge - Olde Boston"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13801,
+    "breedName": "Bulldogge - Olde English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13802,
+    "breedName": "Bulldogge - Olde Victorian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13803,
+    "breedName": "Bulldogge - Original English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13804,
+    "breedName": "Bully Kuttas"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13805,
+    "breedName": "Cajun Squirrel Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13806,
+    "breedName": "Canaan Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13807,
+    "breedName": "Canary Dog (Perro de Presa Canario)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13808,
+    "breedName": "Canis Panther"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13809,
+    "breedName": "Canoe Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13810,
+    "breedName": "Cattle Dog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13831,
+    "breedName": "Cattle Dog - Appenzell (Appenzeller Sennenhund) (Mountain Dog - Appenzell)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13832,
+    "breedName": "Cattle Dog - Ardennes (Bouvier des Ardennes)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13833,
+    "breedName": "Cattle Dog - Australian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13834,
+    "breedName": "Cattle Dog - Azores (C\u00e3o De Fila De S\u00e3o Miguel)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13835,
+    "breedName": "Cattle Dog - Blue"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13836,
+    "breedName": "Cattle Dog - Entlebuch (Entlebucher Sennenhund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13837,
+    "breedName": "Cattle Dog - Flanders (Bouvier des Flandres) (Vlaamse Koehond)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13838,
+    "breedName": "Cattle Dog - Great Swiss"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13839,
+    "breedName": "Cattle Dog - Portuguese (C\u00e3o de Castro Laboreiro)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13840,
+    "breedName": "Cattle Dog - Stumpy Tail"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13841,
+    "breedName": "Cattle Dog - Swedish (Vallhund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13842,
+    "breedName": "Chi-Poo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13843,
+    "breedName": "Chi-Terrier"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13844,
+    "breedName": "Chien de Berger Belge"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13845,
+    "breedName": "Chien Loup"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13846,
+    "breedName": "Chihuahua, Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13847,
+    "breedName": "Chihuahua, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13848,
+    "breedName": "Chinese Chongqing Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13849,
+    "breedName": "Chinese Crested, Hairless"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13850,
+    "breedName": "Chinese Crested, Powder Puff"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13871,
+    "breedName": "Chinese Foo Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13872,
+    "breedName": "Chinese Imperial Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13873,
+    "breedName": "Chinese Shar-Pei"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13874,
+    "breedName": "Chinook"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13875,
+    "breedName": "Chippiparai"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13876,
+    "breedName": "Chow Chow"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13877,
+    "breedName": "Cirneco Dell 'Etna"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13878,
+    "breedName": "Cockapoo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13879,
+    "breedName": "Collie (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13880,
+    "breedName": "Collie - Scottish Rough"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13881,
+    "breedName": "Collie - Scottish Smooth"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13882,
+    "breedName": "Collie - Bearded"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13883,
+    "breedName": "Collie - Border"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13884,
+    "breedName": "Collie - Farm"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13885,
+    "breedName": "Collie - Old Farm"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13886,
+    "breedName": "Coonhound (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13887,
+    "breedName": "Coonhound - American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13888,
+    "breedName": "Coonhound - Black and Tan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13889,
+    "breedName": "Coonhound - Bluetick"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13890,
+    "breedName": "Coonhound - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13911,
+    "breedName": "Coonhound - Redbone"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13912,
+    "breedName": "Coonhound - Redtick"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13913,
+    "breedName": "Coonhound - Treeing Walker"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13914,
+    "breedName": "Coton De Tulear"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13915,
+    "breedName": "Coydog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13916,
+    "breedName": "Crossbreed (Mongrel) (Batard)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13917,
+    "breedName": "Cur (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13918,
+    "breedName": "Cur - Black Mouth"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13919,
+    "breedName": "Cur - Leopard (Catahoula Leopard Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13920,
+    "breedName": "Cur - Mountain Stephens Stock"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13921,
+    "breedName": "Cur - Mountain, View"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13922,
+    "breedName": "Cur - Mountain, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13923,
+    "breedName": "Cur - Southern, Blackmouth"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13924,
+    "breedName": "Cur - Southern, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13925,
+    "breedName": "Cur - Treeing"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13926,
+    "breedName": "Cur - Yellow Black Mouth"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13927,
+    "breedName": "Dachsbracke (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13928,
+    "breedName": "Dachsbracke - Alpine (Alpenl\u00e4ndische) (Basset des Alpes)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13929,
+    "breedName": "Dachsbracke - Dutch (Strellufstover)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13930,
+    "breedName": "Dachsbracke - Swedish (Drever)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13951,
+    "breedName": "Dachsbracke - Westphalian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13952,
+    "breedName": "Dachshund (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13953,
+    "breedName": "Dachshund - Old Format"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13954,
+    "breedName": "Dachshund, Miniature (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13955,
+    "breedName": "Dachshund, Miniature Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13956,
+    "breedName": "Dachshund, Miniature Smooth-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13957,
+    "breedName": "Dachshund, Miniature Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13958,
+    "breedName": "Dachshund, Standard (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13959,
+    "breedName": "Dachshund, Standard Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13960,
+    "breedName": "Dachshund, Standard Smooth-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13961,
+    "breedName": "Dachshund, Standard Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13962,
+    "breedName": "Dalmatian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13963,
+    "breedName": "Danish Chicken Dog (Gammel Dansk Honsehund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13964,
+    "breedName": "Danish-Swedish Farm Dog (Dansk-Svensk Gaardhund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13965,
+    "breedName": "Deutscher Wachtelhund"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13966,
+    "breedName": "Dingo (Australian Native Dog) (Maliki) (Warrigal) (Noggum) (Mirigung) (Boolomo)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13967,
+    "breedName": "Dogo Argentino"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13968,
+    "breedName": "Dogue Brasileiro"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13969,
+    "breedName": "Dogue de Bordeaux"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13970,
+    "breedName": "Dutch Partridge Dog (Drentse Patrijshond)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13991,
+    "breedName": "Dutch Sheeppoodle (Nederlandse Schapendoes)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13992,
+    "breedName": "East Russian Coursing Hounds"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13993,
+    "breedName": "Elkhound (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13994,
+    "breedName": "Elkhound - Norwegian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13995,
+    "breedName": "Elkhound - Swedish (Jamthund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13996,
+    "breedName": "Elo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13997,
+    "breedName": "Eurasier (Eurasian)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13998,
+    "breedName": "Feist (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 13999,
+    "breedName": "Feist - Bench-legged"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14000,
+    "breedName": "Feist - Kemmer"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14001,
+    "breedName": "Feist - Mountain"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14002,
+    "breedName": "Feist - Pencil-Tail"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14003,
+    "breedName": "Feist - Treeing"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14004,
+    "breedName": "Finnish Lapphund (Lapinkoira) (Suomenlapinkoira)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14005,
+    "breedName": "Finnish Reindeer Herder"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14006,
+    "breedName": "Foxhound (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14007,
+    "breedName": "Foxhound - American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14008,
+    "breedName": "Foxhound - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14009,
+    "breedName": "Gascon Saintongeois, Grand"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14010,
+    "breedName": "Gascon Saintongeois, Petit"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14031,
+    "breedName": "German Sheeppoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14032,
+    "breedName": "German Wolfspitz"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14033,
+    "breedName": "Goldendoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14034,
+    "breedName": "Grand Anglo-Fran\u00e7ais, Blanc Et Noir"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14035,
+    "breedName": "Grand Anglo-Fran\u00e7ais, Blanc Et Orange"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14036,
+    "breedName": "Grand Anglo-Fran\u00e7ais, Tricolore"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14037,
+    "breedName": "Great Dane (Mastiff - German) (Deutsche Dogge)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14038,
+    "breedName": "Great Japanese Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14039,
+    "breedName": "Greenland Dog (Esquimaux Dog) (Grunlandshund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14040,
+    "breedName": "Greyhound (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14041,
+    "breedName": "Greyhound - Arabian (Sloughi Moghrebi) (Levrier Marocain)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14042,
+    "breedName": "Greyhound - Australian (Kangaroo Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14043,
+    "breedName": "Greyhound - Banjara"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14044,
+    "breedName": "Greyhound - Eastern (West Russian Coursing Hound) (Chortaj)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14045,
+    "breedName": "Greyhound - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14046,
+    "breedName": "Greyhound - Hungarian (Magyar Agar)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14047,
+    "breedName": "Greyhound - Italian (Piccolo Levriero Italiano)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14048,
+    "breedName": "Greyhound - Mahratta"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14049,
+    "breedName": "Greyhound - Polish (Chart Polski)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14050,
+    "breedName": "Greyhound - Potsdam"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14071,
+    "breedName": "Greyhound - Rampur (North Indian)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14072,
+    "breedName": "Greyhound - Spanish (Galgo Espa\u00f1ol)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14073,
+    "breedName": "Griffon (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14074,
+    "breedName": "Griffon - Basset Vendeen, Grand"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14075,
+    "breedName": "Griffon - Basset Vendeen, Petit"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14076,
+    "breedName": "Griffon - Belgian (Griffon - Belge)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14077,
+    "breedName": "Griffon - Bleu de Gascogne, Grand"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14078,
+    "breedName": "Griffon - Bleu de Gascogne, Petit"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14079,
+    "breedName": "Griffon - Briquet Vendeen"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14080,
+    "breedName": "Griffon - Brussels, Smooth (Petit Brabancon)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14081,
+    "breedName": "Griffon - Brussels, Standard (Bruxellois)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14082,
+    "breedName": "Griffon - French Korthals Pointing Wire-Haired (Korthals French Pointing Griffon, Wire-Haired)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14083,
+    "breedName": "Griffon - Nivernais (Chien de Pays)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14084,
+    "breedName": "Griffon - Pointing, Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14085,
+    "breedName": "Griffon - Vendeen, Grand"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14086,
+    "breedName": "Guard Dog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14087,
+    "breedName": "Guard Dog - French"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14088,
+    "breedName": "Guard Dog - German (Hovawart)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14089,
+    "breedName": "Guejae Gae"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14090,
+    "breedName": "Gull Dongs"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14111,
+    "breedName": "Gull Ter"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14112,
+    "breedName": "Harehound"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14113,
+    "breedName": "Havana Silk Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14114,
+    "breedName": "Havanese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14115,
+    "breedName": "Hawaiian Poi Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14116,
+    "breedName": "Heeler (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14117,
+    "breedName": "Heeler - Blue"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14118,
+    "breedName": "Heeler - Lancashire (Heeler - Ormskirk)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14119,
+    "breedName": "Hokkaido (Ainu Ken) (Ainu Inu)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14120,
+    "breedName": "Hound (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14121,
+    "breedName": "Hound - Afghan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14122,
+    "breedName": "Hound - American Blue Gascon"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14123,
+    "breedName": "Hound - Ariege (Ariegeois) (Pointer - Ariege)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14124,
+    "breedName": "Hound - Artois (Hound - Briquet)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14125,
+    "breedName": "Hound - Austrian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14126,
+    "breedName": "Hound - Austrian Black and Tan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14127,
+    "breedName": "Hound - Azawakh (Tuareg Sloughi)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14128,
+    "breedName": "Hound - Balkan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14129,
+    "breedName": "Hound - Basset"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14130,
+    "breedName": "Hound - Bavarian Mountain"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14151,
+    "breedName": "Hound - Bernese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14152,
+    "breedName": "Hound - Bizanian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14153,
+    "breedName": "Hound - Black Forrest"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14154,
+    "breedName": "Hound - Bleu de Gascogne, Grand"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14155,
+    "breedName": "Hound - Bleu de Gascogne, Petit"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14156,
+    "breedName": "Hound - Bosnian (Hound - Barak)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14157,
+    "breedName": "Hound - Canadian Warren"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14158,
+    "breedName": "Hound - Canary Warren (Podenco Canario)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14159,
+    "breedName": "Hound - Caravan (Hound - Maratha) (Hound - Mudhol) (Hound - Pashmi)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14160,
+    "breedName": "Hound - Cretan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14161,
+    "breedName": "Hound - Dutch Tulip (Hollandse Tulphond) (Markiesje)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14162,
+    "breedName": "Hound - Estonian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14163,
+    "breedName": "Hound - Finnish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14164,
+    "breedName": "Hound - French, Tricolour (Chien Francais Tricolore)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14165,
+    "breedName": "Hound - French, White and Black (Chien Francais Blanc et Noir)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14166,
+    "breedName": "Hound - French, White and Orange (Chien Francais Blanc et Orange)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14167,
+    "breedName": "Hound - German (Deutsche Bracke)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14168,
+    "breedName": "Hound - Greek (Hellenic) (Hellenikos Ichnilatis)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14169,
+    "breedName": "Hound - Halden (Haldenst\u00f8vare)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14170,
+    "breedName": "Hound - Hamilton (Hamiltonst\u00f8vare)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14191,
+    "breedName": "Hound - Hanoverian (Hound - Scent)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14192,
+    "breedName": "Hound - Ibizan (Ibizan Warren) (Podenco Ibicenco)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14193,
+    "breedName": "Hound - Indian Bear (Hound - Combai)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14194,
+    "breedName": "Hound - Istrian Coarse-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14195,
+    "breedName": "Hound - Istrian Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14196,
+    "breedName": "Hound - Italian (Segugio Italiano)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14197,
+    "breedName": "Hound - Latvian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14198,
+    "breedName": "Hound - Lithuanian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14199,
+    "breedName": "Hound - Majestic Tree"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14200,
+    "breedName": "Hound - Norwegian Dunker (Dunkerhound)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14201,
+    "breedName": "Hound - Pharoah (Kelb Tal-Fenek)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14202,
+    "breedName": "Hound - Plott"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14203,
+    "breedName": "Hound - Poitevin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14204,
+    "breedName": "Hound - Polish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14205,
+    "breedName": "Hound - Porcelaine (Chien de Franche-Comt\u00e9)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14206,
+    "breedName": "Hound - Portuguese Warren (Podengo)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14207,
+    "breedName": "Hound - Posavina"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14208,
+    "breedName": "Hound - Russian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14209,
+    "breedName": "Hound - Russian Harlequin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14210,
+    "breedName": "Hound - Schiller (Schillerst\u00f6vare)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14231,
+    "breedName": "Hound - Serbian, Standard (Srpski Gonic) (Serbischer Laufhund) (Serbische Bracke)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14232,
+    "breedName": "Hound - Serbian, Tricolour (Srpski Trobojni Gonic)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14233,
+    "breedName": "Hound - Sicillian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14234,
+    "breedName": "Hound - Slovakian (Kopov)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14235,
+    "breedName": "Hound - Smaland (Smalandsstovare)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14236,
+    "breedName": "Hound - South Russian Steppe"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14237,
+    "breedName": "Hound - Spanish, Large (Sabuesos Espanoles)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14238,
+    "breedName": "Hound - Spanish, Small (Sabuesos Espanoles)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14239,
+    "breedName": "Hound - Swiss (Schweizer Laufhunde)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14240,
+    "breedName": "Hound - Trail"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14241,
+    "breedName": "Hound - Transylvanian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14242,
+    "breedName": "Hound - Trigg"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14243,
+    "breedName": "Hound - Tyrolean (Tyroler Bracke) (Tinolean)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14244,
+    "breedName": "Hound - Yugoslavian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14245,
+    "breedName": "Hungarian Kuvasz"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14246,
+    "breedName": "Hungarian Mudi (Canis Ovilis Fenyesi)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14247,
+    "breedName": "Hungarian Pumi"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14248,
+    "breedName": "Hungarian Vizsla, Smooth-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14249,
+    "breedName": "Hungarian Vizsla, Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14250,
+    "breedName": "Husky (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14271,
+    "breedName": "Husky - Alaskan, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14272,
+    "breedName": "Husky - Alaskan, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14273,
+    "breedName": "Husky - Labrador"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14274,
+    "breedName": "Husky - Sakhalin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14275,
+    "breedName": "Husky - Siberian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14276,
+    "breedName": "Hygenhund"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14277,
+    "breedName": "Ilio"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14278,
+    "breedName": "Inuit Dog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14279,
+    "breedName": "Inuit Dog - American, Miniature [Eskimo]"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14280,
+    "breedName": "Inuit Dog - American, Standard [Eskimo]"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14281,
+    "breedName": "Inuit Dog - American, Toy [Eskimo]"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14282,
+    "breedName": "Inuit Dog - Canadian [Eskimo]"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14283,
+    "breedName": "Inuit Dog - Northern [Eskimo]"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14284,
+    "breedName": "Italian Spinone (Spinoni)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14285,
+    "breedName": "Jackal"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14286,
+    "breedName": "Japanese Chin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14287,
+    "breedName": "Japanese Shiba Inu"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14288,
+    "breedName": "Japanese Tosa (Tosa Ken)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14289,
+    "breedName": "Kai Dog (Kai Ken) (Tora Inu) (Tiger Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14290,
+    "breedName": "Kanni"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14311,
+    "breedName": "Karelian Bear Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14312,
+    "breedName": "Keeshond (Wolfspitz)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14313,
+    "breedName": "Kemmer Stock Hybrid Squirrel Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14314,
+    "breedName": "Khala, Hairless"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14315,
+    "breedName": "Kirhiz"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14316,
+    "breedName": "Kishu Ken (Kishu Inu)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14317,
+    "breedName": "Komondor"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14318,
+    "breedName": "Kooiker Dog (Kooikerhondje) (Small Dutch Waterfowl Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14319,
+    "breedName": "Koolie (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14320,
+    "breedName": "Koolie - Australian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14321,
+    "breedName": "Koolie - German"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14322,
+    "breedName": "Korean Jindo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14323,
+    "breedName": "Kromfohrl\u00e4nder"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14324,
+    "breedName": "Kugsha Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14325,
+    "breedName": "Kui Mlk"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14326,
+    "breedName": "Kyi-Apso"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14327,
+    "breedName": "Kyi-Leo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14328,
+    "breedName": "Labradoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14329,
+    "breedName": "Laika (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14330,
+    "breedName": "Laika - East Siberian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14351,
+    "breedName": "Laika - Karelian Bear"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14352,
+    "breedName": "Laika - Karelo-Finnish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14353,
+    "breedName": "Laika - Nenets Herding"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14354,
+    "breedName": "Laika - Northeasterly Hauling (Sleigh Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14355,
+    "breedName": "Laika - Russo-European"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14356,
+    "breedName": "Laika - West Siberian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14357,
+    "breedName": "Lapland Reindeer dog (Lapinporokoira)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14358,
+    "breedName": "Lapphund (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14359,
+    "breedName": "Lapphund - Finnish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14360,
+    "breedName": "Lapphund - Swedish (Svensk lapphund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14361,
+    "breedName": "Leonberger"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14362,
+    "breedName": "Levesque"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14363,
+    "breedName": "Lhasa Apso"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14364,
+    "breedName": "Loughlander"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14365,
+    "breedName": "Lowchen (Little Lion Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14366,
+    "breedName": "Lurcher"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14367,
+    "breedName": "Malti-Poo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14368,
+    "breedName": "Mastiff (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14369,
+    "breedName": "Mastiff - Alangu (Mastiff - Indian)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14370,
+    "breedName": "Mastiff - Alentejo (Portuguese Watchdog) (Rafeiro do Alentejo)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14391,
+    "breedName": "Mastiff - Alpine"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14392,
+    "breedName": "Mastiff - American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14393,
+    "breedName": "Mastiff - American Bandogge"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14394,
+    "breedName": "Mastiff - Argentinian (Argentine Dogo)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14395,
+    "breedName": "Mastiff - Bekarwal (Sheepdog - Kashmir)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14396,
+    "breedName": "Mastiff - Belgian (Matin Beige) (Chien de Trait)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14397,
+    "breedName": "Mastiff - Belgian Draft"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14398,
+    "breedName": "Mastiff - Brazilian (Fila Brasileiro) (C\u00e3o de Fila)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14399,
+    "breedName": "Mastiff - Bull"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14400,
+    "breedName": "Mastiff - Danish (Danish Broholmer)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14401,
+    "breedName": "Mastiff - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14402,
+    "breedName": "Mastiff - French"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14403,
+    "breedName": "Mastiff - Italian (Cane Corso Italiano) (Macellaio) (Sicillian Branchiero)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14404,
+    "breedName": "Mastiff - Kumaon (Cypro Kukur)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14405,
+    "breedName": "Mastiff - Mallorquin (Ca de Bou) (Perro De Presa Mallorquin) (Perro Dogo Mallorquin) (Mallorquin Bulldog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14406,
+    "breedName": "Mastiff - Nebolish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14407,
+    "breedName": "Mastiff - Neopolitan (Napolitino)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14408,
+    "breedName": "Mastiff - Old English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14409,
+    "breedName": "Mastiff - Puerto Rican (Gran Mastin De Borinquen) (Perro Barsino de Hacienda)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14410,
+    "breedName": "Mastiff - Pyrenean"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14431,
+    "breedName": "Mastiff - Spanish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14432,
+    "breedName": "Mastiff - Tibetan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14433,
+    "breedName": "Meliteo Kinidio (Small Greek Domestic Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14434,
+    "breedName": "Mexican Hairless (Tepeizeuintli) (Xoloitzcuintle) (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14435,
+    "breedName": "Mexican Hairless (Tepeizeuintli) (Xoloitzcuintle), Intermediate"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14436,
+    "breedName": "Mexican Hairless (Tepeizeuintli) (Xoloitzcuintle), Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14437,
+    "breedName": "Mexican Hairless (Tepeizeuintli) (Xoloitzcuintle), Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14438,
+    "breedName": "Mi-Ki"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14439,
+    "breedName": "Mini-Pei"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14440,
+    "breedName": "Moscow Vodolaz"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14441,
+    "breedName": "Moscow Watchdog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14442,
+    "breedName": "Mountain Dog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14443,
+    "breedName": "Mountain Dog - Bernese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14444,
+    "breedName": "Mountain Dog - Caucasian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14445,
+    "breedName": "Mountain Dog - Estrela (Portuguese Guard Dog) (Serra Da Estrela)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14446,
+    "breedName": "Mountain Dog - Formosan (Taiwan Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14447,
+    "breedName": "Mountain Dog - Greater Swiss"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14448,
+    "breedName": "Mountain Dog - Pyrenean (Great Pyrenees)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14449,
+    "breedName": "Mountain Dog - Serbian (Srpski Planinski Gonic)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14450,
+    "breedName": "Mountain Dog - Styrian, Rough-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14471,
+    "breedName": "Mountain Dog - Styrian, Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14472,
+    "breedName": "Mountain Dog - Swiss (Bouvier Suisse)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14473,
+    "breedName": "Mucuchies (Perro de los Paramos)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14474,
+    "breedName": "New Guinea Singing Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14475,
+    "breedName": "New Zealand Heading Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14476,
+    "breedName": "Newfoundland"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14477,
+    "breedName": "Newfoundland - Landseer"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14478,
+    "breedName": "Norwegian Lundehund (Norsk Lundehund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14479,
+    "breedName": "Norwegian Puffin Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14480,
+    "breedName": "Old Danish Bird Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14481,
+    "breedName": "Ori Pei"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14482,
+    "breedName": "Otterhound"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14483,
+    "breedName": "Ovtcharka (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14484,
+    "breedName": "Ovtcharka - Caucasian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14485,
+    "breedName": "Ovtcharka - Central Asian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14486,
+    "breedName": "Ovtcharka - Middle Asian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14487,
+    "breedName": "Ovtcharka - South Russian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14488,
+    "breedName": "Papillon"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14489,
+    "breedName": "Pariah Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14490,
+    "breedName": "Pekepoo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14511,
+    "breedName": "Pekingese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14512,
+    "breedName": "Perro Cimarron (Cimarron Uruguayo) (Perro Criollo) (Perro Gaucho)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14513,
+    "breedName": "Perro De Pastor Mallorquin (Ca de Bestiar)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14514,
+    "breedName": "Peruvian Hairless Dog (Inca Hairless)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14515,
+    "breedName": "Peruvian Inca Orchid (Moonflower Dog) (Perro Flora) (Perro sin pelo del Peru) (Al'co Calato)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14516,
+    "breedName": "Phal\u00e8ne (Butterfly Dog) (Epagneul Nain Continental)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14517,
+    "breedName": "Pila"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14518,
+    "breedName": "Pinscher (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14519,
+    "breedName": "Pinscher - Austrian, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14520,
+    "breedName": "Pinscher - Austrian, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14521,
+    "breedName": "Pinscher - Carlin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14522,
+    "breedName": "Pinscher - Doberman, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14523,
+    "breedName": "Pinscher - Doberman, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14524,
+    "breedName": "Pinscher - German"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14525,
+    "breedName": "Pinscher - Harlequin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14526,
+    "breedName": "Pinscher - Swiss, Short-Haired (Glattharidge)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14527,
+    "breedName": "Pointer (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14528,
+    "breedName": "Pointer - Belgian, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14529,
+    "breedName": "Pointer - Bourbonnais (Braque du Bourbonnais)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14530,
+    "breedName": "Pointer - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14551,
+    "breedName": "Pointer - French"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14552,
+    "breedName": "Pointer - Friesian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14553,
+    "breedName": "Pointer - German (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14554,
+    "breedName": "Pointer - German, Broken-Coated (Stichelhaar) (Deutscher Stichelhaariger Vorstehhund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14555,
+    "breedName": "Pointer - German, Long-Haired (Deutsch Langhaar)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14556,
+    "breedName": "Pointer - German, Rough-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14557,
+    "breedName": "Pointer - German, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14558,
+    "breedName": "Pointer - German, Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14559,
+    "breedName": "Pointer - Hertha"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14560,
+    "breedName": "Pointer - Hungarian, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14561,
+    "breedName": "Pointer - Italian (Bracco Italiano)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14562,
+    "breedName": "Pointer - Japanese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14563,
+    "breedName": "Pointer - Munsterlander, Large"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14564,
+    "breedName": "Pointer - Munsterlander, Small"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14565,
+    "breedName": "Pointer - Old Danish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14566,
+    "breedName": "Pointer - Old Spanish (Perdiguero Navarro)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14567,
+    "breedName": "Pointer - Portuguese (Perdigueiro)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14568,
+    "breedName": "Pointer - Slovakian, Rough-Haired (Slovensky Hrubosrsty Stavac) (Cesky Fousek)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14569,
+    "breedName": "Pointer - Spanish (Perdiguero De Burgos) (Perdiguero Burgales)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14570,
+    "breedName": "Pointer - St Germain (Compiegne Pointer)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14591,
+    "breedName": "Pomeranian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14592,
+    "breedName": "Poodle - Old Format Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14593,
+    "breedName": "Poodle, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14594,
+    "breedName": "Poodle, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14595,
+    "breedName": "Poodle, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14596,
+    "breedName": "Portuguese Podengo, Small (Portuguese Podengo Pequeno)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14597,
+    "breedName": "Portuguese Rabbit Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14598,
+    "breedName": "Pudelpointer"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14599,
+    "breedName": "Pug"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14600,
+    "breedName": "Raibs Suns"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14601,
+    "breedName": "Ratter (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14602,
+    "breedName": "Ratter - Dutch (Hollandse Smoushond)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14603,
+    "breedName": "Ratter - Prague (Prazsky Krysavik)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14604,
+    "breedName": "Retriever (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14605,
+    "breedName": "Retriever - Chesapeake Bay"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14606,
+    "breedName": "Retriever - Curly Coated"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14607,
+    "breedName": "Retriever - Curly Coated Murray River"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14608,
+    "breedName": "Retriever - Flat Coated"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14609,
+    "breedName": "Retriever - Golden (Golden Retriever)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14610,
+    "breedName": "Retriever - Japanese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14631,
+    "breedName": "Retriever - Labrador (Labrador Retriever)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14632,
+    "breedName": "Retriever - Nova Scotia Duck Tolling (Little River Duck Dog) (Yarmouth Toller)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14633,
+    "breedName": "Ridgeback (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14634,
+    "breedName": "Ridgeback - Rhodesian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14635,
+    "breedName": "Ridgeback - Thai (Mah Thai)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14636,
+    "breedName": "Rottweiler (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14637,
+    "breedName": "Rottweiler - Roman (Roman Utility Molosser)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14638,
+    "breedName": "Rottweiler - Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14639,
+    "breedName": "Russian Bolonka (Tsvetnaya Bolonka) (Bolonka-Zwetna)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14640,
+    "breedName": "Sage (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14641,
+    "breedName": "Sage - Ashayeri"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14642,
+    "breedName": "Sage - Koochee"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14643,
+    "breedName": "Sage - Mazandarani"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14644,
+    "breedName": "Saint Bernard, Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14645,
+    "breedName": "Saint Bernard, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14646,
+    "breedName": "Saluki (Greyhound - Persian) (Sighthound - Persian) (Tanji) (Hound - Gazelle) (Hound - Arabian)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14647,
+    "breedName": "Samoyed"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14648,
+    "breedName": "Sanshu Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14649,
+    "breedName": "Sapsari (Sapsaldog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14650,
+    "breedName": "Schipperke"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14671,
+    "breedName": "Schnauzer, Giant"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14672,
+    "breedName": "Schnauzer, Miniature (Miniature Schnauzer)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14673,
+    "breedName": "Schnauzer, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14674,
+    "breedName": "Schnoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14675,
+    "breedName": "Scottish Deerhound"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14676,
+    "breedName": "Setter (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14677,
+    "breedName": "Setter - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14678,
+    "breedName": "Setter - Gordon"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14679,
+    "breedName": "Setter - Irish, Red"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14680,
+    "breedName": "Setter - Irish, Red and White"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14681,
+    "breedName": "Setter - Italian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14682,
+    "breedName": "Setter - Llewellin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14683,
+    "breedName": "Sheepdog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14684,
+    "breedName": "Sheepdog - Atlas (Chien de L' Atlas) (Aidi)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14685,
+    "breedName": "Sheepdog - Australian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14686,
+    "breedName": "Sheepdog - Belgian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14687,
+    "breedName": "Sheepdog - Bulgarian (Sheepdog - Karakachan)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14688,
+    "breedName": "Sheepdog - Carpathian (Sheepdog - Romanian)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14689,
+    "breedName": "Sheepdog - Catalan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14690,
+    "breedName": "Sheepdog - Caucasian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14711,
+    "breedName": "Sheepdog - Central Asian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14712,
+    "breedName": "Sheepdog - Croatian (Hrvatski Ovcar)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14713,
+    "breedName": "Sheepdog - Dutch (Schapendoes)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14714,
+    "breedName": "Sheepdog - Egyptian (Armant) (Hawara)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14715,
+    "breedName": "Sheepdog - Greek (Hellenikos Poimenikos)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14716,
+    "breedName": "Sheepdog - Himalayan (Sheepdog - Bisben)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14717,
+    "breedName": "Sheepdog - Hungarian (Sheepdog - Komondor)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14718,
+    "breedName": "Sheepdog - Icelandic (Friaar Dog) (Islandsk Farehond)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14719,
+    "breedName": "Sheepdog - Istrian (Krasky Ovcar)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14720,
+    "breedName": "Sheepdog - Maremma (Maremmo-Abruzzese)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14721,
+    "breedName": "Sheepdog - New Zealand (Sheepdog - Huntaway)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14722,
+    "breedName": "Sheepdog - Norwegian (Sheepdog - Buhund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14723,
+    "breedName": "Sheepdog - Old English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14724,
+    "breedName": "Sheepdog - Polish Lowland (Polski Owczarek Nizinny) (Valee)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14725,
+    "breedName": "Sheepdog - Polish Tatra (Owczarek Podhalanski) (Mountain Dog - Polish)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14726,
+    "breedName": "Sheepdog - Portuguese (Serra De Aires) (C\u00e3o da Serra de Aires)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14727,
+    "breedName": "Sheepdog - Romanian Bukovina"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14728,
+    "breedName": "Sheepdog - Romanian Mioritic"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14729,
+    "breedName": "Sheepdog - Shetland (Sheltie)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14730,
+    "breedName": "Sheepdog - South Russian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14751,
+    "breedName": "Sheepdog - Welsh"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14752,
+    "breedName": "Shepherd Dog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14753,
+    "breedName": "Shepherd Dog - American Tundra"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14754,
+    "breedName": "Shepherd Dog - American White"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14755,
+    "breedName": "Shepherd Dog - Anatolian Karabash (Sheepdog - Kangal)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14756,
+    "breedName": "Shepherd Dog - Atlas (Perro de Paster del Atlas) (Marokkanischer Sch\u00e4ferhund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14757,
+    "breedName": "Shepherd Dog - Australian, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14758,
+    "breedName": "Shepherd Dog - Australian, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14759,
+    "breedName": "Shepherd Dog - Beauce (Bas Rouge) (Beauceron) (Berger de Beauce)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14760,
+    "breedName": "Shepherd Dog - Bedouin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14761,
+    "breedName": "Shepherd Dog - Belgian (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14762,
+    "breedName": "Shepherd Dog - Belgian, Groenendael"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14763,
+    "breedName": "Shepherd Dog - Belgian, Laekenois"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14764,
+    "breedName": "Shepherd Dog - Belgian, Malinois"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14765,
+    "breedName": "Shepherd Dog - Belgian, Tervuren"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14766,
+    "breedName": "Shepherd Dog - Bergamasco (Cane da Pastore Bergamasco)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14767,
+    "breedName": "Shepherd Dog - Bohemian (Chodsky Pes)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14768,
+    "breedName": "Shepherd Dog - Bulgarian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14769,
+    "breedName": "Shepherd Dog - Caucasian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14770,
+    "breedName": "Shepherd Dog - Central Asian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14791,
+    "breedName": "Shepherd Dog - Cevennes (Berger du Languedoc)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14792,
+    "breedName": "Shepherd Dog - Dakotah"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14793,
+    "breedName": "Shepherd Dog - Dutch"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14794,
+    "breedName": "Shepherd Dog - East-European"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14795,
+    "breedName": "Shepherd Dog - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14796,
+    "breedName": "Shepherd Dog - German (Alsatian) (GSD) (unspecified) (German Shepherd Dog (Alsatian) (GSD) (unspecified))"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14797,
+    "breedName": "Shepherd Dog - German (Alsatian) (GSD), Non-White"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14798,
+    "breedName": "Shepherd Dog - German (Alsatian) (GSD), White"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14799,
+    "breedName": "Shepherd Dog - German, Old"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14800,
+    "breedName": "Shepherd Dog - Holland (Hollandse Herdershond)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14801,
+    "breedName": "Shepherd Dog - Karst"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14802,
+    "breedName": "Shepherd Dog - King"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14803,
+    "breedName": "Shepherd Dog - Majorca"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14804,
+    "breedName": "Shepherd Dog - McNab"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14805,
+    "breedName": "Shepherd Dog - North American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14806,
+    "breedName": "Shepherd Dog - Old Time Farm"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14807,
+    "breedName": "Shepherd Dog - Picardy (Berger de Picard)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14808,
+    "breedName": "Shepherd Dog - Pyrenean (Labrit) (Petit Berger) (Berger des Pyrenees)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14809,
+    "breedName": "Shepherd Dog - Shiloh"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14810,
+    "breedName": "Shepherd Dog - Swiss White (Berger Blanc Swiss)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14831,
+    "breedName": "Shepherd Dog - Yugoslavian (Sharplaninec) (Charplaninatz) (Illyrian) (Mountain Dog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14832,
+    "breedName": "Shichon"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14833,
+    "breedName": "Shih-tzu"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14834,
+    "breedName": "Shikoku (Kochi-ken) (Mikawa Inu) (Shika Inu)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14835,
+    "breedName": "Silken Windhound"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14836,
+    "breedName": "Simaku"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14837,
+    "breedName": "Slovensky Cuvac (Slovakian Chuvach) (Tatransky Cuvac) (Slovensky Kuvac)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14838,
+    "breedName": "Smithfield"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14839,
+    "breedName": "Spaniel (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14840,
+    "breedName": "Spaniel - Blue Picardy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14841,
+    "breedName": "Spaniel - Boykin"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14842,
+    "breedName": "Spaniel - Brittany, American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14843,
+    "breedName": "Spaniel - Brittany, French"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14844,
+    "breedName": "Spaniel - Cavalier King Charles (CKCS) (Cavalier King Charles Spaniel (CKCS))"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14845,
+    "breedName": "Spaniel - Clumber"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14846,
+    "breedName": "Spaniel - Cocker (unspecified) (Cocker Spaniel (unspecified))"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14847,
+    "breedName": "Spaniel - Cocker, A.S.C.O.B"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14848,
+    "breedName": "Spaniel - Cocker, American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14849,
+    "breedName": "Spaniel - Cocker, Black"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14850,
+    "breedName": "Spaniel - Cocker, English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14871,
+    "breedName": "Spaniel - Cocker, Parti-Colour"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14872,
+    "breedName": "Spaniel - Continental, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14873,
+    "breedName": "Spaniel - de Pont-Audemer (Epagneul)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14874,
+    "breedName": "Spaniel - Dutch (Water Dog - Friesian) (Wetterhoun)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14875,
+    "breedName": "Spaniel - English Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14876,
+    "breedName": "Spaniel - Field"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14877,
+    "breedName": "Spaniel - French"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14878,
+    "breedName": "Spaniel - German"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14879,
+    "breedName": "Spaniel - Japanese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14880,
+    "breedName": "Spaniel - King Charles (KCS)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14881,
+    "breedName": "Spaniel - Picardy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14882,
+    "breedName": "Spaniel - Russian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14883,
+    "breedName": "Spaniel - Springer (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14884,
+    "breedName": "Spaniel - Springer, English (English Springer Spaniel)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14885,
+    "breedName": "Spaniel - Springer, Welsh"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14886,
+    "breedName": "Spaniel - Sussex"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14887,
+    "breedName": "Spaniel - Tibetan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14888,
+    "breedName": "Spaniel - Water (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14889,
+    "breedName": "Spaniel - Water, American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14890,
+    "breedName": "Spaniel - Water, Irish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14911,
+    "breedName": "Spitz (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14912,
+    "breedName": "Spitz - Finnish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14913,
+    "breedName": "Spitz - German (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14914,
+    "breedName": "Spitz - German, Giant"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14915,
+    "breedName": "Spitz - German, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14916,
+    "breedName": "Spitz - German, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14917,
+    "breedName": "Spitz - Italian (Florentine) (Volpino Italiano) (Cane de Quirinale)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14918,
+    "breedName": "Spitz - Japanese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14919,
+    "breedName": "Spitz - Norbotten (Norbottenspets)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14920,
+    "breedName": "Spitz - Nordic"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14921,
+    "breedName": "Spitz - Silky (Seidenspitz) (Seidenhaarige)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14922,
+    "breedName": "Stabyhound (Dutch Stabyhoun) (Friesian Pointer)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14923,
+    "breedName": "Tahltan (Kyrgyz Sighthound)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14924,
+    "breedName": "Tahltan Bear Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14925,
+    "breedName": "Tasy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14926,
+    "breedName": "Telomian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14927,
+    "breedName": "Terrier (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14928,
+    "breedName": "Terrier - Aberdeen"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14929,
+    "breedName": "Terrier - Airedale"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14930,
+    "breedName": "Terrier - American Crested Sand"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14951,
+    "breedName": "Terrier - American Hairless"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14952,
+    "breedName": "Terrier - American Pit Bull"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14953,
+    "breedName": "Terrier - American Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14954,
+    "breedName": "Terrier - Atlas"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14955,
+    "breedName": "Terrier - Australian Rough-Coated"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14956,
+    "breedName": "Terrier - Australian Silky"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14957,
+    "breedName": "Terrier - Bedlington"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14958,
+    "breedName": "Terrier - Belgrade"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14959,
+    "breedName": "Terrier - Biewer (Yorksire a la Pom)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14960,
+    "breedName": "Terrier - Black Russian (Tchiorny) (Russian Bear Schnauzer) (Chornyi)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14961,
+    "breedName": "Terrier - Bohemian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14962,
+    "breedName": "Terrier - Border (Border Terrier)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14963,
+    "breedName": "Terrier - Boston"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14964,
+    "breedName": "Terrier - Brazilian (Fox Paulistinha)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14965,
+    "breedName": "Terrier - Bull (unspecified) (Bull Terrier (unspecified))"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14966,
+    "breedName": "Terrier - Bull American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14967,
+    "breedName": "Terrier - Bull English (Varkhond) (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14968,
+    "breedName": "Terrier - Bull English (Varkhond), Miniature Coloured"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14969,
+    "breedName": "Terrier - Bull English (Varkhond), Miniature White"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14970,
+    "breedName": "Terrier - Bull English (Varkhond), Standard Coloured"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14991,
+    "breedName": "Terrier - Bull English (Varkhond), Standard White"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14992,
+    "breedName": "Terrier - Bull, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14993,
+    "breedName": "Terrier - Cairn"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14994,
+    "breedName": "Terrier - Czesky"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14995,
+    "breedName": "Terrier - Dandie Dinmont"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14996,
+    "breedName": "Terrier - English Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14997,
+    "breedName": "Terrier - Fell, Black"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14998,
+    "breedName": "Terrier - Fell, Red"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 14999,
+    "breedName": "Terrier - Fox (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15000,
+    "breedName": "Terrier - Fox, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15001,
+    "breedName": "Terrier - Fox, Smooth"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15002,
+    "breedName": "Terrier - Fox, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15003,
+    "breedName": "Terrier - Fox, Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15004,
+    "breedName": "Terrier - German Hunting (Terrier - Deutscher Jagd)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15005,
+    "breedName": "Terrier - Glen of Imaal"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15006,
+    "breedName": "Terrier - Guatemalan Bull (Terrier - Dogo Guatemalteco)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15007,
+    "breedName": "Terrier - Havanese, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15008,
+    "breedName": "Terrier - Irish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15009,
+    "breedName": "Terrier - Jack Russell (JRT)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15010,
+    "breedName": "Terrier - Jagdterrier (Terrier - German Hunt)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15031,
+    "breedName": "Terrier - Japanese (Terrier - Nippon) (Terrier - Nihon)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15032,
+    "breedName": "Terrier - Kerry Blue"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15033,
+    "breedName": "Terrier - Lakeland"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15034,
+    "breedName": "Terrier - Lucas"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15035,
+    "breedName": "Terrier - Maltese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15036,
+    "breedName": "Terrier - Manchester (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15037,
+    "breedName": "Terrier - Manchester, Old Format"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15038,
+    "breedName": "Terrier - Manchester, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15039,
+    "breedName": "Terrier - Manchester, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15040,
+    "breedName": "Terrier - Moscow Toy, Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15041,
+    "breedName": "Terrier - Moscow Toy, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15042,
+    "breedName": "Terrier - Norfolk"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15043,
+    "breedName": "Terrier - Norwich"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15044,
+    "breedName": "Terrier - Parson Russell"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15045,
+    "breedName": "Terrier - Patterdale"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15046,
+    "breedName": "Terrier - Rat"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15047,
+    "breedName": "Terrier - Russell"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15048,
+    "breedName": "Terrier - Russian Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15049,
+    "breedName": "Terrier - Scottish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15050,
+    "breedName": "Terrier - Sealydale"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15071,
+    "breedName": "Terrier - Sealyham"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15072,
+    "breedName": "Terrier - Shropshire"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15073,
+    "breedName": "Terrier - Silky"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15074,
+    "breedName": "Terrier - Skye"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15075,
+    "breedName": "Terrier - Soft-Coated Wheaten"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15076,
+    "breedName": "Terrier - Staffordshire Bull (unspecified) (Staffordshire Bull Terrier (unspecified))"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15077,
+    "breedName": "Terrier - Staffordshire Bull, English (English Staffordshire Bull Terrier)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15078,
+    "breedName": "Terrier - Staffordshire Bull, Irish (Irish Staffordshire Bull Terrier)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15079,
+    "breedName": "Terrier - Staffordshire, American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15080,
+    "breedName": "Terrier - Sydney"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15081,
+    "breedName": "Terrier - Teddy Roosevelt (Terrier - Type B) (Terrier - Short-Legged Rat)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15082,
+    "breedName": "Terrier - Tenterfield"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15083,
+    "breedName": "Terrier - Tibetan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15084,
+    "breedName": "Terrier - Titan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15085,
+    "breedName": "Terrier - Welsh"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15086,
+    "breedName": "Terrier - West Highland White (WHWT) (West Highland White Terrier (WHWT))"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15087,
+    "breedName": "Terrier - Yorkshire (Yorkshire Terrier)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15088,
+    "breedName": "Thai Bangkaew Dog"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15089,
+    "breedName": "Tibetan Kyiapso"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15090,
+    "breedName": "Treeing Tennessee Brindle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15111,
+    "breedName": "Utonagan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15112,
+    "breedName": "Verelade"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15113,
+    "breedName": "Vucciriscu"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15114,
+    "breedName": "Wapoo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15115,
+    "breedName": "Water Dog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15116,
+    "breedName": "Water Dog - French (Barbet)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15117,
+    "breedName": "Water Dog - Hungarian (Puli)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15118,
+    "breedName": "Water Dog - Portuguese (C\u00e3o de Agua) (Portie)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15119,
+    "breedName": "Water Dog - Romagna (Lagotto Romagnolo)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15120,
+    "breedName": "Water Dog - Spanish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15121,
+    "breedName": "Water Dog - St John"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15122,
+    "breedName": "Weimaraner (Vorstehhund)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15123,
+    "breedName": "Welsh Corgi (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15124,
+    "breedName": "Welsh Corgi - Cardigan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15125,
+    "breedName": "Welsh Corgi - Old Format"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15126,
+    "breedName": "Welsh Corgi - Pembroke"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15127,
+    "breedName": "Whippet (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15128,
+    "breedName": "Whippet - Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15129,
+    "breedName": "Whippet - Wire Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15130,
+    "breedName": "Wolf"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15131,
+    "breedName": "Wolfhound (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15132,
+    "breedName": "Wolfhound - Belgian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15133,
+    "breedName": "Wolfhound - Czechoslovakian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15134,
+    "breedName": "Wolfhound - Irish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15135,
+    "breedName": "Wolfhound - Kunming (Chinese Wolfdog)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15136,
+    "breedName": "Wolfhound - Russian (Borzoi)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15137,
+    "breedName": "Wolfhound - Saarloos (Saarlooswolfhond)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15138,
+    "breedName": "Yajivy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 15139,
+    "breedName": "Yo-Chon"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 17461,
+    "breedName": "Maltese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18057,
+    "breedName": "Japanese Tosa Inu"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18059,
+    "breedName": "Chiweenie"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18061,
+    "breedName": "Puggle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18063,
+    "breedName": "Labradoodle (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18065,
+    "breedName": "Labradoodle - Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18066,
+    "breedName": "Labradoodle - Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18069,
+    "breedName": "Greyhound - Irish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 18768,
+    "breedName": "Hound - Pharaoh (Kelb Tal-Fenek)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19039,
+    "breedName": "Mastiff - Bull, Spanish (Mastin Espanol)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19041,
+    "breedName": "Pomeranian - Teacup"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19043,
+    "breedName": "Poodle - Cyprus"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19045,
+    "breedName": "Poodle (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19047,
+    "breedName": "Saint Bernard (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19049,
+    "breedName": "Schnauzer (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19051,
+    "breedName": "Sheepdog - Polish (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19053,
+    "breedName": "Shepherd Dog - Italian (Pastore Italiano)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19055,
+    "breedName": "Spaniel - Brittany (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19057,
+    "breedName": "Spaniel - Cocker, Welsh"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19059,
+    "breedName": "Spaniel - Cocker, working"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19061,
+    "breedName": "Terrier - Australian (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19063,
+    "breedName": "Terrier - Fell (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19065,
+    "breedName": "Terrier - Jack Russell (JRT), Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19067,
+    "breedName": "Terrier - Plummer"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19069,
+    "breedName": "Wolfdog - British"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19071,
+    "breedName": "Wolfdog - Czechoslovakian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19073,
+    "breedName": "Wolfdog (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19075,
+    "breedName": "Dachshund - Teckel"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19077,
+    "breedName": "Dogue de Bordeaux (Mastiff - Bull, French)(Mastiff - Bull)(Mastiff - French)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19079,
+    "breedName": "Terrier - Yorkshire, Miniature (Miniature Yorkshire Terrier)(Terrier - Yorkshire, Teacup)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 19083,
+    "breedName": "Basset - French (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22404,
+    "breedName": "Purebred cross (Canine)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22406,
+    "breedName": "Breed not listed (Canine)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22408,
+    "breedName": "Shepherd Dog - Berger de Savoie ( Berger Savoyard )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22409,
+    "breedName": "Canary Dog ( Perro de Presa Canario, Dogo Canario )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22410,
+    "breedName": "Cattle Dog - Entlebuch ( Entlebucher Sennenhund, Entlebucher Mountain Dog )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22411,
+    "breedName": "Terrier - Soft-Coated Wheaten (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22412,
+    "breedName": "Terrier - Soft-Coated Wheaten, English American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22413,
+    "breedName": "Terrier - Soft-Coated Wheaten, Heavy Irish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22414,
+    "breedName": "Terrier - Soft-Coated Wheaten, Traditional Irish"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22415,
+    "breedName": "Lapponian Herder ( Lapinporokoira, Finnish Reindeer Herder )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22416,
+    "breedName": "Whippet \u2013 Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22417,
+    "breedName": "Hungarian (Magyar) Vizsla, Smooth-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22418,
+    "breedName": "Hungarian (Magyar) Vizsla, Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22419,
+    "breedName": "Pinscher \u2013 Miniature ( Zwergpinscher, Min Pin )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22420,
+    "breedName": "Hungarian Mudi (Mudi, Canis Ovilis Fenyesi)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22421,
+    "breedName": "Dachshund, Rabbit (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22422,
+    "breedName": "Dachshund, Rabbit Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22423,
+    "breedName": "Dachshund, Rabbit Smooth-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22424,
+    "breedName": "Dachshund, Rabbit Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22425,
+    "breedName": "Wolfhound - Saarloos ( Saarlooswolfhond, Saarloos Wolfdog )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22426,
+    "breedName": "Greyhound - Arabian ( Sloughi, Sloughi Moghrebi ) ( Levrier Marocain )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22427,
+    "breedName": "Cockapoo ( Spoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22428,
+    "breedName": "Shepherd Dog - Australian, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22429,
+    "breedName": "Waller"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22443,
+    "breedName": "Terrier \u2013 Abyssinian Sand ( African Sand Dog, African Hairless Dog )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22444,
+    "breedName": "Africanis"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22445,
+    "breedName": "Chi-Apso ( Apsochi )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22446,
+    "breedName": "Bandog ( Bandogge )(unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22447,
+    "breedName": "Bassoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22448,
+    "breedName": "Beagle - Pocket"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22449,
+    "breedName": "Beaglier"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22450,
+    "breedName": "Bichon - Maltese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22451,
+    "breedName": "Poochon ( Bich-Poo, Bichonpoo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22452,
+    "breedName": "Bochi ( Chi-Bo, Boston Huahua )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22453,
+    "breedName": "Bolonoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22454,
+    "breedName": "Borgi"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22455,
+    "breedName": "Borkie"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22456,
+    "breedName": "Boxador"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22457,
+    "breedName": "Boxerdoodle ( Boxoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22458,
+    "breedName": "Braque Francais ( French Pointing Dog )(unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22460,
+    "breedName": "Braque Francais de Grand Taille ( French Pointing Dog \u2013 Gascogne type )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22461,
+    "breedName": "Braque Francais de Petite Taille ( French Pointing Dog \u2013 Pyrenean Type )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22462,
+    "breedName": "Bug ( Bugg )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22463,
+    "breedName": "Puggle ( Buggle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22464,
+    "breedName": "Bullador (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22465,
+    "breedName": "Bullador \u2013 American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22466,
+    "breedName": "Bullador \u2013 English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22468,
+    "breedName": "Bulldog \u2013 Aylestone"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22469,
+    "breedName": "Bulldog \u2013 Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22470,
+    "breedName": "Bulldog \u2013 Sussex"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22471,
+    "breedName": "Cairnoodle ( Poocan, Cairn-Poo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22472,
+    "breedName": "Cavachi ( Chilier, Chiller, Cava-Chi )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22473,
+    "breedName": "Cavachon ( Bichalier )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22474,
+    "breedName": "Cavapoo ( Cavoodle, Cavadoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22475,
+    "breedName": "Cavador"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22488,
+    "breedName": "Cavajack ( Jackalier )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22489,
+    "breedName": "Cavapom"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22490,
+    "breedName": "Cavatzu ( Cava-Tzu )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22491,
+    "breedName": "Cavestie ( Cava Westie )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22492,
+    "breedName": "Chesador"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22493,
+    "breedName": "Chi-Con ( Chichon, Bichon Chi )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22494,
+    "breedName": "Chinese Crested (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22495,
+    "breedName": "Chinese Shar-Pei, Miniature ( Mini-Pei, Mini Shar-Pei )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22496,
+    "breedName": "Chonzer ( Schnauzon )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22497,
+    "breedName": "Chorkie ( Yorkie-Chi, Chiyorkie, Yorkiewawa )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22498,
+    "breedName": "Chug ( Pughuahua )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22499,
+    "breedName": "Cockador ( Spanador, Cockerdor )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22500,
+    "breedName": "Cockalier ( Cockalier Spaniel )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22501,
+    "breedName": "Cockapoo - American"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22502,
+    "breedName": "Cockapoo - Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22503,
+    "breedName": "Cockachon ( Bichon Spaniel )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22504,
+    "breedName": "Cockatzu"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22505,
+    "breedName": "New Zealand Heading Dog ( New Zealand Collie, New Zealand Eye Dog )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22506,
+    "breedName": "Shollie ( German Shepherd Border Collie mix )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22507,
+    "breedName": "Collie \u2013 Scottish (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22512,
+    "breedName": "Combai ( Hound \u2013 Indian Bear, Kombai )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22513,
+    "breedName": "Corkie"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22514,
+    "breedName": "Chinese Crestepoo ( Poochis )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22515,
+    "breedName": "Dalmador"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22516,
+    "breedName": "Dorkie ( Dorkie Terrier )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22517,
+    "breedName": "German Sheeppoodle ( Schafpudel )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22518,
+    "breedName": "Goldendoodle ( Groodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22519,
+    "breedName": "Goldendoodle \u2013 Miniature ( Toy )( Mini Groodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22520,
+    "breedName": "Goldendoodle \u2013 Petite ( Petite Groodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22521,
+    "breedName": "Griffon \u2013 Brussels (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22522,
+    "breedName": "Hound \u2013 French (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22523,
+    "breedName": "Harrier ( Hound \u2013 Harrier, Harehound )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22524,
+    "breedName": "Hound - Serbian ( Balkan )(unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22525,
+    "breedName": "Hound - Serbian ( Balkan ), Standard ( Srpski Gonic , Serbischer Laufhund, Serbische Bracke )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22526,
+    "breedName": "Hound - Serbian ( Balkan ), Tricolour ( Srpski Trobojni Gonic )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22527,
+    "breedName": "Hound - Spanish ( Sabuesos Espanoles )(unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22528,
+    "breedName": "Hungarian ( Magyar ) Vizsla (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22529,
+    "breedName": "Huskamute"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22530,
+    "breedName": "Husky - Tamaskan ( Tam )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22531,
+    "breedName": "Husky - Labrador ( Huskador, Huskydor )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22532,
+    "breedName": "Jackabee ( Jack-A-Bee, Jackabea )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22533,
+    "breedName": "Jack-Chi ( Jackachi, Jackachau, Jackhuahua )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22534,
+    "breedName": "Jack-A-Poo ( Jackapoo, Jackadoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22535,
+    "breedName": "Jackador"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22536,
+    "breedName": "Jackshit ( Jackashit )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22537,
+    "breedName": "Jackshund ( Jackweenie )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22538,
+    "breedName": "Yorkie Russell ( Jorky, YorkieJack )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22539,
+    "breedName": "Jug ( JackPug, PugRussell )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22540,
+    "breedName": "Borador ( Labracollie )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22541,
+    "breedName": "Springador ( Labradinger, Labradinger retriever, Springerdor )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22542,
+    "breedName": "Labradoodle - Australian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22543,
+    "breedName": "Labraspoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22544,
+    "breedName": "Labstaff"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22545,
+    "breedName": "La-Chon ( Lhasa-Chon )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22546,
+    "breedName": "Lha-Cocker"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22547,
+    "breedName": "Lhasalier ( Lhasalier Spaniel )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22548,
+    "breedName": "Lhasa-Poo ( Lhasapoo, Lapoo, Lhasadoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22549,
+    "breedName": "Majorero Canario ( Perro Majorero, Bardino Majorero )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22550,
+    "breedName": "Malti-Poo ( Maltipoo, Maltepoo, Moodle, Maloodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22551,
+    "breedName": "Mal-Shi ( Malshi, Malti Tzu, Malti Zu, Shihtese )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22552,
+    "breedName": "Maltese Jack Russell mix ( Malt Russell )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22553,
+    "breedName": "Cavamalt ( Cav-A-Malt, Maltalier )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22554,
+    "breedName": "Maltese \u2013 Teacup ( Miniature )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22555,
+    "breedName": "Maltipom ( Malti-Pom, Pomanees )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22556,
+    "breedName": "Maneto ( Andalusian Hound Maneto, Andalusian Podenco Maneto )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22557,
+    "breedName": "Mastweiler - English"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22558,
+    "breedName": "Mastweiler - Bull"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22559,
+    "breedName": "Mastweiler (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22560,
+    "breedName": "Morkie ( Yorktese )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22561,
+    "breedName": "Mountain Dog - Caucasian ( Mountain Dog - Russian )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22562,
+    "breedName": "Patterjack"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22563,
+    "breedName": "Patterpoo ( Patterdoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22564,
+    "breedName": "Shinese ( Peketzu, Pekatzu, Shih-tze )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22565,
+    "breedName": "Pinscher - Austrian (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22566,
+    "breedName": "Podenco (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22567,
+    "breedName": "Brittany, American ( Spaniel - Brittany, American )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22568,
+    "breedName": "Brittany, French ( Spaniel - Brittany, French )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22569,
+    "breedName": "Brittany (unspecified)( Spaniel - Brittany (unspecified) )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22570,
+    "breedName": "Pointer - Munsterlander (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22571,
+    "breedName": "Pointer-Rottweiler mix ( Pointweiler )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22572,
+    "breedName": "Pomapoo ( Pom-A-Poo, Pooranian, Poopom )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22573,
+    "breedName": "Pomapug ( Pom-A-Pug, Pomapug, Pugpom, Pugeranian )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22574,
+    "breedName": "Pomchi ( Chi-Pom, Chiranian, Pomahuahua )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22575,
+    "breedName": "Pomeranian-Chow Chow mix ( Pomchow, Chowpom )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22576,
+    "breedName": "Pomeagle ( Beagle-Pom )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22577,
+    "breedName": "Pomsky ( Husky Pom, Pom Husky )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22578,
+    "breedName": "Poodle, Teacup"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22579,
+    "breedName": "Poogle ( Beaglepoo, Beapoo, Beagapoo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22580,
+    "breedName": "Corgi Pug ( Porgi )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22581,
+    "breedName": "Yoranian ( Yorkiepom, Yorky Pom, Porkie )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22582,
+    "breedName": "Pug-Labrador retriever mix ( Pug Lab mix, Pugador )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22583,
+    "breedName": "Pugalier ( Cavapug )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22584,
+    "breedName": "Puganese"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22585,
+    "breedName": "Puginese ( Pugapeke, Pekeapug )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22586,
+    "breedName": "Pugapoo ( Pugoodle, Pugdoodle, Pugpoo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22587,
+    "breedName": "Pugland ( Pugland Terrier )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22588,
+    "breedName": "Pug-Zu ( Pug Tzu, Pugzu )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22589,
+    "breedName": "Pyredoodle ( Pyrepoo, Pyreneesdoodle, Pyreneespoo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22590,
+    "breedName": "Ratter - Majorca ( Ratonero Mallorquin, Rater Mallorqui )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22591,
+    "breedName": "Shepherd Dog - Yugoslavian ( Sarplaninac, Sharplaninec; Charplaninatz, Illyrian, Mountain Dog )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22592,
+    "breedName": "Schnoodle ( Schoodle )(unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22593,
+    "breedName": "Schnoodle ( Schoodle ) - Giant"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22594,
+    "breedName": "Schnoodle ( Schoodle ) - Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22595,
+    "breedName": "Snorkie ( Schnerrier, Schnorkie, Shnorkie )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22596,
+    "breedName": "Scoodle ( Scottish Poo, Scottish Shoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22597,
+    "breedName": "Setter - Irish (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22598,
+    "breedName": "Bull-Pei ( Sharbull )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22599,
+    "breedName": "Lab-Pei ( Sharpador )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22600,
+    "breedName": "Sharpoo ( Shar-Poo, Shardoodle, Sharpoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22601,
+    "breedName": "Sheepdog - French (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22602,
+    "breedName": "Sheepdog - Maremma ( Maremmo-Abruzzese, Sheepdog \u2013 Italian )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22603,
+    "breedName": "Sheepdog - Catalan ( Gos d'Atura Catal\u00e0, Shepherd - Catalonian )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22604,
+    "breedName": "Shepherd Dog - Alaskan"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22605,
+    "breedName": "Shepherd Dog - American, Miniature ( North American Shepherd )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22606,
+    "breedName": "Shepherd Dog - Australian (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22607,
+    "breedName": "Shepherd Dog - Czechoslovakian"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22608,
+    "breedName": "Sheepdog - Greek ( Hellenikos Poimenikos, Shepherd Dog - Greek )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22609,
+    "breedName": "ShiChi ( Chi-Shi, Chi-Tzu )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22610,
+    "breedName": "Shih-Poo ( Shih-Doodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22611,
+    "breedName": "Shi-Jug ( Jug-Shih Tzu cross )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22612,
+    "breedName": "Shiranian ( Pom-Shi, Pom-Tzu, Shi-Pom )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22613,
+    "breedName": "Shug ( German Shepherd-Pug mix )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22614,
+    "breedName": "Dalmatian Spaniel ( Spalmatian )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22615,
+    "breedName": "Spitz - German, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22616,
+    "breedName": "Sprocker Spaniel ( Cocker Springer Spaniel, Spocker, Sprocket )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22617,
+    "breedName": "Sporgi ( Spaniel-Corgi mix )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22618,
+    "breedName": "Springbatt ( Springer Spaniel-Basset mix )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22619,
+    "breedName": "Springerdoodle ( Sproodle, Springerpoo, Springadoodle, Springapoo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22620,
+    "breedName": "Sprockerpoo"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22621,
+    "breedName": "Sprointer"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22622,
+    "breedName": "Sprollie"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22623,
+    "breedName": "Stoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22624,
+    "breedName": "Taigan (Kyrgyz Sighthound)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22625,
+    "breedName": "Terrier - Balla"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22626,
+    "breedName": "Terrier - Bull English ( Varkhond ), Miniature (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22627,
+    "breedName": "Terrier - Capheaton"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22628,
+    "breedName": "Terrier - Cyprus"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22629,
+    "breedName": "Andalusian Mouse-Hunting Dog ( Bodeguero Andaluz, Perro Ratonero Andaluz; Terrier - Jack Russell (JRT), Spanish )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22630,
+    "breedName": "Terrier - Jack Russell (JRT), Wire-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22631,
+    "breedName": "Terrier - Moscow ( Russian ) Toy, Long-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22632,
+    "breedName": "Terrier - Moscow ( Russian ) Toy, Short-Haired"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22633,
+    "breedName": "Terrier - Moscow ( Russian ) Toy (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22634,
+    "breedName": "Terrier - Rat (unspecified)"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22635,
+    "breedName": "Terrier - Rat, Standard"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22636,
+    "breedName": "Terrier - Rat, Toy"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22637,
+    "breedName": "Terrier - Staffordshire Bull, Miniature"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22638,
+    "breedName": "Tiara Teddy Bear"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22639,
+    "breedName": "Kangal Dog ( Turkish Kangal, Karabash )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22640,
+    "breedName": "Labralas ( Vizslador )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22641,
+    "breedName": "Wauzer ( West Highland Schnauzer )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22642,
+    "breedName": "Wee-Chon ( Weechon, Westichon )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22643,
+    "breedName": "Weimardoodle ( Weimarpoo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22644,
+    "breedName": "Westiepoo ( Westidoodle, Westipoo, Wee-Poo )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22645,
+    "breedName": "Wolfhound - Russian ( Borzoi, Wolfhound - Siberian )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22646,
+    "breedName": "Woodle ( Welshpoo Terrier, Welshdoodle Terrier )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22647,
+    "breedName": "Yorkipoo ( Yorkiepoo, Yorkiedoodle, Yoodle )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22648,
+    "breedName": "Komondor ( Sheepdog - Hungarian, Sheepdog - Komondor )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22649,
+    "breedName": "Lapphund - Finnish ( Lapinkoira, Suomenlapinkoira )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22650,
+    "breedName": "Terrier - Silky ( Terrier - Australian Silky )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22651,
+    "breedName": "Mastiff - Neapolitan ( Napolitino )"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22652,
+    "breedName": "Boston Jug"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 22653,
+    "breedName": "Lakedoodle"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 101007,
+    "breedName": "American Pocket Bully"
+  },
+  {
+    "speciesId": 15461,
+    "speciesName": "Dog (Canine - Domestic)",
+    "breedId": 101040,
+    "breedName": "American Bully"
+  }
+]

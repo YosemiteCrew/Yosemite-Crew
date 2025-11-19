@@ -201,7 +201,7 @@ const HomePage = () => {
               <p>
                 We prioritise your data security and compliance with
                 industry-leading standards. Our platform is fully compliant with
-                GDPR, SOC 2 and ISO 27001 standards!
+                GDPR, SOC 2 and ISO 27001 standards.
               </p>
             </div>
             <div className="rytcare">
@@ -245,7 +245,7 @@ const HomePage = () => {
               <div className="betInner">
                 <div className="careText">
                   <h2>
-                    Better care is just a <br /> click away
+                    Better care is just a click away
                   </h2>
                   <p>
                     Join hundreds of veterinary clinics already enhancing animal

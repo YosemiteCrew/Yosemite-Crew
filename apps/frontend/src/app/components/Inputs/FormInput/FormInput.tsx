@@ -12,6 +12,7 @@ type FormInputProps = {
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
+  className?: string;
 };
 
 const FormInput = ({
@@ -23,6 +24,7 @@ const FormInput = ({
   onBlur,
   readonly,
   error,
+  className
 }: Readonly<FormInputProps>) => {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -43,7 +45,7 @@ const FormInput = ({
           placeholder=" "
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className={error ? "is-invalid" : ""}
+          className={`${error ? "is-invalid" : ""} ${className}`}
         />
         <label htmlFor={inname}>{inlabel}</label>
       </div>

@@ -199,12 +199,14 @@
   width: 553px;
   height: 300px;
   display: flex;
+  align-items: flex-start;
   gap: 16px;
 }
 .crewbox3 {
   width: 383px;
   height: 300px;
   display: flex;
+  align-items: flex-start;
 }
 .crewbox3 .crewText {
   width: 220px;
@@ -238,6 +240,44 @@
   right: 0;
   bottom: 0px;
 }
+@media screen and (max-width: 1440px) {
+  .crewbox1 {
+    width: 270px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+  }
+  .crewbox2 {
+    width: 450px;
+    height: 300px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .crewbox3 {
+    width: 353px;
+    height: 300px;
+    display: flex;
+    align-items: flex-start;
+  }
+  .crewbox4 {
+    width: 437px;
+    height: 282px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+  }
+  .crewbox5 {
+    width: 347px;
+    height: 282px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: end;
+  }
+}
 @media screen and (max-width: 1280px) {
   .YousmiteCrew h4 {
     font-size: 33px;
@@ -261,6 +301,11 @@
     height: 220px;
     width: 220px;
   }
+  .crewbox1 img {
+    width: 150px;
+    height: 100px;
+    right: 30px;
+  }
   .crewbox2 {
     height: 220px;
     width: 400px;
@@ -283,7 +328,7 @@
     width: 260px;
   }
 }
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 660px) {
   .DevlYousmiteSecData {
     gap: 16px;
   }
@@ -297,35 +342,29 @@
     height: 100px;
     width: 100px;
     top: 35%;
-    left: 50%;
+    left: 40%;
     transform: translate(-50%, -55%);
   }
   .DevYousmiteBoxed {
-    max-width: 350px;
+    max-width: 440px;
     gap: 5px;
   }
   .crewText {
     gap: 0px;
   }
-  .crewText h3 {
-    font-size: 14px;
-  }
-  .crewText p {
-    font-size: 8px;
-  }
   .crewbox1 {
-    height: 132px;
-    width: 132px;
+    height: 172px;
+    width: 172px;
     justify-content: start;
   }
   .crewbox1 img {
     width: 73px;
     height: 55px;
-    right: 30px;
+    right: 60px;
   }
   .crewbox2 {
-    height: 132px;
-    width: 182px;
+    height: 172px;
+    width: 263px;
     gap: 8px;
   }
   .crewbox2 img {
@@ -333,8 +372,8 @@
     width: 48px;
   }
   .crewbox3 {
-    height: 134px;
-    width: 180px;
+    height: 172px;
+    width: 200px;
     flex-direction: column-reverse;
     justify-content: start;
   }
@@ -346,28 +385,101 @@
     height: 50px;
   }
   .crewbox4 {
-    height: 134px;
-    width: 134px;
+    height: 172px;
+    width: 235px;
   }
   .crewbox4 img {
     height: 50px;
     width: 50px;
   }
   .crewbox5 {
-    height: 134px;
-    width: 180px;
+    height: 172px;
+    width: 235px;
   }
   .crewbox5 img {
     height: 54px;
     width: 54px;
   }
   .crewbox6 {
-    height: 134px;
-    width: 134px;
+    height: 172px;
+    width: 200px;
   }
   .crewbox6 img {
     height: 50px;
     width: 69px;
+  }
+}
+@media screen and (max-width: 500px) {
+  .DevYousmiteBoxed::after {
+    display: none;
+  }
+  .DevCrewBox {
+    padding: 16px 16px;
+  }
+  .DevYousmiteBoxed {
+    max-width: 100%;
+    gap: 5px;
+  }
+  .crewbox1 {
+    height: 152px;
+    width: 100%;
+    justify-content: start;
+  }
+  .crewbox1 img {
+    width: 125px;
+    height: 95px;
+    right: 50%;
+    bottom: 0px;
+    transform: translate(50%, 0%);
+  }
+  .crewbox2 {
+    height: fit-content;
+    width: 100%;
+    gap: 8px;
+  }
+  .crewbox2 img {
+    height: 124px;
+    width: 124px;
+  }
+  .crewbox2 .crewText {
+    width: 100%;
+  }
+  .crewbox3 {
+    height: fit-content;
+    width: 100%;
+    flex-direction: column-reverse;
+    justify-content: start;
+  }
+  .crewbox3 .crewText {
+    width: 100%;
+  }
+  .crewbox3 img {
+    width: 124px;
+    height: 124px;
+  }
+  .crewbox4 {
+    height: fit-content;
+    width: 100%;
+  }
+  .crewbox4 img {
+    height: 124px;
+    width: 124px;
+  }
+  .crewbox5 {
+    height: fit-content;
+    width: 100%;
+  }
+  .crewbox5 img {
+    height: 124px;
+    width: 124px;
+  }
+  .crewbox6 {
+    height: 152px;
+    width: 100%;
+  }
+  .crewbox6 img {
+    height: 100px;
+    width: 124px;
   }
 }
 
@@ -390,6 +502,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 .leftResorch h2 {
   font-family: var(--grotesk-font);
@@ -403,7 +516,7 @@
 .RytResorch p {
   max-width: 478px;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 120%;
   color: var(--black-text);
   font-family: var(--satoshi-font);
@@ -579,7 +692,7 @@
     font-size: 19px;
   }
   .Stepitems .Stepstext p {
-    font-size: 11px;
+    font-size: 13px;
   }
   .Stepitems:nth-child(1) img,
   .Stepitems:nth-child(2) img {
@@ -590,6 +703,18 @@
     left: -100px;
     top: 300px;
     height: 344px;
+  }
+}
+@media screen and (max-width: 400px) {
+  .Stepitems:nth-child(3) img {
+    height: 40px;
+    width: 40px;
+  }
+}
+@media screen and (max-width: 330px) {
+  .Stepitems:nth-child(3) img {
+    height: 32px;
+    width: 32px;
   }
 }
 

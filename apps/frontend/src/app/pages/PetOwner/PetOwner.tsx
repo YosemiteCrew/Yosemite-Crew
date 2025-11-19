@@ -42,7 +42,7 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="ToolkitData">
               <div className="ToolkitHead">
-                <h2>Your companion&rsquo;s all-in-one Toolkit</h2>
+                <h2>Your companion&rsquo;s all-in-one toolkit</h2>
               </div>
               <div className="ToolkitCard">
                 <div className="CardToolItem">

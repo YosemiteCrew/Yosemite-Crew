@@ -2,59 +2,79 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
+const serviceSearchMock = jest.fn(
+  ({ handleToggle }: { handleToggle: (name: string) => void }) => (
+    <button onClick={() => handleToggle("Cleaning")}>mock-search</button>
+  )
+);
+
 jest.mock("@/app/components/Inputs/ServiceSearch/ServiceSearch", () => ({
   __esModule: true,
-  default: ({ speciality }: { speciality: { name: string } }) => (
-    <div data-testid="service-search">{speciality.name}</div>
-  ),
+  default: (props: any) => serviceSearchMock(props),
 }));
 
 import SpecialityCard from "@/app/components/Cards/SpecialityCard/SpecialityCard";
 
 const speciality = {
-  key: "cardiology",
-  name: "Cardiology",
+  key: "dental",
+  name: "Dental",
   services: [
-    { name: "Consultation", active: true },
-    { name: "Follow up", active: false },
+    { name: "Cleaning", active: true },
+    { name: "Surgery", active: false },
   ],
 };
 
-describe("SpecialityCard", () => {
-  test("renders active services and toggles checkbox", () => {
+describe("<SpecialityCard />", () => {
+  test("renders active services and empty state when none active", () => {
     const setSpecialities = jest.fn();
-    render(
+    const inactive = { ...speciality, services: [] };
+    const { rerender } = render(
       <SpecialityCard
-        speciality={speciality}
+        speciality={inactive}
         setSpecialities={setSpecialities}
       />
     );
+    expect(
+      screen.getByText(/Search and add services/i)
+    ).toBeInTheDocument();
 
-    expect(screen.getAllByText("Cardiology")[0]).toBeInTheDocument();
-    const checkbox = screen.getByLabelText("Consultation");
-    expect(checkbox).toBeChecked();
-
-    fireEvent.click(checkbox);
-    expect(setSpecialities).toHaveBeenCalled();
-    expect(typeof setSpecialities.mock.calls[0][0]).toBe("function");
+    rerender(
+      <SpecialityCard speciality={speciality} setSpecialities={setSpecialities} />
+    );
+    expect(screen.getByText("Cleaning")).toBeInTheDocument();
   });
 
-  test("delete button marks speciality inactive", () => {
-    const setSpecialities = jest.fn();
+  test("invokes delete handler and toggle updates services", () => {
+    let updated: any[] | undefined;
+    const setSpecialities = jest.fn((updater: any) => {
+      if (typeof updater === "function") {
+        updated = updater([speciality]);
+      }
+    });
+
     const { container } = render(
-      <SpecialityCard
-        speciality={speciality}
-        setSpecialities={setSpecialities}
-      />
+      <SpecialityCard speciality={speciality} setSpecialities={setSpecialities} />
     );
 
-    const deleteButton =
-      container.querySelector<HTMLButtonElement>(".speciality-delete");
-    expect(deleteButton).toBeInTheDocument();
-    if (!deleteButton) {
-      throw new Error("Delete button not found in Speciality Card");
-    }
-    fireEvent.click(deleteButton);
+    fireEvent.click(container.querySelector(".speciality-delete")!);
+    expect(updated?.[0].active).toBe(false);
+
+    fireEvent.click(screen.getByText("Cleaning").nextSibling as HTMLElement);
+    expect(updated?.[0].services[0].active).toBe(false);
+  });
+
+  test("passes handleToggle down to ServiceSearch mock", () => {
+    const setSpecialities = jest.fn((updater: any) => {
+      if (typeof updater === "function") {
+        updater([speciality]);
+      }
+    });
+
+    render(
+      <SpecialityCard speciality={speciality} setSpecialities={setSpecialities} />
+    );
+
+    fireEvent.click(screen.getByText("mock-search"));
     expect(setSpecialities).toHaveBeenCalled();
   });
 });

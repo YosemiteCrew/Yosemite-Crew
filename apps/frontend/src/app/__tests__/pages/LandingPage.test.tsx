@@ -39,7 +39,7 @@ describe("MainLandingPage Component", () => {
     render(<MainLandingPage />);
 
     const firstSlideText = screen.getByText(
-      /empowering veterinary businesses to grow efficiently/i
+      /empowering veterinary clinics to grow sustainably/i
     );
     expect(firstSlideText).toBeInTheDocument();
   });
@@ -53,7 +53,7 @@ describe("MainLandingPage Component", () => {
     await user.click(nextButton);
 
     const secondSlideText = await screen.findByText(
-      /simplifying pet health management for owners/i
+      /simplifying pet health management for parents/i
     );
     expect(secondSlideText).toBeInTheDocument();
   });

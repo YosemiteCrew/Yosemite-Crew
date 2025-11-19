@@ -1,7 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { IoCloseSharp } from "react-icons/io5";
+import { usePathname } from "next/navigation";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import { publicRoutes } from "@/app/utils/const";
 
 import "./Github.css";
 
@@ -38,6 +40,7 @@ const Github = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [stars, setStars] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
 
   const onClose = () => {
     setIsOpen(false);
@@ -105,7 +108,7 @@ const Github = () => {
   if (!isOpen) return null;
 
   return (
-    <div className="GithubWrapper">
+    <div className={`${publicRoutes.has(pathname) ? "flex!" : "hidden!"} GithubWrapper`}>
       <div className="GithubMain">
         <div className="GithubTitle">Star us on Github</div>
         <a
