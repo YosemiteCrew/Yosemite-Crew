@@ -2,7 +2,7 @@ name: CD Frontend
 
 on:
   push:
-    branches: [dev]
+    branches: [main, dev]
 
 permissions:
   contents: read
@@ -74,18 +74,26 @@ jobs:
     needs: detect-frontend
     if: needs.detect-frontend.outputs.should-deploy == 'true'
     runs-on: ubuntu-latest
-    env:
-      AMPLIFY_WEBHOOK_URL: ${{ secrets.AMPLIFY_WEBHOOK_URL }}
     steps:
-      - name: Call Amplify webhook
+      - name: Select Amplify webhook for branch
+        id: webhook
         run: |
-          if [ -z "$AMPLIFY_WEBHOOK_URL" ]; then
-            echo "AMPLIFY_WEBHOOK_URL secret is not set"
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "url=${{ secrets.AMPLIFY_WEBHOOK_URL }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ secrets.AMPLIFY_WEBHOOK_URL_DEV }}" >> $GITHUB_OUTPUT
+          fi
+      - name: Call Amplify webhook
+        id: call-webhook
+        run: |
+          WEBHOOK_URL="${{ steps.webhook.outputs.url }}"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "Amplify webhook secret is not set for this branch"
             exit 1
           fi
 
-          echo "Triggering Amplify webhook..."
-          status_code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$AMPLIFY_WEBHOOK_URL")
+          echo "Triggering Amplify webhook for branch '${{ github.ref_name }}'..."
+          status_code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$WEBHOOK_URL")
 
           echo "Webhook HTTP status: $status_code"
 
