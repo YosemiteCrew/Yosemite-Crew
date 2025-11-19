@@ -13,6 +13,7 @@ dist-ssr
 server/dist
 public/dist
 .vscode
+.docusaurus
 
 # auth keys file for firebase and oAuth config
 apps/mobileAppYC/ios/mobileAppYC/Info.plist
