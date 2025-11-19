@@ -147,11 +147,14 @@ export const CompanionController = {
     deleteCompanion: async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
+            const authUserId = resolveMobileUserId(req)
             if (!id) {
                 return res.status(400).json({ message: "Companion ID is required." });
             }
 
-            await CompanionService.delete(id);
+            await CompanionService.delete(id, {
+                authUserId
+            });
             return res.status(204).send();
         } catch (error) {
             if (error instanceof CompanionServiceError) {
@@ -209,6 +212,31 @@ export const CompanionController = {
     } catch (error) {
         logger.error("Failed to generate pre-signed URL", error);
         return res.status(500).json({ message: "Failed to generate upload URL." });
+    }
+  },
+
+  getCompanionsByParentId: async(req: Request, res: Response) => {
+    try {
+
+        const { parentId } = req.params
+
+        if (!parentId) {
+            return res.status(400).json({ message: "Companion ID is required." });
+        }
+
+        const result = await CompanionService.listByParent(parentId)
+        
+        return res.status(200).json(result.responses);
+    } catch (error) {
+        if (error instanceof CompanionServiceError) {
+            return res
+                .status(error.statusCode)
+                .json({ message: error.message });
+        }
+        logger.error("Failed to search companion by Parent ID", error);
+        return res
+            .status(500)
+            .json({ message: "Unable to search companions." });
     }
   }
     

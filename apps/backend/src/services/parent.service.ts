@@ -13,6 +13,7 @@ import {
 } from "@yosemite-crew/types"
 import { AuthUserMobileService } from "./authUserMobile.service"
 import { buildS3Key, moveFile } from "src/middlewares/upload"
+import logger from "src/utils/logger"
 
 export class ParentServiceError extends Error {
   constructor(message: string, public readonly statusCode: number) {
@@ -137,9 +138,13 @@ export const ParentService = {
 
     // Move Image to permenant location
     if(persistable.profileImageUrl) {
-      const finalKey = buildS3Key('parent', doc._id.toString(), 'image/jpg')
-      const profileUrl = await moveFile(persistable.profileImageUrl, finalKey)
-      doc.profileImageUrl = profileUrl
+      try{
+        const finalKey = buildS3Key('parent', doc._id.toString(), 'image/jpg')
+        const profileUrl = await moveFile(persistable.profileImageUrl, finalKey)
+        doc.profileImageUrl = profileUrl
+      } catch (error) {
+        logger.warn('Invalid key has been sent', error)
+      }
     } 
     
     await doc.save()
