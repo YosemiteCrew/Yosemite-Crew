@@ -1,0 +1,37 @@
+name: Dev Docs Build
+
+on:
+  pull_request:
+    paths:
+      - "apps/dev-docs/**"
+      - ".github/workflows/dev-docs-build.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+jobs:
+  build-dev-docs:
+    name: Build dev-docs (Docusaurus)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dev-docs (includes postbuild copy)
+        run: pnpm --filter dev-docs build

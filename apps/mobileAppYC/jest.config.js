@@ -64,4 +64,6 @@ module.exports = {
     '/__tests__/',
     '/coverage/',
   ],
+  // Ensure lingering native timers/handles from mocks don't hang the runner
+  forceExit: true,
 };

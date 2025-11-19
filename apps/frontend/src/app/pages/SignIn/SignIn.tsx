@@ -14,14 +14,26 @@ import { Primary } from "@/app/components/Buttons";
 
 import "./SignIn.css";
 
-const SignIn = () => {
+type SignInProps = {
+  redirectPath?: string;
+  signupHref?: string;
+  allowNext?: boolean;
+  isDeveloper?: boolean;
+};
+
+const SignIn = ({
+  redirectPath = "/organizations",
+  signupHref = "/signup",
+  allowNext = true,
+  isDeveloper = false,
+}: Readonly<SignInProps>) => {
   const { signIn, resendCode } = useAuthStore();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next");
-  const { user, status } = useAuthStore();
+  const next = allowNext ? searchParams.get("next") : null;
+  const { user, status, role } = useAuthStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,10 +45,21 @@ const SignIn = () => {
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated" && user) {
-      router.replace(next || "/organizations");
+    if (status !== "authenticated" || !user) return;
+    const isDevRole = role === "developer";
+    const devFlag =
+      typeof globalThis !== "undefined" &&
+      globalThis.sessionStorage?.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in place
+
+    let target = next || redirectPath;
+    if (isDeveloper) {
+      target = isDevRole || (!role && devFlag) ? next || redirectPath : "/signin";
+    } else if (isDevRole || (!role && devFlag)) {
+      target = "/developers/home";
     }
-  }, [status, user, next, router]);
+
+    router.replace(target);
+  }, [status, user, next, router, redirectPath, isDeveloper, role]);
 
   const handleCodeResendonError = async () => {
     try {
@@ -77,6 +100,10 @@ const SignIn = () => {
 
     try {
       await signIn(email, password);
+      if (typeof globalThis !== "undefined") {
+        // Temporary fallback until custom:role attribute is available in the pool
+        globalThis.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
+      }
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
         await handleCodeResendonError();
@@ -99,12 +126,23 @@ const SignIn = () => {
   };
 
   return (
-    <section className="SignInSec">
+    <section
+      className="SignInSec"
+      style={
+        isDeveloper
+          ? {
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
+            }
+          : undefined
+      }
+    >
       {ErrorTostPopup}
       <div className="RightSignIn">
         <Form onSubmit={handleSignIn}>
           <div className="TopSignInner">
-            <h2>Sign in to your account</h2>
+            <h2>
+              {isDeveloper ? "Sign in to your developer account" : "Sign in to your account"}
+            </h2>
             <FormInput
               intype="email"
               inname="email"
@@ -135,7 +173,7 @@ const SignIn = () => {
             />
             <h6>
               {" "}
-              Don&apos;t have an account? <Link href="/signup">Sign up</Link>
+              Don&apos;t have an account? <Link href={signupHref}>Sign up</Link>
             </h6>
           </div>
         </Form>

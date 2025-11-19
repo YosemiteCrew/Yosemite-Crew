@@ -7,11 +7,13 @@ import Footer from "@/app/components/Footer/Footer";
 import { Primary } from "@/app/components/Buttons";
 import FeatureBox from "./FeatureBox/FeatureBox";
 import FocusCard from "./FocusCard/FocusCard";
-import { focusCards, practiceFeatures, heroList } from "./data.json";
+import data from "./data.json";
 
 import "./HomePage.css";
 
 const HomePage = () => {
+  const { focusCards, practiceFeatures, heroList } = data;
+
   return (
     <>
       <section className="HomeHeroSection">
