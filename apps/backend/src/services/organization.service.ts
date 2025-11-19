@@ -16,6 +16,7 @@ import {
 import { UserOrganizationService } from './user-organization.service'
 import { SpecialityService } from './speciality.service'
 import { OrganisationRoomService } from './organisation-room.service'
+import { buildS3Key, moveFile } from 'src/middlewares/upload'
 
 const TAX_ID_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/taxId'
 const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id'
@@ -432,7 +433,15 @@ export const OrganizationService = {
                     active: true,
                 }
                 await UserOrganizationModel.create(userOrg)
-            }                   
+            }
+            
+            // Update Profile photo url
+            if(persistable.imageURL && document._id.toString()) {
+                const finalKey = buildS3Key('org', document._id.toString(), 'image/jpg')
+                const profileUrl = await moveFile(persistable.imageURL, finalKey)
+
+                await this.updateProfilePhotoUrl(document._id.toString(), profileUrl)
+            }
         }
 
         const response = buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined)
@@ -467,6 +476,9 @@ export const OrganizationService = {
 
     async update(id: string, payload: OrganizationFHIRPayload) {
         const { persistable, typeCoding } = createPersistableFromFHIR(payload)
+
+        
+
         const document = await OrganizationModel.findOneAndUpdate(
             resolveIdQuery(id),
             { $set: persistable },

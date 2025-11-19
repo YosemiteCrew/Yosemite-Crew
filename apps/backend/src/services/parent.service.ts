@@ -11,6 +11,8 @@ import {
   type ParentRequestDTO,
   type Parent,
 } from "@yosemite-crew/types"
+import { AuthUserMobileService } from "./authUserMobile.service"
+import { buildS3Key, moveFile } from "src/middlewares/upload"
 
 export class ParentServiceError extends Error {
   constructor(message: string, public readonly statusCode: number) {
@@ -102,16 +104,15 @@ export const ParentService = {
   /* -------------------------- CREATE -------------------------- */
   async create(dto: ParentRequestDTO, ctx: ParentCreateContext) {
     const persistable = toPersistable(dto)
-
     // Override createdFrom based on who is creating this Parent
     persistable.createdFrom = ctx.source
 
     // Only MOBILE parents have AuthUser → linkedUserId is required
     if (ctx.source === "mobile") {
-      if (!ctx.authUserId || !Types.ObjectId.isValid(ctx.authUserId)) {
+      if (!ctx.authUserId) {
         throw new ParentServiceError("Authenticated user ID required.", 401)
       }
-      persistable.linkedUserId = new Types.ObjectId(ctx.authUserId)
+      persistable.linkedUserId = await AuthUserMobileService.getAuthUserMobileIdByProviderId(ctx.authUserId)
     }
 
     // PMS or invited parent → no linkedUserId
@@ -133,8 +134,21 @@ export const ParentService = {
 
     // Calculate profile completion
     doc.isProfileComplete = computeProfileCompletion(doc)
+
+    // Move Image to permenant location
+    if(persistable.profileImageUrl) {
+      const finalKey = buildS3Key('parent', doc._id.toString(), 'image/jpg')
+      const profileUrl = await moveFile(persistable.profileImageUrl, finalKey)
+      doc.profileImageUrl = profileUrl
+    } 
+    
     await doc.save()
 
+    const parentId = doc._id.toString()
+
+    if (ctx.source === "mobile" && ctx.authUserId) {
+      await AuthUserMobileService.linkParent(ctx.authUserId, parentId);
+    }
     return {
       response: toFHIR(doc),
       isProfileComplete: doc.isProfileComplete ?? false,
@@ -149,7 +163,7 @@ export const ParentService = {
 
     // Mobile user may only access their own parent record
     if (ctx?.source === "mobile" && ctx?.authUserId) {
-      query.linkedUserId = new Types.ObjectId(ctx.authUserId)
+      query.linkedUserId = await AuthUserMobileService.getAuthUserMobileIdByProviderId(ctx.authUserId)
     }
 
     const doc = await ParentModel.findOne(query)
@@ -168,9 +182,14 @@ export const ParentService = {
 
     const query: FilterQuery<ParentMongo> = { _id: mongoId }
 
+    let linkedUserId: Types.ObjectId | null | undefined = persistable.linkedUserId
+
     if (ctx?.source === "mobile" && ctx.authUserId) {
-      query.linkedUserId = new Types.ObjectId(ctx.authUserId)
+      linkedUserId = await AuthUserMobileService.getAuthUserMobileIdByProviderId(ctx.authUserId)
+      query.linkedUserId = linkedUserId ?? undefined
     }
+
+    persistable.linkedUserId = linkedUserId ?? null
 
     const doc = await ParentModel.findOneAndUpdate(
       query,
@@ -200,7 +219,7 @@ export const ParentService = {
       if (!ctx.authUserId) {
         throw new ParentServiceError("Authenticated user ID required.", 401)
       }
-      query.linkedUserId = new Types.ObjectId(ctx.authUserId)
+      query.linkedUserId = await AuthUserMobileService.getAuthUserMobileIdByProviderId(ctx.authUserId)
     }
 
     const doc = await ParentModel.findOneAndDelete(query)
@@ -211,10 +230,11 @@ export const ParentService = {
 
   /* -------------------- Helpers -------------------- */
   async findByLinkedUserId(authUserId: string) {
-    if (!Types.ObjectId.isValid(authUserId)) {
+    if (!authUserId) {
       throw new ParentServiceError("Invalid AuthUser ID.", 400)
     }
-    return ParentModel.findOne({ linkedUserId: new Types.ObjectId(authUserId) })
+    const authUserMobileId = await AuthUserMobileService.getAuthUserMobileIdByProviderId(authUserId)
+    return ParentModel.findOne({ linkedUserId: new Types.ObjectId(authUserMobileId?.toString()) })
   },
 
   async findByMongoId(id: string) {

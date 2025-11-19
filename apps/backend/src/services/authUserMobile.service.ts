@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { AuthUserMobileModel, AuthUserMobile } from "../models/authUserMobile"
 import { ParentModel, type ParentDocument } from "../models/parent";
+import logger from "src/utils/logger";
 
 export const AuthUserMobileService = {
 
@@ -22,10 +23,9 @@ export const AuthUserMobileService = {
   },
 
   async linkParent(authUserId: string, parentId: string): Promise<AuthUserMobile> {
-    if (!Types.ObjectId.isValid(authUserId)) throw new Error("Invalid auth user ID");
     if (!Types.ObjectId.isValid(parentId)) throw new Error("Invalid parent ID");
 
-    const user = await AuthUserMobileModel.findById(authUserId).exec();
+    const user = await AuthUserMobileModel.findOne({providerUserId: authUserId}).exec();
     if (!user) throw new Error("AuthUserMobile not found");
 
     const parent = await ParentModel.findById(parentId).exec();
@@ -33,6 +33,9 @@ export const AuthUserMobileService = {
 
     user.parentId = parent._id;
     await user.save();
+
+    parent.linkedUserId = user._id
+    await parent.save();
 
     return user;
   },
@@ -51,5 +54,19 @@ export const AuthUserMobileService = {
 
   async getByProviderUserId(providerUserId: string): Promise<AuthUserMobile | null> {
     return AuthUserMobileModel.findOne({ providerUserId }).exec();
+  },
+
+  async getAuthUserMobileIdByProviderId(providerUserId: string): Promise<Types.ObjectId | null> {
+    const doc = await AuthUserMobileModel.findOne(
+      { providerUserId },
+      { _id: 1 }
+    ).exec();
+
+    if (!doc) {
+      logger.warn(`AuthUserMobile not found for providerUserId: ${providerUserId}`);
+      return null;
+    }
+
+    return doc._id
   }
 }

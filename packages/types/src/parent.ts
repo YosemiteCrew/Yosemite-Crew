@@ -43,6 +43,10 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
                   system: "phone" as const,
                   value: parent.phoneNumber,
               },
+              {
+                system: "email" as const,
+                value: parent.email
+              }
           ]
         : undefined;
 

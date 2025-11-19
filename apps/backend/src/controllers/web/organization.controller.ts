@@ -7,6 +7,7 @@ import {
 } from '../../services/organization.service'
 import { AuthenticatedRequest } from '../../middlewares/auth'
 import { generatePresignedUrl } from 'src/middlewares/upload'
+import { stringify } from 'querystring'
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
     const authRequest = req as AuthenticatedRequest
@@ -150,6 +151,7 @@ export const OrganizationController = {
     getLogoUploadUrl: async (req: Request, res: Response) => {
         try {
             const rawBody: unknown = req.body
+            const orgId = req.params
             const mimeType =
                 typeof rawBody === 'object' && rawBody !== null && 'mimeType' in rawBody
                     ? (rawBody as { mimeType?: unknown }).mimeType
@@ -159,9 +161,15 @@ export const OrganizationController = {
                 res.status(400).json({ message: 'MIME type is required in the request body.' })
                 return
             }
-
-            const { url, key } = await generatePresignedUrl(mimeType, 'temp')
-            res.status(200).json({ uploadUrl: url, s3Key: key })
+            logger.info("orgId", orgId)
+            if(orgId){
+                logger.info("")
+                const { url, key } = await generatePresignedUrl(mimeType, 'org', stringify(orgId))
+                res.status(200).json({ uploadUrl: url, s3Key: key })
+            } else {
+                const { url, key } = await generatePresignedUrl(mimeType, 'temp')
+                res.status(200).json({ uploadUrl: url, s3Key: key })
+            }
         } catch (error) {
             logger.error('Failed to generate logo upload URL', error)
             res.status(500).json({ message: 'Unable to generate logo upload URL.' })
