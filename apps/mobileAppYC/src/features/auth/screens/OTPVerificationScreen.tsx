@@ -21,11 +21,10 @@ import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import {
   completePasswordlessSignIn,
   formatAuthError,
-  requestPasswordlessEmailCode,
+  requestPasswordlessEmailCode,signOutEverywhere,
 } from '@/features/auth/services/passwordlessAuth';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import {useAuth, type User} from '@/features/auth/context/AuthContext';
-import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   PENDING_PROFILE_STORAGE_KEY,

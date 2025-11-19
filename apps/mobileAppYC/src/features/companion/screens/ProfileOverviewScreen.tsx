@@ -80,6 +80,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
+  const parentId = user?.parentId;
 
   const allCompanions = useSelector(selectCompanions);
   const isLoading = useSelector(selectCompanionLoading);
@@ -138,13 +139,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           updatedAt: new Date().toISOString(),
         };
 
-        if (!user?.parentId) {
+        if (!parentId) {
           throw new Error('Parent profile missing. Please sign in again.');
         }
 
         await dispatch(
           updateCompanionProfile({
-            parentId: user.parentId,
+            parentId,
             updatedCompanion: updated,
           }),
         ).unwrap();
@@ -158,7 +159,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         );
       }
     },
-    [companion, dispatch, user?.parentId, showErrorAlert],
+    [companion, dispatch, parentId, showErrorAlert],
   );
 
   // Handler for navigating to the Edit Screen
@@ -256,12 +257,12 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }, []);
 
   const handleDeleteProfile = React.useCallback(async () => {
-    if (!user?.parentId || !companion?.id) return;
+    if (!parentId || !companion?.id) return;
 
     try {
       console.log('[ProfileOverview] Deleting companion:', companion.id);
       const resultAction = await dispatch(
-        deleteCompanion({parentId: user.parentId, companionId: companion.id}),
+        deleteCompanion({parentId, companionId: companion.id}),
       );
 
       if (deleteCompanion.fulfilled.match(resultAction)) {
@@ -282,7 +283,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         'An error occurred while deleting the companion profile.'
       );
     }
-  }, [user?.id, companion?.id, dispatch, navigation, showErrorAlert]);
+  }, [companion?.id, dispatch, navigation, parentId, showErrorAlert]);
 
   const handleDeleteCancel = React.useCallback(() => {
     setIsDeleteSheetOpen(false);
