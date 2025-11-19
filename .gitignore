@@ -13,7 +13,7 @@ dist-ssr
 server/dist
 public/dist
 .vscode
-.docusaurus
+
 apps/dev-docs/.docusaurus
 
 # auth keys file for firebase and oAuth config
