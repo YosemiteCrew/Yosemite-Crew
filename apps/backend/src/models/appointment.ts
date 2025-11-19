@@ -94,7 +94,7 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
       lastUpdated: { type: Date, default: Date.now },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 AppointmentSchema.index({ organisationId: 1, startTime: 1, endTime: 1 });
@@ -105,6 +105,6 @@ export type AppointmentDocument = HydratedDocument<AppointmentMongo>;
 
 const AppointmentModel = mongoose.model<AppointmentMongo>(
   "Appointment",
-  AppointmentSchema
+  AppointmentSchema,
 );
 export default AppointmentModel;

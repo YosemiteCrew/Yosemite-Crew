@@ -1,5 +1,1 @@
-
-
-export const AppointmentService = {
-
-}
+export const AppointmentService = {};

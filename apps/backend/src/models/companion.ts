@@ -65,7 +65,7 @@ export interface CompanionMongo {
     uploadedAt: Date;
   }>;
 
-  isProfileComplete?: boolean
+  isProfileComplete?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -80,7 +80,7 @@ const PhysicalAttributeSchema = new Schema(
     markings: String,
     build: String,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const BreedingParentSchema = new Schema(
@@ -92,7 +92,7 @@ const BreedingParentSchema = new Schema(
     dateOfBirth: Date,
     ownerBreederName: String,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const BreedingInfoSchema = new Schema(
@@ -100,7 +100,7 @@ const BreedingInfoSchema = new Schema(
     sire: { type: BreedingParentSchema, default: undefined },
     dam: { type: BreedingParentSchema, default: undefined },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const MedicalRecordSchema = new Schema(
@@ -109,7 +109,7 @@ const MedicalRecordSchema = new Schema(
     fileName: { type: String, required: true },
     uploadedAt: { type: Date, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const InsuranceSchema = new Schema(
@@ -118,7 +118,7 @@ const InsuranceSchema = new Schema(
     companyName: String,
     policyNumber: String,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const CompanionSchema = new Schema<CompanionMongo>(
@@ -157,9 +157,9 @@ const CompanionSchema = new Schema<CompanionMongo>(
       default: undefined,
     },
 
-    isProfileComplete: {type: Boolean, required: true, default: false}
+    isProfileComplete: { type: Boolean, required: true, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export type CompanionDocument = HydratedDocument<CompanionMongo>;

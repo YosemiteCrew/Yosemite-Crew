@@ -21,7 +21,8 @@ jest.mock("../../src/models/base-availability", () => ({
   },
 }));
 
-const mockedModel = BaseAvailabilityModel as unknown as MockedBaseAvailabilityModel;
+const mockedModel =
+  BaseAvailabilityModel as unknown as MockedBaseAvailabilityModel;
 
 describe("BaseAvailabilityService", () => {
   beforeEach(() => {
@@ -67,15 +68,13 @@ describe("BaseAvailabilityService", () => {
       expect(mockedModel.findOne).toHaveBeenCalledWith(
         { userId: "user-1" },
         null,
-        { sanitizeFilter: true }
+        { sanitizeFilter: true },
       );
       expect(mockedModel.insertMany).toHaveBeenCalledWith([
         {
           userId: "user-1",
           dayOfWeek: "MONDAY",
-          slots: [
-            { startTime: "09:00", endTime: "17:00", isAvailable: true },
-          ],
+          slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
         },
       ]);
       expect(result).toEqual([
@@ -83,9 +82,7 @@ describe("BaseAvailabilityService", () => {
           _id: "avail-1",
           userId: "user-1",
           dayOfWeek: "MONDAY",
-          slots: [
-            { startTime: "09:00", endTime: "17:00", isAvailable: true },
-          ],
+          slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
           createdAt,
           updatedAt,
         },
@@ -106,7 +103,7 @@ describe("BaseAvailabilityService", () => {
               ],
             },
           ],
-        })
+        }),
       ).rejects.toMatchObject({
         message: "Base availability already exists for this user.",
         statusCode: 409,
@@ -115,7 +112,7 @@ describe("BaseAvailabilityService", () => {
 
     it("validates payload", async () => {
       await expect(
-        BaseAvailabilityService.create({ userId: "", availability: [] })
+        BaseAvailabilityService.create({ userId: "", availability: [] }),
       ).rejects.toBeInstanceOf(BaseAvailabilityServiceError);
     });
   });
@@ -157,9 +154,7 @@ describe("BaseAvailabilityService", () => {
         {
           userId: "user-1",
           dayOfWeek: "TUESDAY",
-          slots: [
-            { startTime: "10:00", endTime: "18:00", isAvailable: true },
-          ],
+          slots: [{ startTime: "10:00", endTime: "18:00", isAvailable: true }],
         },
       ]);
       expect(result).toEqual([
@@ -167,9 +162,7 @@ describe("BaseAvailabilityService", () => {
           _id: "avail-2",
           userId: "user-1",
           dayOfWeek: "TUESDAY",
-          slots: [
-            { startTime: "10:00", endTime: "18:00", isAvailable: true },
-          ],
+          slots: [{ startTime: "10:00", endTime: "18:00", isAvailable: true }],
           createdAt,
           updatedAt,
         },
@@ -178,7 +171,7 @@ describe("BaseAvailabilityService", () => {
 
     it("validates update payload", async () => {
       await expect(
-        BaseAvailabilityService.update("", { availability: [] })
+        BaseAvailabilityService.update("", { availability: [] }),
       ).rejects.toBeInstanceOf(BaseAvailabilityServiceError);
     });
   });
@@ -213,9 +206,7 @@ describe("BaseAvailabilityService", () => {
           _id: "avail-3",
           userId: "user-1",
           dayOfWeek: "MONDAY",
-          slots: [
-            { startTime: "09:00", endTime: "17:00", isAvailable: true },
-          ],
+          slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
           createdAt,
           updatedAt: createdAt,
         },

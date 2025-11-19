@@ -1,20 +1,23 @@
-import { Types } from "mongoose"
+import { Types } from "mongoose";
 import ParentCompanionModel, {
   toCompanionParentLink,
   type ParentCompanionDocument,
   type ParentCompanionMongo,
-} from "../models/parent-companion"
+} from "../models/parent-companion";
 import type {
   CompanionParentLink,
   ParentCompanionPermissions,
   ParentCompanionRole,
   ParentCompanionStatus,
-} from "@yosemite-crew/types"
+} from "@yosemite-crew/types";
 
 export class ParentCompanionServiceError extends Error {
-  constructor(message: string, public readonly statusCode: number) {
-    super(message)
-    this.name = "ParentCompanionServiceError"
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "ParentCompanionServiceError";
   }
 }
 
@@ -29,7 +32,7 @@ const BASE_PERMISSIONS: ParentCompanionPermissions = {
   expenses: false,
   tasks: false,
   chatWithVet: false,
-}
+};
 
 const PRIMARY_PARENT_PERMISSIONS: ParentCompanionPermissions = {
   assignAsPrimaryParent: true,
@@ -40,38 +43,36 @@ const PRIMARY_PARENT_PERMISSIONS: ParentCompanionPermissions = {
   expenses: true,
   tasks: true,
   chatWithVet: true,
-}
+};
 
 const buildPermissions = (
   role: ParentCompanionRole,
-  overrides?: Partial<ParentCompanionPermissions>
+  overrides?: Partial<ParentCompanionPermissions>,
 ): ParentCompanionPermissions => {
-  const base = role === "PRIMARY" ? PRIMARY_PARENT_PERMISSIONS : BASE_PERMISSIONS
+  const base =
+    role === "PRIMARY" ? PRIMARY_PARENT_PERMISSIONS : BASE_PERMISSIONS;
   return {
     ...base,
     ...overrides,
-  }
-}
+  };
+};
 
 const isDuplicateKeyError = (error: unknown): boolean =>
   !!error &&
   typeof error === "object" &&
   "code" in error &&
-  (error as { code?: number }).code === 11000
-
+  (error as { code?: number }).code === 11000;
 
 // Types
 
 interface LinkParentInput {
-  parentId: Types.ObjectId
-  companionId: Types.ObjectId
-  role?: ParentCompanionRole
-  permissionsOverride?: Partial<ParentCompanionPermissions>
-  invitedByParentId?: Types.ObjectId
-  status?: ParentCompanionStatus // optional override (default: PRIMARY→ACTIVE, CO_PARENT→PENDING)
+  parentId: Types.ObjectId;
+  companionId: Types.ObjectId;
+  role?: ParentCompanionRole;
+  permissionsOverride?: Partial<ParentCompanionPermissions>;
+  invitedByParentId?: Types.ObjectId;
+  status?: ParentCompanionStatus; // optional override (default: PRIMARY→ACTIVE, CO_PARENT→PENDING)
 }
-
-
 
 export const ParentCompanionService = {
   /**
@@ -93,14 +94,14 @@ export const ParentCompanionService = {
     if (!parentId || !companionId) {
       throw new ParentCompanionServiceError(
         "Parent and companion identifiers are required.",
-        400
-      )
+        400,
+      );
     }
 
     const effectiveStatus: ParentCompanionStatus =
-      status ?? (role === "PRIMARY" ? "ACTIVE" : "PENDING")
+      status ?? (role === "PRIMARY" ? "ACTIVE" : "PENDING");
 
-    const permissions = buildPermissions(role, permissionsOverride)
+    const permissions = buildPermissions(role, permissionsOverride);
 
     const payload: ParentCompanionMongo = {
       parentId,
@@ -109,21 +110,21 @@ export const ParentCompanionService = {
       status: effectiveStatus,
       permissions,
       invitedByParentId,
-    }
+    };
 
     try {
-      const [document] = await ParentCompanionModel.create([payload])
-      return document
+      const [document] = await ParentCompanionModel.create([payload]);
+      return document;
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         const message =
           role === "PRIMARY"
             ? "Companion already has an active primary parent."
-            : "Parent is already linked to this companion."
-        throw new ParentCompanionServiceError(message, 409)
+            : "Parent is already linked to this companion.";
+        throw new ParentCompanionServiceError(message, 409);
       }
 
-      throw error
+      throw error;
     }
   },
 
@@ -133,15 +134,15 @@ export const ParentCompanionService = {
    */
   async activateLink(
     parentId: Types.ObjectId,
-    companionId: Types.ObjectId
+    companionId: Types.ObjectId,
   ): Promise<ParentCompanionDocument | null> {
     const document = await ParentCompanionModel.findOneAndUpdate(
       { parentId, companionId, status: "PENDING" },
       { $set: { status: "ACTIVE", acceptedAt: new Date() } },
-      { new: true, sanitizeFilter: true }
-    )
+      { new: true, sanitizeFilter: true },
+    );
 
-    return document
+    return document;
   },
 
   /**
@@ -152,14 +153,14 @@ export const ParentCompanionService = {
     const document = await ParentCompanionModel.findByIdAndUpdate(
       linkId,
       { $set: { status: "REVOKED" } },
-      { new: true }
-    )
+      { new: true },
+    );
 
     if (!document) {
-      throw new ParentCompanionServiceError("Link not found.", 404)
+      throw new ParentCompanionServiceError("Link not found.", 404);
     }
 
-    return document
+    return document;
   },
 
   /**
@@ -173,116 +174,108 @@ export const ParentCompanionService = {
    */
   async updatePermissions(
     linkId: Types.ObjectId,
-    updates: Partial<ParentCompanionPermissions>
+    updates: Partial<ParentCompanionPermissions>,
   ): Promise<CompanionParentLink> {
-    const document = await ParentCompanionModel.findById(linkId)
+    const document = await ParentCompanionModel.findById(linkId);
 
     if (!document) {
-      throw new ParentCompanionServiceError("Link not found.", 404)
+      throw new ParentCompanionServiceError("Link not found.", 404);
     }
 
     const isCurrentlyPrimary =
-      document.role === "PRIMARY" && document.status === "ACTIVE"
+      document.role === "PRIMARY" && document.status === "ACTIVE";
 
-    const wantsPrimary = updates.assignAsPrimaryParent === true
+    const wantsPrimary = updates.assignAsPrimaryParent === true;
 
     // If co-parent wants to become primary
     if (wantsPrimary && !isCurrentlyPrimary) {
-      const { companionId } = document
+      const { companionId } = document;
 
       // Demote existing primary (if any)
       const existingPrimary = await ParentCompanionModel.findOne({
         companionId,
         role: "PRIMARY",
         status: "ACTIVE",
-      })
+      });
 
       if (
         existingPrimary &&
         existingPrimary._id.toString() !== document._id.toString()
       ) {
-        existingPrimary.role = "CO_PARENT"
+        existingPrimary.role = "CO_PARENT";
         existingPrimary.permissions = {
           ...BASE_PERMISSIONS,
           assignAsPrimaryParent: false,
-        }
-        await existingPrimary.save()
+        };
+        await existingPrimary.save();
       }
 
       // Promote this link to PRIMARY
-      document.role = "PRIMARY"
-      document.status = "ACTIVE"
-      document.permissions = buildPermissions("PRIMARY", updates)
-      document.acceptedAt = document.acceptedAt ?? new Date()
+      document.role = "PRIMARY";
+      document.status = "ACTIVE";
+      document.permissions = buildPermissions("PRIMARY", updates);
+      document.acceptedAt = document.acceptedAt ?? new Date();
 
       try {
-        await document.save()
+        await document.save();
       } catch (error) {
         if (isDuplicateKeyError(error)) {
           // Race condition: another primary got promoted in between
           throw new ParentCompanionServiceError(
             "Companion already has an active primary parent.",
-            409
-          )
+            409,
+          );
         }
-        throw error
+        throw error;
       }
 
-      return toCompanionParentLink(document)
+      return toCompanionParentLink(document);
     }
 
     // Otherwise: normal permission update
     const mergedPermissions: ParentCompanionPermissions = {
       ...document.permissions,
       ...updates,
-    }
+    };
 
     // Never allow removing "assignAsPrimaryParent" from the current primary,
     // to avoid having a companion with no primary at all.
     if (isCurrentlyPrimary) {
-      mergedPermissions.assignAsPrimaryParent = true
+      mergedPermissions.assignAsPrimaryParent = true;
     }
 
-    document.permissions = mergedPermissions
-    await document.save()
+    document.permissions = mergedPermissions;
+    await document.save();
 
-    return toCompanionParentLink(document)
+    return toCompanionParentLink(document);
   },
 
   /**
    * Get all parent links for a given companion.
    */
   async getLinksForCompanion(
-    companionId: Types.ObjectId
+    companionId: Types.ObjectId,
   ): Promise<CompanionParentLink[]> {
-    const documents = await ParentCompanionModel.find(
-      { companionId },
-      null,
-      {
-        lean: false,
-        sanitizeFilter: true,
-      }
-    )
+    const documents = await ParentCompanionModel.find({ companionId }, null, {
+      lean: false,
+      sanitizeFilter: true,
+    });
 
-    return documents.map((document) => toCompanionParentLink(document))
+    return documents.map((document) => toCompanionParentLink(document));
   },
 
   /**
    * Get all companion links for a given parent.
    */
   async getLinksForParent(
-    parentId: Types.ObjectId
+    parentId: Types.ObjectId,
   ): Promise<CompanionParentLink[]> {
-    const documents = await ParentCompanionModel.find(
-      { parentId },
-      null,
-      {
-        lean: false,
-        sanitizeFilter: true,
-      }
-    )
+    const documents = await ParentCompanionModel.find({ parentId }, null, {
+      lean: false,
+      sanitizeFilter: true,
+    });
 
-    return documents.map((document) => toCompanionParentLink(document))
+    return documents.map((document) => toCompanionParentLink(document));
   },
 
   /**
@@ -290,14 +283,14 @@ export const ParentCompanionService = {
    * Used when listing companions for a parent account.
    */
   async getActiveCompanionIdsForParent(
-    parentId: Types.ObjectId
+    parentId: Types.ObjectId,
   ): Promise<Types.ObjectId[]> {
     const documents = await ParentCompanionModel.find(
       { parentId, status: { $in: ["ACTIVE", "PENDING"] } },
-      { companionId: 1 }
-    )
+      { companionId: 1 },
+    );
 
-    return documents.map((doc) => doc.companionId)
+    return documents.map((doc) => doc.companionId);
   },
 
   /**
@@ -305,8 +298,8 @@ export const ParentCompanionService = {
    * Useful before deleting a parent record.
    */
   async hasAnyLinks(parentId: Types.ObjectId): Promise<boolean> {
-    const count = await ParentCompanionModel.countDocuments({ parentId })
-    return count > 0
+    const count = await ParentCompanionModel.countDocuments({ parentId });
+    return count > 0;
   },
 
   /**
@@ -314,8 +307,8 @@ export const ParentCompanionService = {
    * Use when the companion itself is being deleted.
    */
   async deleteLinksForCompanion(companionId: Types.ObjectId): Promise<number> {
-    const result = await ParentCompanionModel.deleteMany({ companionId })
-    return result.deletedCount ?? 0
+    const result = await ParentCompanionModel.deleteMany({ companionId });
+    return result.deletedCount ?? 0;
   },
 
   /**
@@ -323,8 +316,8 @@ export const ParentCompanionService = {
    * Use when the parent itself is being deleted.
    */
   async deleteLinksForParent(parentId: Types.ObjectId): Promise<number> {
-    const result = await ParentCompanionModel.deleteMany({ parentId })
-    return result.deletedCount ?? 0
+    const result = await ParentCompanionModel.deleteMany({ parentId });
+    return result.deletedCount ?? 0;
   },
 
   /**
@@ -334,19 +327,19 @@ export const ParentCompanionService = {
    */
   async ensurePrimaryOwnership(
     parentId: Types.ObjectId,
-    companionId: Types.ObjectId
+    companionId: Types.ObjectId,
   ): Promise<void> {
     const link = await ParentCompanionModel.findOne(
       { parentId, companionId, role: "PRIMARY", status: "ACTIVE" },
       null,
-      { sanitizeFilter: true }
-    )
+      { sanitizeFilter: true },
+    );
 
     if (!link) {
       throw new ParentCompanionServiceError(
         "You are not authorized to modify this companion.",
-        403
-      )
+        403,
+      );
     }
   },
-}
+};
