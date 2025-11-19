@@ -3,8 +3,14 @@ import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 const mockUsePathname = jest.fn();
+const mockUseRouter = jest.fn(() => ({
+  push: jest.fn(),
+  replace: jest.fn(),
+  prefetch: jest.fn(),
+}));
 jest.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
+  useRouter: () => mockUseRouter(),
 }));
 
 const mockCheckSession = jest.fn();

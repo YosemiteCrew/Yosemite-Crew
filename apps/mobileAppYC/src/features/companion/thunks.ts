@@ -45,56 +45,30 @@ const ensureAccessToken = async (): Promise<string> => {
   return accessToken;
 };
 
-const refreshCompanionsFromBackend = async (
-  userId: string,
-  companions: Companion[],
-): Promise<Companion[]> => {
-  if (companions.length === 0) {
-    return companions;
-  }
-
-  try {
-    const tokens = await loadStoredTokens();
-    if (!tokens?.accessToken) {
-      return companions;
-    }
-
-    const refreshed = await Promise.all(
-      companions.map(async companion => {
-        try {
-          return await companionApi.getById({
-            companionId: companion.id,
-            userId,
-            accessToken: tokens.accessToken,
-            fallback: companion,
-          });
-        } catch (error) {
-          console.warn('[Companion] Failed to refresh companion', {
-            companionId: companion.id,
-            error,
-          });
-          return companion;
-        }
-      }),
-    );
-
-    await writeCompanionsToStorage(userId, refreshed);
-    return refreshed;
-  } catch (error) {
-    console.warn('[Companion] Unable to refresh companions from backend', error);
-    return companions;
-  }
-};
-
 export const fetchCompanions = createAsyncThunk<
   Companion[],
   string,
   {rejectValue: string}
 >('companion/fetchCompanions', async (userId, {rejectWithValue}) => {
   try {
-    const localCompanions = await readCompanionsFromStorage(userId);
-    return await refreshCompanionsFromBackend(userId, localCompanions);
+    const accessToken = await ensureAccessToken();
+    const remoteCompanions = await companionApi.listByParent({
+      userId,
+      accessToken,
+    });
+    await writeCompanionsToStorage(userId, remoteCompanions);
+    return remoteCompanions;
   } catch (error) {
+    console.warn('[Companion] Remote fetch failed, attempting cached data', error);
+    try {
+      const cached = await readCompanionsFromStorage(userId);
+      if (cached.length > 0) {
+        return cached;
+      }
+    } catch (cacheError) {
+      console.warn('[Companion] Unable to read cached companions', cacheError);
+    }
+
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to fetch companions',
     );
@@ -158,6 +132,8 @@ export const deleteCompanion = createAsyncThunk<
   {rejectValue: string}
 >('companion/deleteCompanion', async ({userId, companionId}, {rejectWithValue}) => {
   try {
+    const accessToken = await ensureAccessToken();
+    await companionApi.remove({companionId, accessToken});
     const companions = await readCompanionsFromStorage(userId);
     const next = companions.filter(c => c.id !== companionId);
 

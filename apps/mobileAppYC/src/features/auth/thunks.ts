@@ -4,7 +4,7 @@ import {AppDispatch, type RootState} from '@/app/store';
 import {resetCompanionState} from '@/features/companion';
 import {resetExpensesState} from '@/features/expenses';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
-import {getAuth} from '@react-native-firebase/auth';
+import {getAuth, signOut} from '@react-native-firebase/auth';
 
 import {
   mergeUser,
@@ -223,10 +223,8 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
     }
 
     try {
-      const fb = getAuth();
-      if (currentProvider === 'firebase' || fb.currentUser) {
-        await fb.signOut();
-      }
+      const auth = getAuth();
+      await signOut(auth);
     } catch (error) {
       console.warn('[Auth] Firebase sign out failed:', error);
     }

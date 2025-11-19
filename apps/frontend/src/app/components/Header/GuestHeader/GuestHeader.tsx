@@ -24,7 +24,7 @@ const publicNavItems: NavItem[] = [
 const GuestHeader = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, role } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`;
 
@@ -106,7 +106,7 @@ const GuestHeader = () => {
             {checkRoute() &&
               (user ? (
                 <Primary
-                  href="/organizations"
+                  href={role === "developer" ? "/developers/home" : "/organizations"}
                   text="Go to app"
                   style={{ maxHeight: "60px" }}
                 />
@@ -142,7 +142,7 @@ const GuestHeader = () => {
         (user ? (
           <div className="navmenu-button">
             <Primary
-              href="/organizations"
+              href={role === "developer" ? "/developers/home" : "/organizations"}
               text="Go to app"
               style={{ width: "160px", maxHeight: "60px" }}
             />
