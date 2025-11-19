@@ -17,7 +17,7 @@ const appRoutes = [
   { name: "Chat", href: "/chat" },
   { name: "Finance", href: "#" },
   { name: "Companions", href: "/companions" },
-  { name: "Inventory", href: "#" },
+  { name: "Inventory", href: "/inventory" },
   { name: "Forms", href: "#" },
   { name: "Settings", href: "/settings" },
   { name: "Sign out", href: "#" },

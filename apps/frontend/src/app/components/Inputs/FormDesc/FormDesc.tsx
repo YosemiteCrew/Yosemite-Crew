@@ -12,6 +12,7 @@ type FormDescProps = {
   onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onBlur?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   error?: string;
+  className?: string;
 };
 
 const FormDesc = ({
@@ -23,13 +24,14 @@ const FormDesc = ({
   onBlur,
   readonly,
   error,
+  className
 }: Readonly<FormDescProps>) => {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <div className="w-100">
       <div
-        className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}
+        className={`SignInput floating-input-desc ${isFocused || value ? "focused" : ""}`}
       >
         <textarea
           name={inname}
@@ -42,7 +44,7 @@ const FormDesc = ({
           placeholder=" "
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className={error ? "is-invalid" : ""}
+          className={`${error ? "is-invalid" : ""} ${className}`}
         />
         <label htmlFor={inname}>{inlabel}</label>
       </div>

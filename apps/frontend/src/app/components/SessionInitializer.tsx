@@ -7,25 +7,8 @@ import Github from "./Github/Github";
 import { useAuthStore } from "../stores/authStore";
 import Sidebar from "./Sidebar/Sidebar";
 import { usePathname, useRouter } from "next/navigation";
+import { publicRoutes } from "../utils/const";
 
-const publicRoutes = new Set([
-  "/",
-  "/signin",
-  "/signup",
-  "/developers/signin",
-  "/developers/signup",
-  "/forgot-password",
-  "/about",
-  "/application",
-  "/book-demo",
-  "/contact",
-  "/developers",
-  "/pms",
-  "/pricing",
-  "/privacy-policy",
-  "/terms-and-conditions",
-  "/settings",
-]);
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const { checkSession, status, role, signout } = useAuthStore();
   const pathname = usePathname() || "";

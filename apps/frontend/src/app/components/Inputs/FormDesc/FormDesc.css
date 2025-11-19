@@ -16,17 +16,17 @@
 .SignInput textarea::placeholder {
   opacity: 60%;
 }
-.floating-input {
+.floating-input-desc {
   position: relative;
   margin-bottom: 0;
 }
-.floating-input textarea {
+.floating-input-desc textarea {
   transition: border-color 0.2s;
 }
-.floating-input label {
+.floating-input-desc label {
   position: absolute;
   left: 24px;
-  top: 50%;
+  top: 20%;
   transform: translateY(-50%);
   color: var(--black-text);
   font-size: 18px;
@@ -44,13 +44,13 @@
   padding: 0 4px;
 }
 
-.floating-input.focused textarea,
-.floating-input textarea:focus {
+.floating-input-desc.focused textarea,
+.floating-input-desc textarea:focus {
   border-color: var(--blue-text) !important;
 }
 
-.floating-input.focused label,
-.floating-input textarea:focus + label {
+.floating-input-desc.focused label,
+.floating-input-desc textarea:focus + label {
   top: 2px;
   font-size: 15px;
   font-weight: 700;
@@ -60,8 +60,8 @@
   opacity: 100%;
 }
 
-.floating-input textarea:not(:placeholder-shown):not(:focus) + label,
-.floating-input.focused label {
+.floating-input-desc textarea:not(:placeholder-shown):not(:focus) + label,
+.floating-input-desc.focused label {
   top: 2px;
   font-size: 15px;
   font-weight: 700;
@@ -91,7 +91,7 @@
   .SignInput textarea::placeholder {
     font-size: 15px;
   }
-  .floating-input label {
+  .floating-input-desc label {
     font-size: 15px;
   }
 }

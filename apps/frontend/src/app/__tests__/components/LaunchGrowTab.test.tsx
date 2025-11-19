@@ -24,7 +24,7 @@ describe("LaunchGrowTab Component", () => {
     await user.click(sdkTabButton);
 
     const headings = screen.getAllByRole("heading", {
-      name: "Software Development Kit",
+      name: "Software development kit",
       level: 2,
     });
     expect(headings.length).toBeGreaterThan(0);
@@ -35,7 +35,7 @@ describe("LaunchGrowTab Component", () => {
 
     expect(
       screen.queryByRole("heading", {
-        name: "Application Programming Interface",
+        name: "Application programming interface",
         level: 2,
       })
     ).not.toBeInTheDocument();
