@@ -24,11 +24,11 @@ const LandingPage = () => {
         <div className="HeroContainer">
           <div className="LeftHeroSection">
             <div className="LeftHeroText">
-              <h2>Open Source Operating System for Animal Health</h2>
+              <h2>Open source operating system for animal health</h2>
               <p>
-                Designed for pet businesses, pet owners, and developers to
+                Designed for pet businesses, pet parents, and developers to
                 collaborate in improving animal care. Streamline workflows while
-                enhancing health outcomes, all in one unified system
+                enhancing health outcomes, in one unified system.
               </p>
             </div>
             <div className="LeftHeroButtons">
@@ -85,9 +85,11 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {InfoCards.map((item, idx) => (
-        <LandingCard key={idx + item.title} item={item} />
-      ))}
+      <div className="flex flex-col pb-8!">
+        {InfoCards.map((item, idx) => (
+          <LandingCard key={idx + item.title} item={item} />
+        ))}
+      </div>
 
       <Footer />
     </>

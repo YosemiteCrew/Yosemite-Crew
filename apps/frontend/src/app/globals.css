@@ -89,6 +89,13 @@
   box-sizing: border-box;
   scroll-behavior: smooth;
 }
+@layer utilities {
+  .scrollbar-hidden {
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
 @theme {
   --color-black-text: #302f2e;
   --color-black-bg: #302f2e;

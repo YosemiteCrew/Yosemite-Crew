@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import "@testing-library/jest-dom";
 
 globalThis.HTMLElement.prototype.scrollIntoView = jest.fn();
@@ -41,14 +41,14 @@ Object.defineProperty(globalThis, "IntersectionObserver", {
 beforeAll(() => {
   window.scrollTo = jest.fn();
   // Silence noisy logs but keep them visible locally by toggling with an env flag if you want
-  jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, "log").mockImplementation(() => {});
 
   // Turn unexpected warnings/errors into failures in CI
-  jest.spyOn(console, 'warn').mockImplementation((...args) => {
-    throw new Error('Unexpected console.warn: ' + args.join(' '));
+  jest.spyOn(console, "warn").mockImplementation((...args) => {
+    throw new Error("Unexpected console.warn: " + args.join(" "));
   });
-  jest.spyOn(console, 'error').mockImplementation((...args) => {
-    throw new Error('Unexpected console.error: ' + args.join(' '));
+  jest.spyOn(console, "error").mockImplementation((...args) => {
+    throw new Error("Unexpected console.error: " + args.join(" "));
   });
 });
 
@@ -59,13 +59,13 @@ afterAll(() => {
 });
 
 const IconComponentMock = (props: any) =>
-  React.createElement('span', { 'data-testid': 'icon', ...props });
+  React.createElement("span", { "data-testid": "icon", ...props });
 
-jest.mock('@iconify/react', () => ({
+jest.mock("@iconify/react", () => ({
   Icon: IconComponentMock,
 }));
 
-jest.mock('@iconify/react/dist/iconify.js', () => ({
+jest.mock("@iconify/react/dist/iconify.js", () => ({
   Icon: IconComponentMock,
 }));
 

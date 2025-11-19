@@ -145,7 +145,6 @@ const ContactusPage = () => {
     if (!message.trim()) {
       newErrors.message = "Message is required";
     }
-
     if (!email.trim()) {
       newErrors.email = "Email is required";
     } else if (!isValidEmail(email)) {
@@ -154,25 +153,12 @@ const ContactusPage = () => {
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
-    /**
-     *
-     *
-    email,
-    phone,
-    fullName,
-    message,
-    selectedQueryType,
-    area,
-    ConfselectedRequest,
-    selectedRequest,
-     */
     const obj: CreateSupportTicket = {
       fullName,
       message,
       emailAddress: email,
       category: selectedQueryType,
       platform: "Web Form",
-      // assignedTo:area,
       userType: "Guest",
       userStatus: "Pending",
       createdBy: "Professional",
@@ -195,6 +181,7 @@ const ContactusPage = () => {
     area,
     selectedRequest,
   ]);
+
   return (
     <>
       <section className="ContactUsPageSec">
@@ -203,7 +190,7 @@ const ContactusPage = () => {
             <div className="LeftContactUs">
               <div className="conttexted">
                 <span>Contact us</span>
-                <h2>Need Help? We’re All Ears!</h2>
+                <h2>Need help? We’re all ears!</h2>
               </div>
               <Image
                 alt="Contact Image"
@@ -217,9 +204,7 @@ const ContactusPage = () => {
 
             <div className="RightContactUs">
               <div className="QueryText">
-                <h3>
-                  Submit <span>your query</span>
-                </h3>
+                <h3>Submit your query</h3>
               </div>
 
               {/* Contact Form */}
@@ -363,7 +348,7 @@ const ContactusPage = () => {
                       pointerEvents: isDSARValid ? "auto" : "none",
                     }}
                   >
-                    {submitting ? "submitting..." : "Send Message"}
+                    {submitting ? "submitting..." : "Send message"}
                   </Button>
                 </div>
               )}
@@ -471,7 +456,7 @@ const ContactusPage = () => {
                       pointerEvents: isComplaintValid ? "auto" : "none",
                     }}
                   >
-                    {submitting ? "submitting..." : "Send Message"}
+                    {submitting ? "submitting..." : "Send message"}
                   </Button>
                 </div>
               )}
@@ -511,7 +496,7 @@ const ContactusPage = () => {
                       pointerEvents: isGeneralValid ? "auto" : "none",
                     }}
                   >
-                    {submitting ? "submitting..." : "Send Message"}
+                    {submitting ? "submitting..." : "Send message"}
                   </Button>
                 </>
               )}

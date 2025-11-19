@@ -10,8 +10,9 @@ const SpecialitySearch = ({ specialities, setSpecialities }: any) => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return specialities;
-    return specialities?.filter((s: any) => s.name.toLowerCase().includes(q));
+    const list = specialities.filter((s: any) => !s.active);
+    if (!q) return list;
+    return list?.filter((s: any) => s.name.toLowerCase().includes(q));
   }, [query, specialities]);
 
   useEffect(() => {
@@ -29,9 +30,9 @@ const SpecialitySearch = ({ specialities, setSpecialities }: any) => {
     };
   }, []);
 
-  const handleToggle = (key: string, checked: boolean) => {
+  const handleToggle = (key: string) => {
     setSpecialities((prev: any) =>
-      prev.map((s: any) => (s.key === key ? { ...s, active: checked } : s))
+      prev.map((s: any) => (s.key === key ? { ...s, active: !s.active } : s))
     );
   };
 
@@ -72,23 +73,15 @@ const SpecialitySearch = ({ specialities, setSpecialities }: any) => {
         <div className="step-search-dropdown" id="speciality-search-listbox">
           {filtered?.length > 0 ? (
             filtered.map((speciality: any) => (
-              <label
+              <button
                 key={speciality.key}
                 className="step-search-speciality"
-                aria-selected={speciality.active}
+                onClick={() => handleToggle(speciality.key)}
               >
-                <input
-                  type="checkbox"
-                  className="step-search-speciality-check"
-                  checked={speciality.active}
-                  onChange={(e) =>
-                    handleToggle(speciality.key, e.target.checked)
-                  }
-                />
                 <div className="step-search-speciality-title">
                   {speciality.name}
                 </div>
-              </label>
+              </button>
             ))
           ) : (
             <button

@@ -1,16 +1,16 @@
 {
   "heroList": [
     {
-      "title": "Open source, cloud-based system"
+      "title": "Open source, cloud-based system."
     },
     {
-      "title": "Enhance your daily workflow"
+      "title": "Enhance your daily workflow."
     },
     {
-      "title": "Easy-to-use, time-saving features"
+      "title": "Easy-to-use, time-saving features."
     },
     {
-      "title": "Access data anytime, anywhere"
+      "title": "Access data anytime, anywhere."
     }
   ],
   "practiceFeatures": [
@@ -48,7 +48,7 @@
       "image": "https://d2il6osz49gpup.cloudfront.net/Images/pract6.png",
       "title": "Pet parent",
       "title2": "App",
-      "description": "Give clients a vet-in-your-pocket with a dedicated app for reminders, medical records, and invoices—all in one."
+      "description": "Give clients a vet-in-your-pocket with a dedicated app for reminders, medical records, and invoices, all in one."
     },
     {
       "image": "https://d2il6osz49gpup.cloudfront.net/Images/pract7.png",
@@ -87,7 +87,7 @@
     {
       "img": "https://d2il6osz49gpup.cloudfront.net/Images/focus5.png",
       "title": "Scalable",
-      "description": "Grow with confidence, whether you're a small clinic or a multi-location practice, our software evolves with your needs."
+      "description": "Grow with confidence: whether you're a small clinic or a multi-location practice, our software evolves with your needs."
     }
   ]
 }

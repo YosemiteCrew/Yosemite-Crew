@@ -162,7 +162,7 @@ const Footer = () => {
                 , phone: <a className="Bootom_Foot_Focus" href="tel:+4915227763275">+49 152 277 63275</a>
               </p>
               <p>
-                Geschaftsfuhrer: Ankit Upadhyay Amtsgerichts Mainz unter HRB
+                Geschaftsfuhrer: Ankit Upadhyay Amtsgericht Mainz unter HRB
                 52778, VAT: DE367920596
               </p>
             </div>

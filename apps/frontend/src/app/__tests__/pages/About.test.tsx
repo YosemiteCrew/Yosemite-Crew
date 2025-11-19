@@ -69,7 +69,7 @@ describe("AboutUs Page", () => {
   it("should render the community/team section correctly", () => {
     expect(
       screen.getByRole("heading", {
-        name: /We're not a Company. We're a Community./i,
+        name: /We’re an open source community/i,
       }),
     ).toBeInTheDocument();
     expect(
