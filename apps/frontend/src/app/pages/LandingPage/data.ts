@@ -20,7 +20,7 @@ export const InfoCards: InfoCard[] = [
     target: "Perfect for pet parents",
     title: "Designed for pet parents. Simple, intuitive, reliable",
     description:
-      "Curated essential tools for your companions, whether they are cats, horses, or dogs in one place. Our app enhances communication with groomers, boarders, sitters, vets, and clinics, streamlining appointments, tasks, medical records, and educational resources for exceptional care.",
+      "Curated essential tools for your companions, whether they are cats, horses, or dogs, in one place. Our app enhances communication with groomers, boarders, sitters, vets, and clinics, streamlining appointments, tasks, medical records, and educational resources for high-quality care.",
     image: "https://d2il6osz49gpup.cloudfront.net/MainLanding/landing_app.png",
     href: "/application",
     background: "#e9f2fd",
@@ -30,9 +30,10 @@ export const InfoCards: InfoCard[] = [
     title: "Pay as you grow, no strings attached",
     description:
       "Choose what works for you: host it for free or opt for our pay-as-you-go plan. There are no hidden fees or long-term contracts, and with the Yosemite Crew AGPL V3 license, you own the software!",
-    image: "https://d2il6osz49gpup.cloudfront.net/MainLanding/landing_pricing.png",
+    image:
+      "https://d2il6osz49gpup.cloudfront.net/MainLanding/landing_pricing.png",
     href: "/pricing",
-    background: "#f8fbff",
+    background: "#f5f8fd",
   },
   {
     target: "Developer-friendly platform",
@@ -41,7 +42,7 @@ export const InfoCards: InfoCard[] = [
       "Yosemite Crew is not just a tool for users; it's a robust platform for developers to build and launch creative solutions like AI scribe, voice calls, and agents. Integrated into pet businesses through our developer marketplace, you can turn your ideas into market-ready products in just hours!",
     image: "https://d2il6osz49gpup.cloudfront.net/Images/landingimg4.png",
     href: "/developers",
-    background: "#f5f8fd",
+    background: "#fff",
   },
 ];
 
@@ -56,18 +57,18 @@ export const SlidesData: Slide[] = [
     id: 1,
     image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg",
     alt: "Vet 1",
-    text: "Empowering veterinary businesses to grow efficiently.",
+    text: "Empowering veterinary clinics to grow sustainably",
   },
   {
     id: 2,
     image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg2.jpg",
     alt: "Vet 2",
-    text: "Simplifying pet health management for owners.",
+    text: "Simplifying pet health management for parents",
   },
   {
     id: 3,
     image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg3.jpg",
     alt: "Vet 3",
-    text: "Creating opportunities for developers to innovate.",
+    text: "Creating opportunities for developers to innovate",
   },
 ];

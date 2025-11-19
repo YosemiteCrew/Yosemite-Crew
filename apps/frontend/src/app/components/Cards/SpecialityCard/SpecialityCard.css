@@ -38,12 +38,12 @@
   display: flex;
   height: 48px;
   width: 100%;
+  justify-content: space-between;
   padding: 10px 24px;
   align-items: center;
   gap: 8px;
   align-self: stretch;
   border-bottom: 1px solid #eaeaea;
-  cursor: pointer;
 }
 .speciality-service-title {
   color: var(--black-text);

@@ -42,17 +42,7 @@ jobs:
       - name: Compute base SHA
         id: base
         run: |
-          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
-            # PR scenario (kept for parity, though this workflow is push-only)
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE_BRANCH="${{ github.ref_name }}"
-            git fetch origin "$BASE_BRANCH" --depth=50 || true
-            BASE_SHA=$(git merge-base origin/"$BASE_BRANCH" HEAD 2>/dev/null)
-            if [ -z "$BASE_SHA" ]; then
-                BASE_SHA=$(git rev-parse HEAD)
-            fi
-          fi
+          BASE_SHA=$(git rev-parse HEAD~1)
           echo "sha=$BASE_SHA" >> $GITHUB_OUTPUT
 
       - name: Compute if frontend is affected (Turborepo)

@@ -228,12 +228,12 @@ const SignUp = ({
                   <h4>
                     {isDeveloper
                       ? "API-first, self-host or managed"
-                      : "Enjoy cloud hosting with us!"}
+                      : "Enjoy smooth online solutions with us!"}
                   </h4>
                   <p>
                     {isDeveloper
                       ? "Open source core with APIs built for integrations. Run it yourself or use our managed stack."
-                      : "Website are hosted on a network of servers, offering greater, scalability, reliability, and flexibility."}
+                      : "Our services are built on a strong foundation for great performance and flexibility."}
                   </p>
                 </div>
               </div>
@@ -248,12 +248,12 @@ const SignUp = ({
                   <h4>
                     {isDeveloper
                       ? "Local dev + production ready"
-                      : "Start free. Pay as you grow."}
+                      : "Start free and upgrade as needed."}
                   </h4>
                   <p>
                     {isDeveloper
                       ? "Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted."
-                      : "Enjoy generous free usage on cloud hosting. Upgrade only when you need more power."}
+                      : "Enjoy generous free usage. Upgrade only when you need."}
                   </p>
                 </div>
               </div>
@@ -268,12 +268,12 @@ const SignUp = ({
                   <h4>
                     {isDeveloper
                       ? "Secure by default"
-                      : "GDPR-ready, EU-based servers."}
+                      : "Our servers are EU-based and GDPR compliant."}
                   </h4>
                   <p>
                     {isDeveloper
                       ? "Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed."
-                      : "All cloud data is securely hosted in the EU with full GDPR compliance."}
+                      : "All data is securely stored in the EU, fully GDPR compliant."}
                   </p>
                 </div>
               </div>
@@ -287,7 +287,7 @@ const SignUp = ({
               <div className="TopSignUp">
                 <div className="Headingtext">
                   <h2>
-                    {isDeveloper ? "Sign up for developer access" : "Sign up for cloud"}
+                    {isDeveloper ? "Sign up for developer access" : "Sign up"}
                   </h2>
                 </div>
 

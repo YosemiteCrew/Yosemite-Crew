@@ -104,7 +104,7 @@ const config: Config = {
     // Handle local monorepo packages
     "^@yosemite-crew/fhir$": "<rootDir>/../../packages/fhir/src",
     "^@yosemite-crew/types$": "<rootDir>/../../packages/types/src",
-    "^next/navigation$": "<rootDir>/jest.mocks/nextNavigation.ts",
+    "^next/navigation$": "<rootDir>/src/app/jest.mocks/nextNavigation.ts",
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader

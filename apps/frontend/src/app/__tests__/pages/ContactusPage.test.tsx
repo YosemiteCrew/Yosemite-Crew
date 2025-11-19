@@ -98,7 +98,7 @@ describe("ContactusPage", () => {
     it("should show validation errors if required fields are empty on general enquiry", async () => {
       render(<ContactusPage />);
       const submitButton = screen.getAllByRole("button", {
-        name: "Send Message",
+        name: "Send message",
       })[0];
       fireEvent.click(submitButton);
     });
@@ -117,7 +117,7 @@ describe("ContactusPage", () => {
         target: { value: "not-an-email" },
       });
       fireEvent.click(
-        screen.getAllByRole("button", { name: "Send Message" })[0]
+        screen.getAllByRole("button", { name: "Send message" })[0]
       );
 
       expect(
@@ -129,7 +129,7 @@ describe("ContactusPage", () => {
     it("should enable submit button when general enquiry form is valid and submit successfully", async () => {
       render(<ContactusPage />);
       const submitButton = screen.getAllByRole("button", {
-        name: "Send Message",
+        name: "Send message",
       })[0];
       expect(submitButton).toBeInTheDocument();
 
@@ -162,7 +162,7 @@ describe("ContactusPage", () => {
       fireEvent.click(screen.getByRole("radio", { name: "Feature Request" }));
 
       const submitButton = screen.getAllByRole("button", {
-        name: "Send Message",
+        name: "Send message",
       })[0];
 
       fireEvent.change(screen.getByLabelText("Full Name"), {
@@ -190,7 +190,7 @@ describe("ContactusPage", () => {
       render(<ContactusPage />);
       fireEvent.click(screen.getByRole("radio", { name: "Complaint" }));
 
-      const submitButton = screen.getByRole("button", { name: "Send Message" });
+      const submitButton = screen.getByRole("button", { name: "Send message" });
       expect(submitButton).toBeInTheDocument();
 
       fireEvent.change(screen.getByLabelText("Full Name"), {
@@ -230,7 +230,7 @@ describe("ContactusPage", () => {
       render(<ContactusPage />);
       fireEvent.click(screen.getByRole("radio", { name: "Complaint" }));
 
-      const submitButton = screen.getByRole("button", { name: "Send Message" });
+      const submitButton = screen.getByRole("button", { name: "Send message" });
       expect(submitButton).toBeDisabled();
     });
 
@@ -240,7 +240,7 @@ describe("ContactusPage", () => {
         screen.getByRole("radio", { name: "Data Service Access Request" })
       );
 
-      const submitButton = screen.getByRole("button", { name: "Send Message" });
+      const submitButton = screen.getByRole("button", { name: "Send message" });
       expect(submitButton).toBeInTheDocument();
 
       fireEvent.change(screen.getByLabelText("Full Name"), {
@@ -287,7 +287,7 @@ describe("ContactusPage", () => {
         screen.getByRole("radio", { name: "Data Service Access Request" })
       );
 
-      const submitButton = screen.getByRole("button", { name: "Send Message" });
+      const submitButton = screen.getByRole("button", { name: "Send message" });
 
       fireEvent.change(screen.getByLabelText("Full Name"), {
         target: { value: "Sam Smith" },
@@ -323,7 +323,7 @@ describe("ContactusPage", () => {
       render(<ContactusPage />);
 
       const submitButton = screen.getAllByRole("button", {
-        name: "Send Message",
+        name: "Send message",
       })[0];
 
       fireEvent.change(screen.getByLabelText("Full Name"), {
@@ -343,7 +343,7 @@ describe("ContactusPage", () => {
 
       await waitFor(() => expect(mockedPostData).toHaveBeenCalled());
 
-      expect(await screen.findByText("Send Message")).toBeInTheDocument();
+      expect(await screen.findByText("Send message")).toBeInTheDocument();
     });
   });
 });
