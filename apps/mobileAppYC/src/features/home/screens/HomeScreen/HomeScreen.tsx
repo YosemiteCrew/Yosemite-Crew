@@ -123,19 +123,28 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
   );
+  const [headerAvatarError, setHeaderAvatarError] = React.useState(false);
+  const headerAvatarUri = React.useMemo(
+    () => authUser?.profilePicture ?? authUser?.profileToken ?? null,
+    [authUser?.profilePicture, authUser?.profileToken],
+  );
+
+  React.useEffect(() => {
+    setHeaderAvatarError(false);
+  }, [headerAvatarUri]);
 
   // Fetch companions on mount and set the first one as default
   React.useEffect(() => {
     const loadCompanionsAndSelectDefault = async () => {
-      if (user?.id) {
-        await dispatch(fetchCompanions(user.id));
+      if (user?.parentId) {
+        await dispatch(fetchCompanions(user.parentId));
         // Initialize mock linked business data for testing
         dispatch(initializeMockData());
       }
     };
 
     loadCompanionsAndSelectDefault();
-  }, [dispatch, user?.id]);
+  }, [dispatch, user?.parentId]);
 
   // New useEffect to handle default selection once companions are loaded
   React.useEffect(() => {
@@ -310,8 +319,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       : null;
     return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
   }, []);
-
-  const [showFallbackAppointmentCard, setShowFallbackAppointmentCard] = React.useState(true);
 
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
@@ -521,37 +528,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       );
     }
 
-    if (showFallbackAppointmentCard) {
-      return (
-        <AppointmentCard
-          key="fallback-appointment-card"
-          doctorName="Dr. Emily Johnson"
-          specialization="Cardiology"
-          hospital="SMPC Cardiac hospital"
-          dateTime="20 Aug • 4:00 PM"
-          note="Check in is only allowed if you arrive 5 minutes early at location"
-          avatar={Images.cat}
-          showActions
-          onPress={() => handleViewAppointment('fallback')}
-          onViewDetails={() => handleViewAppointment('fallback')}
-          onGetDirections={() => openMapsToAddress('San Francisco, CA')}
-          onChat={() => handleChatAppointment('fallback')}
-          onCheckIn={() => setShowFallbackAppointmentCard(false)}
-          testIDs={{
-            container: 'appointment-card-container',
-            directions: 'appointment-directions',
-            chat: 'appointment-chat',
-            checkIn: 'appointment-checkin',
-          }}
-        />
-      );
-    }
-
     return renderEmptyStateTile(
       'No upcoming appointments',
       'Book an appointment to see it here.',
       'appointments',
-      () => setShowFallbackAppointmentCard(true),
+      companions.length > 0
+        ? () =>
+            navigation
+              .getParent<NavigationProp<TabParamList>>()
+              ?.navigate('Appointments', {screen: 'BrowseBusinesses'})
+        : undefined,
     );
   };
 
@@ -566,10 +552,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onPress={() => navigation.navigate('Account')}
             activeOpacity={0.85}>
             <View style={styles.avatar}>
-              {authUser?.profilePicture ? (
+              {headerAvatarUri && !headerAvatarError ? (
                 <Image
-                  source={{uri: authUser.profilePicture}}
+                  source={{uri: headerAvatarUri}}
                   style={styles.avatarImage}
+                  onError={() => setHeaderAvatarError(true)}
                 />
               ) : (
                 <Text style={styles.avatarInitials}>

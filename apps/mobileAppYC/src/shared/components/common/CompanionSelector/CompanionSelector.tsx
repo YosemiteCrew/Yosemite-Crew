@@ -44,6 +44,16 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
 }: CompanionSelectorProps<T>) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
+
+  const handleImageError = React.useCallback((id: string) => {
+    setFailedImages(prev => {
+      if (prev[id]) {
+        return prev;
+      }
+      return {...prev, [id]: true};
+    });
+  }, []);
 
   const renderCompanionBadge = (companion: T) => {
     const isSelected = selectedCompanionId === companion.id;
@@ -67,10 +77,11 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
               isSelected && styles.companionAvatarRingSelected,
               isSelected && {transform: [{scale: 1.08}]},
             ]}>
-            {companion.profileImage ? (
+            {companion.profileImage && !failedImages[companion.id] ? (
               <Image
                 source={{uri: companion.profileImage}}
                 style={styles.companionAvatar}
+                onError={() => handleImageError(companion.id)}
               />
             ) : (
               <View style={styles.companionAvatarPlaceholder}>
