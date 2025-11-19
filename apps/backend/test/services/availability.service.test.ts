@@ -56,8 +56,7 @@ const mockedBaseAvailabilityModel =
   BaseAvailabilityModel as unknown as MockedBaseAvailabilityModel;
 const mockedWeeklyOverrideModel =
   WeeklyAvailabilityOverrideModel as unknown as MockedWeeklyOverrideModel;
-const mockedOccupancyModel =
-  OccupancyModel as unknown as MockedOccupancyModel;
+const mockedOccupancyModel = OccupancyModel as unknown as MockedOccupancyModel;
 
 describe("AvailabilityService", () => {
   beforeEach(() => {
@@ -77,7 +76,9 @@ describe("AvailabilityService", () => {
         [
           {
             dayOfWeek: "MONDAY",
-            slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
+            slots: [
+              { startTime: "09:00", endTime: "17:00", isAvailable: true },
+            ],
           },
         ],
       );

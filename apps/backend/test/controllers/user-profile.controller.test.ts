@@ -52,14 +52,26 @@ describe("UserProfileController", () => {
       await UserProfileController.create(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Invalid request body." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid request body.",
+      });
       expect(mockedService.create).not.toHaveBeenCalled();
     });
 
     it("creates profile", async () => {
-      const req = { body: { userId: "user-1", organizationId: "org-1", baseAvailability: [] } } as any;
+      const req = {
+        body: {
+          userId: "user-1",
+          organizationId: "org-1",
+          baseAvailability: [],
+        },
+      } as any;
       const res = createResponse();
-      const profile = { _id: "profile-id", userId: "user-1", organizationId: "org-1" };
+      const profile = {
+        _id: "profile-id",
+        userId: "user-1",
+        organizationId: "org-1",
+      };
       mockedService.create.mockResolvedValueOnce(profile);
 
       await UserProfileController.create(req, res as any);
@@ -70,10 +82,16 @@ describe("UserProfileController", () => {
     });
 
     it("maps service errors", async () => {
-      const req = { body: { userId: "user-1", organizationId: "org-1", baseAvailability: [] } } as any;
+      const req = {
+        body: {
+          userId: "user-1",
+          organizationId: "org-1",
+          baseAvailability: [],
+        },
+      } as any;
       const res = createResponse();
       mockedService.create.mockRejectedValueOnce(
-        new UserProfileServiceError("Validation", 422)
+        new UserProfileServiceError("Validation", 422),
       );
 
       await UserProfileController.create(req, res as any);
@@ -83,7 +101,13 @@ describe("UserProfileController", () => {
     });
 
     it("logs unexpected errors", async () => {
-      const req = { body: { userId: "user-1", organizationId: "org-1", baseAvailability: [] } } as any;
+      const req = {
+        body: {
+          userId: "user-1",
+          organizationId: "org-1",
+          baseAvailability: [],
+        },
+      } as any;
       const res = createResponse();
       const error = new Error("boom");
       mockedService.create.mockRejectedValueOnce(error);
@@ -92,7 +116,7 @@ describe("UserProfileController", () => {
 
       expect(mockedLogger.error).toHaveBeenCalledWith(
         "Failed to create user profile",
-        error
+        error,
       );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
@@ -108,12 +132,21 @@ describe("UserProfileController", () => {
         body: { baseAvailability: [] },
       } as any;
       const res = createResponse();
-      const profile = { _id: "profile-id", userId: "user-1", organizationId: "org-1", status: "DRAFT" };
+      const profile = {
+        _id: "profile-id",
+        userId: "user-1",
+        organizationId: "org-1",
+        status: "DRAFT",
+      };
       mockedService.update.mockResolvedValueOnce(profile);
 
       await UserProfileController.update(req, res as any);
 
-      expect(mockedService.update).toHaveBeenCalledWith("user-1", "org-1", req.body);
+      expect(mockedService.update).toHaveBeenCalledWith(
+        "user-1",
+        "org-1",
+        req.body,
+      );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(profile);
     });
@@ -129,14 +162,19 @@ describe("UserProfileController", () => {
       await UserProfileController.update(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ message: "User profile not found." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "User profile not found.",
+      });
     });
 
     it("maps service errors", async () => {
-      const req = { params: { userId: "user-1", organizationId: "org-1" }, body: {} } as any;
+      const req = {
+        params: { userId: "user-1", organizationId: "org-1" },
+        body: {},
+      } as any;
       const res = createResponse();
       mockedService.update.mockRejectedValueOnce(
-        new UserProfileServiceError("No fields", 400)
+        new UserProfileServiceError("No fields", 400),
       );
 
       await UserProfileController.update(req, res as any);
@@ -158,7 +196,7 @@ describe("UserProfileController", () => {
 
       expect(mockedLogger.error).toHaveBeenCalledWith(
         "Failed to update user profile",
-        error
+        error,
       );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
@@ -169,9 +207,15 @@ describe("UserProfileController", () => {
 
   describe("getByUserId", () => {
     it("returns profile", async () => {
-      const req = { params: { userId: "user-1", organizationId: "org-1" } } as any;
+      const req = {
+        params: { userId: "user-1", organizationId: "org-1" },
+      } as any;
       const res = createResponse();
-      const profile = { _id: "profile-id", userId: "user-1", organizationId: "org-1" };
+      const profile = {
+        _id: "profile-id",
+        userId: "user-1",
+        organizationId: "org-1",
+      };
       mockedService.getByUserId.mockResolvedValueOnce(profile);
 
       await UserProfileController.getByUserId(req, res as any);
@@ -182,21 +226,25 @@ describe("UserProfileController", () => {
     });
 
     it("returns 404 when missing", async () => {
-      const req = { params: { userId: "missing", organizationId: "org-1" } } as any;
+      const req = {
+        params: { userId: "missing", organizationId: "org-1" },
+      } as any;
       const res = createResponse();
       mockedService.getByUserId.mockResolvedValueOnce(null);
 
       await UserProfileController.getByUserId(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ message: "User profile not found." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "User profile not found.",
+      });
     });
 
     it("maps service errors", async () => {
       const req = { params: { userId: "", organizationId: "" } } as any;
       const res = createResponse();
       mockedService.getByUserId.mockRejectedValueOnce(
-        new UserProfileServiceError("Invalid", 400)
+        new UserProfileServiceError("Invalid", 400),
       );
 
       await UserProfileController.getByUserId(req, res as any);
@@ -206,7 +254,9 @@ describe("UserProfileController", () => {
     });
 
     it("logs unexpected errors", async () => {
-      const req = { params: { userId: "user-1", organizationId: "org-1" } } as any;
+      const req = {
+        params: { userId: "user-1", organizationId: "org-1" },
+      } as any;
       const res = createResponse();
       const error = new Error("db");
       mockedService.getByUserId.mockRejectedValueOnce(error);
@@ -215,7 +265,7 @@ describe("UserProfileController", () => {
 
       expect(mockedLogger.error).toHaveBeenCalledWith(
         "Failed to retrieve user profile",
-        error
+        error,
       );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({

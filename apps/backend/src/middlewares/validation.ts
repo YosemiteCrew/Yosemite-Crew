@@ -1,8 +1,7 @@
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
-import { sanitizeInput } from '../utils/sanitize';
-import { NextFunction, Request, Response } from 'express';
-
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
+import { sanitizeInput } from "../utils/sanitize";
+import { NextFunction, Request, Response } from "express";
 
 export function validateAndSanitizeDTO(DTOClass: any) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -31,7 +30,7 @@ export function validateAndSanitizeDTO(DTOClass: any) {
           constraints: e.constraints,
         }));
         return res.status(400).json({
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: formatted,
         });
       }
@@ -40,9 +39,9 @@ export function validateAndSanitizeDTO(DTOClass: any) {
       req.body = dtoObject;
       next();
     } catch (error) {
-      console.error('Validation middleware error:', error);
+      console.error("Validation middleware error:", error);
       return res.status(500).json({
-        message: 'Internal validation error',
+        message: "Internal validation error",
         error: error instanceof Error ? error.message : String(error),
       });
     }

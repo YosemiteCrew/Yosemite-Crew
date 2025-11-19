@@ -1,5 +1,8 @@
 import UserProfileModel from "../../src/models/user-profile";
-import { UserProfileService, UserProfileServiceError } from "../../src/services/user-profile.service";
+import {
+  UserProfileService,
+  UserProfileServiceError,
+} from "../../src/services/user-profile.service";
 import { BaseAvailabilityService } from "../../src/services/base-availability.service";
 
 jest.mock("../../src/models/user-profile", () => ({
@@ -12,7 +15,9 @@ jest.mock("../../src/models/user-profile", () => ({
 }));
 
 jest.mock("../../src/services/base-availability.service", () => {
-  const actual = jest.requireActual("../../src/services/base-availability.service");
+  const actual = jest.requireActual(
+    "../../src/services/base-availability.service",
+  );
   return {
     ...actual,
     BaseAvailabilityService: {
@@ -76,12 +81,10 @@ describe("UserProfileService", () => {
         toObject: () => ({ ...docData }),
         createdAt,
         updatedAt,
-        save: jest
-          .fn()
-          .mockImplementation(function (this: any) {
-            docData.status = this.status;
-            return Promise.resolve();
-          }),
+        save: jest.fn().mockImplementation(function (this: any) {
+          docData.status = this.status;
+          return Promise.resolve();
+        }),
       } as any;
 
       mockedModel.create.mockResolvedValueOnce(document);
@@ -117,7 +120,9 @@ describe("UserProfileService", () => {
         baseAvailability: [
           {
             dayOfWeek: "MONDAY",
-            slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
+            slots: [
+              { startTime: "09:00", endTime: "17:00", isAvailable: true },
+            ],
           },
         ],
       });
@@ -125,7 +130,7 @@ describe("UserProfileService", () => {
       expect(mockedModel.findOne).toHaveBeenCalledWith(
         { userId: "user-1", organizationId: "org-1" },
         null,
-        { sanitizeFilter: true }
+        { sanitizeFilter: true },
       );
       expect(mockedModel.create).toHaveBeenCalledWith({
         userId: "user-1",
@@ -153,7 +158,9 @@ describe("UserProfileService", () => {
         availability: [
           {
             dayOfWeek: "MONDAY",
-            slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
+            slots: [
+              { startTime: "09:00", endTime: "17:00", isAvailable: true },
+            ],
           },
         ],
       });
@@ -193,7 +200,7 @@ describe("UserProfileService", () => {
           userId: "user-1",
           organizationId: "org-1",
           baseAvailability: [],
-        })
+        }),
       ).rejects.toMatchObject({
         message: "Profile already exists for this user in this organization.",
         statusCode: 409,
@@ -202,7 +209,11 @@ describe("UserProfileService", () => {
 
     it("validates payload", async () => {
       await expect(
-        UserProfileService.create({ userId: "", organizationId: "org-1", baseAvailability: [] })
+        UserProfileService.create({
+          userId: "",
+          organizationId: "org-1",
+          baseAvailability: [],
+        }),
       ).rejects.toBeInstanceOf(UserProfileServiceError);
     });
 
@@ -213,7 +224,7 @@ describe("UserProfileService", () => {
           organizationId: "org-1",
           personalDetails: {},
           professionalDetails: {},
-        } as any)
+        } as any),
       ).rejects.toBeInstanceOf(UserProfileServiceError);
     });
   });
@@ -251,12 +262,10 @@ describe("UserProfileService", () => {
         toObject: () => ({ ...updateDocData }),
         createdAt: new Date("2024-02-01T00:00:00.000Z"),
         updatedAt,
-        save: jest
-          .fn()
-          .mockImplementation(function (this: any) {
-            updateDocData.status = this.status;
-            return Promise.resolve();
-          }),
+        save: jest.fn().mockImplementation(function (this: any) {
+          updateDocData.status = this.status;
+          return Promise.resolve();
+        }),
       } as any;
 
       mockedModel.findOneAndUpdate.mockResolvedValueOnce(document);
@@ -278,7 +287,9 @@ describe("UserProfileService", () => {
         baseAvailability: [
           {
             dayOfWeek: "TUESDAY",
-            slots: [{ startTime: "10:00", endTime: "18:00", isAvailable: true }],
+            slots: [
+              { startTime: "10:00", endTime: "18:00", isAvailable: true },
+            ],
           },
         ],
       });
@@ -294,13 +305,15 @@ describe("UserProfileService", () => {
             },
           },
         },
-        { new: true, sanitizeFilter: true }
+        { new: true, sanitizeFilter: true },
       );
       expect(mockedAvailabilityService.update).toHaveBeenCalledWith("user-1", {
         availability: [
           {
             dayOfWeek: "TUESDAY",
-            slots: [{ startTime: "10:00", endTime: "18:00", isAvailable: true }],
+            slots: [
+              { startTime: "10:00", endTime: "18:00", isAvailable: true },
+            ],
           },
         ],
       });
@@ -340,7 +353,9 @@ describe("UserProfileService", () => {
         baseAvailability: [
           {
             dayOfWeek: "MONDAY",
-            slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+            slots: [
+              { startTime: "09:00", endTime: "10:00", isAvailable: true },
+            ],
           },
         ],
       });
@@ -350,7 +365,7 @@ describe("UserProfileService", () => {
 
     it("requires updatable fields", async () => {
       await expect(
-        UserProfileService.update("user-1", "org-1", {})
+        UserProfileService.update("user-1", "org-1", {}),
       ).rejects.toMatchObject({
         message: "No updatable fields provided.",
         statusCode: 400,
@@ -374,12 +389,10 @@ describe("UserProfileService", () => {
         toObject: () => ({ ...getDocData }),
         createdAt,
         updatedAt: createdAt,
-        save: jest
-          .fn()
-          .mockImplementation(function (this: any) {
-            getDocData.status = this.status;
-            return Promise.resolve();
-          }),
+        save: jest.fn().mockImplementation(function (this: any) {
+          getDocData.status = this.status;
+          return Promise.resolve();
+        }),
       } as any;
 
       mockedModel.findOne.mockResolvedValueOnce(document);
@@ -397,9 +410,11 @@ describe("UserProfileService", () => {
       expect(mockedModel.findOne).toHaveBeenCalledWith(
         { userId: "user-1", organizationId: "org-1" },
         null,
-        { sanitizeFilter: true }
+        { sanitizeFilter: true },
       );
-      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith("user-1");
+      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith(
+        "user-1",
+      );
       expect(result).toEqual({
         _id: "profile-id",
         userId: "user-1",
@@ -441,12 +456,10 @@ describe("UserProfileService", () => {
         toObject: () => ({ ...updateOnlyData }),
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
         updatedAt: new Date("2024-01-01T00:00:00.000Z"),
-        save: jest
-          .fn()
-          .mockImplementation(function (this: any) {
-            updateOnlyData.status = this.status;
-            return Promise.resolve();
-          }),
+        save: jest.fn().mockImplementation(function (this: any) {
+          updateOnlyData.status = this.status;
+          return Promise.resolve();
+        }),
       } as any;
 
       mockedModel.findOneAndUpdate.mockResolvedValueOnce(document);
@@ -463,7 +476,9 @@ describe("UserProfileService", () => {
         personalDetails: { gender: "MALE" },
       });
 
-      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith("user-1");
+      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith(
+        "user-1",
+      );
       expect(result).not.toBeNull();
       expect((result as NonNullable<typeof result>).status).toBe("COMPLETED");
       expect(document.save).toHaveBeenCalled();

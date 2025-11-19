@@ -1,522 +1,610 @@
-import { isValidObjectId, Types } from 'mongoose'
+import { isValidObjectId, Types } from "mongoose";
 import OrganizationModel, {
-    type OrganizationDocument,
-    type OrganizationMongo,
-} from '../models/organization'
-import UserOrganizationModel from '../models/user-organization'
+  type OrganizationDocument,
+  type OrganizationMongo,
+} from "../models/organization";
+import UserOrganizationModel from "../models/user-organization";
 import {
-    fromOrganizationRequestDTO,
-    toOrganizationResponseDTO,
-    type OrganizationRequestDTO,
-    type OrganizationDTOAttributes,
-    type Organisation,
-    type ToFHIROrganizationOptions,
-    UserOrganization,
-} from '@yosemite-crew/types'
-import { UserOrganizationService } from './user-organization.service'
-import { SpecialityService } from './speciality.service'
-import { OrganisationRoomService } from './organisation-room.service'
-import { buildS3Key, moveFile } from 'src/middlewares/upload'
+  fromOrganizationRequestDTO,
+  toOrganizationResponseDTO,
+  type OrganizationRequestDTO,
+  type OrganizationDTOAttributes,
+  type Organisation,
+  type ToFHIROrganizationOptions,
+  UserOrganization,
+} from "@yosemite-crew/types";
+import { UserOrganizationService } from "./user-organization.service";
+import { SpecialityService } from "./speciality.service";
+import { OrganisationRoomService } from "./organisation-room.service";
+import { buildS3Key, moveFile } from "src/middlewares/upload";
 
-const TAX_ID_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/taxId'
-const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id'
-const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/organisation-image'
+const TAX_ID_EXTENSION_URL =
+  "http://example.org/fhir/StructureDefinition/taxId";
+const TAX_IDENTIFIER_SYSTEM =
+  "http://example.org/fhir/NamingSystem/organisation-tax-id";
+const IMAGE_EXTENSION_URL =
+  "http://example.org/fhir/StructureDefinition/organisation-image";
 const HEALTH_SAFETY_CERT_EXTENSION_URL =
-    'http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber'
+  "http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber";
 const ANIMAL_WELFARE_CERT_EXTENSION_URL =
-    'http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber'
+  "http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber";
 const FIRE_EMERGENCY_CERT_EXTENSION_URL =
-    'http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
-const ORGANIZATION_TYPES = new Set<Organisation['type']>(['HOSPITAL', 'BREEDER', 'BOARDER', 'GROOMER'])
+  "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber";
+const ORGANIZATION_TYPES = new Set<Organisation["type"]>([
+  "HOSPITAL",
+  "BREEDER",
+  "BOARDER",
+  "GROOMER",
+]);
 
 type ExtensionLike = {
-    url?: string
-    valueString?: string
-    valueUrl?: string
-}
+  url?: string;
+  valueString?: string;
+  valueUrl?: string;
+};
 
 type ExtensionContainer = {
-    extension?: ExtensionLike[]
-}
+  extension?: ExtensionLike[];
+};
 
 export type OrganizationFHIRPayload = OrganizationRequestDTO &
-    ExtensionContainer & {
-        identifier?: Array<{ value?: string; system?: string }>
-    }
+  ExtensionContainer & {
+    identifier?: Array<{ value?: string; system?: string }>;
+  };
 
 export class OrganizationServiceError extends Error {
-    constructor(message: string, public readonly statusCode: number) {
-        super(message)
-        this.name = 'OrganizationServiceError'
-    }
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "OrganizationServiceError";
+  }
 }
 
-const findExtensionValue = (extensions: ExtensionLike[] | undefined, url: string): string | undefined => {
-    const extension = extensions?.find((item) => item.url === url)
-    return extension?.valueString ?? extension?.valueUrl
-}
+const findExtensionValue = (
+  extensions: ExtensionLike[] | undefined,
+  url: string,
+): string | undefined => {
+  const extension = extensions?.find((item) => item.url === url);
+  return extension?.valueString ?? extension?.valueUrl;
+};
 
-const extractTaxId = (organization: OrganizationFHIRPayload): string | undefined => {
-    const fromExtension = findExtensionValue(organization.extension, TAX_ID_EXTENSION_URL)
+const extractTaxId = (
+  organization: OrganizationFHIRPayload,
+): string | undefined => {
+  const fromExtension = findExtensionValue(
+    organization.extension,
+    TAX_ID_EXTENSION_URL,
+  );
 
-    if (fromExtension) {
-        return fromExtension
-    }
+  if (fromExtension) {
+    return fromExtension;
+  }
 
-    const identifierMatch = organization.identifier?.find(
-        (item) => item?.system === TAX_IDENTIFIER_SYSTEM && typeof item?.value === 'string'
-    )
+  const identifierMatch = organization.identifier?.find(
+    (item) =>
+      item?.system === TAX_IDENTIFIER_SYSTEM && typeof item?.value === "string",
+  );
 
-    if (identifierMatch?.value) {
-        return identifierMatch.value
-    }
+  if (identifierMatch?.value) {
+    return identifierMatch.value;
+  }
 
-    return organization.identifier?.find((item) => typeof item?.value === 'string')?.value
-}
+  return organization.identifier?.find(
+    (item) => typeof item?.value === "string",
+  )?.value;
+};
 
-const extractImageUrl = (organization: OrganizationFHIRPayload): string | undefined =>
-    findExtensionValue(organization.extension, IMAGE_EXTENSION_URL)
+const extractImageUrl = (
+  organization: OrganizationFHIRPayload,
+): string | undefined =>
+  findExtensionValue(organization.extension, IMAGE_EXTENSION_URL);
 
-const extractCertificateValue = (organization: OrganizationFHIRPayload, url: string): string | undefined =>
-    findExtensionValue(organization.extension, url)
+const extractCertificateValue = (
+  organization: OrganizationFHIRPayload,
+  url: string,
+): string | undefined => findExtensionValue(organization.extension, url);
 
 const sanitizeTypeCoding = (
-    typeCoding: ToFHIROrganizationOptions['typeCoding'] | undefined
-): ToFHIROrganizationOptions['typeCoding'] | undefined => {
-    if (!typeCoding) {
-        return undefined
-    }
+  typeCoding: ToFHIROrganizationOptions["typeCoding"] | undefined,
+): ToFHIROrganizationOptions["typeCoding"] | undefined => {
+  if (!typeCoding) {
+    return undefined;
+  }
 
-    const system = optionalSafeString(typeCoding.system, 'Organization type system')
-    const code = optionalSafeString(typeCoding.code, 'Organization type code')
+  const system = optionalSafeString(
+    typeCoding.system,
+    "Organization type system",
+  );
+  const code = optionalSafeString(typeCoding.code, "Organization type code");
 
-    if (!system || !code) {
-        return undefined
-    }
+  if (!system || !code) {
+    return undefined;
+  }
 
-    return {
-        system,
-        code,
-        display: optionalSafeString(typeCoding.display, 'Organization type display'),
-    }
-}
+  return {
+    system,
+    code,
+    display: optionalSafeString(
+      typeCoding.display,
+      "Organization type display",
+    ),
+  };
+};
 
 const pruneUndefined = <T>(value: T): T => {
-    if (Array.isArray(value)) {
-        const arrayValue = value as unknown[]
-        const cleaned: unknown[] = arrayValue
-            .map((item) => pruneUndefined(item))
-            .filter((item) => item !== undefined)
-        return cleaned as unknown as T
+  if (Array.isArray(value)) {
+    const arrayValue = value as unknown[];
+    const cleaned: unknown[] = arrayValue
+      .map((item) => pruneUndefined(item))
+      .filter((item) => item !== undefined);
+    return cleaned as unknown as T;
+  }
+
+  if (value && typeof value === "object") {
+    if (value instanceof Date) {
+      return value;
     }
 
-    if (value && typeof value === 'object') {
-        if (value instanceof Date) {
-            return value
-        }
+    const record = value as Record<string, unknown>;
+    const cleanedRecord: Record<string, unknown> = {};
 
-        const record = value as Record<string, unknown>
-        const cleanedRecord: Record<string, unknown> = {}
+    for (const [key, entryValue] of Object.entries(record)) {
+      const next = pruneUndefined(entryValue);
 
-        for (const [key, entryValue] of Object.entries(record)) {
-            const next = pruneUndefined(entryValue)
-
-            if (next !== undefined) {
-                cleanedRecord[key] = next
-            }
-        }
-
-        return cleanedRecord as unknown as T
+      if (next !== undefined) {
+        cleanedRecord[key] = next;
+      }
     }
 
-    return value
-}
+    return cleanedRecord as unknown as T;
+  }
+
+  return value;
+};
 
 const requireSafeString = (value: unknown, fieldName: string): string => {
-    if (value == null) {
-        throw new OrganizationServiceError(`${fieldName} is required.`, 400)
+  if (value == null) {
+    throw new OrganizationServiceError(`${fieldName} is required.`, 400);
+  }
+
+  if (typeof value !== "string") {
+    throw new OrganizationServiceError(`${fieldName} must be a string.`, 400);
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new OrganizationServiceError(`${fieldName} cannot be empty.`, 400);
+  }
+
+  if (trimmed.includes("$")) {
+    throw new OrganizationServiceError(
+      `Invalid character in ${fieldName}.`,
+      400,
+    );
+  }
+
+  return trimmed;
+};
+
+const optionalSafeString = (
+  value: unknown,
+  fieldName: string,
+): string | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new OrganizationServiceError(`${fieldName} must be a string.`, 400);
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.includes("$")) {
+    throw new OrganizationServiceError(
+      `Invalid character in ${fieldName}.`,
+      400,
+    );
+  }
+
+  return trimmed;
+};
+
+const optionalNumber = (
+  value: unknown,
+  fieldName: string,
+): number | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    if (!Number.isNaN(parsed)) {
+      return parsed;
     }
+  }
 
-    if (typeof value !== 'string') {
-        throw new OrganizationServiceError(`${fieldName} must be a string.`, 400)
-    }
-
-    const trimmed = value.trim()
-
-    if (!trimmed) {
-        throw new OrganizationServiceError(`${fieldName} cannot be empty.`, 400)
-    }
-
-    if (trimmed.includes('$')) {
-        throw new OrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
-
-    return trimmed
-}
-
-const optionalSafeString = (value: unknown, fieldName: string): string | undefined => {
-    if (value == null) {
-        return undefined
-    }
-
-    if (typeof value !== 'string') {
-        throw new OrganizationServiceError(`${fieldName} must be a string.`, 400)
-    }
-
-    const trimmed = value.trim()
-
-    if (!trimmed) {
-        return undefined
-    }
-
-    if (trimmed.includes('$')) {
-        throw new OrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
-
-    return trimmed
-}
-
-const optionalNumber = (value: unknown, fieldName: string): number | undefined => {
-    if (value == null) {
-        return undefined
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value
-    }
-
-    if (typeof value === 'string') {
-        const parsed = Number(value)
-
-        if (!Number.isNaN(parsed)) {
-            return parsed
-        }
-    }
-
-    throw new OrganizationServiceError(`${fieldName} must be a valid number.`, 400)
-}
+  throw new OrganizationServiceError(
+    `${fieldName} must be a valid number.`,
+    400,
+  );
+};
 
 const ensureSafeIdentifier = (value: unknown): string | undefined => {
-    const identifier = optionalSafeString(value, 'Identifier')
+  const identifier = optionalSafeString(value, "Identifier");
 
-    if (!identifier) {
-        return undefined
+  if (!identifier) {
+    return undefined;
+  }
+
+  if (
+    !isValidObjectId(identifier) &&
+    !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
+  ) {
+    throw new OrganizationServiceError("Invalid identifier format.", 400);
+  }
+
+  return identifier;
+};
+
+const requireOrganizationType = (value: unknown): Organisation["type"] => {
+  if (typeof value !== "string") {
+    throw new OrganizationServiceError(
+      "Organization type must be a string.",
+      400,
+    );
+  }
+
+  const normalized = value.trim().toUpperCase();
+
+  if (!normalized) {
+    throw new OrganizationServiceError(
+      "Organization type cannot be empty.",
+      400,
+    );
+  }
+
+  if (!ORGANIZATION_TYPES.has(normalized as Organisation["type"])) {
+    throw new OrganizationServiceError("Invalid organization type.", 400);
+  }
+
+  return normalized as Organisation["type"];
+};
+
+const coerceOrganizationType = (value: unknown): Organisation["type"] => {
+  if (typeof value === "string") {
+    const normalized = value.trim().toUpperCase();
+
+    if (ORGANIZATION_TYPES.has(normalized as Organisation["type"])) {
+      return normalized as Organisation["type"];
     }
+  }
 
-    if (!isValidObjectId(identifier) && !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
-        throw new OrganizationServiceError('Invalid identifier format.', 400)
-    }
+  return "HOSPITAL";
+};
 
-    return identifier
-}
-
-const requireOrganizationType = (value: unknown): Organisation['type'] => {
-    if (typeof value !== 'string') {
-        throw new OrganizationServiceError('Organization type must be a string.', 400)
-    }
-
-    const normalized = value.trim().toUpperCase()
-
-    if (!normalized) {
-        throw new OrganizationServiceError('Organization type cannot be empty.', 400)
-    }
-
-    if (!ORGANIZATION_TYPES.has(normalized as Organisation['type'])) {
-        throw new OrganizationServiceError('Invalid organization type.', 400)
-    }
-
-    return normalized as Organisation['type']
-}
-
-const coerceOrganizationType = (value: unknown): Organisation['type'] => {
-    if (typeof value === 'string') {
-        const normalized = value.trim().toUpperCase()
-
-        if (ORGANIZATION_TYPES.has(normalized as Organisation['type'])) {
-            return normalized as Organisation['type']
-        }
-    }
-
-    return 'HOSPITAL'
-}
-
-const hasAddressValues = (address: OrganizationMongo['address']): boolean =>
-    Boolean(
-        address?.addressLine ||
-            address?.city ||
-            address?.state ||
-            address?.postalCode ||
-            address?.country ||
-            address?.latitude !== undefined ||
-            address?.longitude !== undefined
-    )
+const hasAddressValues = (address: OrganizationMongo["address"]): boolean =>
+  Boolean(
+    address?.addressLine ||
+      address?.city ||
+      address?.state ||
+      address?.postalCode ||
+      address?.country ||
+      address?.latitude !== undefined ||
+      address?.longitude !== undefined,
+  );
 
 const sanitizeAddress = (
-    address: OrganizationDTOAttributes['address']
-): OrganizationMongo['address'] | undefined => {
-    if (!address) {
-        return undefined
-    }
+  address: OrganizationDTOAttributes["address"],
+): OrganizationMongo["address"] | undefined => {
+  if (!address) {
+    return undefined;
+  }
 
-    const sanitized = {
-        addressLine: optionalSafeString(address.addressLine, 'Address line'),
-        country: optionalSafeString(address.country, 'Address country'),
-        city: optionalSafeString(address.city, 'Address city'),
-        state: optionalSafeString(address.state, 'Address state'),
-        postalCode: optionalSafeString(address.postalCode, 'Postal code'),
-        latitude: optionalNumber(address.latitude, 'Address latitude'),
-        longitude: optionalNumber(address.longitude, 'Address longitude'),
-    }
+  const sanitized = {
+    addressLine: optionalSafeString(address.addressLine, "Address line"),
+    country: optionalSafeString(address.country, "Address country"),
+    city: optionalSafeString(address.city, "Address city"),
+    state: optionalSafeString(address.state, "Address state"),
+    postalCode: optionalSafeString(address.postalCode, "Postal code"),
+    latitude: optionalNumber(address.latitude, "Address latitude"),
+    longitude: optionalNumber(address.longitude, "Address longitude"),
+  };
 
-    if (!hasAddressValues(sanitized)) {
-        return undefined
-    }
+  if (!hasAddressValues(sanitized)) {
+    return undefined;
+  }
 
-    return sanitized
-}
+  return sanitized;
+};
 
 const sanitizeBusinessAttributes = (
-    dto: OrganizationDTOAttributes,
-    extras: {
-        taxId?: string
-        imageURL?: string
-        healthAndSafetyCertNo?: string
-        animalWelfareComplianceCertNo?: string
-        fireAndEmergencyCertNo?: string
-    }
+  dto: OrganizationDTOAttributes,
+  extras: {
+    taxId?: string;
+    imageURL?: string;
+    healthAndSafetyCertNo?: string;
+    animalWelfareComplianceCertNo?: string;
+    fireAndEmergencyCertNo?: string;
+  },
 ): OrganizationMongo => {
-    const name = requireSafeString(dto.name, 'Organization name')
-    const taxId = requireSafeString(extras.taxId ?? dto.taxId, 'Tax ID')
-    const imageURL = optionalSafeString(dto.imageURL ?? extras.imageURL, 'Image URL')
-    const typeCoding = sanitizeTypeCoding(dto.typeCoding)
-    const website = optionalSafeString(dto.website, 'Website')
-    const DUNSNumber = optionalSafeString(dto.DUNSNumber, 'DUNS number')
-    const phoneNo = requireSafeString(dto.phoneNo, 'Phone number')
-    const type = requireOrganizationType(dto.type)
-    const address = sanitizeAddress(dto.address)
-    const healthAndSafetyCertNo = optionalSafeString(
-        dto.healthAndSafetyCertNo ?? extras.healthAndSafetyCertNo,
-        'Health & Safety certification number'
-    )
-    const animalWelfareComplianceCertNo = optionalSafeString(
-        dto.animalWelfareComplianceCertNo ?? extras.animalWelfareComplianceCertNo,
-        'Animal welfare compliance certification number'
-    )
-    const fireAndEmergencyCertNo = optionalSafeString(
-        dto.fireAndEmergencyCertNo ?? extras.fireAndEmergencyCertNo,
-        'Fire & emergency certification number'
-    )
+  const name = requireSafeString(dto.name, "Organization name");
+  const taxId = requireSafeString(extras.taxId ?? dto.taxId, "Tax ID");
+  const imageURL = optionalSafeString(
+    dto.imageURL ?? extras.imageURL,
+    "Image URL",
+  );
+  const typeCoding = sanitizeTypeCoding(dto.typeCoding);
+  const website = optionalSafeString(dto.website, "Website");
+  const DUNSNumber = optionalSafeString(dto.DUNSNumber, "DUNS number");
+  const phoneNo = requireSafeString(dto.phoneNo, "Phone number");
+  const type = requireOrganizationType(dto.type);
+  const address = sanitizeAddress(dto.address);
+  const healthAndSafetyCertNo = optionalSafeString(
+    dto.healthAndSafetyCertNo ?? extras.healthAndSafetyCertNo,
+    "Health & Safety certification number",
+  );
+  const animalWelfareComplianceCertNo = optionalSafeString(
+    dto.animalWelfareComplianceCertNo ?? extras.animalWelfareComplianceCertNo,
+    "Animal welfare compliance certification number",
+  );
+  const fireAndEmergencyCertNo = optionalSafeString(
+    dto.fireAndEmergencyCertNo ?? extras.fireAndEmergencyCertNo,
+    "Fire & emergency certification number",
+  );
 
-    return {
-        fhirId: ensureSafeIdentifier(dto.id),
-        name,
-        taxId,
-        DUNSNumber,
-        imageURL,
-        type,
-        phoneNo,
-        website,
-        address,
-        isVerified: dto.isVerified === undefined ? undefined : Boolean(dto.isVerified),
-        isActive: dto.isActive === undefined ? undefined : Boolean(dto.isActive),
-        typeCoding,
-        healthAndSafetyCertNo,
-        animalWelfareComplianceCertNo,
-        fireAndEmergencyCertNo,
-    }
-}
+  return {
+    fhirId: ensureSafeIdentifier(dto.id),
+    name,
+    taxId,
+    DUNSNumber,
+    imageURL,
+    type,
+    phoneNo,
+    website,
+    address,
+    isVerified:
+      dto.isVerified === undefined ? undefined : Boolean(dto.isVerified),
+    isActive: dto.isActive === undefined ? undefined : Boolean(dto.isActive),
+    typeCoding,
+    healthAndSafetyCertNo,
+    animalWelfareComplianceCertNo,
+    fireAndEmergencyCertNo,
+  };
+};
 
 const buildFHIRResponse = (
-    document: OrganizationDocument,
-    options?: ToFHIROrganizationOptions
+  document: OrganizationDocument,
+  options?: ToFHIROrganizationOptions,
 ): ReturnType<typeof toOrganizationResponseDTO> => {
-    const { typeCoding, ...rest } = document.toObject({ virtuals: false }) as OrganizationMongo & {
-        _id: Types.ObjectId
-    }
+  const { typeCoding, ...rest } = document.toObject({
+    virtuals: false,
+  }) as OrganizationMongo & {
+    _id: Types.ObjectId;
+  };
 
-    const organisation: Organisation = {
-        _id: rest.fhirId ?? document._id,
-        name: rest.name,
-        taxId: rest.taxId ?? '',
-        DUNSNumber: rest.DUNSNumber,
-        imageURL: rest.imageURL,
-        type: coerceOrganizationType(rest.type),
-        phoneNo: rest.phoneNo ?? '',
-        website: rest.website,
-        address: rest.address
-            ? {
-                  addressLine: rest.address.addressLine,
-                  country: rest.address.country,
-                  city: rest.address.city,
-                  state: rest.address.state,
-                  postalCode: rest.address.postalCode,
-                  latitude: rest.address.latitude,
-                  longitude: rest.address.longitude,
-              }
-            : undefined,
-        isVerified: rest.isVerified,
-        isActive: rest.isActive,
-        healthAndSafetyCertNo: rest.healthAndSafetyCertNo,
-        animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
-        fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
-    }
+  const organisation: Organisation = {
+    _id: rest.fhirId ?? document._id,
+    name: rest.name,
+    taxId: rest.taxId ?? "",
+    DUNSNumber: rest.DUNSNumber,
+    imageURL: rest.imageURL,
+    type: coerceOrganizationType(rest.type),
+    phoneNo: rest.phoneNo ?? "",
+    website: rest.website,
+    address: rest.address
+      ? {
+          addressLine: rest.address.addressLine,
+          country: rest.address.country,
+          city: rest.address.city,
+          state: rest.address.state,
+          postalCode: rest.address.postalCode,
+          latitude: rest.address.latitude,
+          longitude: rest.address.longitude,
+        }
+      : undefined,
+    isVerified: rest.isVerified,
+    isActive: rest.isActive,
+    healthAndSafetyCertNo: rest.healthAndSafetyCertNo,
+    animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
+    fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
+  };
 
-    const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined)
+  const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined);
 
-    return toOrganizationResponseDTO(organisation, responseOptions)
-}
+  return toOrganizationResponseDTO(organisation, responseOptions);
+};
 
 const resolveIdQuery = (id: unknown) => {
-    const identifier = ensureSafeIdentifier(id)
+  const identifier = ensureSafeIdentifier(id);
 
-    if (!identifier) {
-        throw new OrganizationServiceError('Organization identifier is required.', 400)
-    }
+  if (!identifier) {
+    throw new OrganizationServiceError(
+      "Organization identifier is required.",
+      400,
+    );
+  }
 
-    return Types.ObjectId.isValid(identifier) ? { _id: identifier } : { fhirId: identifier }
-}
+  return Types.ObjectId.isValid(identifier)
+    ? { _id: identifier }
+    : { fhirId: identifier };
+};
 
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
-    const attributes = fromOrganizationRequestDTO(payload)
+  const attributes = fromOrganizationRequestDTO(payload);
 
-    const taxId = extractTaxId(payload)
-    const imageURL = extractImageUrl(payload)
-    const healthAndSafetyCertNo = extractCertificateValue(payload, HEALTH_SAFETY_CERT_EXTENSION_URL)
-    const animalWelfareComplianceCertNo = extractCertificateValue(payload, ANIMAL_WELFARE_CERT_EXTENSION_URL)
-    const fireAndEmergencyCertNo = extractCertificateValue(payload, FIRE_EMERGENCY_CERT_EXTENSION_URL)
-    const sanitized = sanitizeBusinessAttributes(attributes, {
-        taxId,
-        imageURL,
-        healthAndSafetyCertNo,
-        animalWelfareComplianceCertNo,
-        fireAndEmergencyCertNo,
-    })
-    const persistable = pruneUndefined(sanitized)
+  const taxId = extractTaxId(payload);
+  const imageURL = extractImageUrl(payload);
+  const healthAndSafetyCertNo = extractCertificateValue(
+    payload,
+    HEALTH_SAFETY_CERT_EXTENSION_URL,
+  );
+  const animalWelfareComplianceCertNo = extractCertificateValue(
+    payload,
+    ANIMAL_WELFARE_CERT_EXTENSION_URL,
+  );
+  const fireAndEmergencyCertNo = extractCertificateValue(
+    payload,
+    FIRE_EMERGENCY_CERT_EXTENSION_URL,
+  );
+  const sanitized = sanitizeBusinessAttributes(attributes, {
+    taxId,
+    imageURL,
+    healthAndSafetyCertNo,
+    animalWelfareComplianceCertNo,
+    fireAndEmergencyCertNo,
+  });
+  const persistable = pruneUndefined(sanitized);
 
-    return { persistable, typeCoding: sanitized.typeCoding, attributes }
-}
+  return { persistable, typeCoding: sanitized.typeCoding, attributes };
+};
 
 export const OrganizationService = {
-    async upsert(payload: OrganizationFHIRPayload, userId?: string) {
-        const { persistable, typeCoding, attributes } = createPersistableFromFHIR(payload)
+  async upsert(payload: OrganizationFHIRPayload, userId?: string) {
+    const { persistable, typeCoding, attributes } =
+      createPersistableFromFHIR(payload);
 
-        const identifier = ensureSafeIdentifier(attributes.id) ?? ensureSafeIdentifier(payload.id)
-        let query: { _id?: string; fhirId?: string } | undefined = undefined;
+    const identifier =
+      ensureSafeIdentifier(attributes.id) ?? ensureSafeIdentifier(payload.id);
+    let query: { _id?: string; fhirId?: string } | undefined = undefined;
 
-        if (identifier) {
-        query = isValidObjectId(identifier)
-            ? { _id: identifier }
-            : { fhirId: identifier };
-        }
-
-        let document: OrganizationDocument | null = null
-        let created = false
-
-        if (query) {
-            document = await OrganizationModel.findOneAndUpdate(
-                query,
-                { $set: persistable },
-                { new: true, sanitizeFilter: true }
-            )
-        }
-
-        if (!document) {
-            document = await OrganizationModel.create(persistable)
-            created = true
-
-            // Link organization to user if userId is provided
-            if (userId) {
-                const userOrg: UserOrganization = {
-                    practitionerReference: userId,
-                    organizationReference: document._id.toString(),
-                    roleCode: 'Owner',
-                    active: true,
-                }
-                await UserOrganizationModel.create(userOrg)
-            }
-            
-            // Update Profile photo url
-            if(persistable.imageURL && document._id.toString()) {
-                const finalKey = buildS3Key('org', document._id.toString(), 'image/jpg')
-                const profileUrl = await moveFile(persistable.imageURL, finalKey)
-
-                await this.updateProfilePhotoUrl(document._id.toString(), profileUrl)
-            }
-        }
-
-        const response = buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined)
-
-        return { response, created }
-    },
-
-    async getById(id: string) {
-        const document = await OrganizationModel.findOne(resolveIdQuery(id), null, { sanitizeFilter: true })
-
-        if (!document) {
-            return null
-        }
-
-        return buildFHIRResponse(document)
-    },
-
-    async listAll() {
-        const documents = await OrganizationModel.find()
-        return documents.map((doc) => buildFHIRResponse(doc))
-    },
-
-    async deleteById(id: string) {
-        const result = await OrganizationModel.findOneAndDelete(resolveIdQuery(id), { sanitizeFilter: true })
-        if (result) {
-            await UserOrganizationService.deleteAllByOrganizationId(id)
-            await SpecialityService.deleteAllByOrganizationId(id)
-            await OrganisationRoomService.deleteAllByOrganizationId(id)
-        }
-        return Boolean(result)
-    },
-
-    async update(id: string, payload: OrganizationFHIRPayload) {
-        const { persistable, typeCoding } = createPersistableFromFHIR(payload)
-
-        
-
-        const document = await OrganizationModel.findOneAndUpdate(
-            resolveIdQuery(id),
-            { $set: persistable },
-            { new: true, sanitizeFilter: true }
-        )
-
-        if (!document) {
-            return null
-        }
-
-        return buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined)
-    },
-
-    async upadtePofileVerificationStatus(id: string, isVerified: boolean) {
-        const document = await OrganizationModel.findOneAndUpdate(
-            resolveIdQuery(id),
-            { $set: { isVerified } },
-            { new: true, sanitizeFilter: true }
-        )
-
-        if (!document) {
-            return null
-        }
-
-        return buildFHIRResponse(document)
-    },
-
-    async updateProfilePhotoUrl(id: string, imageURL: string) {
-        const document = await OrganizationModel.findOneAndUpdate(
-            resolveIdQuery(id),
-            { $set: { imageURL } },
-            { new: true, sanitizeFilter: true }
-        )
-
-        if (!document) {
-            return null
-        }
-
-        return buildFHIRResponse(document)
+    if (identifier) {
+      query = isValidObjectId(identifier)
+        ? { _id: identifier }
+        : { fhirId: identifier };
     }
-}
+
+    let document: OrganizationDocument | null = null;
+    let created = false;
+
+    if (query) {
+      document = await OrganizationModel.findOneAndUpdate(
+        query,
+        { $set: persistable },
+        { new: true, sanitizeFilter: true },
+      );
+    }
+
+    if (!document) {
+      document = await OrganizationModel.create(persistable);
+      created = true;
+
+      // Link organization to user if userId is provided
+      if (userId) {
+        const userOrg: UserOrganization = {
+          practitionerReference: userId,
+          organizationReference: document._id.toString(),
+          roleCode: "Owner",
+          active: true,
+        };
+        await UserOrganizationModel.create(userOrg);
+      }
+
+      // Update Profile photo url
+      if (persistable.imageURL && document._id.toString()) {
+        const finalKey = buildS3Key(
+          "org",
+          document._id.toString(),
+          "image/jpg",
+        );
+        const profileUrl = await moveFile(persistable.imageURL, finalKey);
+
+        await this.updateProfilePhotoUrl(document._id.toString(), profileUrl);
+      }
+    }
+
+    const response = buildFHIRResponse(
+      document,
+      typeCoding ? { typeCoding } : undefined,
+    );
+
+    return { response, created };
+  },
+
+  async getById(id: string) {
+    const document = await OrganizationModel.findOne(resolveIdQuery(id), null, {
+      sanitizeFilter: true,
+    });
+
+    if (!document) {
+      return null;
+    }
+
+    return buildFHIRResponse(document);
+  },
+
+  async listAll() {
+    const documents = await OrganizationModel.find();
+    return documents.map((doc) => buildFHIRResponse(doc));
+  },
+
+  async deleteById(id: string) {
+    const result = await OrganizationModel.findOneAndDelete(
+      resolveIdQuery(id),
+      { sanitizeFilter: true },
+    );
+    if (result) {
+      await UserOrganizationService.deleteAllByOrganizationId(id);
+      await SpecialityService.deleteAllByOrganizationId(id);
+      await OrganisationRoomService.deleteAllByOrganizationId(id);
+    }
+    return Boolean(result);
+  },
+
+  async update(id: string, payload: OrganizationFHIRPayload) {
+    const { persistable, typeCoding } = createPersistableFromFHIR(payload);
+
+    const document = await OrganizationModel.findOneAndUpdate(
+      resolveIdQuery(id),
+      { $set: persistable },
+      { new: true, sanitizeFilter: true },
+    );
+
+    if (!document) {
+      return null;
+    }
+
+    return buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined);
+  },
+
+  async upadtePofileVerificationStatus(id: string, isVerified: boolean) {
+    const document = await OrganizationModel.findOneAndUpdate(
+      resolveIdQuery(id),
+      { $set: { isVerified } },
+      { new: true, sanitizeFilter: true },
+    );
+
+    if (!document) {
+      return null;
+    }
+
+    return buildFHIRResponse(document);
+  },
+
+  async updateProfilePhotoUrl(id: string, imageURL: string) {
+    const document = await OrganizationModel.findOneAndUpdate(
+      resolveIdQuery(id),
+      { $set: { imageURL } },
+      { new: true, sanitizeFilter: true },
+    );
+
+    if (!document) {
+      return null;
+    }
+
+    return buildFHIRResponse(document);
+  },
+};
