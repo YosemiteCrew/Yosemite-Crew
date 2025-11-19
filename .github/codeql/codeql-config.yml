@@ -1,0 +1,2 @@
+paths-ignore:
+  - apps/frontend/public/dev-docs/assets/**

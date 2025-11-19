@@ -21,6 +21,8 @@ import type {
 } from '@/features/companion/types';
 
 const COMPANION_ENDPOINT = '/fhir/v1/companion';
+const parentCompanionsEndpoint = (userId: string) =>
+  `/fhir/v1/parent/${encodeURIComponent(userId)}/companions`;
 
 const logCompanionApiEvent = (
   phase: 'request' | 'response' | 'error',
@@ -60,6 +62,32 @@ const ORIGIN_BY_SOURCE: Record<SourceType, CompanionOrigin> = {
 
 const isAppCompanion = (input: CompanionInput): input is Companion =>
   'id' in input && typeof input.id === 'string';
+
+const extractCompanionCollection = (
+  payload: unknown,
+): CompanionResponseDTO[] => {
+  if (Array.isArray(payload)) {
+    return payload as CompanionResponseDTO[];
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const candidates = [
+      record.companions,
+      record.data,
+      (record.data as Record<string, unknown> | undefined)?.companions,
+      record.results,
+    ];
+
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as CompanionResponseDTO[];
+      }
+    }
+  }
+
+  return [];
+};
 
 const ensureCategory = (category: CompanionCategory | null | undefined): CompanionCategory => {
   if (!category) {
@@ -424,6 +452,73 @@ const getCompanion = async (
   }
 };
 
+const listCompanionsByParent = async (
+  userId: string,
+  accessToken: string,
+): Promise<AxiosResponse<CompanionResponseDTO[] | Record<string, unknown>>> => {
+  const endpoint = parentCompanionsEndpoint(userId);
+  logCompanionApiEvent('request', {
+    method: 'GET',
+    endpoint,
+    userId,
+  });
+
+  try {
+    const response = await apiClient.get<CompanionResponseDTO[] | Record<string, unknown>>(
+      endpoint,
+      {
+        headers: withAuthHeaders(accessToken),
+      },
+    );
+    logCompanionApiEvent('response', {
+      method: 'GET',
+      endpoint,
+      status: response.status,
+      data: response.data,
+    });
+    return response;
+  } catch (error) {
+    logCompanionApiEvent('error', {
+      method: 'GET',
+      endpoint,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+};
+
+const deleteCompanionRequest = async (
+  id: string,
+  accessToken: string,
+): Promise<AxiosResponse<void>> => {
+  const endpoint = `${COMPANION_ENDPOINT}/${id}`;
+  logCompanionApiEvent('request', {
+    method: 'DELETE',
+    endpoint,
+    companionId: id,
+  });
+
+  try {
+    const response = await apiClient.delete<void>(endpoint, {
+      headers: withAuthHeaders(accessToken),
+    });
+    logCompanionApiEvent('response', {
+      method: 'DELETE',
+      endpoint,
+      status: response.status,
+    });
+    return response;
+  } catch (error) {
+    logCompanionApiEvent('error', {
+      method: 'DELETE',
+      endpoint,
+      companionId: id,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+};
+
 export interface CompanionCreateParams {
   userId: string;
   payload: AddCompanionPayload;
@@ -440,6 +535,16 @@ export interface CompanionGetParams {
   userId: string;
   accessToken: string;
   fallback?: Companion;
+}
+
+export interface CompanionListParams {
+  userId: string;
+  accessToken: string;
+}
+
+export interface CompanionDeleteParams {
+  companionId: string;
+  accessToken: string;
 }
 
 export const companionApi = {
@@ -467,5 +572,18 @@ export const companionApi = {
   async getById(params: CompanionGetParams): Promise<Companion> {
     const {data} = await getCompanion(params.companionId, params.accessToken);
     return mapResponseToAppCompanion(data, params.userId, params.fallback);
+  },
+
+  async listByParent(params: CompanionListParams): Promise<Companion[]> {
+    const {data} = await listCompanionsByParent(params.userId, params.accessToken);
+    const collection = extractCompanionCollection(data);
+    return collection.map(entry => mapResponseToAppCompanion(entry, params.userId));
+  },
+
+  async remove(params: CompanionDeleteParams): Promise<void> {
+    if (!params.companionId) {
+      throw new Error('Companion identifier is required for deletion.');
+    }
+    await deleteCompanionRequest(params.companionId, params.accessToken);
   },
 };

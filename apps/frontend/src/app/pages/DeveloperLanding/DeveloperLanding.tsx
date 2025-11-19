@@ -1,14 +1,27 @@
 "use client";
 import React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import LaunchGrowTab from "@/app/components/LaunchGrowTab/LaunchGrowTab";
 import Footer from "@/app/components/Footer/Footer";
 
 import "./DeveloperLanding.css";
 import { Primary } from "@/app/components/Buttons";
+import { useAuthStore } from "@/app/stores/authStore";
 
 const DeveloperLanding = () => {
+  const router = useRouter();
+  const { status, user } = useAuthStore();
+
+  const handleDeveloperCTA = () => {
+    const target =
+      status === "authenticated" && user
+        ? "/developers/home"
+        : "/developers/signin";
+    router.push(target);
+  };
+
   return (
     <>
       <section className="DevlpHeroSec">
@@ -24,11 +37,15 @@ const DeveloperLanding = () => {
                   {" "}
                   Transform animal care with your ideas. Yosemite Crew offers
                   tools and APIs to build custom apps for pet businesses,
-                  including AI scribe and voice calls
+                  including AI scribe and voice calls.
                 </p>
               </div>
               <div className="DevbanrBtn">
-                <Primary href="/developers" text="Developer portal" />
+                <Primary
+                  href="/developers/signin"
+                  onClick={handleDeveloperCTA}
+                  text="Developer portal"
+                />
               </div>
             </div>
             <div className="RytDevBanr ">
@@ -86,7 +103,7 @@ const DeveloperLanding = () => {
                   <h3>Open source</h3>
                   <p>
                     Developer-friendly API pricing based on an open source
-                    framework under the GPL V3 license
+                    framework under the GPL V3 license.
                   </p>
                 </div>
                 <Image
@@ -151,13 +168,13 @@ const DeveloperLanding = () => {
           <div className="DevlpToolData">
             <div className="TopResorchTool">
               <div className="leftResorch">
-                <h2>Everything You Need to Build and Launch</h2>
+                <h2>Everything you need to build and launch</h2>
               </div>
               <div className="RytResorch">
                 <p>
                   From robust APIs to intuitive SDKs and customizable templates,
                   Yosemite Crew provides every tool you need to create powerful
-                  veterinary applications.
+                  applications.
                 </p>
               </div>
             </div>
@@ -174,7 +191,12 @@ const DeveloperLanding = () => {
           <div className="StepsData">
             <div className="leftSimpleStep">
               <h2>Get started in three simple steps</h2>
-              <Primary href="/developers" text="Developer portal" style={{ width: "100%" }} />
+              <Primary
+                href="/developers/signin"
+                onClick={handleDeveloperCTA}
+                text="Developer portal"
+                style={{ width: "100%" }}
+              />
             </div>
             <div className="RytSimpleStep">
               <div className="Stepitems">

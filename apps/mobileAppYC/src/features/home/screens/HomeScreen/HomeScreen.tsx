@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
   type ImageSourcePropType,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -47,6 +48,11 @@ import {
   updateAppointmentStatus,
 } from '@/features/appointments/appointmentsSlice';
 import {createSelectUpcomingAppointments} from '@/features/appointments/selectors';
+import {
+  isChatActive,
+  getTimeUntilChatActivation,
+  formatAppointmentTime,
+} from '@/shared/services/mockStreamBackend';
 import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
 import {selectUnreadCount} from '@/features/notifications/selectors';
@@ -331,12 +337,76 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const handleChatAppointment = React.useCallback(
     (appointmentId: string) => {
-      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
-        screen: 'Chat',
-        params: {appointmentId},
-      });
+      const appointment = upcomingAppointments.find(a => a.id === appointmentId);
+
+      if (!appointment) {
+        Alert.alert(
+          'Chat unavailable',
+          'Book an appointment with an assigned vet to access chat.',
+          [{text: 'OK'}],
+        );
+        return;
+      }
+
+      const timeComponent = appointment.time ?? '00:00';
+      const normalizedTime = timeComponent.length === 5 ? `${timeComponent}:00` : timeComponent;
+      const appointmentDateTime = `${appointment.date}T${normalizedTime}`;
+      const activationMinutes = 5;
+      const emp = appointment.employeeId ? employeeMap.get(appointment.employeeId) : undefined;
+      const service = appointment.serviceId ? serviceMap.get(appointment.serviceId) : undefined;
+      const doctorName =
+        emp?.name ?? service?.name ?? appointment.serviceName ?? 'Assigned vet';
+
+      const navigateToChat = () => {
+        navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
+          screen: 'ChatChannel',
+          params: {
+            appointmentId: appointment.id,
+            vetId: emp?.id ?? 'vet-1',
+            appointmentTime: appointmentDateTime,
+            doctorName,
+            petName: companions.find(c => c.id === appointment.companionId)?.name,
+          },
+        });
+      };
+
+      if (!isChatActive(appointmentDateTime, activationMinutes)) {
+        const timeRemaining = getTimeUntilChatActivation(appointmentDateTime, activationMinutes);
+
+        if (timeRemaining) {
+          const formattedTime = formatAppointmentTime(appointmentDateTime);
+          Alert.alert(
+            'Chat Locked 🔒',
+            `Chat will be available ${activationMinutes} minutes before your appointment.\n\n` +
+              `Appointment: ${formattedTime}\n` +
+              `Unlocks in: ${timeRemaining.minutes}m ${timeRemaining.seconds}s\n\n` +
+              `(This restriction comes from your clinic's settings)`,
+            [
+              {text: 'Cancel', style: 'cancel'},
+              {
+                text: 'Mock Chat (Testing)',
+                style: 'default',
+                onPress: () => {
+                  console.log('[MOCK] Bypassing chat time restriction for testing');
+                  navigateToChat();
+                },
+              },
+            ],
+            {cancelable: true},
+          );
+        } else {
+          Alert.alert(
+            'Chat Unavailable',
+            'This appointment has ended and chat is no longer available.',
+            [{text: 'OK'}],
+          );
+        }
+        return;
+      }
+
+      navigateToChat();
     },
-    [navigation],
+    [companions, employeeMap, navigation, serviceMap, upcomingAppointments],
   );
 
   const handleCheckInAppointment = React.useCallback(
