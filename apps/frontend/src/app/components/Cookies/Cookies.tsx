@@ -2,13 +2,16 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { IoIosCloseCircle, IoIosCheckmarkCircle } from "react-icons/io";
+import { usePathname } from "next/navigation";
 
 import { FillBtn, UnFillBtn } from "@/app/pages/HomePage/HomePage";
+import { publicRoutes } from "@/app/utils/const";
 
 import "./Cookies.css";
 
 const Cookies = () => {
   const [showCookiePopup, setShowCookiePopup] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const cookieConsentGiven = localStorage.getItem("cookieConsentGiven");
@@ -26,6 +29,8 @@ const Cookies = () => {
     setShowCookiePopup(false);
     localStorage.setItem("cookieConsentGiven", "false"); // Mark as rejected
   };
+
+  if (!publicRoutes.has(pathname)) return null;
 
   if (!showCookiePopup) return null;
 

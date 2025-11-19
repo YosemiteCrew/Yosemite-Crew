@@ -10,8 +10,9 @@ const ServiceSearch = ({ speciality, setSpecialities, handleToggle }: any) => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return speciality.services;
-    return speciality.services.filter((s: any) =>
+    const list = speciality.services.filter((s: any) => !s.active);
+    if (!q) return list;
+    return list.filter((s: any) =>
       s.name.toLowerCase().includes(q)
     );
   }, [query, speciality]);
@@ -75,21 +76,15 @@ const ServiceSearch = ({ speciality, setSpecialities, handleToggle }: any) => {
         <div className="service-search-dropdown" id="speciality-search-listbox">
           {filtered?.length > 0 ? (
             filtered.map((service: any) => (
-              <label
+              <button
                 key={service.name}
                 className="service-search-speciality"
-                aria-selected={service.active}
+                onClick={() => handleToggle(service.name)}
               >
-                <input
-                  type="checkbox"
-                  className="service-search-speciality-check"
-                  checked={service.active}
-                  onChange={(e) => handleToggle(service.name, e.target.checked)}
-                />
                 <div className="service-search-speciality-title">
                   {service.name}
                 </div>
-              </label>
+              </button>
             ))
           ) : (
             <button

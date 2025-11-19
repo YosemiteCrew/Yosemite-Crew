@@ -11,7 +11,7 @@ const Launchtabs = [
     title: "APIs",
     color: "#247AED",
     icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch1.png",
-    heading: "Application Programming Interface",
+    heading: "Application programming interface",
     details: [
       "Integrate essential veterinary features like appointment scheduling and medical records.",
       "Enable smooth vet-owner communication with real-time updates.",
@@ -24,7 +24,7 @@ const Launchtabs = [
     title: "SDKs",
     color: "#E9F2FD",
     icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch2.png",
-    heading: "Software Development Kit",
+    heading: "Software development kit",
     details: [
       "Provides APIs for authentication, user roles, patient records, appointment scheduling, and billing.",
       "Enables handling of veterinary-specific data models (species, breeds, medical history, treatments, prescriptions).",
@@ -35,7 +35,7 @@ const Launchtabs = [
   {
     id: 3,
     title: "PBT", // Shortened for mobile view consistency
-    fullTitle: "Pre-Built Templates",
+    fullTitle: "Pre-built templates",
     color: "#BBD6F9",
     icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch3.png",
     heading: "Pre-Built Templates",

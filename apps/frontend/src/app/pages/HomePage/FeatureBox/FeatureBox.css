@@ -13,7 +13,7 @@
 }
 .PracBox h4 {
   font-family: var(--grotesk-font);
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 500;
   line-height: 120%;
   color: var(--black-text);
@@ -22,7 +22,7 @@
 }
 .PracBox p {
   font-family: var(--satoshi-font);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   line-height: 120%;
   color: var(--black-text);
@@ -40,7 +40,7 @@
     font-size: 19px;
   }
   .PracBox p {
-    font-size: 10px;
+    font-size: 13px;
   }
   .PracBox img {
     width: 64px;
@@ -53,13 +53,27 @@
     max-width: 200px;
   }
   .PracBox h4 {
-    font-size: 16px;
+    font-size: 19px;
   }
   .PracBox p {
-    font-size: 8px;
+    font-size: 13px;
   }
   .PracBox img {
     width: 46px;
     height: 46px;
+  }
+}
+@media screen and (max-width: 550px) {
+  .PracBox {
+    min-height: 170px;
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+}
+@media screen and (max-width: 400px) {
+  .PracBox {
+    min-height: 170px;
+    max-width: 85%;
+    flex: 1 1 100%;
   }
 }

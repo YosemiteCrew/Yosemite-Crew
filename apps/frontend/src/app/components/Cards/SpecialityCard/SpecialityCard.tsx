@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { MdDeleteForever } from "react-icons/md";
+import { MdDeleteForever, MdOutlineClose } from "react-icons/md";
 import ServiceSearch from "../../Inputs/ServiceSearch/ServiceSearch";
 
 import "./SpecialityCard.css";
@@ -17,21 +17,21 @@ const SpecialityCard = ({ speciality, setSpecialities }: any) => {
     );
   };
 
-  const handleToggle = (key: string, checked: boolean) => {
+  const handleToggle = (key: string) => {
     setSpecialities((prev: any) =>
       prev.map((sp: any) => {
         if (sp.key !== speciality.key) return sp;
         return {
           ...sp,
-          services: servicesMapper(sp.services, key, checked),
+          services: servicesMapper(sp.services, key),
         };
       })
     );
   };
 
-  const servicesMapper = (services: any, key: string, checked: boolean) =>
+  const servicesMapper = (services: any, key: string) =>
     services.map((svc: any) =>
-      svc.name === key ? { ...svc, active: checked } : svc
+      svc.name === key ? { ...svc, active: !svc.active } : svc
     );
 
   return (
@@ -57,20 +57,15 @@ const SpecialityCard = ({ speciality, setSpecialities }: any) => {
       )}
       <div className="speciality-services">
         {filteredServices.map((service: any) => (
-          <label
-            key={service.name}
-            className="speciality-service"
-            htmlFor={service.name}
-          >
-            <input
-              type="checkbox"
-              id={service.name}
-              className="speciality-service-check"
-              checked={service.active}
-              onChange={(e) => handleToggle(service.name, e.target.checked)}
-            />
+          <div key={service.name} className="speciality-service">
             <div className="speciality-service-title">{service.name}</div>
-          </label>
+            <MdOutlineClose
+              onClick={() => handleToggle(service.name)}
+              size={20}
+              color="#302f2e"
+              className="cursor-pointer"
+            />
+          </div>
         ))}
       </div>
     </div>
