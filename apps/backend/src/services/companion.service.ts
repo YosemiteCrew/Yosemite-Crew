@@ -206,8 +206,16 @@ export const CompanionService = {
         }
     },
 
-    async listByParent(parentId: Types.ObjectId) {
-        const companionIds = await ParentCompanionService.getActiveCompanionIdsForParent(parentId)
+    async listByParent(parentId: string) {
+        if(!Types.ObjectId.isValid(parentId)) 
+            throw new CompanionServiceError(
+                "Invalid Parent Document Id",
+                400
+            );
+        
+        const parentDocId = new Types.ObjectId(parentId)
+
+        const companionIds = await ParentCompanionService.getActiveCompanionIdsForParent(parentDocId)
 
         if (!companionIds.length) return { responses: [] }
 
@@ -272,9 +280,24 @@ export const CompanionService = {
             throw new CompanionServiceError('Invalid companion identifier.', 400)
         }
 
-        if (!context?.parentMongoId) {
-            throw new CompanionServiceError('Parent context is required to delete a companion.', 400)
+        // MUST come from mobile → require authUserId
+        if (!context?.authUserId) {
+            throw new CompanionServiceError(
+                'Authenticated user is required to delete a companion.',
+                401
+            )
         }
+
+        // Resolve parent from authUserId
+        const parent = await ParentService.findByLinkedUserId(context.authUserId)
+        if (!parent) {
+            throw new CompanionServiceError(
+                'Parent record not found for authenticated user.',
+                403
+            )
+        }
+
+        const parentMongoId = parent._id
 
         try {
             const document = await CompanionModel.findById(id)
@@ -283,7 +306,7 @@ export const CompanionService = {
             }
 
             // Ensure parent has permission
-            await ParentCompanionService.ensurePrimaryOwnership(context.parentMongoId, document._id)
+            await ParentCompanionService.ensurePrimaryOwnership(parentMongoId, document._id)
 
             // Remove links
             await ParentCompanionService.deleteLinksForCompanion(document._id)

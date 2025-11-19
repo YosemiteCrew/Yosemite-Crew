@@ -186,7 +186,7 @@ describe("CompanionController", () => {
 
   describe("deleteCompanion", () => {
     it("requires id", async () => {
-      const req = { params: {} } as any
+      const req = { params: {}, headers: {} } as any
       const res = createResponse()
 
       await CompanionController.deleteCompanion(req, res as any)
@@ -196,19 +196,21 @@ describe("CompanionController", () => {
     })
 
     it("deletes companion", async () => {
-      const req = { params: { id: "cmp-1" } } as any
+      const req = { params: { id: "cmp-1" }, headers: { "x-user-id": "user-123" } } as any
       const res = createResponse()
       mockedCompanionService.delete.mockResolvedValueOnce(undefined)
 
       await CompanionController.deleteCompanion(req, res as any)
 
-      expect(mockedCompanionService.delete).toHaveBeenCalledWith("cmp-1")
+      expect(mockedCompanionService.delete).toHaveBeenCalledWith("cmp-1", {
+        authUserId: "user-123",
+      })
       expect(res.status).toHaveBeenCalledWith(204)
       expect(res.send).toHaveBeenCalled()
     })
 
     it("maps CompanionServiceError", async () => {
-      const req = { params: { id: "cmp-1" } } as any
+      const req = { params: { id: "cmp-1" }, headers: { "x-user-id": "user-123" } } as any
       const res = createResponse()
       mockedCompanionService.delete.mockRejectedValueOnce(new CompanionServiceError("boom", 403))
 
