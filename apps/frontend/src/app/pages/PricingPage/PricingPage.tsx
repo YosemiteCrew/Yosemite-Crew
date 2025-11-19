@@ -1,26 +1,61 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
-import { IoIosCheckmark } from "react-icons/io";
+import { IoIosCheckmark, IoIosCloseCircleOutline } from "react-icons/io";
 
+import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Faq from "@/app/components/Faq/Faq";
 import Footer from "@/app/components/Footer/Footer";
 import { PricingPlans, TableData } from "./data";
+import { Primary } from "@/app/components/Buttons";
 
 import "./PricingPage.css";
 
 const renderCell = (text: string) => {
   if (text === "yes") {
-    return <IoIosCheckmark size={20} color="#595958" />
+    return <IoIosCheckmark size={20} color="#595958" />;
   } else if (text === "no") {
-    return "-"
-  } else{
+    return "-";
+  } else {
     return text;
   }
-}
+};
 
 const PricingPage = () => {
-  const [activeCycle, setActiveCycle] = useState("monthly");
+  const [activeCycle, setActiveCycle] = useState("yearly");
+  const [notify, setNotify] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
+  const [formDataErrors, setFormDataErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  }>({});
+
+  const handleSend = () => {
+    const errors: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    } = {};
+    if (!formData.firstName) errors.firstName = "First name is required";
+    if (!formData.lastName) errors.lastName = "Last name is required";
+    if (!formData.email) errors.email = "Email is required";
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    setNotify(false);
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+    });
+    setFormDataErrors({});
+  };
 
   return (
     <>
@@ -41,13 +76,13 @@ const PricingPage = () => {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setActiveCycle("monthly")}
-                    className={`${activeCycle === "monthly" ? "border-blue-text! bg-blue-light text-blue-text" : "border-black-text!"} px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
+                    className={`${activeCycle === "monthly" ? "border-blue-text! bg-blue-light text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-black-text!"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
                   >
                     Pay monthly
                   </button>
                   <button
                     onClick={() => setActiveCycle("yearly")}
-                    className={`${activeCycle === "yearly" ? "border-blue-text! bg-blue-light text-blue-text" : "border-black-text!"} px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
+                    className={`${activeCycle === "yearly" ? "border-blue-text! bg-blue-light text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-black-text!"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] px-3 h-9 flex items-center justify-center border! rounded-2xl! cursor-pointer font-satoshi! text-[15px]! font-medium text-black-text`}
                   >
                     Pay yearly
                   </button>
@@ -99,8 +134,9 @@ const PricingPage = () => {
                       {plan.description}
                     </div>
                     <Link
-                      className="w-full rounded-2xl! border-[1.5px]! border-black-text! h-12 flex items-center justify-center font-grotesk text-[19px] text-black-text! font-medium"
+                      className="w-full rounded-2xl! hover:shadow-[0_0_16px_0_rgba(0,0,0,0.16)] transition duration-300 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-grotesk text-[19px] font-medium"
                       href={plan.buttonSrc}
+                      onClick={() => plan.id === 3 && setNotify(true)}
                     >
                       {plan.buttonText}
                     </Link>
@@ -125,6 +161,59 @@ const PricingPage = () => {
             </div>
           </div>
 
+          {notify && (
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] sm:w-[500px] z-10 bg-white py-6! sm:py-8! px-4! sm:px-5! flex flex-col gap-3 sm:gap-6 rounded-3xl shadow-[0_0_32px_0_rgba(0,0,0,0.32)]">
+              <div className="flex w-full items-center justify-between">
+                <button className="opacity-0">
+                  <IoIosCloseCircleOutline size={28} color="#302f2e" />
+                </button>
+                <div className="font-grotesk font-medium text-[23px] text-black-text">
+                  Get notified
+                </div>
+                <button onClick={() => setNotify(false)}>
+                  <IoIosCloseCircleOutline size={28} color="#302f2e" />
+                </button>
+              </div>
+              <div className="font-satoshi text-black-text font-semibold text-[18px]">
+                Email notifications are available for Enterprise Plan users.
+                Please provide your details to receive updates.
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:gap-6">
+                <FormInput
+                  intype="text"
+                  inname="First name"
+                  value={formData.firstName}
+                  inlabel="First name"
+                  onChange={(e) =>
+                    setFormData({ ...formData, firstName: e.target.value })
+                  }
+                  error={formDataErrors.firstName}
+                />
+                <FormInput
+                  intype="text"
+                  inname="Last name"
+                  value={formData.lastName}
+                  inlabel="Last name"
+                  onChange={(e) =>
+                    setFormData({ ...formData, lastName: e.target.value })
+                  }
+                  error={formDataErrors.lastName}
+                />
+              </div>
+              <FormInput
+                intype="email"
+                inname="Email"
+                value={formData.email}
+                inlabel="Enter email"
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                error={formDataErrors.email}
+              />
+              <Primary href="#" onClick={handleSend} text="Send" />
+            </div>
+          )}
+
           <div className="flex flex-col gap-3 md:gap-9">
             <div className="font-grotesk text-[23px] md:text-[33px] xl:text-[48px] text-black-text text-center font-medium">
               Plans and features
@@ -147,7 +236,7 @@ const PricingPage = () => {
                     </div>
                   </div>
                   <Link
-                    className="w-full rounded-2xl! border-[1.5px]! border-black-text! h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] text-black-text! font-medium"
+                    className="w-full rounded-2xl! hover:shadow-[0_0_16px_0_rgba(0,0,0,0.16)] text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] font-medium"
                     href={plan.buttonSrc}
                   >
                     {plan.buttonText}
@@ -192,6 +281,7 @@ const PricingPage = () => {
               ))}
             </div>
           </div>
+
           <Faq />
           <NeedHealp />
         </div>

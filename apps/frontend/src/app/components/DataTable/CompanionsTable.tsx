@@ -6,7 +6,7 @@ import Image from "next/image";
 
 import CompanionCard from "../Cards/CompanionCard/CompanionCard";
 import GenericTable from "../GenericTable/GenericTable";
-import { CompanionProps } from "./types";
+import { CompanionProps } from "../../pages/Companions/types";
 
 import "./DataTable.css";
 
@@ -19,6 +19,9 @@ type Column<T> = {
 
 type CompanionsTableProps = {
   filteredList: CompanionProps[];
+  activeCompanion: CompanionProps | null;
+  setActiveCompanion: (companion: CompanionProps) => void;
+  setViewCompanion: (open: boolean) => void;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -34,7 +37,17 @@ export const getStatusStyle = (status: string) => {
   }
 };
 
-const CompanionsTable = ({ filteredList }: CompanionsTableProps) => {
+const CompanionsTable = ({
+  filteredList,
+  activeCompanion,
+  setActiveCompanion,
+  setViewCompanion,
+}: CompanionsTableProps) => {
+  const handleViewCompanion = (companion: CompanionProps) => {
+    setActiveCompanion(companion);
+    setViewCompanion(true);
+  };
+
   const columns: Column<CompanionProps>[] = [
     {
       label: "Name",
@@ -116,20 +129,23 @@ const CompanionsTable = ({ filteredList }: CompanionsTableProps) => {
       width: "10%",
       render: (item: CompanionProps) => (
         <div className="action-btn-col">
-          <div className="h-10 w-10 rounded-full border border-black-text! flex items-center justify-center cursor-pointer">
+          <button
+            onClick={() => handleViewCompanion(item)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          >
             <IoEye size={20} color="#302F2E" />
-          </div>
-          <div className="h-10 w-10 rounded-full border border-black-text! flex items-center justify-center cursor-pointer">
+          </button>
+          <button className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer">
             <FaCalendar size={14} color="#302F2E" />
-          </div>
+          </button>
         </div>
       ),
     },
   ];
 
   return (
-    <div className="table-wrapper">
-      <div className="table-list">
+    <div className="w-full">
+      <div className="hidden xl:flex">
         <GenericTable data={filteredList} columns={columns} bordered={false} />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">

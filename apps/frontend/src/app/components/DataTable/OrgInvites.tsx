@@ -2,12 +2,12 @@
 import React, { useState } from "react";
 import { FaCheckCircle } from "react-icons/fa";
 import { IoIosCloseCircle } from "react-icons/io";
+import Link from "next/link";
 
 import GenericTable from "@/app/components/GenericTable/GenericTable";
+import InviteCard from "../Cards/InviteCard/InviteCard";
 
 import "./DataTable.css";
-import InviteCard from "../Cards/InviteCard/InviteCard";
-import Link from "next/link";
 
 type Column<T> = {
   label: string;

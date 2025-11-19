@@ -4,26 +4,9 @@ import { usePathname } from "next/navigation";
 
 import GuestHeader from "./GuestHeader/GuestHeader";
 import UserHeader from "./UserHeader/UserHeader";
+import { publicRoutes } from "@/app/utils/const";
 
 import "./Header.css";
-
-const publicRoutes = new Set([
-  "/",
-  "/signin",
-  "/signup",
-  "/developers/signin",
-  "/developers/signup",
-  "/forgot-password",
-  "/about",
-  "/application",
-  "/book-demo",
-  "/contact",
-  "/developers",
-  "/pms",
-  "/pricing",
-  "/privacy-policy",
-  "/terms-and-conditions",
-]);
 
 const Header = () => {
   const pathname = usePathname();

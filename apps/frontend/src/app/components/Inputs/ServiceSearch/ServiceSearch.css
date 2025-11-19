@@ -41,6 +41,7 @@
 .service-search-speciality {
   display: flex;
   height: 48px;
+  width: 100%;
   padding: 10px 24px;
   align-items: center;
   gap: 12px;

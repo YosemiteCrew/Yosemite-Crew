@@ -30,7 +30,7 @@ const AboutUs = () => {
                   </div>
                   <div className="body">
                     <p>
-                      Because, let’s face it, the veterinary world is chaotic.
+                      Because, let’s face it, the pet business world is chaotic.
                       Juggling appointments, patient records, billing, and
                       communication shouldn’t be a daily struggle. The PMS
                       industry is cluttered, complicated, and outdated. That’s
@@ -45,7 +45,7 @@ const AboutUs = () => {
                   </div>
                   <div className="body">
                     <p>
-                      Empower the veterinary ecosystem with a platform that
+                      Empower the pet business ecosystem with a platform that
                       actually works.We’ve got your back whether you’re a solo
                       vet, a clinic manager, or a tech-savvy developer ready to
                       build tools that matter.
@@ -117,7 +117,7 @@ const AboutUs = () => {
         <div className="Container">
           <div className="AbtTeamdata">
             <div className="AbtTeamHead">
-              <h2>We&apos;re not a company. We&apos;re a community.</h2>
+              <h2>We’re an open source community</h2>
               <h4>That means no gates, no egos.</h4>
               <div className="para">
                 <h6>
