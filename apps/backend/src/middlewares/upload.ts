@@ -56,7 +56,7 @@ const getErrorCode = (error: unknown): string | undefined => {
 };
 
 const buildS3Key = (
-  type: 'temp' | 'user' | 'org' | 'custom',
+  type: 'temp' | 'user' | 'org' | 'custom' | 'parent' | 'companion',
   idOrFolder?: string,
   mimeType?: string
 ): string => {
@@ -68,6 +68,10 @@ const buildS3Key = (
       return `users/${idOrFolder}/profile${ext}`;
     case 'org':
       return `orgs/${idOrFolder}/logo${ext}`;
+    case 'parent':
+      return `parent/${idOrFolder}/profile${ext}`;
+    case 'companion':
+      return `companion/${idOrFolder}/profile${ext}`;
     case 'custom':
       return `${idOrFolder}/${uuidv4()}${ext}`;
     default:
@@ -134,7 +138,7 @@ async function uploadBufferAsFile(
 
 async function generatePresignedUrl(
   mimeType: string,
-  type: 'temp' | 'user' | 'org' | 'custom',
+  type: 'temp' | 'user' | 'org' | 'custom' | 'parent' | 'companion',
   idOrFolder?: string
 ) {
   const bucket = getBucketName();

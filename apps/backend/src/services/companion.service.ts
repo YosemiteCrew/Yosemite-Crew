@@ -20,6 +20,8 @@ import {
     ParentCompanionServiceError,
 } from './parent-companion.service'
 import { ParentService } from './parent.service'
+import { buildS3Key, moveFile } from 'src/middlewares/upload'
+import logger from 'src/utils/logger'
 
 export class CompanionServiceError extends Error {
     constructor(message: string, public readonly statusCode: number) {
@@ -181,6 +183,13 @@ export const CompanionService = {
                 role: "PRIMARY",
             });
 
+            if(persistable.photoUrl) {
+                const finalKey = buildS3Key('companion', document._id.toString(), 'image/jpg')
+                const profileUrl = await moveFile(persistable.photoUrl, finalKey)
+                document.photoUrl = profileUrl
+                await document.save()
+            }
+
             return { response: toFHIR(document) };
 
         } catch (error) {
@@ -223,7 +232,7 @@ export const CompanionService = {
         }
 
         const searchRegex = new RegExp(name.trim(), "i");
-
+        logger.info(`searchRegex: ${searchRegex}`)
         const documents = await CompanionModel.find({
             name: searchRegex,
         });

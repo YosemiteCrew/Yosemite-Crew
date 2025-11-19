@@ -9,6 +9,7 @@ router.post('/', authorizeCognitoMobile, ParentController.createParentMobile)
 router.get('/:id', authorizeCognitoMobile, ParentController.getParentMobile)
 router.put('/:id', authorizeCognitoMobile, ParentController.updateParentMobile)
 router.delete('/:id', authorizeCognitoMobile, ParentController.deleteParentMobile)
+router.post("/profile/presigned", authorizeCognitoMobile, ParentController.getProfileUploadUrl)
 
 // Routes for PMS
 router.post("/pms/parents", authorizeCognito, ParentController.createParentPMS)

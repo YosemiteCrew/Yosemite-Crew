@@ -6,6 +6,7 @@ import {
 } from "../../services/parent.service"
 import type { ParentRequestDTO } from "@yosemite-crew/types"
 import { AuthenticatedRequest } from "src/middlewares/auth"
+import { generatePresignedUrl } from "src/middlewares/upload"
 
 // Resolve UserID
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
@@ -61,7 +62,6 @@ export const ParentController = {
       }
 
       const payload = extractFHIRPayload(req)
-
       const result = await ParentService.create(payload, {
         source: "mobile",
         authUserId,
@@ -268,7 +268,7 @@ export const ParentController = {
     }
   },
 
-  searchCompanionByName: async (req: Request, res: Response) => {
+  searchByName: async (req: Request, res: Response) => {
       try {
           const { name } = req.query;
   
@@ -293,7 +293,29 @@ export const ParentController = {
               .status(500)
               .json({ message: "Unable to search companions." });
           }
-      },
-  
+  },
 
+  getProfileUploadUrl: async (req: Request, res: Response) => {
+    try {
+        const rawBody: unknown = req.body
+        const mimeType =
+                typeof rawBody === 'object' && rawBody !== null && 'mimeType' in rawBody
+                    ? (rawBody as { mimeType?: unknown }).mimeType
+                    : undefined
+
+          if (typeof mimeType !== 'string' || !mimeType) {
+              res.status(400).json({ message: 'MIME type is required in the request body.' })
+              return
+          }
+
+        const { url, key } = await generatePresignedUrl(mimeType, 'temp')
+
+        return res.status(200).json({ url, key });
+
+    } catch (error) {
+        logger.error("Failed to generate pre-signed URL", error);
+        return res.status(500).json({ message: "Failed to generate upload URL." });
+    }
+  }
+    
 }
