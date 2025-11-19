@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -43,6 +43,11 @@ export const ProfileImagePicker = React.forwardRef<
   fallbackText,
 }, ref) => {
   const { theme } = useTheme();
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setLoadFailed(false);
+  }, [imageUri]);
 
   const cameraPermission =
     Platform.OS === 'ios'
@@ -278,7 +283,7 @@ export const ProfileImagePicker = React.forwardRef<
           },
         ]}
       >
-        {imageUri ? (
+        {imageUri && !loadFailed ? (
           <Image
             source={{ uri: imageUri }}
             style={[
@@ -287,7 +292,7 @@ export const ProfileImagePicker = React.forwardRef<
             ]}
             onError={(error) => {
               console.log('Error loading image:', error.nativeEvent.error);
-              Alert.alert('Error', 'Failed to load profile image');
+              setLoadFailed(true);
             }}
           />
         ) : (

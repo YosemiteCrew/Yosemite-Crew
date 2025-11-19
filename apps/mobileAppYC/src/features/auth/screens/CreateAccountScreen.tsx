@@ -48,7 +48,11 @@ import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/conf
 import LocationService from '@/shared/services/LocationService';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {preparePhotoPayload} from '@/features/account/utils/profilePhoto';
+import {preparePhotoPayload, isRemoteUri} from '@/features/account/utils/profilePhoto';
+import {
+  requestParentProfileUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/shared/services/uploadService';
 
 // Removed direct provider-specific signout; use global logout from AuthContext
 
@@ -596,11 +600,17 @@ const handleGoBack = useCallback(async () => {
         throw new Error('Authentication expired. Please sign in again.');
       }
 
-      const executor = hasRemoteProfile || existingParentProfile
-        ? updateParentProfile
-        : createParentProfile;
+      const parentId = existingParentProfile?.id ?? payload.parentId ?? undefined;
+      const hasExistingParent = hasRemoteProfile || Boolean(existingParentProfile);
+      const executor = hasExistingParent ? updateParentProfile : createParentProfile;
 
-      return executor(payload, tokens.accessToken);
+      return executor(
+        {
+          ...payload,
+          parentId,
+        },
+        tokens.accessToken,
+      );
     },
     [existingParentProfile, hasRemoteProfile, tokens.accessToken],
   );
@@ -640,19 +650,44 @@ const handleGoBack = useCallback(async () => {
         throw new Error('Date of birth is required.');
       }
 
-      const {photo: photoAttachment, existingPhotoUrl} = await preparePhotoPayload({
-        imageUri: combinedData.profileImage,
-        existingRemoteUrl:
-          profileToken ??
-          existingParentProfile?.profileImageUrl ??
-          null,
-      });
+      let profileImageKey: string | null = null;
+      let existingPhotoUrl = combinedData.profileImage ?? profileToken ?? existingParentProfile?.profileImageUrl ?? null;
+
+      if (combinedData.profileImage && !isRemoteUri(combinedData.profileImage)) {
+        const photoPayload = await preparePhotoPayload({
+          imageUri: combinedData.profileImage,
+          existingRemoteUrl: profileToken ?? existingParentProfile?.profileImageUrl ?? null,
+        });
+
+        existingPhotoUrl = photoPayload.remoteUrl ?? null;
+
+        if (photoPayload.localFile) {
+          if (!tokens.accessToken) {
+            throw new Error('Authentication expired. Please sign in again.');
+          }
+
+          const presigned = await requestParentProfileUploadUrl({
+            accessToken: tokens.accessToken,
+            mimeType: photoPayload.localFile.mimeType,
+          });
+
+          await uploadFileToPresignedUrl({
+            filePath: photoPayload.localFile.path,
+            mimeType: photoPayload.localFile.mimeType,
+            url: presigned.url,
+          });
+
+          profileImageKey = presigned.key;
+          existingPhotoUrl = null;
+        }
+      }
 
       const parentPayload: ParentProfileUpsertPayload = {
-        userId,
+        parentId: existingParentProfile?.id ?? null,
         firstName: combinedData.firstName.trim(),
         lastName: combinedData.lastName?.trim(),
         phoneNumber: combinedData.fullMobileNumber,
+        email,
         dateOfBirth: birthDateIso,
         address: {
           addressLine: combinedData.address,
@@ -664,8 +699,8 @@ const handleGoBack = useCallback(async () => {
           longitude: location?.longitude,
         },
         isProfileComplete: true,
-        photo: photoAttachment,
-        existingPhotoUrl: existingPhotoUrl ?? null,
+        profileImageKey,
+        existingPhotoUrl,
       };
 
       const parentSummary = await submitParentProfile(parentPayload);
@@ -683,6 +718,7 @@ const handleGoBack = useCallback(async () => {
       const userPayload: User = mergeUserWithParentProfile(
         {
           id: userId,
+          parentId: parentSummary.id ?? existingParentProfile?.id ?? null,
           email,
           firstName: combinedData.firstName,
           lastName: combinedData.lastName,

@@ -24,6 +24,48 @@ const client: AxiosInstance = axios.create({
   },
 });
 
+client.interceptors.request.use(config => {
+  const url = config.baseURL
+    ? `${config.baseURL.replace(/\/$/, '')}/${(config.url ?? '').replace(/^\//, '')}`
+    : config.url;
+  console.log('[API] Request', {
+    method: config.method,
+    url,
+    headers: config.headers,
+    data: config.data,
+    timestamp: new Date().toISOString(),
+  });
+  return config;
+});
+
+client.interceptors.response.use(
+  response => {
+    console.log('[API] Response', {
+      method: response.config?.method,
+      url: response.config?.url,
+      status: response.status,
+      data: response.data,
+    });
+    return response;
+  },
+  error => {
+    if (error.response) {
+      console.log('[API] Error Response', {
+        method: error.config?.method,
+        url: error.config?.url,
+        status: error.response.status,
+        data: error.response.data,
+      });
+    } else {
+      console.log('[API] Error', {
+        message: error.message,
+        config: error.config,
+      });
+    }
+    return Promise.reject(error);
+  },
+);
+
 export const withAuthHeaders = (
   accessToken: string,
   extras?: AxiosRequestConfig['headers'],

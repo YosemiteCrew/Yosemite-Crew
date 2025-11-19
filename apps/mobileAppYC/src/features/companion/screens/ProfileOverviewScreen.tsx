@@ -138,9 +138,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           updatedAt: new Date().toISOString(),
         };
 
+        if (!user?.parentId) {
+          throw new Error('Parent profile missing. Please sign in again.');
+        }
+
         await dispatch(
           updateCompanionProfile({
-            userId: user?.id || '',
+            parentId: user.parentId,
             updatedCompanion: updated,
           }),
         ).unwrap();
@@ -154,7 +158,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         );
       }
     },
-    [companion, dispatch, user?.id, showErrorAlert],
+    [companion, dispatch, user?.parentId, showErrorAlert],
   );
 
   // Handler for navigating to the Edit Screen
@@ -252,12 +256,12 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }, []);
 
   const handleDeleteProfile = React.useCallback(async () => {
-    if (!user?.id || !companion?.id) return;
+    if (!user?.parentId || !companion?.id) return;
 
     try {
       console.log('[ProfileOverview] Deleting companion:', companion.id);
       const resultAction = await dispatch(
-        deleteCompanion({userId: user.id, companionId: companion.id}),
+        deleteCompanion({parentId: user.parentId, companionId: companion.id}),
       );
 
       if (deleteCompanion.fulfilled.match(resultAction)) {

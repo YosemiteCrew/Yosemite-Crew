@@ -11,10 +11,8 @@ import {
   type AuthUser,
 } from 'aws-amplify/auth';
 import {AuthError} from 'aws-amplify/auth';
-import {
-  fetchProfileStatus,
-  type ProfileStatus,
-} from '@/features/account/services/profileService';
+import type {ProfileStatus} from '@/features/account/services/profileService';
+import {syncAuthUser} from '@/features/auth/services/authUserService';
 
 export type PasswordlessSignInRequestResult = {
   destination: string;
@@ -34,6 +32,7 @@ export type PasswordlessSignInCompletion = {
     provider: 'amplify';
   };
   profile: ProfileStatus;
+  parentLinked: boolean;
 };
 
 const secureRandomInt = (max: number): number => {
@@ -247,10 +246,30 @@ export const completePasswordlessSignIn = async (
     fetchUserAttributes(),
   ]);
 
-  const profile = await fetchProfileStatus({
-    accessToken,
-    userId: authUser.userId,
-  });
+  let authSync: Awaited<ReturnType<typeof syncAuthUser>> | undefined;
+  try {
+    authSync = await syncAuthUser({
+      authToken: idToken ?? accessToken,
+      idToken,
+    });
+  } catch (error) {
+    console.warn('[Auth] Failed to sync auth user during OTP flow', error);
+  }
+
+  const normalizedProfile: ProfileStatus = authSync?.parentSummary
+    ? {
+        exists: true,
+        isComplete: Boolean(authSync.parentSummary.isComplete),
+        profileToken: authSync.parentSummary.profileImageUrl,
+        source: 'remote',
+        parent: authSync.parentSummary,
+      }
+    : {
+        exists: false,
+        isComplete: false,
+        profileToken: undefined,
+        source: 'remote',
+      };
 
   // Console logs for Cognito/Amplify authentication
   console.log('╔════════════════════════════════════════╗');
@@ -274,7 +293,8 @@ export const completePasswordlessSignIn = async (
       userId: authUser.userId,
       provider: 'amplify',
     },
-    profile,
+    profile: normalizedProfile,
+    parentLinked: authSync?.parentLinked ?? false,
   };
 };
 

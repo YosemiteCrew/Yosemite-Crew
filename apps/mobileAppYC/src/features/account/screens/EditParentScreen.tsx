@@ -63,6 +63,10 @@ import {
   type ParentProfileUpsertPayload,
 } from '@/features/account/services/profileService';
 import {preparePhotoPayload} from '@/features/account/utils/profilePhoto';
+import {
+  requestParentProfileUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/shared/services/uploadService';
 
 // Props
 export type EditParentScreenProps = NativeStackScreenProps<
@@ -126,6 +130,11 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         return;
       }
 
+      if (!nextUser.parentId) {
+        console.warn('[EditParent] Missing parent identifier; skipping remote sync.');
+        return;
+      }
+
       if (
         !nextUser.firstName ||
         !nextUser.phone ||
@@ -141,16 +150,36 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       }
 
       try {
-        const {photo, existingPhotoUrl} = await preparePhotoPayload({
+        const photoPayload = await preparePhotoPayload({
           imageUri: nextUser.profilePicture ?? null,
           existingRemoteUrl: nextUser.profileToken ?? null,
         });
 
+        let profileImageKey: string | null = null;
+        let existingPhotoUrl = photoPayload.remoteUrl ?? null;
+
+        if (photoPayload.localFile) {
+          const presigned = await requestParentProfileUploadUrl({
+            accessToken,
+            mimeType: photoPayload.localFile.mimeType,
+          });
+
+          await uploadFileToPresignedUrl({
+            filePath: photoPayload.localFile.path,
+            mimeType: photoPayload.localFile.mimeType,
+            url: presigned.url,
+          });
+
+          profileImageKey = presigned.key;
+          existingPhotoUrl = null;
+        }
+
         const payload: ParentProfileUpsertPayload = {
-          userId: nextUser.id,
+          parentId: nextUser.parentId,
           firstName: nextUser.firstName.trim(),
           lastName: nextUser.lastName?.trim(),
           phoneNumber: nextUser.phone,
+          email: nextUser.email,
           dateOfBirth: nextUser.dateOfBirth,
           address: {
             addressLine: nextUser.address.addressLine ?? '',
@@ -160,8 +189,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             country: nextUser.address.country ?? '',
           },
           isProfileComplete: nextUser.profileCompleted ?? undefined,
-          photo,
-          existingPhotoUrl: existingPhotoUrl ?? null,
+          profileImageKey,
+          existingPhotoUrl,
         };
 
         const summary = await updateParentProfile(payload, accessToken);
