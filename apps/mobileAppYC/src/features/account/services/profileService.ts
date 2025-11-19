@@ -315,3 +315,45 @@ export const updateParentProfile = async (
   payload: ParentProfileUpsertPayload,
   accessToken: string,
 ): Promise<ParentProfileUpsertResult> => submitParentProfile(payload, accessToken, 'put');
+
+export const deleteParentProfile = async (
+  userId: string,
+  accessToken: string,
+): Promise<void> => {
+  if (!userId) {
+    throw new Error('Parent identifier is required to delete the account.');
+  }
+
+  const endpoint = `${PARENT_RESOURCE}/${encodeURIComponent(userId)}`;
+  console.log('[ProfileService] Delete parent request', {endpoint, userId});
+
+  try {
+    const response = await apiClient.delete(endpoint, {
+      headers: withAuthHeaders(accessToken),
+    });
+
+    console.log('[ProfileService] Delete parent response', {
+      status: response.status,
+      endpoint,
+    });
+  } catch (error) {
+    if (isAxiosError(error)) {
+      const serverMessage =
+        typeof error.response?.data === 'object' && error.response?.data
+          ? (error.response?.data as {message?: string}).message
+          : undefined;
+      const message = serverMessage ?? 'Failed to delete parent profile.';
+      console.warn('[ProfileService] Delete parent failed', {
+        status: error.response?.status,
+        serverMessage,
+      });
+      throw new Error(message);
+    }
+
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to delete parent profile.',
+    );
+  }
+};

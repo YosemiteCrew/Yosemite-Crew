@@ -59,28 +59,27 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   onPreviewSelect,
   ...previewProps
 }) => {
-  const handlePreviewSelect = (event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
-    previewProps.onSelect?.(event as any);
+  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+    previewProps.onSelect?.(event as unknown as React.MouseEvent<HTMLDivElement>);
     onPreviewSelect?.(previewProps.channel ?? null);
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      handlePreviewSelect(event);
+      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLButtonElement>);
     }
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       className="chat-preview-trigger"
       onClick={handlePreviewSelect}
       onKeyDown={handleKeyDown}
     >
       <ChannelPreviewMessenger {...previewProps} />
-    </div>
+    </button>
   );
 };
 

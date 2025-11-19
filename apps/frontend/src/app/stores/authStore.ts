@@ -33,7 +33,8 @@ type AuthStore = {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    role?: string
   ) => Promise<ISignUpResult | undefined>;
   confirmSignUp: (
     email: string,
@@ -68,7 +69,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   error: null,
   role: null,
 
-  signUp: async (email, password, firstName, lastName) => {
+  signUp: async (email, password, firstName, lastName, role = "member") => {
     if (!userPool) {
       throw new Error("UserPool is not initialized");
     }
@@ -79,6 +80,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         Value: firstName,
       }),
       new CognitoUserAttribute({ Name: "family_name", Value: lastName }),
+      new CognitoUserAttribute({ Name: "custom:role", Value: role }),
     ];
     return new Promise((resolve, reject) => {
       userPool.signUp(email, password, attributeList, [], (err, result) => {
@@ -217,6 +219,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
   },
   signout: () => {
+    if (typeof globalThis !== "undefined") {
+      globalThis.sessionStorage?.removeItem("devAuth");
+    }
     const user = get().user;
     set({
       status: "unauthenticated",

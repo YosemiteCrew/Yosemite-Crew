@@ -1,7 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Col, Form, Row } from "react-bootstrap";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { GoCheckCircleFill } from "react-icons/go";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
@@ -14,9 +15,24 @@ import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 
 import "./SignUp.css";
 
-const SignUp = () => {
+type SignUpProps = {
+  postAuthRedirect?: string;
+  signinHref?: string;
+  allowNext?: boolean;
+  isDeveloper?: boolean;
+};
+
+const SignUp = ({
+  postAuthRedirect = "/create-org",
+  signinHref = "/signin",
+  allowNext = true,
+  isDeveloper = false,
+}: Readonly<SignUpProps>) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
-  const { signUp } = useAuthStore();
+  const { signUp, user } = useAuthStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = allowNext ? searchParams.get("next") : null;
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -37,6 +53,47 @@ const SignUp = () => {
     subscribe?: string;
     agree?: string;
   }>({});
+
+  useEffect(() => {
+    if (user) {
+      if (typeof globalThis !== "undefined") {
+        globalThis.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
+      }
+      router.push(next || postAuthRedirect);
+    }
+  }, [user, router, next, postAuthRedirect, isDeveloper]);
+
+  const passwordErrors = (
+    password: string,
+    confirmPassword: string
+  ): { pError?: string; confirmPError?: string } => {
+    const strongPasswordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+    if (!password) {
+      return {
+        pError: "Password is required",
+        ...(confirmPassword ? {} : { confirmPError: "Confirm Password is required" }),
+      };
+    }
+
+    if (!strongPasswordRegex.test(password)) {
+      return {
+        pError:
+          "Password must be at least 8 characters long, include uppercase, lowercase, number, and special character",
+      };
+    }
+
+    if (!confirmPassword) {
+      return { confirmPError: "Confirm Password is required" };
+    }
+
+    if (password !== confirmPassword) {
+      return { confirmPError: "Passwords do not match" };
+    }
+
+    return {};
+  };
 
   const validateSignUpInputs = (
     firstName: string,
@@ -60,25 +117,49 @@ const SignUp = () => {
     if (!firstName) errors.firstName = "First name is required";
     if (!lastName) errors.lastName = "Last name is required";
     if (!email) errors.email = "Email is required";
-    if (password) {
-      const strongPasswordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      if (!strongPasswordRegex.test(password)) {
-        errors.pError =
-          "Password must be at least 8 characters long, include uppercase, lowercase, number, and special character";
-      }
-    } else {
-      errors.pError = "Password is required";
-    }
-    if (!confirmPassword) errors.confirmPError = "Confirm Password is required";
-    if (password && confirmPassword && password !== confirmPassword)
-      errors.confirmPError = "Passwords do not match";
-    if (!subscribe)
+
+    Object.assign(errors, passwordErrors(password, confirmPassword));
+
+    if (!subscribe) {
       errors.subscribe =
         "Please check the Newsletter and Promotional emails box";
-    if (!agree) errors.agree = "Please check the Terms and Conditions box";
+    }
+
+    if (!agree) {
+      errors.agree = "Please check the Terms and Conditions box";
+    }
 
     return errors;
+  };
+
+  const handleSignupSuccess = () => {
+    if (typeof globalThis !== "undefined") {
+      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+      // Temporary fallback until custom:role is available in the pool
+      globalThis.sessionStorage?.setItem(
+        "devAuth",
+        isDeveloper ? "true" : "false"
+      );
+    }
+    setShowVerifyModal(true);
+  };
+
+  const handleSignupError = (error: any) => {
+    if (typeof globalThis !== "undefined") {
+      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    const status = error.code === "UsernameExistsException" ? 409 : undefined;
+    const message = error.message || "Something went wrong.";
+
+    showErrorTost({
+      message,
+      errortext: status === 409 ? "Already Registered" : "Signup Error",
+      iconElement: (
+        <Icon icon="mdi:error" width="20" height="20" color="#EA3729" />
+      ),
+      className: status === 409 ? "errofoundbg" : "oppsbg",
+    });
+    setShowVerifyModal(false);
   };
 
   const handleSignUp = async (e: { preventDefault: () => void }) => {
@@ -100,40 +181,40 @@ const SignUp = () => {
     }
 
     try {
-      const result = await signUp(email, password, firstName, lastName);
+      const args: Parameters<typeof signUp> = isDeveloper
+        ? [email, password, firstName, lastName, "developer"]
+        : [email, password, firstName, lastName];
+
+      const result = await signUp(...args);
 
       if (result) {
-        if (globalThis.window) {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-        setShowVerifyModal(true);
+        handleSignupSuccess();
       }
     } catch (error: any) {
-      if (globalThis.window) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-      const status = error.code === "UsernameExistsException" ? 409 : undefined;
-      const message = error.message || "Something went wrong.";
-
-      showErrorTost({
-        message,
-        errortext: status === 409 ? "Already Registered" : "Signup Error",
-        iconElement: (
-          <Icon icon="mdi:error" width="20" height="20" color="#EA3729" />
-        ),
-        className: status === 409 ? "errofoundbg" : "oppsbg",
-      });
-      setShowVerifyModal(false);
+      handleSignupError(error);
     }
   };
 
   return (
-    <section className="MainSignUpSec">
+    <section
+      className="MainSignUpSec"
+      style={
+        isDeveloper
+          ? {
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
+            }
+          : undefined
+      }
+    >
       <Row className="MainSignUpRow">
         <Col md={6} className="MainSignCol">
           <div className="BuildEveryone">
             <div className="SignBuildText">
-              <h2>Built for everyone, from day one</h2>
+              <h2>
+                {isDeveloper
+                  ? "Build, test, and ship apps on Yosemite Crew"
+                  : "Built for everyone, from day one"}
+              </h2>
             </div>
 
             <div className="BuildCloud">
@@ -144,10 +225,15 @@ const SignUp = () => {
                   </span>
                 </div>
                 <div className="CloudText">
-                  <h4>Enjoy cloud hosting with us!</h4>
+                  <h4>
+                    {isDeveloper
+                      ? "API-first, self-host or managed"
+                      : "Enjoy cloud hosting with us!"}
+                  </h4>
                   <p>
-                    Website are hosted on a network of servers, offering
-                    greater, scalability, reliability, and flexibility.
+                    {isDeveloper
+                      ? "Open source core with APIs built for integrations. Run it yourself or use our managed stack."
+                      : "Website are hosted on a network of servers, offering greater, scalability, reliability, and flexibility."}
                   </p>
                 </div>
               </div>
@@ -159,10 +245,15 @@ const SignUp = () => {
                   </span>
                 </div>
                 <div className="CloudText">
-                  <h4>Start free. Pay as you grow.</h4>
+                  <h4>
+                    {isDeveloper
+                      ? "Local dev + production ready"
+                      : "Start free. Pay as you grow."}
+                  </h4>
                   <p>
-                    Enjoy generous free usage on cloud hosting. Upgrade only
-                    when you need more power.
+                    {isDeveloper
+                      ? "Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted."
+                      : "Enjoy generous free usage on cloud hosting. Upgrade only when you need more power."}
                   </p>
                 </div>
               </div>
@@ -174,10 +265,15 @@ const SignUp = () => {
                   </span>
                 </div>
                 <div className="CloudText">
-                  <h4>GDPR-ready, EU-based servers.</h4>
+                  <h4>
+                    {isDeveloper
+                      ? "Secure by default"
+                      : "GDPR-ready, EU-based servers."}
+                  </h4>
                   <p>
-                    All cloud data is securely hosted in the EU with full GDPR
-                    compliance.
+                    {isDeveloper
+                      ? "Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed."
+                      : "All cloud data is securely hosted in the EU with full GDPR compliance."}
                   </p>
                 </div>
               </div>
@@ -190,7 +286,9 @@ const SignUp = () => {
             <Form onSubmit={handleSignUp} method="post">
               <div className="TopSignUp">
                 <div className="Headingtext">
-                  <h2>Sign up for cloud</h2>
+                  <h2>
+                    {isDeveloper ? "Sign up for developer access" : "Sign up for cloud"}
+                  </h2>
                 </div>
 
                 <div className="SignFormItems">
@@ -290,8 +388,8 @@ const SignUp = () => {
                 />
                 {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
                 <h6>
-                  {" "}
-                  Already have an account? <Link href="/signin">Sign In</Link>
+              {" "}
+                  Already have an account? <Link href={signinHref}>Sign In</Link>
                 </h6>
               </div>
             </Form>
