@@ -13,6 +13,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {HomeStackParamList, TabParamList, type TaskStackParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
@@ -125,7 +126,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
   const [headerAvatarError, setHeaderAvatarError] = React.useState(false);
   const headerAvatarUri = React.useMemo(
-    () => authUser?.profilePicture ?? authUser?.profileToken ?? null,
+    () => normalizeImageUri(authUser?.profilePicture ?? authUser?.profileToken ?? null),
     [authUser?.profilePicture, authUser?.profileToken],
   );
 
@@ -445,7 +446,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           date={nextUpcomingTask.date}
           time={nextUpcomingTask.time}
           companionName={selectedCompanion.name}
-          companionAvatar={selectedCompanion.profileImage ?? undefined}
+          companionAvatar={
+            normalizeImageUri(selectedCompanion.profileImage ?? undefined) ?? undefined
+          }
           assignedToName={assignedToData?.name}
           assignedToAvatar={assignedToData?.avatar}
           status={nextUpcomingTask.status}

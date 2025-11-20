@@ -18,6 +18,7 @@ import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {selectAuthUser} from '@/features/auth/selectors';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {addCoParent} from '../../index';
 import type {CoParentStackParamList} from '@/navigation/types';
 import type {CoParent} from '../../types';
@@ -188,7 +189,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
                   <View style={styles.companionRow}>
                     {companion.profileImage ? (
                       <Image
-                        source={{uri: companion.profileImage}}
+                        source={{uri: normalizeImageUri(companion.profileImage) ?? ''}}
                         style={styles.companionAvatar}
                       />
                     ) : (
