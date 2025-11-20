@@ -22,7 +22,7 @@ describe("helpers utilities", () => {
 
   it("builds operation outcome payload", () => {
     expect(
-      helpers.operationOutcome("200", "information", "ok", "processed")
+      helpers.operationOutcome("200", "information", "ok", "processed"),
     ).toEqual({
       resourceType: "OperationOutcome",
       issue: [
@@ -43,12 +43,17 @@ describe("helpers utilities", () => {
     const hash = helpers.getSecretHash("alice@example.com");
 
     expect(hash).toBe(
-      crypto.createHmac("SHA256", "secret").update("alice@example.comclient").digest("base64")
+      crypto
+        .createHmac("SHA256", "secret")
+        .update("alice@example.comclient")
+        .digest("base64"),
     );
   });
 
   it("formats appointment date times for 12h and 24h clocks", () => {
-    const result = helpers.formatAppointmentDateTime("2024-09-24T15:30:00+05:30");
+    const result = helpers.formatAppointmentDateTime(
+      "2024-09-24T15:30:00+05:30",
+    );
 
     expect(result).toEqual({
       appointmentDate: "2024-09-24",

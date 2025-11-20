@@ -12,9 +12,9 @@ export interface Organisation {
     type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
     phoneNo: string
     website?: string
-    address: Address
-    isVerified: boolean
-    isActive: boolean
+    address?: Address
+    isVerified?: boolean
+    isActive?: boolean
     taxId: string
     healthAndSafetyCertNo?: string
     animalWelfareComplianceCertNo?: string
@@ -125,9 +125,10 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
         })
     }
 
+    const isVerifiedValue = organisation.isVerified ?? false
     extensions.push({
         url: IS_VERIFIED_EXTENSION_URL,
-        valueBoolean: organisation.isVerified,
+        valueBoolean: isVerifiedValue,
     })
 
     if (organisation.imageURL) {
@@ -206,12 +207,12 @@ export const toFHIROrganisation = (
 ): FHIROrganization => ({
     resourceType: 'Organization',
     id: toStringId(organisation._id),
-    active: organisation.isActive,
+    active: organisation.isActive ?? false,
     name: organisation.name,
     identifier: buildIdentifiers(organisation),
     telecom: buildTelecom(organisation),
     type: buildType(organisation, options),
-    address: [toFHIRAddress(organisation.address)],
+    address: organisation.address ? [toFHIRAddress(organisation.address)] : undefined,
     extension: buildExtensions(organisation),
 })
 
@@ -259,7 +260,7 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
         type: extractType(resource),
         phoneNo: getTelecomValue(resource.telecom, 'phone') ?? '',
         website: getTelecomValue(resource.telecom, 'url'),
-        address: fromFHIRAddress(resource.address?.[0]),
+        address: resource.address?.[0] ? fromFHIRAddress(resource.address?.[0]) : undefined,
         isVerified: extractIsVerified(extensions),
         isActive: resource.active ?? false,
         healthAndSafetyCertNo: extractStringExtension(extensions, HEALTH_SAFETY_CERT_EXTENSION_URL),
