@@ -14,6 +14,8 @@ import specialtyRouter from "./routers/speciality.router";
 import organisationRoomRouter from "./routers/organisation-room.router";
 import organisationInviteRouter from "./routers/organisation-invite.router";
 import authUserMobileRouter from "./routers/authUserMobile.router";
+import coParentInviteRouter from "./routers/coparentInvite.router";
+import parentCompanionRouter from "./routers/parent-companion.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +34,8 @@ app.use(`/fhir/v1/organisation-room`, organisationRoomRouter);
 app.use(`/fhir/v1/organisation-invites`, organisationInviteRouter);
 app.use(`/fhir/v1/availability`, availabilityRouter);
 app.use(`/v1/authUser`, authUserMobileRouter);
+app.use(`/v1/coparent-invite`, coParentInviteRouter);
+app.use(`/v1/parent-companion`, parentCompanionRouter);
 
 let mongoUri: string;
 

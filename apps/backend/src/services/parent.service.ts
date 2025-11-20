@@ -100,10 +100,6 @@ export type ParentCreateContext = {
   authUserId?: string; // only mobile has this
 };
 
-export type ParentUpdateContext = ParentCreateContext;
-export type ParentGetContext = ParentCreateContext;
-export type ParentDeleteContext = ParentCreateContext;
-
 /* ---------------------------- Main Service ---------------------------- */
 
 export const ParentService = {
@@ -175,7 +171,7 @@ export const ParentService = {
   },
 
   /* -------------------------- GET -------------------------- */
-  async get(id: string, ctx?: ParentGetContext) {
+  async get(id: string, ctx?: ParentCreateContext) {
     const mongoId = ensureMongoId(id);
 
     const query: FilterQuery<ParentMongo> = { _id: mongoId };
@@ -198,7 +194,7 @@ export const ParentService = {
   },
 
   /* -------------------------- UPDATE -------------------------- */
-  async update(id: string, dto: ParentRequestDTO, ctx?: ParentUpdateContext) {
+  async update(id: string, dto: ParentRequestDTO, ctx?: ParentCreateContext) {
     const mongoId = ensureMongoId(id);
     const persistable = toPersistable(dto);
 
@@ -236,7 +232,7 @@ export const ParentService = {
   },
 
   /* -------------------------- DELETE -------------------------- */
-  async delete(id: string, ctx: ParentDeleteContext) {
+  async delete(id: string, ctx: ParentCreateContext) {
     const mongoId = ensureMongoId(id);
 
     const query: FilterQuery<ParentMongo> = { _id: mongoId };
