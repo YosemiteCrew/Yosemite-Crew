@@ -394,11 +394,14 @@ const mapResponseToAppCompanion = (
       ? normalizeBreedFromName(attributes.breed, category)
       : null;
 
+  const attrId =
+    (attributes as any)._id ??
+    (attributes as any).identifier?.[0]?.value;
+
   const resolvedId =
-    attributes._id ??
+    attrId ??
     (response as any).id ??
     persisted?.id ??
-    attributes.identifier?.[0]?.value ??
     attributes.name ??
     '';
 
