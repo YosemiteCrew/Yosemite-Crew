@@ -50,14 +50,20 @@ describe("UserController", () => {
       await UserController.create(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Invalid request body." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid request body.",
+      });
       expect(mockedUserService.create).not.toHaveBeenCalled();
     });
 
     it("creates user and returns 201", async () => {
       const req = { body: { id: "user-1", email: "user@example.com" } } as any;
       const res = createResponse();
-      const createdUser = { id: "user-1", email: "user@example.com", isActive: true };
+      const createdUser = {
+        id: "user-1",
+        email: "user@example.com",
+        isActive: true,
+      };
       mockedUserService.create.mockResolvedValueOnce(createdUser);
 
       await UserController.create(req, res as any);
@@ -71,7 +77,7 @@ describe("UserController", () => {
       const req = { body: { id: "", email: "user@example.com" } } as any;
       const res = createResponse();
       mockedUserService.create.mockRejectedValueOnce(
-        new UserServiceError("Validation failed.", 422)
+        new UserServiceError("Validation failed.", 422),
       );
 
       await UserController.create(req, res as any);
@@ -88,9 +94,14 @@ describe("UserController", () => {
 
       await UserController.create(req, res as any);
 
-      expect(mockedLogger.error).toHaveBeenCalledWith("Failed to create user", error);
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Failed to create user",
+        error,
+      );
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ message: "Unable to create user." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unable to create user.",
+      });
     });
   });
 
@@ -122,13 +133,15 @@ describe("UserController", () => {
       const req = { params: { id: "" } } as any;
       const res = createResponse();
       mockedUserService.getById.mockRejectedValueOnce(
-        new UserServiceError("User id cannot be empty.", 400)
+        new UserServiceError("User id cannot be empty.", 400),
       );
 
       await UserController.getById(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "User id cannot be empty." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "User id cannot be empty.",
+      });
     });
 
     it("logs unexpected errors and returns 500", async () => {
@@ -139,9 +152,14 @@ describe("UserController", () => {
 
       await UserController.getById(req, res as any);
 
-      expect(mockedLogger.error).toHaveBeenCalledWith("Failed to retrieve user", error);
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Failed to retrieve user",
+        error,
+      );
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ message: "Unable to retrieve user." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unable to retrieve user.",
+      });
     });
   });
 });

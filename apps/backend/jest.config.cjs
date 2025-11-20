@@ -12,14 +12,14 @@ module.exports = {
       branches: 60,
       functions: 60,
       lines: 60,
-      statements: 60
-    }
+      statements: 60,
+    },
   },
   moduleNameMapper: {
     "^@yosemite-crew/(.*)$": "<rootDir>/../../packages/$1/src",
-    "^src/(.*)$": "<rootDir>/src/$1"
+    "^src/(.*)$": "<rootDir>/src/$1",
   },
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }]
-  }
+    "^.+\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }],
+  },
 };

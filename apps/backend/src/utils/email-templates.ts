@@ -1,44 +1,44 @@
-type DateLike = Date | string | number
+type DateLike = Date | string | number;
 
 const formatExpiry = (expiresAt: DateLike): string => {
-    if (expiresAt instanceof Date) {
-        return expiresAt.toUTCString()
-    }
+  if (expiresAt instanceof Date) {
+    return expiresAt.toUTCString();
+  }
 
-    if (typeof expiresAt === 'number') {
-        return new Date(expiresAt).toUTCString()
-    }
+  if (typeof expiresAt === "number") {
+    return new Date(expiresAt).toUTCString();
+  }
 
-    return new Date(expiresAt).toUTCString()
-}
+  return new Date(expiresAt).toUTCString();
+};
 
 export interface OrganisationInviteTemplateData {
-    organisationName: string
-    inviteeName?: string
-    inviterName?: string
-    acceptUrl: string
-    expiresAt: DateLike
-    supportEmail?: string
+  organisationName: string;
+  inviteeName?: string;
+  inviterName?: string;
+  acceptUrl: string;
+  expiresAt: DateLike;
+  supportEmail?: string;
 }
 
 export interface RenderedEmailTemplate {
-    subject: string
-    htmlBody: string
-    textBody: string
+  subject: string;
+  htmlBody: string;
+  textBody: string;
 }
 
 export const renderOrganisationInviteTemplate = (
-    data: OrganisationInviteTemplateData
+  data: OrganisationInviteTemplateData,
 ): RenderedEmailTemplate => {
-    const inviteeName = data.inviteeName?.trim() || 'there'
-    const organisationName = data.organisationName.trim()
-    const inviterName = data.inviterName?.trim() || 'a team member'
-    const formattedExpiry = formatExpiry(data.expiresAt)
-    const supportEmail = data.supportEmail?.trim() || 'support@yosemitecrew.com'
+  const inviteeName = data.inviteeName?.trim() || "there";
+  const organisationName = data.organisationName.trim();
+  const inviterName = data.inviterName?.trim() || "a team member";
+  const formattedExpiry = formatExpiry(data.expiresAt);
+  const supportEmail = data.supportEmail?.trim() || "support@yosemitecrew.com";
 
-    const subject = `You’re invited to join ${organisationName}`
+  const subject = `You’re invited to join ${organisationName}`;
 
-    const htmlBody = `<!DOCTYPE html>
+  const htmlBody = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -66,22 +66,22 @@ export const renderOrganisationInviteTemplate = (
     </div>
   </div>
 </body>
-</html>`
+</html>`;
 
-    const textBody = [
-        `Hi ${inviteeName},`,
-        ``,
-        `${inviterName} has invited you to join ${organisationName} on Yosemite Crew.`,
-        `Accept your invite: ${data.acceptUrl}`,
-        ``,
-        `This link expires on ${formattedExpiry}.`,
-        ``,
-        `Need help? Email ${supportEmail}.`,
-    ].join('\n')
+  const textBody = [
+    `Hi ${inviteeName},`,
+    ``,
+    `${inviterName} has invited you to join ${organisationName} on Yosemite Crew.`,
+    `Accept your invite: ${data.acceptUrl}`,
+    ``,
+    `This link expires on ${formattedExpiry}.`,
+    ``,
+    `Need help? Email ${supportEmail}.`,
+  ].join("\n");
 
-    return {
-        subject,
-        htmlBody,
-        textBody,
-    }
-}
+  return {
+    subject,
+    htmlBody,
+    textBody,
+  };
+};

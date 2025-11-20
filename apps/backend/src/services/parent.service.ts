@@ -1,259 +1,292 @@
-import { Types } from 'mongoose'
-import ParentModel, { ParentDocument, type ParentMongo } from '../models/parent'
+import { FilterQuery, Types } from "mongoose";
 import {
-    fromParentRequestDTO,
-    toParentResponseDTO,
-    type ParentRequestDTO,
-    type ParentDTOAttributesType,
-    type Parent,
-} from '@yosemite-crew/types'
+  type ParentDocument,
+  type ParentMongo,
+  ParentModel,
+} from "../models/parent";
 
-type ParentAddress = Parent['address']
+import {
+  fromParentRequestDTO,
+  toParentResponseDTO,
+  type ParentRequestDTO,
+  type Parent,
+} from "@yosemite-crew/types";
+import { AuthUserMobileService } from "./authUserMobile.service";
+import { buildS3Key, moveFile } from "src/middlewares/upload";
+import logger from "src/utils/logger";
 
 export class ParentServiceError extends Error {
-    constructor(message: string, public readonly statusCode: number) {
-        super(message)
-        this.name = 'ParentServiceError'
-    }
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "ParentServiceError";
+  }
 }
 
-const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+/* ------------------------------ Helpers ------------------------------ */
 
-const pruneUndefined = <T>(value: T): T => {
-    if (Array.isArray(value)) {
-        const arrayValue = value as unknown[]
-        const cleaned: unknown[] = arrayValue
-            .map((item) => pruneUndefined(item))
-            .filter((item) => item !== undefined)
-        return cleaned as unknown as T
-    }
+const ensureMongoId = (id: string): Types.ObjectId => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new ParentServiceError("Invalid identifier.", 400);
+  }
+  return new Types.ObjectId(id);
+};
 
-    if (value && typeof value === 'object') {
-        if (value instanceof Date) {
-            return value
-        }
+/** Convert Mongo → Domain → FHIR DTO */
+const toFHIR = (doc: ParentDocument) => {
+  const json = doc.toObject();
 
-        const record = value as Record<string, unknown>
-        const cleanedRecord: Record<string, unknown> = {}
+  const parent: Parent = {
+    id: json._id.toString(),
+    firstName: json.firstName,
+    lastName: json.lastName,
+    birthDate: json.birthDate ?? undefined,
+    email: json.email,
+    phoneNumber: json.phoneNumber,
+    currency: json.currency,
+    profileImageUrl: json.profileImageUrl,
+    isProfileComplete: json.isProfileComplete ?? false,
+    linkedUserId: json.linkedUserId?.toString() ?? null,
+    createdFrom: json.createdFrom,
+    address: json.address ?? undefined,
+    createdAt: json.createdAt,
+    updatedAt: json.updatedAt,
+  };
 
-        for (const [key, entryValue] of Object.entries(record)) {
-            const next = pruneUndefined(entryValue)
+  return toParentResponseDTO(parent);
+};
 
-            if (next !== undefined) {
-                cleanedRecord[key] = next
-            }
-        }
+const computeProfileCompletion = (p: ParentMongo | ParentDocument) => {
+  return Boolean(
+    p.firstName &&
+      p.lastName &&
+      p.email &&
+      p.phoneNumber &&
+      p.birthDate &&
+      p.address,
+  );
+};
 
-        return cleanedRecord as unknown as T
-    }
+/** Convert FHIR DTO → persistable Mongo object */
+const toPersistable = (dto: ParentRequestDTO): ParentMongo => {
+  const parent = fromParentRequestDTO(dto);
 
-    return value
-}
+  if (!parent.email) {
+    throw new ParentServiceError("Parent email is required.", 400);
+  }
 
-const requireSafeString = (value: unknown, fieldName: string): string => {
-    if (!isNonEmptyString(value)) {
-        throw new ParentServiceError(`${fieldName} is required.`, 400)
-    }
+  return {
+    firstName: parent.firstName,
+    lastName: parent.lastName,
+    birthDate: parent.birthDate,
+    email: parent.email.toLowerCase(),
+    phoneNumber: parent.phoneNumber,
+    currency: parent.currency,
+    profileImageUrl: parent.profileImageUrl,
+    createdFrom: parent.createdFrom,
+    linkedUserId: parent.linkedUserId
+      ? new Types.ObjectId(parent.linkedUserId)
+      : null,
+    address: parent.address,
+  };
+};
 
-    const trimmed = value.trim()
+/* ------------------------------ Context Types ------------------------------ */
 
-    if (!trimmed) {
-        throw new ParentServiceError(`${fieldName} cannot be empty.`, 400)
-    }
+export type ParentCreateContext = {
+  source: "mobile" | "pms" | "invited";
+  authUserId?: string; // only mobile has this
+};
 
-    if (trimmed.includes('$')) {
-        throw new ParentServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
+export type ParentUpdateContext = ParentCreateContext;
+export type ParentGetContext = ParentCreateContext;
+export type ParentDeleteContext = ParentCreateContext;
 
-    return trimmed
-}
-
-const optionalSafeString = (value: unknown, fieldName: string): string | undefined => {
-    if (value == null) {
-        return undefined
-    }
-
-    if (typeof value !== 'string') {
-        throw new ParentServiceError(`${fieldName} must be a string.`, 400)
-    }
-
-    const trimmed = value.trim()
-
-    if (!trimmed) {
-        return undefined
-    }
-
-    if (trimmed.includes('$')) {
-        throw new ParentServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
-
-    return trimmed
-}
-
-const ensureSafeIdentifier = (value: unknown): string | undefined => {
-    const identifier = optionalSafeString(value, 'Identifier')
-
-    if (!identifier) {
-        return undefined
-    }
-
-    if (!Types.ObjectId.isValid(identifier) && !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
-        throw new ParentServiceError('Invalid identifier format.', 400)
-    }
-
-    return identifier
-}
-
-const sanitizeParentAttributes = (dto: ParentDTOAttributesType): ParentMongo => {
-    const firstName = requireSafeString(dto.firstName, 'Parent first name')
-
-    if (typeof dto.age !== 'number') {
-        throw new ParentServiceError('Parent age is required.', 400)
-    }
-
-    const addressDto = dto.address
-
-    if (!addressDto) {
-        throw new ParentServiceError('Parent address is required.', 400)
-    }
-
-    const address: ParentMongo['address'] = {
-        addressLine: optionalSafeString(addressDto.addressLine, 'Parent address line'),
-        country: optionalSafeString(addressDto.country, 'Parent country'),
-        city: optionalSafeString(addressDto.city, 'Parent city'),
-        state: optionalSafeString(addressDto.state, 'Parent state'),
-        postalCode: optionalSafeString(addressDto.postalCode, 'Parent postal code'),
-        latitude: addressDto.latitude,
-        longitude: addressDto.longitude,
-    }
-
-    return {
-        fhirId: ensureSafeIdentifier(dto._id),
-        firstName,
-        lastName: optionalSafeString(dto.lastName, 'Parent last name'),
-        age: dto.age,
-        address,
-        phoneNumber: optionalSafeString(dto.phoneNumber, 'Parent phone number'),
-        profileImageUrl: optionalSafeString(dto.profileImageUrl, 'Parent profile image URL'),
-        birthDate: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-    }
-}
-
-const isAddressComplete = (address: ParentAddress): boolean => {
-    const requiredFields: Array<keyof ParentAddress> = ['addressLine', 'city', 'state', 'postalCode', 'country']
-
-    return requiredFields.every((field) => isNonEmptyString(address[field]))
-}
-
-const determineProfileCompletion = (parent: Parent): boolean => {
-    const { firstName, age, phoneNumber, profileImageUrl, address } = parent
-
-    return (
-        isNonEmptyString(firstName) &&
-        typeof age === 'number' &&
-        age > 0 &&
-        isAddressComplete(address) &&
-        isNonEmptyString(phoneNumber) &&
-        isNonEmptyString(profileImageUrl)
-    )
-}
-
-const buildParentDomain = (document: ParentDocument): Parent => {
-    const { _id, fhirId, ...rest } = document.toObject({ virtuals: false }) as ParentMongo & {
-        _id: Types.ObjectId
-    }
-
-    const address: ParentAddress = {
-        addressLine: rest.address?.addressLine,
-        country: rest.address?.country,
-        city: rest.address?.city,
-        state: rest.address?.state,
-        postalCode: rest.address?.postalCode,
-        latitude: rest.address?.latitude,
-        longitude: rest.address?.longitude,
-    }
-
-    const parent: Parent = {
-        _id: fhirId ?? _id.toString(),
-        firstName: rest.firstName,
-        lastName: rest.lastName,
-        age: rest.age,
-        address,
-        phoneNumber: rest.phoneNumber,
-        profileImageUrl: rest.profileImageUrl,
-        birthDate: rest.birthDate,
-    }
-
-    parent.isProfileComplete = determineProfileCompletion(parent)
-
-    return parent
-}
-
-const createPersistableFromFHIR = (payload: ParentRequestDTO) => {
-    if (payload?.resourceType !== 'RelatedPerson') {
-        throw new ParentServiceError('Invalid payload. Expected FHIR RelatedPerson resource.', 400)
-    }
-
-    const attributes = fromParentRequestDTO(payload)
-    const persistable = pruneUndefined(sanitizeParentAttributes(attributes))
-
-    return { persistable }
-}
-
-const resolveIdQuery = (id: string) => {
-    const safeId = ensureSafeIdentifier(id)
-
-    if (!safeId) {
-        throw new ParentServiceError('Invalid parent identifier.', 400)
-    }
-
-    return Types.ObjectId.isValid(safeId) ? { _id: safeId } : { fhirId: safeId }
-}
+/* ---------------------------- Main Service ---------------------------- */
 
 export const ParentService = {
-    async create(payload: ParentRequestDTO) {
-        const { persistable } = createPersistableFromFHIR(payload)
+  /* -------------------------- CREATE -------------------------- */
+  async create(dto: ParentRequestDTO, ctx: ParentCreateContext) {
+    const persistable = toPersistable(dto);
+    // Override createdFrom based on who is creating this Parent
+    persistable.createdFrom = ctx.source;
 
-        const document = await ParentModel.create(persistable)
-        const parent = buildParentDomain(document)
-        const response = toParentResponseDTO(parent)
+    // Only MOBILE parents have AuthUser → linkedUserId is required
+    if (ctx.source === "mobile") {
+      if (!ctx.authUserId) {
+        throw new ParentServiceError("Authenticated user ID required.", 401);
+      }
+      persistable.linkedUserId =
+        await AuthUserMobileService.getAuthUserMobileIdByProviderId(
+          ctx.authUserId,
+        );
+    }
 
-        return {
-            response,
-            isProfileComplete: parent.isProfileComplete ?? false,
-        }
-    },
+    // PMS or invited parent → no linkedUserId
+    if (ctx.source !== "mobile") {
+      persistable.linkedUserId = null;
+    }
 
-    async getById(id: string) {
-        const document = await ParentModel.findOne(resolveIdQuery(id))
+    // Prevent duplicate parent for this AuthUser
+    if (persistable.linkedUserId) {
+      const exists = await ParentModel.findOne({
+        linkedUserId: persistable.linkedUserId,
+      });
+      if (exists) {
+        throw new ParentServiceError(
+          "Parent already exists for this user.",
+          409,
+        );
+      }
+    }
 
-        if (!document) {
-            return null
-        }
+    const doc = await ParentModel.create(persistable);
 
-        const parent = buildParentDomain(document)
-        return {
-            response: toParentResponseDTO(parent),
-            isProfileComplete: parent.isProfileComplete ?? false,
-        }
-    },
+    // Calculate profile completion
+    doc.isProfileComplete = computeProfileCompletion(doc);
 
-    async update(id: string, payload: ParentRequestDTO) {
-        const { persistable } = createPersistableFromFHIR(payload)
-        const document = await ParentModel.findOneAndUpdate(
-            resolveIdQuery(id),
-            { $set: persistable },
-            { new: true, sanitizeFilter: true }
-        )
+    // Move Image to permenant location
+    if (persistable.profileImageUrl) {
+      try {
+        const finalKey = buildS3Key("parent", doc._id.toString(), "image/jpg");
+        const profileUrl = await moveFile(
+          persistable.profileImageUrl,
+          finalKey,
+        );
+        doc.profileImageUrl = profileUrl;
+      } catch (error) {
+        logger.warn("Invalid key has been sent", error);
+      }
+    }
 
-        if (!document) {
-            return null
-        }
+    await doc.save();
 
-        const parent = buildParentDomain(document)
-        return {
-            response: toParentResponseDTO(parent),
-            isProfileComplete: parent.isProfileComplete ?? false,
-        }
-    },
-}
+    const parentId = doc._id.toString();
+
+    if (ctx.source === "mobile" && ctx.authUserId) {
+      await AuthUserMobileService.linkParent(ctx.authUserId, parentId);
+    }
+    return {
+      response: toFHIR(doc),
+      isProfileComplete: doc.isProfileComplete ?? false,
+    };
+  },
+
+  /* -------------------------- GET -------------------------- */
+  async get(id: string, ctx?: ParentGetContext) {
+    const mongoId = ensureMongoId(id);
+
+    const query: FilterQuery<ParentMongo> = { _id: mongoId };
+
+    // Mobile user may only access their own parent record
+    if (ctx?.source === "mobile" && ctx?.authUserId) {
+      query.linkedUserId =
+        await AuthUserMobileService.getAuthUserMobileIdByProviderId(
+          ctx.authUserId,
+        );
+    }
+
+    const doc = await ParentModel.findOne(query);
+    if (!doc) return null;
+
+    return {
+      response: toFHIR(doc),
+      isProfileComplete: doc.isProfileComplete ?? false,
+    };
+  },
+
+  /* -------------------------- UPDATE -------------------------- */
+  async update(id: string, dto: ParentRequestDTO, ctx?: ParentUpdateContext) {
+    const mongoId = ensureMongoId(id);
+    const persistable = toPersistable(dto);
+
+    const query: FilterQuery<ParentMongo> = { _id: mongoId };
+
+    let linkedUserId: Types.ObjectId | null | undefined =
+      persistable.linkedUserId;
+
+    if (ctx?.source === "mobile" && ctx.authUserId) {
+      linkedUserId =
+        await AuthUserMobileService.getAuthUserMobileIdByProviderId(
+          ctx.authUserId,
+        );
+      query.linkedUserId = linkedUserId ?? undefined;
+    }
+
+    persistable.linkedUserId = linkedUserId ?? null;
+
+    const doc = await ParentModel.findOneAndUpdate(
+      query,
+      { $set: persistable },
+      { new: true, sanitizeFilter: true },
+    );
+
+    if (!doc) return null;
+
+    // Always recalc profile completion after any update
+    doc.isProfileComplete = computeProfileCompletion(doc);
+    await doc.save();
+
+    return {
+      response: toFHIR(doc),
+      isProfileComplete: doc.isProfileComplete ?? false,
+    };
+  },
+
+  /* -------------------------- DELETE -------------------------- */
+  async delete(id: string, ctx: ParentDeleteContext) {
+    const mongoId = ensureMongoId(id);
+
+    const query: FilterQuery<ParentMongo> = { _id: mongoId };
+
+    if (ctx.source === "mobile") {
+      if (!ctx.authUserId) {
+        throw new ParentServiceError("Authenticated user ID required.", 401);
+      }
+      query.linkedUserId =
+        await AuthUserMobileService.getAuthUserMobileIdByProviderId(
+          ctx.authUserId,
+        );
+    }
+
+    const doc = await ParentModel.findOneAndDelete(query);
+    if (!doc) return null;
+
+    return toFHIR(doc);
+  },
+
+  /* -------------------- Helpers -------------------- */
+  async findByLinkedUserId(authUserId: string) {
+    if (!authUserId) {
+      throw new ParentServiceError("Invalid AuthUser ID.", 400);
+    }
+    const authUserMobileId =
+      await AuthUserMobileService.getAuthUserMobileIdByProviderId(authUserId);
+    return ParentModel.findOne({
+      linkedUserId: new Types.ObjectId(authUserMobileId?.toString()),
+    });
+  },
+
+  async findByMongoId(id: string) {
+    const mongoId = ensureMongoId(id);
+    return ParentModel.findById(mongoId);
+  },
+
+  async getByName(name: string) {
+    if (!name || typeof name !== "string") {
+      throw new ParentServiceError("Name is required for searching.", 400);
+    }
+
+    const searchRegex = new RegExp(name.trim(), "i");
+
+    const documents = await ParentModel.find({
+      name: searchRegex,
+    });
+
+    return {
+      responses: documents.map(toFHIR),
+    };
+  },
+};

@@ -1,6 +1,7 @@
 export * from "./Address"
 export * from"./Age"
 export * from "./BackboneElement"
+export * from "./Appointment"
 export * from "./CodeableConcept"
 export * from "./Coding"
 export * from "./Count"
