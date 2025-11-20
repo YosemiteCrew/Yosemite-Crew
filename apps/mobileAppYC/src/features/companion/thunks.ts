@@ -7,6 +7,22 @@ import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
 
 const buildStorageKey = (parentId: string) => `companions_${parentId}`;
 
+const normalizeCompanion = (companion: any): Companion => {
+  const fallbackId =
+    companion?.id ??
+    companion?._id ??
+    companion?.companionId ??
+    companion?.userId ??
+    companion?.identifier?.[0]?.value ??
+    companion?.name ??
+    '';
+
+  return {
+    ...companion,
+    id: fallbackId,
+  } as Companion;
+};
+
 const readCompanionsFromStorage = async (parentId: string): Promise<Companion[]> => {
   const key = buildStorageKey(parentId);
   const stored = await AsyncStorage.getItem(key);
@@ -16,7 +32,8 @@ const readCompanionsFromStorage = async (parentId: string): Promise<Companion[]>
   }
 
   try {
-    return JSON.parse(stored) as Companion[];
+    const parsed = JSON.parse(stored) as Companion[];
+    return parsed.map(normalizeCompanion);
   } catch (error) {
     console.warn('[Companion] Failed to parse companions from storage', error);
     if (error instanceof Error) {
@@ -56,8 +73,9 @@ export const fetchCompanions = createAsyncThunk<
       parentId,
       accessToken,
     });
-    await writeCompanionsToStorage(parentId, remoteCompanions);
-    return remoteCompanions;
+    const normalized = remoteCompanions.map(normalizeCompanion);
+    await writeCompanionsToStorage(parentId, normalized);
+    return normalized;
   } catch (error) {
     console.warn('[Companion] Remote fetch failed, attempting cached data', error);
     try {
@@ -82,7 +100,9 @@ export const addCompanion = createAsyncThunk<
 >('companion/addCompanion', async ({parentId, payload}, {rejectWithValue}) => {
   try {
     const accessToken = await ensureAccessToken();
-    const created = await companionApi.create({parentId, payload, accessToken});
+    const created = normalizeCompanion(
+      await companionApi.create({parentId, payload, accessToken}),
+    );
     const companions = await readCompanionsFromStorage(parentId);
     companions.push(created);
     await writeCompanionsToStorage(parentId, companions);
@@ -102,10 +122,10 @@ export const updateCompanionProfile = createAsyncThunk<
 >('companion/updateCompanion', async ({parentId, updatedCompanion}, {rejectWithValue}) => {
   try {
     const accessToken = await ensureAccessToken();
-    const updated = await companionApi.update({
+    const updated = normalizeCompanion(await companionApi.update({
       companion: updatedCompanion,
       accessToken,
-    });
+    }));
 
     const companions = await readCompanionsFromStorage(parentId);
     const index = companions.findIndex(c => c.id === updated.id);
