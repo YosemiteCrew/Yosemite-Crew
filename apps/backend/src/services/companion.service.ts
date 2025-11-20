@@ -1,285 +1,331 @@
-import { Types } from 'mongoose'
-import CompanionModel, { CompanionDocument, type CompanionMongo } from '../models/companion'
+import { Types } from "mongoose";
+import CompanionModel, {
+  type CompanionDocument,
+  type CompanionMongo,
+} from "../models/companion";
+
 import {
-    fromCompanionRequestDTO,
-    toCompanionResponseDTO,
-    type Companion,
-    type CompanionRequestDTO,
-    type CompanionDTOAttributes,
-    type CompanionType,
-    type Gender,
-    type RecordStatus,
-    type SourceType,
-} from '@yosemite-crew/types'
+  fromCompanionRequestDTO,
+  toCompanionResponseDTO,
+  type CompanionRequestDTO,
+  type Companion,
+  type CompanionType,
+  type Gender,
+  type RecordStatus,
+  type SourceType,
+} from "@yosemite-crew/types";
+
+import {
+  ParentCompanionService,
+  ParentCompanionServiceError,
+} from "./parent-companion.service";
+import { ParentService } from "./parent.service";
+import { buildS3Key, moveFile } from "src/middlewares/upload";
+import logger from "src/utils/logger";
 
 export class CompanionServiceError extends Error {
-    constructor(message: string, public readonly statusCode: number) {
-        super(message)
-        this.name = 'CompanionServiceError'
-    }
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "CompanionServiceError";
+  }
 }
 
-const COMPANION_TYPES: CompanionType[] = ['dog', 'cat', 'horse', 'other']
-const RECORD_STATUSES: RecordStatus[] = ['active', 'archived', 'deleted']
-const SOURCE_TYPES: SourceType[] = ['shop', 'breeder', 'foster_shelter', 'friends_family', 'unknown']
-const GENDERS: Gender[] = ['male', 'female', 'unknown']
+/**
+ * FHIR DTO → persistable Mongo object
+ */
+const toPersistable = (payload: CompanionRequestDTO): CompanionMongo => {
+  const companion = fromCompanionRequestDTO(payload);
 
-const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+  return {
+    name: companion.name,
+    type: companion.type,
+    breed: companion.breed ?? "",
+    dateOfBirth: companion.dateOfBirth,
+    gender: companion.gender,
+    photoUrl: companion.photoUrl,
+    currentWeight: companion.currentWeight,
+    colour: companion.colour,
+    allergy: companion.allergy,
+    bloodGroup: companion.bloodGroup,
+    isNeutered: companion.isneutered,
+    ageWhenNeutered: companion.ageWhenNeutered,
+    microchipNumber: companion.microchipNumber,
+    passportNumber: companion.passportNumber,
+    isInsured: companion.isInsured ?? false,
+    insurance: companion.insurance ?? null,
+    countryOfOrigin: companion.countryOfOrigin,
+    source: companion.source,
+    status: companion.status,
+    physicalAttribute: companion.physicalAttribute,
+    breedingInfo: companion.breedingInfo,
+    medicalRecords: companion.medicalRecords,
+    // isProfileComplete is set in service logic below
+  };
+};
 
-const pruneUndefined = <T>(value: T): T => {
-    if (Array.isArray(value)) {
-        const arrayValue = value as unknown[]
-        const cleaned: unknown[] = arrayValue
-            .map((item) => pruneUndefined(item))
-            .filter((item) => item !== undefined)
-        return cleaned as unknown as T
-    }
+/**
+ * Mongo → Companion → FHIR DTO
+ */
+const toFHIR = (doc: CompanionDocument) => {
+  const plain = doc.toObject() as CompanionMongo & {
+    _id: Types.ObjectId;
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
 
-    if (value && typeof value === 'object') {
-        if (value instanceof Date) {
-            return value
-        }
+  const companion: Companion = {
+    id: plain._id.toString(),
+    name: plain.name,
+    type: plain.type as CompanionType,
+    breed: plain.breed ?? "",
+    dateOfBirth: plain.dateOfBirth,
+    gender: plain.gender as Gender,
+    photoUrl: plain.photoUrl,
+    currentWeight: plain.currentWeight,
+    colour: plain.colour,
+    allergy: plain.allergy,
+    bloodGroup: plain.bloodGroup,
+    isneutered: plain.isNeutered,
+    ageWhenNeutered: plain.ageWhenNeutered,
+    microchipNumber: plain.microchipNumber,
+    passportNumber: plain.passportNumber,
+    isInsured: plain.isInsured ?? false,
+    insurance: plain.insurance ?? undefined,
+    countryOfOrigin: plain.countryOfOrigin,
+    source: plain.source as SourceType | undefined,
+    status: plain.status as RecordStatus | undefined,
+    physicalAttribute: plain.physicalAttribute,
+    breedingInfo: plain.breedingInfo,
+    medicalRecords: plain.medicalRecords,
+    isProfileComplete: plain.isProfileComplete,
+    createdAt: plain.createdAt!,
+    updatedAt: plain.updatedAt!,
+  };
 
-        const record = value as Record<string, unknown>
-        const cleanedRecord: Record<string, unknown> = {}
+  return toCompanionResponseDTO(companion);
+};
 
-        for (const [key, entryValue] of Object.entries(record)) {
-            const next = pruneUndefined(entryValue)
+/**
+ * Required fields for profile completion
+ */
+const REQUIRED_PROFILE_FIELDS: (keyof CompanionMongo)[] = [
+  "name",
+  "type",
+  "breed",
+  "dateOfBirth",
+  "gender",
+  "status",
+];
 
-            if (next !== undefined) {
-                cleanedRecord[key] = next
-            }
-        }
+/**
+ * Backend-only logic for determining if profile is complete
+ */
+const computeIsProfileComplete = (
+  companion: Partial<CompanionMongo>,
+): boolean => {
+  return REQUIRED_PROFILE_FIELDS.every((field) => {
+    const value = companion[field];
+    return value !== undefined && value !== null && value !== "";
+  });
+};
 
-        return cleanedRecord as unknown as T
-    }
-
-    return value
-}
-
-const requireSafeString = (value: unknown, fieldName: string): string => {
-    if (!isNonEmptyString(value)) {
-        throw new CompanionServiceError(`${fieldName} is required.`, 400)
-    }
-
-    const trimmed = value.trim()
-
-    if (!trimmed) {
-        throw new CompanionServiceError(`${fieldName} cannot be empty.`, 400)
-    }
-
-    if (trimmed.includes('$')) {
-        throw new CompanionServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
-
-    return trimmed
-}
-
-const optionalSafeString = (value: unknown, fieldName: string): string | undefined => {
-    if (value == null) {
-        return undefined
-    }
-
-    if (typeof value !== 'string') {
-        throw new CompanionServiceError(`${fieldName} must be a string.`, 400)
-    }
-
-    const trimmed = value.trim()
-
-    if (!trimmed) {
-        return undefined
-    }
-
-    if (trimmed.includes('$')) {
-        throw new CompanionServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
-
-    return trimmed
-}
-
-const optionalNumber = (value: unknown, fieldName: string): number | undefined => {
-    if (value == null) {
-        return undefined
-    }
-
-    if (typeof value !== 'number' || Number.isNaN(value)) {
-        throw new CompanionServiceError(`${fieldName} must be a number.`, 400)
-    }
-
-    return value
-}
-
-const ensureSafeIdentifier = (value: unknown): string | undefined => {
-    const identifier = optionalSafeString(value, 'Identifier')
-
-    if (!identifier) {
-        return undefined
-    }
-
-    if (!Types.ObjectId.isValid(identifier) && !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
-        throw new CompanionServiceError('Invalid identifier format.', 400)
-    }
-
-    return identifier
-}
-
-const ensureAllowedValue = <T extends string>(value: string | undefined, allowed: readonly T[], field: string): T | undefined => {
-    if (value == null) {
-        return undefined
-    }
-
-    if (!allowed.includes(value as T)) {
-        throw new CompanionServiceError(`Invalid ${field}.`, 400)
-    }
-
-    return value as T
-}
-
-const toDateOrThrow = (value: unknown, field: string): Date => {
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-        throw new CompanionServiceError(`${field} is required and must be a valid date.`, 400)
-    }
-
-    return value
-}
-
-const sanitizeCompanionAttributes = (dto: CompanionDTOAttributes): CompanionMongo => {
-    const name = requireSafeString(dto.name, 'Companion name')
-    const typeValue = requireSafeString(dto.type, 'Companion type')
-    const type = ensureAllowedValue(typeValue as CompanionType, COMPANION_TYPES, 'companion type')!
-    const genderValue = requireSafeString(dto.gender, 'Companion gender')
-    const gender = ensureAllowedValue(genderValue as Gender, GENDERS, 'companion gender')!
-
-    const statusValue = optionalSafeString(dto.status, 'Companion status')
-    const status = ensureAllowedValue(statusValue as RecordStatus | undefined, RECORD_STATUSES, 'companion status')
-    const sourceValue = optionalSafeString(dto.source, 'Companion source')
-    const source = ensureAllowedValue(sourceValue as SourceType | undefined, SOURCE_TYPES, 'companion source')
-
-    const isNeutered = typeof dto.isneutered === 'boolean' ? dto.isneutered : undefined
-    const dateOfBirth = toDateOrThrow(dto.dateOfBirth, 'Companion date of birth')
-
-    const isInsured = typeof dto.isInsured === 'boolean' ? dto.isInsured : false
-
-    return {
-        fhirId: ensureSafeIdentifier(dto._id),
-        name,
-        type,
-        breed: optionalSafeString(dto.breed, 'Companion breed'),
-        dateOfBirth,
-        gender,
-        photoUrl: optionalSafeString(dto.photoUrl, 'Companion photo URL'),
-        currentWeight: optionalNumber(dto.currentWeight, 'Companion current weight'),
-        colour: optionalSafeString(dto.colour, 'Companion colour'),
-        allergy: optionalSafeString(dto.allergy, 'Companion allergy'),
-        bloodGroup: optionalSafeString(dto.bloodGroup, 'Companion blood group'),
-        isNeutered,
-        ageWhenNeutered: optionalSafeString(dto.ageWhenNeutered, 'Companion age when neutered'),
-        microchipNumber: optionalSafeString(dto.microchipNumber, 'Companion microchip number'),
-        passportNumber: optionalSafeString(dto.passportNumber, 'Companion passport number'),
-        isInsured,
-        insurance: null,
-        countryOfOrigin: optionalSafeString(dto.countryOfOrigin, 'Companion country of origin'),
-        source,
-        status,
-    }
-}
-
-const buildCompanionDomain = (document: CompanionDocument): Companion => {
-    const plain = document.toObject({ virtuals: false }) as CompanionMongo & {
-        _id: Types.ObjectId
-        createdAt?: Date
-        updatedAt?: Date
-    }
-
-    if (!plain.createdAt || !plain.updatedAt) {
-        throw new Error('Companion document is missing timestamps')
-    }
-
-    const { _id, fhirId, createdAt, updatedAt, ...rest } = plain
-
-    return {
-        _id: fhirId ?? _id.toString(),
-        name: rest.name,
-        type: rest.type as CompanionType,
-        breed: rest.breed ?? '',
-        dateOfBirth: rest.dateOfBirth ?? createdAt,
-        gender: rest.gender as Gender,
-        photoUrl: rest.photoUrl,
-        currentWeight: rest.currentWeight,
-        colour: rest.colour,
-        allergy: rest.allergy,
-        bloodGroup: rest.bloodGroup,
-        isneutered: rest.isNeutered,
-        ageWhenNeutered: rest.ageWhenNeutered,
-        microchipNumber: rest.microchipNumber,
-        passportNumber: rest.passportNumber,
-        isInsured: rest.isInsured ?? false,
-        countryOfOrigin: rest.countryOfOrigin,
-        source: rest.source as SourceType | undefined,
-        status: rest.status as RecordStatus | undefined,
-        createdAt,
-        updatedAt,
-    }
-}
-
-const createPersistableFromFHIR = (payload: CompanionRequestDTO) => {
-    if (!payload || payload.resourceType !== 'Patient') {
-        throw new CompanionServiceError('Invalid payload. Expected FHIR Patient resource.', 400)
-    }
-
-    const attributes = fromCompanionRequestDTO(payload)
-    const persistable = pruneUndefined(sanitizeCompanionAttributes(attributes))
-
-    return { persistable }
-}
-
-const resolveIdQuery = (id: string) => {
-    const safeId = ensureSafeIdentifier(id)
-
-    if (!safeId) {
-        throw new CompanionServiceError('Invalid companion identifier.', 400)
-    }
-
-    return Types.ObjectId.isValid(safeId) ? { _id: safeId } : { fhirId: safeId }
-}
+type CompanionCreateContext = {
+  authUserId?: string;
+  parentMongoId?: Types.ObjectId;
+};
 
 export const CompanionService = {
-    async create(payload: CompanionRequestDTO) {
-        const { persistable } = createPersistableFromFHIR(payload)
+  async create(payload: CompanionRequestDTO, context?: CompanionCreateContext) {
+    if (!context) {
+      throw new CompanionServiceError(
+        "Parent context is required to create a companion.",
+        400,
+      );
+    }
 
-        const document = await CompanionModel.create(persistable)
-        const companion = buildCompanionDomain(document)
-        const response = toCompanionResponseDTO(companion)
+    let parentMongoId: Types.ObjectId | null = null;
 
-        return {
-            response,
-        }
-    },
+    // Mobile flow → use linkedUserId to get parent
+    if (context.authUserId) {
+      const parent = await ParentService.findByLinkedUserId(context.authUserId);
 
-    async getById(id: string) {
-        const document = await CompanionModel.findOne(resolveIdQuery(id))
+      if (!parent) {
+        throw new CompanionServiceError(
+          "Parent record not found for authenticated user.",
+          403,
+        );
+      }
+      parentMongoId = parent._id;
+    }
 
-        if (!document) {
-            return null
-        }
+    // PMS flow → provided directly by PMS backend
+    if (!parentMongoId && context.parentMongoId) {
+      parentMongoId = context.parentMongoId;
+    }
 
-        const companion = buildCompanionDomain(document)
-        return {
-            response: toCompanionResponseDTO(companion),
-        }
-    },
+    // If still missing → invalid request
+    if (!parentMongoId) {
+      throw new CompanionServiceError(
+        "Unable to determine parent for companion creation.",
+        400,
+      );
+    }
+    const persistable = toPersistable(payload);
+    persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
-    async update(id: string, payload: CompanionRequestDTO) {
-        const { persistable } = createPersistableFromFHIR(payload)
-        const document = await CompanionModel.findOneAndUpdate(resolveIdQuery(id), { $set: persistable }, { new: true, sanitizeFilter: true })
+    let document: CompanionDocument | null = null;
 
-        if (!document) {
-            return null
-        }
+    try {
+      document = await CompanionModel.create(persistable);
 
-        const companion = buildCompanionDomain(document)
-        return {
-            response: toCompanionResponseDTO(companion),
-        }
-    },
-}
+      await ParentCompanionService.linkParent({
+        parentId: parentMongoId,
+        companionId: document._id,
+        role: "PRIMARY",
+      });
+
+      if (persistable.photoUrl) {
+        const finalKey = buildS3Key(
+          "companion",
+          document._id.toString(),
+          "image/jpg",
+        );
+        const profileUrl = await moveFile(persistable.photoUrl, finalKey);
+        document.photoUrl = profileUrl;
+        await document.save();
+      }
+
+      return { response: toFHIR(document) };
+    } catch (error) {
+      // rollback if linking fails
+      if (document) {
+        await CompanionModel.deleteOne({ _id: document._id });
+      }
+
+      if (error instanceof ParentCompanionServiceError) {
+        throw new CompanionServiceError(error.message, error.statusCode);
+      }
+
+      throw error;
+    }
+  },
+
+  async listByParent(parentId: string) {
+    if (!Types.ObjectId.isValid(parentId))
+      throw new CompanionServiceError("Invalid Parent Document Id", 400);
+
+    const parentDocId = new Types.ObjectId(parentId);
+
+    const companionIds =
+      await ParentCompanionService.getActiveCompanionIdsForParent(parentDocId);
+
+    if (!companionIds.length) return { responses: [] };
+
+    const documents = await CompanionModel.find({ _id: { $in: companionIds } });
+
+    return { responses: documents.map(toFHIR) };
+  },
+
+  async getById(id: string) {
+    if (!Types.ObjectId.isValid(id)) return null;
+
+    const document = await CompanionModel.findById(id);
+
+    if (!document) return null;
+
+    return { response: toFHIR(document) };
+  },
+
+  async getByName(name: string) {
+    if (!name || typeof name !== "string") {
+      throw new CompanionServiceError("Name is required for searching.", 400);
+    }
+
+    const searchRegex = new RegExp(name.trim(), "i");
+    logger.info(`searchRegex: ${searchRegex}`);
+    const documents = await CompanionModel.find({
+      name: searchRegex,
+    });
+
+    return {
+      responses: documents.map(toFHIR),
+    };
+  },
+
+  /**
+   * UPDATE companion (partial FHIR update)
+   */
+  async update(id: string, payload: CompanionRequestDTO) {
+    if (!Types.ObjectId.isValid(id)) return null;
+
+    const persistable = toPersistable(payload);
+
+    // Backend-only recomputation
+    persistable.isProfileComplete = computeIsProfileComplete(persistable);
+
+    const document = await CompanionModel.findByIdAndUpdate(
+      id,
+      { $set: persistable },
+      { new: true, sanitizeFilter: true },
+    );
+
+    if (!document) return null;
+
+    return { response: toFHIR(document) };
+  },
+
+  /**
+   * DELETE companion
+   */
+  async delete(id: string, context?: CompanionCreateContext) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new CompanionServiceError("Invalid companion identifier.", 400);
+    }
+
+    // MUST come from mobile → require authUserId
+    if (!context?.authUserId) {
+      throw new CompanionServiceError(
+        "Authenticated user is required to delete a companion.",
+        401,
+      );
+    }
+
+    // Resolve parent from authUserId
+    const parent = await ParentService.findByLinkedUserId(context.authUserId);
+    if (!parent) {
+      throw new CompanionServiceError(
+        "Parent record not found for authenticated user.",
+        403,
+      );
+    }
+
+    const parentMongoId = parent._id;
+
+    try {
+      const document = await CompanionModel.findById(id);
+      if (!document) {
+        throw new CompanionServiceError("Companion not found.", 404);
+      }
+
+      // Ensure parent has permission
+      await ParentCompanionService.ensurePrimaryOwnership(
+        parentMongoId,
+        document._id,
+      );
+
+      // Remove links
+      await ParentCompanionService.deleteLinksForCompanion(document._id);
+
+      // Remove resource
+      await CompanionModel.deleteOne({ _id: document._id });
+    } catch (error) {
+      if (error instanceof ParentCompanionServiceError) {
+        throw new CompanionServiceError(error.message, error.statusCode);
+      }
+      throw error;
+    }
+  },
+};
