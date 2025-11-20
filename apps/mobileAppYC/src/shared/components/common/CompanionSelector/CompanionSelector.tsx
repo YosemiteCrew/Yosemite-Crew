@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 export interface CompanionBase {
   id?: string;
@@ -65,6 +66,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     } else if (companion.taskCount !== undefined) {
       badgeText = `${companion.taskCount} Tasks`;
     }
+    const avatarUri = normalizeImageUri(companion.profileImage ?? null);
 
     return (
       <TouchableOpacity
@@ -79,9 +81,9 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
               isSelected && styles.companionAvatarRingSelected,
               isSelected && {transform: [{scale: 1.08}]},
             ]}>
-            {companion.profileImage && companionId && !failedImages[companionId] ? (
+            {avatarUri && companionId && !failedImages[companionId] ? (
               <Image
-                source={{uri: companion.profileImage}}
+                source={{uri: avatarUri}}
                 style={styles.companionAvatar}
                 onError={() => handleImageError(companionId)}
               />

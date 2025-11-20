@@ -37,6 +37,7 @@ import {
   deleteAmplifyAccount,
   deleteFirebaseAccount,
 } from '@/features/auth/services/accountDeletion';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -101,7 +102,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   const profiles = React.useMemo<CompanionProfile[]>(() => {
     const pluralSuffix = companionsFromStore.length === 1 ? '' : 's';
-    const userRemoteUri = authUser?.profilePicture ?? authUser?.profileToken ?? null;
+    const userRemoteUri = normalizeImageUri(
+      authUser?.profilePicture ?? authUser?.profileToken ?? null,
+    );
     // 1. User's Profile (Primary)
     const userProfile: CompanionProfile = {
       id: 'primary',
@@ -129,7 +132,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           companion.currentWeight ? `${companion.currentWeight} kgs` : null,
         ].filter(Boolean) as string[];
 
-        const remoteUri = companion.profileImage ?? null;
+        const remoteUri = normalizeImageUri(companion.profileImage ?? null);
 
         return {
           id: companion.id,

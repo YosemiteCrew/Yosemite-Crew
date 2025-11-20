@@ -19,6 +19,7 @@ import {
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { useTheme } from '@/hooks';
 import { Images } from '@/assets/images';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 interface ProfileImagePickerProps {
   imageUri?: string | null;
@@ -44,6 +45,10 @@ export const ProfileImagePicker = React.forwardRef<
 }, ref) => {
   const { theme } = useTheme();
   const [loadFailed, setLoadFailed] = useState(false);
+  const resolvedImageUri = React.useMemo(
+    () => normalizeImageUri(imageUri ?? null),
+    [imageUri],
+  );
 
   useEffect(() => {
     setLoadFailed(false);
@@ -283,9 +288,9 @@ export const ProfileImagePicker = React.forwardRef<
           },
         ]}
       >
-        {imageUri && !loadFailed ? (
+        {resolvedImageUri && !loadFailed ? (
           <Image
-            source={{ uri: imageUri }}
+            source={{ uri: resolvedImageUri }}
             style={[
               styles.profileImage,
               { width: size, height: size, borderRadius: size / 2 },
