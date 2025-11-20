@@ -346,7 +346,7 @@ const buildBackendCompanion = (input: CompanionInput): BackendCompanion => {
   const hasInsuranceDetails = Boolean(insuranceCompany || insurancePolicyNumber);
 
   return {
-    _id: id,
+    id,
     name,
     type: mapCategoryToType(category),
     breed: breed?.breedName ?? '',
@@ -394,8 +394,16 @@ const mapResponseToAppCompanion = (
       ? normalizeBreedFromName(attributes.breed, category)
       : null;
 
+  const resolvedId =
+    attributes._id ??
+    (response as any).id ??
+    persisted?.id ??
+    attributes.identifier?.[0]?.value ??
+    attributes.name ??
+    '';
+
   return {
-    id: attributes._id ?? persisted?.id ?? '',
+    id: resolvedId,
     userId,
     category,
     name: attributes.name ?? persisted?.name ?? 'Unnamed Companion',

@@ -620,10 +620,10 @@ describe('HomeScreen Component', () => {
     });
     const {getByText} = renderHomeScreen();
     fireEvent.press(getByText('View more'));
-    expect(mockNavigation.navigate).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      'No companion selected to view profile.',
-    );
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('ProfileOverview', {
+      companionId: 'comp-1',
+    });
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
     consoleWarnSpy.mockRestore();
   });
 

@@ -12,7 +12,8 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
 export interface CompanionBase {
-  id: string;
+  id?: string;
+  _id?: string;
   name: string;
   profileImage?: string | null;
   taskCount?: number;
@@ -56,7 +57,8 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
   }, []);
 
   const renderCompanionBadge = (companion: T) => {
-    const isSelected = selectedCompanionId === companion.id;
+    const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+    const isSelected = selectedCompanionId === companionId;
     let badgeText: string | undefined;
     if (getBadgeText) {
       badgeText = getBadgeText(companion);
@@ -66,10 +68,10 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
 
     return (
       <TouchableOpacity
-        key={companion.id}
+        key={companionId}
         style={styles.companionTouchable}
         activeOpacity={0.88}
-        onPress={() => onSelect(companion.id)}>
+        onPress={() => companionId && onSelect(companionId)}>
         <View style={styles.companionItem}>
           <Animated.View
             style={[
@@ -77,11 +79,11 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
               isSelected && styles.companionAvatarRingSelected,
               isSelected && {transform: [{scale: 1.08}]},
             ]}>
-            {companion.profileImage && !failedImages[companion.id] ? (
+            {companion.profileImage && companionId && !failedImages[companionId] ? (
               <Image
                 source={{uri: companion.profileImage}}
                 style={styles.companionAvatar}
-                onError={() => handleImageError(companion.id)}
+                onError={() => handleImageError(companionId)}
               />
             ) : (
               <View style={styles.companionAvatarPlaceholder}>

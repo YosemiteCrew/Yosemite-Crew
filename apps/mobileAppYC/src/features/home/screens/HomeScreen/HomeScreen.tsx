@@ -150,7 +150,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     // If companions exist and no companion is currently selected, select the first one.
     if (companions.length > 0 && !selectedCompanionIdRedux) {
-      dispatch(setSelectedCompanion(companions[0].id));
+      const fallbackId =
+        companions[0]?.id ??
+        (companions[0] as any)?._id ??
+        (companions[0] as any)?.identifier?.[0]?.value;
+      if (fallbackId) {
+        dispatch(setSelectedCompanion(fallbackId));
+      }
     }
   }, [companions, selectedCompanionIdRedux, dispatch]);
 
@@ -656,13 +662,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 activeOpacity={0.8}
                 onPress={() => {
                   // Pass the selected companion's ID to the ProfileOverview screen
-                  if (selectedCompanionIdRedux) {
+                  const companionId =
+                    selectedCompanionIdRedux ??
+                    companions[0]?.id ??
+                    (companions[0] as any)?._id ??
+                    (companions[0] as any)?.identifier?.[0]?.value ??
+                    null;
+
+                  if (companionId) {
+                    // Ensure state stays in sync with the navigation target
+                    handleSelectCompanion(companionId);
                     navigation.navigate('ProfileOverview', {
-                      companionId: selectedCompanionIdRedux,
+                      companionId,
                     });
                   } else {
-                    // This case should ideally not be hit if companions.length > 0
-                    // and the useEffect is working, but it's a good fallback.
                     console.warn('No companion selected to view profile.');
                   }
                 }}>
