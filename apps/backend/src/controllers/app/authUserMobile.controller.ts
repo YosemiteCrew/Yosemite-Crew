@@ -31,7 +31,7 @@ export const AuthUserMobileController = {
       return res.status(200).json({
         success: true,
         authUser,
-        parentLinked: parent ? true : false,
+        parentLinked: !!parent,
         parent,
       });
     } catch (err: unknown) {

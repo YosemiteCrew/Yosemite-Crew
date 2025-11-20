@@ -21,7 +21,6 @@ import {
 } from "./parent-companion.service";
 import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
-import logger from "src/utils/logger";
 
 export class CompanionServiceError extends Error {
   constructor(
@@ -245,7 +244,6 @@ export const CompanionService = {
     }
 
     const searchRegex = new RegExp(name.trim(), "i");
-    logger.info(`searchRegex: ${searchRegex}`);
     const documents = await CompanionModel.find({
       name: searchRegex,
     });
