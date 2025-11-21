@@ -1,6 +1,8 @@
 import {Images} from '@/assets/images';
 import type {ImageSourcePropType} from 'react-native';
 
+import {normalizeImageUri} from './imageUri';
+
 export const resolveImageSource = (source?: ImageSourcePropType | number | string): ImageSourcePropType => {
   if (typeof source === 'number') {
     return source;
@@ -11,7 +13,11 @@ export const resolveImageSource = (source?: ImageSourcePropType | number | strin
   }
 
   if (typeof source === 'string') {
-    return {uri: source};
+    const uri = normalizeImageUri(source);
+    if (!uri) {
+      return Images.hospitalIcon;
+    }
+    return {uri};
   }
 
   if (Array.isArray(source) && source.length > 0) {

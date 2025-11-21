@@ -40,6 +40,7 @@ jest.mock('@/features/auth/services/passwordlessAuth', () => ({
   completePasswordlessSignIn: jest.fn(),
   formatAuthError: jest.fn(error => error.message || String(error)),
   requestPasswordlessEmailCode: jest.fn(),
+  signOutEverywhere: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@/shared/hooks/useTheme', () => ({
@@ -116,8 +117,8 @@ jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () =
 });
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
+  setItem: jest.fn().mockResolvedValue(undefined),
+  removeItem: jest.fn().mockResolvedValue(undefined),
 }));
 jest.spyOn(DeviceEventEmitter, 'emit');
 
@@ -126,6 +127,8 @@ const mockedCompleteSignIn =
 const mockedRequestCode =
   passwordlessAuth.requestPasswordlessEmailCode as jest.Mock;
 const mockedFormatError = passwordlessAuth.formatAuthError as jest.Mock;
+const mockedSignOutEverywhere =
+  passwordlessAuth.signOutEverywhere as jest.Mock;
 const mockedUseAuth = useAuth as jest.Mock;
 const mockedLogin = jest.fn();
 const mockedLogout = jest.fn();
@@ -214,8 +217,14 @@ describe('OTPVerificationScreen', () => {
       resolveSignIn!({
         user: {userId: 'user-123', username: 'test@example.com'},
         attributes: {email: 'test@example.com'},
-        profile: {exists: true, isComplete: true, profileToken: 'token-abc'},
+        profile: {
+          exists: true,
+          isComplete: true,
+          profileToken: 'token-abc',
+          parent: {id: 'parent-abc'} as any,
+        },
         tokens: {accessToken: 'abc', idToken: 'def'},
+        parentLinked: true,
       });
       await Promise.resolve();
     });
@@ -238,8 +247,14 @@ describe('OTPVerificationScreen', () => {
     mockedCompleteSignIn.mockResolvedValue({
       user: {userId: 'user-123', username: 'test@example.com'},
       attributes: {email: 'test@example.com'},
-      profile: {exists: true, isComplete: true, profileToken: 'token-abc'},
+      profile: {
+        exists: true,
+        isComplete: true,
+        profileToken: 'token-abc',
+        parent: {id: 'parent-123'} as any,
+      },
       tokens: mockTokens,
+      parentLinked: true,
     });
 
     const {getByTestId} = renderComponent(false);
@@ -271,8 +286,14 @@ describe('OTPVerificationScreen', () => {
     mockedCompleteSignIn.mockResolvedValue({
       user: {userId: 'user-123', username: 'test@example.com'},
       attributes: {email: 'test@example.com', given_name: 'Test'},
-      profile: {exists: false, isComplete: false, profileToken: 'token-abc'},
+      profile: {
+        exists: false,
+        isComplete: false,
+        profileToken: 'token-abc',
+        parent: null,
+      },
       tokens: mockTokens,
+      parentLinked: false,
     });
 
     const {getByTestId} = renderComponent(true);
@@ -456,7 +477,7 @@ describe('OTPVerificationScreen', () => {
         PENDING_PROFILE_STORAGE_KEY,
       );
       expect(mockedEmit).toHaveBeenCalledWith(PENDING_PROFILE_UPDATED_EVENT);
-      expect(mockedLogout).toHaveBeenCalled();
+      expect(mockedSignOutEverywhere).toHaveBeenCalled();
     });
   });
 
@@ -474,7 +495,7 @@ describe('OTPVerificationScreen', () => {
         PENDING_PROFILE_STORAGE_KEY,
       );
       expect(mockedEmit).toHaveBeenCalledWith(PENDING_PROFILE_UPDATED_EVENT);
-      expect(mockedLogout).toHaveBeenCalled();
+      expect(mockedSignOutEverywhere).toHaveBeenCalled();
     });
   });
 

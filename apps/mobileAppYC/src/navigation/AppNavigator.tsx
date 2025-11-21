@@ -30,40 +30,23 @@ export const AppNavigator: React.FC = () => {
   // Derive profile completeness directly from auth user to avoid stale storage
   // Add defensive checks to prevent state corruption from causing logout
   const isProfileComplete = useMemo(() => {
-    try {
-      if (!user) {
-        console.log('[AppNavigator] No user found, profile incomplete');
-        return false;
-      }
-
-      if (user.profileCompleted === true) {
-        console.log('[AppNavigator] Backend profile flag indicates complete', {
-          userId: user.id,
-        });
-        return true;
-      }
-
-      if (user.profileCompleted === false) {
-        console.log('[AppNavigator] Backend profile flag indicates incomplete', {
-          userId: user.id,
-        });
-        return false;
-      }
-
-      const hasRequiredFields = !!(user.id && user.firstName && user.dateOfBirth);
-      console.log('[AppNavigator] Profile completeness check:', {
-        userId: user.id,
-        hasFirstName: !!user.firstName,
-        hasDateOfBirth: !!user.dateOfBirth,
-        isComplete: hasRequiredFields,
-      });
-
-      return hasRequiredFields;
-    } catch (error) {
-      console.error('[AppNavigator] Error checking profile completeness:', error);
-      // If there's an error checking, assume incomplete to be safe
+    if (!user) {
+      console.log('[AppNavigator] No user found, profile incomplete');
       return false;
     }
+
+    if (user.parentId) {
+      console.log('[AppNavigator] Parent linked, profile considered complete', {
+        userId: user.id,
+        parentId: user.parentId,
+      });
+      return true;
+    }
+
+    console.log('[AppNavigator] Missing parent link, profile incomplete', {
+      userId: user.id,
+    });
+    return false;
   }, [user]);
 
   useEffect(() => {

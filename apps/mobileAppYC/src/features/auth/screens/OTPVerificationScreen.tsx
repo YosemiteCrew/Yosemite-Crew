@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import {
   completePasswordlessSignIn,
   formatAuthError,
-  requestPasswordlessEmailCode,
+  requestPasswordlessEmailCode,signOutEverywhere,
 } from '@/features/auth/services/passwordlessAuth';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import {useAuth, type User} from '@/features/auth/context/AuthContext';
@@ -44,7 +44,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   route,
 }) => {
   const {theme} = useTheme();
-  const {login, logout} = useAuth();
+  const {login} = useAuth();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const {email, isNewUser} = route.params;
@@ -55,6 +55,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   const [canResend, setCanResend] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const cancellationRef = useRef(false);
 
   useEffect(() => {
     if (!canResend && countdown > 0) {
@@ -92,6 +93,7 @@ const buildUserPayload = (
 ): User => {
   const baseUser: User = {
     id: completion.user.userId,
+    parentId: completion.profile.parent?.id ?? undefined,
     email: completion.attributes.email ?? completion.user.username,
     firstName: completion.attributes.given_name,
     lastName: completion.attributes.family_name,
@@ -106,6 +108,9 @@ const buildUserPayload = (
 };
 
   const verifyOtpCode = async (code: string) => {
+    if (cancellationRef.current) {
+      return;
+    }
     if (code.length !== OTP_LENGTH) {
       setOtpError(`Please enter the ${OTP_LENGTH}-digit code.`);
       return;
@@ -115,11 +120,14 @@ const buildUserPayload = (
 
     try {
       const completion = await completePasswordlessSignIn(code);
+      if (cancellationRef.current) {
+        return;
+      }
       setOtpError('');
       const userPayload = buildUserPayload(completion);
       const tokens = completion.tokens;
 
-      if (completion.profile.isComplete) {
+      if (completion.parentLinked && completion.profile.parent) {
         await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
         DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
         await login(userPayload, tokens);
@@ -159,16 +167,20 @@ const buildUserPayload = (
         setOtpError(formatted);
       }
     } finally {
-      setIsVerifying(false);
+      if (!cancellationRef.current) {
+        setIsVerifying(false);
+      }
     }
   };
 
   const handleVerifyCode = async () => {
-    await verifyOtpCode(otpCode);
+    if (!cancellationRef.current) {
+      await verifyOtpCode(otpCode);
+    }
   };
 
   const handleResendOTP = async () => {
-    if (!canResend || isResending) {
+    if (!canResend || isResending || cancellationRef.current) {
       return;
     }
 
@@ -181,14 +193,21 @@ const buildUserPayload = (
     } catch (error) {
       setOtpError(formatAuthError(error));
     } finally {
-      setIsResending(false);
+      if (!cancellationRef.current) {
+        setIsResending(false);
+      }
     }
   };
 
   const handleGoBack = useCallback(() => {
     const resetFlow = async () => {
+      if (cancellationRef.current) {
+        return;
+      }
+      cancellationRef.current = true;
+      setIsVerifying(false);
+      setIsResending(false);
       try {
-        // Clear any pending profile so AppNavigator doesn't route back into CreateAccount
         await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       } catch (error) {
         console.warn('Failed to clear pending profile state', error);
@@ -196,14 +215,20 @@ const buildUserPayload = (
 
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
-      // Use global logout for provider-aware sign out and token clearing
-      await logout();
-      // Do not perform nested navigation.reset here;
-      // AppNavigator will re-render into Auth flow cleanly.
+      try {
+        await signOutEverywhere();
+      } catch (error) {
+        console.warn('[OTP] Failed to cancel Amplify session', error);
+      }
+
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'SignIn'}],
+      });
     };
 
     resetFlow();
-  }, [logout]);
+  }, [navigation]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(

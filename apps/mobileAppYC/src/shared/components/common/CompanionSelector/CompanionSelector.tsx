@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 export interface CompanionBase {
-  id: string;
+  id?: string;
+  _id?: string;
   name: string;
   profileImage?: string | null;
   taskCount?: number;
@@ -44,22 +46,34 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
 }: CompanionSelectorProps<T>) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
+
+  const handleImageError = React.useCallback((id: string) => {
+    setFailedImages(prev => {
+      if (prev[id]) {
+        return prev;
+      }
+      return {...prev, [id]: true};
+    });
+  }, []);
 
   const renderCompanionBadge = (companion: T) => {
-    const isSelected = selectedCompanionId === companion.id;
+    const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+    const isSelected = selectedCompanionId === companionId;
     let badgeText: string | undefined;
     if (getBadgeText) {
       badgeText = getBadgeText(companion);
     } else if (companion.taskCount !== undefined) {
       badgeText = `${companion.taskCount} Tasks`;
     }
+    const avatarUri = normalizeImageUri(companion.profileImage ?? null);
 
     return (
       <TouchableOpacity
-        key={companion.id}
+        key={companionId}
         style={styles.companionTouchable}
         activeOpacity={0.88}
-        onPress={() => onSelect(companion.id)}>
+        onPress={() => companionId && onSelect(companionId)}>
         <View style={styles.companionItem}>
           <Animated.View
             style={[
@@ -67,10 +81,11 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
               isSelected && styles.companionAvatarRingSelected,
               isSelected && {transform: [{scale: 1.08}]},
             ]}>
-            {companion.profileImage ? (
+            {avatarUri && companionId && !failedImages[companionId] ? (
               <Image
-                source={{uri: companion.profileImage}}
+                source={{uri: avatarUri}}
                 style={styles.companionAvatar}
+                onError={() => handleImageError(companionId)}
               />
             ) : (
               <View style={styles.companionAvatarPlaceholder}>

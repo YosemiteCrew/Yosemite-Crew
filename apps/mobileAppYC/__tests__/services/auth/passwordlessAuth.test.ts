@@ -1,6 +1,6 @@
-// Mock profile service first
-jest.mock('@/features/account/services/profileService', () => ({
-  fetchProfileStatus: jest.fn(),
+const mockSyncAuthUser = jest.fn();
+jest.mock('@/features/auth/services/authUserService', () => ({
+  syncAuthUser: (...args: any[]) => mockSyncAuthUser(...args),
 }));
 
 // Mock aws-amplify/auth
@@ -28,7 +28,6 @@ import {
 } from '@/features/auth/services/passwordlessAuth';
 
 const AmplifyAuth = require('aws-amplify/auth');
-const {fetchProfileStatus} = require('@/features/account/services/profileService');
 
 describe('passwordlessAuth', () => {
   beforeEach(() => {
@@ -36,6 +35,17 @@ describe('passwordlessAuth', () => {
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    mockSyncAuthUser.mockResolvedValue({
+      success: true,
+      authUser: {
+        _id: 'auth-user-id',
+        authProvider: 'cognito',
+        providerUserId: 'user-123',
+        email: 'test@example.com',
+      },
+      parentLinked: false,
+      parentSummary: undefined,
+    });
   });
 
   afterEach(() => {
@@ -185,10 +195,19 @@ describe('passwordlessAuth', () => {
       sub: 'user-123',
     };
 
+    const mockParentSummary = {
+      id: 'parent-1',
+      firstName: 'Parent',
+      lastName: 'User',
+      profileImageUrl: 'profile-token-123',
+      isComplete: true,
+    };
     const mockProfile = {
       exists: true,
+      isComplete: true,
       profileToken: 'profile-token-123',
       source: 'remote' as const,
+      parent: mockParentSummary,
     };
 
     it('should complete sign in successfully', async () => {
@@ -198,7 +217,17 @@ describe('passwordlessAuth', () => {
       (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue(mockSession);
       (AmplifyAuth.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
       (AmplifyAuth.fetchUserAttributes as jest.Mock).mockResolvedValue(mockAttributes);
-      fetchProfileStatus.mockResolvedValue(mockProfile);
+      mockSyncAuthUser.mockResolvedValueOnce({
+        success: true,
+        authUser: {
+          _id: 'auth-user-id',
+          authProvider: 'cognito',
+          providerUserId: 'user-123',
+          email: 'test@example.com',
+        },
+        parentLinked: true,
+        parentSummary: mockParentSummary,
+      });
 
       const result = await completePasswordlessSignIn('123456');
 
@@ -214,6 +243,7 @@ describe('passwordlessAuth', () => {
           provider: 'amplify',
         },
         profile: mockProfile,
+        parentLinked: true,
       });
 
       expect(AmplifyAuth.confirmSignIn).toHaveBeenCalledWith({
@@ -265,13 +295,23 @@ describe('passwordlessAuth', () => {
       (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue(mockSession);
       (AmplifyAuth.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
       (AmplifyAuth.fetchUserAttributes as jest.Mock).mockResolvedValue(mockAttributes);
-      fetchProfileStatus.mockResolvedValue(mockProfile);
+      mockSyncAuthUser.mockResolvedValueOnce({
+        success: true,
+        authUser: {
+          _id: 'auth-user-id',
+          authProvider: 'cognito',
+          providerUserId: 'user-123',
+          email: 'test@example.com',
+        },
+        parentLinked: false,
+        parentSummary: mockParentSummary,
+      });
 
       await completePasswordlessSignIn('123456');
 
-      expect(fetchProfileStatus).toHaveBeenCalledWith({
-        accessToken: 'mock-access-token',
-        userId: 'user-123',
+      expect(mockSyncAuthUser).toHaveBeenCalledWith({
+        authToken: 'mock-id-token',
+        idToken: 'mock-id-token',
       });
     });
 
@@ -284,13 +324,23 @@ describe('passwordlessAuth', () => {
       (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue(mockSession);
       (AmplifyAuth.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
       (AmplifyAuth.fetchUserAttributes as jest.Mock).mockResolvedValue(attributesWithoutEmail);
-      fetchProfileStatus.mockResolvedValue(mockProfile);
+      mockSyncAuthUser.mockResolvedValueOnce({
+        success: true,
+        authUser: {
+          _id: 'auth-user-id',
+          authProvider: 'cognito',
+          providerUserId: 'user-123',
+          email: 'user-123',
+        },
+        parentLinked: false,
+        parentSummary: mockParentSummary,
+      });
 
       await completePasswordlessSignIn('123456');
 
-      expect(fetchProfileStatus).toHaveBeenCalledWith({
-        accessToken: 'mock-access-token',
-        userId: 'user-123',
+      expect(mockSyncAuthUser).toHaveBeenCalledWith({
+        authToken: 'mock-id-token',
+        idToken: 'mock-id-token',
       });
     });
   });
