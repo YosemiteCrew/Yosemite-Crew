@@ -32,13 +32,13 @@ const getBucketName = (): string => {
   return bucket;
 };
 
-const getCloufrontBaeUrl = () : string => {
-  const CF_BASE = process.env.AWS_CLOUD_FRONT_BASE_URL
-  if(!CF_BASE) {
+const getCloufrontBaeUrl = (): string => {
+  const CF_BASE = process.env.AWS_CLOUD_FRONT_BASE_URL;
+  if (!CF_BASE) {
     throw new Error("AWS_CLOUD_FRONT_BASE_URL is not defined");
   }
   return CF_BASE;
-}
+};
 
 // Utility functions
 
