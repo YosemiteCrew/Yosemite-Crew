@@ -7,7 +7,7 @@ import {
 import {useTheme} from '@/hooks';
 import {Text} from 'react-native';
 
-
+// FIX: Added 'h3' to typography and 'text' to colors to prevent crashes
 const mockTheme = {
   colors: {
     surface: 'mock-surface',
@@ -15,6 +15,7 @@ const mockTheme = {
     white: 'mock-white',
     borderMuted: 'mock-borderMuted',
     primary: 'mock-primary',
+    text: 'mock-text-color',
   },
   borderRadius: {
     '3xl': 24,
@@ -27,6 +28,7 @@ const mockTheme = {
     '6': 20,
   },
   typography: {
+    h3: {fontSize: 24, fontWeight: 'bold', lineHeight: 32}, // Added this required property
     h5Clash23: {fontSize: 23},
     paragraph18Bold: {fontSize: 18, fontWeight: 'bold'},
     buttonH6Clash19: {fontSize: 19},
@@ -217,7 +219,6 @@ describe('ConfirmActionBottomSheet', () => {
       expect.objectContaining({
         title: 'Confirm',
         tintColor: mockTheme.colors.secondary,
-        // FIX: Check for object containing color, not array
         textStyle: expect.objectContaining({
           color: mockTheme.colors.white,
         }),
@@ -237,7 +238,6 @@ describe('ConfirmActionBottomSheet', () => {
       expect.objectContaining({
         title: 'Cancel',
         tintColor: mockTheme.colors.surface,
-        // FIX: Check for object containing color, not array
         textStyle: expect.objectContaining({
           color: mockTheme.colors.secondary,
         }),
@@ -268,7 +268,6 @@ describe('ConfirmActionBottomSheet', () => {
         loading: true,
         disabled: true,
         forceBorder: true,
-        // FIX: Check for object containing fontSize, not array
         textStyle: expect.objectContaining({
           fontSize: 99,
         }),
