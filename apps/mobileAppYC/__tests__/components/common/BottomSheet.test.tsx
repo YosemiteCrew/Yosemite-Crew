@@ -41,7 +41,6 @@ jest.mock('@gorhom/bottom-sheet', () => {
 
       return (
         <View testID="mock-bottom-sheet">
-          {/* FIX: Use optional chaining for SonarQube */}
           {props.handleComponent?.({})}
           {props.backdropComponent?.({})}
           {props.footerComponent?.({})}
@@ -75,6 +74,17 @@ jest.mock('@gorhom/bottom-sheet', () => {
 // Mock console.warn to test the FlatList warning
 const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
+// Mock useTheme hook
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({
+    theme: {
+      colors: {cardBackground: 'white'},
+      borderRadius: {base: 10},
+      shadows: {medium: {}},
+    },
+  }),
+}));
+
 // --- Tests ---
 
 describe('CustomBottomSheet', () => {
@@ -90,7 +100,6 @@ describe('CustomBottomSheet', () => {
   const keyExtractor = (item: any) => item.id;
   const flatListData = [{id: '1', name: 'Item 1'}];
 
-  // FIX: Added required `children` prop
   it('renders with default props and content type "view"', () => {
     const {getByTestId, getByText} = render(
       <CustomBottomSheet>
@@ -115,7 +124,6 @@ describe('CustomBottomSheet', () => {
     );
   });
 
-  // FIX: This test already had `children`, so it's fine
   it('passes all custom props correctly to BottomSheet', () => {
     const mockOnChange = jest.fn();
     const mockOnAnimate = jest.fn();
@@ -154,13 +162,13 @@ describe('CustomBottomSheet', () => {
         enableOverDrag: false,
         enableContentPanningGesture: false,
         enableHandlePanningGesture: false,
-        style: style,
+        // FIX: Expect the style to be merged (array containing original style)
+        style: expect.arrayContaining([style]),
         backgroundStyle: backgroundStyle,
       }),
     );
   });
 
-  // FIX: This test already had `children`, so it's fine
   it('renders content type "scrollView"', () => {
     const {getByTestId, queryByTestId, getByText} = render(
       <CustomBottomSheet contentType="scrollView">
@@ -173,7 +181,6 @@ describe('CustomBottomSheet', () => {
     expect(queryByTestId('mock-bottom-sheet-view')).toBeNull();
   });
 
-  // FIX: This test already had `children`, so it's fine
   it('renders content type "flatList" with required props', () => {
     const {getByTestId, queryByTestId, queryByText} = render(
       <CustomBottomSheet
@@ -194,7 +201,6 @@ describe('CustomBottomSheet', () => {
     expect(queryByText('This child should not be rendered')).toBeNull();
   });
 
-  // FIX: Added required `children` prop
   it('uses default keyExtractor for flatList if not provided', () => {
     const {getByTestId} = render(
       <CustomBottomSheet
@@ -209,7 +215,6 @@ describe('CustomBottomSheet', () => {
     expect(flatList.props.keyExtractor(null, 1)).toBe('1');
   });
 
-  // FIX: This test already had `children`, so it's fine
   it('renders flatlist even if flatList data is missing (uses default)', () => {
     const {getByTestId, queryByTestId, queryByText} = render(
       <CustomBottomSheet contentType="flatList" flatListRenderItem={renderItem}>
@@ -223,7 +228,6 @@ describe('CustomBottomSheet', () => {
     expect(queryByTestId('mock-bottom-sheet-view')).toBeNull();
   });
 
-  // FIX: This test already had `children`, so it's fine
   it('warns and falls back to "view" if flatList renderItem is missing', () => {
     const {getByTestId, getByText, queryByTestId} = render(
       <CustomBottomSheet contentType="flatList" flatListData={flatListData}>
@@ -239,7 +243,6 @@ describe('CustomBottomSheet', () => {
     expect(queryByTestId('mock-bottom-sheet-flatlist')).toBeNull();
   });
 
-  // FIX: Added required `children` prop
   it('renders default handle with custom styles', () => {
     const handleStyle = {backgroundColor: 'green'};
     const handleIndicatorStyle = {backgroundColor: 'yellow'};
@@ -258,7 +261,6 @@ describe('CustomBottomSheet', () => {
     expect(handle.props.indicatorStyle).toBe(handleIndicatorStyle);
   });
 
-  // FIX: Added required `children` prop
   it('renders custom handle when provided', () => {
     const CustomHandleComponent = (props: BottomSheetHandleProps) => (
       <View testID="custom-handle" {...props} />
@@ -276,7 +278,6 @@ describe('CustomBottomSheet', () => {
     expect(queryByTestId('mock-bottom-sheet-handle')).toBeNull();
   });
 
-  // FIX: Added required `children` prop
   it('does not render custom handle if customHandle is false', () => {
     const CustomHandleComponent = (props: BottomSheetHandleProps) => (
       <View testID="custom-handle" {...props} />
@@ -294,7 +295,6 @@ describe('CustomBottomSheet', () => {
     expect(getByTestId('mock-bottom-sheet-handle')).toBeTruthy();
   });
 
-  // FIX: Added required `children` prop
   it('renders backdrop when enabled and calls onBackdropPress', () => {
     const mockOnBackdropPress = jest.fn();
     const {getByTestId} = render(
@@ -321,7 +321,6 @@ describe('CustomBottomSheet', () => {
     expect(mockOnBackdropPress).toHaveBeenCalledTimes(1);
   });
 
-  // FIX: Added required `children` prop
   it('does not render backdrop when disabled', () => {
     const {queryByTestId} = render(
       <CustomBottomSheet enableBackdrop={false}>
@@ -331,7 +330,6 @@ describe('CustomBottomSheet', () => {
     expect(queryByTestId('mock-bottom-sheet-backdrop')).toBeNull();
   });
 
-  // FIX: Added required `children` prop
   it('exposes ref methods correctly', () => {
     const ref = React.createRef<BottomSheetRef>();
     render(
