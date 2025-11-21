@@ -41,6 +41,11 @@ export interface CompanionProfileData {
 
 export interface Companion extends CompanionProfileData {
   id: string;
+  /**
+   * Optional backend identifier variants for compatibility with FHIR/legacy payloads.
+   */
+  _id?: string;
+  identifier?: Array<{value?: string}>;
   userId: string;
   createdAt: string;
   updatedAt: string;

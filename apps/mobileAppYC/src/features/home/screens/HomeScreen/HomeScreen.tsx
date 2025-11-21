@@ -13,6 +13,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {HomeStackParamList, TabParamList, type TaskStackParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
@@ -123,25 +124,40 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
   );
+  const [headerAvatarError, setHeaderAvatarError] = React.useState(false);
+  const headerAvatarUri = React.useMemo(
+    () => normalizeImageUri(authUser?.profilePicture ?? authUser?.profileToken ?? null),
+    [authUser?.profilePicture, authUser?.profileToken],
+  );
+
+  React.useEffect(() => {
+    setHeaderAvatarError(false);
+  }, [headerAvatarUri]);
 
   // Fetch companions on mount and set the first one as default
   React.useEffect(() => {
     const loadCompanionsAndSelectDefault = async () => {
-      if (user?.id) {
-        await dispatch(fetchCompanions(user.id));
+      if (user?.parentId) {
+        await dispatch(fetchCompanions(user.parentId));
         // Initialize mock linked business data for testing
         dispatch(initializeMockData());
       }
     };
 
     loadCompanionsAndSelectDefault();
-  }, [dispatch, user?.id]);
+  }, [dispatch, user?.parentId]);
 
   // New useEffect to handle default selection once companions are loaded
   React.useEffect(() => {
     // If companions exist and no companion is currently selected, select the first one.
     if (companions.length > 0 && !selectedCompanionIdRedux) {
-      dispatch(setSelectedCompanion(companions[0].id));
+      const fallbackId =
+        companions[0]?.id ??
+        (companions[0] as any)?._id ??
+        (companions[0] as any)?.identifier?.[0]?.value;
+      if (fallbackId) {
+        dispatch(setSelectedCompanion(fallbackId));
+      }
     }
   }, [companions, selectedCompanionIdRedux, dispatch]);
 
@@ -311,8 +327,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
   }, []);
 
-  const [showFallbackAppointmentCard, setShowFallbackAppointmentCard] = React.useState(true);
-
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
       return null;
@@ -432,7 +446,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           date={nextUpcomingTask.date}
           time={nextUpcomingTask.time}
           companionName={selectedCompanion.name}
-          companionAvatar={selectedCompanion.profileImage ?? undefined}
+          companionAvatar={
+            normalizeImageUri(selectedCompanion.profileImage ?? undefined) ?? undefined
+          }
           assignedToName={assignedToData?.name}
           assignedToAvatar={assignedToData?.avatar}
           status={nextUpcomingTask.status}
@@ -521,37 +537,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       );
     }
 
-    if (showFallbackAppointmentCard) {
-      return (
-        <AppointmentCard
-          key="fallback-appointment-card"
-          doctorName="Dr. Emily Johnson"
-          specialization="Cardiology"
-          hospital="SMPC Cardiac hospital"
-          dateTime="20 Aug • 4:00 PM"
-          note="Check in is only allowed if you arrive 5 minutes early at location"
-          avatar={Images.cat}
-          showActions
-          onPress={() => handleViewAppointment('fallback')}
-          onViewDetails={() => handleViewAppointment('fallback')}
-          onGetDirections={() => openMapsToAddress('San Francisco, CA')}
-          onChat={() => handleChatAppointment('fallback')}
-          onCheckIn={() => setShowFallbackAppointmentCard(false)}
-          testIDs={{
-            container: 'appointment-card-container',
-            directions: 'appointment-directions',
-            chat: 'appointment-chat',
-            checkIn: 'appointment-checkin',
-          }}
-        />
-      );
-    }
-
     return renderEmptyStateTile(
       'No upcoming appointments',
       'Book an appointment to see it here.',
       'appointments',
-      () => setShowFallbackAppointmentCard(true),
+      companions.length > 0
+        ? () =>
+            navigation
+              .getParent<NavigationProp<TabParamList>>()
+              ?.navigate('Appointments', {screen: 'BrowseBusinesses'})
+        : undefined,
     );
   };
 
@@ -566,10 +561,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onPress={() => navigation.navigate('Account')}
             activeOpacity={0.85}>
             <View style={styles.avatar}>
-              {authUser?.profilePicture ? (
+              {headerAvatarUri && !headerAvatarError ? (
                 <Image
-                  source={{uri: authUser.profilePicture}}
+                  source={{uri: headerAvatarUri}}
                   style={styles.avatarImage}
+                  onError={() => setHeaderAvatarError(true)}
                 />
               ) : (
                 <Text style={styles.avatarInitials}>
@@ -669,13 +665,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 activeOpacity={0.8}
                 onPress={() => {
                   // Pass the selected companion's ID to the ProfileOverview screen
-                  if (selectedCompanionIdRedux) {
+                  const companionId =
+                    selectedCompanionIdRedux ??
+                    companions[0]?.id ??
+                    (companions[0] as any)?._id ??
+                    (companions[0] as any)?.identifier?.[0]?.value ??
+                    null;
+
+                  if (companionId) {
+                    // Ensure state stays in sync with the navigation target
+                    handleSelectCompanion(companionId);
                     navigation.navigate('ProfileOverview', {
-                      companionId: selectedCompanionIdRedux,
+                      companionId,
                     });
                   } else {
-                    // This case should ideally not be hit if companions.length > 0
-                    // and the useEffect is working, but it's a good fallback.
                     console.warn('No companion selected to view profile.');
                   }
                 }}>

@@ -105,7 +105,7 @@ const mockTheme = {
   },
 };
 
-const mockUser = {id: 'user-123', firstName: 'John'};
+const mockUser = {id: 'user-123', parentId: 'parent-123', firstName: 'John'};
 const mockAuthUser = {
   ...mockUser,
   profilePicture: '',
@@ -116,6 +116,16 @@ const mockCompanions = [
   {id: 'comp-1', name: 'Buddy', profilePicture: ''},
   {id: 'comp-2', name: 'Lucy', profilePicture: ''},
 ];
+const mockAppointment = {
+  id: 'appt-1',
+  companionId: 'comp-1',
+  businessId: 'biz-1',
+  serviceId: 'svc-1',
+  employeeId: 'emp-1',
+  status: 'paid',
+  date: '2025-08-20',
+  time: '10:00',
+};
 
 const mockFetchTasksForCompanion = jest.fn();
 const mockMarkTaskStatusThunk = jest.fn();
@@ -125,6 +135,7 @@ let mockTasksHydrated = false;
 const mockFetchExpensesForCompanion = jest.fn();
 let mockExpenseSummary: any = {total: 0};
 let mockExpenseHydrated = false;
+let mockUpcomingAppointments: any[] = [];
 
 jest.mock('@/features/tasks', () => ({
   __esModule: true,
@@ -183,6 +194,17 @@ jest.mock('@/features/companion', () => ({
   selectSelectedCompanionId: jest.fn(),
 }));
 jest.mock('@/features/auth/selectors', () => ({selectAuthUser: jest.fn()}));
+jest.mock('@/features/appointments/selectors', () => {
+  const actual = jest.requireActual('@/features/appointments/selectors');
+  return {
+    ...actual,
+    createSelectUpcomingAppointments: jest
+      .fn()
+      .mockImplementation(
+        () => (_state: any, _companionId: string | null) => mockUpcomingAppointments,
+      ),
+  };
+});
 
 jest.mock('@/features/tasks/components/TaskCard/TaskCard', () => {
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
@@ -315,6 +337,7 @@ const setupMocks = ({
   tasksHydrated = false,
   expenseSummary = {total: 0},
   expenseHydrated = false,
+  upcomingAppointments = [],
 }: {
   user?: any;
   authUser?: any;
@@ -324,6 +347,7 @@ const setupMocks = ({
   tasksHydrated?: boolean;
   expenseSummary?: any;
   expenseHydrated?: boolean;
+  upcomingAppointments?: any[];
 }) => {
   mockedUseAuth.mockReturnValue({user});
   mockedUseDispatch.mockReturnValue(mockDispatch);
@@ -331,6 +355,7 @@ const setupMocks = ({
   mockTasksHydrated = tasksHydrated;
   mockExpenseSummary = expenseSummary;
   mockExpenseHydrated = expenseHydrated;
+  mockUpcomingAppointments = upcomingAppointments;
   mockedUseSelector.mockImplementation(selector => {
     if (selector === selectAuthUser) return authUser;
     if (selector === selectCompanions) return companions;
@@ -399,7 +424,8 @@ describe('HomeScreen Component', () => {
     expect(queryByTestId('companion-selector')).toBeNull();
     expect(queryByTestId('task-card')).toBeNull();
     expect(getByText('No upcoming tasks')).toBeTruthy();
-    expect(getByTestId('appointment-card-container')).toBeTruthy();
+    expect(queryByTestId('appointment-card-container')).toBeNull();
+    expect(getByText('No upcoming appointments')).toBeTruthy();
     expect(getByTestId('yearly-spend-card')).toBeTruthy();
     expect(getByText('Manage health')).toBeTruthy();
     expect(queryByTestId('View more')).toBeNull();
@@ -408,7 +434,7 @@ describe('HomeScreen Component', () => {
   it('fetches companions on mount if user exists', async () => {
     renderHomeScreen();
     await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith(fetchCompanions(mockUser.id));
+      expect(mockDispatch).toHaveBeenCalledWith(fetchCompanions(mockUser.parentId));
     });
   });
 
@@ -524,21 +550,30 @@ describe('HomeScreen Component', () => {
     });
   });
 
-  it('toggles upcoming appointments card to empty state and back', async () => {
-    const {getByTestId, findByText, queryByTestId, queryByText} =
-      renderHomeScreen();
-    expect(getByTestId('appointment-checkin')).toBeTruthy();
-    fireEvent.press(getByTestId('appointment-checkin'));
-    const emptyTile = await findByText('No upcoming appointments');
-    expect(emptyTile).toBeTruthy();
-    expect(queryByTestId('appointment-card-container')).toBeNull();
-    fireEvent.press(emptyTile);
-    const apptCard = await findByText('Check In');
-    expect(apptCard).toBeTruthy();
-    expect(queryByText('No upcoming appointments')).toBeNull();
+  it('shows appointment empty state tile and navigates to browse when pressed', async () => {
+    setupMocks({
+      user: mockUser,
+      authUser: mockAuthUser,
+      companions: mockCompanions,
+      selectedCompanionId: 'comp-1',
+      upcomingAppointments: [],
+    });
+    const {getByText, getByTestId} = renderHomeScreen();
+    expect(getByText('No upcoming appointments')).toBeTruthy();
+    fireEvent.press(getByTestId('appointments-empty-tile'));
+    expect(mockParentNavigation.navigate).toHaveBeenCalledWith('Appointments', {
+      screen: 'BrowseBusinesses',
+    });
   });
 
   it('handles AppointmentCard onGetDirections press', () => {
+    setupMocks({
+      user: mockUser,
+      authUser: mockAuthUser,
+      companions: mockCompanions,
+      selectedCompanionId: 'comp-1',
+      upcomingAppointments: [mockAppointment],
+    });
     const {getByTestId} = renderHomeScreen();
     expect(getByTestId('appointment-directions')).toBeTruthy();
     fireEvent.press(getByTestId('appointment-directions'));
@@ -546,6 +581,13 @@ describe('HomeScreen Component', () => {
   });
 
   it('handles AppointmentCard onChat press', () => {
+    setupMocks({
+      user: mockUser,
+      authUser: mockAuthUser,
+      companions: mockCompanions,
+      selectedCompanionId: 'comp-1',
+      upcomingAppointments: [mockAppointment],
+    });
     const {getByTestId} = renderHomeScreen();
     expect(getByTestId('appointment-chat')).toBeTruthy();
     fireEvent.press(getByTestId('appointment-chat'));
@@ -578,10 +620,10 @@ describe('HomeScreen Component', () => {
     });
     const {getByText} = renderHomeScreen();
     fireEvent.press(getByText('View more'));
-    expect(mockNavigation.navigate).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      'No companion selected to view profile.',
-    );
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('ProfileOverview', {
+      companionId: 'comp-1',
+    });
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
     consoleWarnSpy.mockRestore();
   });
 

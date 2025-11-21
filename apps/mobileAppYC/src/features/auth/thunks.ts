@@ -222,11 +222,13 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
       console.warn('[Auth] Amplify sign out failed:', error);
     }
 
-    try {
-      const auth = getAuth();
-      await signOut(auth);
-    } catch (error) {
-      console.warn('[Auth] Firebase sign out failed:', error);
+    if (currentProvider === 'firebase') {
+      try {
+        const auth = getAuth();
+        await signOut(auth);
+      } catch (error) {
+        console.warn('[Auth] Firebase sign out failed:', error);
+      }
     }
 
     await clearSessionData({clearPendingProfile: true});

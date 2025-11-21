@@ -37,6 +37,7 @@ import {
   deleteAmplifyAccount,
   deleteFirebaseAccount,
 } from '@/features/auth/services/accountDeletion';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -44,7 +45,8 @@ type CompanionProfile = {
   id: string;
   name: string;
   subtitle: string;
-  avatar: ImageSourcePropType;
+  avatar?: ImageSourcePropType;
+  remoteUri?: string | null;
 };
 
 type MenuItem = {
@@ -66,6 +68,15 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [failedProfileImages, setFailedProfileImages] = useState<Record<string, boolean>>({});
+  const handleProfileImageError = React.useCallback((id: string) => {
+    setFailedProfileImages(prev => {
+      if (prev[id]) {
+        return prev;
+      }
+      return {...prev, [id]: true};
+    });
+  }, []);
 
   // Get companions from the Redux store
   const companionsFromStore = useSelector(selectCompanions);
@@ -82,19 +93,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     return authUser?.firstName?.trim() || 'You';
   }, [authUser?.firstName, authUser?.lastName]);
 
-
-
-  const primaryAvatar: ImageSourcePropType = React.useMemo(() => {
-    if (authUser?.profilePicture) {
-      return {uri: authUser.profilePicture};
-    }
-    if (authUser?.profileToken) {
-      return {uri: authUser.profileToken};
-    }
-    // Use a generic placeholder image if no URL is available
-    return Images.cat;
-  }, [authUser?.profilePicture, authUser?.profileToken]);
-
   const userInitials = React.useMemo(() => {
     if (authUser?.firstName) {
       return authUser.firstName.charAt(0).toUpperCase();
@@ -104,12 +102,16 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   const profiles = React.useMemo<CompanionProfile[]>(() => {
     const pluralSuffix = companionsFromStore.length === 1 ? '' : 's';
+    const userRemoteUri = normalizeImageUri(
+      authUser?.profilePicture ?? authUser?.profileToken ?? null,
+    );
     // 1. User's Profile (Primary)
     const userProfile: CompanionProfile = {
       id: 'primary',
       name: displayName,
       subtitle: `${companionsFromStore.length} Companion${pluralSuffix}`,
-      avatar: primaryAvatar,
+      avatar: userRemoteUri ? {uri: userRemoteUri} : undefined,
+      remoteUri: userRemoteUri,
     };
 
     // 2. Companions from Redux store
@@ -130,20 +132,54 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           companion.currentWeight ? `${companion.currentWeight} kgs` : null,
         ].filter(Boolean) as string[];
 
+        const remoteUri = normalizeImageUri(companion.profileImage ?? null);
+
         return {
           id: companion.id,
           name: companion.name,
           subtitle: subtitleParts.join(' • '),
-          avatar: companion.profileImage
-            ? {uri: companion.profileImage}
-            : Images.cat, // Use a default companion avatar
+          avatar: remoteUri ? {uri: remoteUri} : undefined,
+          remoteUri,
         };
       },
     );
 
     // 3. Combine them: User first, then companions
     return [userProfile, ...companionProfiles];
-  }, [displayName, primaryAvatar, companionsFromStore]); // Re-run when companions change
+  }, [authUser?.profilePicture, authUser?.profileToken, companionsFromStore, displayName]); // Re-run when companions change
+
+  const getInitial = (name: string, fallback: string) => {
+    const trimmed = name?.trim();
+    if (!trimmed) {
+      return fallback;
+    }
+    return trimmed.charAt(0).toUpperCase();
+  };
+
+  const renderProfileAvatar = (profile: CompanionProfile, index: number) => {
+    const isUserProfile = index === 0;
+    const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
+    const shouldShowImage =
+      hasRemoteImage && failedProfileImages[profile.id] !== true && profile.avatar;
+
+    if (shouldShowImage) {
+      return (
+        <Image
+          source={profile.avatar as ImageSourcePropType}
+          style={styles.companionAvatar}
+          onError={() => handleProfileImageError(profile.id)}
+        />
+      );
+    }
+
+    const initial = isUserProfile ? userInitials : getInitial(profile.name, 'C');
+
+    return (
+      <View style={styles.companionAvatarInitials}>
+        <Text style={styles.avatarInitialsText}>{initial}</Text>
+      </View>
+    );
+  };
 
   const handleBackPress = React.useCallback(() => {
     if (navigation.canGoBack()) {
@@ -195,8 +231,8 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const handleDeleteAccount = React.useCallback(async () => {
-    if (!authUser?.id) {
-      throw new Error('Unable to delete account. Missing user identifier.');
+    if (!authUser?.parentId) {
+      throw new Error('Unable to delete account. Missing parent identifier.');
     }
 
     try {
@@ -208,7 +244,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         throw new Error('Please sign in again before deleting your account.');
       }
 
-      await deleteParentProfile(authUser.id, accessToken);
+      await deleteParentProfile(authUser.parentId, accessToken);
 
       if (provider === 'amplify') {
         await deleteAmplifyAccount();
@@ -225,7 +261,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     } finally {
       setIsDeletingAccount(false);
     }
-  }, [authUser?.id, logout, provider]);
+  }, [authUser?.parentId, logout, provider]);
 
   const handleLogoutPress = React.useCallback(() => {
     logout().catch(error => {
@@ -313,18 +349,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                   index < profiles.length - 1 && styles.companionRowDivider,
                 ]}>
                 <View style={styles.companionInfo}>
-                  {index === 0 && authUser?.profilePicture == null ? (
-                    <View style={styles.companionAvatarInitials}>
-                      <Text style={styles.avatarInitialsText}>
-                        {userInitials}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Image
-                      source={profile.avatar}
-                      style={styles.companionAvatar}
-                    />
-                  )}
+                  {renderProfileAvatar(profile, index)}
                   <View>
                     <Text
                       style={styles.companionName}
