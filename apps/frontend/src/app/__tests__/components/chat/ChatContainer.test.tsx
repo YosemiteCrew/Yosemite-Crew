@@ -42,6 +42,9 @@ jest.mock("stream-chat-react", () => {
     MessageList: () => <div data-testid="message-list" />,
     Thread: () => <div data-testid="thread" />,
     Window: createPlaceholder("chat-window"),
+    useChannelStateContext: () => ({
+      channel: { id: "preview-channel", state: { members: {} } },
+    }),
   };
 });
 

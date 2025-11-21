@@ -20,6 +20,7 @@ apps/dev-docs/.docusaurus
 apps/mobileAppYC/ios/mobileAppYC/Info.plist
 apps/mobileAppYC/android/app/src/main/res/values/strings.xml
 
+
 # Google-Services File
 #
 google-services.json
@@ -125,3 +126,6 @@ yarn-error.log
 
 
 apps/mobileAppYC/amplify_outputs.json
+
+
+apps/backend/serviceAccount.json

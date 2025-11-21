@@ -209,6 +209,7 @@ const resolveProfileTokenForUser = async (
     existingProfileToken?: string | null;
     accessToken: string;
     userId: string;
+    parentId?: string | null;
   },
   sourceLabel: 'Amplify' | 'Firebase',
 ): Promise<
@@ -224,6 +225,7 @@ const resolveProfileTokenForUser = async (
     const profileStatus = await fetchProfileStatus({
       accessToken: params.accessToken,
       userId: params.userId,
+      parentId: params.parentId ?? undefined,
     });
 
     if (!profileStatus.isComplete && profileStatus.source === 'remote') {
@@ -249,8 +251,10 @@ const buildAmplifyUser = (
   authUser: Awaited<ReturnType<typeof getCurrentUser>>,
   mapped: Partial<User>,
   profileToken: string | null | undefined,
+  parentSummary?: ParentProfileSummary,
 ): User => ({
   id: authUser.userId,
+  parentId: parentSummary?.id ?? undefined,
   email: mapped.email ?? authUser.username,
   firstName: mapped.firstName,
   lastName: mapped.lastName,
@@ -263,6 +267,7 @@ const buildAmplifyUser = (
 const attemptAmplifyRecovery = async (
   existingProfileToken: string | null | undefined,
   maybeHandlePendingProfile: (userId: string) => Promise<boolean>,
+  existingParentId?: string | null,
 ): Promise<RecoveryResult> => {
   try {
     const session = await fetchAuthSession();
@@ -290,6 +295,7 @@ const attemptAmplifyRecovery = async (
         existingProfileToken,
         accessToken,
         userId: authUser.userId,
+        parentId: existingParentId ?? undefined,
       },
       'Amplify',
     );
@@ -298,7 +304,12 @@ const attemptAmplifyRecovery = async (
       return profileTokenResult;
     }
 
-    const baseUser = buildAmplifyUser(authUser, mapped, profileTokenResult.token);
+    const baseUser = buildAmplifyUser(
+      authUser,
+      mapped,
+      profileTokenResult.token,
+      profileTokenResult.parent,
+    );
     const mergedUser = mergeUserWithParentProfile(baseUser, profileTokenResult.parent);
     const hydratedUser: User = {
       ...mergedUser,
@@ -360,6 +371,7 @@ const attemptFirebaseRecovery = async (
         existingProfileToken,
         accessToken: idToken,
         userId: firebaseUser.uid,
+        parentId: existingUser?.parentId ?? undefined,
       },
       'Firebase',
     );
@@ -375,6 +387,7 @@ const attemptFirebaseRecovery = async (
 
     const baseUser: User = {
       id: firebaseUser.uid,
+      parentId: profileTokenResult.parent?.id ?? existingUser?.parentId,
       email: firebaseUser.email ?? existingUser?.email ?? '',
       firstName: existingUser?.firstName,
       lastName: existingUser?.lastName,
@@ -480,6 +493,7 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
   const amplifyResult = await attemptAmplifyRecovery(
     existingProfileToken,
     maybeHandlePendingProfile,
+    existingUser?.parentId ?? undefined,
   );
   if (amplifyResult) {
     return amplifyResult;
