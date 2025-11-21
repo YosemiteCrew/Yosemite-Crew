@@ -16,6 +16,7 @@ import organisationInviteRouter from "./routers/organisation-invite.router";
 import authUserMobileRouter from "./routers/authUserMobile.router";
 import coParentInviteRouter from "./routers/coparentInvite.router";
 import parentCompanionRouter from "./routers/parent-companion.router";
+import companionOrganisationRouter from "./routers/companion-organisation.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +37,7 @@ app.use(`/fhir/v1/availability`, availabilityRouter);
 app.use(`/v1/authUser`, authUserMobileRouter);
 app.use(`/v1/coparent-invite`, coParentInviteRouter);
 app.use(`/v1/parent-companion`, parentCompanionRouter);
+app.use(`/v1/companion-organisation`, companionOrganisationRouter);
 
 let mongoUri: string;
 

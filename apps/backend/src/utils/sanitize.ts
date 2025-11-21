@@ -17,3 +17,21 @@ export const sanitizeInput = (value: any): any => {
   }
   return value;
 };
+
+export function assertSafeString(input: unknown, field: string): string {
+  if (typeof input !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+
+  // Prevent NoSQL operator injection
+  if (input.includes("$") || input.includes(".")) {
+    throw new Error(`${field} contains invalid characters`);
+  }
+
+  // Optional — restrict allowed characters (tune as needed)
+  if (!/^[a-zA-Z0-9@._+-]+$/.test(input)) {
+    throw new Error(`${field} contains invalid format`);
+  }
+
+  return input;
+}
