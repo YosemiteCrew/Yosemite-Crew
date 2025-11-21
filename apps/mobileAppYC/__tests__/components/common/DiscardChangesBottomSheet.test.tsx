@@ -34,7 +34,7 @@ jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
     const React = require('react');
-    const {View} = require('react-native');
+    const {View, Text} = require('react-native'); // Import Text
     return {
       __esModule: true,
       ConfirmActionBottomSheet: React.forwardRef((props: any, ref: any) => {
@@ -47,15 +47,18 @@ jest.mock(
         mockSecondaryOnPress = props.secondaryButton.onPress;
         // Spy on all props
         mockChildSheet(props);
-        // Render children so we can test the message
-        return <View testID="mock-confirm-sheet">{props.children}</View>;
+
+        // FIX: Render the message prop so getByText can find it
+        return (
+          <View testID="mock-confirm-sheet">
+            <Text>{props.message}</Text>
+            {props.children}
+          </View>
+        );
       }),
     };
   },
 );
-
-// 3. NO LONGER NEEDED! The react-native mock is now global.
-// jest.mock('react-native', ...)
 
 // --- Tests ---
 
@@ -77,11 +80,11 @@ describe('DiscardChangesBottomSheet', () => {
     expect(mockChildSheet).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Discard changes?',
-        snapPoints: ['250%'],
+        snapPoints: ['35%'],
       }),
     );
 
-    // This should now pass because StyleSheet.flatten is mocked
+    // This should now pass because we render props.message in the mock
     expect(
       getByText(
         'You have unsaved changes. Are you sure you want to discard them?',
