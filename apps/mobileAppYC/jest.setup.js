@@ -200,6 +200,32 @@ jest.mock('@gorhom/bottom-sheet', () => {
   };
 });
 
+// Mock react-native-blob-util to avoid requiring native modules in tests
+jest.mock('react-native-blob-util', () => {
+  const mockFetch = jest.fn(() =>
+    Promise.resolve({
+      info: () => ({status: 200}),
+    }),
+  );
+  const mockWrap = jest.fn(value => value);
+
+  const mockBlob = {
+    fetch: mockFetch,
+    wrap: mockWrap,
+    fs: {},
+    android: {},
+    ios: {},
+  };
+  mockBlob.config = jest.fn(() => mockBlob);
+
+  return {
+    __esModule: true,
+    default: mockBlob,
+    fetch: mockFetch,
+    wrap: mockWrap,
+  };
+});
+
 // Safe area context mock to avoid native dependency requirements
 jest.mock('react-native-safe-area-context', () => {
   const React = require('react');

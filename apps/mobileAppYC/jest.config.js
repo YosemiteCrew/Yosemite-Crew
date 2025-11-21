@@ -8,6 +8,8 @@
 module.exports = {
   // Use RN's test environment without importing its ESM setup file
   testEnvironment: require.resolve('react-native/jest/react-native-env.js'),
+  // Use React Native's resolver so platform extensions (.ios/.android) resolve correctly
+  resolver: require.resolve('react-native/jest/resolver'),
   setupFiles: [
     '<rootDir>/jest.setup-before-env.js',
   ],
@@ -22,9 +24,19 @@ module.exports = {
   },
   // Allow RN and related packages to be transformed, even within pnpm's virtual store
   transformIgnorePatterns: [
-    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime)/)'
+    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|react-native-blob-util|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime)/)'
   ],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  moduleFileExtensions: [
+    'ios.js',
+    'android.js',
+    'native.js',
+    'ts',
+    'tsx',
+    'js',
+    'jsx',
+    'json',
+    'node',
+  ],
   moduleNameMapper: {
     // Support `@/` alias used by babel-plugin-module-resolver
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -33,6 +45,10 @@ module.exports = {
     // Stub asset imports if needed
     '\\.(svg)$': '<rootDir>/__mocks__/svgMock.js',
     '\\.(png|jpg|jpeg|gif|webp|bmp)$': '<rootDir>/__mocks__/fileMock.js',
+    '^react-native/Libraries/Image/Image$': 'react-native/Libraries/Image/Image.ios.js',
+    '^react-native-permissions$': '<rootDir>/__mocks__/react-native-permissions.ts',
+    '^@react-native-community/datetimepicker$': '<rootDir>/__mocks__/@react-native-community/datetimepicker.js',
+    '^@react-native-community/geolocation$': '<rootDir>/__mocks__/react-native-geolocation.js',
   },
   testPathIgnorePatterns: [
     '/node_modules/',
