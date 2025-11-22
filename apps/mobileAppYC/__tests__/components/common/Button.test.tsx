@@ -1,145 +1,210 @@
 import React from 'react';
-import TestRenderer from 'react-test-renderer';
-import {Provider} from 'react-redux';
-import {configureStore} from '@reduxjs/toolkit';
+import {render, fireEvent} from '@testing-library/react-native';
+// FIX: Corrected the import path
 import {Button} from '@/shared/components/common/Button/Button';
-import {themeReducer} from '@/features/theme';
-import { Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {useTheme} from '@/hooks';
+
+// --- Mocks ---
+
+// 1. Mock useTheme
+const mockTheme = {
+  borderRadius: {
+    base: 8,
+  },
+  spacing: {
+    '2': 4,
+    '3': 8,
+    '4': 12,
+    '6': 16,
+  },
+  colors: {
+    primary: 'mock-primary',
+    secondary: 'mock-secondary',
+    surface: 'mock-surface',
+    textSecondary: 'mock-text-secondary',
+    transparent: 'transparent',
+  },
+  typography: {
+    button: {fontSize: 16, fontWeight: '600'},
+    buttonSmall: {fontSize: 14, fontWeight: '500'},
+  },
+};
+
+jest.mock('@/hooks', () => ({
+  useTheme: jest.fn(() => ({
+    theme: mockTheme,
+  })),
+}));
+
+// 2. Mock react-native
+jest.mock('react-native', () => {
+  const React = require('react');
+  const RN = jest.requireActual('react-native');
+
+  const createMockComponent = (name: string, testID?: string) =>
+    React.forwardRef((props: any, ref: any) =>
+      React.createElement(name, {
+        ...props,
+        ref,
+        testID: props.testID || testID,
+      }),
+    );
+
+  return {
+    TouchableOpacity: createMockComponent(
+      'TouchableOpacity',
+      'mock-touchable-opacity',
+    ),
+    Text: createMockComponent('Text', 'mock-text'),
+    View: createMockComponent('View'),
+    ActivityIndicator: createMockComponent(
+      'ActivityIndicator',
+      'mock-activity-indicator',
+    ),
+    StyleSheet: {
+      create: (styles: any) => styles,
+      flatten: (styles: any) => styles,
+      absoluteFillObject: RN.StyleSheet.absoluteFillObject,
+      hairlineWidth: RN.StyleSheet.hairlineWidth,
+    },
+    Platform: RN.Platform,
+    PixelRatio: RN.PixelRatio,
+  };
+});
+
+// --- Tests ---
 
 describe('Button', () => {
-  const createTestStore = () => {
-    return configureStore({
-      reducer: {
-        theme: themeReducer,
-      },
-    });
-  };
+  const mockOnPress = jest.fn();
 
-  const wrap = (children: React.ReactElement) => (
-    <Provider store={createTestStore()}>{children}</Provider>
-  );
-
-  it('should render with title', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Button title="Click Me" onPress={() => {}} />));
-    });
-    expect(tree.root.findByType(Text).props.children).toBe('Click Me');
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});
   });
 
-  it('should call onPress when pressed', () => {
-    const onPress = jest.fn();
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Button title="Click Me" onPress={onPress} />));
-    });
-    const touchable = tree.root.findByType(TouchableOpacity);
-    touchable.props.onPress();
-    expect(onPress).toHaveBeenCalledTimes(1);
+  it('renders the title', () => {
+    const {getByText} = render(
+      <Button title="Click Me" onPress={mockOnPress} />,
+    );
+    expect(getByText('Click Me')).toBeTruthy();
   });
 
-  it('should not call onPress when disabled', () => {
-    const onPress = jest.fn();
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Button title="Click Me" onPress={onPress} disabled />));
-    });
-    const touchable = tree.root.findByType(TouchableOpacity);
-    expect(touchable.props.disabled).toBe(true);
+  it('calls onPress when pressed', () => {
+    const {getByTestId} = render(
+      <Button title="Click Me" onPress={mockOnPress} />,
+    );
+    // This test is for when the button is NOT disabled
+    fireEvent.press(getByTestId('mock-touchable-opacity'));
+    expect(mockOnPress).toHaveBeenCalledTimes(1);
   });
 
-  it('should not call onPress when loading', () => {
-    const onPress = jest.fn();
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Button title="Click Me" onPress={onPress} loading />));
-    });
-    const touchable = tree.root.findByType(TouchableOpacity);
-    expect(touchable.props.disabled).toBe(true);
+  it('disables the button when disabled={true}', () => {
+    const {getByTestId} = render(
+      <Button title="Disabled" onPress={mockOnPress} disabled={true} />,
+    );
+    const button = getByTestId('mock-touchable-opacity');
+
+    // FIX: Remove the fireEvent.press and not.toHaveBeenCalled()
+    // We only test that the disabled prop is correctly passed to the TouchableOpacity
+    expect(button.props.disabled).toBe(true);
   });
 
-  it('should show loading indicator when loading', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Button title="Click Me" onPress={() => {}} loading />));
-    });
-    expect(tree.root.findByType(ActivityIndicator)).toBeTruthy();
+  it('disables the button and shows ActivityIndicator when loading={true}', () => {
+    const {getByTestId, getByText} = render(
+      <Button title="Loading" onPress={mockOnPress} loading={true} />,
+    );
+    const button = getByTestId('mock-touchable-opacity');
+    const indicator = getByTestId('mock-activity-indicator');
+
+    // FIX: Remove the fireEvent.press and not.toHaveBeenCalled()
+    // We test that the button is disabled AND the indicator is visible
+    expect(button.props.disabled).toBe(true);
+    expect(indicator).toBeTruthy();
+    expect(getByText('Loading')).toBeTruthy();
   });
 
-  it('should render with different variants', () => {
-    const variants: Array<'primary' | 'secondary' | 'outline' | 'ghost'> = [
-      'primary',
-      'secondary',
-      'outline',
-      'ghost',
-    ];
-
-    variants.forEach(variant => {
-      let tree!: TestRenderer.ReactTestRenderer;
-      TestRenderer.act(() => {
-        tree = TestRenderer.create(wrap(
-          <Button title={`${variant} Button`} onPress={() => {}} variant={variant} />
-        ));
-      });
-      expect(tree.root.findByType(Text).props.children).toBe(`${variant} Button`);
-    });
+  it('does not show ActivityIndicator when not loading', () => {
+    const {queryByTestId} = render(
+      <Button title="Click Me" onPress={mockOnPress} loading={false} />,
+    );
+    expect(queryByTestId('mock-activity-indicator')).toBeNull();
   });
 
-  it('should render with different sizes', () => {
-    const sizes: Array<'small' | 'medium' | 'large'> = ['small', 'medium', 'large'];
-
-    sizes.forEach(size => {
-      let tree!: TestRenderer.ReactTestRenderer;
-      TestRenderer.act(() => {
-        tree = TestRenderer.create(wrap(
-          <Button title={`${size} Button`} onPress={() => {}} size={size} />
-        ));
-      });
-      expect(tree.root.findByType(Text).props.children).toBe(`${size} Button`);
-    });
+  it('passes correct indicator color for "primary" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="primary"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.surface,
+    );
   });
 
-  it('should apply custom style', () => {
-    const customStyle = {backgroundColor: 'red'};
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(
-        <Button title="Styled Button" onPress={() => {}} style={customStyle} />
-      ));
-    });
-    const touchable = tree.root.findByType(TouchableOpacity);
-    const styleArray = Array.isArray(touchable.props.style) ? touchable.props.style : [touchable.props.style];
-    const hasCustom = styleArray.some((s: any) => s && s.backgroundColor === 'red');
-    expect(hasCustom).toBe(true);
+  it('passes correct indicator color for "secondary" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="secondary"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.surface,
+    );
   });
 
-  it('should apply custom textStyle', () => {
-    const customTextStyle = {fontSize: 20};
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(
-        <Button title="Styled Text" onPress={() => {}} textStyle={customTextStyle} />
-      ));
-    });
-    const text = tree.root.findByType(Text);
-    const styleArray = Array.isArray(text.props.style) ? text.props.style : [text.props.style];
-    const hasCustom = styleArray.some((s: any) => s && s.fontSize === 20);
-    expect(hasCustom).toBe(true);
+  it('passes correct indicator color for "outline" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="outline"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.primary,
+    );
   });
 
-  it('should use default variant when not specified', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Button title="Default" onPress={() => {}} />));
-    });
-    expect(tree.root.findByType(Text).props.children).toBe('Default');
+  it('passes correct indicator color for "ghost" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="ghost"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.primary,
+    );
   });
 
-  it('should use default size when not specified', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Button title="Default" onPress={() => {}} />));
-    });
-    expect(tree.root.findByType(Text).props.children).toBe('Default');
+  it('applies custom style to TouchableOpacity', () => {
+    const customStyle = {margin: 100};
+    const {getByTestId} = render(
+      <Button title="Custom" onPress={mockOnPress} style={customStyle} />,
+    );
+    const button = getByTestId('mock-touchable-opacity');
+    expect(button.props.style).toEqual(expect.arrayContaining([customStyle]));
+  });
+
+  it('applies custom textStyle to Text', () => {
+    const customTextStyle = {fontSize: 99};
+    const {getByText} = render(
+      <Button
+        title="Custom"
+        onPress={mockOnPress}
+        textStyle={customTextStyle}
+      />,
+    );
+    const text = getByText('Custom');
+    expect(text.props.style).toEqual(expect.arrayContaining([customTextStyle]));
   });
 });
