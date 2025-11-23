@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo} from 'react';
-import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator} from 'react-native';
+import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -9,8 +9,13 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
 import {CoParentCard} from '../../components/CoParentCard/CoParentCard';
 import {selectCoParents, selectCoParentLoading, fetchCoParents} from '../../index';
-import {selectAuthUser} from '@/features/auth/selectors';
 import type {HomeStackParamList} from '@/navigation/types';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+  setSelectedCompanion,
+} from '@/features/companion';
+import {selectAuthUser} from '@/features/auth/selectors';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CoParents'>;
 
@@ -22,12 +27,50 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   const coParents = useSelector(selectCoParents);
   const loading = useSelector(selectCoParentLoading);
   const authUser = useSelector(selectAuthUser);
+  const companions = useSelector(selectCompanions);
+  const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const selectedCompanion = useMemo(
+    () =>
+      companions.find(c => c.id === selectedCompanionId) ??
+      companions[0] ??
+      null,
+    [companions, selectedCompanionId],
+  );
 
   useEffect(() => {
-    if (authUser?.id) {
-      dispatch(fetchCoParents(authUser.id));
+    if (!selectedCompanionId && companions[0]?.id) {
+      dispatch(setSelectedCompanion(companions[0].id));
     }
-  }, [authUser?.id, dispatch]);
+  }, [companions, dispatch, selectedCompanionId]);
+
+  useEffect(() => {
+    if (selectedCompanion?.id) {
+      dispatch(
+        fetchCoParents({
+          companionId: selectedCompanion.id,
+          companionName: selectedCompanion.name,
+          companionImage: selectedCompanion.profileImage ?? undefined,
+        }),
+      );
+    }
+  }, [
+    dispatch,
+    selectedCompanion?.id,
+    selectedCompanion?.name,
+    selectedCompanion?.profileImage,
+  ]);
+
+  const visibleCoParents = useMemo(
+    () =>
+      coParents.filter(cp => {
+        const isPrimary = (cp.role ?? '').toUpperCase().includes('PRIMARY');
+        if (isPrimary && cp.parentId === authUser?.parentId) {
+          return false;
+        }
+        return true;
+      }),
+    [authUser?.parentId, coParents],
+  );
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -36,6 +79,10 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const handleAdd = () => {
+    if (!selectedCompanion?.id) {
+      Alert.alert('Select companion', 'Please select a companion before adding a co-parent.');
+      return;
+    }
     navigation.navigate('AddCoParent');
   };
 
@@ -48,7 +95,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   };
 
   // Show empty state when no co-parents
-  if (!loading && coParents.length === 0) {
+  if (!loading && visibleCoParents.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <Header
@@ -89,13 +136,19 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-          {coParents.map((coParent, index) => (
+          {visibleCoParents.map((coParent, index) => (
             <CoParentCard
-              key={coParent.id}
+              key={coParent.parentId || coParent.id}
               coParent={coParent}
-              onPressView={() => handleViewCoParent(coParent.id)}
-              onPressEdit={() => handleEditCoParent(coParent.id)}
-              divider={index < coParents.length - 1}
+              onPressView={() => handleViewCoParent(coParent.parentId || coParent.id)}
+              onPressEdit={
+                (coParent.role ?? '').toUpperCase().includes('PRIMARY')
+                  ? undefined
+                  : () => handleEditCoParent(coParent.parentId || coParent.id)
+              }
+              hideSwipeActions={(coParent.role ?? '').toUpperCase().includes('PRIMARY')}
+              showEditAction={!(coParent.role ?? '').toUpperCase().includes('PRIMARY')}
+              divider={index < visibleCoParents.length - 1}
             />
           ))}
         </ScrollView>
@@ -114,6 +167,9 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing[4],
       paddingVertical: theme.spacing[6],
       paddingBottom: theme.spacing[10],
+    },
+    selectorContainer: {
+      paddingBottom: theme.spacing[4],
     },
     emptyContainer: {
       flex: 1,

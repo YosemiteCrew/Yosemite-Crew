@@ -15,6 +15,8 @@ export const AppointmentCard = ({
   onGetDirections,
   onChat,
   onCheckIn,
+  canChat = true,
+  onChatBlocked,
   showActions = true,
   footer,
   onViewDetails,
@@ -29,6 +31,8 @@ export const AppointmentCard = ({
   avatar: any;
   onGetDirections?: () => void;
   onChat?: () => void;
+  canChat?: boolean;
+  onChatBlocked?: () => void;
   onCheckIn?: () => void;
   showActions?: boolean;
   footer?: React.ReactNode;
@@ -119,7 +123,11 @@ export const AppointmentCard = ({
             <View style={styles.actionButtonWrapper} testID={testIDs?.chat}>
               <LiquidGlassButton
                 title="Chat"
-                onPress={onChat ?? (() => {})}
+                onPress={
+                  canChat
+                    ? onChat ?? (() => {})
+                    : onChatBlocked ?? (() => {})
+                }
                 style={styles.actionButton}
                 textStyle={styles.actionButtonText}
                 tintColor={theme.colors.white}

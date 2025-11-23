@@ -10,10 +10,13 @@ import {
   View,
   BackHandler,
   Alert,
+  Platform,
+  ToastAndroid,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
+import type {RootState} from '@/app/store';
 
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {selectAuthUser} from '@/features/auth/selectors';
@@ -25,6 +28,7 @@ import {HomeStackParamList} from '@/navigation/types';
 import {selectCompanions, setSelectedCompanion} from '@/features/companion';
 import type {AppDispatch} from '@/app/store';
 import type {Companion} from '@/features/companion/types';
+import type {ParentCompanionAccess} from '@/features/coParent';
 import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from '@/features/account/components/DeleteAccountBottomSheet';
@@ -59,6 +63,8 @@ type MenuItem = {
 
 // Removed COMPANION_PLACEHOLDERS
 
+const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
+
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {logout, provider} = useAuth();
@@ -80,6 +86,14 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   // Get companions from the Redux store
   const companionsFromStore = useSelector(selectCompanions);
+  const accessByCompanionId =
+    useSelector((state: RootState) => state.coParent?.accessByCompanionId) ??
+    EMPTY_ACCESS_MAP;
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const globalPermissions = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedPermissions,
+  );
 
   const displayName = React.useMemo(() => {
     const composed = [authUser?.firstName, authUser?.lastName]
@@ -188,6 +202,15 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
       navigation.navigate('Home');
     }
   }, [navigation]);
+
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
 
   // Handle Android back button for delete bottom sheet
   useEffect(() => {
@@ -380,8 +403,18 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                       });
                       // e.g., navigation.navigate('EditUserProfile');
                     } else {
+                      const access = accessByCompanionId[profile.id] ?? defaultAccess ?? null;
+                      const role = (access?.role ?? globalRole ?? '').toUpperCase();
+                      const isPrimary = role.includes('PRIMARY');
+                      const permissions = access?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+                      const canEdit =
+                        isPrimary ||
+                        (permissions ? Boolean(permissions.companionProfile) : false);
+                      if (!canEdit) {
+                        showPermissionToast('companion profile');
+                        return;
+                      }
                       dispatch(setSelectedCompanion(profile.id));
-                      // Navigate to Companion Profile Overview
                       navigation.navigate('ProfileOverview', {
                         companionId: profile.id,
                       });

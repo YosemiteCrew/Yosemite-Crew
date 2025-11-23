@@ -20,17 +20,12 @@ import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {
-  selectCoParentById,
-  updateCoParentPermissions,
-  selectCoParentLoading,
-  deleteCoParent,
-} from '../../index';
-import {selectCompanions, selectSelectedCompanionId} from '@/features/companion';
+import {updateCoParentPermissions, selectCoParentLoading, deleteCoParent, fetchCoParents} from '../../index';
+import {selectCompanions, selectSelectedCompanionId, setSelectedCompanion} from '@/features/companion';
+import {selectAuthUser} from '@/features/auth/selectors';
 import type {CoParentStackParamList} from '@/navigation/types';
 import type {CoParent, CoParentPermissions} from '../../types';
 import DeleteCoParentBottomSheet, {type DeleteCoParentBottomSheetRef} from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
-import {MOCK_CO_PARENTS} from '../../mockData';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
 type Props = NativeStackScreenProps<CoParentStackParamList, 'EditCoParent'>;
@@ -42,46 +37,98 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
 
-  const coParent = useSelector(state => selectCoParentById(coParentId)(state as any));
+  const coParent = useSelector((state: any) => {
+    const list: CoParent[] = state?.coParent?.coParents ?? [];
+    return list.find(cp => cp.id === coParentId || cp.parentId === coParentId) ?? null;
+  });
   const loading = useSelector(selectCoParentLoading);
+  const authUser = useSelector(selectAuthUser);
   const companions = useSelector(selectCompanions);
   const globalSelectedCompanionId = useSelector(selectSelectedCompanionId);
 
-  const [mockCoParent, setMockCoParent] = useState<CoParent | null>(null);
-  const [permissions, setPermissions] = useState<CoParentPermissions | null>(null);
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(globalSelectedCompanionId);
-  const [permissionsByCompanion, setPermissionsByCompanion] = useState<Record<string, CoParentPermissions>>({});
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(
+    globalSelectedCompanionId ?? coParent?.companionId ?? null,
+  );
+  const defaultPermissions: CoParentPermissions = {
+    assignAsPrimaryParent: false,
+    emergencyBasedPermissions: false,
+    appointments: false,
+    companionProfile: false,
+    documents: false,
+    expenses: false,
+    tasks: false,
+    chatWithVet: false,
+  };
+  const [permissions, setPermissions] = useState<CoParentPermissions>(defaultPermissions);
   const deleteSheetRef = React.useRef<DeleteCoParentBottomSheetRef>(null);
 
+  const selectedCompanion = useMemo(
+    () =>
+      companions.find(c => c.id === selectedCompanionId) ??
+      companions.find(c => c.id === globalSelectedCompanionId) ??
+      companions[0] ??
+      null,
+    [companions, globalSelectedCompanionId, selectedCompanionId],
+  );
+  const companionsToShow = useMemo(
+    () => (selectedCompanion ? [selectedCompanion] : companions),
+    [companions, selectedCompanion],
+  );
+
   useEffect(() => {
-    // Mock: Find from mock data if not in Redux
-    if (coParent) {
+    if (!selectedCompanionId && coParent?.companionId) {
+      setSelectedCompanionId(coParent.companionId);
+      dispatch(setSelectedCompanion(coParent.companionId));
+    }
+  }, [coParent?.companionId, dispatch, selectedCompanionId]);
+
+  useEffect(() => {
+    if (coParent?.permissions) {
       setPermissions(coParent.permissions);
-    } else {
-      const found = MOCK_CO_PARENTS.find(cp => cp.id === coParentId);
-      if (found) {
-        setMockCoParent(found);
-        setPermissions(found.permissions);
-      }
     }
-  }, [coParent, coParentId]);
+  }, [coParent]);
 
-  // Update current permissions when selected companion changes
   useEffect(() => {
-    if (selectedCompanionId && permissionsByCompanion[selectedCompanionId]) {
-      setPermissions(permissionsByCompanion[selectedCompanionId]);
-    } else if (permissions && selectedCompanionId && !permissionsByCompanion[selectedCompanionId]) {
-      // Initialize permissions for newly selected companion
-      setPermissionsByCompanion(prev => ({
-        ...prev,
-        [selectedCompanionId]: permissions,
-      }));
+    if (!selectedCompanionId && selectedCompanion?.id) {
+      setSelectedCompanionId(selectedCompanion.id);
     }
-  }, [selectedCompanionId, permissions, permissionsByCompanion]);
+  }, [selectedCompanion, selectedCompanionId]);
 
-  const currentCoParent = coParent || mockCoParent;
+  useEffect(() => {
+    if (!coParent && selectedCompanion?.id) {
+      dispatch(
+        fetchCoParents({
+          companionId: selectedCompanion.id,
+          companionName: selectedCompanion.name,
+          companionImage: selectedCompanion.profileImage ?? undefined,
+        }),
+      );
+    }
+  }, [coParent, dispatch, selectedCompanion]);
+
+  const currentCoParent = coParent;
+
+  useEffect(() => {
+    const isSelfPrimary =
+      (currentCoParent?.role ?? '').toUpperCase().includes('PRIMARY') &&
+      currentCoParent?.parentId === authUser?.parentId;
+    if (isSelfPrimary) {
+      Alert.alert('Not available', 'Primary parents cannot edit their own permissions.');
+      navigation.goBack();
+    }
+  }, [authUser?.parentId, currentCoParent?.parentId, currentCoParent?.role, navigation]);
 
   if (!currentCoParent || !permissions) {
+    if (!loading) {
+      return (
+        <SafeAreaView style={commonStyles.container}>
+          <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
+          <View style={commonStyles.centerContent}>
+            <Text style={styles.profileEmail}>Unable to load co-parent details.</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
     return (
       <SafeAreaView style={commonStyles.container}>
         <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
@@ -93,18 +140,13 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   const handlePermissionChange = (key: keyof CoParentPermissions) => {
-    if (!permissions || !selectedCompanionId) return;
-
-    const updated = {
-      ...permissions,
-      [key]: !permissions[key],
-    };
-    setPermissions(updated);
-
-    // Store in per-companion map
-    setPermissionsByCompanion(prev => ({
+    if (!selectedCompanionId) {
+      Alert.alert('Select companion', 'Please select a companion first.');
+      return;
+    }
+    setPermissions(prev => ({
       ...prev,
-      [selectedCompanionId]: updated,
+      [key]: !prev[key],
     }));
   };
 
@@ -114,17 +156,19 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
   const handleSavePermissions = async () => {
     try {
-      if (!selectedCompanionId && Object.keys(permissionsByCompanion).length === 0) {
-        Alert.alert('Error', 'Please select a companion and configure permissions');
+      if (!selectedCompanionId || !currentCoParent) {
+        Alert.alert('Error', 'Please select a companion and try again');
         return;
       }
 
-      // Save permissions for the currently selected companion
-      const permissionsToSave = selectedCompanionId && permissionsByCompanion[selectedCompanionId]
-        ? permissionsByCompanion[selectedCompanionId]
-        : permissions;
-
-      await dispatch(updateCoParentPermissions({coParentId, permissions: permissionsToSave})).unwrap();
+      const targetCoParentId = currentCoParent.parentId || currentCoParent.id || coParentId;
+      await dispatch(
+        updateCoParentPermissions({
+          coParentId: targetCoParentId,
+          companionId: selectedCompanionId,
+          permissions,
+        }),
+      ).unwrap();
       navigation.goBack();
     } catch (error) {
       console.error('Failed to update permissions:', error);
@@ -138,7 +182,14 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
   const handleDeleteConfirm = async () => {
     try {
-      await dispatch(deleteCoParent(coParentId)).unwrap();
+      if (!selectedCompanionId) {
+        Alert.alert('Error', 'Please select a companion and try again');
+        return;
+      }
+      const targetCoParentId = currentCoParent?.parentId || currentCoParent?.id || coParentId;
+      await dispatch(
+        deleteCoParent({companionId: selectedCompanionId, coParentId: targetCoParentId}),
+      ).unwrap();
       navigation.goBack();
     } catch (error) {
       console.error('Failed to delete:', error);
@@ -146,7 +197,8 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     }
   };
 
-  const displayName = `${currentCoParent.firstName} ${currentCoParent.lastName}`.trim();
+  const displayName =
+    `${currentCoParent.firstName ?? ''} ${currentCoParent.lastName ?? ''}`.trim() || 'Co-parent';
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -184,7 +236,9 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
               <Text style={styles.profileName}>{displayName}</Text>
               <View style={styles.contactRow}>
                 <RNImage source={Images.emailIcon} style={styles.contactIcon} />
-                <Text style={styles.profileEmail}>{currentCoParent.email}</Text>
+                <Text style={styles.profileEmail}>
+                  {currentCoParent.email || 'Email not available yet'}
+                </Text>
               </View>
               {currentCoParent.phoneNumber && (
                 <View style={styles.contactRow}>
@@ -214,9 +268,9 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       
 
         {/* Companion Selector */}
-        {companions.length > 0 && (
+        {companionsToShow.length > 0 && (
           <CompanionSelector
-            companions={companions}
+            companions={companionsToShow}
             selectedCompanionId={selectedCompanionId}
             onSelect={handleCompanionSelect}
             showAddButton={false}

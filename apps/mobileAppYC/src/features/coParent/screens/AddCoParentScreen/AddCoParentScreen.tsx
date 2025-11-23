@@ -1,5 +1,5 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator, KeyboardAvoidingView, Platform, Alert} from 'react-native';
+import {View, StyleSheet, ScrollView, Image, Text, KeyboardAvoidingView, Platform, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -7,18 +7,15 @@ import {useForm, Controller} from 'react-hook-form';
 import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
-import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {Input} from '@/shared/components/common';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {searchCoParentsByEmail, addCoParent} from '../../index';
-import {selectAuthUser} from '@/features/auth/selectors';
+import {addCoParent} from '../../index';
 import type {CoParentStackParamList} from '@/navigation/types';
-import type {CoParent} from '../../types';
-import AddCoParentBottomSheet from '../../components/AddCoParentBottomSheet/AddCoParentBottomSheet';
-import CoParentInviteBottomSheet from '../../components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
-import {useCoParentInviteFlow} from '../../hooks/useCoParentInviteFlow';
-import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
+import AddCoParentBottomSheet, {
+  type AddCoParentBottomSheetRef,
+} from '../../components/AddCoParentBottomSheet/AddCoParentBottomSheet';
+import {selectCompanions, selectSelectedCompanionId} from '@/features/companion';
 
 type Props = NativeStackScreenProps<CoParentStackParamList, 'AddCoParent'>;
 
@@ -32,12 +29,16 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
-  const authUser = useSelector(selectAuthUser);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<CoParent[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const companions = useSelector(selectCompanions);
+  const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const selectedCompanion = useMemo(
+    () =>
+      companions.find(c => c.id === selectedCompanionId) ??
+      companions[0] ??
+      null,
+    [companions, selectedCompanionId],
+  );
+  const addCoParentSheetRef = React.useRef<AddCoParentBottomSheetRef>(null);
   // Separate state for submitted data (for bottom sheet display)
   const [submittedData, setSubmittedData] = useState<InviteFormData>({
     candidateName: '',
@@ -59,44 +60,21 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
     mode: 'onChange',
   });
 
-  const {
-    addCoParentSheetRef,
-    coParentInviteSheetRef,
-    handleAddCoParentClose,
-    handleInviteAccept,
-    handleInviteDecline,
-  } = useCoParentInviteFlow({
-    onInviteComplete: () => navigation.goBack(),
-  });
-
-  const handleSearch = useCallback(async (query: string) => {
-    setSearchQuery(query);
-    if (query.length < 3) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearching(true);
-    try {
-      const result = await dispatch(searchCoParentsByEmail(query)).unwrap();
-      setSearchResults(result);
-    } catch (error) {
-      console.error('Search failed:', error);
-    } finally {
-      setSearching(false);
-    }
-  }, [dispatch]);
-
-  const handleSelectUser = useCallback((user: CoParent) => {
-    navigation.navigate('CoParentProfile', {coParentId: user.id});
-  }, [navigation]);
-
   const handleSendInvite = useCallback(async (data: InviteFormData) => {
     try {
+      if (!selectedCompanion?.id) {
+        Alert.alert('Select companion', 'Please select a companion to invite.');
+        return;
+      }
+
       await dispatch(
         addCoParent({
-          userId: authUser?.id || '',
-          inviteRequest: data,
+          inviteRequest: {
+            ...data,
+            companionId: selectedCompanion.id,
+          },
+          companionName: selectedCompanion.name,
+          companionImage: selectedCompanion.profileImage ?? undefined,
         }),
       ).unwrap();
 
@@ -116,7 +94,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
       console.error('Failed to add co-parent:', error);
       Alert.alert('Error', 'Failed to send invite');
     }
-  }, [dispatch, authUser?.id, reset, addCoParentSheetRef]);
+  }, [dispatch, reset, selectedCompanion]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -124,10 +102,10 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [navigation]);
 
-  const handleSheetChange = useCallback((index: number) => {
-    // index -1 means sheet is closed, >= 0 means sheet is open
-    setIsBottomSheetOpen(index >= 0);
-  }, []);
+  const handleAddCoParentClose = useCallback(() => {
+    addCoParentSheetRef.current?.close();
+    navigation.goBack();
+  }, [navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -137,16 +115,6 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}>
         <View style={styles.mainContent}>
-          {/* Search Bar Container - Fixed at top */}
-          <View style={styles.searchBarContainer}>
-            <SearchBar
-              placeholder="Search Co-Parent's email"
-              mode="input"
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-          </View>
-
           {/* Scrollable Content */}
           <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -263,25 +231,6 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
             </View>
           </ScrollView>
         </View>
-
-        {/* Search Loading Indicator - Absolutely Positioned Overlay */}
-        {searching && !isBottomSheetOpen && (
-          <View style={styles.absoluteSearchLoadingContainer}>
-            <View style={styles.searchLoadingContainer}>
-              <ActivityIndicator color={theme.colors.primary} />
-            </View>
-          </View>
-        )}
-
-        <SearchDropdownOverlay
-          visible={searchQuery.length >= 3 && searchResults.length > 0 && !searching && !isBottomSheetOpen}
-          items={searchResults}
-          keyExtractor={item => item.id}
-          onPress={handleSelectUser}
-          title={item => `${item.firstName} ${item.lastName}`}
-          subtitle={item => item.email}
-          initials={item => item.firstName}
-        />
       </KeyboardAvoidingView>
 
       <AddCoParentBottomSheet
@@ -290,16 +239,6 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
         coParentPhone={submittedData.phoneNumber}
         coParentName={submittedData.candidateName}
         onConfirm={handleAddCoParentClose}
-        onSheetChange={handleSheetChange}
-      />
-
-      <CoParentInviteBottomSheet
-        ref={coParentInviteSheetRef}
-        coParentName={submittedData.candidateName}
-        companionName="Companion"
-        onAccept={handleInviteAccept}
-        onDecline={handleInviteDecline}
-        onSheetChange={handleSheetChange}
       />
     </SafeAreaView>
   );
@@ -314,11 +253,6 @@ const createStyles = (theme: any) =>
     mainContent: {
       flex: 1,
     },
-    searchBarContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
-      backgroundColor: theme.colors.background,
-    },
     scrollContent: {
       paddingHorizontal: theme.spacing[4],
       paddingBottom: theme.spacing[24],
@@ -331,24 +265,7 @@ const createStyles = (theme: any) =>
       marginVertical: theme.spacing[4],
     },
     absoluteSearchLoadingContainer: {
-      position: 'absolute',
-      top: 70,
-      left: theme.spacing[4],
-      right: theme.spacing[4],
-    },
-    searchLoadingContainer: {
-      paddingVertical: theme.spacing[3],
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: theme.colors.white,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 4},
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 8,
+      display: 'none',
     },
     dividerContainer: {
       flexDirection: 'row',

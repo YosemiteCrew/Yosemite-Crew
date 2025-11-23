@@ -10,6 +10,7 @@ interface CoParentCardProps {
   onPressView?: () => void;
   onPressEdit?: () => void;
   hideSwipeActions?: boolean;
+  showEditAction?: boolean;
   divider?: boolean;
 }
 
@@ -18,13 +19,15 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
   onPressView,
   onPressEdit,
   hideSwipeActions = false,
+  showEditAction = true,
   divider = true,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const cardStyles = useMemo(() => createCardStyles(theme), [theme]);
 
-  const displayName = `${coParent.firstName} ${coParent.lastName}`.trim();
+  const displayName =
+    `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim() || 'Co-parent';
   const companionCount = coParent.companions.length;
   const companionText = companionCount === 1 ? 'Companion' : 'Companions';
 
@@ -37,7 +40,7 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
         fallbackStyle={cardStyles.fallback}
         onPressView={onPressView}
         onPressEdit={onPressEdit}
-        showEditAction={false}
+        showEditAction={showEditAction}
         hideSwipeActions={hideSwipeActions}
       >
         <TouchableOpacity
