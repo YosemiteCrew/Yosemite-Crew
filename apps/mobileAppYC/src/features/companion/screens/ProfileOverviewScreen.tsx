@@ -8,8 +8,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet as RNStyleSheet,
-  Alert,
   BackHandler,
+  Alert,
+  ToastAndroid,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -74,6 +76,14 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const accessForCompanion = useSelector(state => {
+    const accessMap = (state as any)?.coParent?.accessByCompanionId;
+    if (!accessMap || !companionId) {
+      return null;
+    }
+    return accessMap[companionId] ?? null;
+  });
+  const isPrimaryParent = (accessForCompanion?.role ?? '').toUpperCase().includes('PRIMARY');
 
   // Profile image picker ref
   const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
@@ -88,6 +98,39 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const companion = React.useMemo(
     () => allCompanions.find(c => c.id === companionId),
     [allCompanions, companionId],
+  );
+
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
+
+  const canAccessFeature = React.useCallback(
+    (permission: keyof NonNullable<typeof accessForCompanion>['permissions']) => {
+      if (isPrimaryParent) {
+        return true;
+      }
+      if (!accessForCompanion) {
+        return true;
+      }
+      return Boolean(accessForCompanion.permissions?.[permission]);
+    },
+    [accessForCompanion, isPrimaryParent],
+  );
+
+  const guardFeature = React.useCallback(
+    (permission: keyof NonNullable<typeof accessForCompanion>['permissions'], label: string) => {
+      if (!canAccessFeature(permission)) {
+        showPermissionToast(label);
+        return false;
+      }
+      return true;
+    },
+    [canAccessFeature, showPermissionToast],
   );
 
   useEffect(() => {
@@ -198,6 +241,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         navigation.navigate('EditParentOverview', {companionId});
         break;
       case 'documents':
+        if (!guardFeature('documents', 'documents')) {
+          return;
+        }
         dispatch(setSelectedCompanion(companionId));
         navigation.getParent()?.navigate('Documents', {screen: 'DocumentsMain'});
         break;
@@ -205,22 +251,40 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       case 'boarder':
       case 'breeder':
       case 'groomer':
+        if (!guardFeature('appointments', 'clinic access')) {
+          return;
+        }
         navigateToLinkedBusiness(sectionId);
         break;
       case 'expense':
+        if (!guardFeature('expenses', 'expenses')) {
+          return;
+        }
         dispatch(setSelectedCompanion(companionId));
         navigation.navigate('ExpensesStack', {screen: 'ExpensesMain'});
         break;
       case 'health_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('health');
         break;
       case 'hygiene_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('hygiene');
         break;
       case 'dietary_plan':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('dietary');
         break;
       case 'custom_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('custom');
         break;
       case 'co_parent':

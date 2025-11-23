@@ -114,9 +114,11 @@ export const DocumentsScreen: React.FC = () => {
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
-          onSelect={(id) => dispatch(setSelectedCompanion(id))}
+          onSelect={id => dispatch(setSelectedCompanion(id))}
           showAddButton={false}
           containerStyle={styles.companionSelector}
+          requiredPermission="documents"
+          permissionLabel="documents"
         />
 
         {recentDocuments.length > 0 && (

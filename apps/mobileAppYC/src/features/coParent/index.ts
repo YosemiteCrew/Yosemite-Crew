@@ -5,10 +5,16 @@ export {
   addCoParent,
   updateCoParentPermissions,
   deleteCoParent,
-  searchCoParentsByEmail,
+  fetchPendingInvites,
+  acceptCoParentInvite,
+  declineCoParentInvite,
+  fetchParentAccess,
 } from './thunks';
 export {
   selectCoParents,
+  selectPendingInvites,
+  selectInvitesLoading,
+  selectAccessLoading,
   selectCoParentLoading,
   selectCoParentError,
   selectSelectedCoParentId,
@@ -16,5 +22,14 @@ export {
   selectCoParentById,
   selectAcceptedCoParents,
   selectPendingCoParents,
+  selectAccessByCompanionId,
+  selectAccessForCompanion,
 } from './selectors';
-export type {CoParent, CoParentPermissions, CoParentInviteRequest, CoParentState} from './types';
+export type {
+  CoParent,
+  CoParentPermissions,
+  CoParentInviteRequest,
+  CoParentState,
+  PendingCoParentInvite,
+  ParentCompanionAccess,
+} from './types';

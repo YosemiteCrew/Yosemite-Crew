@@ -132,6 +132,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           onSelect={onCompanionSelect}
           showAddButton={false}
           containerStyle={styles.companionSelector}
+          requiredPermission="expenses"
+          permissionLabel="expenses"
         />
 
         <View style={styles.fieldGroup}>

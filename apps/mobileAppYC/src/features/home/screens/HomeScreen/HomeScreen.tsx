@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp} from '@react-navigation/native';
+import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
@@ -58,6 +59,16 @@ import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
 import {selectUnreadCount} from '@/features/notifications/selectors';
 import {openMapsToAddress} from '@/shared/utils/openMaps';
+import {
+  fetchPendingInvites,
+  fetchParentAccess,
+  type CoParentPermissions,
+  type ParentCompanionAccess,
+  type PendingCoParentInvite,
+} from '@/features/coParent';
+
+const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
+const EMPTY_PENDING_INVITES: PendingCoParentInvite[] = [];
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -93,6 +104,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const expenseSummary = useSelector(
     selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
   );
+  const pendingInvites = useSelector(
+    (state: RootState) => state.coParent?.pendingInvites ?? EMPTY_PENDING_INVITES,
+  );
+  const accessMap = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
+  );
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const globalPermissions = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedPermissions,
+  );
+  const currentAccessEntry = selectedCompanionIdRedux
+    ? accessMap[selectedCompanionIdRedux] ?? null
+    : null;
   const hasExpenseHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
   );
@@ -129,6 +154,50 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     () => normalizeImageUri(authUser?.profilePicture ?? authUser?.profileToken ?? null),
     [authUser?.profilePicture, authUser?.profileToken],
   );
+  const getAccessEntry = React.useCallback(
+    (companionId?: string | null) => {
+      if (companionId) {
+        return accessMap[companionId] ?? null;
+      }
+      return currentAccessEntry ?? defaultAccess;
+    },
+    [accessMap, currentAccessEntry, defaultAccess],
+  );
+  const canAccessFeature = React.useCallback(
+    (permission: keyof CoParentPermissions, companionId?: string | null) => {
+      const entry = getAccessEntry(companionId);
+      const role = (entry?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase();
+      const permissions = entry?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+      const isPrimary = role.includes('PRIMARY');
+      if (isPrimary) {
+        return true;
+      }
+      if (!permissions) {
+        return false;
+      }
+      return Boolean(permissions[permission]);
+    },
+    [getAccessEntry, globalPermissions, globalRole],
+  );
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
+
+  const guardFeature = React.useCallback(
+    (permission: keyof CoParentPermissions, label: string, companionId?: string | null) => {
+      if (!canAccessFeature(permission, companionId)) {
+        showPermissionToast(label);
+        return false;
+      }
+      return true;
+    },
+    [canAccessFeature, showPermissionToast],
+  );
 
   React.useEffect(() => {
     setHeaderAvatarError(false);
@@ -146,6 +215,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
     loadCompanionsAndSelectDefault();
   }, [dispatch, user?.parentId]);
+
+  React.useEffect(() => {
+    if (authUser?.parentId && companions.length > 0) {
+      dispatch(
+        fetchParentAccess({
+          parentId: authUser.parentId,
+          companionIds: companions.map(c => c.id),
+        }),
+      );
+    }
+  }, [authUser?.parentId, companions, dispatch]);
 
   // New useEffect to handle default selection once companions are loaded
   React.useEffect(() => {
@@ -254,6 +334,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const handleCompleteTask = React.useCallback(
     async (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
       try {
         await dispatch(
           markTaskStatus({
@@ -265,20 +348,26 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         console.error('Failed to complete task:', error);
       }
     },
-    [dispatch],
+    [dispatch, guardFeature],
   );
 
   const handleStartObservationalTool = React.useCallback(() => {
+    if (!guardFeature('tasks', 'tasks')) {
+      return;
+    }
     if (!nextUpcomingTask) {
       return;
     }
     navigation
       .getParent<NavigationProp<TabParamList>>()
       ?.navigate('Tasks', {screen: 'ObservationalTool', params: {taskId: nextUpcomingTask.id}});
-  }, [navigation, nextUpcomingTask]);
+  }, [guardFeature, navigation, nextUpcomingTask]);
 
   const navigateToTasksCategory = React.useCallback(
     (category: TaskStackParamList['TasksList']['category']) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
       if (!selectedCompanionIdRedux && companions.length > 0) {
         dispatch(setSelectedCompanion(companions[0].id));
       }
@@ -287,22 +376,28 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         params: {category},
       });
     },
-    [companions, dispatch, navigation, selectedCompanionIdRedux],
+    [companions, dispatch, guardFeature, navigation, selectedCompanionIdRedux],
   );
 
   const navigateToTaskView = React.useCallback(
     (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
       navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
         screen: 'TaskView',
         params: {taskId, source: 'home'},
       });
     },
-    [navigation],
+    [guardFeature, navigation],
   );
 
   const handleEmergencyPress = React.useCallback(() => {
+    if (!guardFeature('emergencyBasedPermissions', 'emergency actions')) {
+      return;
+    }
     openEmergencySheet();
-  }, [openEmergencySheet]);
+  }, [guardFeature, openEmergencySheet]);
 
 
   const handleViewTask = React.useCallback(() => {
@@ -341,16 +436,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const handleViewAppointment = React.useCallback(
     (appointmentId: string) => {
+      if (!guardFeature('appointments', 'appointments')) {
+        return;
+      }
       navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
         screen: 'ViewAppointment',
         params: {appointmentId},
       });
     },
-    [navigation],
+    [guardFeature, navigation],
   );
 
   const handleChatAppointment = React.useCallback(
     (appointmentId: string) => {
+      if (!guardFeature('chatWithVet', 'chat with vet')) {
+        return;
+      }
       const appointment = upcomingAppointments.find(a => a.id === appointmentId);
 
       if (!appointment) {
@@ -420,17 +521,26 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
       navigateToChat();
     },
-    [companions, employeeMap, navigation, serviceMap, upcomingAppointments],
+    [companions, employeeMap, guardFeature, navigation, serviceMap, upcomingAppointments],
   );
 
   const handleCheckInAppointment = React.useCallback(
     (appointmentId: string) => {
+      if (!guardFeature('appointments', 'appointments')) {
+        return;
+      }
       dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}));
     },
-    [dispatch],
+    [dispatch, guardFeature],
   );
-
   const renderUpcomingTasks = () => {
+    if (!canAccessFeature('tasks')) {
+      return renderEmptyStateTile(
+        'Tasks restricted',
+        'Ask the primary parent to enable tasks access for you.',
+        'tasks',
+      );
+    }
     if (nextUpcomingTask && selectedCompanion) {
       // Get assigned user's profile image and name
       const assignedToData = nextUpcomingTask?.assignedTo === authUser?.id ? {
@@ -478,6 +588,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const renderUpcomingAppointments = () => {
+    if (!canAccessFeature('appointments')) {
+      return renderEmptyStateTile(
+        'Appointments restricted',
+        'Ask the primary parent to enable appointment access for you.',
+        'appointments',
+      );
+    }
     if (nextUpcomingAppointment) {
       const biz = businessMap.get(nextUpcomingAppointment.businessId);
       const service = serviceMap.get(nextUpcomingAppointment.serviceId ?? '');
@@ -645,16 +762,24 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          <YearlySpendCard
-            amount={expenseSummary?.total ?? 0}
-            currencyCode={userCurrencyCode}
-            currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
-            onPressView={() =>
-              navigation.navigate('ExpensesStack', {
-                screen: 'ExpensesMain',
-              })
-            }
-          />
+          {canAccessFeature('expenses') ? (
+            <YearlySpendCard
+              amount={expenseSummary?.total ?? 0}
+              currencyCode={userCurrencyCode}
+              currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
+              onPressView={() =>
+                navigation.navigate('ExpensesStack', {
+                  screen: 'ExpensesMain',
+                })
+              }
+            />
+          ) : (
+            renderEmptyStateTile(
+              'Expenses restricted',
+              'Ask the primary parent to enable expenses access for you.',
+              'expenses',
+            )
+          )}
         </View>
 
         <View style={styles.section}>
@@ -664,6 +789,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => {
+                  if (!guardFeature('companionProfile', 'companion profile')) {
+                    return;
+                  }
                   // Pass the selected companion's ID to the ProfileOverview screen
                   const companionId =
                     selectedCompanionIdRedux ??

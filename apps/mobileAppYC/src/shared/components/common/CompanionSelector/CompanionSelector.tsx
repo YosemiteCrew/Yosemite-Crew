@@ -7,10 +7,16 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
+  Alert,
+  Platform,
+  ToastAndroid,
 } from 'react-native';
+import {useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
+import type {RootState} from '@/app/store';
+import type {CoParentPermissions} from '@/features/coParent';
 
 export interface CompanionBase {
   id?: string;
@@ -27,6 +33,8 @@ interface CompanionSelectorProps<T extends CompanionBase = CompanionBase> {
   onAddCompanion?: () => void;
   showAddButton?: boolean;
   containerStyle?: any;
+  requiredPermission?: keyof CoParentPermissions;
+  permissionLabel?: string;
   /**
    * Function to generate dynamic badge text for each companion
    * @param companion - The companion object
@@ -43,10 +51,20 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
   showAddButton = true,
   containerStyle,
   getBadgeText,
+  requiredPermission,
+  permissionLabel,
 }: CompanionSelectorProps<T>) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
+  const accessMap = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? {},
+  );
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const globalPermissions = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedPermissions,
+  );
 
   const handleImageError = React.useCallback((id: string) => {
     setFailedImages(prev => {
@@ -56,6 +74,20 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
       return {...prev, [id]: true};
     });
   }, []);
+
+  const showPermissionToast = React.useCallback(
+    (label?: string) => {
+      const message = label
+        ? `You don't have access to ${label}. Ask the primary parent to enable it.`
+        : "You don't have access to this companion. Ask the primary parent to enable it.";
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(message, ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Permission needed', message);
+      }
+    },
+    [],
+  );
 
   const renderCompanionBadge = (companion: T) => {
     const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
@@ -73,7 +105,29 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
         key={companionId}
         style={styles.companionTouchable}
         activeOpacity={0.88}
-        onPress={() => companionId && onSelect(companionId)}>
+        onPress={() => {
+          if (!companionId) {
+            return;
+          }
+
+          if (requiredPermission) {
+            const access = accessMap?.[companionId] ?? defaultAccess ?? null;
+            const role = (access?.role ?? globalRole ?? '').toUpperCase();
+            const isPrimary = role.includes('PRIMARY');
+            const permissions = access?.permissions ?? globalPermissions ?? defaultAccess?.permissions;
+            const hasPermission = isPrimary
+              ? true
+              : permissions
+              ? Boolean(permissions[requiredPermission])
+              : false;
+            if (!hasPermission) {
+              showPermissionToast(permissionLabel ?? requiredPermission);
+              return;
+            }
+          }
+
+          onSelect(companionId);
+        }}>
         <View style={styles.companionItem}>
           <Animated.View
             style={[
@@ -96,7 +150,12 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
             )}
           </Animated.View>
 
-          <Text style={styles.companionName}>{companion.name}</Text>
+          <Text
+            style={styles.companionName}
+            numberOfLines={1}
+            ellipsizeMode="tail">
+            {companion.name}
+          </Text>
           {badgeText && (
             <Text style={styles.companionMeta}>
               {badgeText}
@@ -183,6 +242,8 @@ const createStyles = (theme: any) =>
     companionName: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
+      textAlign: 'center',
+      alignSelf: 'stretch',
     },
     companionMeta: {
       ...theme.typography.labelXsBold,

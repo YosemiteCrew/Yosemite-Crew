@@ -2,6 +2,8 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {createNativeStackNavigator, NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useNavigation} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {DeviceEventEmitter, Alert} from 'react-native';
+import {useDispatch, useSelector} from 'react-redux';
 import {RootStackParamList} from './types';
 import {AuthNavigator} from './AuthNavigator';
 import type {AuthStackParamList} from './AuthNavigator';
@@ -11,9 +13,18 @@ import {useAuth, type AuthTokens} from '@/features/auth/context/AuthContext';
 import {Loading} from '@/shared/components/common';
 import {EmergencyProvider, useEmergency} from '@/features/home/context/EmergencyContext';
 import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSheet';
-
-import {DeviceEventEmitter} from 'react-native';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+import CoParentInviteBottomSheet, {
+  type CoParentInviteBottomSheetRef,
+} from '@/features/coParent/components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
+import type {AppDispatch, RootState} from '@/app/store';
+import {
+  acceptCoParentInvite,
+  declineCoParentInvite,
+  fetchParentAccess,
+  fetchPendingInvites,
+} from '@/features/coParent';
+import {fetchCompanions} from '@/features/companion';
+import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -217,6 +228,7 @@ const checkOnboardingStatus = async () => {
         {screenToRender}
       </Stack.Navigator>
       <AppNavigatorEmergencySheet />
+      <AppNavigatorCoParentInviteSheet />
     </EmergencyProvider>
   );
 }
@@ -261,4 +273,88 @@ const AppNavigatorEmergencySheet: React.FC = () => {
       onAdverseEvent={handleAdverseEvent}
     />
   );
-}
+};
+
+const AppNavigatorCoParentInviteSheet: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const {user} = useAuth();
+  const pendingInvites = useSelector(
+    (state: RootState) => (state as any)?.coParent?.pendingInvites ?? [],
+  );
+  const [currentInviteIndex, setCurrentInviteIndex] = React.useState(0);
+  const sheetRef = React.useRef<CoParentInviteBottomSheetRef>(null);
+
+  React.useEffect(() => {
+    dispatch(fetchPendingInvites());
+  }, [dispatch]);
+
+  React.useEffect(() => {
+    if (pendingInvites.length > 0) {
+      setCurrentInviteIndex(0);
+      requestAnimationFrame(() => sheetRef.current?.open());
+    } else {
+      sheetRef.current?.close();
+    }
+  }, [pendingInvites]);
+
+  const currentInvite = pendingInvites[currentInviteIndex] ?? null;
+
+  const handleAccept = React.useCallback(async () => {
+    const invite = pendingInvites[currentInviteIndex];
+    if (!invite) {
+      return;
+    }
+    try {
+      await dispatch(acceptCoParentInvite({token: invite.token})).unwrap();
+      dispatch(fetchPendingInvites());
+      if (user?.parentId) {
+        dispatch(
+          fetchParentAccess({
+            parentId: user.parentId,
+            companionIds: invite.companion?.id ? [invite.companion.id] : undefined,
+          }),
+        );
+        dispatch(fetchCompanions(user.parentId));
+      }
+    } catch (error) {
+      console.error('Failed to accept invite:', error);
+      Alert.alert('Error', 'Failed to accept invite');
+    }
+  }, [currentInviteIndex, dispatch, pendingInvites, user?.parentId]);
+
+  const handleDecline = React.useCallback(async () => {
+    const invite = pendingInvites[currentInviteIndex];
+    if (!invite) {
+      return;
+    }
+    try {
+      await dispatch(declineCoParentInvite({token: invite.token})).unwrap();
+      dispatch(fetchPendingInvites());
+    } catch (error) {
+      console.error('Failed to decline invite:', error);
+      Alert.alert('Error', 'Failed to decline invite');
+    }
+  }, [currentInviteIndex, dispatch, pendingInvites]);
+
+  if (!currentInvite) {
+    return null;
+  }
+
+  return (
+    <CoParentInviteBottomSheet
+      ref={sheetRef}
+      coParentName={currentInvite.inviteeName}
+      inviteeName={currentInvite.inviteeName}
+      inviterName={
+        currentInvite.invitedBy?.fullName ??
+        ((`${currentInvite.invitedBy?.firstName ?? ''} ${currentInvite.invitedBy?.lastName ?? ''}`).trim() ||
+          undefined)
+      }
+      inviterProfileImage={currentInvite.invitedBy?.profileImageUrl}
+      companionName={currentInvite.companion?.name}
+      companionProfileImage={currentInvite.companion?.photoUrl}
+      onAccept={handleAccept}
+      onDecline={handleDecline}
+    />
+  );
+};

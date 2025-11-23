@@ -15,15 +15,19 @@ interface CoParentInviteBottomSheetProps {
   coParentProfileImage?: string;
   companionName?: string;
   companionProfileImage?: string;
+  inviterName?: string;
+  inviterProfileImage?: string;
+  inviteeName?: string;
   onAccept?: () => void;
   onDecline?: () => void;
   onSheetChange?: (index: number) => void;
+  bottomInset?: number;
 }
 
 export const CoParentInviteBottomSheet = forwardRef<
   CoParentInviteBottomSheetRef,
   CoParentInviteBottomSheetProps
->(({coParentName, coParentProfileImage, companionName, companionProfileImage, onAccept, onDecline, onSheetChange}, ref) => {
+>(({coParentName, coParentProfileImage, companionName, companionProfileImage, inviterName, inviterProfileImage, inviteeName, onAccept, onDecline, onSheetChange, bottomInset}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
@@ -32,22 +36,29 @@ export const CoParentInviteBottomSheet = forwardRef<
   const avatars = useMemo(() => {
     const avatarList = [];
 
-    // Co-Parent avatar
-    if (coParentProfileImage) {
-      avatarList.push({uri: coParentProfileImage});
+    const inviterAvatarInitial = inviterName?.charAt(0).toUpperCase() || coParentName?.charAt(0).toUpperCase() || 'P';
+    const companionAvatarInitial = companionName?.charAt(0).toUpperCase() || 'C';
+
+    // Inviter avatar
+    if (inviterProfileImage || coParentProfileImage) {
+      avatarList.push({uri: inviterProfileImage ?? coParentProfileImage});
     } else {
-      avatarList.push({placeholder: coParentName?.charAt(0).toUpperCase() || 'C'});
+      avatarList.push({placeholder: inviterAvatarInitial});
     }
 
     // Companion avatar
     if (companionProfileImage) {
       avatarList.push({uri: companionProfileImage});
     } else {
-      avatarList.push({placeholder: companionName?.charAt(0).toUpperCase() || 'C'});
+      avatarList.push({placeholder: companionAvatarInitial});
     }
 
     return avatarList;
-  }, [coParentName, coParentProfileImage, companionName, companionProfileImage]);
+  }, [coParentName, coParentProfileImage, companionName, companionProfileImage, inviterName, inviterProfileImage]);
+
+  const resolvedCompanionName = companionName || 'your companion';
+  const resolvedInviterName = inviterName || coParentName || 'Someone';
+  const resolvedInviteeName = inviteeName || coParentName || 'you';
 
   React.useImperativeHandle(ref, () => ({
     open: () => bottomSheetRef.current?.open(),
@@ -59,10 +70,14 @@ export const CoParentInviteBottomSheet = forwardRef<
     onAccept?.();
   };
 
+  React.useEffect(() => {
+    setAgreeChecked(false);
+  }, [coParentName, companionName, inviterName, inviteeName]);
+
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
-      title={`${coParentName} as Co-Parent of ${companionName}`}
+      title={`${resolvedInviterName} invited you to join ${resolvedCompanionName}`}
       snapPoints={['65%']}
       primaryButton={{
         label: 'Accept',
@@ -76,6 +91,8 @@ export const CoParentInviteBottomSheet = forwardRef<
           onDecline?.();
         },
       }}
+      bottomInset={bottomInset}
+      zIndex={200}
       onSheetChange={onSheetChange}
       containerStyle={styles.container}>
       {/* Profile Images Section */}
@@ -91,10 +108,10 @@ export const CoParentInviteBottomSheet = forwardRef<
       {/* Profile Message */}
       <View style={styles.messageContainer}>
         <Text style={styles.messageTitle}>
-          Hey, {coParentName}!
+          Hey, {resolvedInviteeName}!
         </Text>
         <Text style={styles.messageSubtitle}>
-          Sky has sent Co-Parent invite to you.
+          {resolvedInviterName} has sent a co-parent invite for {resolvedCompanionName}.
         </Text>
       </View>
 
@@ -103,7 +120,7 @@ export const CoParentInviteBottomSheet = forwardRef<
         <Checkbox
           value={agreeChecked}
           onValueChange={setAgreeChecked}
-          label={`I agree to join ${coParentName}'s care circle and share tasks, reminders and records.`}
+          label={`I agree to join ${resolvedInviterName}'s care circle for ${resolvedCompanionName} and share tasks, reminders and records.`}
           labelStyle={styles.checkboxLabel}
         />
       </View>

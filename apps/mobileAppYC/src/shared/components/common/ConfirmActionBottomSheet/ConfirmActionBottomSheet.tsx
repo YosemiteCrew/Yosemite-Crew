@@ -49,6 +49,8 @@ interface ConfirmActionBottomSheetProps {
   messageStyle?: StyleProp<TextStyle>;
   buttonContainerStyle?: StyleProp<ViewStyle>;
   onSheetChange?: (index: number) => void;
+  zIndex?: number;
+  bottomInset?: number;
 }
 
 export const ConfirmActionBottomSheet = forwardRef<
@@ -69,6 +71,8 @@ export const ConfirmActionBottomSheet = forwardRef<
       messageStyle,
       buttonContainerStyle,
       onSheetChange,
+      zIndex,
+      bottomInset,
     },
     ref,
   ) => {
@@ -138,6 +142,7 @@ export const ConfirmActionBottomSheet = forwardRef<
         ref={bottomSheetRef}
         snapPoints={snapPoints}
         initialIndex={initialIndex}
+        zIndex={zIndex ?? 100}
         onChange={index => {
           setIsSheetVisible(index !== -1);
           onSheetChange?.(index);
@@ -152,6 +157,7 @@ export const ConfirmActionBottomSheet = forwardRef<
         backdropPressBehavior="close"
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}
+        bottomInset={bottomInset}
         contentType="view">
         <View style={[styles.container, containerStyle]}>
           <BottomSheetHeader

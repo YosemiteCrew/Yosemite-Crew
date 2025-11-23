@@ -72,6 +72,8 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
           selectedCompanionId={selectedCompanionId}
           onSelect={setSelectedCompanionId}
           showAddButton={false}
+          requiredPermission="emergencyBasedPermissions"
+          permissionLabel="emergency actions"
         />
       </View>
 
