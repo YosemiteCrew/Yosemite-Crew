@@ -31,7 +31,7 @@ import DeleteAccountBottomSheet, {
 import {AccountMenuList} from '@/features/account/components/AccountMenuList';
 import {Header} from '@/shared/components/common/Header/Header';
 import {calculateAgeFromDateOfBirth, truncateText} from '@/shared/utils/helpers';
-import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {deleteParentProfile} from '@/features/account/services/profileService';
 import {
   deleteAmplifyAccount,
@@ -237,10 +237,10 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
     try {
       setIsDeletingAccount(true);
-      const tokens = await loadStoredTokens();
+      const tokens = await getFreshStoredTokens();
       const accessToken = tokens?.accessToken;
 
-      if (!accessToken) {
+      if (!accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
         throw new Error('Please sign in again before deleting your account.');
       }
 
