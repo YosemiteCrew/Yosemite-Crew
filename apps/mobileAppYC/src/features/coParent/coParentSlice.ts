@@ -1,5 +1,5 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import type {CoParentState, ParentCompanionAccess} from './types';
+import type {CoParentState} from './types';
 import {
   fetchCoParents,
   addCoParent,
@@ -151,13 +151,11 @@ export const coParentSlice = createSlice({
         const updates = action.payload;
         updates.forEach(access => {
           const companionId = access.companionId;
-          if (!companionId) {
-            if (!state.defaultAccess) {
-              state.defaultAccess = access as ParentCompanionAccess;
-            }
-          } else {
-            state.accessByCompanionId[companionId] = access as ParentCompanionAccess;
+          if (companionId) {
+            state.accessByCompanionId[companionId] = access;
+            return;
           }
+          state.defaultAccess ??= access;
         });
         if (updates.length > 0) {
           const first = updates.find(u => Boolean(u.role)) ?? updates[0];

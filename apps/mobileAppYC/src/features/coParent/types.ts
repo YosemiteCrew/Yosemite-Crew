@@ -1,4 +1,4 @@
-export type ParentRole = 'PRIMARY' | 'CO-PARENT' | 'PRIMARY_PARENT' | string;
+export type ParentRole = 'PRIMARY' | 'CO-PARENT' | 'PRIMARY_PARENT';
 
 export interface CompanionCoParent {
   companionId: string;

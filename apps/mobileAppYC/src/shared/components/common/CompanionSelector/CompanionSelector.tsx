@@ -114,12 +114,9 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
             const access = accessMap?.[companionId] ?? defaultAccess ?? null;
             const role = (access?.role ?? globalRole ?? '').toUpperCase();
             const isPrimary = role.includes('PRIMARY');
-            const permissions = access?.permissions ?? globalPermissions ?? defaultAccess?.permissions;
-            const hasPermission = isPrimary
-              ? true
-              : permissions
-              ? Boolean(permissions[requiredPermission])
-              : false;
+            const permissions =
+              access?.permissions ?? globalPermissions ?? defaultAccess?.permissions;
+            const hasPermission = isPrimary || (permissions ? Boolean(permissions[requiredPermission]) : false);
             if (!hasPermission) {
               showPermissionToast(permissionLabel ?? requiredPermission);
               return;
