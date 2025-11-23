@@ -113,7 +113,12 @@ export const TabNavigator: React.FC = () => {
       }
       return Boolean(permissions[permission]);
     },
-    [accessForCompanion?.permissions, globalPermissions, isPrimaryParent],
+    [
+      accessForCompanion?.permissions,
+      defaultAccess?.permissions,
+      globalPermissions,
+      isPrimaryParent,
+    ],
   );
   const guardTab = React.useCallback(
     (permission: keyof CoParentPermissions, label: string) => () => {

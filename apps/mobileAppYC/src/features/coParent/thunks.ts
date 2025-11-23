@@ -207,7 +207,7 @@ export const updateCoParentPermissions = createAsyncThunk<
         accessToken,
       });
 
-      const state = getState() as RootState;
+      const state = getState();
       const existing =
         state.coParent?.coParents.find(cp => cp.id === coParentId) ?? null;
 
@@ -311,26 +311,27 @@ export const fetchParentAccess = createAsyncThunk<
     // If no companionId provided in links, try to resolve per companion
     if (companionIds && companionIds.length > 0) {
       for (const cid of companionIds) {
-        try {
-          const linksForCompanion = await coParentApi.listByCompanion({
-            companionId: cid,
-            accessToken,
-          });
-          const match = (linksForCompanion ?? []).find(
-            (l: any) => (l?.parentId ?? l?.parent?.id) === parentId,
-          );
-          if (match) {
-            normalized.push({
-              companionId: cid,
-              parentId,
-              role: match.role ?? 'CO-PARENT',
-              status: normalizeStatus(match.status),
-              permissions: normalizePermissions(match.permissions),
-            });
-          }
-        } catch (err) {
-          // ignore companion-specific failure, continue
+        const linksForCompanion = await coParentApi.listByCompanion({
+          companionId: cid,
+          accessToken,
+        });
+        const match = (linksForCompanion ?? []).find(
+          (l: any) => (l?.parentId ?? l?.parent?.id) === parentId,
+        );
+        if (!match) {
+          continue;
         }
+        const alreadyMapped = normalized.some(entry => entry.companionId === cid);
+        if (alreadyMapped) {
+          continue;
+        }
+        normalized.push({
+          companionId: cid,
+          parentId,
+          role: match.role ?? 'CO-PARENT',
+          status: normalizeStatus(match.status),
+          permissions: normalizePermissions(match.permissions),
+        });
       }
     }
 

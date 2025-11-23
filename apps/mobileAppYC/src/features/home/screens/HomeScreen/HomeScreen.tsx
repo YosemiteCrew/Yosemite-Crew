@@ -60,15 +60,12 @@ import {useEmergency} from '@/features/home/context/EmergencyContext';
 import {selectUnreadCount} from '@/features/notifications/selectors';
 import {openMapsToAddress} from '@/shared/utils/openMaps';
 import {
-  fetchPendingInvites,
   fetchParentAccess,
   type CoParentPermissions,
   type ParentCompanionAccess,
-  type PendingCoParentInvite,
 } from '@/features/coParent';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
-const EMPTY_PENDING_INVITES: PendingCoParentInvite[] = [];
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -103,9 +100,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
   const expenseSummary = useSelector(
     selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
-  );
-  const pendingInvites = useSelector(
-    (state: RootState) => state.coParent?.pendingInvites ?? EMPTY_PENDING_INVITES,
   );
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
@@ -177,7 +171,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       }
       return Boolean(permissions[permission]);
     },
-    [getAccessEntry, globalPermissions, globalRole],
+    [
+      defaultAccess?.permissions,
+      defaultAccess?.role,
+      getAccessEntry,
+      globalPermissions,
+      globalRole,
+    ],
   );
   const showPermissionToast = React.useCallback((label: string) => {
     const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
@@ -293,17 +293,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const selectedCompanion = React.useMemo(() => {
     return companions.find(c => c.id === selectedCompanionIdRedux);
   }, [companions, selectedCompanionIdRedux]);
-
-  const computeMockTaskCount = React.useCallback((companionId: string) => {
-    if (!companionId) {
-      return 0;
-    }
-    const charSum = Array.from(companionId).reduce(
-      (accumulator, character) => accumulator + (character.codePointAt(0) ?? 0),
-      0,
-    );
-    return (charSum % 5) + 1;
-  }, []);
 
   const renderEmptyStateTile = (
     title: string,
@@ -747,9 +736,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onSelect={handleSelectCompanion}
             onAddCompanion={handleAddCompanion}
             showAddButton={true}
-            getBadgeText={companion =>
-              `${computeMockTaskCount(companion.id)} Tasks`
-            }
           />
         )}
 
