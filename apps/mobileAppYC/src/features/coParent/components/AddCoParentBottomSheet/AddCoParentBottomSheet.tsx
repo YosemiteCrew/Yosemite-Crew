@@ -35,6 +35,7 @@ export const AddCoParentBottomSheet = forwardRef<
         label: 'Okay',
         onPress: handleConfirm,
       }}
+      zIndex={200}
       onSheetChange={onSheetChange}
       containerStyle={styles.container}>
       <View>

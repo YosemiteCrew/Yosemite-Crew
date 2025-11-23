@@ -129,6 +129,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           onSelect={onCompanionSelect}
           showAddButton={false}
           containerStyle={styles.companionSelector}
+          requiredPermission="documents"
+          permissionLabel="documents"
         />
 
         {showNote && (

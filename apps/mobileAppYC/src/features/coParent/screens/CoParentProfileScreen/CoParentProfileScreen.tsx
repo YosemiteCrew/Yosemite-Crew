@@ -19,10 +19,9 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
-import {addCoParent} from '../../index';
+import {addCoParent, selectCoParentById} from '../../index';
 import type {CoParentStackParamList} from '@/navigation/types';
 import type {CoParent} from '../../types';
-import {MOCK_SEARCHABLE_CO_PARENTS} from '../../mockData';
 import AddCoParentBottomSheet from '../../components/AddCoParentBottomSheet/AddCoParentBottomSheet';
 import CoParentInviteBottomSheet from '../../components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
 import {useCoParentInviteFlow} from '../../hooks/useCoParentInviteFlow';
@@ -38,7 +37,10 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
 
-  const [coParent, setCoParent] = useState<CoParent | null>(null);
+  const coParentFromStore = useSelector(state =>
+    selectCoParentById(coParentId)(state as any),
+  );
+  const [coParent, setCoParent] = useState<CoParent | null>(coParentFromStore ?? null);
   const [loading, setLoading] = useState(true);
   const [sendingInvite, setSendingInvite] = useState(false);
   const authUser = useSelector(selectAuthUser);
@@ -58,19 +60,22 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   });
 
   useEffect(() => {
-    // Mock: Find co-parent from searchable data
-    const found = MOCK_SEARCHABLE_CO_PARENTS.find(cp => cp.id === coParentId);
-    setCoParent(found || null);
+    setCoParent(coParentFromStore ?? null);
     setLoading(false);
-  }, [coParentId]);
+  }, [coParentFromStore]);
 
   const handleBack = () => {
     navigation.goBack();
   };
 
   const handleSendInvite = async () => {
-    if (!coParent || !authUser?.id) {
-      Alert.alert('Error', 'Unable to send invite');
+    const companionId =
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.companionId ??
+      null;
+    if (!coParent || !companionId) {
+      Alert.alert('Error', 'Unable to send invite. Please select a companion.');
       return;
     }
 
@@ -78,12 +83,14 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
     try {
       await dispatch(
         addCoParent({
-          userId: authUser.id,
           inviteRequest: {
             candidateName: `${coParent.firstName} ${coParent.lastName}`,
             email: coParent.email,
             phoneNumber: coParent.phoneNumber || '',
+            companionId,
           },
+          companionName: companions[0]?.name,
+          companionImage: companions[0]?.profileImage ?? undefined,
         }),
       ).unwrap();
 
