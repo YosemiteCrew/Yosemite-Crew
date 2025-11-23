@@ -2,18 +2,30 @@ import {Platform} from 'react-native';
 import axios, {AxiosInstance, AxiosRequestConfig} from 'axios';
 import {API_CONFIG} from '@/config/variables';
 
+const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '0.0.0.0'];
+
 const normalizeBaseUrl = (url: string): string => {
   if (!url) {
     return url;
   }
 
-  if (Platform.OS === 'android') {
+  if (Platform.OS !== 'android') {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (LOCAL_HOSTNAMES.includes(parsed.hostname)) {
+      const port = parsed.port ? `:${parsed.port}` : '';
+      const normalized = `${parsed.protocol}//10.0.2.2${port}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      return normalized;
+    }
+    return url;
+  } catch {
     return url
       .replace('://localhost', '://10.0.2.2')
       .replace('://127.0.0.1', '://10.0.2.2');
   }
-
-  return url;
 };
 
 const client: AxiosInstance = axios.create({

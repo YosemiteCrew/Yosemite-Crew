@@ -57,7 +57,7 @@ import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImag
 // Types
 import type {User} from '@/features/auth/types';
 import {updateUserProfile} from '@/features/auth';
-import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {
   updateParentProfile,
   type ParentProfileUpsertPayload,
@@ -108,10 +108,14 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   useEffect(() => {
     let mounted = true;
-    loadStoredTokens()
+    getFreshStoredTokens()
       .then(tokens => {
         if (mounted) {
-          setAccessToken(tokens?.accessToken ?? null);
+          const nextToken =
+            tokens && !isTokenExpired(tokens.expiresAt ?? undefined)
+              ? tokens.accessToken ?? null
+              : null;
+          setAccessToken(nextToken);
         }
       })
       .catch(error => {
