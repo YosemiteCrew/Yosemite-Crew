@@ -17,7 +17,6 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {selectAuthUser} from '@/features/auth/selectors';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {addCoParent, selectCoParentById} from '../../index';
 import type {CoParentStackParamList} from '@/navigation/types';
@@ -43,7 +42,6 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const [coParent, setCoParent] = useState<CoParent | null>(coParentFromStore ?? null);
   const [loading, setLoading] = useState(true);
   const [sendingInvite, setSendingInvite] = useState(false);
-  const authUser = useSelector(selectAuthUser);
   const companions = useSelector(selectCompanions);
 
   const {
@@ -79,13 +77,19 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
       return;
     }
 
+    const inviteEmail = coParent.email?.trim();
+    if (!inviteEmail) {
+      Alert.alert('Missing email', 'This co-parent does not have an email address on file.');
+      return;
+    }
+    const inviteName = `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim();
     setSendingInvite(true);
     try {
       await dispatch(
         addCoParent({
           inviteRequest: {
-            candidateName: `${coParent.firstName} ${coParent.lastName}`,
-            email: coParent.email,
+            candidateName: inviteName.length > 0 ? inviteName : inviteEmail,
+            email: inviteEmail,
             phoneNumber: coParent.phoneNumber || '',
             companionId,
           },
@@ -150,7 +154,13 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
             ) : (
               <View style={styles.profileImageInitials}>
                 <Text style={styles.profileInitialsText}>
-                  {coParent.firstName.charAt(0).toUpperCase()}
+                  {(coParent.firstName ||
+                    coParent.lastName ||
+                    coParent.email ||
+                    'C')
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
                 </Text>
               </View>
             )}
@@ -177,7 +187,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
             <View style={styles.detailDivider} />
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Email address:</Text>
-              <Text style={styles.detailValue}>{coParent.email}</Text>
+              <Text style={styles.detailValue}>{coParent.email ?? 'N/A'}</Text>
             </View>
           </LiquidGlassCard>
         </View>

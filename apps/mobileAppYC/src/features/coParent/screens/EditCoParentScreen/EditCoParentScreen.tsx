@@ -228,7 +228,13 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
             ) : (
               <View style={styles.profileAvatarInitials}>
                 <Text style={styles.profileAvatarText}>
-                  {currentCoParent.firstName.charAt(0).toUpperCase()}
+                  {(currentCoParent.firstName ||
+                    currentCoParent.lastName ||
+                    currentCoParent.email ||
+                    'C')
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
                 </Text>
               </View>
             )}

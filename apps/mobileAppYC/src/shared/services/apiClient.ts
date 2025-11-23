@@ -2,7 +2,7 @@ import {Platform} from 'react-native';
 import axios, {AxiosInstance, AxiosRequestConfig} from 'axios';
 import {API_CONFIG} from '@/config/variables';
 
-const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '0.0.0.0'];
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
 const normalizeBaseUrl = (url: string): string => {
   if (!url) {
@@ -15,7 +15,7 @@ const normalizeBaseUrl = (url: string): string => {
 
   try {
     const parsed = new URL(url);
-    if (LOCAL_HOSTNAMES.includes(parsed.hostname)) {
+    if (LOCAL_HOSTNAMES.has(parsed.hostname)) {
       const port = parsed.port ? `:${parsed.port}` : '';
       const normalized = `${parsed.protocol}//10.0.2.2${port}${parsed.pathname}${parsed.search}${parsed.hash}`;
       return normalized;

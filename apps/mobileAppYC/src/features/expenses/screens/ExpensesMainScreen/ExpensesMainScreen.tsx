@@ -6,7 +6,6 @@ import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea, YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import type {CoParentPermissions} from '@/features/coParent';
 import {ExpenseCard} from '@/features/expenses/components';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';

@@ -16,7 +16,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
-import type {RootState} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {selectAuthUser} from '@/features/auth/selectors';
@@ -26,7 +26,6 @@ import {useTheme} from '@/hooks';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {HomeStackParamList} from '@/navigation/types';
 import {selectCompanions, setSelectedCompanion} from '@/features/companion';
-import type {AppDispatch} from '@/app/store';
 import type {Companion} from '@/features/companion/types';
 import type {ParentCompanionAccess} from '@/features/coParent';
 import DeleteAccountBottomSheet, {
