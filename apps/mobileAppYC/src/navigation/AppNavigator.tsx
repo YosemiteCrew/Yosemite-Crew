@@ -14,7 +14,7 @@ import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSh
 
 import {DeviceEventEmitter} from 'react-native';
 import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
-import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
@@ -86,9 +86,14 @@ useEffect(() => {
 
     const seedPendingProfile = async () => {
       try {
-        const storedTokens = await loadStoredTokens();
+        const storedTokens = await getFreshStoredTokens();
         if (!storedTokens) {
           console.warn('[AppNavigator] No stored tokens available to resume pending profile.');
+          return;
+        }
+
+        if (isTokenExpired(storedTokens.expiresAt ?? undefined)) {
+          console.warn('[AppNavigator] Stored tokens are expired; skipping pending profile seeding.');
           return;
         }
 

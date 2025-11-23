@@ -91,9 +91,10 @@ const applyRecoverOutcome = async (
 
 export const initializeAuth = createAsyncThunk<
   void,
-  void,
+  {force?: boolean} | undefined,
   {state: RootState; dispatch: AppDispatch}
->('auth/initialize', async (_, {dispatch, getState}) => {
+>('auth/initialize', async (payload, {dispatch, getState}) => {
+  const force = (payload as {force?: boolean} | undefined)?.force ?? false;
   const state = getState().auth;
 
   console.log('[Auth] initializeAuth called with state:', {
@@ -103,7 +104,7 @@ export const initializeAuth = createAsyncThunk<
   });
 
   // Don't re-initialize if already initialized or currently initializing
-  if (state.initialized || state.status === 'initializing') {
+  if (!force && (state.initialized || state.status === 'initializing')) {
     console.log('[Auth] Already initialized or initializing, skipping');
     ensureAppStateListener(dispatch);
     return;
