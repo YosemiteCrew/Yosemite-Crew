@@ -6,11 +6,7 @@ import { CompanionController } from "src/controllers/app/companion.controller";
 const router = Router();
 
 // Routes for Mobile
-router.post(
-  "/", 
-  authorizeCognitoMobile, 
-  ParentController.createParentMobile
-);
+router.post("/", authorizeCognitoMobile, ParentController.createParentMobile);
 router.get("/:id", authorizeCognitoMobile, ParentController.getParentMobile);
 router.put("/:id", authorizeCognitoMobile, ParentController.updateParentMobile);
 router.delete(

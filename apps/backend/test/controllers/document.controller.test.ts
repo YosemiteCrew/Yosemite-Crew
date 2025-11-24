@@ -111,7 +111,10 @@ describe("DocumentController", () => {
         "cmp-1",
       );
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ url: "https://upload", key: "k" });
+      expect(res.json).toHaveBeenCalledWith({
+        url: "https://upload",
+        key: "k",
+      });
     });
   });
 
@@ -283,7 +286,9 @@ describe("DocumentController", () => {
       );
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ message: "User not authenticated." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "User not authenticated.",
+      });
     });
 
     it("uses parent context when available", async () => {

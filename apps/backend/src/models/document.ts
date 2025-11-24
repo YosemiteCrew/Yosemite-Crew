@@ -1,13 +1,13 @@
 import { Schema, model, Types, HydratedDocument } from "mongoose";
 
 export interface DocumentAttachment {
-  key: string;          // S3 key for download
-  mimeType: string;     // application/pdf, image/jpeg, etc.
-  size?: number;        // Optional file size in bytes
+  key: string; // S3 key for download
+  mimeType: string; // application/pdf, image/jpeg, etc.
+  size?: number; // Optional file size in bytes
 }
 
 export interface DocumentMongo {
-  companionId: Types.ObjectId; 
+  companionId: Types.ObjectId;
   appointmentId?: Types.ObjectId | null;
   //calssifications
   category: string;
@@ -20,7 +20,7 @@ export interface DocumentMongo {
   attachments: DocumentAttachment[];
   uploadedByParentId?: Types.ObjectId | null;
   uploadedByPmsUserId?: string;
-  pmsVisible: boolean; 
+  pmsVisible: boolean;
   syncedFromPms: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -34,7 +34,7 @@ const AttachmentSchema = new Schema<DocumentAttachment>(
     mimeType: { type: String, required: true },
     size: { type: Number },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const DocumentSchema = new Schema<DocumentMongo>(
@@ -95,7 +95,7 @@ const DocumentSchema = new Schema<DocumentMongo>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 DocumentSchema.index({ companionId: 1, category: 1 });

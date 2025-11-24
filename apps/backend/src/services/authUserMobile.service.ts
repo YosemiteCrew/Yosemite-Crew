@@ -25,7 +25,10 @@ export const AuthUserMobileService = {
     });
   },
 
-  async linkParent(authUserId: string, parentId: string): Promise<AuthUserMobile> {
+  async linkParent(
+    authUserId: string,
+    parentId: string,
+  ): Promise<AuthUserMobile> {
     authUserId = assertSafeString(authUserId, "authUserId");
 
     if (!Types.ObjectId.isValid(parentId)) {
@@ -49,7 +52,9 @@ export const AuthUserMobileService = {
     return user;
   },
 
-  async autoLinkParentByEmail(authUser: AuthUserMobile): Promise<ParentDocument | null> {
+  async autoLinkParentByEmail(
+    authUser: AuthUserMobile,
+  ): Promise<ParentDocument | null> {
     const safeEmail = assertSafeString(authUser.email, "email");
 
     const parent = await ParentModel.findOne({ email: safeEmail }).exec();
@@ -63,7 +68,9 @@ export const AuthUserMobileService = {
     return parent;
   },
 
-  async getByProviderUserId(providerUserId: string): Promise<AuthUserMobile | null> {
+  async getByProviderUserId(
+    providerUserId: string,
+  ): Promise<AuthUserMobile | null> {
     providerUserId = assertSafeString(providerUserId, "providerUserId");
 
     return AuthUserMobileModel.findOne({ providerUserId }).exec();
@@ -72,7 +79,6 @@ export const AuthUserMobileService = {
   async getAuthUserMobileIdByProviderId(
     providerUserId: string,
   ): Promise<Types.ObjectId | null> {
-
     providerUserId = assertSafeString(providerUserId, "providerUserId");
 
     const doc = await AuthUserMobileModel.findOne(
@@ -81,7 +87,9 @@ export const AuthUserMobileService = {
     ).exec();
 
     if (!doc) {
-      logger.warn(`AuthUserMobile not found for providerUserId: ${providerUserId}`);
+      logger.warn(
+        `AuthUserMobile not found for providerUserId: ${providerUserId}`,
+      );
       return null;
     }
 
