@@ -13,7 +13,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
@@ -45,6 +45,11 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const authUser = useSelector(selectAuthUser);
   const companions = useSelector(selectCompanions);
   const globalSelectedCompanionId = useSelector(selectSelectedCompanionId);
+  const accessMap = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? {},
+  );
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
 
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(
     globalSelectedCompanionId ?? coParent?.companionId ?? null,
@@ -74,6 +79,13 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     () => (selectedCompanion ? [selectedCompanion] : companions),
     [companions, selectedCompanion],
   );
+  const companionAccessId = selectedCompanion?.id ?? selectedCompanionId ?? null;
+  const userAccessEntry =
+    companionAccessId && accessMap
+      ? accessMap[companionAccessId] ?? defaultAccess ?? null
+      : defaultAccess;
+  const userRole = (userAccessEntry?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase();
+  const canEditPermissions = userRole.includes('PRIMARY');
 
   useEffect(() => {
     if (!selectedCompanionId && coParent?.companionId) {
@@ -140,6 +152,9 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   const handlePermissionChange = (key: keyof CoParentPermissions) => {
+    if (!canEditPermissions) {
+      return;
+    }
     if (!selectedCompanionId) {
       Alert.alert('Select companion', 'Please select a companion first.');
       return;
@@ -155,6 +170,10 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   const handleSavePermissions = async () => {
+    if (!canEditPermissions) {
+      Alert.alert('Not allowed', 'Only the primary parent can update permissions.');
+      return;
+    }
     try {
       if (!selectedCompanionId || !currentCoParent) {
         Alert.alert('Error', 'Please select a companion and try again');
@@ -206,8 +225,8 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         title="Co-Parent permissions"
         showBackButton
         onBack={() => navigation.goBack()}
-        rightIcon={Images.deleteIconRed}
-        onRightPress={handleDeletePress}
+        rightIcon={canEditPermissions ? Images.deleteIconRed : undefined}
+        onRightPress={canEditPermissions ? handleDeletePress : undefined}
       />
 
       <ScrollView
@@ -296,11 +315,11 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         {/* Permissions Section - No heading, just permissions */}
         <View style={styles.sectionContainer}>
 
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive
-            style={styles.card}
-            fallbackStyle={styles.cardFallback}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive
+          style={styles.card}
+          fallbackStyle={styles.cardFallback}>
             {/* Assign as primary parent */}
             <View style={styles.permissionRow}>
               <Text style={styles.permissionLabel}>Assign as primary parent</Text>
@@ -309,6 +328,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('assignAsPrimaryParent')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
             <View style={styles.divider} />
@@ -321,6 +341,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('emergencyBasedPermissions')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
             <View style={styles.divider} />
@@ -333,6 +354,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('appointments')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
             <View style={styles.divider} />
@@ -345,6 +367,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('companionProfile')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
             <View style={styles.divider} />
@@ -357,6 +380,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('documents')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
             <View style={styles.divider} />
@@ -369,6 +393,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('expenses')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
             <View style={styles.divider} />
@@ -381,6 +406,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('tasks')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
             <View style={styles.divider} />
@@ -393,28 +419,36 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('chatWithVet')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={!canEditPermissions}
               />
             </View>
           </LiquidGlassCard>
         </View>
 
-        {/* Save Button */}
-        <View style={styles.saveButton}>
-          <LiquidGlassButton
-            title={loading ? 'Saving...' : 'Save Permissions'}
-            onPress={handleSavePermissions}
-            style={commonStyles.button}
-            textStyle={commonStyles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            borderRadius={16}
-            loading={loading}
-            disabled={loading}
-          />
-        </View>
+        {!canEditPermissions && (
+          <Text style={styles.readOnlyNote}>
+            You can view these permissions, but only the primary parent can make changes.
+          </Text>
+        )}
+
+        {canEditPermissions && (
+          <View style={styles.saveButton}>
+            <LiquidGlassButton
+              title={loading ? 'Saving...' : 'Save Permissions'}
+              onPress={handleSavePermissions}
+              style={commonStyles.button}
+              textStyle={commonStyles.buttonText}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor={theme.colors.borderMuted}
+              height={56}
+              borderRadius={16}
+              loading={loading}
+              disabled={loading}
+            />
+          </View>
+        )}
       </ScrollView>
 
       <DeleteCoParentBottomSheet
@@ -548,6 +582,13 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.border,
     },
     saveButton: {
+      marginTop: theme.spacing[4],
+    },
+    readOnlyNote: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.placeholder,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing[4],
       marginTop: theme.spacing[4],
     },
   });
