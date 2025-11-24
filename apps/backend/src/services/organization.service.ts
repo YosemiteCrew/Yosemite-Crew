@@ -8,6 +8,7 @@ import {
   fromOrganizationRequestDTO,
   toOrganizationResponseDTO,
   type OrganizationRequestDTO,
+  type OrganizationResponseDTO,
   type OrganizationDTOAttributes,
   type Organisation,
   type ToFHIROrganizationOptions,
@@ -30,6 +31,8 @@ const ANIMAL_WELFARE_CERT_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber";
 const FIRE_EMERGENCY_CERT_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber";
+const GOOGLE_PLACE_ID_EXTENSION_URL =
+  "http://example.com/fhir/StructureDefinition/google-place-id";
 const ORGANIZATION_TYPES = new Set<Organisation["type"]>([
   "HOSPITAL",
   "BREEDER",
@@ -51,6 +54,19 @@ export type OrganizationFHIRPayload = OrganizationRequestDTO &
   ExtensionContainer & {
     identifier?: Array<{ value?: string; system?: string }>;
   };
+
+export interface OrganisationSearchInput {
+  placeId?: string;
+  lat?: number;
+  lng?: number;
+  name?: string;
+  addressLine?: string;
+}
+
+export interface OrganisationSearchResult {
+  isPmsOrganisation: boolean;
+  organisation?: OrganizationResponseDTO
+}
 
 export class OrganizationServiceError extends Error {
   constructor(
@@ -339,6 +355,7 @@ const sanitizeBusinessAttributes = (
     healthAndSafetyCertNo?: string;
     animalWelfareComplianceCertNo?: string;
     fireAndEmergencyCertNo?: string;
+    googlePlacesId?: string;
   },
 ): OrganizationMongo => {
   const name = requireSafeString(dto.name, "Organization name");
@@ -365,6 +382,10 @@ const sanitizeBusinessAttributes = (
     dto.fireAndEmergencyCertNo ?? extras.fireAndEmergencyCertNo,
     "Fire & emergency certification number",
   );
+  const googlePlacesId = optionalSafeString(
+    dto.googlePlacesId ?? extras.googlePlacesId,
+    "Google Places ID",
+  );
 
   return {
     fhirId: ensureSafeIdentifier(dto.id),
@@ -383,6 +404,7 @@ const sanitizeBusinessAttributes = (
     healthAndSafetyCertNo,
     animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo,
+    googlePlacesId,
   };
 };
 
@@ -421,6 +443,7 @@ const buildFHIRResponse = (
     healthAndSafetyCertNo: rest.healthAndSafetyCertNo,
     animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
+    googlePlacesId: rest.googlePlacesId,
   };
 
   const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined);
@@ -460,12 +483,17 @@ const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
     payload,
     FIRE_EMERGENCY_CERT_EXTENSION_URL,
   );
+  const googlePlacesId = findExtensionValue(
+    payload.extension,
+    GOOGLE_PLACE_ID_EXTENSION_URL,
+  );
   const sanitized = sanitizeBusinessAttributes(attributes, {
     taxId,
     imageURL,
     healthAndSafetyCertNo,
     animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo,
+    googlePlacesId,
   });
   const persistable = pruneUndefined(sanitized);
 
@@ -607,4 +635,66 @@ export const OrganizationService = {
 
     return buildFHIRResponse(document);
   },
+
+  async resolveOrganisation(input: OrganisationSearchInput) : Promise<OrganisationSearchResult> {
+
+    if (!input.placeId && (!input.lat || !input.lng) && !input.name) {
+      throw new OrganizationServiceError("Invalid search input.", 400);
+    }
+
+    // Search using places Id
+    if (input.placeId) {
+      const org = await OrganizationModel.findOne({ googlePlaceId: input.placeId });
+      if (org) {
+        return {
+          isPmsOrganisation: true,
+          organisation: buildFHIRResponse(org)
+        };
+      }
+    }
+
+
+    // Search using latitude and longitude
+    if (input.lat && input.lng) {
+      const org = await OrganizationModel.findOne({
+        "address.location": {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: [input.lng, input.lat]
+            },
+            $maxDistance: 120
+          }
+        }
+      });
+      
+      if (org) {
+        return {
+          isPmsOrganisation: true,
+          organisation: buildFHIRResponse(org)
+        };
+      }
+    }
+
+    // Search for Name
+    if (input.name) {
+      const safe = (input.name.trim());
+      const nameRegex = new RegExp(safe, "i");
+
+      const org = await OrganizationModel.findOne({
+        name: nameRegex
+      });
+
+      if (org) {
+        return {
+          isPmsOrganisation: true,
+          organisation: buildFHIRResponse(org)
+        };
+      }
+    }
+
+    return {
+      isPmsOrganisation: false
+    }
+  }
 };
