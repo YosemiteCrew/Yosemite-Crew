@@ -32,7 +32,7 @@ import DeleteProfileBottomSheet, {
 } from '@/shared/components/common/DeleteProfileBottomSheet/DeleteProfileBottomSheet';
 
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {
   selectCompanions,
   selectCompanionLoading,
@@ -41,6 +41,7 @@ import {deleteCompanion, updateCompanionProfile} from '@/features/companion/thun
 import {setSelectedCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import type {Companion} from '@/features/companion/types';
+import type {CoParentPermissions} from '@/features/coParent';
 
 // Profile Image Picker
 import {CompanionProfileHeader} from '@/features/companion/components/CompanionProfileHeader';
@@ -76,14 +77,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
-  const accessForCompanion = useSelector(state => {
-    const accessMap = (state as any)?.coParent?.accessByCompanionId;
-    if (!accessMap || !companionId) {
-      return null;
-    }
-    return accessMap[companionId] ?? null;
-  });
-  const isPrimaryParent = (accessForCompanion?.role ?? '').toUpperCase().includes('PRIMARY');
+  const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const accessForCompanion = companionId
+    ? accessMap[companionId] ?? defaultAccess
+    : defaultAccess;
+  const isPrimaryParent = (accessForCompanion?.role ?? globalRole ?? '').toUpperCase().includes('PRIMARY');
 
   // Profile image picker ref
   const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
@@ -374,8 +374,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         title={`${companion.name}'s Profile`}
         showBackButton
         onBack={handleBackPress}
-        rightIcon={Images.deleteIconRed}
-        onRightPress={handleDeletePress}
+        rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+        onRightPress={isPrimaryParent ? handleDeletePress : undefined}
       />
 
       <ScrollView

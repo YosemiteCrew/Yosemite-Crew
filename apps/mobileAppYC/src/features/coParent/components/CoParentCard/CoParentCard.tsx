@@ -26,8 +26,10 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const cardStyles = useMemo(() => createCardStyles(theme), [theme]);
 
+  const isPrimary = (coParent.role ?? '').toUpperCase().includes('PRIMARY');
+  const fallbackName = isPrimary ? 'Primary Parent' : 'Co-parent';
   const displayName =
-    `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim() || 'Co-parent';
+    `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim() || fallbackName;
   const companionCount = coParent.companions.length;
   const companionText = companionCount === 1 ? 'Companion' : 'Companions';
 
