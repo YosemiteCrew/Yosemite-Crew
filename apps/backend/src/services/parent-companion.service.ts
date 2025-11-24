@@ -356,9 +356,11 @@ export const ParentCompanionService = {
     companionId: Types.ObjectId,
   ): Promise<CompanionParentLink[]> {
     const documents = await ParentCompanionModel.find({ companionId }, null, {
-      lean: false,
       sanitizeFilter: true,
-    });
+    }).populate(
+      "parentId",
+      "firstName lastName email phoneNumber profileImageUrl",
+    );
 
     return documents.map((document) => toCompanionParentLink(document));
   },

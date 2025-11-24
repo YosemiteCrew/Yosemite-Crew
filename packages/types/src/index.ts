@@ -92,6 +92,7 @@ export type {
   ParentCompanionStatus,
   ParentCompanionPermissions,
   CompanionParentLink,
+  ParenDetailsForLink
 } from "./parentCompanion";
 
 export type { Organization, Organisation, ToFHIROrganizationOptions } from "./organization";
