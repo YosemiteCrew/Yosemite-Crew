@@ -1,5 +1,7 @@
 // src/utils/sanitize.ts
-import { escape, trim, stripLow } from "validator";
+import validator from "validator"
+
+const { escape, stripLow, trim } = validator ;
 
 export const sanitizeInput = (value: any): any => {
   if (typeof value === "string") {
@@ -34,4 +36,20 @@ export function assertSafeString(input: unknown, field: string): string {
   }
 
   return input;
+}
+
+export function assertEmail(input: unknown, field = "email"): string {
+  if (typeof input !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+
+  if (/^\$/.test(input)) {
+    throw new Error(`${field} cannot start with '$'`);
+  }
+
+  if (!validator.isEmail(input)) {
+    throw new Error(`${field} must be a valid email`);
+  }
+
+  return input.trim().toLowerCase();
 }
