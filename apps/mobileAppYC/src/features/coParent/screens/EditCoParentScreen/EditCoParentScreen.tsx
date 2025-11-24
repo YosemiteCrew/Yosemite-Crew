@@ -11,7 +11,6 @@ import {
   Image as RNImage,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {NavigationProp} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -36,12 +35,12 @@ import {
   fetchCompanions,
 } from '@/features/companion';
 import {selectAuthUser} from '@/features/auth/selectors';
-import type {CoParentStackParamList, HomeStackParamList} from '@/navigation/types';
+import type {HomeStackParamList} from '@/navigation/types';
 import type {CoParent, CoParentPermissions} from '../../types';
 import DeleteCoParentBottomSheet, {type DeleteCoParentBottomSheetRef} from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
-type Props = NativeStackScreenProps<CoParentStackParamList, 'EditCoParent'>;
+type Props = NativeStackScreenProps<HomeStackParamList, 'EditCoParent'>;
 
 export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const {coParentId} = route.params;
@@ -213,19 +212,10 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         }
       }
 
-      const homeStackNavigation =
-        navigation.getParent<NavigationProp<HomeStackParamList>>();
-      if (homeStackNavigation) {
-        homeStackNavigation.reset({
-          index: 0,
-          routes: [{name: 'Home'}],
-        });
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{name: 'CoParents'}],
-        });
-      }
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Home'}],
+      });
     } catch (error) {
       console.error('Failed to promote co-parent:', error);
       Alert.alert('Error', 'Failed to transfer ownership. Please try again.');
