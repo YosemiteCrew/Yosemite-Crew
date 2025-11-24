@@ -526,6 +526,74 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     },
     [dispatch, guardFeature],
   );
+
+  const renderAppointmentCard = (
+    appointment: typeof nextUpcomingAppointment,
+  ) => {
+    if (!appointment) {
+      return null;
+    }
+
+    const biz = businessMap.get(appointment.businessId);
+    const service = serviceMap.get(appointment.serviceId ?? '');
+    const emp = employeeMap.get(appointment.employeeId ?? '');
+    const hasAssignedVet = Boolean(emp);
+    const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
+    const cardTitle = hasAssignedVet
+      ? emp?.name ?? 'Assigned vet'
+      : service?.name ?? appointment.serviceName ?? 'Service request';
+    const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
+    const serviceSubtitle = [
+      service?.specialty ?? appointment.type ?? 'Awaiting vet assignment',
+      servicePriceText,
+    ]
+      .filter(Boolean)
+      .join(' • ');
+    const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+
+    let assignmentNote: string | undefined;
+    if (!hasAssignedVet) {
+      assignmentNote = 'A vet will be assigned once the clinic approves your request.';
+    } else if (appointment.status === 'paid') {
+      assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
+    }
+
+    const formattedDate = formatAppointmentDateTime(appointment.date, appointment.time);
+    const canCheckIn = appointment.status === 'paid' && hasAssignedVet;
+
+    return (
+      <AppointmentCard
+        key={appointment.id}
+        doctorName={cardTitle}
+        specialization={cardSubtitle}
+        hospital={biz?.name || ''}
+        dateTime={formattedDate}
+        note={assignmentNote}
+        avatar={avatarSource}
+        showActions={canCheckIn}
+        onPress={() => handleViewAppointment(appointment.id)}
+        onViewDetails={() => handleViewAppointment(appointment.id)}
+        onGetDirections={() => {
+          if (biz?.address) {
+            openMapsToAddress(biz.address);
+          }
+        }}
+        onChat={() => handleChatAppointment(appointment.id)}
+        onCheckIn={() => {
+          if (canCheckIn) {
+            handleCheckInAppointment(appointment.id);
+          }
+        }}
+        testIDs={{
+          container: 'appointment-card-container',
+          directions: 'appointment-directions',
+          chat: 'appointment-chat',
+          checkIn: 'appointment-checkin',
+        }}
+      />
+    );
+  };
+
   const renderUpcomingTasks = () => {
     if (!hasCompanions) {
       return renderEmptyStateTile(
@@ -599,74 +667,53 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       );
     }
     if (nextUpcomingAppointment) {
-      const biz = businessMap.get(nextUpcomingAppointment.businessId);
-      const service = serviceMap.get(nextUpcomingAppointment.serviceId ?? '');
-      const emp = employeeMap.get(nextUpcomingAppointment.employeeId ?? '');
-      const hasAssignedVet = Boolean(emp);
-      const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
-      const cardTitle = hasAssignedVet
-        ? emp?.name ?? 'Assigned vet'
-        : service?.name ?? nextUpcomingAppointment.serviceName ?? 'Service request';
-      const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
-      const serviceSubtitle = [
-        service?.specialty ?? nextUpcomingAppointment.type ?? 'Awaiting vet assignment',
-        servicePriceText,
-      ]
-        .filter(Boolean)
-        .join(' • ');
-      const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
-      let assignmentNote: string | undefined;
-      if (!hasAssignedVet) {
-        assignmentNote = 'A vet will be assigned once the clinic approves your request.';
-      } else if (nextUpcomingAppointment.status === 'paid') {
-        assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
-      }
-      const formattedDate = formatAppointmentDateTime(nextUpcomingAppointment.date, nextUpcomingAppointment.time);
-      const canCheckIn = nextUpcomingAppointment.status === 'paid' && hasAssignedVet;
-
-      return (
-        <AppointmentCard
-          key={nextUpcomingAppointment.id}
-          doctorName={cardTitle}
-          specialization={cardSubtitle}
-          hospital={biz?.name || ''}
-          dateTime={formattedDate}
-          note={assignmentNote}
-          avatar={avatarSource}
-          showActions={canCheckIn}
-          onPress={() => handleViewAppointment(nextUpcomingAppointment.id)}
-          onViewDetails={() => handleViewAppointment(nextUpcomingAppointment.id)}
-          onGetDirections={() => {
-            if (biz?.address) {
-              openMapsToAddress(biz.address);
-            }
-          }}
-          onChat={() => handleChatAppointment(nextUpcomingAppointment.id)}
-          onCheckIn={() => {
-            if (canCheckIn) {
-              handleCheckInAppointment(nextUpcomingAppointment.id);
-            }
-          }}
-          testIDs={{
-            container: 'appointment-card-container',
-            directions: 'appointment-directions',
-            chat: 'appointment-chat',
-            checkIn: 'appointment-checkin',
-          }}
-        />
-      );
+      return renderAppointmentCard(nextUpcomingAppointment);
     }
 
-    return renderEmptyStateTile(
-      'No upcoming appointments',
-      'Book an appointment to see it here.',
-      'appointments',
+    const navigateToAppointments =
       companions.length > 0
         ? () =>
             navigation
               .getParent<NavigationProp<TabParamList>>()
               ?.navigate('Appointments', {screen: 'BrowseBusinesses'})
-        : undefined,
+        : undefined;
+
+    return renderEmptyStateTile(
+      'No upcoming appointments',
+      'Book an appointment to see it here.',
+      'appointments',
+      navigateToAppointments,
+    );
+  };
+
+  const renderExpensesSection = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to start tracking expenses.',
+        'expenses',
+      );
+    }
+
+    if (!canAccessFeature('expenses')) {
+      return renderEmptyStateTile(
+        'Expenses restricted',
+        'Ask the primary parent to enable expenses access for you.',
+        'expenses',
+      );
+    }
+
+    return (
+      <YearlySpendCard
+        amount={expenseSummary?.total ?? 0}
+        currencyCode={userCurrencyCode}
+        currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
+        onPressView={() =>
+          navigation.navigate('ExpensesStack', {
+            screen: 'ExpensesMain',
+          })
+        }
+      />
     );
   };
 
@@ -762,30 +809,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          {!hasCompanions ? (
-            renderEmptyStateTile(
-              'No companions yet',
-              'Add a companion to start tracking expenses.',
-              'expenses',
-            )
-          ) : canAccessFeature('expenses') ? (
-            <YearlySpendCard
-              amount={expenseSummary?.total ?? 0}
-              currencyCode={userCurrencyCode}
-              currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
-              onPressView={() =>
-                navigation.navigate('ExpensesStack', {
-                  screen: 'ExpensesMain',
-                })
-              }
-            />
-          ) : (
-            renderEmptyStateTile(
-              'Expenses restricted',
-              'Ask the primary parent to enable expenses access for you.',
-              'expenses',
-            )
-          )}
+          {renderExpensesSection()}
         </View>
 
         <View style={styles.section}>

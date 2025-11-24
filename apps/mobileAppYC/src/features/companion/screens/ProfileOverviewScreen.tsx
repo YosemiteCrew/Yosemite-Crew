@@ -41,7 +41,6 @@ import {deleteCompanion, updateCompanionProfile} from '@/features/companion/thun
 import {setSelectedCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import type {Companion} from '@/features/companion/types';
-import type {CoParentPermissions} from '@/features/coParent';
 
 // Profile Image Picker
 import {CompanionProfileHeader} from '@/features/companion/components/CompanionProfileHeader';
