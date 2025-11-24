@@ -278,8 +278,8 @@ export const ParentCompanionService = {
 
   async promoteToPrimary(
     requestingParentId: Types.ObjectId,
-    targetParentId: Types.ObjectId,
     companionId: Types.ObjectId,
+    targetParentId: Types.ObjectId,
     permissionsOverride?: Partial<ParentCompanionPermissions>,
   ): Promise<CompanionParentLink> {
     // Only current primary can promote someone else
@@ -292,7 +292,7 @@ export const ParentCompanionService = {
       {
         parentId: targetParentId,
         companionId,
-        status: { $in: ["ACTIVE", "PENDING"] },
+        status: "ACTIVE"
       },
       null,
       { sanitizeFilter: true },
