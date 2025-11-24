@@ -58,6 +58,7 @@ const createMockDoc = (overrides: Partial<Organization> = {}) => {
     healthAndSafetyCertNo: "HS-001",
     animalWelfareComplianceCertNo: "AW-001",
     fireAndEmergencyCertNo: "FE-001",
+    googlePlacesId: "places-123",
     ...overrides,
   };
   return {
@@ -75,6 +76,7 @@ const createMockDoc = (overrides: Partial<Organization> = {}) => {
         healthAndSafetyCertNo: this.healthAndSafetyCertNo,
         animalWelfareComplianceCertNo: this.animalWelfareComplianceCertNo,
         fireAndEmergencyCertNo: this.fireAndEmergencyCertNo,
+        googlePlacesId: this.googlePlacesId,
         DUNSNumber: this.DUNSNumber,
         website: this.website,
         imageURL: this.imageURL,
@@ -134,6 +136,10 @@ describe("OrganizationService", () => {
         url: "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber",
         valueString: "FE-909",
       },
+      {
+        url: "http://example.com/fhir/StructureDefinition/google-place-id",
+        valueString: "places-123",
+      },
     ],
   };
 
@@ -161,6 +167,7 @@ describe("OrganizationService", () => {
             city: "Test City",
             state: "Test State",
           }),
+          googlePlacesId: "places-123",
         }),
       );
     });
