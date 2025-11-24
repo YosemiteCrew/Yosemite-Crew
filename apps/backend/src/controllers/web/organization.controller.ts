@@ -33,11 +33,9 @@ export const OrganizationController = {
       const rawPayload: unknown = req.body;
 
       if (!isOrganizationPayload(rawPayload)) {
-        res
-          .status(400)
-          .json({
-            message: "Invalid payload. Expected FHIR Organization resource.",
-          });
+        res.status(400).json({
+          message: "Invalid payload. Expected FHIR Organization resource.",
+        });
         return;
       }
 
@@ -134,11 +132,9 @@ export const OrganizationController = {
         return;
       }
       if (!isOrganizationPayload(rawPayload)) {
-        res
-          .status(400)
-          .json({
-            message: "Invalid payload. Expected FHIR Organization resource.",
-          });
+        res.status(400).json({
+          message: "Invalid payload. Expected FHIR Organization resource.",
+        });
         return;
       }
 
