@@ -112,6 +112,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const currentAccessEntry = selectedCompanionIdRedux
     ? accessMap[selectedCompanionIdRedux] ?? null
     : null;
+  const hasCompanions = companions.length > 0;
   const hasExpenseHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
   );
@@ -190,13 +191,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const guardFeature = React.useCallback(
     (permission: keyof CoParentPermissions, label: string, companionId?: string | null) => {
+      if (!hasCompanions) {
+        return true;
+      }
       if (!canAccessFeature(permission, companionId)) {
         showPermissionToast(label);
         return false;
       }
       return true;
     },
-    [canAccessFeature, showPermissionToast],
+    [canAccessFeature, hasCompanions, showPermissionToast],
   );
 
   React.useEffect(() => {
@@ -523,6 +527,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     [dispatch, guardFeature],
   );
   const renderUpcomingTasks = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to start managing upcoming tasks.',
+        'tasks',
+      );
+    }
     if (!canAccessFeature('tasks')) {
       return renderEmptyStateTile(
         'Tasks restricted',
@@ -569,14 +580,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         />
       );
     }
-    return renderEmptyStateTile(
-      'No upcoming tasks',
-      'Add a companion to start managing their tasks',
-      'tasks',
-    );
+    return renderEmptyStateTile('No upcoming tasks', 'You are all caught up for now.', 'tasks');
   };
 
   const renderUpcomingAppointments = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to see upcoming appointments here.',
+        'appointments',
+      );
+    }
     if (!canAccessFeature('appointments')) {
       return renderEmptyStateTile(
         'Appointments restricted',
@@ -748,7 +762,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          {canAccessFeature('expenses') ? (
+          {!hasCompanions ? (
+            renderEmptyStateTile(
+              'No companions yet',
+              'Add a companion to start tracking expenses.',
+              'expenses',
+            )
+          ) : canAccessFeature('expenses') ? (
             <YearlySpendCard
               amount={expenseSummary?.total ?? 0}
               currencyCode={userCurrencyCode}

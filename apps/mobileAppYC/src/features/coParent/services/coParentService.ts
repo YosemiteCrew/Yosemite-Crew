@@ -114,7 +114,7 @@ export const coParentApi = {
     accessToken,
   }: UpdatePermissionsParams) {
     const {data} = await apiClient.patch(
-      `/v1/parent-companion/companion/${companionId}/${coParentId}/permissions`,
+      `/v1/parent-companion/${companionId}/${coParentId}/permissions`,
       permissions,
       buildAuthConfig(accessToken),
     );
@@ -123,7 +123,7 @@ export const coParentApi = {
 
   async remove({companionId, coParentId, accessToken}: DeleteCoParentParams) {
     await apiClient.delete(
-      `/v1/parent-companion/companion/${companionId}/${coParentId}`,
+      `/v1/parent-companion/${companionId}/${coParentId}`,
       buildAuthConfig(accessToken),
     );
     return true;

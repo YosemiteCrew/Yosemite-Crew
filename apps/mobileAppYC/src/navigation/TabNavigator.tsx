@@ -87,6 +87,9 @@ const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 export const TabNavigator: React.FC = () => {
   const {theme} = useTheme();
   const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const hasCompanions = useSelector(
+    (state: RootState) => (state.companion?.companions?.length ?? 0) > 0,
+  );
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
   );
@@ -103,7 +106,7 @@ export const TabNavigator: React.FC = () => {
   const isPrimaryParent = role.includes('PRIMARY');
   const canAccessFeature = React.useCallback(
     (permission: keyof CoParentPermissions) => {
-      if (isPrimaryParent) {
+      if (!hasCompanions || isPrimaryParent) {
         return true;
       }
       const permissions =
@@ -117,6 +120,7 @@ export const TabNavigator: React.FC = () => {
       accessForCompanion?.permissions,
       defaultAccess?.permissions,
       globalPermissions,
+      hasCompanions,
       isPrimaryParent,
     ],
   );

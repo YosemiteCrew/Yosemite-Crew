@@ -2,8 +2,9 @@ import React, {useEffect, useMemo} from 'react';
 import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useFocusEffect} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
@@ -15,7 +16,6 @@ import {
   selectSelectedCompanionId,
   setSelectedCompanion,
 } from '@/features/companion';
-import {selectAuthUser} from '@/features/auth/selectors';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CoParents'>;
 
@@ -26,9 +26,12 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
 
   const coParents = useSelector(selectCoParents);
   const loading = useSelector(selectCoParentLoading);
-  const authUser = useSelector(selectAuthUser);
   const companions = useSelector(selectCompanions);
   const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const companionAccess = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? {},
+  );
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
   const selectedCompanion = useMemo(
     () =>
       companions.find(c => c.id === selectedCompanionId) ??
@@ -36,6 +39,11 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
       null,
     [companions, selectedCompanionId],
   );
+  const currentAccess =
+    selectedCompanion?.id && companionAccess[selectedCompanion.id]
+      ? companionAccess[selectedCompanion.id]
+      : defaultAccess;
+  const canAddCoParent = (currentAccess?.role ?? '').toUpperCase().includes('PRIMARY');
 
   useEffect(() => {
     if (!selectedCompanionId && companions[0]?.id) {
@@ -43,8 +51,11 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [companions, dispatch, selectedCompanionId]);
 
-  useEffect(() => {
-    if (selectedCompanion?.id) {
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!selectedCompanion?.id) {
+        return;
+      }
       dispatch(
         fetchCoParents({
           companionId: selectedCompanion.id,
@@ -52,25 +63,10 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
           companionImage: selectedCompanion.profileImage ?? undefined,
         }),
       );
-    }
-  }, [
-    dispatch,
-    selectedCompanion?.id,
-    selectedCompanion?.name,
-    selectedCompanion?.profileImage,
-  ]);
-
-  const visibleCoParents = useMemo(
-    () =>
-      coParents.filter(cp => {
-        const isPrimary = (cp.role ?? '').toUpperCase().includes('PRIMARY');
-        if (isPrimary && cp.parentId === authUser?.parentId) {
-          return false;
-        }
-        return true;
-      }),
-    [authUser?.parentId, coParents],
+    }, [dispatch, selectedCompanion?.id, selectedCompanion?.name, selectedCompanion?.profileImage]),
   );
+
+  const visibleCoParents = useMemo(() => coParents, [coParents]);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -102,8 +98,8 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
           title="Co-Parents"
           showBackButton
           onBack={handleBack}
-          rightIcon={Images.addIconDark}
-          onRightPress={handleAdd}
+          rightIcon={canAddCoParent ? Images.addIconDark : undefined}
+          onRightPress={canAddCoParent ? handleAdd : undefined}
         />
         <View style={styles.emptyContainer}>
           <Image source={Images.coparentEmpty} style={styles.illustration} />
@@ -124,8 +120,8 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
         title="Co-Parents"
         showBackButton
         onBack={handleBack}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAdd}
+        rightIcon={canAddCoParent ? Images.addIconDark : undefined}
+        onRightPress={canAddCoParent ? handleAdd : undefined}
       />
 
       {loading ? (
@@ -136,21 +132,21 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-          {visibleCoParents.map((coParent, index) => (
-            <CoParentCard
-              key={coParent.parentId || coParent.id}
-              coParent={coParent}
-              onPressView={() => handleViewCoParent(coParent.parentId || coParent.id)}
-              onPressEdit={
-                (coParent.role ?? '').toUpperCase().includes('PRIMARY')
-                  ? undefined
-                  : () => handleEditCoParent(coParent.parentId || coParent.id)
-              }
-              hideSwipeActions={(coParent.role ?? '').toUpperCase().includes('PRIMARY')}
-              showEditAction={!(coParent.role ?? '').toUpperCase().includes('PRIMARY')}
-              divider={index < visibleCoParents.length - 1}
-            />
-          ))}
+          {visibleCoParents.map((coParent, index) => {
+            const isPrimaryEntry = (coParent.role ?? '').toUpperCase().includes('PRIMARY');
+            const targetId = coParent.parentId || coParent.id;
+            return (
+              <CoParentCard
+                key={targetId}
+                coParent={coParent}
+                onPressView={isPrimaryEntry ? undefined : () => handleViewCoParent(targetId)}
+                onPressEdit={isPrimaryEntry ? undefined : () => handleEditCoParent(targetId)}
+                hideSwipeActions={isPrimaryEntry}
+                showEditAction={!isPrimaryEntry}
+                divider={index < visibleCoParents.length - 1}
+              />
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>
