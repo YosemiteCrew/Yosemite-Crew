@@ -263,8 +263,15 @@ async function handleMultipleFileUpload(
   return Promise.all(uploads);
 }
 
-// Lifecycle
+// Pre-signed url for view/download
+async function generatePresignedDownloadUrl(
+  key: string
+) {
+  const CF_BASE = getCloufrontBaeUrl();
+  return `https://${CF_BASE}/${key}`;
+}
 
+// Lifecycle
 async function setupLifecyclePolicy(daysToKeep = 2) {
   const ruleName = "AutoDeleteTempUploads";
   const bucket = getBucketName();
@@ -344,5 +351,6 @@ export {
   buildS3Key,
   mimeTypeToExtension,
   setupLifecyclePolicy,
+  generatePresignedDownloadUrl,
 };
 export type { FileUploadResult, UploadedFile };
