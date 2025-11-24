@@ -285,8 +285,11 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
   const sheetRef = React.useRef<CoParentInviteBottomSheetRef>(null);
 
   React.useEffect(() => {
+    if (!user?.parentId) {
+      return;
+    }
     dispatch(fetchPendingInvites());
-  }, [dispatch]);
+  }, [dispatch, user?.parentId]);
 
   React.useEffect(() => {
     if (pendingInvites.length > 0) {
