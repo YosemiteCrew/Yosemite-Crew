@@ -164,7 +164,7 @@ export const CompanionOrganisationService = {
     organisationId: Types.ObjectId | string;
   }): Promise<CompanionOrganisationDocument> {
     const org = ensureObjectId(organisationId, "organisationId");
-    token = assertSafeString(token, "token")
+    token = assertSafeString(token, "token");
     const invite = await CompanionOrganisationModel.findOne({
       inviteToken: token,
       status: "PENDING",
@@ -191,7 +191,7 @@ export const CompanionOrganisationService = {
     organisationId: Types.ObjectId | string;
   }): Promise<void> {
     const org = ensureObjectId(organisationId, "organisationId");
-    token = assertSafeString(token, "token")
+    token = assertSafeString(token, "token");
     const invite = await CompanionOrganisationModel.findOne({
       inviteToken: token,
       status: "PENDING",
@@ -297,7 +297,7 @@ export const CompanionOrganisationService = {
   },
 
   async parentRejectLink(parentId: Types.ObjectId, linkId: string) {
-    linkId = assertSafeString(linkId, "linkId")
+    linkId = assertSafeString(linkId, "linkId");
     const id = ensureObjectId(linkId, "linkId");
     const link = await CompanionOrganisationModel.findOne({
       _id: id,
@@ -329,7 +329,7 @@ export const CompanionOrganisationService = {
     companionId: string | Types.ObjectId,
     type: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER",
   ) {
-    companionId = assertSafeString(companionId, "companionId")
+    companionId = assertSafeString(companionId, "companionId");
     const id = ensureObjectId(companionId, "companionId");
     return CompanionOrganisationModel.find({
       companionId: id,

@@ -15,7 +15,7 @@ router.get(
   ParentCompanionController.getLinksForCompanion,
 );
 router.patch(
-  "/:companioId/:targetParentId/permissions",
+  "/:companionId/:targetParentId/permissions",
   authorizeCognitoMobile,
   ParentCompanionController.updatePermissions,
 );

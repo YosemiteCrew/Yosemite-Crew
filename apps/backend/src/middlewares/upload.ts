@@ -264,9 +264,7 @@ async function handleMultipleFileUpload(
 }
 
 // Pre-signed url for view/download
-async function generatePresignedDownloadUrl(
-  key: string
-) {
+async function generatePresignedDownloadUrl(key: string) {
   const CF_BASE = getCloufrontBaeUrl();
   return `https://${CF_BASE}/${key}`;
 }

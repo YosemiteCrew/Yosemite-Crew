@@ -7,12 +7,14 @@ import { assertSafeString } from "src/utils/sanitize";
 import { generatePresignedDownloadUrl } from "src/middlewares/upload";
 
 export class DocumentServiceError extends Error {
-  constructor(message: string, public readonly statusCode: number) {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
     super(message);
     this.name = "DocumentServiceError";
   }
 }
-
 
 const PMS_VISIBLE_CATEGORIES = new Set<string>([
   "HEALTH",
@@ -37,18 +39,25 @@ const VALID_CATEGORY_SUBCATEGORIES: Record<string, Set<string>> = {
   OTHERS: new Set(),
 };
 
-
 const isPmsVisibleCategory = (category: string): boolean =>
   PMS_VISIBLE_CATEGORIES.has(category);
 
 const validateCategoryAndSubcategory = (
   category: string,
-  subcategory?: string | null
+  subcategory?: string | null,
 ): void => {
   const upperCategory = String(category).toUpperCase();
 
-  if (!Object.prototype.hasOwnProperty.call(VALID_CATEGORY_SUBCATEGORIES, upperCategory)) {
-    throw new DocumentServiceError(`Invalid document category: ${category}`, 400);
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      VALID_CATEGORY_SUBCATEGORIES,
+      upperCategory,
+    )
+  ) {
+    throw new DocumentServiceError(
+      `Invalid document category: ${category}`,
+      400,
+    );
   }
 
   const allowedSubcats = VALID_CATEGORY_SUBCATEGORIES[upperCategory];
@@ -65,12 +74,15 @@ const validateCategoryAndSubcategory = (
   if (!allowedSubcats.has(upperSubcat)) {
     throw new DocumentServiceError(
       `Invalid subcategory '${subcategory}' for category '${category}'`,
-      400
+      400,
     );
   }
 };
 
-const ensureObjectId = (value: string | Types.ObjectId, fieldName: string): Types.ObjectId => {
+const ensureObjectId = (
+  value: string | Types.ObjectId,
+  fieldName: string,
+): Types.ObjectId => {
   if (value instanceof Types.ObjectId) {
     return value;
   }
@@ -86,7 +98,7 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
 export interface DocumentAttachmentInput {
-  key: string;       // S3 key (temp or final)
+  key: string; // S3 key (temp or final)
   mimeType: string;
   size?: number;
 }
@@ -106,11 +118,10 @@ export interface CreateDocumentInput {
   attachments: DocumentAttachmentInput[];
 }
 
-
 export type DocumentCreateContext = {
   parentId?: Types.ObjectId | string;
   pmsUserId?: string;
-}
+};
 
 export interface DocumentDto {
   id: string;
@@ -184,13 +195,11 @@ const mapDocumentToDto = (doc: DocumentDocument): DocumentDto => {
 
 const buildPersistableDocument = (
   input: CreateDocumentInput,
-  context: DocumentCreateContext
+  context: DocumentCreateContext,
 ): DocumentMongo => {
-  let source : string
-  if(context.parentId)
-    source = "parent"
-  else 
-    source = "pms"
+  let source: string;
+  if (context.parentId) source = "parent";
+  else source = "pms";
 
   if (!isNonEmptyString(input.title)) {
     throw new DocumentServiceError("Document title is required.", 400);
@@ -223,7 +232,10 @@ const buildPersistableDocument = (
     uploadedByParentId = ensureObjectId(context.parentId!, "parentId");
     syncedFromPms = false;
   } else {
-    uploadedByPmsUserId = assertSafeString(context.pmsUserId, "uploadedByPmsUserId");
+    uploadedByPmsUserId = assertSafeString(
+      context.pmsUserId,
+      "uploadedByPmsUserId",
+    );
     syncedFromPms = true;
   }
 
@@ -268,13 +280,11 @@ const buildPersistableDocument = (
   return persistable;
 };
 
-
 // Service methods
 export const DocumentService = {
-
   async create(
     input: CreateDocumentInput,
-    context: DocumentCreateContext
+    context: DocumentCreateContext,
   ): Promise<DocumentDto> {
     const persistable = buildPersistableDocument(input, context);
     const doc = await DocumentModel.create(persistable);
@@ -331,7 +341,7 @@ export const DocumentService = {
     if (params.appointmentId) {
       filter.appointmentId = ensureObjectId(
         params.appointmentId,
-        "appointmentId"
+        "appointmentId",
       );
     }
 
@@ -343,7 +353,7 @@ export const DocumentService = {
   },
 
   async getByIdForParent(
-    id: string | Types.ObjectId
+    id: string | Types.ObjectId,
   ): Promise<DocumentDto | null> {
     const _id = ensureObjectId(id, "documentId");
     const doc = await DocumentModel.findById(_id).exec();
@@ -354,7 +364,7 @@ export const DocumentService = {
   },
 
   async getByIdForPms(
-    id: string | Types.ObjectId
+    id: string | Types.ObjectId,
   ): Promise<DocumentDto | null> {
     const _id = ensureObjectId(id, "documentId");
     const doc = await DocumentModel.findOne({ _id, pmsVisible: true }).exec();
@@ -366,7 +376,7 @@ export const DocumentService = {
 
   async deleteForParent(
     id: string | Types.ObjectId,
-    parentId: string | Types.ObjectId
+    parentId: string | Types.ObjectId,
   ): Promise<boolean> {
     const _id = ensureObjectId(id, "documentId");
     const _parentId = ensureObjectId(parentId, "parentId");
@@ -377,7 +387,10 @@ export const DocumentService = {
     }).exec();
 
     if (!doc) {
-      throw new DocumentServiceError("Document not found or not deletable.", 404);
+      throw new DocumentServiceError(
+        "Document not found or not deletable.",
+        404,
+      );
     }
 
     await DocumentModel.deleteOne({ _id }).exec();
@@ -386,12 +399,9 @@ export const DocumentService = {
 
   // List of Documents of Appointment for PMS
   async listForAppointmentParent(
-    appointmentId: string | Types.ObjectId
+    appointmentId: string | Types.ObjectId,
   ): Promise<DocumentDto[]> {
-    appointmentId = ensureObjectId(
-      appointmentId,
-      "appointmentId"
-    );
+    appointmentId = ensureObjectId(appointmentId, "appointmentId");
 
     const docs = await DocumentModel.find({
       appointmentId,
@@ -402,17 +412,13 @@ export const DocumentService = {
     return docs.map(mapDocumentToDto);
   },
 
-
   // List of Documents of Appointment for PMS
   async listForAppointmentPms(params: {
     companionId: string | Types.ObjectId;
     appointmentId: string | Types.ObjectId;
   }): Promise<DocumentDto[]> {
     const companionId = ensureObjectId(params.companionId, "companionId");
-    const appointmentId = ensureObjectId(
-      params.appointmentId,
-      "appointmentId"
-    );
+    const appointmentId = ensureObjectId(params.appointmentId, "appointmentId");
 
     const docs = await DocumentModel.find({
       companionId,
@@ -427,102 +433,116 @@ export const DocumentService = {
 
   // Update Document
   async update(
-  id: string | Types.ObjectId,
-  updates: Partial<CreateDocumentInput>,
-  context: DocumentCreateContext
-): Promise<DocumentDto> {
-  const _id = ensureObjectId(id, "documentId");
+    id: string | Types.ObjectId,
+    updates: Partial<CreateDocumentInput>,
+    context: DocumentCreateContext,
+  ): Promise<DocumentDto> {
+    const _id = ensureObjectId(id, "documentId");
 
-  // 1. Load existing document
-  const doc = await DocumentModel.findById(_id);
-  if (!doc) {
-    throw new DocumentServiceError("Document not found.", 404);
-  }
-
-  const isParentUpdater = !!context.parentId;
-  const isPmsUpdater = !!context.pmsUserId;
-
-  // 2. Permission check
-  if (isParentUpdater) {
-    if (!doc.uploadedByParentId || doc.uploadedByParentId.toString() !== context.parentId!.toString()) {
-      throw new DocumentServiceError("Parent is not allowed to update this document.", 403);
+    // 1. Load existing document
+    const doc = await DocumentModel.findById(_id);
+    if (!doc) {
+      throw new DocumentServiceError("Document not found.", 404);
     }
-  }
 
-  if (isPmsUpdater) {
-    if (!doc.syncedFromPms) {
-      throw new DocumentServiceError("PMS cannot update documents uploaded by parent.", 403);
+    const isParentUpdater = !!context.parentId;
+    const isPmsUpdater = !!context.pmsUserId;
+
+    // 2. Permission check
+    if (isParentUpdater) {
+      if (
+        !doc.uploadedByParentId ||
+        doc.uploadedByParentId.toString() !== context.parentId!.toString()
+      ) {
+        throw new DocumentServiceError(
+          "Parent is not allowed to update this document.",
+          403,
+        );
+      }
     }
-  }
 
-  // 4. Validate category / subcategory only when changed
-  if (updates.category || updates.subcategory) {
-    const newCategory = (updates.category ?? doc.category).toString().toUpperCase();
-    const newSubcategory = updates.subcategory
-      ? updates.subcategory.toString().toUpperCase()
-      : doc.subcategory;
-
-    validateCategoryAndSubcategory(newCategory, newSubcategory ?? undefined);
-
-    doc.category = newCategory;
-    doc.subcategory = newSubcategory ?? null;
-
-    // pmsVisible may change because category changed
-    doc.pmsVisible = isPmsVisibleCategory(newCategory);
-  }
-
-  // 5. Handle simple field updates
-  if (updates.title && typeof updates.title === "string" && updates.title.trim()) {
-    doc.title = updates.title.trim();
-  }
-
-  if (updates.visitType) {
-    doc.visitType = updates.visitType;
-  }
-
-  if (updates.issuingBusinessName !== undefined) {
-    doc.issuingBusinessName = updates.issuingBusinessName || null;
-  }
-
-  if (updates.issueDate) {
-    const parsed = new Date(updates.issueDate);
-    if (!isNaN(parsed.getTime())) {
-      doc.issueDate = parsed;
+    if (isPmsUpdater) {
+      if (!doc.syncedFromPms) {
+        throw new DocumentServiceError(
+          "PMS cannot update documents uploaded by parent.",
+          403,
+        );
+      }
     }
-  }
 
-  // 6. Attachments update (optional)
-  if (updates.attachments && Array.isArray(updates.attachments)) {
-    // Replace attachments entirely (or merge—your choice)
-    doc.attachments = updates.attachments.map(att => ({
-      key: String(att.key),
-      mimeType: String(att.mimeType),
-      size: att.size,
+    // 4. Validate category / subcategory only when changed
+    if (updates.category || updates.subcategory) {
+      const newCategory = (updates.category ?? doc.category)
+        .toString()
+        .toUpperCase();
+      const newSubcategory = updates.subcategory
+        ? updates.subcategory.toString().toUpperCase()
+        : doc.subcategory;
+
+      validateCategoryAndSubcategory(newCategory, newSubcategory ?? undefined);
+
+      doc.category = newCategory;
+      doc.subcategory = newSubcategory ?? null;
+
+      // pmsVisible may change because category changed
+      doc.pmsVisible = isPmsVisibleCategory(newCategory);
+    }
+
+    // 5. Handle simple field updates
+    if (
+      updates.title &&
+      typeof updates.title === "string" &&
+      updates.title.trim()
+    ) {
+      doc.title = updates.title.trim();
+    }
+
+    if (updates.visitType) {
+      doc.visitType = updates.visitType;
+    }
+
+    if (updates.issuingBusinessName !== undefined) {
+      doc.issuingBusinessName = updates.issuingBusinessName || null;
+    }
+
+    if (updates.issueDate) {
+      const parsed = new Date(updates.issueDate);
+      if (!isNaN(parsed.getTime())) {
+        doc.issueDate = parsed;
+      }
+    }
+
+    // 6. Attachments update (optional)
+    if (updates.attachments && Array.isArray(updates.attachments)) {
+      // Replace attachments entirely (or merge—your choice)
+      doc.attachments = updates.attachments.map((att) => ({
+        key: String(att.key),
+        mimeType: String(att.mimeType),
+        size: att.size,
+      }));
+    }
+
+    // 7. Save the updated document
+    await doc.save();
+
+    return mapDocumentToDto(doc);
+  },
+
+  async getAllAttachmentUrls(documentId: string | Types.ObjectId) {
+    const _id = ensureObjectId(documentId, "documentId");
+    const doc = await DocumentModel.findById(_id).exec();
+
+    if (!doc || !doc.attachments?.length)
+      throw new DocumentServiceError("No attachments found.", 404);
+
+    const urls = await Promise.all(
+      doc.attachments.map((att) => generatePresignedDownloadUrl(att.key)),
+    );
+
+    return urls.map((url, index) => ({
+      url,
+      mimeType: doc.attachments[index].mimeType,
+      key: doc.attachments[index].key,
     }));
-  }
-
-  // 7. Save the updated document
-  await doc.save();
-
-  return mapDocumentToDto(doc);
-},
-
-async getAllAttachmentUrls(documentId: string | Types.ObjectId) {
-  const _id = ensureObjectId(documentId, "documentId");
-  const doc = await DocumentModel.findById(_id).exec();
-
-  if (!doc || !doc.attachments?.length)
-    throw new DocumentServiceError("No attachments found.", 404);
-
-  const urls = await Promise.all(
-    doc.attachments.map(att => generatePresignedDownloadUrl(att.key))
-  );
-
-  return urls.map((url, index) => ({
-    url,
-    mimeType: doc.attachments[index].mimeType,
-    key: doc.attachments[index].key,
-  }));
-}
-
+  },
 };

@@ -44,15 +44,13 @@ const makeDoc = (overrides: Record<string, any> = {}) => {
     title: overrides.title ?? "My Document",
     issuingBusinessName: overrides.issuingBusinessName ?? null,
     issueDate: overrides.issueDate ?? null,
-    attachments:
-      overrides.attachments ??
-      [
-        {
-          key: "file.pdf",
-          mimeType: "application/pdf",
-          size: 1024,
-        },
-      ],
+    attachments: overrides.attachments ?? [
+      {
+        key: "file.pdf",
+        mimeType: "application/pdf",
+        size: 1024,
+      },
+    ],
     uploadedByParentId: overrides.uploadedByParentId ?? null,
     uploadedByPmsUserId: overrides.uploadedByPmsUserId,
     pmsVisible: overrides.pmsVisible ?? false,
@@ -109,7 +107,10 @@ describe("DocumentService", () => {
       expect(result.uploadedByParentId).toBe(parentId.toHexString());
       expect(result.pmsVisible).toBe(false);
       expect(result.attachments).toEqual([
-        expect.objectContaining({ key: "file.pdf", mimeType: "application/pdf" }),
+        expect.objectContaining({
+          key: "file.pdf",
+          mimeType: "application/pdf",
+        }),
       ]);
     });
 

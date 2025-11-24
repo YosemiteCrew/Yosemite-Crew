@@ -6,7 +6,9 @@ import {
 } from "../../services/companion-organisation.service";
 import { AuthenticatedRequest } from "../../middlewares/auth";
 import { ParentService } from "src/services/parent.service";
-import OrganizationModel, { type OrganizationMongo } from "src/models/organization";
+import OrganizationModel, {
+  type OrganizationMongo,
+} from "src/models/organization";
 
 type OrganisationType = OrganizationMongo["type"];
 
@@ -40,8 +42,10 @@ type InviteResolutionPayload = {
 
 const parseLinkPayload = (body: unknown): LinkPayload | null => {
   if (!body || typeof body !== "object") return null;
-  const { companionId, organisationId, organisationType } =
-    body as Record<string, unknown>;
+  const { companionId, organisationId, organisationType } = body as Record<
+    string,
+    unknown
+  >;
 
   if (
     typeof companionId !== "string" ||
@@ -56,8 +60,10 @@ const parseLinkPayload = (body: unknown): LinkPayload | null => {
 
 const parseInvitePayload = (body: unknown): InvitePayload | null => {
   if (!body || typeof body !== "object") return null;
-  const { companionId, email, organisationType } =
-    body as Record<string, unknown>;
+  const { companionId, email, organisationType } = body as Record<
+    string,
+    unknown
+  >;
 
   if (
     typeof companionId !== "string" ||
