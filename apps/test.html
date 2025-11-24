@@ -1,41 +1,19 @@
-import type { CreateAuthChallengeTriggerHandler } from 'aws-lambda';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
-
-const OTP_LENGTH = 4;
-const OTP_METADATA_PREFIX = 'PASSWORDLESS_OTP';
-const DEBUG_LOG_OTP = process.env.PASSWORDLESS_DEBUG_LOG_OTP === 'true';
-
-const sesClient = new SESClient({});
-
-const generateOtp = (length: number) => {
-  const min = 10 ** (length - 1);
-  const max = 10 ** length - 1;
-  return Math.floor(Math.random() * (max - min + 1) + min).toString();
-};
-
-const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-const buildOtpEmailHtml = (recipientName: string, otp: string) => {
-  const safeName = escapeHtml(recipientName);
-  const safeOtp = escapeHtml(otp);
-  return `<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>Yosemite Crew OTP Email</title>
   </head>
   <body style="margin:0; padding:0; background-color:#f4f8ff;">
+    <!-- Full-width background wrapper -->
     <center style="width:100%; background-color:#f4f8ff;">
+      <!-- Main container -->
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr>
           <td align="center">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px; max-width:100%; background-color:#ffffff;">
+              
+              <!-- Top navbar/logo -->
               <tr>
                 <td align="center" style="padding:0; border-bottom:2px solid #7d7d7d; background-color:#ffffff;">
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -55,13 +33,15 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                   </table>
                 </td>
               </tr>
+
+              <!-- Main text content -->
               <tr>
-                <td align="left" style="padding:32px 16px; font-family:Arial, sans-serif; font-size:18px; line-height:1.5; color:#595958;">
-                  <p style="margin:0 0 16px 0;">Hi ${safeName},</p>
+                <td align="left" style="padding:32px 16px 32px 16px; font-family:Arial, sans-serif; font-size:18px; line-height:1.5; color:#595958;">
+                  <p style="margin:0 0 16px 0;">Hi [First Name],</p>
                   <p style="margin:0 0 16px 0;">Your companions are waiting, and so is your OTP! 🐶🐱🐴</p>
-                  <p style="margin:0 0 16px 0;">Use this one-time password to continue: <strong>${safeOtp}</strong></p>
+                  <p style="margin:0 0 16px 0;">Use this one-time password to continue: <strong>[123456]</strong></p>
                   <p style="margin:0 0 16px 0;">
-                    It’s valid for the next 10 minutes, so don’t let your dog chew it up or your cat nap on it too long. 😺
+                    It’s valid for the next 1 minute, so don’t let your dog chew it up or your cat nap on it too long. 😺
                   </p>
                   <p style="margin:0 0 16px 0;">
                     If you didn’t request this code, you can safely ignore this email.
@@ -72,16 +52,20 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                   </p>
                 </td>
               </tr>
+
+              <!-- Image block -->
               <tr>
                 <td align="center" style="padding:0; margin:0;">
                   <img
                     src="https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg"
-                    alt="Yosemite Crew"
+                    alt=""
                     width="600"
                     style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;"
                   />
                 </td>
               </tr>
+
+              <!-- Decorative top element for footer -->
               <tr>
                 <td align="center" style="background-color:#f4f8ff; padding-top:24px;">
                   <img
@@ -93,10 +77,13 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                   />
                 </td>
               </tr>
+
+              <!-- Footer main section -->
               <tr>
                 <td align="center" style="background-color:#f4f8ff; padding:24px 16px 30px 16px;">
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;">
                     <tr>
+                      <!-- Left footer: logo + certifications -->
                       <td valign="top" width="50%" style="padding:8px; font-family:Arial, sans-serif;">
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                           <tr>
@@ -122,16 +109,16 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                                       alt="GDPR"
                                       width="55"
                                       height="56"
-                                      style="display:block;"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
                                     />
                                   </td>
                                   <td style="padding-right:8px; padding-bottom:8px;">
                                     <img
                                       src="https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png"
-                                      alt="SOC 2"
+                                      alt="SOC2"
                                       width="56"
                                       height="56"
-                                      style="display:block;"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
                                     />
                                   </td>
                                   <td style="padding-right:8px; padding-bottom:8px;">
@@ -140,7 +127,7 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                                       alt="ISO"
                                       width="54"
                                       height="60"
-                                      style="display:block;"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
                                     />
                                   </td>
                                   <td style="padding-bottom:8px;">
@@ -149,7 +136,7 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                                       alt="FHIR"
                                       width="117"
                                       height="28"
-                                      style="display:block;"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
                                     />
                                   </td>
                                 </tr>
@@ -158,32 +145,96 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                           </tr>
                         </table>
                       </td>
+
+                      <!-- Right footer: navigation columns -->
                       <td valign="top" width="50%" style="padding:8px; font-family:Arial, sans-serif;">
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                           <tr>
+                            <!-- Developers -->
                             <td valign="top" style="padding:4px 8px;">
-                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">Developers</p>
+                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
+                                Developers
+                              </p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a href="https://github.com/YosemiteCrew/Yosemite-Crew/" target="_blank" style="color:#2b2b2b; text-decoration:none;">
+                                <a
+                                  href="https://github.com/YosemiteCrew/Yosemite-Crew/"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
                                   Developer portal
                                 </a>
                               </p>
                               <p style="margin:0; font-size:14px;">
-                                <a href="https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md" target="_blank" style="color:#2b2b2b; text-decoration:none;">
+                                <a
+                                  href="https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
                                   Contributing
                                 </a>
                               </p>
                             </td>
+
+                            <!-- Community -->
                             <td valign="top" style="padding:4px 8px;">
-                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">Community</p>
+                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
+                                Community
+                              </p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a href="https://discord.gg/4zDVekEz" target="_blank" style="color:#2b2b2b; text-decoration:none;">
+                                <a
+                                  href="https://discord.gg/4zDVekEz"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
                                   Discord
                                 </a>
                               </p>
                               <p style="margin:0; font-size:14px;">
-                                <a href="https://github.com/YosemiteCrew/Yosemite-Crew" target="_blank" style="color:#2b2b2b; text-decoration:none;">
+                                <a
+                                  href="https://github.com/YosemiteCrew/Yosemite-Crew"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
                                   GitHub
+                                </a>
+                              </p>
+                            </td>
+
+                            <!-- Company -->
+                            <td valign="top" style="padding:4px 8px;">
+                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
+                                Company
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/about"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  About us
+                                </a>
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/terms-and-conditions"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Terms and conditions
+                                </a>
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/privacy-policy"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Privacy policy
+                                </a>
+                              </p>
+                              <p style="margin:0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/pricing"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Pricing
                                 </a>
                               </p>
                             </td>
@@ -194,157 +245,40 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                   </table>
                 </td>
               </tr>
+
+              <!-- Footer bottom text -->
+              <tr>
+                <td align="center" style="background-color:#f4f8ff; padding:8px 16px 24px 16px;">
+                  <p style="margin:0 0 4px 0; font-family:Arial, sans-serif; font-size:15px; font-weight:bold; line-height:1.2; color:#2b2b2b; text-align:center;">
+                    Copyright &copy; 2025 DuneXploration
+                  </p>
+                  <p style="margin:0 0 4px 0; font-family:Arial, sans-serif; font-size:15px; line-height:1.4; color:#2b2b2b; text-align:center;">
+                    DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz<br />
+                    email:
+                    <a
+                      href="mailto:support@yosemitecrew.com"
+                      style="color:#007bff; font-weight:700; text-decoration:none;"
+                    >
+                      support@yosemitecrew.com
+                    </a>,
+                    phone:
+                    <a
+                      href="tel:+4915227763275"
+                      style="color:#007bff; font-weight:700; text-decoration:none;"
+                    >
+                      +49 152 277 63275
+                    </a>
+                  </p>
+                  <p style="margin:4px 0 0 0; font-family:Arial, sans-serif; font-size:15px; line-height:1.4; color:#2b2b2b; text-align:center;">
+                    Geschäftsführer: Ankit Upadhyay — Amtsgericht Mainz unter HRB 52778, VAT: DE367920596
+                  </p>
+                </td>
+              </tr>
+
             </table>
           </td>
         </tr>
       </table>
     </center>
   </body>
-</html>`;
-};
-
-const buildOtpEmailText = (recipientName: string, otp: string) =>
-  `Hi ${recipientName},
-
-Your companions are waiting, and so is your OTP!
-
-Use this one-time password to continue: ${otp}
-
-It’s valid for the next 10 minutes, so don’t let your dog chew it up or your cat nap on it too long.
-
-If you didn’t request this code, you can safely ignore this email.
-
-See you inside,
-Yosemite Crew Team`;
-
-const resolveRecipientName = (
-  event: Parameters<CreateAuthChallengeTriggerHandler>[0],
-  fallbackEmail: string,
-): string => {
-  const metadataName = event.request.clientMetadata?.firstName?.trim();
-  if (metadataName) {
-    return metadataName;
-  }
-
-  const attrs = event.request.userAttributes ?? {};
-  const candidateKeys = ['given_name', 'name', 'custom:first_name', 'preferred_username'];
-  for (const key of candidateKeys) {
-    const value = attrs[key];
-    if (value && value.trim() && !value.includes('@')) {
-      return value.trim();
-    }
-  }
-
-  if (fallbackEmail.includes('@')) {
-    const localPart = fallbackEmail.split('@')[0];
-    if (localPart) {
-      return localPart;
-    }
-  }
-  return 'there';
-};
-
-const sendOtpEmail = async (email: string, otp: string, recipientName: string) => {
-  const fromEmail = process.env.PASSWORDLESS_OTP_EMAIL_FROM;
-  const subject = process.env.PASSWORDLESS_OTP_EMAIL_SUBJECT ?? 'Your login code';
-
-  if (!fromEmail) {
-    if (DEBUG_LOG_OTP) {
-      console.log(`DEBUG PASSWORDLESS OTP for ${email}:`, otp);
-    }
-    return;
-  }
-
-  const command = new SendEmailCommand({
-    Source: fromEmail,
-    Destination: { ToAddresses: [email] },
-    Message: {
-      Subject: { Data: subject },
-      Body: {
-        Html: { Data: buildOtpEmailHtml(recipientName, otp) },
-        Text: { Data: buildOtpEmailText(recipientName, otp) },
-      },
-    },
-  });
-
-  await sesClient.send(command);
-};
-
-const resolveEmail = (event: Parameters<CreateAuthChallengeTriggerHandler>[0]): string | null => {
-  const metadataEmail = event.request.clientMetadata?.loginEmail?.trim();
-  if (metadataEmail && metadataEmail.includes('@')) {
-    return metadataEmail.toLowerCase();
-  }
-  const userAttrs = event.request.userAttributes || {};
-  if (userAttrs.email && userAttrs.email.trim().includes('@')) {
-    return userAttrs.email.trim().toLowerCase();
-  }
-  if (userAttrs.preferred_username && userAttrs.preferred_username.trim().includes('@')) {
-    return userAttrs.preferred_username.trim().toLowerCase();
-  }
-  if (event.userName && event.userName.trim().includes('@')) {
-    return event.userName.trim().toLowerCase();
-  }
-  return null;
-};
-
-export const handler: CreateAuthChallengeTriggerHandler = async (event) => {
-  console.log('Passwordless create-auth challenge invoked', {
-    userName: event.userName,
-    clientMetadata: event.request.clientMetadata,
-    userAttributes: event.request.userAttributes,
-  });
-
-  const email = resolveEmail(event);
-
-  if (!email) {
-    console.error('Passwordless create-auth challenge missing email', {
-      userName: event.userName,
-      clientMetadata: event.request.clientMetadata,
-      userAttributes: event.request.userAttributes,
-    });
-    throw new Error('Cannot issue passwordless challenge without an email address.');
-  }
-
-  console.log('Passwordless create-auth challenge resolved email', { email });
-
-  const session = event.request.session ?? [];
-  const previousChallenge = session[session.length - 1];
-  const previousMetadata = previousChallenge?.challengeMetadata;
-  const previousResult = previousChallenge?.challengeResult;
-
-  let otp: string | null = null;
-  let shouldSendEmail = true;
-
-  if (
-    previousMetadata?.startsWith(`${OTP_METADATA_PREFIX}:`) &&
-    previousResult === false
-  ) {
-    const parts = previousMetadata.split(':');
-    if (parts.length >= 2 && parts[1]) {
-      otp = parts[1];
-      shouldSendEmail = false;
-    }
-  }
-
-  if (!otp) {
-    otp = generateOtp(OTP_LENGTH);
-    shouldSendEmail = true;
-  }
-
-  const recipientName = resolveRecipientName(event, email);
-
-  if (shouldSendEmail) {
-    await sendOtpEmail(email, otp, recipientName);
-  }
-
-  event.response.publicChallengeParameters = {
-    deliveryMedium: 'EMAIL',
-  };
-  event.response.privateChallengeParameters = {
-    answer: otp,
-  };
-  event.response.challengeMetadata = `${OTP_METADATA_PREFIX}:${otp}:${Date.now()}`;
-
-  return event;
-};
+</html>

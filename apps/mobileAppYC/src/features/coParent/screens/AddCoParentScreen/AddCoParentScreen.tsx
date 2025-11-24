@@ -131,13 +131,6 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Invite Description - always show */}
-            <View style={styles.inviteDescriptionContainer}>
-              <Text style={styles.inviteDescriptionText}>
-                Seems like your friend is not a fan of this app.{'\n'}No worries, Yosemite Crew can send a request on your behalf!
-              </Text>
-            </View>
-
             {/* Invite Form - always visible */}
             <View style={styles.formContainer}>
               <View style={styles.formSection}>
@@ -262,7 +255,7 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: 220,
       resizeMode: 'contain',
-      marginVertical: theme.spacing[4],
+      marginTop: theme.spacing[20],
     },
     absoluteSearchLoadingContainer: {
       display: 'none',
@@ -271,7 +264,8 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing[2],
-      marginInline:40
+      marginInline:40,
+        marginVertical: theme.spacing[16],
     },
     dividerLine: {
       flex: 1,
@@ -281,15 +275,6 @@ const createStyles = (theme: any) =>
     dividerText: {
       ...theme.typography.h4Alt,
       color: theme.colors.text,
-    },
-    inviteDescriptionContainer: {
-      marginVertical: theme.spacing[3],
-    },
-    inviteDescriptionText: {
-      ...theme.typography.inputLabel,
-      color: theme.colors.text,
-      lineHeight: 20,
-      paddingInline: 10,
     },
     formContainer: {
       gap: theme.spacing[4],
