@@ -145,7 +145,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
                   control={control}
                   name="candidateName"
                   rules={{
-                    required: 'Candidate name is required',
+                    required: 'Co-Parent name is required',
                     minLength: {
                       value: 2,
                       message: 'Name must be at least 2 characters',
@@ -157,7 +157,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
                   }}
                   render={({field: {onChange, value}}) => (
                     <Input
-                      label="Candidate name"
+                      label="Co-Parent name"
                       value={value}
                       onChangeText={onChange}
                       error={errors.candidateName?.message}
