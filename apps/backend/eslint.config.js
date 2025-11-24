@@ -14,6 +14,7 @@ export default [
       "node_modules/",
       "dist/",
       "coverage/",
+      ".scannerwork",
     ],
   },
   ...tseslint.config(
