@@ -1,6 +1,9 @@
 import { Types } from "mongoose";
 import CompanionModel from "../../src/models/companion";
-import { CompanionService, CompanionServiceError } from "../../src/services/companion.service";
+import {
+  CompanionService,
+  CompanionServiceError,
+} from "../../src/services/companion.service";
 import { ParentService } from "../../src/services/parent.service";
 import {
   ParentCompanionService,
@@ -137,9 +140,9 @@ describe("CompanionService", () => {
     const payload = { resourceType: "Patient" } as any;
 
     it("requires context", async () => {
-      await expect(
-        CompanionService.create(payload, undefined),
-      ).rejects.toThrow("Parent context is required to create a companion.");
+      await expect(CompanionService.create(payload, undefined)).rejects.toThrow(
+        "Parent context is required to create a companion.",
+      );
     });
 
     it("creates companion for authenticated user and links parent", async () => {
@@ -218,7 +221,9 @@ describe("CompanionService", () => {
       mockedParentCompanionService.getActiveCompanionIdsForParent.mockResolvedValueOnce(
         [id],
       );
-      mockedCompanionModel.find.mockResolvedValueOnce([makeDoc({ name: "Buddy" })]);
+      mockedCompanionModel.find.mockResolvedValueOnce([
+        makeDoc({ name: "Buddy" }),
+      ]);
 
       const result = await CompanionService.listByParent(
         new Types.ObjectId().toHexString(),

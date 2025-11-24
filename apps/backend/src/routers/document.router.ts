@@ -9,12 +9,12 @@ const router = Router();
 router.post(
   "/mobile/upload-url",
   authorizeCognitoMobile,
-  DocumentController.getUploadUrl
+  DocumentController.getUploadUrl,
 );
 router.post(
   "/mobile/:companionId",
   authorizeCognitoMobile,
-  DocumentController.createDocument
+  DocumentController.createDocument,
 );
 router.get(
   "/mobile/:companionId",
@@ -24,67 +24,65 @@ router.get(
 router.patch(
   "/mobile/details/:id",
   authorizeCognito,
-  DocumentController.updateDocument
+  DocumentController.updateDocument,
 );
 router.get(
   "/mobile/appointments/:appointmentId",
   authorizeCognitoMobile,
-  DocumentController.listForAppointment
+  DocumentController.listForAppointment,
 );
 router.get(
   "/mobile/view/:documentId",
   authorizeCognitoMobile,
-  DocumentController.getDocumentDownloadUrl
-)
+  DocumentController.getDocumentDownloadUrl,
+);
 router.post(
   "/mobile/view",
   authorizeCognitoMobile,
-  DocumentController.getSignedDownloadUrl
-)
+  DocumentController.getSignedDownloadUrl,
+);
 router.delete(
   "mobile/:documentId",
   authorizeCognitoMobile,
-  DocumentController.deleteForParent
-)
+  DocumentController.deleteForParent,
+);
 
 // PMS routes
 
 router.post(
   "/pms/:companionId",
   authorizeCognito,
-  DocumentController.createDocumentPms
+  DocumentController.createDocumentPms,
 );
 router.get(
   "/pms/:companionId",
   authorizeCognitoMobile,
-  DocumentController.listForPms
+  DocumentController.listForPms,
 );
 router.get(
   "/pms/details/:documentId",
   authorizeCognito,
-  DocumentController.getForPms
+  DocumentController.getForPms,
 );
 router.patch(
   "/pms/details/:documentId",
   authorizeCognito,
-  DocumentController.updateDocument
+  DocumentController.updateDocument,
 );
 router.get(
   "/pms/view/:documentId",
   authorizeCognito,
-  DocumentController.getDocumentDownloadUrl
+  DocumentController.getDocumentDownloadUrl,
 );
 router.post(
   "/pms/view",
   authorizeCognito,
-  DocumentController.getSignedDownloadUrl
+  DocumentController.getSignedDownloadUrl,
 );
 router.get(
   "/pms/appointments/:appointmentId",
   authorizeCognito,
-  DocumentController.listForAppointment
+  DocumentController.listForAppointment,
 );
-
-
 
 export default router;

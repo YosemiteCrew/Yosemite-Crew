@@ -1,7 +1,7 @@
 // src/utils/sanitize.ts
-import validator from "validator"
+import validator from "validator";
 
-const { escape, stripLow, trim } = validator ;
+const { escape, stripLow, trim } = validator;
 
 export const sanitizeInput = (value: any): any => {
   if (typeof value === "string") {
@@ -24,6 +24,8 @@ export function assertSafeString(input: unknown, field: string): string {
   if (typeof input !== "string") {
     throw new Error(`${field} must be a string`);
   }
+
+  if (field === "email") return input;
 
   // Prevent NoSQL operator injection
   if (input.includes("$") || input.includes(".")) {
