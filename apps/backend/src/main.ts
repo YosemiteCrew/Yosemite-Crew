@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import fileUpload from "express-fileupload";
 import logger from "./utils/logger";
 import mongoose from "mongoose";
@@ -21,9 +22,16 @@ import docuemntRouter from "./routers/document.router"
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 app.use(express.json());
 app.use(fileUpload());
+app.use(limiter);
 
 app.use(`/fhir/v1/organization`, organizationRounter);
 app.use(`/fhir/v1/companion`, companionRouter);
