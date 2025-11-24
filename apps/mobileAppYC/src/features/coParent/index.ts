@@ -4,6 +4,7 @@ export {
   fetchCoParents,
   addCoParent,
   updateCoParentPermissions,
+  promoteCoParentToPrimary,
   deleteCoParent,
   fetchPendingInvites,
   acceptCoParentInvite,

@@ -28,10 +28,9 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
 
   const isPrimary = (coParent.role ?? '').toUpperCase().includes('PRIMARY');
   const fallbackName = isPrimary ? 'Primary Parent' : 'Co-parent';
+  const roleLabel = isPrimary ? 'Primary Parent' : 'Co-parent';
   const displayName =
     `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim() || fallbackName;
-  const companionCount = coParent.companions.length;
-  const companionText = companionCount === 1 ? 'Companion' : 'Companions';
 
   const avatarInitial = coParent.firstName?.charAt(0).toUpperCase() || 'C';
 
@@ -68,8 +67,8 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
               <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
                 {displayName}
               </Text>
-              <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
-                {companionCount} {companionText}
+              <Text style={styles.role} numberOfLines={1} ellipsizeMode="tail">
+                {roleLabel}
               </Text>
             </View>
           </View>
@@ -126,9 +125,9 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
       textOverflow: 'ellipsis',
     },
-    meta: {
+    role: {
       ...theme.typography.subtitleBold14,
-      color: theme.colors.secondary,
+      color: theme.colors.placeholder,
     },
     divider: {
       marginTop: theme.spacing[1],

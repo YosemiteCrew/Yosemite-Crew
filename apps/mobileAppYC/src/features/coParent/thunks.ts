@@ -245,6 +245,21 @@ export const deleteCoParent = createAsyncThunk<
   }
 });
 
+export const promoteCoParentToPrimary = createAsyncThunk<
+  void,
+  {companionId: string; coParentId: string},
+  {rejectValue: string}
+>('coParent/promoteCoParentToPrimary', async ({companionId, coParentId}, {rejectWithValue}) => {
+  try {
+    const accessToken = await ensureAccessToken();
+    await coParentApi.promoteToPrimary({companionId, coParentId, accessToken});
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to promote co-parent',
+    );
+  }
+});
+
 export const fetchPendingInvites = createAsyncThunk<
   PendingCoParentInvite[],
   void,
