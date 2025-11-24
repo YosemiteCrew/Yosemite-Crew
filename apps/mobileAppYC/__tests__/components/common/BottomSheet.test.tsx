@@ -21,14 +21,13 @@ const mockBottomSheet = jest.fn();
 
 // Mock the entire @gorhom/bottom-sheet library
 jest.mock('@gorhom/bottom-sheet', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react');
+  const {View: RNView} = jest.requireActual('react-native');
 
   return {
     __esModule: true,
-    default: React.forwardRef((props: any, ref: any) => {
-      const {View} = require('react-native');
-
-      React.useImperativeHandle(ref, () => ({
+    default: ReactActual.forwardRef((props: any, ref: any) => {
+      ReactActual.useImperativeHandle(ref, () => ({
         snapToIndex: mockSnapToIndex,
         snapToPosition: mockSnapToPosition,
         expand: mockExpand,
@@ -40,33 +39,28 @@ jest.mock('@gorhom/bottom-sheet', () => {
       mockBottomSheet(props);
 
       return (
-        <View testID="mock-bottom-sheet">
+        <RNView testID="mock-bottom-sheet">
           {props.handleComponent?.({})}
           {props.backdropComponent?.({})}
           {props.footerComponent?.({})}
           {props.children}
-        </View>
+        </RNView>
       );
     }),
     BottomSheetView: (props: any) => {
-      const {View} = require('react-native');
-      return <View testID="mock-bottom-sheet-view" {...props} />;
+      return <RNView testID="mock-bottom-sheet-view" {...props} />;
     },
     BottomSheetScrollView: (props: any) => {
-      const {View} = require('react-native');
-      return <View testID="mock-bottom-sheet-scrollview" {...props} />;
+      return <RNView testID="mock-bottom-sheet-scrollview" {...props} />;
     },
     BottomSheetFlatList: (props: any) => {
-      const {View} = require('react-native');
-      return <View testID="mock-bottom-sheet-flatlist" {...props} />;
+      return <RNView testID="mock-bottom-sheet-flatlist" {...props} />;
     },
     BottomSheetBackdrop: (props: any) => {
-      const {View} = require('react-native');
-      return <View testID="mock-bottom-sheet-backdrop" {...props} />;
+      return <RNView testID="mock-bottom-sheet-backdrop" {...props} />;
     },
     BottomSheetHandle: (props: any) => {
-      const {View} = require('react-native');
-      return <View testID="mock-bottom-sheet-handle" {...props} />;
+      return <RNView testID="mock-bottom-sheet-handle" {...props} />;
     },
   };
 });

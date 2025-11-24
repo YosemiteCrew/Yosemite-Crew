@@ -13,19 +13,19 @@ jest.mock('react-redux', () => ({
 
 // 2. Mock 'react-native' MANUALLY
 jest.mock('react-native', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react');
 
   const createMockComponent = (name: string) =>
-    React.forwardRef((props: any, ref: any) =>
-      React.createElement(name, {...props, ref}, props.children),
+    ReactActual.forwardRef((props: any, ref: any) =>
+      ReactActual.createElement(name, {...props, ref}, props.children),
     );
 
   return {
     View: createMockComponent('View'),
     Text: createMockComponent('Text'),
     // Mock ScrollView with a testID for easy selecting
-    ScrollView: React.forwardRef((props: any, ref: any) =>
-      React.createElement(
+    ScrollView: ReactActual.forwardRef((props: any, ref: any) =>
+      ReactActual.createElement(
         'ScrollView',
         {...props, ref, testID: 'mock-scroll-view'},
         props.children,
@@ -45,10 +45,10 @@ jest.mock('react-native', () => {
 
 // 3. Mock 'react-native-safe-area-context'
 jest.mock('react-native-safe-area-context', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react');
   return {
     SafeAreaView: (props: any) =>
-      React.createElement(
+      ReactActual.createElement(
         'SafeAreaView',
         {...props, testID: 'safe-area-view'},
         props.children,
@@ -59,8 +59,8 @@ jest.mock('react-native-safe-area-context', () => {
 // 4. Mock LiquidGlassCard
 jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
   LiquidGlassCard: (props: any) => {
-    const React = require('react');
-    return React.createElement(
+    const ReactActual = jest.requireActual('react');
+    return ReactActual.createElement(
       'View',
       {...props, testID: 'mock-liquid-glass-card'},
       props.children,

@@ -17,11 +17,11 @@ jest.mock('react-redux', () => ({
 
 // 2. Mock 'react-native' COMPLETELY (No requireActual) to avoid NativeModule crashes
 jest.mock('react-native', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react');
 
   const createMockComponent = (name: string) =>
-    React.forwardRef((props: any, ref: any) =>
-      React.createElement(name, {...props, ref}, props.children),
+    ReactActual.forwardRef((props: any, ref: any) =>
+      ReactActual.createElement(name, {...props, ref}, props.children),
     );
 
   return {
