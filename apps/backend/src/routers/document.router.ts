@@ -42,7 +42,7 @@ router.post(
   DocumentController.getSignedDownloadUrl,
 );
 router.delete(
-  "mobile/:documentId",
+  "/mobile/:documentId",
   authorizeCognitoMobile,
   DocumentController.deleteForParent,
 );

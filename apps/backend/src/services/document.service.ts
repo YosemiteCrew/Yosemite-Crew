@@ -4,7 +4,10 @@ import DocumentModel, {
   type DocumentDocument,
 } from "../models/document";
 import { assertSafeString } from "src/utils/sanitize";
-import { generatePresignedDownloadUrl } from "src/middlewares/upload";
+import {
+  deleteFromS3,
+  generatePresignedDownloadUrl,
+} from "src/middlewares/upload";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -393,6 +396,10 @@ export const DocumentService = {
       );
     }
 
+    // Delete all files from S3
+    for (const attachment of doc.attachments) {
+      await deleteFromS3(attachment.key);
+    }
     await DocumentModel.deleteOne({ _id }).exec();
     return true;
   },
