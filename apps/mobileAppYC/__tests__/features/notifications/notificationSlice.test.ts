@@ -98,7 +98,7 @@ describe('notificationSlice', () => {
       expect(state.loading).toBe(false);
       expect(state.items).toHaveLength(2);
       expect(state.unreadCount).toBe(1);
-      expect(state.hydratedCompanions['c1']).toBe(true);
+      expect(state.hydratedCompanions.c1).toBe(true);
       expect(state.lastFetchTimestamp).toBeDefined();
     });
 
