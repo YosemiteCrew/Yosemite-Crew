@@ -11,6 +11,7 @@ import {
   Image as RNImage,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {NavigationProp} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -20,10 +21,22 @@ import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {updateCoParentPermissions, selectCoParentLoading, deleteCoParent, fetchCoParents} from '../../index';
-import {selectCompanions, selectSelectedCompanionId, setSelectedCompanion} from '@/features/companion';
+import {
+  updateCoParentPermissions,
+  selectCoParentLoading,
+  deleteCoParent,
+  fetchCoParents,
+  promoteCoParentToPrimary,
+  fetchParentAccess,
+} from '../../index';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+  setSelectedCompanion,
+  fetchCompanions,
+} from '@/features/companion';
 import {selectAuthUser} from '@/features/auth/selectors';
-import type {CoParentStackParamList} from '@/navigation/types';
+import type {CoParentStackParamList, HomeStackParamList} from '@/navigation/types';
 import type {CoParent, CoParentPermissions} from '../../types';
 import DeleteCoParentBottomSheet, {type DeleteCoParentBottomSheetRef} from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
@@ -66,6 +79,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   };
   const [permissions, setPermissions] = useState<CoParentPermissions>(defaultPermissions);
   const deleteSheetRef = React.useRef<DeleteCoParentBottomSheetRef>(null);
+  const [isPromoting, setIsPromoting] = useState(false);
 
   const selectedCompanion = useMemo(
     () =>
@@ -151,7 +165,105 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     );
   }
 
+  const performOwnershipTransfer = async () => {
+    if (isPromoting) {
+      return;
+    }
+    if (!canEditPermissions) {
+      Alert.alert('Not allowed', 'Only the primary parent can transfer ownership.');
+      return;
+    }
+    if (!selectedCompanionId || !currentCoParent) {
+      Alert.alert('Select companion', 'Please select a companion first.');
+      return;
+    }
+    const targetCoParentId = currentCoParent.parentId || currentCoParent.id || coParentId;
+    if (!targetCoParentId) {
+      Alert.alert('Error', 'Unable to determine co-parent details. Please try again.');
+      return;
+    }
+
+    try {
+      setIsPromoting(true);
+      await dispatch(
+        promoteCoParentToPrimary({
+          companionId: selectedCompanionId,
+          coParentId: targetCoParentId,
+        }),
+      ).unwrap();
+
+      if (authUser?.parentId) {
+        try {
+          await dispatch(fetchCompanions(authUser.parentId)).unwrap();
+        } catch (err) {
+          console.warn('Failed to refresh companions after promotion', err);
+        }
+        const companionIds = companions
+          .map(c => c.id)
+          .filter((id): id is string => Boolean(id));
+        try {
+          await dispatch(
+            fetchParentAccess({
+              parentId: authUser.parentId,
+              companionIds: companionIds.length > 0 ? companionIds : undefined,
+            }),
+          ).unwrap();
+        } catch (err) {
+          console.warn('Failed to refresh access after promotion', err);
+        }
+      }
+
+      const homeStackNavigation =
+        navigation.getParent<NavigationProp<HomeStackParamList>>();
+      if (homeStackNavigation) {
+        homeStackNavigation.reset({
+          index: 0,
+          routes: [{name: 'Home'}],
+        });
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{name: 'CoParents'}],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to promote co-parent:', error);
+      Alert.alert('Error', 'Failed to transfer ownership. Please try again.');
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+
+  const requestOwnershipTransfer = () => {
+    if (!canEditPermissions) {
+      Alert.alert('Not allowed', 'Only the primary parent can transfer ownership.');
+      return;
+    }
+    if (!selectedCompanionId) {
+      Alert.alert('Select companion', 'Please select a companion first.');
+      return;
+    }
+    Alert.alert(
+      'Transfer primary parent role?',
+      'This will make this co-parent the new primary parent for the selected companion. You will lose owner permissions immediately.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Transfer',
+          style: 'destructive',
+          onPress: () => {
+            performOwnershipTransfer();
+          },
+        },
+      ],
+    );
+  };
+
   const handlePermissionChange = (key: keyof CoParentPermissions) => {
+    if (key === 'assignAsPrimaryParent') {
+      requestOwnershipTransfer();
+      return;
+    }
     if (!canEditPermissions) {
       return;
     }
@@ -218,6 +330,8 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
   const displayName =
     `${currentCoParent.firstName ?? ''} ${currentCoParent.lastName ?? ''}`.trim() || 'Co-parent';
+
+  const disableControls = !canEditPermissions || isPromoting;
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -328,7 +442,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('assignAsPrimaryParent')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -341,7 +455,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('emergencyBasedPermissions')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -354,7 +468,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('appointments')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -367,7 +481,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('companionProfile')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -380,7 +494,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('documents')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -393,7 +507,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('expenses')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -406,7 +520,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('tasks')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -419,7 +533,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('chatWithVet')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
-                disabled={!canEditPermissions}
+                disabled={disableControls}
               />
             </View>
           </LiquidGlassCard>
@@ -434,7 +548,9 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         {canEditPermissions && (
           <View style={styles.saveButton}>
             <LiquidGlassButton
-              title={loading ? 'Saving...' : 'Save Permissions'}
+              title={
+                loading ? 'Saving...' : isPromoting ? 'Transferring...' : 'Save Permissions'
+              }
               onPress={handleSavePermissions}
               style={commonStyles.button}
               textStyle={commonStyles.buttonText}
@@ -444,8 +560,8 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
               borderColor={theme.colors.borderMuted}
               height={56}
               borderRadius={16}
-              loading={loading}
-              disabled={loading}
+              loading={loading || isPromoting}
+              disabled={loading || isPromoting}
             />
           </View>
         )}

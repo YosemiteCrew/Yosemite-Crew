@@ -33,6 +33,11 @@ export interface DeleteCoParentParams {
   accessToken: string;
 }
 
+export interface PromoteCoParentParams {
+  companionId: string;
+  coParentId: string;
+  accessToken: string;
+}
 export interface InviteActionParams {
   token: string;
   accessToken: string;
@@ -119,6 +124,15 @@ export const coParentApi = {
       buildAuthConfig(accessToken),
     );
     return data;
+  },
+
+  async promoteToPrimary({companionId, coParentId, accessToken}: PromoteCoParentParams) {
+    await apiClient.post(
+      `/v1/parent-companion/${companionId}/${coParentId}/promote`,
+      {},
+      buildAuthConfig(accessToken),
+    );
+    return true;
   },
 
   async remove({companionId, coParentId, accessToken}: DeleteCoParentParams) {
