@@ -74,6 +74,52 @@ interface LinkParentInput {
   status?: ParentCompanionStatus; // optional override (default: PRIMARY→ACTIVE, CO_PARENT→PENDING)
 }
 
+// Internal Helpers
+const promoteDocumentToPrimary = async (
+  document: ParentCompanionDocument,
+  overrides?: Partial<ParentCompanionPermissions>,
+): Promise<ParentCompanionDocument> => {
+  const { companionId } = document;
+
+  // Demote existing primary (if it's not the same link)
+  const existingPrimary = await ParentCompanionModel.findOne({
+    companionId,
+    role: "PRIMARY",
+    status: "ACTIVE",
+    _id: { $ne: document._id },
+  });
+
+  if (existingPrimary) {
+    existingPrimary.role = "CO_PARENT";
+    existingPrimary.permissions = {
+      ...BASE_PERMISSIONS,
+      assignAsPrimaryParent: false,
+    };
+    await existingPrimary.save();
+  }
+
+  // Promote this link to PRIMARY
+  document.role = "PRIMARY";
+  document.status = "ACTIVE";
+  document.permissions = buildPermissions("PRIMARY", overrides);
+  document.acceptedAt = document.acceptedAt ?? new Date();
+
+  try {
+    await document.save();
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      // Race condition: another primary got promoted in between
+      throw new ParentCompanionServiceError(
+        "Companion already has an active primary parent.",
+        409,
+      );
+    }
+    throw error;
+  }
+
+  return document;
+};
+
 export const ParentCompanionService = {
   /**
    * Link a parent to a companion.
@@ -173,10 +219,23 @@ export const ParentCompanionService = {
    *      - This link becomes PRIMARY with full permissions
    */
   async updatePermissions(
-    linkId: Types.ObjectId,
+    requestingParentId: Types.ObjectId,
+    targetParentId: Types.ObjectId,
+    companionId: Types.ObjectId,
     updates: Partial<ParentCompanionPermissions>,
   ): Promise<CompanionParentLink> {
-    const document = await ParentCompanionModel.findById(linkId);
+    // 1. Ensure requester is current PRIMARY
+    await ParentCompanionService.ensurePrimaryOwnership(
+      requestingParentId,
+      companionId,
+    );
+
+    // 2. Load the target link
+    const document = await ParentCompanionModel.findOne(
+      { parentId: targetParentId, companionId },
+      null,
+      { sanitizeFilter: true },
+    );
 
     if (!document) {
       throw new ParentCompanionServiceError("Link not found.", 404);
@@ -184,62 +243,29 @@ export const ParentCompanionService = {
 
     const isCurrentlyPrimary =
       document.role === "PRIMARY" && document.status === "ACTIVE";
-
     const wantsPrimary = updates.assignAsPrimaryParent === true;
 
-    // If co-parent wants to become primary
+    // 3. If they want to assign this link as PRIMARY
     if (wantsPrimary && !isCurrentlyPrimary) {
-      const { companionId } = document;
-
-      // Demote existing primary (if any)
-      const existingPrimary = await ParentCompanionModel.findOne({
-        companionId,
-        role: "PRIMARY",
-        status: "ACTIVE",
-      });
-
-      if (
-        existingPrimary &&
-        existingPrimary._id.toString() !== document._id.toString()
-      ) {
-        existingPrimary.role = "CO_PARENT";
-        existingPrimary.permissions = {
-          ...BASE_PERMISSIONS,
-          assignAsPrimaryParent: false,
-        };
-        await existingPrimary.save();
-      }
-
-      // Promote this link to PRIMARY
-      document.role = "PRIMARY";
-      document.status = "ACTIVE";
-      document.permissions = buildPermissions("PRIMARY", updates);
-      document.acceptedAt = document.acceptedAt ?? new Date();
-
-      try {
-        await document.save();
-      } catch (error) {
-        if (isDuplicateKeyError(error)) {
-          // Race condition: another primary got promoted in between
-          throw new ParentCompanionServiceError(
-            "Companion already has an active primary parent.",
-            409,
-          );
-        }
-        throw error;
-      }
-
-      return toCompanionParentLink(document);
+      const promoted = await promoteDocumentToPrimary(document, updates);
+      return toCompanionParentLink(promoted);
     }
 
-    // Otherwise: normal permission update
+    // 4. Prevent un-assigning primary directly without transfer
+    if (isCurrentlyPrimary && updates.assignAsPrimaryParent === false) {
+      throw new ParentCompanionServiceError(
+        "Cannot remove primary assignment without promoting another parent first.",
+        400,
+      );
+    }
+
+    // 5. Normal permissions merge
     const mergedPermissions: ParentCompanionPermissions = {
       ...document.permissions,
       ...updates,
     };
 
-    // Never allow removing "assignAsPrimaryParent" from the current primary,
-    // to avoid having a companion with no primary at all.
+    // If still primary, ensure flag stays true
     if (isCurrentlyPrimary) {
       mergedPermissions.assignAsPrimaryParent = true;
     }
@@ -248,6 +274,79 @@ export const ParentCompanionService = {
     await document.save();
 
     return toCompanionParentLink(document);
+  },
+
+  async promoteToPrimary(
+    requestingParentId: Types.ObjectId,
+    targetParentId: Types.ObjectId,
+    companionId: Types.ObjectId,
+    permissionsOverride?: Partial<ParentCompanionPermissions>,
+  ): Promise<CompanionParentLink> {
+    // Only current primary can promote someone else
+    await ParentCompanionService.ensurePrimaryOwnership(
+      requestingParentId,
+      companionId,
+    );
+
+    const document = await ParentCompanionModel.findOne(
+      {
+        parentId: targetParentId,
+        companionId,
+        status: { $in: ["ACTIVE", "PENDING"] },
+      },
+      null,
+      { sanitizeFilter: true },
+    );
+
+    if (!document) {
+      throw new ParentCompanionServiceError("Co-parent link not found.", 404);
+    }
+
+    const promoted = await promoteDocumentToPrimary(
+      document,
+      permissionsOverride,
+    );
+    return toCompanionParentLink(promoted);
+  },
+
+  async removeCoParent(
+    requestingParentId: Types.ObjectId,
+    coParentId: Types.ObjectId,
+    companionId: Types.ObjectId,
+    soft: boolean,
+  ): Promise<void> {
+    // Ensure the requesting parent is the active PRIMARY
+    await ParentCompanionService.ensurePrimaryOwnership(
+      requestingParentId,
+      companionId,
+    );
+
+    if (soft) {
+      const doc = await ParentCompanionModel.findOneAndUpdate(
+        {
+          parentId: coParentId,
+          companionId,
+          role: "CO_PARENT",
+        },
+        { $set: { status: "REVOKED" } },
+        { new: true, sanitizeFilter: true },
+      );
+
+      if (!doc) {
+        throw new ParentCompanionServiceError("Co-parent link not found.", 404);
+      }
+      return;
+    }
+
+    const result = await ParentCompanionModel.deleteOne({
+      parentId: coParentId,
+      companionId,
+      role: "CO_PARENT",
+    });
+
+    if (!result.deletedCount) {
+      throw new ParentCompanionServiceError("Co-parent link not found.", 404);
+    }
   },
 
   /**
@@ -333,8 +432,7 @@ export const ParentCompanionService = {
       { parentId, companionId, role: "PRIMARY", status: "ACTIVE" },
       null,
       { sanitizeFilter: true },
-    );
-
+    ).exec();
     if (!link) {
       throw new ParentCompanionServiceError(
         "You are not authorized to modify this companion.",
