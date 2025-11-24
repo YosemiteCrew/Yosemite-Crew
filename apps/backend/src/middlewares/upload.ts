@@ -78,13 +78,13 @@ const buildS3Key = (
     case "temp":
       return `temp/uploads/${uuidv4()}${ext}`;
     case "user":
-      return `users/${idOrFolder}/profile${ext}`;
+      return `users/${idOrFolder}/${uuidv4()}${ext}`;
     case "org":
-      return `orgs/${idOrFolder}/logo${ext}`;
+      return `orgs/${idOrFolder}/${uuidv4()}${ext}`;
     case "parent":
-      return `parent/${idOrFolder}/profile${ext}`;
+      return `parent/${idOrFolder}/${uuidv4()}${ext}`;
     case "companion":
-      return `companion/${idOrFolder}/profile${ext}`;
+      return `companion/${idOrFolder}/${uuidv4()}${ext}`;
     case "custom":
       return `${idOrFolder}/${uuidv4()}${ext}`;
     default:
@@ -203,7 +203,6 @@ async function moveFile(fromKey: string, toKey: string) {
 }
 
 // Delete File from S3
-
 async function deleteFromS3(s3Key: string) {
   const bucket = getBucketName();
   try {

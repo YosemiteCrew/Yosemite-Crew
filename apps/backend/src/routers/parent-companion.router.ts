@@ -10,7 +10,7 @@ router.get(
   ParentCompanionController.getLinksForParent,
 );
 router.get(
-  "companion/:companionId",
+  "/companion/:companionId",
   authorizeCognitoMobile,
   ParentCompanionController.getLinksForCompanion,
 );
