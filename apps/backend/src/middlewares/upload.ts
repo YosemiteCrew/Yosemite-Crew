@@ -32,6 +32,14 @@ const getBucketName = (): string => {
   return bucket;
 };
 
+const getCloufrontBaeUrl = () : string => {
+  const CF_BASE = process.env.AWS_CLOUD_FRONT_BASE_URL
+  if(!CF_BASE) {
+    throw new Error("AWS_CLOUD_FRONT_BASE_URL is not defined");
+  }
+  return CF_BASE;
+}
+
 // Utility functions
 
 const mimeTypeToExtension = (mimeType: string): string => {
@@ -170,6 +178,7 @@ async function generatePresignedUrl(
 
 async function moveFile(fromKey: string, toKey: string) {
   const bucket = getBucketName();
+  const CF_BASE = getCloufrontBaeUrl();
   try {
     await s3
       .copyObject({
@@ -186,7 +195,7 @@ async function moveFile(fromKey: string, toKey: string) {
       })
       .promise();
 
-    return `https://${bucket}.s3.amazonaws.com/${toKey}`;
+    return `https://${CF_BASE}/${toKey}`;
   } catch (err: unknown) {
     console.error("Error moving file:", err);
     throw new Error(`Failed to move file: ${getErrorMessage(err)}`);

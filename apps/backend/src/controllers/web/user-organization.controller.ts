@@ -12,12 +12,9 @@ export const UserOrganizationController = {
       const payload = req.body as UserOrganizationFHIRPayload | undefined;
 
       if (!payload || payload.resourceType !== "PractitionerRole") {
-        res
-          .status(400)
-          .json({
-            message:
-              "Invalid payload. Expected FHIR PractitionerRole resource.",
-          });
+        res.status(400).json({
+          message: "Invalid payload. Expected FHIR PractitionerRole resource.",
+        });
         return;
       }
 
@@ -117,12 +114,9 @@ export const UserOrganizationController = {
       }
 
       if (!payload || payload.resourceType !== "PractitionerRole") {
-        res
-          .status(400)
-          .json({
-            message:
-              "Invalid payload. Expected FHIR PractitionerRole resource.",
-          });
+        res.status(400).json({
+          message: "Invalid payload. Expected FHIR PractitionerRole resource.",
+        });
         return;
       }
 
