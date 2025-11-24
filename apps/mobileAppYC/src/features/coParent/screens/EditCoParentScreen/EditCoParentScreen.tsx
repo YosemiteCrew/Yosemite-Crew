@@ -200,7 +200,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         }
         const companionIds = companions
           .map(c => c.id)
-          .filter((id): id is string => Boolean(id));
+          .filter(Boolean);
         try {
           await dispatch(
             fetchParentAccess({
@@ -332,6 +332,12 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     `${currentCoParent.firstName ?? ''} ${currentCoParent.lastName ?? ''}`.trim() || 'Co-parent';
 
   const disableControls = !canEditPermissions || isPromoting;
+  let saveButtonTitle = 'Save Permissions';
+  if (loading) {
+    saveButtonTitle = 'Saving...';
+  } else if (isPromoting) {
+    saveButtonTitle = 'Transferring...';
+  }
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -401,7 +407,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
         {/* Select Companion Heading */}
         <View style={styles.selectCompanionHeader}>
-          <Text style={styles.selectCompanionTitle}>Select companion</Text>
+          <Text style={styles.selectCompanionTitle}>Selected companion</Text>
         </View>
 
       
@@ -548,9 +554,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         {canEditPermissions && (
           <View style={styles.saveButton}>
             <LiquidGlassButton
-              title={
-                loading ? 'Saving...' : isPromoting ? 'Transferring...' : 'Save Permissions'
-              }
+              title={saveButtonTitle}
               onPress={handleSavePermissions}
               style={commonStyles.button}
               textStyle={commonStyles.buttonText}
