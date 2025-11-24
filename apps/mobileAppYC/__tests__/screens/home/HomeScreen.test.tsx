@@ -457,18 +457,18 @@ describe('HomeScreen Component', () => {
   });
 
   it('renders correctly and shows empty companion state', async () => {
-    const {getByText, queryByTestId, getByTestId} = renderHomeScreen();
+    const {getByText, getAllByText, queryByTestId, queryByText} =
+      renderHomeScreen();
     expect(getByText('Hello, John')).toBeTruthy();
     expect(getByText('J')).toBeTruthy();
     expect(getByText('Add your first companion')).toBeTruthy();
     expect(queryByTestId('companion-selector')).toBeNull();
     expect(queryByTestId('task-card')).toBeNull();
-    expect(getByText('No upcoming tasks')).toBeTruthy();
+    expect(getAllByText('No companions yet').length).toBeGreaterThanOrEqual(3);
     expect(queryByTestId('appointment-card-container')).toBeNull();
-    expect(getByText('No upcoming appointments')).toBeTruthy();
-    expect(getByTestId('yearly-spend-card')).toBeTruthy();
+    expect(queryByTestId('yearly-spend-card')).toBeNull();
     expect(getByText('Manage health')).toBeTruthy();
-    expect(queryByTestId('View more')).toBeNull();
+    expect(queryByText('View more')).toBeNull();
   });
 
   it('fetches companions on mount if user exists', async () => {
