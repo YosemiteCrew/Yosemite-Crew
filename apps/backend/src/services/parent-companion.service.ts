@@ -292,7 +292,7 @@ export const ParentCompanionService = {
       {
         parentId: targetParentId,
         companionId,
-        status: "ACTIVE"
+        status: "ACTIVE",
       },
       null,
       { sanitizeFilter: true },
