@@ -8,8 +8,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet as RNStyleSheet,
-  Alert,
   BackHandler,
+  Alert,
+  ToastAndroid,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -30,7 +32,7 @@ import DeleteProfileBottomSheet, {
 } from '@/shared/components/common/DeleteProfileBottomSheet/DeleteProfileBottomSheet';
 
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {
   selectCompanions,
   selectCompanionLoading,
@@ -74,12 +76,20 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const accessForCompanion = companionId
+    ? accessMap[companionId] ?? defaultAccess
+    : defaultAccess;
+  const isPrimaryParent = (accessForCompanion?.role ?? globalRole ?? '').toUpperCase().includes('PRIMARY');
 
   // Profile image picker ref
   const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
+  const parentId = user?.parentId;
 
   const allCompanions = useSelector(selectCompanions);
   const isLoading = useSelector(selectCompanionLoading);
@@ -87,6 +97,39 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const companion = React.useMemo(
     () => allCompanions.find(c => c.id === companionId),
     [allCompanions, companionId],
+  );
+
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
+
+  const canAccessFeature = React.useCallback(
+    (permission: keyof NonNullable<typeof accessForCompanion>['permissions']) => {
+      if (isPrimaryParent) {
+        return true;
+      }
+      if (!accessForCompanion) {
+        return true;
+      }
+      return Boolean(accessForCompanion.permissions?.[permission]);
+    },
+    [accessForCompanion, isPrimaryParent],
+  );
+
+  const guardFeature = React.useCallback(
+    (permission: keyof NonNullable<typeof accessForCompanion>['permissions'], label: string) => {
+      if (!canAccessFeature(permission)) {
+        showPermissionToast(label);
+        return false;
+      }
+      return true;
+    },
+    [canAccessFeature, showPermissionToast],
   );
 
   useEffect(() => {
@@ -138,9 +181,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           updatedAt: new Date().toISOString(),
         };
 
+        if (!parentId) {
+          throw new Error('Parent profile missing. Please sign in again.');
+        }
+
         await dispatch(
           updateCompanionProfile({
-            userId: user?.id || '',
+            parentId,
             updatedCompanion: updated,
           }),
         ).unwrap();
@@ -154,7 +201,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         );
       }
     },
-    [companion, dispatch, user?.id, showErrorAlert],
+    [companion, dispatch, parentId, showErrorAlert],
   );
 
   // Handler for navigating to the Edit Screen
@@ -193,6 +240,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         navigation.navigate('EditParentOverview', {companionId});
         break;
       case 'documents':
+        if (!guardFeature('documents', 'documents')) {
+          return;
+        }
         dispatch(setSelectedCompanion(companionId));
         navigation.getParent()?.navigate('Documents', {screen: 'DocumentsMain'});
         break;
@@ -200,22 +250,40 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       case 'boarder':
       case 'breeder':
       case 'groomer':
+        if (!guardFeature('appointments', 'clinic access')) {
+          return;
+        }
         navigateToLinkedBusiness(sectionId);
         break;
       case 'expense':
+        if (!guardFeature('expenses', 'expenses')) {
+          return;
+        }
         dispatch(setSelectedCompanion(companionId));
         navigation.navigate('ExpensesStack', {screen: 'ExpensesMain'});
         break;
       case 'health_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('health');
         break;
       case 'hygiene_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('hygiene');
         break;
       case 'dietary_plan':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('dietary');
         break;
       case 'custom_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
         navigateToTasks('custom');
         break;
       case 'co_parent':
@@ -252,12 +320,12 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }, []);
 
   const handleDeleteProfile = React.useCallback(async () => {
-    if (!user?.id || !companion?.id) return;
+    if (!parentId || !companion?.id) return;
 
     try {
       console.log('[ProfileOverview] Deleting companion:', companion.id);
       const resultAction = await dispatch(
-        deleteCompanion({userId: user.id, companionId: companion.id}),
+        deleteCompanion({parentId, companionId: companion.id}),
       );
 
       if (deleteCompanion.fulfilled.match(resultAction)) {
@@ -278,7 +346,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         'An error occurred while deleting the companion profile.'
       );
     }
-  }, [user?.id, companion?.id, dispatch, navigation, showErrorAlert]);
+  }, [companion?.id, dispatch, navigation, parentId, showErrorAlert]);
 
   const handleDeleteCancel = React.useCallback(() => {
     setIsDeleteSheetOpen(false);
@@ -305,8 +373,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         title={`${companion.name}'s Profile`}
         showBackButton
         onBack={handleBackPress}
-        rightIcon={Images.deleteIconRed}
-        onRightPress={handleDeletePress}
+        rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+        onRightPress={isPrimaryParent ? handleDeletePress : undefined}
       />
 
       <ScrollView

@@ -6,7 +6,9 @@ import {
 import logger from "../../src/utils/logger";
 
 jest.mock("../../src/services/base-availability.service", () => {
-  const actual = jest.requireActual("../../src/services/base-availability.service");
+  const actual = jest.requireActual(
+    "../../src/services/base-availability.service",
+  );
   return {
     ...actual,
     BaseAvailabilityService: {
@@ -50,7 +52,9 @@ describe("BaseAvailabilityController", () => {
       await BaseAvailabilityController.create(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Invalid request body." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid request body.",
+      });
       expect(mockedService.create).not.toHaveBeenCalled();
     });
 
@@ -61,7 +65,9 @@ describe("BaseAvailabilityController", () => {
           availability: [
             {
               dayOfWeek: "MONDAY",
-              slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+              slots: [
+                { startTime: "09:00", endTime: "10:00", isAvailable: true },
+              ],
             },
           ],
         },
@@ -88,7 +94,7 @@ describe("BaseAvailabilityController", () => {
       const req = { body: { userId: "user-1", availability: [] } } as any;
       const res = mockResponse();
       mockedService.create.mockRejectedValueOnce(
-        new BaseAvailabilityServiceError("Invalid", 422)
+        new BaseAvailabilityServiceError("Invalid", 422),
       );
 
       await BaseAvailabilityController.create(req, res as any);
@@ -107,7 +113,7 @@ describe("BaseAvailabilityController", () => {
 
       expect(mockedLogger.error).toHaveBeenCalledWith(
         "Failed to create base availability",
-        error
+        error,
       );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
@@ -124,7 +130,9 @@ describe("BaseAvailabilityController", () => {
           availability: [
             {
               dayOfWeek: "MONDAY",
-              slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+              slots: [
+                { startTime: "09:00", endTime: "10:00", isAvailable: true },
+              ],
             },
           ],
         },
@@ -151,7 +159,7 @@ describe("BaseAvailabilityController", () => {
       const req = { params: { userId: "user-1" }, body: {} } as any;
       const res = mockResponse();
       mockedService.update.mockRejectedValueOnce(
-        new BaseAvailabilityServiceError("Invalid", 400)
+        new BaseAvailabilityServiceError("Invalid", 400),
       );
 
       await BaseAvailabilityController.update(req, res as any);
@@ -170,7 +178,7 @@ describe("BaseAvailabilityController", () => {
 
       expect(mockedLogger.error).toHaveBeenCalledWith(
         "Failed to update base availability",
-        error
+        error,
       );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
@@ -208,14 +216,16 @@ describe("BaseAvailabilityController", () => {
       await BaseAvailabilityController.getByUserId(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ message: "Base availability not found." });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Base availability not found.",
+      });
     });
 
     it("maps service error", async () => {
       const req = { params: { userId: "" } } as any;
       const res = mockResponse();
       mockedService.getByUserId.mockRejectedValueOnce(
-        new BaseAvailabilityServiceError("Invalid", 400)
+        new BaseAvailabilityServiceError("Invalid", 400),
       );
 
       await BaseAvailabilityController.getByUserId(req, res as any);
@@ -234,7 +244,7 @@ describe("BaseAvailabilityController", () => {
 
       expect(mockedLogger.error).toHaveBeenCalledWith(
         "Failed to retrieve base availability",
-        error
+        error,
       );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({

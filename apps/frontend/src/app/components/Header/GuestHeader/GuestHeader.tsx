@@ -16,15 +16,15 @@ const publicNavItems: NavItem[] = [
   { label: "Pet Businesses", href: "/pms" },
   { label: "Pet Parents", href: "/application" },
   { label: "Developers", href: "/developers" },
-  { label: "About us", href: "/about" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact us", href: "/contact" },
+  { label: "About us", href: "/about" },
 ];
 
 const GuestHeader = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, role } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`;
 
@@ -106,7 +106,7 @@ const GuestHeader = () => {
             {checkRoute() &&
               (user ? (
                 <Primary
-                  href="/organizations"
+                  href={role === "developer" ? "/developers/home" : "/organizations"}
                   text="Go to app"
                   style={{ maxHeight: "60px" }}
                 />
@@ -142,7 +142,7 @@ const GuestHeader = () => {
         (user ? (
           <div className="navmenu-button">
             <Primary
-              href="/organizations"
+              href={role === "developer" ? "/developers/home" : "/organizations"}
               text="Go to app"
               style={{ width: "160px", maxHeight: "60px" }}
             />

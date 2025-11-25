@@ -7,11 +7,13 @@ import Footer from "@/app/components/Footer/Footer";
 import { Primary } from "@/app/components/Buttons";
 import FeatureBox from "./FeatureBox/FeatureBox";
 import FocusCard from "./FocusCard/FocusCard";
-import { focusCards, practiceFeatures, heroList } from "./data.json";
+import data from "./data.json";
 
 import "./HomePage.css";
 
 const HomePage = () => {
+  const { focusCards, practiceFeatures, heroList } = data;
+
   return (
     <>
       <section className="HomeHeroSection">
@@ -199,7 +201,7 @@ const HomePage = () => {
               <p>
                 We prioritise your data security and compliance with
                 industry-leading standards. Our platform is fully compliant with
-                GDPR, SOC 2 and ISO 27001 standards!
+                GDPR, SOC 2 and ISO 27001 standards.
               </p>
             </div>
             <div className="rytcare">
@@ -243,7 +245,7 @@ const HomePage = () => {
               <div className="betInner">
                 <div className="careText">
                   <h2>
-                    Better care is just a <br /> click away
+                    Better care is just a click away
                   </h2>
                   <p>
                     Join hundreds of veterinary clinics already enhancing animal

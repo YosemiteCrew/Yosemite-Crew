@@ -39,6 +39,7 @@ export const mergeUserWithParentProfile = (
 
   return {
     ...base,
+    parentId: parent.id ?? base.parentId,
     firstName: parent.firstName ?? base.firstName,
     lastName: parent.lastName ?? base.lastName,
     phone: parent.phoneNumber ?? base.phone,

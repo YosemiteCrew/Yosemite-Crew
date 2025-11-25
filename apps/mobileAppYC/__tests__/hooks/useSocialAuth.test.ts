@@ -76,14 +76,22 @@ const mockBaseResult: MockAuthResult = {
     phone: '+1234567890',
     dateOfBirth: '1990-01-01',
   },
+  parentLinked: false,
 };
 
 const mockExistingProfileResult: MockAuthResult = {
   ...mockBaseResult,
+  parentLinked: true,
   profile: {
     ...mockBaseResult.profile,
     exists: true,
     isComplete: true,
+    parent: {
+      id: 'parent-123',
+      firstName: 'Parent',
+      lastName: 'User',
+      isComplete: true,
+    } as any,
   },
 };
 

@@ -115,6 +115,8 @@ export const CategoryDetailScreen: React.FC = () => {
           onSelect={(id) => dispatch(setSelectedCompanion(id))}
           showAddButton={false}
           containerStyle={styles.companionSelector}
+          requiredPermission="documents"
+          permissionLabel="documents"
         />
 
         {category.subcategories.map(subcategory => {

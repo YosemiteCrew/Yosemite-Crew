@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Button, Table } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 import { ProcedurePackageJSON } from "@yosemite-crew/types";
 
@@ -39,8 +39,8 @@ const GenericTable = <T extends object>({
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
 
   return (
-    <>
-      <Table responsive bordered={bordered} className="TableDiv mb-3">
+    <div className="flex flex-col gap-3 w-full">
+      <table className="TableDiv mb-3">
         <thead>
           <tr>
             {columns.map((col) => (
@@ -79,7 +79,7 @@ const GenericTable = <T extends object>({
             </tr>
           )}
         </tbody>
-      </Table>
+      </table>
       {pagination && totalPages > 1 && (
         <div className="custom-pagination">
           <Button
@@ -106,7 +106,7 @@ const GenericTable = <T extends object>({
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

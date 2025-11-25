@@ -7,6 +7,8 @@ import {Images} from '@/assets/images';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
+import {useSelector} from 'react-redux';
+import {selectCompanions} from '@/features/companion';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -14,6 +16,7 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
+  const companions = useSelector(selectCompanions);
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
@@ -22,8 +25,8 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
       <Header
         title="My Appointments"
         showBackButton={false}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAdd}
+        rightIcon={companions.length > 0 ? Images.addIconDark : undefined}
+        onRightPress={companions.length > 0 ? handleAdd : undefined}
       />
       <View style={styles.container}>
         <View style={styles.contentContainer}>

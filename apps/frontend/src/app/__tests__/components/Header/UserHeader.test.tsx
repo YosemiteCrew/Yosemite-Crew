@@ -1,13 +1,14 @@
-import "../../../test-helpers/testMocks";
+import "../../../jest.mocks/testMocks";
 
 import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 jest.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, prefetch: jest.fn() }),
 }));
 
 const mockSignout = jest.fn();
@@ -20,6 +21,7 @@ import UserHeader from "@/app/components/Header/UserHeader/UserHeader";
 describe("UserHeader", () => {
   beforeEach(() => {
     mockPush.mockReset();
+    mockReplace.mockReset();
     mockSignout.mockReset();
     jest.useFakeTimers();
   });

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import classNames from "classnames";
 import FormInput from "../../Inputs/FormInput/FormInput";
-import CountryDropdown from "../../Inputs/CountryDropdown/CountryDropdown";
+import Dropdown from "../../Inputs/Dropdown/Dropdown";
 import GoogleSearchDropDown from "../../Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 import { Primary, Secondary } from "../../Buttons";
 import LogoUploader from "../../UploadImage/LogoUploader";
@@ -106,11 +106,12 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
           setFormData={setFormData}
         />
         <div className="step-two-input">
-          <CountryDropdown
+          <Dropdown
             placeholder="Select country"
             value={formData.country}
             onChange={(e) => setFormData({ ...formData, country: e })}
             error={formDataErrors.country}
+            type="country"
           />
           <FormInput
             intype="text"

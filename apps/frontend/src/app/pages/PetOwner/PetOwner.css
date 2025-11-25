@@ -195,6 +195,12 @@
     font-size: 14px;
   }
 }
+@media screen and (max-width: 340px) {
+  .CardToolItem {
+    height: 160px;
+    width: 160px;
+  }
+}
 
 /* PawsPraisesSec */
 .PawsPraisesSec {

@@ -14,9 +14,12 @@ server/dist
 public/dist
 .vscode
 
+apps/dev-docs/.docusaurus
+
 # auth keys file for firebase and oAuth config
 apps/mobileAppYC/ios/mobileAppYC/Info.plist
 apps/mobileAppYC/android/app/src/main/res/values/strings.xml
+
 
 # Google-Services File
 #
@@ -123,3 +126,6 @@ yarn-error.log
 
 
 apps/mobileAppYC/amplify_outputs.json
+
+
+apps/backend/serviceAccount.json

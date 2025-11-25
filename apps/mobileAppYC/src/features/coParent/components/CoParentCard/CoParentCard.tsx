@@ -10,6 +10,7 @@ interface CoParentCardProps {
   onPressView?: () => void;
   onPressEdit?: () => void;
   hideSwipeActions?: boolean;
+  showEditAction?: boolean;
   divider?: boolean;
 }
 
@@ -18,15 +19,18 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
   onPressView,
   onPressEdit,
   hideSwipeActions = false,
+  showEditAction = true,
   divider = true,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const cardStyles = useMemo(() => createCardStyles(theme), [theme]);
 
-  const displayName = `${coParent.firstName} ${coParent.lastName}`.trim();
-  const companionCount = coParent.companions.length;
-  const companionText = companionCount === 1 ? 'Companion' : 'Companions';
+  const isPrimary = (coParent.role ?? '').toUpperCase().includes('PRIMARY');
+  const fallbackName = isPrimary ? 'Primary Parent' : 'Co-parent';
+  const roleLabel = isPrimary ? 'Primary Parent' : 'Co-parent';
+  const displayName =
+    `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim() || fallbackName;
 
   const avatarInitial = coParent.firstName?.charAt(0).toUpperCase() || 'C';
 
@@ -37,7 +41,7 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
         fallbackStyle={cardStyles.fallback}
         onPressView={onPressView}
         onPressEdit={onPressEdit}
-        showEditAction={false}
+        showEditAction={showEditAction}
         hideSwipeActions={hideSwipeActions}
       >
         <TouchableOpacity
@@ -63,8 +67,8 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
               <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
                 {displayName}
               </Text>
-              <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
-                {companionCount} {companionText}
+              <Text style={styles.role} numberOfLines={1} ellipsizeMode="tail">
+                {roleLabel}
               </Text>
             </View>
           </View>
@@ -121,9 +125,9 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
       textOverflow: 'ellipsis',
     },
-    meta: {
+    role: {
       ...theme.typography.subtitleBold14,
-      color: theme.colors.secondary,
+      color: theme.colors.placeholder,
     },
     divider: {
       marginTop: theme.spacing[1],

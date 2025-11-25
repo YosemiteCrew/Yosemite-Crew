@@ -1,4 +1,4 @@
-import "../../../../test-helpers/testMocks";
+import "../../../../jest.mocks/testMocks";
 
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";

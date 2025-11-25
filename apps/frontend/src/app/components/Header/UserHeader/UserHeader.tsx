@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, {useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MdNotificationsActive } from "react-icons/md";
@@ -9,51 +9,28 @@ import { useAuthStore } from "@/app/stores/authStore";
 
 import "./UserHeader.css";
 
-const routes = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-  },
-  {
-    name: "Organisation",
-    href: "/organizations",
-  },
-  {
-    name: "Appointments",
-    href: "#",
-  },
-  {
-    name: "Tasks",
-    href: "#",
-  },
-  {
-    name: "Chat",
-    href: "#",
-  },
-  {
-    name: "Finance",
-    href: "#",
-  },
-  {
-    name: "Companions",
-    href: "/companions",
-  },
-  {
-    name: "Inventory",
-    href: "#",
-  },
-  {
-    name: "Forms",
-    href: "#",
-  },
-  {
-    name: "Settings",
-    href: "#",
-  },
-  {
-    name: "Sign out",
-    href: "#",
-  },
+const appRoutes = [
+  { name: "Dashboard", href: "/dashboard" },
+  { name: "Organisation", href: "/organizations" },
+  { name: "Appointments", href: "#" },
+  { name: "Tasks", href: "#" },
+  { name: "Chat", href: "/chat" },
+  { name: "Finance", href: "#" },
+  { name: "Companions", href: "/companions" },
+  { name: "Inventory", href: "/inventory" },
+  { name: "Forms", href: "#" },
+  { name: "Settings", href: "/settings" },
+  { name: "Sign out", href: "#" },
+];
+
+const devRoutes = [
+  { name: "Dashboard", href: "/developers/home" },
+  { name: "API Keys", href: "/developers/api-keys" },
+  { name: "Website - Builder", href: "/developers/website-builder" },
+  { name: "Plugins", href: "/developers/plugins" },
+  { name: "Documentation", href: "/developers/documentation" },
+  { name: "Settings", href: "/developers/settings" },
+  { name: "Sign out", href: "#" },
 ];
 
 const UserHeader = () => {
@@ -62,13 +39,20 @@ const UserHeader = () => {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const { signout } = useAuthStore();
+  const isDev = pathname.startsWith("/developers");
+  const routes = isDev ? devRoutes : appRoutes;
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
+
+  const logoutRedirect = pathname.startsWith("/developers")
+    ? "/developers/signin"
+    : "/signin";
 
   const handleLogout = async () => {
     try {
       signout();
       console.log("✅ Signed out using Cognito signout");
+      router.replace(logoutRedirect);
     } catch (error) {
       console.error("⚠️ Cognito signout error:", error);
     }

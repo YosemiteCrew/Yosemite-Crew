@@ -4,6 +4,7 @@ export type AuthProvider = AuthProviderName;
 
 export interface User {
   id: string;
+  parentId?: string | null;
   email: string;
   firstName?: string;
   lastName?: string;

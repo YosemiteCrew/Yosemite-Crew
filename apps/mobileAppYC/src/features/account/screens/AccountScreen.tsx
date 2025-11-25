@@ -9,10 +9,14 @@ import {
   TouchableOpacity,
   View,
   BackHandler,
+  Alert,
+  Platform,
+  ToastAndroid,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
+import type {AppDispatch, RootState} from '@/app/store';
 
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {selectAuthUser} from '@/features/auth/selectors';
@@ -22,14 +26,21 @@ import {useTheme} from '@/hooks';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {HomeStackParamList} from '@/navigation/types';
 import {selectCompanions, setSelectedCompanion} from '@/features/companion';
-import type {AppDispatch} from '@/app/store';
 import type {Companion} from '@/features/companion/types';
+import type {ParentCompanionAccess} from '@/features/coParent';
 import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from '@/features/account/components/DeleteAccountBottomSheet';
 import {AccountMenuList} from '@/features/account/components/AccountMenuList';
 import {Header} from '@/shared/components/common/Header/Header';
 import {calculateAgeFromDateOfBirth, truncateText} from '@/shared/utils/helpers';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {deleteParentProfile} from '@/features/account/services/profileService';
+import {
+  deleteAmplifyAccount,
+  deleteFirebaseAccount,
+} from '@/features/auth/services/accountDeletion';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -37,7 +48,8 @@ type CompanionProfile = {
   id: string;
   name: string;
   subtitle: string;
-  avatar: ImageSourcePropType;
+  avatar?: ImageSourcePropType;
+  remoteUri?: string | null;
 };
 
 type MenuItem = {
@@ -50,17 +62,37 @@ type MenuItem = {
 
 // Removed COMPANION_PLACEHOLDERS
 
+const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
+
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
-  const {logout} = useAuth();
+  const {logout, provider} = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const authUser = useSelector(selectAuthUser);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [failedProfileImages, setFailedProfileImages] = useState<Record<string, boolean>>({});
+  const handleProfileImageError = React.useCallback((id: string) => {
+    setFailedProfileImages(prev => {
+      if (prev[id]) {
+        return prev;
+      }
+      return {...prev, [id]: true};
+    });
+  }, []);
 
   // Get companions from the Redux store
   const companionsFromStore = useSelector(selectCompanions);
+  const accessByCompanionId =
+    useSelector((state: RootState) => state.coParent?.accessByCompanionId) ??
+    EMPTY_ACCESS_MAP;
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const globalPermissions = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedPermissions,
+  );
 
   const displayName = React.useMemo(() => {
     const composed = [authUser?.firstName, authUser?.lastName]
@@ -74,19 +106,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     return authUser?.firstName?.trim() || 'You';
   }, [authUser?.firstName, authUser?.lastName]);
 
-
-
-  const primaryAvatar: ImageSourcePropType = React.useMemo(() => {
-    if (authUser?.profilePicture) {
-      return {uri: authUser.profilePicture};
-    }
-    if (authUser?.profileToken) {
-      return {uri: authUser.profileToken};
-    }
-    // Use a generic placeholder image if no URL is available
-    return Images.cat;
-  }, [authUser?.profilePicture, authUser?.profileToken]);
-
   const userInitials = React.useMemo(() => {
     if (authUser?.firstName) {
       return authUser.firstName.charAt(0).toUpperCase();
@@ -96,12 +115,16 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   const profiles = React.useMemo<CompanionProfile[]>(() => {
     const pluralSuffix = companionsFromStore.length === 1 ? '' : 's';
+    const userRemoteUri = normalizeImageUri(
+      authUser?.profilePicture ?? authUser?.profileToken ?? null,
+    );
     // 1. User's Profile (Primary)
     const userProfile: CompanionProfile = {
       id: 'primary',
       name: displayName,
       subtitle: `${companionsFromStore.length} Companion${pluralSuffix}`,
-      avatar: primaryAvatar,
+      avatar: userRemoteUri ? {uri: userRemoteUri} : undefined,
+      remoteUri: userRemoteUri,
     };
 
     // 2. Companions from Redux store
@@ -122,20 +145,54 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           companion.currentWeight ? `${companion.currentWeight} kgs` : null,
         ].filter(Boolean) as string[];
 
+        const remoteUri = normalizeImageUri(companion.profileImage ?? null);
+
         return {
           id: companion.id,
           name: companion.name,
           subtitle: subtitleParts.join(' • '),
-          avatar: companion.profileImage
-            ? {uri: companion.profileImage}
-            : Images.cat, // Use a default companion avatar
+          avatar: remoteUri ? {uri: remoteUri} : undefined,
+          remoteUri,
         };
       },
     );
 
     // 3. Combine them: User first, then companions
     return [userProfile, ...companionProfiles];
-  }, [displayName, primaryAvatar, companionsFromStore]); // Re-run when companions change
+  }, [authUser?.profilePicture, authUser?.profileToken, companionsFromStore, displayName]); // Re-run when companions change
+
+  const getInitial = (name: string, fallback: string) => {
+    const trimmed = name?.trim();
+    if (!trimmed) {
+      return fallback;
+    }
+    return trimmed.charAt(0).toUpperCase();
+  };
+
+  const renderProfileAvatar = (profile: CompanionProfile, index: number) => {
+    const isUserProfile = index === 0;
+    const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
+    const shouldShowImage =
+      hasRemoteImage && failedProfileImages[profile.id] !== true && profile.avatar;
+
+    if (shouldShowImage) {
+      return (
+        <Image
+          source={profile.avatar as ImageSourcePropType}
+          style={styles.companionAvatar}
+          onError={() => handleProfileImageError(profile.id)}
+        />
+      );
+    }
+
+    const initial = isUserProfile ? userInitials : getInitial(profile.name, 'C');
+
+    return (
+      <View style={styles.companionAvatarInitials}>
+        <Text style={styles.avatarInitialsText}>{initial}</Text>
+      </View>
+    );
+  };
 
   const handleBackPress = React.useCallback(() => {
     if (navigation.canGoBack()) {
@@ -144,6 +201,15 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
       navigation.navigate('Home');
     }
   }, [navigation]);
+
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
 
   // Handle Android back button for delete bottom sheet
   useEffect(() => {
@@ -164,10 +230,60 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     deleteSheetRef.current?.open();
   }, []);
 
+  const deriveDeletionErrorMessage = (error: unknown): string => {
+    let baseMessage: string;
+    if (error instanceof Error) {
+      baseMessage = error.message;
+    } else if (typeof error === 'string') {
+      baseMessage = error;
+    } else {
+      baseMessage = 'Failed to delete your account. Please try again.';
+    }
+
+    const normalized = baseMessage.toLowerCase();
+    if (
+      normalized.includes('recent login') ||
+      normalized.includes('requires-recent-login') ||
+      normalized.includes('reauthenticate')
+    ) {
+      return 'For security reasons, please sign out, sign back in, and then try deleting your account again.';
+    }
+
+    return baseMessage || 'Failed to delete your account. Please try again.';
+  };
+
   const handleDeleteAccount = React.useCallback(async () => {
-    setIsDeleteSheetOpen(false);
-    await logout();
-  }, [logout]);
+    if (!authUser?.parentId) {
+      throw new Error('Unable to delete account. Missing parent identifier.');
+    }
+
+    try {
+      setIsDeletingAccount(true);
+      const tokens = await getFreshStoredTokens();
+      const accessToken = tokens?.accessToken;
+
+      if (!accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
+        throw new Error('Please sign in again before deleting your account.');
+      }
+
+      await deleteParentProfile(authUser.parentId, accessToken);
+
+      if (provider === 'amplify') {
+        await deleteAmplifyAccount();
+      } else if (provider === 'firebase') {
+        await deleteFirebaseAccount();
+      }
+
+      setIsDeleteSheetOpen(false);
+      await logout();
+    } catch (error) {
+      const message = deriveDeletionErrorMessage(error);
+      Alert.alert('Delete Failed', message);
+      throw new Error(message);
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }, [authUser?.parentId, logout, provider]);
 
   const handleLogoutPress = React.useCallback(() => {
     logout().catch(error => {
@@ -255,18 +371,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                   index < profiles.length - 1 && styles.companionRowDivider,
                 ]}>
                 <View style={styles.companionInfo}>
-                  {index === 0 && authUser?.profilePicture == null ? (
-                    <View style={styles.companionAvatarInitials}>
-                      <Text style={styles.avatarInitialsText}>
-                        {userInitials}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Image
-                      source={profile.avatar}
-                      style={styles.companionAvatar}
-                    />
-                  )}
+                  {renderProfileAvatar(profile, index)}
                   <View>
                     <Text
                       style={styles.companionName}
@@ -297,8 +402,18 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                       });
                       // e.g., navigation.navigate('EditUserProfile');
                     } else {
+                      const access = accessByCompanionId[profile.id] ?? defaultAccess ?? null;
+                      const role = (access?.role ?? globalRole ?? '').toUpperCase();
+                      const isPrimary = role.includes('PRIMARY');
+                      const permissions = access?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+                      const canEdit =
+                        isPrimary ||
+                        (permissions ? Boolean(permissions.companionProfile) : false);
+                      if (!canEdit) {
+                        showPermissionToast('companion profile');
+                        return;
+                      }
                       dispatch(setSelectedCompanion(profile.id));
-                      // Navigate to Companion Profile Overview
                       navigation.navigate('ProfileOverview', {
                         companionId: profile.id,
                       });
@@ -346,6 +461,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         ref={deleteSheetRef}
         email={authUser?.email}
         onDelete={handleDeleteAccount}
+        isProcessing={isDeletingAccount}
       />
     </SafeAreaView>
   );

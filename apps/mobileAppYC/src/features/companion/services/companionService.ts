@@ -9,6 +9,7 @@ import {
   type CompanionType,
   type SourceType,
 } from '@yosemite-crew/types';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import type {
   AddCompanionPayload,
   Companion,
@@ -19,8 +20,17 @@ import type {
   NeuteredStatus,
   Breed,
 } from '@/features/companion/types';
+import {preparePhotoPayload} from '@/features/account/utils/profilePhoto';
+import {
+  requestCompanionProfileUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/shared/services/uploadService';
 
 const COMPANION_ENDPOINT = '/fhir/v1/companion';
+const parentCompanionsEndpoint = (parentId: string) =>
+  `/fhir/v1/parent/${encodeURIComponent(parentId)}/companions`;
+const COMPANION_INSURANCE_EXTENSION_URL =
+  'http://example.org/fhir/StructureDefinition/companion-insurance';
 
 const logCompanionApiEvent = (
   phase: 'request' | 'response' | 'error',
@@ -35,6 +45,61 @@ const logCompanionApiEvent = (
 };
 
 type CompanionInput = (AddCompanionPayload & {id?: string}) | Companion;
+
+const resolveRemoteProfileImage = async ({
+  imageUri,
+  existingRemoteUrl,
+  accessToken,
+}: {
+  imageUri?: string | null;
+  existingRemoteUrl?: string | null;
+  accessToken: string;
+}): Promise<string | null> => {
+  const photoPayload = await preparePhotoPayload({
+    imageUri: imageUri ?? null,
+    existingRemoteUrl: existingRemoteUrl ?? null,
+  });
+
+  if (photoPayload.localFile) {
+    const presigned = await requestCompanionProfileUploadUrl({
+      accessToken,
+      mimeType: photoPayload.localFile.mimeType,
+    });
+
+    await uploadFileToPresignedUrl({
+      filePath: photoPayload.localFile.path,
+      mimeType: photoPayload.localFile.mimeType,
+      url: presigned.url,
+    });
+
+    return presigned.key;
+  }
+
+  return photoPayload.remoteUrl ?? null;
+};
+
+const extractInsuranceDetails = (
+  resource: CompanionResponseDTO,
+): {companyName: string | null; policyNumber: string | null} => {
+  const insuranceExtension = resource.extension?.find(
+    extension => extension.url === COMPANION_INSURANCE_EXTENSION_URL,
+  );
+
+  const nestedExtensions =
+    Array.isArray(insuranceExtension?.extension) && insuranceExtension?.extension?.length
+      ? insuranceExtension?.extension
+      : [];
+
+  const companyName =
+    nestedExtensions?.find(ext => ext.url === 'companyName')?.valueString ?? null;
+  const policyNumber =
+    nestedExtensions?.find(ext => ext.url === 'policyNumber')?.valueString ?? null;
+
+  return {
+    companyName,
+    policyNumber,
+  };
+};
 
 const SPECIES_NAME: Record<CompanionCategory, string> = {
   cat: 'Cat',
@@ -60,6 +125,32 @@ const ORIGIN_BY_SOURCE: Record<SourceType, CompanionOrigin> = {
 
 const isAppCompanion = (input: CompanionInput): input is Companion =>
   'id' in input && typeof input.id === 'string';
+
+const extractCompanionCollection = (
+  payload: unknown,
+): CompanionResponseDTO[] => {
+  if (Array.isArray(payload)) {
+    return payload as CompanionResponseDTO[];
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const candidates = [
+      record.companions,
+      record.data,
+      (record.data as Record<string, unknown> | undefined)?.companions,
+      record.results,
+    ];
+
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as CompanionResponseDTO[];
+      }
+    }
+  }
+
+  return [];
+};
 
 const ensureCategory = (category: CompanionCategory | null | undefined): CompanionCategory => {
   if (!category) {
@@ -244,6 +335,8 @@ const buildBackendCompanion = (input: CompanionInput): BackendCompanion => {
     microchipNumber,
     passportNumber,
     insuredStatus,
+    insuranceCompany,
+    insurancePolicyNumber,
     countryOfOrigin,
     origin,
     profileImage,
@@ -251,8 +344,10 @@ const buildBackendCompanion = (input: CompanionInput): BackendCompanion => {
     updatedAt,
   } = extractCompanionInput(input);
 
+  const hasInsuranceDetails = Boolean(insuranceCompany || insurancePolicyNumber);
+
   return {
-    _id: id,
+    id,
     name,
     type: mapCategoryToType(category),
     breed: breed?.breedName ?? '',
@@ -268,6 +363,13 @@ const buildBackendCompanion = (input: CompanionInput): BackendCompanion => {
     microchipNumber: microchipNumber ?? undefined,
     passportNumber: passportNumber ?? undefined,
     isInsured: mapInsuredStatusToBoolean(insuredStatus),
+    insurance: hasInsuranceDetails
+      ? {
+          isInsured: mapInsuredStatusToBoolean(insuredStatus),
+          companyName: insuranceCompany ?? '',
+          policyNumber: insurancePolicyNumber ?? '',
+        }
+      : undefined,
     countryOfOrigin: countryOfOrigin ?? undefined,
     source: mapOriginToSource(origin),
     status: 'active',
@@ -282,6 +384,7 @@ const mapResponseToAppCompanion = (
   persisted?: Companion,
 ): Companion => {
   const attributes = fromCompanionRequestDTO(response);
+  const {companyName, policyNumber} = extractInsuranceDetails(response);
 
   const category = mapTypeToCategory(attributes.type);
   const dateOfBirth = attributes.dateOfBirth?.toISOString() ?? new Date().toISOString();
@@ -292,8 +395,19 @@ const mapResponseToAppCompanion = (
       ? normalizeBreedFromName(attributes.breed, category)
       : null;
 
+  const attrId =
+    (attributes as any)._id ??
+    (attributes as any).identifier?.[0]?.value;
+
+  const resolvedId =
+    attrId ??
+    (response as any).id ??
+    persisted?.id ??
+    attributes.name ??
+    '';
+
   return {
-    id: attributes._id ?? persisted?.id ?? '',
+    id: resolvedId,
     userId,
     category,
     name: attributes.name ?? persisted?.name ?? 'Unnamed Companion',
@@ -315,11 +429,11 @@ const mapResponseToAppCompanion = (
     microchipNumber: attributes.microchipNumber ?? persisted?.microchipNumber ?? null,
     passportNumber: attributes.passportNumber ?? persisted?.passportNumber ?? null,
     insuredStatus: mapBooleanToInsuredStatus(attributes.isInsured),
-    insuranceCompany: persisted?.insuranceCompany ?? null,
-    insurancePolicyNumber: persisted?.insurancePolicyNumber ?? null,
+    insuranceCompany: companyName ?? persisted?.insuranceCompany ?? null,
+    insurancePolicyNumber: policyNumber ?? persisted?.insurancePolicyNumber ?? null,
     countryOfOrigin: attributes.countryOfOrigin ?? persisted?.countryOfOrigin ?? null,
     origin: mapSourceToOrigin(attributes.source),
-    profileImage: attributes.photoUrl ?? persisted?.profileImage ?? null,
+    profileImage: normalizeImageUri(attributes.photoUrl ?? persisted?.profileImage ?? null),
     createdAt: persisted?.createdAt ?? updatedAt,
     updatedAt,
   };
@@ -424,8 +538,75 @@ const getCompanion = async (
   }
 };
 
+const listCompanionsByParent = async (
+  parentId: string,
+  accessToken: string,
+): Promise<AxiosResponse<CompanionResponseDTO[] | Record<string, unknown>>> => {
+  const endpoint = parentCompanionsEndpoint(parentId);
+  logCompanionApiEvent('request', {
+    method: 'GET',
+    endpoint,
+    parentId,
+  });
+
+  try {
+    const response = await apiClient.get<CompanionResponseDTO[] | Record<string, unknown>>(
+      endpoint,
+      {
+        headers: withAuthHeaders(accessToken),
+      },
+    );
+    logCompanionApiEvent('response', {
+      method: 'GET',
+      endpoint,
+      status: response.status,
+      data: response.data,
+    });
+    return response;
+  } catch (error) {
+    logCompanionApiEvent('error', {
+      method: 'GET',
+      endpoint,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+};
+
+const deleteCompanionRequest = async (
+  id: string,
+  accessToken: string,
+): Promise<AxiosResponse<void>> => {
+  const endpoint = `${COMPANION_ENDPOINT}/${id}`;
+  logCompanionApiEvent('request', {
+    method: 'DELETE',
+    endpoint,
+    companionId: id,
+  });
+
+  try {
+    const response = await apiClient.delete<void>(endpoint, {
+      headers: withAuthHeaders(accessToken),
+    });
+    logCompanionApiEvent('response', {
+      method: 'DELETE',
+      endpoint,
+      status: response.status,
+    });
+    return response;
+  } catch (error) {
+    logCompanionApiEvent('error', {
+      method: 'DELETE',
+      endpoint,
+      companionId: id,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+};
+
 export interface CompanionCreateParams {
-  userId: string;
+  parentId: string;
   payload: AddCompanionPayload;
   accessToken: string;
 }
@@ -442,19 +623,47 @@ export interface CompanionGetParams {
   fallback?: Companion;
 }
 
+export interface CompanionListParams {
+  parentId: string;
+  accessToken: string;
+}
+
+export interface CompanionDeleteParams {
+  companionId: string;
+  accessToken: string;
+}
+
 export const companionApi = {
   async create(params: CompanionCreateParams): Promise<Companion> {
-    const backendCompanion = buildBackendCompanion(params.payload);
+    const remotePhoto = await resolveRemoteProfileImage({
+      imageUri: params.payload.profileImage ?? null,
+      existingRemoteUrl: null,
+      accessToken: params.accessToken,
+    });
+
+    const backendCompanion = buildBackendCompanion({
+      ...params.payload,
+      profileImage: remotePhoto ?? null,
+    });
     const fhirPayload = toFHIRCompanion(backendCompanion);
     const {data} = await postCompanion(fhirPayload, params.accessToken);
-    return mapResponseToAppCompanion(data, params.userId);
+    return mapResponseToAppCompanion(data, params.parentId);
   },
 
   async update(params: CompanionUpdateParams): Promise<Companion> {
     if (!params.companion.id) {
       throw new Error('A companion ID is required to update.');
     }
-    const backendCompanion = buildBackendCompanion(params.companion);
+    const remotePhoto = await resolveRemoteProfileImage({
+      imageUri: params.companion.profileImage ?? null,
+      existingRemoteUrl: params.companion.profileImage ?? null,
+      accessToken: params.accessToken,
+    });
+
+    const backendCompanion = buildBackendCompanion({
+      ...params.companion,
+      profileImage: remotePhoto ?? null,
+    });
     const fhirPayload = toFHIRCompanion(backendCompanion);
     const {data} = await putCompanion(
       params.companion.id,
@@ -467,5 +676,18 @@ export const companionApi = {
   async getById(params: CompanionGetParams): Promise<Companion> {
     const {data} = await getCompanion(params.companionId, params.accessToken);
     return mapResponseToAppCompanion(data, params.userId, params.fallback);
+  },
+
+  async listByParent(params: CompanionListParams): Promise<Companion[]> {
+    const {data} = await listCompanionsByParent(params.parentId, params.accessToken);
+    const collection = extractCompanionCollection(data);
+    return collection.map(entry => mapResponseToAppCompanion(entry, params.parentId));
+  },
+
+  async remove(params: CompanionDeleteParams): Promise<void> {
+    if (!params.companionId) {
+      throw new Error('Companion identifier is required for deletion.');
+    }
+    await deleteCompanionRequest(params.companionId, params.accessToken);
   },
 };
