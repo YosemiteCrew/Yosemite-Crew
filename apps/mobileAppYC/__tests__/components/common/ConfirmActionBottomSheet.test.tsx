@@ -47,18 +47,18 @@ const mockClose = jest.fn();
 let mockSheetOnChange: (index: number) => void = () => {};
 
 jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
-  const React = require('react');
-  const {View} = require('react-native');
+  const ReactActual = jest.requireActual('react');
+  const {View: RNView} = jest.requireActual('react-native');
   return {
     __esModule: true,
-    default: React.forwardRef((props: any, ref: any) => {
-      React.useImperativeHandle(ref, () => ({
+    default: ReactActual.forwardRef((props: any, ref: any) => {
+      ReactActual.useImperativeHandle(ref, () => ({
         snapToIndex: mockSnapToIndex,
         close: mockClose,
       }));
       mockSheetOnChange = props.onChange;
       mockBottomSheet(props);
-      return <View testID="mock-bottom-sheet">{props.children}</View>;
+      return <RNView testID="mock-bottom-sheet">{props.children}</RNView>;
     }),
   };
 });
@@ -68,7 +68,7 @@ const mockLiquidGlassButton = jest.fn();
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => {
-    const {TouchableOpacity, Text} = require('react-native');
+    const {TouchableOpacity, Text: RNText} = jest.requireActual('react-native');
     return {
       __esModule: true,
       default: (props: any) => {
@@ -78,7 +78,7 @@ jest.mock(
             testID={`mock-liquid-button-${props.title}`}
             onPress={props.onPress}
             disabled={props.disabled || props.loading}>
-            <Text>{props.title}</Text>
+            <RNText>{props.title}</RNText>
           </TouchableOpacity>
         );
       },

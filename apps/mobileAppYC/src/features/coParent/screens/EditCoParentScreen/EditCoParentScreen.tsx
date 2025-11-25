@@ -13,7 +13,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
@@ -21,19 +21,26 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {
-  selectCoParentById,
   updateCoParentPermissions,
   selectCoParentLoading,
   deleteCoParent,
+  fetchCoParents,
+  promoteCoParentToPrimary,
+  fetchParentAccess,
 } from '../../index';
-import {selectCompanions, selectSelectedCompanionId} from '@/features/companion';
-import type {CoParentStackParamList} from '@/navigation/types';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+  setSelectedCompanion,
+  fetchCompanions,
+} from '@/features/companion';
+import {selectAuthUser} from '@/features/auth/selectors';
+import type {HomeStackParamList} from '@/navigation/types';
 import type {CoParent, CoParentPermissions} from '../../types';
 import DeleteCoParentBottomSheet, {type DeleteCoParentBottomSheetRef} from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
-import {MOCK_CO_PARENTS} from '../../mockData';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
-type Props = NativeStackScreenProps<CoParentStackParamList, 'EditCoParent'>;
+type Props = NativeStackScreenProps<HomeStackParamList, 'EditCoParent'>;
 
 export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const {coParentId} = route.params;
@@ -42,46 +49,111 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
 
-  const coParent = useSelector(state => selectCoParentById(coParentId)(state as any));
+  const coParent = useSelector((state: any) => {
+    const list: CoParent[] = state?.coParent?.coParents ?? [];
+    return list.find(cp => cp.id === coParentId || cp.parentId === coParentId) ?? null;
+  });
   const loading = useSelector(selectCoParentLoading);
+  const authUser = useSelector(selectAuthUser);
   const companions = useSelector(selectCompanions);
   const globalSelectedCompanionId = useSelector(selectSelectedCompanionId);
+  const accessMap = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? {},
+  );
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
 
-  const [mockCoParent, setMockCoParent] = useState<CoParent | null>(null);
-  const [permissions, setPermissions] = useState<CoParentPermissions | null>(null);
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(globalSelectedCompanionId);
-  const [permissionsByCompanion, setPermissionsByCompanion] = useState<Record<string, CoParentPermissions>>({});
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(
+    globalSelectedCompanionId ?? coParent?.companionId ?? null,
+  );
+  const defaultPermissions: CoParentPermissions = {
+    assignAsPrimaryParent: false,
+    emergencyBasedPermissions: false,
+    appointments: false,
+    companionProfile: false,
+    documents: false,
+    expenses: false,
+    tasks: false,
+    chatWithVet: false,
+  };
+  const [permissions, setPermissions] = useState<CoParentPermissions>(defaultPermissions);
   const deleteSheetRef = React.useRef<DeleteCoParentBottomSheetRef>(null);
+  const [isPromoting, setIsPromoting] = useState(false);
+
+  const selectedCompanion = useMemo(
+    () =>
+      companions.find(c => c.id === selectedCompanionId) ??
+      companions.find(c => c.id === globalSelectedCompanionId) ??
+      companions[0] ??
+      null,
+    [companions, globalSelectedCompanionId, selectedCompanionId],
+  );
+  const companionsToShow = useMemo(
+    () => (selectedCompanion ? [selectedCompanion] : companions),
+    [companions, selectedCompanion],
+  );
+  const companionAccessId = selectedCompanion?.id ?? selectedCompanionId ?? null;
+  const userAccessEntry =
+    companionAccessId && accessMap
+      ? accessMap[companionAccessId] ?? defaultAccess ?? null
+      : defaultAccess;
+  const userRole = (userAccessEntry?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase();
+  const canEditPermissions = userRole.includes('PRIMARY');
 
   useEffect(() => {
-    // Mock: Find from mock data if not in Redux
-    if (coParent) {
+    if (!selectedCompanionId && coParent?.companionId) {
+      setSelectedCompanionId(coParent.companionId);
+      dispatch(setSelectedCompanion(coParent.companionId));
+    }
+  }, [coParent?.companionId, dispatch, selectedCompanionId]);
+
+  useEffect(() => {
+    if (coParent?.permissions) {
       setPermissions(coParent.permissions);
-    } else {
-      const found = MOCK_CO_PARENTS.find(cp => cp.id === coParentId);
-      if (found) {
-        setMockCoParent(found);
-        setPermissions(found.permissions);
-      }
     }
-  }, [coParent, coParentId]);
+  }, [coParent]);
 
-  // Update current permissions when selected companion changes
   useEffect(() => {
-    if (selectedCompanionId && permissionsByCompanion[selectedCompanionId]) {
-      setPermissions(permissionsByCompanion[selectedCompanionId]);
-    } else if (permissions && selectedCompanionId && !permissionsByCompanion[selectedCompanionId]) {
-      // Initialize permissions for newly selected companion
-      setPermissionsByCompanion(prev => ({
-        ...prev,
-        [selectedCompanionId]: permissions,
-      }));
+    if (!selectedCompanionId && selectedCompanion?.id) {
+      setSelectedCompanionId(selectedCompanion.id);
     }
-  }, [selectedCompanionId, permissions, permissionsByCompanion]);
+  }, [selectedCompanion, selectedCompanionId]);
 
-  const currentCoParent = coParent || mockCoParent;
+  useEffect(() => {
+    if (!coParent && selectedCompanion?.id) {
+      dispatch(
+        fetchCoParents({
+          companionId: selectedCompanion.id,
+          companionName: selectedCompanion.name,
+          companionImage: selectedCompanion.profileImage ?? undefined,
+        }),
+      );
+    }
+  }, [coParent, dispatch, selectedCompanion]);
+
+  const currentCoParent = coParent;
+
+  useEffect(() => {
+    const isSelfPrimary =
+      (currentCoParent?.role ?? '').toUpperCase().includes('PRIMARY') &&
+      currentCoParent?.parentId === authUser?.parentId;
+    if (isSelfPrimary) {
+      Alert.alert('Not available', 'Primary parents cannot edit their own permissions.');
+      navigation.goBack();
+    }
+  }, [authUser?.parentId, currentCoParent?.parentId, currentCoParent?.role, navigation]);
 
   if (!currentCoParent || !permissions) {
+    if (!loading) {
+      return (
+        <SafeAreaView style={commonStyles.container}>
+          <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
+          <View style={commonStyles.centerContent}>
+            <Text style={styles.profileEmail}>Unable to load co-parent details.</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
     return (
       <SafeAreaView style={commonStyles.container}>
         <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
@@ -92,19 +164,106 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     );
   }
 
+  const performOwnershipTransfer = async () => {
+    if (isPromoting) {
+      return;
+    }
+    if (!canEditPermissions) {
+      Alert.alert('Not allowed', 'Only the primary parent can transfer ownership.');
+      return;
+    }
+    if (!selectedCompanionId || !currentCoParent) {
+      Alert.alert('Select companion', 'Please select a companion first.');
+      return;
+    }
+    const targetCoParentId = currentCoParent.parentId || currentCoParent.id || coParentId;
+    if (!targetCoParentId) {
+      Alert.alert('Error', 'Unable to determine co-parent details. Please try again.');
+      return;
+    }
+
+    try {
+      setIsPromoting(true);
+      await dispatch(
+        promoteCoParentToPrimary({
+          companionId: selectedCompanionId,
+          coParentId: targetCoParentId,
+        }),
+      ).unwrap();
+
+      if (authUser?.parentId) {
+        try {
+          await dispatch(fetchCompanions(authUser.parentId)).unwrap();
+        } catch (err) {
+          console.warn('Failed to refresh companions after promotion', err);
+        }
+        const companionIds = companions
+          .map(c => c.id)
+          .filter(Boolean);
+        try {
+          await dispatch(
+            fetchParentAccess({
+              parentId: authUser.parentId,
+              companionIds: companionIds.length > 0 ? companionIds : undefined,
+            }),
+          ).unwrap();
+        } catch (err) {
+          console.warn('Failed to refresh access after promotion', err);
+        }
+      }
+
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Home'}],
+      });
+    } catch (error) {
+      console.error('Failed to promote co-parent:', error);
+      Alert.alert('Error', 'Failed to transfer ownership. Please try again.');
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+
+  const requestOwnershipTransfer = () => {
+    if (!canEditPermissions) {
+      Alert.alert('Not allowed', 'Only the primary parent can transfer ownership.');
+      return;
+    }
+    if (!selectedCompanionId) {
+      Alert.alert('Select companion', 'Please select a companion first.');
+      return;
+    }
+    Alert.alert(
+      'Transfer primary parent role?',
+      'This will make this co-parent the new primary parent for the selected companion. You will lose owner permissions immediately.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Transfer',
+          style: 'destructive',
+          onPress: () => {
+            performOwnershipTransfer();
+          },
+        },
+      ],
+    );
+  };
+
   const handlePermissionChange = (key: keyof CoParentPermissions) => {
-    if (!permissions || !selectedCompanionId) return;
-
-    const updated = {
-      ...permissions,
-      [key]: !permissions[key],
-    };
-    setPermissions(updated);
-
-    // Store in per-companion map
-    setPermissionsByCompanion(prev => ({
+    if (key === 'assignAsPrimaryParent') {
+      requestOwnershipTransfer();
+      return;
+    }
+    if (!canEditPermissions) {
+      return;
+    }
+    if (!selectedCompanionId) {
+      Alert.alert('Select companion', 'Please select a companion first.');
+      return;
+    }
+    setPermissions(prev => ({
       ...prev,
-      [selectedCompanionId]: updated,
+      [key]: !prev[key],
     }));
   };
 
@@ -113,18 +272,24 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   const handleSavePermissions = async () => {
+    if (!canEditPermissions) {
+      Alert.alert('Not allowed', 'Only the primary parent can update permissions.');
+      return;
+    }
     try {
-      if (!selectedCompanionId && Object.keys(permissionsByCompanion).length === 0) {
-        Alert.alert('Error', 'Please select a companion and configure permissions');
+      if (!selectedCompanionId || !currentCoParent) {
+        Alert.alert('Error', 'Please select a companion and try again');
         return;
       }
 
-      // Save permissions for the currently selected companion
-      const permissionsToSave = selectedCompanionId && permissionsByCompanion[selectedCompanionId]
-        ? permissionsByCompanion[selectedCompanionId]
-        : permissions;
-
-      await dispatch(updateCoParentPermissions({coParentId, permissions: permissionsToSave})).unwrap();
+      const targetCoParentId = currentCoParent.parentId || currentCoParent.id || coParentId;
+      await dispatch(
+        updateCoParentPermissions({
+          coParentId: targetCoParentId,
+          companionId: selectedCompanionId,
+          permissions,
+        }),
+      ).unwrap();
       navigation.goBack();
     } catch (error) {
       console.error('Failed to update permissions:', error);
@@ -138,7 +303,14 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
   const handleDeleteConfirm = async () => {
     try {
-      await dispatch(deleteCoParent(coParentId)).unwrap();
+      if (!selectedCompanionId) {
+        Alert.alert('Error', 'Please select a companion and try again');
+        return;
+      }
+      const targetCoParentId = currentCoParent?.parentId || currentCoParent?.id || coParentId;
+      await dispatch(
+        deleteCoParent({companionId: selectedCompanionId, coParentId: targetCoParentId}),
+      ).unwrap();
       navigation.goBack();
     } catch (error) {
       console.error('Failed to delete:', error);
@@ -146,7 +318,16 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     }
   };
 
-  const displayName = `${currentCoParent.firstName} ${currentCoParent.lastName}`.trim();
+  const displayName =
+    `${currentCoParent.firstName ?? ''} ${currentCoParent.lastName ?? ''}`.trim() || 'Co-parent';
+
+  const disableControls = !canEditPermissions || isPromoting;
+  let saveButtonTitle = 'Save Permissions';
+  if (loading) {
+    saveButtonTitle = 'Saving...';
+  } else if (isPromoting) {
+    saveButtonTitle = 'Transferring...';
+  }
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -154,8 +335,8 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         title="Co-Parent permissions"
         showBackButton
         onBack={() => navigation.goBack()}
-        rightIcon={Images.deleteIconRed}
-        onRightPress={handleDeletePress}
+        rightIcon={canEditPermissions ? Images.deleteIconRed : undefined}
+        onRightPress={canEditPermissions ? handleDeletePress : undefined}
       />
 
       <ScrollView
@@ -176,7 +357,13 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
             ) : (
               <View style={styles.profileAvatarInitials}>
                 <Text style={styles.profileAvatarText}>
-                  {currentCoParent.firstName.charAt(0).toUpperCase()}
+                  {(currentCoParent.firstName ||
+                    currentCoParent.lastName ||
+                    currentCoParent.email ||
+                    'C')
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
                 </Text>
               </View>
             )}
@@ -184,7 +371,9 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
               <Text style={styles.profileName}>{displayName}</Text>
               <View style={styles.contactRow}>
                 <RNImage source={Images.emailIcon} style={styles.contactIcon} />
-                <Text style={styles.profileEmail}>{currentCoParent.email}</Text>
+                <Text style={styles.profileEmail}>
+                  {currentCoParent.email || 'Email not available yet'}
+                </Text>
               </View>
               {currentCoParent.phoneNumber && (
                 <View style={styles.contactRow}>
@@ -208,15 +397,15 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
         {/* Select Companion Heading */}
         <View style={styles.selectCompanionHeader}>
-          <Text style={styles.selectCompanionTitle}>Select companion</Text>
+          <Text style={styles.selectCompanionTitle}>Selected companion</Text>
         </View>
 
       
 
         {/* Companion Selector */}
-        {companions.length > 0 && (
+        {companionsToShow.length > 0 && (
           <CompanionSelector
-            companions={companions}
+            companions={companionsToShow}
             selectedCompanionId={selectedCompanionId}
             onSelect={handleCompanionSelect}
             showAddButton={false}
@@ -236,11 +425,11 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         {/* Permissions Section - No heading, just permissions */}
         <View style={styles.sectionContainer}>
 
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive
-            style={styles.card}
-            fallbackStyle={styles.cardFallback}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive
+          style={styles.card}
+          fallbackStyle={styles.cardFallback}>
             {/* Assign as primary parent */}
             <View style={styles.permissionRow}>
               <Text style={styles.permissionLabel}>Assign as primary parent</Text>
@@ -249,6 +438,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('assignAsPrimaryParent')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -261,6 +451,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('emergencyBasedPermissions')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -273,6 +464,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('appointments')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -285,6 +477,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('companionProfile')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -297,6 +490,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('documents')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -309,6 +503,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('expenses')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -321,6 +516,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('tasks')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
             <View style={styles.divider} />
@@ -333,28 +529,36 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
                 onValueChange={() => handlePermissionChange('chatWithVet')}
                 trackColor={{false: theme.colors.border, true: theme.colors.primary}}
                 thumbColor={theme.colors.white}
+                disabled={disableControls}
               />
             </View>
           </LiquidGlassCard>
         </View>
 
-        {/* Save Button */}
-        <View style={styles.saveButton}>
-          <LiquidGlassButton
-            title={loading ? 'Saving...' : 'Save Permissions'}
-            onPress={handleSavePermissions}
-            style={commonStyles.button}
-            textStyle={commonStyles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            borderRadius={16}
-            loading={loading}
-            disabled={loading}
-          />
-        </View>
+        {!canEditPermissions && (
+          <Text style={styles.readOnlyNote}>
+            You can view these permissions, but only the primary parent can make changes.
+          </Text>
+        )}
+
+        {canEditPermissions && (
+          <View style={styles.saveButton}>
+            <LiquidGlassButton
+              title={saveButtonTitle}
+              onPress={handleSavePermissions}
+              style={commonStyles.button}
+              textStyle={commonStyles.buttonText}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor={theme.colors.borderMuted}
+              height={56}
+              borderRadius={16}
+              loading={loading || isPromoting}
+              disabled={loading || isPromoting}
+            />
+          </View>
+        )}
       </ScrollView>
 
       <DeleteCoParentBottomSheet
@@ -488,6 +692,13 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.border,
     },
     saveButton: {
+      marginTop: theme.spacing[4],
+    },
+    readOnlyNote: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.placeholder,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing[4],
       marginTop: theme.spacing[4],
     },
   });

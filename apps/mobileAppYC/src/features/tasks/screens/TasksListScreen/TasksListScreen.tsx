@@ -127,6 +127,8 @@ export const TasksListScreen: React.FC = () => {
             onSelect={handleCompanionSelect}
             showAddButton={false}
             containerStyle={styles.companionSelector}
+            requiredPermission="tasks"
+            permissionLabel="tasks"
           />
         </View>
 

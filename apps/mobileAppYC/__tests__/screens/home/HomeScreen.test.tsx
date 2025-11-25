@@ -113,8 +113,8 @@ const mockAuthUser = {
   lastName: 'Doe',
 };
 const mockCompanions = [
-  {id: 'comp-1', name: 'Buddy', profilePicture: ''},
-  {id: 'comp-2', name: 'Lucy', profilePicture: ''},
+  {id: 'comp-1', name: 'Buddy', profilePicture: '', taskCount: 1},
+  {id: 'comp-2', name: 'Lucy', profilePicture: '', taskCount: 2},
 ];
 const mockAppointment = {
   id: 'appt-1',
@@ -256,15 +256,23 @@ jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () =
       getBadgeText,
     }: any) => (
       <View testID="companion-selector">
-        {companions.map((companion: any) => (
-          <TouchableOpacity
-            key={companion.id}
-            testID={`select-${companion.id}`}
-            onPress={() => onSelect(companion.id)}>
-            <Text>{companion.name}</Text>
-            {getBadgeText && <Text>{getBadgeText(companion)}</Text>}
-          </TouchableOpacity>
-        ))}
+        {companions.map((companion: any) => {
+          let badgeText: string | undefined;
+          if (getBadgeText) {
+            badgeText = getBadgeText(companion);
+          } else if (companion.taskCount !== undefined) {
+            badgeText = `${companion.taskCount} Tasks`;
+          }
+          return (
+            <TouchableOpacity
+              key={companion.id}
+              testID={`select-${companion.id}`}
+              onPress={() => onSelect(companion.id)}>
+              <Text>{companion.name}</Text>
+              {badgeText && <Text>{badgeText}</Text>}
+            </TouchableOpacity>
+          );
+        })}
         <TouchableOpacity
           testID="add-companion-button"
           onPress={onAddCompanion}>
@@ -360,7 +368,39 @@ const setupMocks = ({
     if (selector === selectAuthUser) return authUser;
     if (selector === selectCompanions) return companions;
     if (selector === selectSelectedCompanionId) return selectedCompanionId;
-    return typeof selector === 'function' ? selector({} as any) : undefined;
+    if (typeof selector === 'function') {
+      // Mock state for selectors that need it
+      const mockState = {
+        coParent: {
+          accessByCompanionId: {},
+          defaultAccess: {
+            role: 'PRIMARY',
+            permissions: {
+              tasks: true,
+              appointments: true,
+              expenses: true,
+              chatWithVet: true,
+              emergencyBasedPermissions: true,
+              companionProfile: true,
+            },
+          },
+          lastFetchedRole: 'PRIMARY',
+          lastFetchedPermissions: {
+            tasks: true,
+            appointments: true,
+            expenses: true,
+            chatWithVet: true,
+            emergencyBasedPermissions: true,
+            companionProfile: true,
+          },
+        },
+        appointments: {hydratedCompanions: {}},
+        businesses: {businesses: [], employees: [], services: []},
+        notifications: {unreadCount: 0},
+      } as any;
+      return selector(mockState);
+    }
+    return undefined;
   });
 };
 
@@ -417,18 +457,18 @@ describe('HomeScreen Component', () => {
   });
 
   it('renders correctly and shows empty companion state', async () => {
-    const {getByText, queryByTestId, getByTestId} = renderHomeScreen();
+    const {getByText, getAllByText, queryByTestId, queryByText} =
+      renderHomeScreen();
     expect(getByText('Hello, John')).toBeTruthy();
     expect(getByText('J')).toBeTruthy();
     expect(getByText('Add your first companion')).toBeTruthy();
     expect(queryByTestId('companion-selector')).toBeNull();
     expect(queryByTestId('task-card')).toBeNull();
-    expect(getByText('No upcoming tasks')).toBeTruthy();
+    expect(getAllByText('No companions yet').length).toBeGreaterThanOrEqual(3);
     expect(queryByTestId('appointment-card-container')).toBeNull();
-    expect(getByText('No upcoming appointments')).toBeTruthy();
-    expect(getByTestId('yearly-spend-card')).toBeTruthy();
+    expect(queryByTestId('yearly-spend-card')).toBeNull();
     expect(getByText('Manage health')).toBeTruthy();
-    expect(queryByTestId('View more')).toBeNull();
+    expect(queryByText('View more')).toBeNull();
   });
 
   it('fetches companions on mount if user exists', async () => {

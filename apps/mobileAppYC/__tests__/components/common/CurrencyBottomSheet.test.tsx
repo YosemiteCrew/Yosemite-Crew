@@ -35,17 +35,17 @@ let mockSheetOnSave: (item: SelectItem | null) => void = () => {};
 jest.mock(
   '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
-    const React = require('react');
-    const {View} = require('react-native');
+    const ReactActual = jest.requireActual('react');
+    const {View: RNView} = jest.requireActual('react-native');
     return {
-      GenericSelectBottomSheet: React.forwardRef((props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
+      GenericSelectBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
+        ReactActual.useImperativeHandle(ref, () => ({
           open: mockOpen,
           close: mockClose,
         }));
         mockSheetOnSave = props.onSave;
         mockGenericSheet(props);
-        return <View testID="mock-generic-sheet" />;
+        return <RNView testID="mock-generic-sheet" />;
       }),
     };
   },

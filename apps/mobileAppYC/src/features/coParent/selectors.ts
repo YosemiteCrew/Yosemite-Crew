@@ -1,11 +1,41 @@
 import {createSelector} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
+import type {CoParentState} from './types';
 
-const selectCoParentState = (state: RootState) => state.coParent;
+const defaultCoParentState: CoParentState = {
+  coParents: [],
+  pendingInvites: [],
+  accessByCompanionId: {},
+  defaultAccess: null,
+  lastFetchedRole: null,
+  lastFetchedPermissions: null,
+  loading: false,
+  invitesLoading: false,
+  accessLoading: false,
+  error: null,
+  selectedCoParentId: null,
+};
+
+const selectCoParentState = (state: RootState) => state.coParent ?? defaultCoParentState;
 
 export const selectCoParents = createSelector(
   [selectCoParentState],
   state => state.coParents,
+);
+
+export const selectPendingInvites = createSelector(
+  [selectCoParentState],
+  state => state.pendingInvites,
+);
+
+export const selectInvitesLoading = createSelector(
+  [selectCoParentState],
+  state => state.invitesLoading,
+);
+
+export const selectAccessLoading = createSelector(
+  [selectCoParentState],
+  state => state.accessLoading,
 );
 
 export const selectCoParentLoading = createSelector(
@@ -36,10 +66,18 @@ export const selectCoParentById = (id: string) =>
 
 export const selectAcceptedCoParents = createSelector(
   [selectCoParents],
-  coParents => coParents.filter(cp => cp.status === 'accepted'),
+  coParents =>
+    coParents.filter(cp => (cp.status ?? '').toLowerCase() === 'accepted'),
 );
 
 export const selectPendingCoParents = createSelector(
   [selectCoParents],
-  coParents => coParents.filter(cp => cp.status === 'pending'),
+  coParents =>
+    coParents.filter(cp => (cp.status ?? '').toLowerCase() === 'pending'),
 );
+
+export const selectAccessByCompanionId = (state: RootState) =>
+  state?.coParent?.accessByCompanionId ?? {};
+
+export const selectAccessForCompanion = (state: RootState, companionId: string | null | undefined) =>
+  companionId ? selectAccessByCompanionId(state)?.[companionId] ?? null : null;

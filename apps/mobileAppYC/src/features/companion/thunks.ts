@@ -3,7 +3,7 @@ import {createAsyncThunk} from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {AddCompanionPayload, Companion} from './types';
 import {companionApi} from './services/companionService';
-import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 
 const buildStorageKey = (parentId: string) => `companions_${parentId}`;
 
@@ -52,11 +52,15 @@ const writeCompanionsToStorage = async (
 };
 
 const ensureAccessToken = async (): Promise<string> => {
-  const tokens = await loadStoredTokens();
+  const tokens = await getFreshStoredTokens();
   const accessToken = tokens?.accessToken;
 
   if (!accessToken) {
     throw new Error('Missing access token. Please sign in again.');
+  }
+
+  if (isTokenExpired(tokens?.expiresAt ?? undefined)) {
+    throw new Error('Your session expired. Please sign in again.');
   }
 
   return accessToken;
