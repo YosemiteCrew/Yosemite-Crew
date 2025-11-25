@@ -124,6 +124,10 @@ export const DocumentController = {
           category: body.category!,
           subcategory: body.subcategory,
           attachments: body.attachments ?? [],
+          issuingBusinessName: body.issuingBusinessName,
+          issueDate: body.issueDate,
+          appointmentId: body.appointmentId,
+          visitType: body.visitType
         },
         {
           parentId: authUserMobile.parentId,

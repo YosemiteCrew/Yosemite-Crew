@@ -23,7 +23,7 @@ router.get(
 );
 router.patch(
   "/mobile/details/:id",
-  authorizeCognito,
+  authorizeCognitoMobile,
   DocumentController.updateDocument,
 );
 router.get(
