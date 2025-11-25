@@ -21,7 +21,7 @@ router.post(
   CompanionOrganisationController.approvePendingLink,
 );
 router.post(
-  "/:linId/deny",
+  "/:linkId/deny",
   authorizeCognitoMobile,
   CompanionOrganisationController.denyPendingLink,
 );
