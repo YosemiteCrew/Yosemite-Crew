@@ -32,13 +32,13 @@ const getBucketName = (): string => {
   return bucket;
 };
 
-const getCloufrontBaeUrl = () : string => {
-  const CF_BASE = process.env.AWS_CLOUD_FRONT_BASE_URL
-  if(!CF_BASE) {
+const getCloufrontBaeUrl = (): string => {
+  const CF_BASE = process.env.AWS_CLOUD_FRONT_BASE_URL;
+  if (!CF_BASE) {
     throw new Error("AWS_CLOUD_FRONT_BASE_URL is not defined");
   }
   return CF_BASE;
-}
+};
 
 // Utility functions
 
@@ -78,13 +78,13 @@ const buildS3Key = (
     case "temp":
       return `temp/uploads/${uuidv4()}${ext}`;
     case "user":
-      return `users/${idOrFolder}/profile${ext}`;
+      return `users/${idOrFolder}/${uuidv4()}${ext}`;
     case "org":
-      return `orgs/${idOrFolder}/logo${ext}`;
+      return `orgs/${idOrFolder}/${uuidv4()}${ext}`;
     case "parent":
-      return `parent/${idOrFolder}/profile${ext}`;
+      return `parent/${idOrFolder}/${uuidv4()}${ext}`;
     case "companion":
-      return `companion/${idOrFolder}/profile${ext}`;
+      return `companion/${idOrFolder}/${uuidv4()}${ext}`;
     case "custom":
       return `${idOrFolder}/${uuidv4()}${ext}`;
     default:
@@ -203,7 +203,6 @@ async function moveFile(fromKey: string, toKey: string) {
 }
 
 // Delete File from S3
-
 async function deleteFromS3(s3Key: string) {
   const bucket = getBucketName();
   try {
@@ -263,8 +262,13 @@ async function handleMultipleFileUpload(
   return Promise.all(uploads);
 }
 
-// Lifecycle
+// Pre-signed url for view/download
+async function generatePresignedDownloadUrl(key: string) {
+  const CF_BASE = getCloufrontBaeUrl();
+  return `https://${CF_BASE}/${key}`;
+}
 
+// Lifecycle
 async function setupLifecyclePolicy(daysToKeep = 2) {
   const ruleName = "AutoDeleteTempUploads";
   const bucket = getBucketName();
@@ -344,5 +348,6 @@ export {
   buildS3Key,
   mimeTypeToExtension,
   setupLifecyclePolicy,
+  generatePresignedDownloadUrl,
 };
 export type { FileUploadResult, UploadedFile };

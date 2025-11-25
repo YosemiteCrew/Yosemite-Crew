@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import fileUpload from "express-fileupload";
 import logger from "./utils/logger";
 import mongoose from "mongoose";
@@ -16,12 +17,21 @@ import organisationInviteRouter from "./routers/organisation-invite.router";
 import authUserMobileRouter from "./routers/authUserMobile.router";
 import coParentInviteRouter from "./routers/coparentInvite.router";
 import parentCompanionRouter from "./routers/parent-companion.router";
+import companionOrganisationRouter from "./routers/companion-organisation.router";
+import docuemntRouter from "./routers/document.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 app.use(express.json());
 app.use(fileUpload());
+app.use(limiter);
 
 app.use(`/fhir/v1/organization`, organizationRounter);
 app.use(`/fhir/v1/companion`, companionRouter);
@@ -36,6 +46,8 @@ app.use(`/fhir/v1/availability`, availabilityRouter);
 app.use(`/v1/authUser`, authUserMobileRouter);
 app.use(`/v1/coparent-invite`, coParentInviteRouter);
 app.use(`/v1/parent-companion`, parentCompanionRouter);
+app.use(`/v1/companion-organisation`, companionOrganisationRouter);
+app.use(`/v1/document`, docuemntRouter);
 
 let mongoUri: string;
 
