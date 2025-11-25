@@ -8,6 +8,7 @@ import {
   deleteFromS3,
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
+import escapeStringRegex from "escape-string-regexp"
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -552,4 +553,28 @@ export const DocumentService = {
       key: doc.attachments[index].key,
     }));
   },
+
+  async searchByTitleForParent(params: {
+    companionId: string | Types.ObjectId;
+    title: string;
+  }): Promise<DocumentDto[]> {
+    const companionId = ensureObjectId(params.companionId, "companionId");
+
+    if (!params.title || typeof params.title !== "string") {
+      throw new DocumentServiceError("Search title is required.", 400);
+    }
+
+    const safe = escapeStringRegex(params.title.trim());
+    const regex = new RegExp(safe, "i");
+
+    const docs = await DocumentModel.find({
+      companionId,
+      title: { $regex: regex },
+    })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    return docs.map(mapDocumentToDto);
+  }
+
 };
