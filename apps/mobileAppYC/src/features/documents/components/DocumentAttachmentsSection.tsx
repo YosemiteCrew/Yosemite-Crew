@@ -26,7 +26,11 @@ const DEFAULT_EMPTY_SUBTITLE =
   'Only DOC, PDF, PNG, JPEG formats\nwith max size 5 MB';
 
 const resolvePreviewSource = (file: DocumentFile) =>
-  file.uri ?? (file as {s3Url?: string}).s3Url ?? null;
+  file.uri ??
+  (file as {viewUrl?: string}).viewUrl ??
+  (file as {downloadUrl?: string}).downloadUrl ??
+  (file as {s3Url?: string}).s3Url ??
+  null;
 
 interface FilePreviewTileProps {
   file: DocumentFile;

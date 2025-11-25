@@ -6,7 +6,7 @@ import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import {DocumentCard} from '@/shared/components/common/DocumentCard/DocumentCard';
+import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
 import {useTheme} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
@@ -14,6 +14,8 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/features/documents/constants';
 import {setSelectedCompanion} from '@/features/companion';
+import {fetchDocuments} from '@/features/documents/documentSlice';
+import {formatLabel} from '@/shared/utils/helpers';
 import {
   createScreenContainerStyles,
   createErrorContainerStyles,
@@ -62,19 +64,39 @@ export const CategoryDetailScreen: React.FC = () => {
 
     // Group documents by subcategory
     for (const doc of categoryDocuments) {
-      if (grouped[doc.subcategory]) {
-        grouped[doc.subcategory].push(doc);
+      const bucketKey = doc.subcategory || 'other';
+      if (!grouped[bucketKey]) {
+        grouped[bucketKey] = [];
       }
+      grouped[bucketKey].push(doc);
     }
 
     return grouped;
   }, [category, categoryDocuments]);
+
+  const subcategoriesToRender = useMemo(() => {
+    const existing = category?.subcategories ?? [];
+    const extras = Object.keys(documentsBySubcategory)
+      .filter(id => !existing.some(sub => sub.id === id))
+      .map(id => ({
+        id,
+        label: formatLabel(id, 'Other'),
+        fileCount: 0,
+      }));
+    return [...existing, ...extras];
+  }, [category?.subcategories, documentsBySubcategory]);
 
   React.useEffect(() => {
     if (companions.length > 0 && selectedCompanionId === null) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionId, dispatch]);
+
+  React.useEffect(() => {
+    if (selectedCompanionId) {
+      dispatch(fetchDocuments({companionId: selectedCompanionId}));
+    }
+  }, [dispatch, selectedCompanionId]);
 
   if (!category) {
     return (
@@ -119,7 +141,7 @@ export const CategoryDetailScreen: React.FC = () => {
           permissionLabel="documents"
         />
 
-        {category.subcategories.map(subcategory => {
+        {subcategoriesToRender.map(subcategory => {
           const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
           const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
           const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
@@ -136,23 +158,14 @@ export const CategoryDetailScreen: React.FC = () => {
                   <Text style={styles.emptyText}>No documents found</Text>
                 </View>
               ) : (
-                subcategoryDocs.map(doc => {
-                  // Only allow edit/delete for documents added by user from app, not from PMS
-                  const canEdit = doc.isUserAdded;
-                  return (
-                    <DocumentCard
-                      key={doc.id}
-                      title={doc.title}
-                      businessName={doc.businessName}
-                      visitType={doc.visitType}
-                      issueDate={doc.issueDate}
-                      showEditAction={canEdit}
-                      onPressView={() => handleViewDocument(doc.id)}
-                      onPressEdit={canEdit ? () => handleEditDocument(doc.id) : undefined}
-                      onPress={() => handleViewDocument(doc.id)}
-                    />
-                  );
-                })
+                subcategoryDocs.map(doc => (
+                  <DocumentListItem
+                    key={doc.id}
+                    document={doc}
+                    onPressView={handleViewDocument}
+                    onPressEdit={handleEditDocument}
+                  />
+                ))
               )}
             </SubcategoryAccordion>
           );

@@ -10,20 +10,46 @@ type AttachmentShape = {
   uri?: string;
   type?: string;
   name?: string;
+  viewUrl?: string;
+  downloadUrl?: string;
 };
 
 type Props = {
   attachments: AttachmentShape[];
+  documentTitle?: string;
+  companionName?: string | null;
 };
 
-export const AttachmentPreview: React.FC<Props> = ({attachments}) => {
+export const AttachmentPreview: React.FC<Props> = ({
+  attachments,
+  documentTitle,
+  companionName,
+}) => {
   const {theme} = useTheme();
   const styles = createAttachmentStyles(theme);
 
-  const handleShare = async (fileUrl?: string) => {
+  const resolveSourceUri = (file: AttachmentShape) =>
+    file.viewUrl ?? file.s3Url ?? file.downloadUrl ?? file.uri;
+
+  const buildShareLabel = (fileName?: string) => {
+    const title = documentTitle || fileName || 'Document';
+    if (companionName) {
+      return `${title} for ${companionName}`;
+    }
+    return title;
+  };
+
+  const handleShare = async (file: AttachmentShape) => {
+    const fileUrl = resolveSourceUri(file);
+    const shareLabel = buildShareLabel(file.name);
+    const shareMessage = fileUrl
+      ? `${shareLabel}\n\n${fileUrl}`
+      : shareLabel;
+
     try {
       await Share.share({
-        message: 'Shared file',
+        title: shareLabel,
+        message: shareMessage,
         url: fileUrl ?? '',
       });
     } catch (error) {
@@ -38,7 +64,7 @@ export const AttachmentPreview: React.FC<Props> = ({attachments}) => {
   <View style={styles.container}>
       {attachments.map((file, index) => {
         const isImage = typeof file.type === 'string' && file.type.startsWith('image/');
-        const sourceUri = file.s3Url ?? file.uri;
+        const sourceUri = resolveSourceUri(file);
         return (
           <View key={file.id} style={styles.previewCard}>
             {isImage && sourceUri ? (
@@ -46,11 +72,11 @@ export const AttachmentPreview: React.FC<Props> = ({attachments}) => {
             ) : (
               <View style={styles.pdfPlaceholder}>
                 <Image source={Images.documentIcon} style={styles.pdfIcon} />
-                <Text style={styles.pdfLabel}>{file.name}</Text>
+                <Text style={styles.pdfLabel}>{file.name || 'Document'}</Text>
               </View>
             )}
-            <Text style={styles.pageIndicator}>Page {index + 1} of {attachments.length}</Text>
-            <TouchableOpacity style={styles.shareButton} onPress={() => handleShare(sourceUri)}>
+            <Text style={styles.pageIndicator}>Document {index + 1} of {attachments.length}</Text>
+            <TouchableOpacity style={styles.shareButton} onPress={() => handleShare(file)}>
               <Image source={Images.shareIcon} style={styles.shareIcon} />
             </TouchableOpacity>
           </View>
