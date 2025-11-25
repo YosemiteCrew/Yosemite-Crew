@@ -1,7 +1,8 @@
 /* istanbul ignore file -- mock handlers for document upload UI */
-import {Alert} from 'react-native';
+import {Alert, Platform} from 'react-native';
 import {useCallback, useEffect, useRef} from 'react';
 import RNFS from 'react-native-fs';
+import RNFetchBlob from 'react-native-blob-util';
 import {
   launchCamera,
   launchImageLibrary,
@@ -9,6 +10,7 @@ import {
   type CameraOptions,
   type ImageLibraryOptions,
 } from 'react-native-image-picker';
+import {check, request, RESULTS, PERMISSIONS} from 'react-native-permissions';
 import {
   pick,
   keepLocalCopy,
@@ -49,6 +51,43 @@ const DEFAULT_CAMERA_OPTIONS: CameraOptions = {
 const DEFAULT_GALLERY_OPTIONS: ImageLibraryOptions = {
   mediaType: 'photo',
   selectionLimit: 1,
+};
+
+const getCameraPermissionConstant = () =>
+  Platform.OS === 'ios' ? PERMISSIONS.IOS.CAMERA : PERMISSIONS.ANDROID.CAMERA;
+
+const requestCameraAccess = async () => {
+  const permission = getCameraPermissionConstant();
+  try {
+    const status = await check(permission);
+    if (status === RESULTS.GRANTED || status === RESULTS.LIMITED) {
+      return true;
+    }
+    if (status === RESULTS.BLOCKED) {
+      Alert.alert(
+        'Camera permission blocked',
+        'Enable camera access in Settings to take photos.',
+      );
+      return false;
+    }
+    if (status === RESULTS.UNAVAILABLE) {
+      Alert.alert('Camera unavailable', 'Camera is not available on this device.');
+      return false;
+    }
+    const nextStatus = await request(permission);
+    if (nextStatus === RESULTS.GRANTED || nextStatus === RESULTS.LIMITED) {
+      return true;
+    }
+    Alert.alert(
+      'Permission required',
+      'Camera access is needed to take photos. Please grant permission.',
+    );
+    return false;
+  } catch (error) {
+    console.warn('[useDocumentFileHandlers] Camera permission error', error);
+    Alert.alert('Permission error', 'We were unable to request camera access.');
+    return false;
+  }
 };
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -131,8 +170,17 @@ const isDocumentMimeType = (mime?: string | null) =>
 const formatLimitLabel = (bytes: number) =>
   `${Math.round(bytes / (1024 * 1024))} MB`;
 
-const normalizeFileUri = (uri: string) =>
-  uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+const normalizeFileUri = (uri: string) => {
+  if (!uri) {
+    return uri;
+  }
+  const cleaned = uri.startsWith('file://') ? uri : `file://${uri}`;
+  // Some providers return content:// URIs which should not be prefixed again
+  if (cleaned.startsWith('content://')) {
+    return uri;
+  }
+  return cleaned;
+};
 
 const filterValidPickerResults = (pickerResults: DocumentPickerResponse[]) => {
   return pickerResults.filter(file => {
@@ -230,14 +278,32 @@ const ensureFileSize = async (
     return providedSize;
   }
 
-  try {
-    const stats = await RNFS.stat(normalizeFileUri(uri));
-    const parsed = Number(stats.size);
-    return Number.isFinite(parsed) ? parsed : null;
-  } catch (error) {
-    console.warn('[useDocumentFileHandlers] Unable to read file size', error);
-    return null;
+  const stripFileScheme = (value: string) =>
+    value.startsWith('file://') ? value.replace('file://', '') : value;
+
+  const candidates = [uri, normalizeFileUri(uri), stripFileScheme(uri)];
+
+  for (const candidate of candidates) {
+    try {
+      if (candidate.startsWith('content://')) {
+        const stat = await RNFetchBlob.fs.stat(candidate);
+        const parsed = Number(stat.size);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+      } else {
+        const stats = await RNFS.stat(stripFileScheme(candidate));
+        const parsed = Number(stats.size);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.warn('[useDocumentFileHandlers] Unable to read file size', error);
+    }
   }
+
+  return null;
 };
 
 const showUnsupportedTypeAlert = (mode: FileUploadMode) => {
@@ -286,7 +352,17 @@ const getFallbackExtension = (
   if (extension) {
     return extension;
   }
-  return mime.startsWith('image/') ? '.jpg' : '.pdf';
+  const match = Object.entries(MIME_BY_EXTENSION).find(([, value]) => value === mime);
+  if (match) {
+    return match[0];
+  }
+  if (mime.startsWith('image/')) {
+    return '.jpg';
+  }
+  if (mime === 'application/pdf') {
+    return '.pdf';
+  }
+  return '.bin';
 };
 
 const buildDocumentFileFromPicker = async <T extends DocumentFile>(
@@ -326,7 +402,7 @@ const buildDocumentFileFromPicker = async <T extends DocumentFile>(
 
   return {
     id: overrideId ?? generateId(),
-    uri: localUri,
+    uri: normalizeFileUri(localUri),
     name: safeName,
     type: mimeType,
     size,
@@ -384,7 +460,7 @@ const buildDocumentFileFromAsset = async <T extends DocumentFile>(
 
   return {
     id: overrideId ?? generateId(),
-    uri: asset.uri,
+    uri: normalizeFileUri(asset.uri),
     name: safeName,
     type: mimeType,
     size,
@@ -476,6 +552,11 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
     }
 
     try {
+      const hasPermission = await requestCameraAccess();
+      if (!hasPermission) {
+        return;
+      }
+
       const response = await launchCamera(DEFAULT_CAMERA_OPTIONS);
       if (response.didCancel || !response.assets?.length) {
         return;

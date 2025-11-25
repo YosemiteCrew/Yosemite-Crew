@@ -8,6 +8,7 @@ import {AddDocumentScreen} from '@/features/documents/screens/AddDocumentScreen/
 import {EditDocumentScreen} from '@/features/documents/screens/EditDocumentScreen/EditDocumentScreen';
 import {DocumentPreviewScreen} from '@/features/documents/screens/DocumentPreviewScreen/DocumentPreviewScreen';
 import {CategoryDetailScreen} from '@/features/documents/screens/CategoryDetailScreen/CategoryDetailScreen';
+import {DocumentSearchScreen} from '@/features/documents/screens/DocumentSearchScreen/DocumentSearchScreen';
 
 const Stack = createNativeStackNavigator<DocumentStackParamList>();
 
@@ -23,6 +24,7 @@ export const DocumentStackNavigator = () => {
       <Stack.Screen name="EditDocument" component={EditDocumentScreen} />
       <Stack.Screen name="DocumentPreview" component={DocumentPreviewScreen} />
       <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
+      <Stack.Screen name="DocumentSearch" component={DocumentSearchScreen} />
     </Stack.Navigator>
   );
 };

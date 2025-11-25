@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo} from 'react';
 import {View, Text, ScrollView, StyleSheet} from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -35,8 +35,6 @@ export const CategoryDetailScreen: React.FC = () => {
 
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
-
-  const [searchQuery, setSearchQuery] = useState('');
 
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
@@ -126,8 +124,8 @@ export const CategoryDetailScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}>
         <SearchBar
           placeholder="Search through documents"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          mode="readonly"
+          onPress={() => navigation.navigate('DocumentSearch')}
           containerStyle={styles.searchBar}
         />
 

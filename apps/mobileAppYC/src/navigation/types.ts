@@ -88,6 +88,7 @@ export type DocumentStackParamList = {
   EditDocument: { documentId: string };
   DocumentPreview: { documentId: string };
   CategoryDetail: { categoryId: string };
+  DocumentSearch: undefined;
 };
 
 // Appointment stack

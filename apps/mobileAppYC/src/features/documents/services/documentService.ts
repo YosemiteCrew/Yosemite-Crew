@@ -37,6 +37,29 @@ const CATEGORY_ALIASES: Record<string, string> = {
   hygiene_maintenance: 'hygiene-maintenance',
 };
 
+const CATEGORY_API_MAP: Record<string, string> = {
+  admin: 'ADMIN',
+  health: 'HEALTH',
+  'hygiene-maintenance': 'HYGIENE_MAINTENANCE',
+  'dietary-plans': 'DIETARY_PLANS',
+  others: 'OTHERS',
+};
+
+const SUBCATEGORY_API_MAP: Record<string, string> = {
+  passport: 'PASSPORT',
+  certificates: 'CERTIFICATES',
+  insurance: 'INSURANCE',
+  'hospital-visits': 'HOSPITAL_VISITS',
+  'prescriptions-treatments': 'PRESCRIPTIONS_AND_TREATMENTS',
+  'vaccination-parasite': 'VACCINATION_AND_PARASITE_PREVENTION',
+  'lab-tests': 'LAB_TESTS',
+  'grooming-visits': 'GROOMER_VISIT',
+  'boarding-records': 'BOARDER_VISIT',
+  'training-behaviour': 'TRAINING_AND_BEHAVIOUR_REPORTS',
+  'breeder-interactions': 'BREEDER_VISIT',
+  'nutrition-plans': 'NUTRITION_PLANS',
+};
+
 const toUiSlug = (value?: string | null): string => {
   if (!value) {
     return '';
@@ -56,13 +79,13 @@ const toApiSlug = (value?: string | null): string => {
     return '';
   }
   const lower = value.toString().toLowerCase();
+  let normalized = lower;
   if (lower === 'other' || lower === 'others') {
-    return 'other';
+    normalized = 'others';
+  } else if (CATEGORY_ALIASES[lower]) {
+    normalized = CATEGORY_ALIASES[lower];
   }
-  if (CATEGORY_ALIASES[lower]) {
-    return CATEGORY_ALIASES[lower].replaceAll('-', '_');
-  }
-  return lower.replaceAll('-', '_');
+  return CATEGORY_API_MAP[normalized] ?? normalized.replaceAll('-', '_').toUpperCase();
 };
 
 const normalizeSubcategoryFromApi = (
@@ -85,17 +108,14 @@ const serializeSubcategoryForApi = (
   subcategory: string | null,
 ): string => {
   const categoryLower = category?.toString().toLowerCase() ?? '';
-  if (categoryLower === 'others' || categoryLower === 'other') {
-    return 'other';
-  }
-  if (!subcategory) {
+  if (!subcategory || categoryLower === 'others' || categoryLower === 'other') {
     return '';
   }
   const lower = subcategory.toString().toLowerCase();
   if (lower === 'other' || lower === 'others') {
-    return 'other';
+    return '';
   }
-  return lower.replaceAll('-', '_');
+  return SUBCATEGORY_API_MAP[lower] ?? lower.replaceAll('-', '_').toUpperCase();
 };
 
 const normalizeVisitType = (value?: string | null): string =>
@@ -476,10 +496,11 @@ export const documentApi = {
     });
 
     if (!file.uri) {
-      throw new Error('File path missing for upload.');
+      throw new Error(`File path missing for upload: ${file.name || file.key || 'unknown file'}`);
     }
 
-    const filePath = file.uri.startsWith('file://') ? file.uri.replace('file://', '') : file.uri;
+    // Preserve the original URI (content:// or file://); the upload service will normalize.
+    const filePath = file.uri;
 
     await uploadFileToPresignedUrl({
       filePath,
@@ -642,6 +663,26 @@ export const documentApi = {
       {headers: withAuthHeaders(accessToken)},
     );
 
+    const collection = extractDocumentsCollection(data);
+    return collection.map(doc => normalizeDocumentFromApi(doc, companionId));
+  },
+
+  async search({
+    companionId,
+    query,
+    accessToken,
+  }: {
+    companionId: string;
+    query: string;
+    accessToken: string;
+  }): Promise<Document[]> {
+    const {data} = await apiClient.get(
+      `/v1/document/mobile/${encodeURIComponent(companionId)}`,
+      {
+        headers: withAuthHeaders(accessToken),
+        params: {search: query},
+      },
+    );
     const collection = extractDocumentsCollection(data);
     return collection.map(doc => normalizeDocumentFromApi(doc, companionId));
   },

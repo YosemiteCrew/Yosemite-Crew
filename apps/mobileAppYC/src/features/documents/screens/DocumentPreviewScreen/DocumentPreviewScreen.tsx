@@ -10,7 +10,7 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {Images} from '@/assets/images';
 import {createScreenContainerStyles, createErrorContainerStyles} from '@/shared/utils/screenStyles';
-import AttachmentPreview from '@/shared/components/common/AttachmentPreview/AttachmentPreview';
+import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
 
 type DocumentPreviewNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
@@ -52,10 +52,21 @@ export const DocumentPreviewScreen: React.FC = () => {
     if (!document) {
       return;
     }
-    if (viewLoading || hasViewableAttachments) {
+    const needsFreshUrls = document.files?.some(file => {
+      const hasView =
+        typeof file.viewUrl === 'string' && /^https?:\/\//i.test(file.viewUrl);
+      const hasDownload =
+        typeof file.downloadUrl === 'string' && /^https?:\/\//i.test(file.downloadUrl);
+      return !(hasView && hasDownload);
+    });
+
+    if (viewLoading) {
       return;
     }
-    dispatch(fetchDocumentView({documentId}));
+
+    if (!hasViewableAttachments || needsFreshUrls) {
+      dispatch(fetchDocumentView({documentId}));
+    }
   }, [dispatch, document, documentId, hasViewableAttachments, viewLoading]);
 
   const formattedIssueDate = React.useMemo(() => {
@@ -105,7 +116,7 @@ export const DocumentPreviewScreen: React.FC = () => {
         </View>
 
         <View style={styles.documentPreview}>
-          <AttachmentPreview
+          <DocumentAttachmentViewer
             attachments={document.files}
             documentTitle={document.title}
             companionName={companion?.name}

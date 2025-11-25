@@ -59,6 +59,9 @@ describe('documentSlice', () => {
     error: null,
     uploadProgress: 0,
     viewLoading: {},
+    searchResults: [],
+    searchLoading: false,
+    searchError: null,
   };
 
   const mockDocumentFile: DocumentFile = {

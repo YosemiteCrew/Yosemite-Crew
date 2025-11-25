@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo} from 'react';
 import {View, Text, ScrollView, StyleSheet} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -25,8 +25,6 @@ export const DocumentsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<DocumentsNavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
-
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Get companions from Redux
   const companions = useSelector((state: RootState) => state.companion.companions);
@@ -113,8 +111,8 @@ export const DocumentsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}>
         <SearchBar
           placeholder="Search through documents"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          mode="readonly"
+          onPress={() => navigation.navigate('DocumentSearch')}
           containerStyle={styles.searchBar}
         />
 

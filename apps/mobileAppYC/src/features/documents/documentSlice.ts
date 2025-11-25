@@ -11,6 +11,9 @@ interface DocumentState {
   error: string | null;
   uploadProgress: number;
   viewLoading: Record<string, boolean>;
+  searchResults: Document[];
+  searchLoading: boolean;
+  searchError: string | null;
 }
 
 const initialState: DocumentState = {
@@ -20,6 +23,9 @@ const initialState: DocumentState = {
   error: null,
   uploadProgress: 0,
   viewLoading: {},
+  searchResults: [],
+  searchLoading: false,
+  searchError: null,
 };
 
 const ensureAccessToken = async (): Promise<string> => {
@@ -69,6 +75,24 @@ export const uploadDocumentFiles = createAsyncThunk<
 
     if (!files.length) {
       return [];
+    }
+
+    const notReady = files.filter(file => {
+      if (file.key) {
+        return false;
+      }
+      if (!file.uri || !file.uri.trim()) {
+        return true;
+      }
+      if (file.status && file.status !== 'ready') {
+        return true;
+      }
+      return false;
+    });
+    if (notReady.length) {
+      throw new Error(
+        'Some files are still preparing or could not be read. Please reselect and try again.',
+      );
     }
 
     const accessToken = await ensureAccessToken();
@@ -184,6 +208,24 @@ export const fetchDocumentView = createAsyncThunk<
   }
 });
 
+export const searchDocuments = createAsyncThunk<
+  Document[],
+  {companionId: string; query: string},
+  {rejectValue: string}
+>('documents/searchDocuments', async ({companionId, query}, {rejectWithValue}) => {
+  try {
+    if (!query.trim()) {
+      return [];
+    }
+    const accessToken = await ensureAccessToken();
+    return await documentApi.search({companionId, query, accessToken});
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to search documents',
+    );
+  }
+});
+
 const documentSlice = createSlice({
   name: 'documents',
   initialState,
@@ -193,6 +235,11 @@ const documentSlice = createSlice({
     },
     clearError: state => {
       state.error = null;
+      state.searchError = null;
+    },
+    clearSearchResults: state => {
+      state.searchResults = [];
+      state.searchError = null;
     },
   },
   extraReducers: builder => {
@@ -299,8 +346,22 @@ const documentSlice = createSlice({
         state.viewLoading[action.meta.arg.documentId] = false;
         state.error = (action.payload as string) ?? action.error.message ?? null;
       });
+
+    builder
+      .addCase(searchDocuments.pending, state => {
+        state.searchLoading = true;
+        state.searchError = null;
+      })
+      .addCase(searchDocuments.fulfilled, (state, action) => {
+        state.searchLoading = false;
+        state.searchResults = action.payload;
+      })
+      .addCase(searchDocuments.rejected, (state, action) => {
+        state.searchLoading = false;
+        state.searchError = (action.payload as string) ?? action.error.message ?? null;
+      });
   },
 });
 
-export const {setUploadProgress, clearError} = documentSlice.actions;
+export const {setUploadProgress, clearError, clearSearchResults} = documentSlice.actions;
 export default documentSlice.reducer;
