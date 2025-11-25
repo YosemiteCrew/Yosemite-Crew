@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { CompanionController } from "../controllers/app/companion.controller";
-import { authorizeCognitoMobile } from "src/middlewares/auth";
+import { authorizeCognitoMobile, authorizeCognito } from "src/middlewares/auth";
 
 const router = Router();
 
@@ -30,9 +30,12 @@ router.post(
 
 // Routes for PMS
 router.get("/org/search", CompanionController.searchCompanionByName);
-// router.post('/org/:orgid', authorizeCognito, CompanionController.createCompanionMobile)
-// router.get('/org/:id', authorizeCognito, CompanionController.getCompanionById)
-// router.put('/org/:id', authorizeCognito, CompanionController.updateCompanion)
-// router.delete('/:id', authorizeCognito, CompanionController.deleteCompanion)
+router.post(
+  "/org/:orgId",
+  authorizeCognito,
+  CompanionController.createCompanionPMS,
+);
+router.get("/org/:id", authorizeCognito, CompanionController.getCompanionById);
+router.put("/org/:id", authorizeCognito, CompanionController.updateCompanion);
 
 export default router;

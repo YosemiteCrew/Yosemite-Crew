@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import logger from "../../utils/logger";
 import {
+  OrganisationSearchInput,
   OrganizationService,
   OrganizationServiceError,
   type OrganizationFHIRPayload,
@@ -172,7 +173,6 @@ export const OrganizationController = {
           .json({ message: "MIME type is required in the request body." });
         return;
       }
-      logger.info("orgId", orgId);
       if (orgId) {
         logger.info("");
         const { url, key } = await generatePresignedUrl(
@@ -190,4 +190,19 @@ export const OrganizationController = {
       res.status(500).json({ message: "Unable to generate logo upload URL." });
     }
   },
+
+  checkIsPMSOrganistaion: async (req: Request, res: Response) => {
+    try{
+      const body = req.body as OrganisationSearchInput
+      const result = await OrganizationService.resolveOrganisation(body)
+      return res.status(200).json(result);
+    } catch(error) {
+      if (error instanceof OrganizationServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+      logger.error("Failed to search business", error);
+      res.status(500).json({ message: "Unable to search business." });
+    }
+  }
 };

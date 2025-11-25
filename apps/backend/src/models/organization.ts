@@ -38,6 +38,7 @@ export interface OrganizationMongo {
   healthAndSafetyCertNo?: string;
   animalWelfareComplianceCertNo?: string;
   fireAndEmergencyCertNo?: string;
+  googlePlacesId?: string;
 }
 
 const OrganizationSchema = new Schema<OrganizationMongo>(
@@ -65,11 +66,14 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
       code: { type: String },
       display: { type: String },
     },
+    googlePlacesId: { type: String },
   },
   {
     timestamps: true,
   },
 );
+
+OrganizationSchema.index({ googlePlacesId: 1, name: 1 });
 
 export type OrganizationDocument = HydratedDocument<OrganizationMongo>;
 
