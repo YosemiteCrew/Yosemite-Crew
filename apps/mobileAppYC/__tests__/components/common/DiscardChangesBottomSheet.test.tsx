@@ -33,12 +33,12 @@ let mockSecondaryOnPress: () => void;
 jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
-    const React = require('react');
-    const {View, Text} = require('react-native'); // Import Text
+    const ReactActual = jest.requireActual('react');
+    const {View: RNView, Text: RNText} = jest.requireActual('react-native'); // Import Text
     return {
       __esModule: true,
-      ConfirmActionBottomSheet: React.forwardRef((props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
+      ConfirmActionBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
+        ReactActual.useImperativeHandle(ref, () => ({
           open: mockSheetOpen,
           close: mockSheetClose,
         }));
@@ -50,10 +50,10 @@ jest.mock(
 
         // FIX: Render the message prop so getByText can find it
         return (
-          <View testID="mock-confirm-sheet">
-            <Text>{props.message}</Text>
+          <RNView testID="mock-confirm-sheet">
+            <RNText>{props.message}</RNText>
             {props.children}
-          </View>
+          </RNView>
         );
       }),
     };

@@ -12,12 +12,12 @@ jest.mock('@/assets/images', () => ({
 }));
 
 jest.mock('react-native', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react');
   const RN = jest.requireActual('react-native');
 
   const createMockComponent = (name: string, testID?: string) =>
-    React.forwardRef((props: any, ref: any) => {
-      return React.createElement(name, {
+    ReactActual.forwardRef((props: any, ref: any) => {
+      return ReactActual.createElement(name, {
         ...props,
         ref,
         // Add a default testID if one isn't provided

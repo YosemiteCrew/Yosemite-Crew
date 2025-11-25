@@ -17,13 +17,13 @@ const mockClose = jest.fn();
 jest.mock(
   '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
-    const React = require('react');
-    const {View} = require('react-native');
+    const ReactActual = jest.requireActual('react');
+    const {View: RNView} = jest.requireActual('react-native');
 
     return {
-      GenericSelectBottomSheet: React.forwardRef((props: any, ref: any) => {
+      GenericSelectBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
         // Expose the mock open/close functions via useImperativeHandle
-        React.useImperativeHandle(ref, () => ({
+        ReactActual.useImperativeHandle(ref, () => ({
           open: mockOpen,
           close: mockClose,
         }));
@@ -33,7 +33,7 @@ jest.mock(
 
         // Render a placeholder
         return (
-          <View
+          <RNView
             testID="mock-generic-bottom-sheet"
             // Helper to test onSave
             save={(item: any) => props.onSave(item)}

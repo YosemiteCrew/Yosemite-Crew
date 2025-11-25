@@ -34,12 +34,12 @@ let mockSecondaryOnPress: () => void;
 jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
-    const React = require('react');
-    const {View} = require('react-native');
+    const ReactActual = jest.requireActual('react');
+    const {View: RNView} = jest.requireActual('react-native');
     return {
       __esModule: true,
-      default: React.forwardRef((props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
+      default: ReactActual.forwardRef((props: any, ref: any) => {
+        ReactActual.useImperativeHandle(ref, () => ({
           open: mockSheetOpen,
           close: mockSheetClose,
         }));
@@ -48,7 +48,7 @@ jest.mock(
         mockSecondaryOnPress = props.secondaryButton.onPress;
         // Spy on all props
         mockChildSheet(props);
-        return <View testID="mock-confirm-sheet" />;
+        return <RNView testID="mock-confirm-sheet" />;
       }),
     };
   },

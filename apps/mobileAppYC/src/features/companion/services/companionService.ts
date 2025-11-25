@@ -9,6 +9,7 @@ import {
   type CompanionType,
   type SourceType,
 } from '@yosemite-crew/types';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import type {
   AddCompanionPayload,
   Companion,
@@ -432,7 +433,7 @@ const mapResponseToAppCompanion = (
     insurancePolicyNumber: policyNumber ?? persisted?.insurancePolicyNumber ?? null,
     countryOfOrigin: attributes.countryOfOrigin ?? persisted?.countryOfOrigin ?? null,
     origin: mapSourceToOrigin(attributes.source),
-    profileImage: attributes.photoUrl ?? persisted?.profileImage ?? null,
+    profileImage: normalizeImageUri(attributes.photoUrl ?? persisted?.profileImage ?? null),
     createdAt: persisted?.createdAt ?? updatedAt,
     updatedAt,
   };

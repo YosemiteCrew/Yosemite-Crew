@@ -6,6 +6,8 @@ import {
 } from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import { useTheme } from '@/hooks';
 import { Images } from '@/assets/images';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 
 // --- Mocks ---
 
@@ -50,12 +52,12 @@ jest.mock('@/assets/images', () => ({
 
 // 3. Mock react-native
 jest.mock('react-native', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react');
   const RN = jest.requireActual('react-native');
 
   const createMockComponent = (name: string, testID?: string) =>
-    React.forwardRef((props: any, ref: any) =>
-      React.createElement(name, {
+    ReactActual.forwardRef((props: any, ref: any) =>
+      ReactActual.createElement(name, {
         ...props,
         ref,
         testID: props.testID || testID,
@@ -63,7 +65,7 @@ jest.mock('react-native', () => {
     );
 
   // FIX: Mock that respects 'disabled' and provides a stable testID
-  const MockTouchableOpacity = React.forwardRef((props: any, ref: any) => {
+  const MockTouchableOpacity = ReactActual.forwardRef((props: any, ref: any) => {
     const { onPress, disabled, ...rest } = props;
 
     const handlePress = () => {
@@ -72,7 +74,7 @@ jest.mock('react-native', () => {
       }
     };
 
-    return React.createElement('TouchableOpacity', {
+    return ReactActual.createElement('TouchableOpacity', {
       ...rest,
       ref,
       onPress: handlePress,
@@ -107,6 +109,22 @@ const mockCompanions: CompanionBase[] = [
   { id: '3', name: 'Max', profileImage: undefined /* no taskCount */ },
 ];
 
+const createWrapper = (ui: React.ReactElement, preloadedState: any = {}) => {
+  const store = configureStore({
+    reducer: () => ({
+      coParent: {
+        accessByCompanionId: {},
+        defaultAccess: null,
+        lastFetchedRole: null,
+        lastFetchedPermissions: null,
+        ...preloadedState?.coParent,
+      },
+    }),
+  });
+
+  return render(<Provider store={store}>{ui}</Provider>);
+};
+
 describe('CompanionSelector', () => {
   const mockOnSelect = jest.fn();
   const mockOnAddCompanion = jest.fn();
@@ -117,7 +135,7 @@ describe('CompanionSelector', () => {
   });
 
   it('renders all companions and the add button by default', () => {
-    const { getByText, getAllByTestId } = render(
+    const { getByText, getAllByTestId } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -138,7 +156,7 @@ describe('CompanionSelector', () => {
   });
 
   it('renders profileImage for companion with one', () => {
-    const { getAllByTestId } = render(
+    const { getAllByTestId } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -154,7 +172,7 @@ describe('CompanionSelector', () => {
   });
 
   it('renders placeholder with initial for companions without profileImage', () => {
-    const { getByText } = render(
+    const { getByText } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -166,7 +184,7 @@ describe('CompanionSelector', () => {
   });
 
   it('applies selected styles only to the selected companion', () => {
-    const { getAllByTestId } = render(
+    const { getAllByTestId } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId="1" // Buddy is selected
@@ -188,7 +206,7 @@ describe('CompanionSelector', () => {
 
   it('calls onSelect with the correct id when a companion is pressed', () => {
     // FIX: Use getAllByTestId
-    const { getAllByTestId } = render(
+    const { getAllByTestId } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -207,7 +225,7 @@ describe('CompanionSelector', () => {
 
   it('calls onAddCompanion when the add button is pressed', () => {
     // FIX: Use getAllByTestId
-    const { getAllByTestId } = render(
+    const { getAllByTestId } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -225,7 +243,7 @@ describe('CompanionSelector', () => {
   });
 
   it('hides the add button when showAddButton is false', () => {
-    const { queryByText } = render(
+    const { queryByText } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -238,7 +256,7 @@ describe('CompanionSelector', () => {
   });
 
   it('hides the add button when onAddCompanion is not provided', () => {
-    const { queryByText } = render(
+    const { queryByText } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -252,7 +270,7 @@ describe('CompanionSelector', () => {
 
   it('applies containerStyle to the ScrollView', () => {
     const customStyle = { backgroundColor: 'red' };
-    const { getByTestId } = render(
+    const { getByTestId } = createWrapper(
       <CompanionSelector
         companions={[]}
         selectedCompanionId={null}
@@ -267,7 +285,7 @@ describe('CompanionSelector', () => {
 
   it('uses getBadgeText function for badge text (Priority 1)', () => {
     const mockGetBadgeText = jest.fn((c: CompanionBase) => `Custom: ${c.name}`);
-    const { getByText, queryByText } = render(
+    const { getByText, queryByText } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
@@ -281,7 +299,7 @@ describe('CompanionSelector', () => {
   });
 
   it('uses taskCount for badge text when getBadgeText is absent (Priority 2)', () => {
-    const { getByText } = render(
+    const { getByText } = createWrapper(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}

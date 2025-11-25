@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import { AuthUserMobileModel, AuthUserMobile } from "../models/authUserMobile";
 import { ParentModel, type ParentDocument } from "../models/parent";
 import logger from "src/utils/logger";
+import { assertSafeString } from "src/utils/sanitize";
 
 export const AuthUserMobileService = {
   async createOrGetAuthUser(
@@ -9,25 +10,30 @@ export const AuthUserMobileService = {
     providerUserId: string,
     email: string,
   ): Promise<AuthUserMobile> {
+    providerUserId = assertSafeString(providerUserId, "providerUserId");
+    email = assertSafeString(email, "email");
+
     const existing = await AuthUserMobileModel.findOne({
       providerUserId,
     }).exec();
     if (existing) return existing;
 
-    const newUser = await AuthUserMobileModel.create({
+    return AuthUserMobileModel.create({
       authProvider,
       providerUserId,
       email,
     });
-
-    return newUser;
   },
 
   async linkParent(
     authUserId: string,
     parentId: string,
   ): Promise<AuthUserMobile> {
-    if (!Types.ObjectId.isValid(parentId)) throw new Error("Invalid parent ID");
+    authUserId = assertSafeString(authUserId, "authUserId");
+
+    if (!Types.ObjectId.isValid(parentId)) {
+      throw new Error("Invalid parent ID");
+    }
 
     const user = await AuthUserMobileModel.findOne({
       providerUserId: authUserId,
@@ -49,7 +55,9 @@ export const AuthUserMobileService = {
   async autoLinkParentByEmail(
     authUser: AuthUserMobile,
   ): Promise<ParentDocument | null> {
-    const parent = await ParentModel.findOne({ email: authUser.email }).exec();
+    const safeEmail = assertSafeString(authUser.email, "email");
+
+    const parent = await ParentModel.findOne({ email: safeEmail }).exec();
     if (!parent) return null;
 
     await AuthUserMobileModel.updateOne(
@@ -63,12 +71,16 @@ export const AuthUserMobileService = {
   async getByProviderUserId(
     providerUserId: string,
   ): Promise<AuthUserMobile | null> {
+    providerUserId = assertSafeString(providerUserId, "providerUserId");
+
     return AuthUserMobileModel.findOne({ providerUserId }).exec();
   },
 
   async getAuthUserMobileIdByProviderId(
     providerUserId: string,
   ): Promise<Types.ObjectId | null> {
+    providerUserId = assertSafeString(providerUserId, "providerUserId");
+
     const doc = await AuthUserMobileModel.findOne(
       { providerUserId },
       { _id: 1 },

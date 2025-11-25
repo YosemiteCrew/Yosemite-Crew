@@ -67,17 +67,21 @@ jest.mock('@/assets/images', () => ({
 jest.mock(
   '@/shared/components/common/BottomSheetHeader/BottomSheetHeader',
   () => {
-    const {View, Text, TouchableOpacity} = require('react-native');
+    const {
+      View: RNView,
+      Text: RNText,
+      TouchableOpacity: RNTouchableOpacity,
+    } = jest.requireActual('react-native');
     return {
       BottomSheetHeader: (props: any) => {
         return (
-          <View testID="mock-header">
-            <Text>{props.title}</Text>
-            <TouchableOpacity
+          <RNView testID="mock-header">
+            <RNText>{props.title}</RNText>
+            <RNTouchableOpacity
               testID="mock-header-close"
               onPress={props.onClose}
             />
-          </View>
+          </RNView>
         );
       },
     };
@@ -90,12 +94,12 @@ const mockClose = jest.fn();
 let mockSheetOnChange: (index: number) => void;
 
 jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
-  const React = require('react');
-  const {View} = require('react-native');
+  const ReactActual = jest.requireActual('react');
+  const {View: RNView} = jest.requireActual('react-native');
   return {
     __esModule: true,
-    default: React.forwardRef((props: any, ref: any) => {
-      React.useImperativeHandle(ref, () => ({
+    default: ReactActual.forwardRef((props: any, ref: any) => {
+      ReactActual.useImperativeHandle(ref, () => ({
         snapToIndex: mockSnapToIndex,
         close: mockClose,
       }));
@@ -103,7 +107,7 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
       if (!props.enableBackdrop) {
         return null;
       }
-      return <View testID="mock-sheet-content">{props.children}</View>;
+      return <RNView testID="mock-sheet-content">{props.children}</RNView>;
     }),
   };
 });
@@ -112,13 +116,16 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => {
-    const {TouchableOpacity, Text} = require('react-native');
+    const {
+      TouchableOpacity: RNTouchableOpacity,
+      Text: RNText,
+    } = jest.requireActual('react-native');
     return {
       __esModule: true,
       default: (props: any) => (
-        <TouchableOpacity onPress={props.onPress} disabled={props.disabled}>
-          <Text>{props.title}</Text>
-        </TouchableOpacity>
+        <RNTouchableOpacity onPress={props.onPress} disabled={props.disabled}>
+          <RNText>{props.title}</RNText>
+        </RNTouchableOpacity>
       ),
     };
   },

@@ -1,5 +1,15 @@
 import React, {useEffect} from 'react';
-import {SectionList, View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert} from 'react-native';
+import {
+  SectionList,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Platform,
+  ToastAndroid,
+} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -32,6 +42,19 @@ export const MyAppointmentsScreen: React.FC = () => {
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
   const hasHydrated = useSelector((s: RootState) => selectedCompanionId ? s.appointments.hydratedCompanions[selectedCompanionId] : false);
+  const accessMap = useSelector((s: RootState) => s.coParent?.accessByCompanionId ?? {});
+  const defaultAccess = useSelector((s: RootState) => s.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((s: RootState) => s.coParent?.lastFetchedRole);
+  const globalPermissions = useSelector((s: RootState) => s.coParent?.lastFetchedPermissions);
+  const accessForCompanion = selectedCompanionId
+    ? accessMap[selectedCompanionId] ?? defaultAccess ?? null
+    : defaultAccess;
+  const role = (accessForCompanion?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase();
+  const permissions =
+    accessForCompanion?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+  const isPrimary = role.includes('PRIMARY');
+  const canUseAppointments = isPrimary || Boolean(permissions?.appointments);
+  const canUseChat = isPrimary || Boolean(permissions?.chatWithVet);
 
   const upcomingSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
   const pastSelector = React.useMemo(() => createSelectPastAppointments(), []);
@@ -83,6 +106,21 @@ export const MyAppointmentsScreen: React.FC = () => {
       return biz?.category === filter;
     });
   }, [past, filter, businessMap]);
+
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (selectedCompanionId && !canUseAppointments) {
+      showPermissionToast('appointments');
+    }
+  }, [canUseAppointments, selectedCompanionId, showPermissionToast]);
 
   type AppointmentItem = (typeof filteredUpcoming)[number];
   type EmployeeRecord = ReturnType<typeof employeeMap.get>;
@@ -194,6 +232,9 @@ export const MyAppointmentsScreen: React.FC = () => {
     if (!item) {
       return null;
     }
+    if (!canUseAppointments) {
+      return null;
+    }
     const emp = employeeMap.get(item.employeeId ?? '');
     const service = serviceMap.get(item.serviceId ?? '');
     const biz = businessMap.get(item.businessId);
@@ -250,6 +291,7 @@ export const MyAppointmentsScreen: React.FC = () => {
             onGetDirections={() => {
               if (biz?.address) openMapsToAddress(biz.address);
             }}
+            canChat={canUseChat}
             onChat={() =>
               handleChatPress({
                 appointment: item,
@@ -258,6 +300,7 @@ export const MyAppointmentsScreen: React.FC = () => {
                 petName,
               })
             }
+            onChatBlocked={() => showPermissionToast('chat with vet')}
             onCheckIn={() => dispatch(updateAppointmentStatus({appointmentId: item.id, status: 'completed'}))}
             footer={footer}
           />
@@ -312,6 +355,8 @@ export const MyAppointmentsScreen: React.FC = () => {
         onSelect={id => dispatch(setSelectedCompanion(id))}
         showAddButton={false}
         containerStyle={styles.companionSelector}
+        requiredPermission="appointments"
+        permissionLabel="appointments"
       />
 
       <SectionListHorizontalPills filter={filter} setFilter={setFilter} />

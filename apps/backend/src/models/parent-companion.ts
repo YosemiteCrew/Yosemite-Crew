@@ -5,6 +5,7 @@ import type {
   ParentCompanionRole,
   ParentCompanionStatus,
 } from "@yosemite-crew/types";
+import type { ParentMongo } from "./parent";
 
 export interface ParentCompanionMongo {
   parentId: Types.ObjectId;
@@ -72,23 +73,56 @@ ParentCompanionSchema.index(
 
 export type ParentCompanionDocument = HydratedDocument<ParentCompanionMongo>;
 
+type PopulatedParent = ParentMongo & { _id: Types.ObjectId };
+type ParentIdValue = Types.ObjectId | PopulatedParent;
+
+const isPopulatedParent = (
+  value: ParentIdValue | undefined,
+): value is PopulatedParent =>
+  Boolean(value && typeof value === "object" && "_id" in value);
+
 export const toCompanionParentLink = (
   document: ParentCompanionDocument,
 ): CompanionParentLink => {
   const obj = document.toObject({ virtuals: false }) as ParentCompanionMongo & {
+    _id: Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
+    parentId?: ParentIdValue; // populated or plain ObjectId
   };
 
+  // Detect if parentId is populated
+  let parentInfo: CompanionParentLink["parent"] | undefined = undefined;
+
+  if (isPopulatedParent(obj.parentId)) {
+    parentInfo = {
+      firstName: obj.parentId.firstName,
+      lastName: obj.parentId.lastName!,
+      email: obj.parentId.email,
+      phoneNumber: obj.parentId.phoneNumber!,
+      profileImageUrl: obj.parentId.profileImageUrl!,
+    };
+  }
+
+  if (!obj.parentId) {
+    throw new Error("Parent companion missing parentId");
+  }
+
   return {
-    parentId: obj.parentId.toString(),
+    parentId: isPopulatedParent(obj.parentId)
+      ? obj.parentId._id.toString()
+      : obj.parentId.toString(),
+
     role: obj.role,
     status: obj.status,
     permissions: obj.permissions,
+
     invitedByParentId: obj.invitedByParentId?.toString(),
     acceptedAt: obj.acceptedAt?.toISOString(),
     createdAt: obj.createdAt?.toISOString(),
     updatedAt: obj.updatedAt?.toISOString(),
+
+    parent: parentInfo,
   };
 };
 

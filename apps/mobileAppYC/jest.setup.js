@@ -387,15 +387,25 @@ jest.mock('@/features/auth/services/socialAuth', () => ({
 }));
 
 // Mock React Native Firebase Auth to avoid pulling firebase ESM
-jest.mock('@react-native-firebase/auth', () => ({
-  getAuth: jest.fn(() => ({})),
-  signOut: jest.fn(async auth => {
+jest.mock('@react-native-firebase/auth', () => {
+  const reload = jest.fn(async () => undefined);
+  const getIdToken = jest.fn(async user => user?.getIdToken?.());
+  const getIdTokenResult = jest.fn(async user => user?.getIdTokenResult?.());
+  const getAuth = jest.fn(() => ({}));
+  const signOut = jest.fn(async auth => {
     // Delegate to instance signOut when provided to match real API shape
     return auth?.signOut ? auth.signOut() : undefined;
-  }),
-  getIdToken: jest.fn(async user => user?.getIdToken?.()),
-  getIdTokenResult: jest.fn(async user => user?.getIdTokenResult?.()),
-}));
+  });
+
+  return {
+    __esModule: true,
+    getAuth,
+    signOut,
+    getIdToken,
+    getIdTokenResult,
+    reload,
+  };
+});
 
 // Mock Keychain to avoid native module dependency
 jest.mock('react-native-keychain', () => ({
