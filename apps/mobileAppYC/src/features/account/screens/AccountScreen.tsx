@@ -142,7 +142,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           companion.breed?.breedName,
           companion.gender,
           ageString, // Use the calculated age string here
-          companion.currentWeight ? `${companion.currentWeight} kgs` : null,
+          companion.currentWeight ? `${companion.currentWeight} lbs` : null,
         ].filter(Boolean) as string[];
 
         const remoteUri = normalizeImageUri(companion.profileImage ?? null);

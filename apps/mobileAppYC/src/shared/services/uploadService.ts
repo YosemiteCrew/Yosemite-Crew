@@ -50,12 +50,14 @@ interface UploadToPresignedUrlParams {
   filePath: string;
   mimeType: string;
   url: string;
+  expectedSize?: number | null;
 }
 
 export const uploadFileToPresignedUrl = async ({
   filePath,
   mimeType,
   url,
+  expectedSize,
 }: UploadToPresignedUrlParams): Promise<void> => {
   const stripFileScheme = (value: string) =>
     value.startsWith('file://') ? value.replace('file://', '') : value;
@@ -126,6 +128,10 @@ export const uploadFileToPresignedUrl = async ({
     resolvedPath = filePath;
   }
 
+  if (size == null && typeof expectedSize === 'number' && expectedSize > 0) {
+    size = expectedSize;
+  }
+
   if (size == null || !Number.isFinite(size) || size <= 0) {
     throw new Error('Local file is empty or unreadable.');
   }
@@ -137,10 +143,9 @@ export const uploadFileToPresignedUrl = async ({
     size,
   });
 
-  const pathForWrap =
-    resolvedPath.startsWith('content://') || resolvedPath.startsWith('file://')
-      ? resolvedPath
-      : `file://${resolvedPath}`;
+  const pathForWrap = resolvedPath.startsWith('content://')
+    ? resolvedPath
+    : stripFileScheme(resolvedPath);
 
   const response = await RNFetchBlob.fetch(
     'PUT',

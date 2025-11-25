@@ -506,6 +506,7 @@ export const documentApi = {
       filePath,
       mimeType: file.type ?? 'application/octet-stream',
       url: uploadMeta.uploadUrl,
+      expectedSize: file.size,
     });
 
     const cdnUrl = buildCdnUrlFromKey(uploadMeta.key);
@@ -676,13 +677,12 @@ export const documentApi = {
     query: string;
     accessToken: string;
   }): Promise<Document[]> {
-    const {data} = await apiClient.get(
-      `/v1/document/mobile/${encodeURIComponent(companionId)}`,
-      {
-        headers: withAuthHeaders(accessToken),
-        params: {search: query},
-      },
-    );
+    const url = `/v1/document/search/${encodeURIComponent(
+      companionId,
+    )}?title=${encodeURIComponent(query)}`;
+    const {data} = await apiClient.get(url, {
+      headers: withAuthHeaders(accessToken),
+    });
     const collection = extractDocumentsCollection(data);
     return collection.map(doc => normalizeDocumentFromApi(doc, companionId));
   },

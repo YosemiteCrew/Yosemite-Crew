@@ -629,7 +629,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
         {renderTextField('currentWeight', {
           label: 'Current weight (optional)',
-          placeholder: 'kgs',
+          placeholder: 'lbs',
           keyboardType: 'decimal-pad',
         })}
 
@@ -764,7 +764,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             <TouchableInput
               label="Country of origin (optional)"
               value={countryOfOrigin ?? ''}
-              placeholder="Select country"
+              placeholder="Select country of origin"
               onPress={handleCountryPress}
               error={errors.countryOfOrigin?.message}
               rightComponent={
