@@ -14,6 +14,7 @@ export interface ParentCompanionPermissions {
 }
 
 export interface CompanionParentLink {
+  parent?: ParenDetailsForLink
   parentId: string;
   role: ParentCompanionRole;
   status: ParentCompanionStatus;
@@ -22,4 +23,12 @@ export interface CompanionParentLink {
   acceptedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ParenDetailsForLink {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  profileImageUrl: string;
 }

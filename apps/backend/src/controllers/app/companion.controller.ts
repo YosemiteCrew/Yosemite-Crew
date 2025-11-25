@@ -8,6 +8,8 @@ import type { CompanionRequestDTO } from "@yosemite-crew/types";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { Types } from "mongoose";
 import { generatePresignedUrl } from "src/middlewares/upload";
+import { CompanionOrganisationService } from "src/services/companion-organisation.service";
+import OrganizationModel from "src/models/organization";
 
 type CompanionRequestBody =
   | CompanionRequestDTO
@@ -85,7 +87,9 @@ export const CompanionController = {
     try {
       const payload = extractFHIRPayload(req);
 
-      const { parentId } = req.body as { parentId?: string };
+      const { parentId } = (req.body ?? {}) as { parentId?: string };
+      const orgId = (req.params as { orgId?: string } | undefined)?.orgId;
+
       if (!parentId || !Types.ObjectId.isValid(parentId)) {
         return res.status(400).json({
           message:
@@ -96,6 +100,37 @@ export const CompanionController = {
       const { response } = await CompanionService.create(payload, {
         parentMongoId: new Types.ObjectId(parentId),
       });
+
+      // Establish link between PMS and Companion
+      if (orgId) {
+        if (!Types.ObjectId.isValid(orgId)) {
+          return res.status(400).json({
+            message: "Valid organisationId is required to create companion.",
+          });
+        }
+
+        const authUser = resolveMobileUserId(req);
+        if (!authUser) {
+          return res.status(401).json({
+            message:
+              "Authentication required to link companion with organisation.",
+          });
+        }
+
+        const organisation = await OrganizationModel.findById(orgId);
+        if (!organisation) {
+          return res
+            .status(404)
+            .json({ message: "Organisation not found for provided orgId." });
+        }
+
+        await CompanionOrganisationService.linkByPmsUser({
+          pmsUserId: authUser,
+          organisationId: orgId,
+          organisationType: organisation.type,
+          companionId: response.id!,
+        });
+      }
 
       return res.status(201).json(response);
     } catch (error) {
