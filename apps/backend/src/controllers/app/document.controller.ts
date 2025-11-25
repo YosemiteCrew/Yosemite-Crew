@@ -427,4 +427,32 @@ export const DocumentController = {
         .json({ message: "Unable to generate download link." });
     }
   },
+
+  searchDocument: async (req: Request, res: Response) => {
+    try{
+      const { companionId } = req.params
+      const title = req.query.title;
+
+      if (!companionId) {
+        return res.status(400).json({ message: "Document ID is required." });
+      }
+
+      if (!title || typeof title !== "string") {
+        return res.status(400).json({ message: "Search title is required." });
+      }
+
+      const results = await DocumentService.searchByTitleForParent({
+        companionId: companionId,
+        title: title
+      })
+
+      return res.status(200).json({ documents: results });
+    } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Failed to search documents (parent)", error);
+      return res.status(500).json({ message: "Unable to search documents." });
+    }
+  }
 };

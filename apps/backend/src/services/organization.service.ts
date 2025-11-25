@@ -18,6 +18,7 @@ import { UserOrganizationService } from "./user-organization.service";
 import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
+import escapeStringRegexp from "escape-string-regexp";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -678,7 +679,7 @@ export const OrganizationService = {
 
     // Search for Name
     if (input.name) {
-      const safe = (input.name.trim());
+      const safe = escapeStringRegexp(input.name.trim());
       const nameRegex = new RegExp(safe, "i");
 
       const org = await OrganizationModel.findOne({

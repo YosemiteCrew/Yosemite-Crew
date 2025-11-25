@@ -21,6 +21,7 @@ import {
 } from "./parent-companion.service";
 import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
+import escapeStringRegexp from "escape-string-regexp";
 
 export class CompanionServiceError extends Error {
   constructor(
@@ -243,7 +244,8 @@ export const CompanionService = {
       throw new CompanionServiceError("Name is required for searching.", 400);
     }
 
-    const searchRegex = new RegExp(name.trim(), "i");
+    const safe = escapeStringRegexp(name.trim());
+    const searchRegex = new RegExp(safe);
     const documents = await CompanionModel.find({
       name: searchRegex,
     });
