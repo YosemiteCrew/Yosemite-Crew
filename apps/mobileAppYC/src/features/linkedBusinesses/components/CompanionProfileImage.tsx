@@ -1,7 +1,7 @@
 import React, {useMemo} from 'react';
 import {Image, StyleSheet, Text, View} from 'react-native';
 import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 export interface CompanionProfileImageProps {
   name: string;
@@ -18,13 +18,41 @@ export const CompanionProfileImage: React.FC<CompanionProfileImageProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const [loadFailed, setLoadFailed] = React.useState(false);
 
-  const imageSource = profileImage ? {uri: profileImage} : Images.cat;
+  const normalizedUri = React.useMemo(
+    () => normalizeImageUri(profileImage ?? null),
+    [profileImage],
+  );
+
+  const initials = useMemo(() => {
+    const trimmed = name?.trim();
+    if (!trimmed) {
+      return 'C';
+    }
+    return trimmed.charAt(0).toUpperCase();
+  }, [name]);
+
+  React.useEffect(() => {
+    setLoadFailed(false);
+  }, [normalizedUri]);
+
+  const shouldRenderImage = normalizedUri && !loadFailed;
 
   return (
     <View style={styles.profileHeader}>
       <View style={[styles.avatar, {width: size, height: size, borderRadius: size / 2}]}>
-        <Image source={imageSource} style={styles.avatarImage} />
+        {shouldRenderImage ? (
+          <Image
+            source={{uri: normalizedUri}}
+            style={styles.avatarImage}
+            onError={() => setLoadFailed(true)}
+          />
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarInitial}>{initials}</Text>
+          </View>
+        )}
       </View>
       <Text style={styles.profileName}>{name}</Text>
       <Text style={styles.profileBreed}>{breedName ?? 'Unknown Breed'}</Text>
@@ -51,6 +79,17 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: '100%',
       resizeMode: 'cover',
+    },
+    avatarFallback: {
+      width: '100%',
+      height: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primarySurface,
+    },
+    avatarInitial: {
+      ...theme.typography.h4,
+      color: theme.colors.primary,
     },
     profileName: {
       ...theme.typography.h4,

@@ -33,26 +33,26 @@ jest.mock('@/hooks', () => ({
 
 // 2. Mock react-native
 jest.mock('react-native', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react');
   const RN = jest.requireActual('react-native');
 
   const createMockComponent = (name: string, testID?: string) =>
-    React.forwardRef((props: any, ref: any) =>
-      React.createElement(name, {
+    ReactActual.forwardRef((props: any, ref: any) =>
+      ReactActual.createElement(name, {
         ...props,
         ref,
         testID: props.testID || testID,
       }),
     );
 
-  const MockTouchableOpacity = React.forwardRef((props: any, ref: any) => {
+  const MockTouchableOpacity = ReactActual.forwardRef((props: any, ref: any) => {
     const { onPress, disabled, ...rest } = props;
     const handlePress = () => {
       if (!disabled) {
         onPress?.();
       }
     };
-    return React.createElement('TouchableOpacity', {
+    return ReactActual.createElement('TouchableOpacity', {
       ...rest,
       ref,
       onPress: handlePress,

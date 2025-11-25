@@ -143,6 +143,8 @@ export const ExpensesListScreen: React.FC = () => {
         onSelect={id => dispatch(setSelectedCompanion(id))}
         showAddButton={false}
         containerStyle={styles.selector}
+        requiredPermission="expenses"
+        permissionLabel="expenses"
       />
       <YearlySpendCard
         amount={yearlyTotal}

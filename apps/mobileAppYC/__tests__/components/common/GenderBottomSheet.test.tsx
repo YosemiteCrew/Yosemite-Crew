@@ -21,15 +21,15 @@ let mockChildOnSave: (item: SelectItem | null) => void;
 jest.mock(
   '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
-    const React = require('react');
+    const ReactActual = jest.requireActual('react');
     // This require() will work because of the global jest.setup.js
-    const {View} = require('react-native');
+    const {View: RNView} = jest.requireActual('react-native');
 
     // This component is a NAMED export, not default.
     return {
       __esModule: true, // Mark as ES Module
-      GenericSelectBottomSheet: React.forwardRef((props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
+      GenericSelectBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
+        ReactActual.useImperativeHandle(ref, () => ({
           open: mockSheetOpen,
           close: mockSheetClose,
         }));
@@ -37,7 +37,7 @@ jest.mock(
         mockChildOnSave = props.onSave;
         // Spy on all props passed to the child
         mockChildSheet(props);
-        return <View testID="mock-generic-select" />;
+        return <RNView testID="mock-generic-select" />;
       }),
     };
   },
