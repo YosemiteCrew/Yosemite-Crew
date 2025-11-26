@@ -1,13 +1,3 @@
-/* --------------------------------------------------------------------------
-   ROCK-SOLID Availability Service
-   Handles:
-   - Base weekly availability
-   - Weekly overrides
-   - Occupancy (appointments / blocks / surgeries)
-   - Correct UTC handling
-   - Correct slot merging & splitting
--------------------------------------------------------------------------- */
-
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import BaseAvailabilityModel, {
@@ -239,8 +229,6 @@ export const AvailabilityService = {
       .add(1, "day")   // => Monday
       .startOf("day")
       .toDate();
-
-    const weekStartStr = getDateString(weekStart);
 
     const weekDates = Array.from({ length: 7 }).map((_, i) => {
       const d = dayjs(weekStart).add(i, "day").toDate();

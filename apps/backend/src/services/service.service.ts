@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import { Types, type FilterQuery } from "mongoose";
 import ServiceModel, {
   type ServiceMongo,
   type ServiceDocument,
@@ -93,7 +93,7 @@ export const ServiceService = {
     return docs.map((d) => toServiceResponseDTO(mapDocToDomain(d)));
   },
 
-  async update(id: string, fhirDto: any) {
+  async update(id: string, fhirDto: ServiceRequestDTO) {
     const serviceUpdates = fromServiceRequestDTO(fhirDto);
 
     const oid = ensureObjectId(id, "serviceId");
@@ -146,9 +146,7 @@ export const ServiceService = {
   },
 
   async search(query: string, organisationId?: string) {
-    const filter: any = {
-      isActive: true,
-    };
+    const filter: FilterQuery<ServiceMongo> = { isActive: true };
 
     if (organisationId) {
       filter.organisationId = ensureObjectId(organisationId, "organisationId");
