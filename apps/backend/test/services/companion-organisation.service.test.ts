@@ -76,7 +76,7 @@ describe("CompanionOrganisationService", () => {
         expect.objectContaining({
           linkedByPmsUserId: "user-1",
           organisationType: "GROOMER",
-          status: "ACTIVE",
+          status: "PENDING",
         }),
       );
     });

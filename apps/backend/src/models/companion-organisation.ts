@@ -9,6 +9,7 @@ export interface CompanionOrganisationMongo {
   role: "ORGANISATION";
   status: "ACTIVE" | "PENDING" | "REVOKED";
   invitedViaEmail?: string | null;
+  organisationName?: string | null;
   inviteToken?: string | null;
   acceptedAt?: Date | null;
   rejectedAt?: Date | null;
@@ -24,7 +25,7 @@ const CompanionOrganisationSchema = new Schema<CompanionOrganisationMongo>(
     },
     organisationId: {
       type: Schema.Types.ObjectId,
-      ref: "Organisation",
+      ref: "Organization",
       default: null,
       index: true,
     },
@@ -56,6 +57,7 @@ const CompanionOrganisationSchema = new Schema<CompanionOrganisationMongo>(
       default: "ACTIVE",
     },
     invitedViaEmail: { type: String, default: null },
+    organisationName: { type: String, default: null },
     inviteToken: { type: String, default: null },
     acceptedAt: { type: Date, default: null },
     rejectedAt: { type: Date, default: null },

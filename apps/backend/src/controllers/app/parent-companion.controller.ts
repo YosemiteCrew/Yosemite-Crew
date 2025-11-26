@@ -82,8 +82,6 @@ export const ParentCompanionController = {
           .json({ message: "Invalid parent or companion ID." });
       }
 
-      logger.info("Id: ", new Types.ObjectId(requestingParent._id));
-
       const updated = await ParentCompanionService.updatePermissions(
         new Types.ObjectId(requestingParent._id.toString()),
         new Types.ObjectId(targetParentId),

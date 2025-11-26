@@ -192,11 +192,11 @@ export const OrganizationController = {
   },
 
   checkIsPMSOrganistaion: async (req: Request, res: Response) => {
-    try{
-      const body = req.body as OrganisationSearchInput
-      const result = await OrganizationService.resolveOrganisation(body)
+    try {
+      const body = req.body as OrganisationSearchInput;
+      const result = await OrganizationService.resolveOrganisation(body);
       return res.status(200).json(result);
-    } catch(error) {
+    } catch (error) {
       if (error instanceof OrganizationServiceError) {
         res.status(error.statusCode).json({ message: error.message });
         return;
@@ -204,5 +204,5 @@ export const OrganizationController = {
       logger.error("Failed to search business", error);
       res.status(500).json({ message: "Unable to search business." });
     }
-  }
+  },
 };
