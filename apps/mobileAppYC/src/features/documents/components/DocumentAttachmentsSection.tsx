@@ -10,6 +10,7 @@ import {
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
+import {isImageFile} from './documentAttachmentUtils';
 
 interface DocumentAttachmentsSectionProps {
   files: DocumentFile[];
@@ -53,7 +54,7 @@ const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
 }) => {
   const [isImageLoading, setIsImageLoading] = useState(true);
   const sourceUri = resolvePreviewSource(file);
-  const isImage = typeof file.type === 'string' && file.type.startsWith('image/');
+  const isImage = isImageFile(file.type);
   const isPending = file.status === 'pending';
 
   useEffect(() => {

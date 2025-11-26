@@ -19,13 +19,14 @@ import {useTheme} from '@/hooks';
 import createAttachmentStyles from '@/shared/utils/attachmentStyles';
 import type {DocumentFile} from '@/features/documents/types';
 import {
-  DOC_VIEWER_TYPES,
+  isDocViewerFile,
   isImageFile,
   isPdfFile,
   resolveSourceUri,
   buildDocViewerUri,
 } from './documentAttachmentUtils';
 import RNFS from 'react-native-fs';
+import {normalizeMimeType} from '@/shared/utils/mime';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -185,8 +186,11 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
         return;
       }
 
+      const normalizedType = normalizeMimeType(file.type);
       const extension =
-        (file.type && MIME_EXTENSION_MAP[file.type]) || file.type?.split('/').pop() || 'bin';
+        (normalizedType && MIME_EXTENSION_MAP[normalizedType]) ||
+        (normalizedType ? normalizedType.split('/').pop() : undefined) ||
+        'bin';
       const safeName = (file.name || 'document').replace(/[\\/:]/g, '_');
       const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
         ? safeName
@@ -215,7 +219,7 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
         const sourceUri = resolveSourceUri(file);
         const canPreview = Boolean(sourceUri);
         const isPdf = isPdfFile(file.type);
-        const isDoc = DOC_VIEWER_TYPES.has(file.type ?? '');
+        const isDoc = isDocViewerFile(file.type);
         const placeholder = renderPlaceholder(
           canPreview
             ? 'Preview unavailable right now. Try downloading or check back later.'

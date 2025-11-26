@@ -1,6 +1,7 @@
 import {useTheme} from '@/hooks';
 import createAttachmentStyles from '@/shared/utils/attachmentStyles';
 import type {DocumentFile} from '@/features/documents/types';
+import {normalizeMimeType} from '@/shared/utils/mime';
 
 export const DOC_VIEWER_TYPES = new Set([
   'application/msword',
@@ -12,8 +13,16 @@ export const DOC_VIEWER_TYPES = new Set([
   'text/plain',
 ]);
 
-export const isImageFile = (mime?: string | null) => Boolean(mime?.startsWith('image/'));
-export const isPdfFile = (mime?: string | null) => mime === 'application/pdf';
+export const isImageFile = (mime?: string | null) => {
+  const normalized = normalizeMimeType(mime);
+  return Boolean(normalized && normalized.startsWith('image/'));
+};
+
+export const isPdfFile = (mime?: string | null) =>
+  normalizeMimeType(mime) === 'application/pdf';
+
+export const isDocViewerFile = (mime?: string | null) =>
+  DOC_VIEWER_TYPES.has(normalizeMimeType(mime));
 
 export const resolveSourceUri = (file: DocumentFile) =>
   file.viewUrl ?? file.s3Url ?? file.downloadUrl ?? file.uri ?? null;

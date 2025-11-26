@@ -27,6 +27,7 @@ import {
   MAX_FILE_SIZE,
 } from '@/features/documents/constants';
 import {generateId} from '@/shared/utils/helpers';
+import {normalizeMimeType} from '@/shared/utils/mime';
 
 type FileUploadMode = 'mixed' | 'images-only' | 'documents-only';
 
@@ -151,8 +152,9 @@ const sanitizeFileName = (name?: string | null, fallbackExtension?: string) => {
 };
 
 const inferMimeType = (type?: string | null, name?: string | null) => {
-  if (type) {
-    return type;
+  const normalized = normalizeMimeType(type);
+  if (normalized) {
+    return normalized;
   }
   const extension = getFileExtension(name);
   if (extension && MIME_BY_EXTENSION[extension]) {
@@ -161,11 +163,15 @@ const inferMimeType = (type?: string | null, name?: string | null) => {
   return 'application/octet-stream';
 };
 
-const isImageMimeType = (mime?: string | null) =>
-  Boolean(mime?.startsWith('image/'));
+const isImageMimeType = (mime?: string | null) => {
+  const normalized = normalizeMimeType(mime);
+  return Boolean(normalized && normalized.startsWith('image/'));
+};
 
-const isDocumentMimeType = (mime?: string | null) =>
-  Boolean(mime && ALLOWED_DOCUMENT_MIME_TYPES.includes(mime));
+const isDocumentMimeType = (mime?: string | null) => {
+  const normalized = normalizeMimeType(mime);
+  return Boolean(normalized && ALLOWED_DOCUMENT_MIME_TYPES.includes(normalized));
+};
 
 const formatLimitLabel = (bytes: number) =>
   `${Math.round(bytes / (1024 * 1024))} MB`;
@@ -263,11 +269,24 @@ const resolveVirtualMime = (file: DocumentPickerResponse) => {
   }
 
   const allowed = new Set(ALLOWED_FILE_TYPES);
-  const match = file.convertibleToMimeTypes.find(meta =>
-    allowed.has(meta.mimeType),
-  );
+  const extractMimeString = (meta: any) => {
+    if (!meta) {
+      return '';
+    }
+    if (typeof meta === 'string') {
+      return meta;
+    }
+    return meta?.mimeType ?? meta?.type ?? '';
+  };
 
-  return match?.mimeType ?? file.convertibleToMimeTypes[0]?.mimeType;
+  const match = file.convertibleToMimeTypes.find(meta => {
+    const normalized = normalizeMimeType(extractMimeString(meta));
+    return normalized ? allowed.has(normalized) : false;
+  });
+
+  const candidate = match ?? file.convertibleToMimeTypes[0];
+  const normalized = normalizeMimeType(extractMimeString(candidate));
+  return normalized || undefined;
 };
 
 const ensureFileSize = async (

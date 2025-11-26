@@ -285,19 +285,26 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
   const sheetRef = React.useRef<CoParentInviteBottomSheetRef>(null);
 
   React.useEffect(() => {
-    if (!user?.parentId) {
+    if (!user?.id) {
+      sheetRef.current?.close();
       return;
     }
     dispatch(fetchPendingInvites());
-  }, [dispatch, user?.parentId]);
+  }, [dispatch, user?.id]);
 
   React.useEffect(() => {
-    if (pendingInvites.length > 0) {
+    if (pendingInvites.length === 0) {
       setCurrentInviteIndex(0);
-      requestAnimationFrame(() => sheetRef.current?.open());
-    } else {
       sheetRef.current?.close();
+      return;
     }
+
+    setCurrentInviteIndex(prev => {
+      const nextIndex = prev < pendingInvites.length ? prev : 0;
+      return nextIndex === prev ? prev : nextIndex;
+    });
+
+    requestAnimationFrame(() => sheetRef.current?.open());
   }, [pendingInvites]);
 
   const currentInvite = pendingInvites[currentInviteIndex] ?? null;
@@ -339,23 +346,19 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
     }
   }, [currentInviteIndex, dispatch, pendingInvites]);
 
-  if (!currentInvite) {
-    return null;
-  }
-
   return (
     <CoParentInviteBottomSheet
       ref={sheetRef}
-      coParentName={currentInvite.inviteeName}
-      inviteeName={currentInvite.inviteeName}
+      coParentName={currentInvite?.inviteeName}
+      inviteeName={currentInvite?.inviteeName}
       inviterName={
-        currentInvite.invitedBy?.fullName ??
-        ((`${currentInvite.invitedBy?.firstName ?? ''} ${currentInvite.invitedBy?.lastName ?? ''}`).trim() ||
+        currentInvite?.invitedBy?.fullName ??
+        ((`${currentInvite?.invitedBy?.firstName ?? ''} ${currentInvite?.invitedBy?.lastName ?? ''}`).trim() ||
           undefined)
       }
-      inviterProfileImage={currentInvite.invitedBy?.profileImageUrl}
-      companionName={currentInvite.companion?.name}
-      companionProfileImage={currentInvite.companion?.photoUrl}
+      inviterProfileImage={currentInvite?.invitedBy?.profileImageUrl}
+      companionName={currentInvite?.companion?.name}
+      companionProfileImage={currentInvite?.companion?.photoUrl}
       onAccept={handleAccept}
       onDecline={handleDecline}
     />
