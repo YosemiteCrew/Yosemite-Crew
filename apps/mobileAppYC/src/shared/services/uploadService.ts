@@ -53,84 +53,80 @@ interface UploadToPresignedUrlParams {
   expectedSize?: number | null;
 }
 
+const stripFileScheme = (value: string) =>
+  value.startsWith('file://') ? value.replace('file://', '') : value;
+
+const buildWrappedPath = (filePath: string) => {
+  const normalizedPath = stripFileScheme(filePath);
+  if (filePath.startsWith('content://')) {
+    return filePath;
+  }
+  if (normalizedPath.startsWith('/')) {
+    return `file://${normalizedPath}`;
+  }
+  return normalizedPath;
+};
+
+const checkFsPath = async (path: string) => {
+  try {
+    const barePath = stripFileScheme(path);
+    const exists = await RNFS.exists(barePath);
+    if (exists) {
+      const stats = await RNFS.stat(barePath);
+      const parsed = Number(stats.size);
+      return {size: Number.isFinite(parsed) ? parsed : null, path: barePath};
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+};
+
+const checkBlobPath = async (path: string) => {
+  try {
+    const exists = await RNFetchBlob.fs.exists(path);
+    if (!exists) {
+      return null;
+    }
+    const stat = await RNFetchBlob.fs.stat(path);
+    const statSize = stat?.size === undefined ? null : Number(stat.size);
+    const statPath = stat?.path ?? path;
+    return {size: statSize, path: statPath};
+  } catch {
+    return null;
+  }
+};
+
+const resolveFilePath = async (
+  filePath: string,
+  candidates: string[],
+): Promise<{size: number | null; path: string}> => {
+  for (const candidate of candidates) {
+    const fsResult = await checkFsPath(candidate);
+    if (fsResult) {
+      return fsResult;
+    }
+    const blobResult = await checkBlobPath(candidate);
+    if (blobResult) {
+      return blobResult;
+    }
+  }
+  return {size: null, path: filePath};
+};
+
 export const uploadFileToPresignedUrl = async ({
   filePath,
   mimeType,
   url,
   expectedSize,
 }: UploadToPresignedUrlParams): Promise<void> => {
-  const stripFileScheme = (value: string) =>
-    value.startsWith('file://') ? value.replace('file://', '') : value;
-
   const normalizedPath = stripFileScheme(filePath);
-  const wrappedPath = filePath.startsWith('content://')
-    ? filePath
-    : normalizedPath.startsWith('/')
-      ? `file://${normalizedPath}`
-      : normalizedPath;
-
-  let size: number | null = null;
-  let resolvedPath: string | null = null;
-
-  const checkFsPath = async (path: string) => {
-    try {
-      const barePath = stripFileScheme(path);
-      const exists = await RNFS.exists(barePath);
-      if (exists) {
-        const stats = await RNFS.stat(barePath);
-        const parsed = Number(stats.size);
-        return {size: Number.isFinite(parsed) ? parsed : null, path: barePath};
-      }
-    } catch {
-      /* ignore */
-    }
-    return null;
-  };
-
-  const checkBlobPath = async (path: string) => {
-    try {
-      const exists = await RNFetchBlob.fs.exists(path);
-      if (!exists) {
-        return null;
-      }
-      const stat = await RNFetchBlob.fs.stat(path);
-      const statSize = stat && typeof stat.size !== 'undefined' ? Number(stat.size) : null;
-      const statPath = stat?.path ?? path;
-      return {size: statSize ?? null, path: statPath};
-    } catch {
-      return null;
-    }
-  };
-
+  const wrappedPath = buildWrappedPath(filePath);
   const candidates = [wrappedPath, normalizedPath];
-  for (const candidate of candidates) {
-    const fsResult = await checkFsPath(candidate);
-    if (fsResult) {
-      size = fsResult.size;
-      resolvedPath = fsResult.path;
-      break;
-    }
-    const blobResult = await checkBlobPath(candidate);
-    if (blobResult) {
-      size = blobResult.size;
-      resolvedPath = blobResult.path;
-      break;
-    }
-  }
 
-  // Fallback to the original (content://) path even if size is unknown
-  if (!resolvedPath && filePath.startsWith('content://')) {
-    resolvedPath = filePath;
-  }
+  const {size: resolvedSize, path: resolvedPath} = await resolveFilePath(filePath, candidates);
 
-  // Final fallback: try the original incoming path even if we could not stat it
-  if (!resolvedPath) {
-    resolvedPath = filePath;
-  }
-
-  if (size == null && typeof expectedSize === 'number' && expectedSize > 0) {
-    size = expectedSize;
-  }
+  let size = resolvedSize ?? expectedSize;
 
   if (size == null || !Number.isFinite(size) || size <= 0) {
     throw new Error('Local file is empty or unreadable.');
@@ -152,7 +148,7 @@ export const uploadFileToPresignedUrl = async ({
     url,
     {
       'Content-Type': mimeType,
-      ...(size != null && Number.isFinite(size) ? {'Content-Length': size.toString()} : {}),
+      ...(Number.isFinite(size) ? {'Content-Length': size.toString()} : {}),
     },
     RNFetchBlob.wrap(pathForWrap),
   );

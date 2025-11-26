@@ -15,7 +15,7 @@ export const DOC_VIEWER_TYPES = new Set([
 
 export const isImageFile = (mime?: string | null) => {
   const normalized = normalizeMimeType(mime);
-  return Boolean(normalized && normalized.startsWith('image/'));
+  return Boolean(normalized?.startsWith('image/'));
 };
 
 export const isPdfFile = (mime?: string | null) =>

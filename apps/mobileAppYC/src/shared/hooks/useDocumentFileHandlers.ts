@@ -165,7 +165,7 @@ const inferMimeType = (type?: string | null, name?: string | null) => {
 
 const isImageMimeType = (mime?: string | null) => {
   const normalized = normalizeMimeType(mime);
-  return Boolean(normalized && normalized.startsWith('image/'));
+  return Boolean(normalized?.startsWith('image/'));
 };
 
 const isDocumentMimeType = (mime?: string | null) => {
@@ -289,6 +289,24 @@ const resolveVirtualMime = (file: DocumentPickerResponse) => {
   return normalized || undefined;
 };
 
+const tryGetFileSizeFromPath = async (candidate: string): Promise<number | null> => {
+  try {
+    if (candidate.startsWith('content://')) {
+      const stat = await RNFetchBlob.fs.stat(candidate);
+      const parsed = Number(stat.size);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+    const stripFileScheme = (value: string) =>
+      value.startsWith('file://') ? value.replace('file://', '') : value;
+    const stats = await RNFS.stat(stripFileScheme(candidate));
+    const parsed = Number(stats.size);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  } catch (error) {
+    console.warn('[useDocumentFileHandlers] Unable to read file size', error);
+    return null;
+  }
+};
+
 const ensureFileSize = async (
   uri: string,
   providedSize?: number | null,
@@ -303,22 +321,9 @@ const ensureFileSize = async (
   const candidates = [uri, normalizeFileUri(uri), stripFileScheme(uri)];
 
   for (const candidate of candidates) {
-    try {
-      if (candidate.startsWith('content://')) {
-        const stat = await RNFetchBlob.fs.stat(candidate);
-        const parsed = Number(stat.size);
-        if (Number.isFinite(parsed) && parsed > 0) {
-          return parsed;
-        }
-      } else {
-        const stats = await RNFS.stat(stripFileScheme(candidate));
-        const parsed = Number(stats.size);
-        if (Number.isFinite(parsed) && parsed > 0) {
-          return parsed;
-        }
-      }
-    } catch (error) {
-      console.warn('[useDocumentFileHandlers] Unable to read file size', error);
+    const size = await tryGetFileSizeFromPath(candidate);
+    if (size !== null) {
+      return size;
     }
   }
 

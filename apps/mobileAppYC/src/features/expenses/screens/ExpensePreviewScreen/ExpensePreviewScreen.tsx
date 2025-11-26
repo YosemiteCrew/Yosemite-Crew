@@ -20,8 +20,7 @@ import {
   resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
-import DocumentAttachmentViewer, {
-} from '@/features/documents/components/DocumentAttachmentViewer';
+import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import type {DocumentFile} from '@/features/documents/types';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;

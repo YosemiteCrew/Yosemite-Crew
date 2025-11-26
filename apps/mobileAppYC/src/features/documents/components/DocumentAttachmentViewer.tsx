@@ -191,7 +191,7 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
         (normalizedType && MIME_EXTENSION_MAP[normalizedType]) ||
         (normalizedType ? normalizedType.split('/').pop() : undefined) ||
         'bin';
-      const safeName = (file.name || 'document').replace(/[\\/:]/g, '_');
+      const safeName = (file.name || 'document').replaceAll(/[\\/:]/g, '_');
       const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
         ? safeName
         : `${safeName}.${extension}`;
@@ -232,15 +232,24 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
               <Text style={styles.pdfLabel}>{file.name}</Text>
             </View>
 
-            {isImageFile(file.type) && sourceUri ? (
-              <Image source={{uri: sourceUri}} style={styles.previewImage} resizeMode="contain" />
-            ) : isPdf && sourceUri ? (
-              <PdfViewer uri={sourceUri} fallback={placeholder} />
-            ) : isDoc && sourceUri ? (
-              <DocViewer uri={sourceUri} fallback={placeholder} />
-            ) : (
-              placeholder
-            )}
+            {(() => {
+              const isImage = isImageFile(file.type) && sourceUri;
+              const isPdfWithUri = isPdf && sourceUri;
+              const isDocWithUri = isDoc && sourceUri;
+
+              if (isImage) {
+                return (
+                  <Image source={{uri: sourceUri}} style={styles.previewImage} resizeMode="contain" />
+                );
+              }
+              if (isPdfWithUri) {
+                return <PdfViewer uri={sourceUri} fallback={placeholder} />;
+              }
+              if (isDocWithUri) {
+                return <DocViewer uri={sourceUri} fallback={placeholder} />;
+              }
+              return placeholder;
+            })()}
 
             <View style={styles.actionRow}>
               <TouchableOpacity

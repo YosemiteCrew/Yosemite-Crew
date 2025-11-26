@@ -81,7 +81,7 @@ export const uploadDocumentFiles = createAsyncThunk<
       if (file.key) {
         return false;
       }
-      if (!file.uri || !file.uri.trim()) {
+      if (!file.uri?.trim()) {
         return true;
       }
       if (file.status && file.status !== 'ready') {

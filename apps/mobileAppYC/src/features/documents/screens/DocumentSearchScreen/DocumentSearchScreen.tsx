@@ -112,29 +112,37 @@ export const DocumentSearchScreen: React.FC = () => {
 
         {searchError ? <Text style={styles.errorText}>{searchError}</Text> : null}
 
-        {searchLoading ? (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator />
-          </View>
-        ) : searchResults.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No documents found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try another keyword or select a different pet to search.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.resultsContainer}>
-            {searchResults.map(doc => (
-              <DocumentListItem
-                key={doc.id}
-                document={doc}
-                onPressView={handleViewDocument}
-                onPressEdit={handleEditDocument}
-              />
-            ))}
-          </View>
-        )}
+        {(() => {
+          if (searchLoading) {
+            return (
+              <View style={styles.loaderContainer}>
+                <ActivityIndicator />
+              </View>
+            );
+          }
+          if (searchResults.length === 0) {
+            return (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyTitle}>No documents found</Text>
+                <Text style={styles.emptySubtitle}>
+                  Try another keyword or select a different pet to search.
+                </Text>
+              </View>
+            );
+          }
+          return (
+            <View style={styles.resultsContainer}>
+              {searchResults.map(doc => (
+                <DocumentListItem
+                  key={doc.id}
+                  document={doc}
+                  onPressView={handleViewDocument}
+                  onPressEdit={handleEditDocument}
+                />
+              ))}
+            </View>
+          );
+        })()}
       </ScrollView>
     </SafeArea>
   );
