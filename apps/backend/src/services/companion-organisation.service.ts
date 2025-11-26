@@ -4,7 +4,7 @@ import CompanionOrganisationModel, {
 } from "../models/companion-organisation";
 import { assertSafeString } from "src/utils/sanitize";
 import ParentCompanionModel from "src/models/parent-companion";
-import CompanionModel from "../models/companion"
+import CompanionModel from "../models/companion";
 import { ParentModel } from "src/models/parent";
 
 export class CompanionOrganisationServiceError extends Error {
@@ -342,19 +342,19 @@ export const CompanionOrganisationService = {
 
     const parentComapnionLink = await ParentCompanionModel.findOne({
       companionId: id,
-      role: "PRIMARY"
-    }).exec()
+      role: "PRIMARY",
+    }).exec();
 
-    const companion = await CompanionModel.findById(id)
-    const parent = await ParentModel.findById(parentComapnionLink?.parentId)
+    const companion = await CompanionModel.findById(id);
+    const parent = await ParentModel.findById(parentComapnionLink?.parentId);
 
     return {
-      links, 
-      parentName: parent?.firstName + " " + parent?.lastName, 
-      email: parent?.email, 
-      companionName: companion?.name, 
-      phoneNumber: parent?.phoneNumber
-    }
+      links,
+      parentName: parent?.firstName + " " + parent?.lastName,
+      email: parent?.email,
+      companionName: companion?.name,
+      phoneNumber: parent?.phoneNumber,
+    };
   },
 
   async getLinksForOrganisation(organisationId: string | Types.ObjectId) {
