@@ -8,7 +8,7 @@ import {
   deleteFromS3,
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
-import escapeStringRegex from "escape-string-regexp"
+import escapeStringRegex from "escape-string-regexp";
 import logger from "src/utils/logger";
 
 export class DocumentServiceError extends Error {
@@ -215,12 +215,12 @@ const buildPersistableDocument = (
   }
 
   const companionId = ensureObjectId(input.companionId, "companionId");
-  logger.info("Appointment ID: ", input.appointmentId)
+  logger.info("Appointment ID: ", input.appointmentId);
   const appointmentId =
     input.appointmentId != null && input.appointmentId !== ""
       ? ensureObjectId(input.appointmentId, "appointmentId")
       : null;
-      
+
   const category = String(input.category).toUpperCase();
   const subcategory = input.subcategory
     ? String(input.subcategory).toUpperCase()
@@ -577,6 +577,5 @@ export const DocumentService = {
       .exec();
 
     return docs.map(mapDocumentToDto);
-  }
-
+  },
 };

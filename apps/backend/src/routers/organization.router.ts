@@ -34,9 +34,6 @@ router.post(
   "/logo/presigned-url/:orgId",
   OrganizationController.getLogoUploadUrl,
 );
-router.get(
-  "/check",
-  OrganizationController.checkIsPMSOrganistaion,
-)
+router.get("/check", OrganizationController.checkIsPMSOrganistaion);
 
 export default router;

@@ -66,7 +66,7 @@ export interface OrganisationSearchInput {
 
 export interface OrganisationSearchResult {
   isPmsOrganisation: boolean;
-  organisation?: OrganizationResponseDTO
+  organisation?: OrganizationResponseDTO;
 }
 
 export class OrganizationServiceError extends Error {
@@ -637,23 +637,25 @@ export const OrganizationService = {
     return buildFHIRResponse(document);
   },
 
-  async resolveOrganisation(input: OrganisationSearchInput) : Promise<OrganisationSearchResult> {
-
+  async resolveOrganisation(
+    input: OrganisationSearchInput,
+  ): Promise<OrganisationSearchResult> {
     if (!input.placeId && (!input.lat || !input.lng) && !input.name) {
       throw new OrganizationServiceError("Invalid search input.", 400);
     }
 
     // Search using places Id
     if (input.placeId) {
-      const org = await OrganizationModel.findOne({ googlePlaceId: input.placeId });
+      const org = await OrganizationModel.findOne({
+        googlePlaceId: input.placeId,
+      });
       if (org) {
         return {
           isPmsOrganisation: true,
-          organisation: buildFHIRResponse(org)
+          organisation: buildFHIRResponse(org),
         };
       }
     }
-
 
     // Search using latitude and longitude
     if (input.lat && input.lng) {
@@ -662,17 +664,17 @@ export const OrganizationService = {
           $near: {
             $geometry: {
               type: "Point",
-              coordinates: [input.lng, input.lat]
+              coordinates: [input.lng, input.lat],
             },
-            $maxDistance: 120
-          }
-        }
+            $maxDistance: 120,
+          },
+        },
       });
-      
+
       if (org) {
         return {
           isPmsOrganisation: true,
-          organisation: buildFHIRResponse(org)
+          organisation: buildFHIRResponse(org),
         };
       }
     }
@@ -683,19 +685,19 @@ export const OrganizationService = {
       const nameRegex = new RegExp(safe, "i");
 
       const org = await OrganizationModel.findOne({
-        name: nameRegex
+        name: nameRegex,
       });
 
       if (org) {
         return {
           isPmsOrganisation: true,
-          organisation: buildFHIRResponse(org)
+          organisation: buildFHIRResponse(org),
         };
       }
     }
 
     return {
-      isPmsOrganisation: false
-    }
-  }
+      isPmsOrganisation: false,
+    };
+  },
 };

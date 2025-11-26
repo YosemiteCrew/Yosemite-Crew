@@ -19,6 +19,7 @@ import coParentInviteRouter from "./routers/coparentInvite.router";
 import parentCompanionRouter from "./routers/parent-companion.router";
 import companionOrganisationRouter from "./routers/companion-organisation.router";
 import docuemntRouter from "./routers/document.router";
+import serviceRouter from "./routers/service.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,7 @@ app.use(`/v1/coparent-invite`, coParentInviteRouter);
 app.use(`/v1/parent-companion`, parentCompanionRouter);
 app.use(`/v1/companion-organisation`, companionOrganisationRouter);
 app.use(`/v1/document`, docuemntRouter);
+app.use("/fhir/v1/service", serviceRouter);
 
 let mongoUri: string;
 
