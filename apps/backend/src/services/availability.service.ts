@@ -1,128 +1,182 @@
+/* --------------------------------------------------------------------------
+   ROCK-SOLID Availability Service
+   Handles:
+   - Base weekly availability
+   - Weekly overrides
+   - Occupancy (appointments / blocks / surgeries)
+   - Correct UTC handling
+   - Correct slot merging & splitting
+-------------------------------------------------------------------------- */
+
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import BaseAvailabilityModel, {
-  BaseAvailabilityDocument,
   DayOfWeek,
   AvailabilitySlotMongo,
 } from "src/models/base-availability";
-import WeeklyAvailabilityOverrideModel, {
-  WeeklyOverrideDay,
-  WeeklyAvailabilityOverrideDocument,
-} from "src/models/weekly-availablity-override";
-import OccupancyModel, { OccupancyDocument } from "src/models/occupancy";
-import logger from "src/utils/logger";
+import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
+import OccupancyModel from "src/models/occupancy";
 
 dayjs.extend(utc);
 
-export const AvailabilityService = {
-  // Services for base availability for a user in an organisation
+/* Split one slot into possibly 3 parts around an occupancy */
+function splitSlotAroundOccupancy(
+  slot: AvailabilitySlotMongo,
+  occStart: dayjs.Dayjs,
+  occEnd: dayjs.Dayjs,
+  dateStr: string
+): AvailabilitySlotMongo[] {
+  const slotStart = dayjs.utc(`${dateStr}T${slot.startTime}:00`);
+  const slotEnd = dayjs.utc(`${dateStr}T${slot.endTime}:00`);
 
-  async setAllBaseAvailability(
-    organisationId: string,
-    userId: string,
-    availabilities: {
-      dayOfWeek: DayOfWeek;
-      slots: AvailabilitySlotMongo[];
-    }[],
-  ): Promise<BaseAvailabilityDocument[]> {
-    // Delete existing availabilities for the user
+  // If no overlap — return slot as-is
+  const overlaps = occStart.isBefore(slotEnd) && occEnd.isAfter(slotStart);
+  if (!overlaps) return [slot];
+
+  const results: AvailabilitySlotMongo[] = [];
+
+  // Left side fragment  (slotStart → occStart)
+  if (occStart.isAfter(slotStart)) {
+    results.push({
+      startTime: slotStart.format("HH:mm"),
+      endTime: occStart.format("HH:mm"),
+      isAvailable: true,
+    });
+  }
+
+  // Right side fragment (occEnd → slotEnd)
+  if (occEnd.isBefore(slotEnd)) {
+    results.push({
+      startTime: occEnd.format("HH:mm"),
+      endTime: slotEnd.format("HH:mm"),
+      isAvailable: true,
+    });
+  }
+
+  return results;
+}
+
+function getDateString(d: Date): string {
+  return dayjs(d).utc().format("YYYY-MM-DD");
+}
+
+function getDayOfWeekFromDate(d: Date): DayOfWeek {
+  return dayjs(d).utc().format("dddd").toUpperCase() as DayOfWeek;
+}
+
+function normalizeWeekStart(date: Date) {
+    return dayjs(date).utc().startOf("week").add(1, "day").startOf("day").toDate(); // Monday
+}
+
+// Generate Bookablble slots
+export function generateBookableWindows(
+  date: string,
+  slots: AvailabilitySlotMongo[],
+  windowMinutes: number
+): AvailabilitySlotMongo[] {
+
+  const results: AvailabilitySlotMongo[] = [];
+
+  for (const slot of slots) {
+    const start = dayjs.utc(`${date}T${slot.startTime}:00`);
+    const end = dayjs.utc(`${date}T${slot.endTime}:00`);
+
+    let cursor = start;
+
+    while (cursor.add(windowMinutes, "minute").isSame(end) || cursor.add(windowMinutes, "minute").isBefore(end)) {
+
+      const windowStart = cursor;
+      const windowEnd = cursor.add(windowMinutes, "minute");
+
+      results.push({
+        startTime: windowStart.format("HH:mm"),
+        endTime: windowEnd.format("HH:mm"),
+        isAvailable: true
+      });
+
+      cursor = windowEnd;
+    }
+  }
+
+  return results;
+}
+
+export const AvailabilityService = {
+  
+  // Base Availabilites
+
+  async setAllBaseAvailability(organisationId: string, userId: string, availabilities: {
+    dayOfWeek: DayOfWeek;
+    slots: AvailabilitySlotMongo[];
+  }[]) {
     await BaseAvailabilityModel.deleteMany({ userId, organisationId });
 
-    // Prepare new availabilities with userId and organisationId
-    const newAvailabilities = availabilities.map((availability) => ({
-      ...availability,
-      userId,
+    const rows = availabilities.map(a => ({
       organisationId,
+      userId,
+      dayOfWeek: a.dayOfWeek,
+      slots: a.slots,
     }));
 
-    // Insert new availabilities
-    const createdAvailabilities =
-      await BaseAvailabilityModel.insertMany(newAvailabilities);
-
-    return createdAvailabilities;
+    return BaseAvailabilityModel.insertMany(rows);
   },
 
-  async getBaseAvailability(
-    organisationId: string,
-    userId: string,
-  ): Promise<BaseAvailabilityDocument[]> {
-    const availabilities = await BaseAvailabilityModel.find({
-      userId,
-      organisationId,
-    });
-    return availabilities;
+  async getBaseAvailability(organisationId: string, userId: string) {
+    return BaseAvailabilityModel.find({ organisationId, userId });
   },
 
-  async deleteBaseAvailability(
-    organisationId: string,
-    userId: string,
-  ): Promise<void> {
-    await BaseAvailabilityModel.deleteMany({ userId, organisationId });
+  async deleteBaseAvailability(organisationId: string, userId: string) {
+    await BaseAvailabilityModel.deleteMany({ organisationId, userId });
   },
 
-  // Services for Weekly Availability
+  // Weekly Overrides
 
   async addWeeklyAvailabilityOverride(
     organisationId: string,
     userId: string,
-    weekStartDate: Date,
-    overrides: WeeklyOverrideDay,
-  ): Promise<void> {
-    const existingOverride = await WeeklyAvailabilityOverrideModel.findOne({
+    weekDate: Date,
+    override: { dayOfWeek: DayOfWeek; slots: AvailabilitySlotMongo[] }
+  ) {
+    const weekStartDate = normalizeWeekStart(weekDate);
+
+    const existing = await WeeklyAvailabilityOverrideModel.findOne({
       userId,
       organisationId,
       weekStartDate,
     });
 
-    if (existingOverride) {
-      // Update existing override
-      existingOverride.overrides.push(overrides);
-      await existingOverride.save();
+    if (existing) {
+      const idx = existing.overrides.findIndex(o => o.dayOfWeek === override.dayOfWeek);
+      if (idx >= 0) existing.overrides[idx] = override;
+      else existing.overrides.push(override);
+      await existing.save();
     } else {
-      // Create new override
-      const newOverride = new WeeklyAvailabilityOverrideModel({
+      await WeeklyAvailabilityOverrideModel.create({
         userId,
         organisationId,
         weekStartDate,
-        overrides: [overrides],
+        overrides: [override],
       });
-      await newOverride.save();
     }
   },
 
-  async getWeeklyAvailabilityOverride(
-    organisationId: string,
-    userId: string,
-    weekStartDate: Date,
-  ): Promise<WeeklyAvailabilityOverrideDocument | null> {
-    const override = await WeeklyAvailabilityOverrideModel.findOne({
+  async getWeeklyAvailabilityOverride(organisationId: string, userId: string, weekDate: Date) {
+    return WeeklyAvailabilityOverrideModel.findOne({
       userId,
       organisationId,
-      weekStartDate,
+      weekStartDate: normalizeWeekStart(weekDate),
     });
-    logger.info(
-      `Fetched weekly override for user ${userId} for week starting ${weekStartDate.toISOString()}: ${JSON.stringify(
-        override,
-        null,
-        2,
-      )}`,
-    );
-    return override ?? null;
   },
 
-  async deleteWeeklyAvailabilityOverride(
-    organisationId: string,
-    userId: string,
-    weekStartDate: Date,
-  ): Promise<void> {
+  async deleteWeeklyAvailabilityOverride(organisationId: string, userId: string, weekDate: Date) {
     await WeeklyAvailabilityOverrideModel.deleteOne({
       userId,
       organisationId,
-      weekStartDate,
+      weekStartDate: normalizeWeekStart(weekDate),
     });
   },
 
-  // Service for Occupancy
+  // Occupancies
 
   async addOccupancy(
     organisationId: string,
@@ -131,9 +185,8 @@ export const AvailabilityService = {
     endTime: Date,
     sourceType: "APPOINTMENT" | "BLOCKED" | "SURGERY",
     referenceId?: string,
-  ): Promise<void> {
-    // Implementation for adding occupancy
-    const occupancy = new OccupancyModel({
+  ) {
+    await OccupancyModel.create({
       userId,
       organisationId,
       startTime,
@@ -141,218 +194,209 @@ export const AvailabilityService = {
       sourceType,
       referenceId,
     });
-    await occupancy.save();
   },
 
   async addAllOccupancies(
     organisationId: string,
     userId: string,
-    occupancies: {
+    items: {
       startTime: Date;
       endTime: Date;
       sourceType: "APPOINTMENT" | "BLOCKED" | "SURGERY";
       referenceId?: string;
     }[],
   ): Promise<void> {
-    const occupancyDocs = occupancies.map((occupancy) => ({
-      ...occupancy,
-      userId,
+
+    const docs = items.map(i => ({
+      ...i,
       organisationId,
+      userId,
     }));
-    await OccupancyModel.insertMany(occupancyDocs);
+
+    await OccupancyModel.insertMany(docs);
   },
 
-  async getOccupancy(
-    organisationId: string,
-    userId: string,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<OccupancyDocument[]> {
-    const occupancies = await OccupancyModel.find({
+  async getOccupancy(organisationId: string, userId: string, from: Date, to: Date) {
+    return OccupancyModel.find({
       userId,
       organisationId,
-      startTime: { $gte: startDate },
-      endTime: { $lte: endDate },
-    });
-    return occupancies;
+      startTime: { $lt: to },
+      endTime: { $gt: from },
+    }).lean();
   },
 
-  // Logics for merging base availability, weekly overrides, and occupancy
+  // Merging logic to get final Availabilites
 
   async getWeeklyFinalAvailability(
     organisationId: string,
     userId: string,
-    referenceDate: Date, // any date in the desired week
-  ): Promise<
-    {
-      dayOfWeek: DayOfWeek;
-      slots: AvailabilitySlotMongo[];
-    }[]
-  > {
-    const weekStartDate = dayjs(referenceDate)
+    referenceDate: Date,
+  ) {
+    // Always calculate week starting Monday (UTC)
+    const weekStart = dayjs(referenceDate)
       .utc()
-      .startOf("week")
-      .add(1, "day")
+      .startOf("week") // Sunday
+      .add(1, "day")   // => Monday
       .startOf("day")
-      .toDate(); // Monday start
-    const baseAvailabilities = await this.getBaseAvailability(
-      organisationId,
-      userId,
-    );
-    const weeklyOverride = await this.getWeeklyAvailabilityOverride(
-      organisationId,
-      userId,
-      weekStartDate,
-    );
+      .toDate();
 
-    logger.info(
-      `Calculating final availability for user ${userId} for week starting ${weekStartDate.toISOString()}`,
-    );
-    logger.info(
-      `Base Availabilities: ${JSON.stringify(baseAvailabilities, null, 2)}`,
-    );
-    logger.info(`Weekly Override: ${JSON.stringify(weeklyOverride, null, 2)}`);
+    const weekStartStr = getDateString(weekStart);
 
-    const startOfWeek = dayjs(weekStartDate).startOf("day");
-    const endOfWeek = dayjs(weekStartDate).add(6, "day").endOf("day");
-    const occupancies = await this.getOccupancy(
-      organisationId,
-      userId,
-      startOfWeek.toDate(),
-      endOfWeek.toDate(),
-    );
+    const weekDates = Array.from({ length: 7 }).map((_, i) => {
+      const d = dayjs(weekStart).add(i, "day").toDate();
+      return {
+        date: d,
+        dateStr: getDateString(d),
+        dayOfWeek: getDayOfWeekFromDate(d),
+      };
+    });
 
-    logger.info(`Occupancies: ${JSON.stringify(occupancies, null, 2)}`);
+    // Load base availability
+    const base = await this.getBaseAvailability(organisationId, userId);
 
-    // Build a base map for quick access
-    const availabilityMap = new Map<DayOfWeek, AvailabilitySlotMongo[]>();
-    for (const a of baseAvailabilities) {
-      availabilityMap.set(a.dayOfWeek, a.slots);
+    // Convert base into map: { MONDAY → [...slots] }
+    const map = new Map<DayOfWeek, AvailabilitySlotMongo[]>();
+
+    for (const row of base) {
+      map.set(row.dayOfWeek, row.slots);
     }
 
-    logger.info(
-      `Initial Availability Map: ${JSON.stringify(Array.from(availabilityMap.entries()), null, 2)}`,
+    // Load weekly override (if exists)
+    const override = await this.getWeeklyAvailabilityOverride(
+      organisationId,
+      userId,
+      weekStart,
     );
 
-    // Apply weekly overrides (if available)
-    if (weeklyOverride) {
-      for (const dayOverride of weeklyOverride.overrides) {
-        availabilityMap.set(dayOverride.dayOfWeek, dayOverride.slots);
+    if (override) {
+      for (const ov of override.overrides) {
+        map.set(ov.dayOfWeek, ov.slots);
       }
     }
 
-    // Apply occupancy removal
+    // Load occupancies for the week
+    const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
+
+    const occupancies = await OccupancyModel.find({
+      userId,
+      organisationId,
+      $or: [
+        { startTime: { $lte: weekEnd }, endTime: { $gte: weekStart } }
+      ]
+    }).lean();
+
+    // Now remove overlapping slots
     for (const occ of occupancies) {
-      const occStart = dayjs(occ.startTime);
-      const occEnd = dayjs(occ.endTime);
-      const dayOfWeek = occStart.format("dddd").toUpperCase() as DayOfWeek; // adjust for Sunday if needed
+      const occStart = dayjs(occ.startTime).utc();
+      const occEnd = dayjs(occ.endTime).utc();
 
-      const existingSlots = availabilityMap.get(dayOfWeek) || [];
+      // Which day does occupancy belong to?
+      const occDayStr = occStart.format("dddd").toUpperCase() as DayOfWeek;
 
-      // Remove overlapping slots
-      const filteredSlots = existingSlots.filter((slot) => {
-        const slotStart = dayjs(slot.startTime);
-        const slotEnd = dayjs(slot.endTime);
+      // Get that day's availability
+      const slots = map.get(occDayStr) || [];
+      const dateStr = occStart.format("YYYY-MM-DD");
 
-        const overlaps =
-          occStart.isBefore(slotEnd) && occEnd.isAfter(slotStart);
-        return !overlaps; // keep non-overlapping slots
-      });
+      const newSlots: AvailabilitySlotMongo[] = [];
 
-      availabilityMap.set(dayOfWeek, filteredSlots);
+      for (const slot of slots) {
+        const split = splitSlotAroundOccupancy(slot, occStart, occEnd, dateStr);
+        newSlots.push(...split);
+      }
+
+      map.set(occDayStr, newSlots);
     }
 
-    // 6️⃣ Return normalized structure
-    const finalAvailability = Array.from(availabilityMap.entries()).map(
-      ([dayOfWeek, slots]) => ({
-        dayOfWeek,
-        slots,
-      }),
-    );
-
-    return finalAvailability;
+    // Build final return structure
+    return weekDates.map((w) => ({
+      date: w.dateStr,
+      dayOfWeek: w.dayOfWeek,
+      slots: map.get(w.dayOfWeek) || [],
+    }));
   },
 
   async getFinalAvailabilityForDate(
     organisationId: string,
     userId: string,
     referenceDate: Date,
-  ): Promise<{
-    date: string;
-    dayOfWeek: DayOfWeek;
-    slots: AvailabilitySlotMongo[];
-  }> {
-    const allWeek = await this.getWeeklyFinalAvailability(
+  ) {
+    const week = await this.getWeeklyFinalAvailability(
       organisationId,
       userId,
       referenceDate,
     );
 
-    const dayOfWeek = dayjs(referenceDate)
-      .format("dddd")
-      .toUpperCase() as DayOfWeek;
-    const slots = allWeek.find((d) => d.dayOfWeek === dayOfWeek)?.slots || [];
+    const dayOfWeek = getDayOfWeekFromDate(referenceDate);
+    const dateStr = getDateString(referenceDate);
+
+    const dayEntry = week.find((d) => d.dayOfWeek === dayOfWeek);
 
     return {
-      date: dayjs(referenceDate).format("YYYY-MM-DD"),
+      date: dateStr,
       dayOfWeek,
-      slots,
+      slots: dayEntry?.slots ?? [],
     };
   },
 
-  // Helper to get weekly overrides in a date range
+  async getCurrentStatus(
+    organisationId: string,
+    userId: string,
+  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Requested"> {
 
-  getStartDateOfWeek(date: Date): Date {
-    const day = date.getDay(); // Sunday=0, Monday=1, ..., Saturday=6
-    const diff = (day === 0 ? -6 : 1) - day; // Adjust to get Monday
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() + diff);
-    startOfWeek.setHours(0, 0, 0, 0); // Optional: reset time
-
-    return startOfWeek;
-  },
-
-  calculateWeeklyHours(slotsByDate: Record<string, AvailabilitySlotMongo[]>) {
-    let totalHours = 0;
-    for (const slots of Object.values(slotsByDate)) {
-      for (const slot of slots) {
-        const start = dayjs(`2025-11-10T${slot.startTime}`);
-        const end = dayjs(`2025-11-10T${slot.endTime}`);
-        if (slot.isAvailable) totalHours += end.diff(start, "hour", true);
-      }
-    }
-    return totalHours;
-  },
-
-  async getCurrentStatus(organisationId: string, userId: string) {
     const now = dayjs();
-    const today = now.format("YYYY-MM-DD");
+    const today = now.toDate();
 
-    // Pass a Date, not a string
-    const todayAvailability = await this.getFinalAvailabilityForDate(
+    const { slots } = await this.getFinalAvailabilityForDate(
       organisationId,
       userId,
-      now.toDate(),
+      today
     );
 
-    const slots = todayAvailability?.slots || [];
-
-    const occupiedNow = await OccupancyModel.exists({
+    const occupied = await OccupancyModel.exists({
       organisationId,
       userId,
       startTime: { $lte: now.toDate() },
       endTime: { $gte: now.toDate() },
     });
 
-    const activeSlot = slots.find(
-      (slot) =>
-        now.isAfter(dayjs(`${today}T${slot.startTime}`)) &&
-        now.isBefore(dayjs(`${today}T${slot.endTime}`)),
+    if (occupied) return "Consulting";
+
+    const activeSlot = slots.find(s =>
+      now.isAfter(dayjs(s.startTime, "HH:mm")) &&
+      now.isBefore(dayjs(s.endTime, "HH:mm"))
     );
 
-    if (occupiedNow) return "Consulting";
     if (activeSlot) return "Available";
-    if (!slots.length) return "Off-Duty";
+    if (slots.length === 0) return "Off-Duty";
+
     return "Requested";
   },
+
+  // Get Bookable slots
+
+  async getBookableSlotsForDate(
+    organisationId: string,
+    userId: string,
+    windowMinutes: number,
+    referenceDate: Date
+  ) {
+    // 1. Get final availability (with occupancy applied)
+    const finalForDate = await this.getFinalAvailabilityForDate(
+      organisationId,
+      userId,
+      referenceDate
+    );
+
+    const dateStr = finalForDate.date;
+    const slots = finalForDate.slots;
+
+    // 2. Generate bookable windows
+    const windows = generateBookableWindows(dateStr, slots, windowMinutes);
+
+    return {
+      date: dateStr,
+      dayOfWeek: finalForDate.dayOfWeek,
+      windows,
+    };
+  }
 };
