@@ -29,49 +29,62 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   return authRequest.userId;
 };
 
-const handleControllerError = (context: string, err: unknown, res: Response) => {
+const handleControllerError = (
+  context: string,
+  err: unknown,
+  res: Response,
+) => {
   logger.error(context, err);
   const message = err instanceof Error ? err.message : "Internal server error";
   return res.status(500).json({ message });
 };
 
 export const AvailabilityController = {
-
   /* ============================
      BASE AVAILABILITY
   ===============================*/
 
   async setAllBaseAvailability(
-    req: Request<{ orgId: string }, unknown, {
-      availabilities?: { dayOfWeek: DayOfWeek; slots: AvailabilitySlotMongo[] }[];
-    }>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      {
+        availabilities?: {
+          dayOfWeek: DayOfWeek;
+          slots: AvailabilitySlotMongo[];
+        }[];
+      }
+    >,
+    res: Response,
   ) {
     try {
       const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
       const { availabilities } = req.body;
 
-      if (!orgId || !userId || !availabilities || !Array.isArray(availabilities)) {
+      if (
+        !orgId ||
+        !userId ||
+        !availabilities ||
+        !Array.isArray(availabilities)
+      ) {
         return res.status(400).json({ message: "Missing or invalid payload" });
       }
 
       const data = await AvailabilityService.setAllBaseAvailability(
         orgId,
         userId,
-        availabilities
+        availabilities,
       );
 
       return res.status(201).json({
         message: "Base availability saved",
         data,
       });
-
     } catch (err: unknown) {
       return handleControllerError("setAllBaseAvailability error", err, res);
     }
   },
-
 
   async getBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
@@ -84,12 +97,10 @@ export const AvailabilityController = {
 
       const data = await AvailabilityService.getBaseAvailability(orgId, userId);
       return res.status(200).json({ data });
-
     } catch (err: unknown) {
       return handleControllerError("getBaseAvailability error", err, res);
     }
   },
-
 
   async deleteBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
@@ -105,24 +116,25 @@ export const AvailabilityController = {
       return res.status(200).json({
         message: "Base availability deleted",
       });
-
     } catch (err: unknown) {
       return handleControllerError("deleteBaseAvailability error", err, res);
     }
   },
-
-
 
   /* ============================
      WEEKLY OVERRIDES
   ===============================*/
 
   async addWeeklyAvailabilityOverride(
-    req: Request<{ orgId: string }, unknown, {
-      weekStartDate?: string | Date;
-      overrides?: WeeklyOverrideDay;
-    }>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      {
+        weekStartDate?: string | Date;
+        overrides?: WeeklyOverrideDay;
+      }
+    >,
+    res: Response,
   ) {
     try {
       const orgId = req.params.orgId;
@@ -140,20 +152,27 @@ export const AvailabilityController = {
         orgId,
         userId,
         parsedDate,
-        overrides
+        overrides,
       );
 
       return res.status(201).json({ message: "Weekly override added" });
-
     } catch (err: unknown) {
-      return handleControllerError("addWeeklyAvailabilityOverride error", err, res);
+      return handleControllerError(
+        "addWeeklyAvailabilityOverride error",
+        err,
+        res,
+      );
     }
   },
 
-
   async getWeeklyAvailabilityOverride(
-    req: Request<{ orgId: string }, unknown, unknown, { weekStartDate?: string }>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { weekStartDate?: string }
+    >,
+    res: Response,
   ) {
     try {
       const orgId = req.params.orgId;
@@ -167,21 +186,28 @@ export const AvailabilityController = {
       const data = await AvailabilityService.getWeeklyAvailabilityOverride(
         orgId,
         userId,
-        parsed
+        parsed,
       );
 
       if (!data) return res.status(404).json({ message: "No override found" });
       return res.status(200).json({ data });
-
     } catch (err: unknown) {
-      return handleControllerError("getWeeklyAvailabilityOverride error", err, res);
+      return handleControllerError(
+        "getWeeklyAvailabilityOverride error",
+        err,
+        res,
+      );
     }
   },
 
-
   async deleteWeeklyAvailabilityOverride(
-    req: Request<{ orgId: string }, unknown, unknown, { weekStartDate?: string }>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { weekStartDate?: string }
+    >,
+    res: Response,
   ) {
     try {
       const orgId = req.params.orgId;
@@ -195,30 +221,35 @@ export const AvailabilityController = {
       await AvailabilityService.deleteWeeklyAvailabilityOverride(
         orgId,
         userId,
-        parsed
+        parsed,
       );
 
       return res.status(200).json({ message: "Override deleted" });
-
     } catch (err: unknown) {
-      return handleControllerError("deleteWeeklyAvailabilityOverride error", err, res);
+      return handleControllerError(
+        "deleteWeeklyAvailabilityOverride error",
+        err,
+        res,
+      );
     }
   },
-
-
 
   /* ============================
      OCCUPANCY BLOCKS
   ===============================*/
 
   async addOccupancy(
-    req: Request<{ orgId: string }, unknown, {
-      startTime?: string | Date;
-      endTime?: string | Date;
-      sourceType?: OccupancyMongo["sourceType"];
-      referenceId?: string;
-    }>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      {
+        startTime?: string | Date;
+        endTime?: string | Date;
+        sourceType?: OccupancyMongo["sourceType"];
+        referenceId?: string;
+      }
+    >,
+    res: Response,
   ) {
     try {
       const orgId = req.params.orgId;
@@ -238,30 +269,32 @@ export const AvailabilityController = {
         start,
         end,
         sourceType,
-        referenceId
+        referenceId,
       );
 
       return res.status(201).json({ message: "Occupancy added" });
-
     } catch (err: unknown) {
       return handleControllerError("addOccupancy error", err, res);
     }
   },
 
-
   /* Bulk insert blocking (surgery, off-day, etc.) */
   async addAllOccupancies(
-    req: Request<unknown, unknown, {
-      organisationId?: string;
-      userId?: string;
-      occupancies?: {
-        startTime: Date | string;
-        endTime: Date | string;
-        sourceType: OccupancyMongo["sourceType"];
-        referenceId?: string;
-      }[];
-    }>,
-    res: Response
+    req: Request<
+      unknown,
+      unknown,
+      {
+        organisationId?: string;
+        userId?: string;
+        occupancies?: {
+          startTime: Date | string;
+          endTime: Date | string;
+          sourceType: OccupancyMongo["sourceType"];
+          referenceId?: string;
+        }[];
+      }
+    >,
+    res: Response,
   ) {
     try {
       const { organisationId, userId, occupancies } = req.body;
@@ -291,20 +324,23 @@ export const AvailabilityController = {
       await AvailabilityService.addAllOccupancies(
         organisationId,
         userId,
-        normalized
+        normalized,
       );
 
       return res.status(201).json({ message: "Occupancies added" });
-
     } catch (err: unknown) {
       return handleControllerError("addAllOccupancies error", err, res);
     }
   },
 
-
   async getOccupancy(
-    req: Request<{ orgId: string }, unknown, unknown, { startDate?: string; endDate?: string }>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { startDate?: string; endDate?: string }
+    >,
+    res: Response,
   ) {
     try {
       const orgId = req.params.orgId;
@@ -317,23 +353,30 @@ export const AvailabilityController = {
         return res.status(400).json({ message: "Missing filters" });
       }
 
-      const data = await AvailabilityService.getOccupancy(orgId, userId, start, end);
+      const data = await AvailabilityService.getOccupancy(
+        orgId,
+        userId,
+        start,
+        end,
+      );
       return res.status(200).json({ data });
-
     } catch (err: unknown) {
       return handleControllerError("getOccupancy error", err, res);
     }
   },
-
-
 
   /* ============================
      FINAL AVAILABILITY (READY FOR BOOKING)
   ===============================*/
 
   async getFinalAvailability(
-    req: Request<{ orgId: string }, unknown, unknown, { referenceDate?: string }>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { referenceDate?: string }
+    >,
+    res: Response,
   ) {
     try {
       const orgId = req.params.orgId;
@@ -347,16 +390,14 @@ export const AvailabilityController = {
       const data = await AvailabilityService.getFinalAvailabilityForDate(
         orgId,
         userId,
-        parsed
+        parsed,
       );
 
       return res.status(200).json({ data });
-
     } catch (err: unknown) {
       return handleControllerError("getFinalAvailability error", err, res);
     }
   },
-
 
   async getCurrentStatus(req: Request<{ orgId: string }>, res: Response) {
     try {
@@ -369,7 +410,6 @@ export const AvailabilityController = {
 
       const status = await AvailabilityService.getCurrentStatus(orgId, userId);
       return res.status(200).json({ status });
-
     } catch (err: unknown) {
       return handleControllerError("getCurrentStatus error", err, res);
     }

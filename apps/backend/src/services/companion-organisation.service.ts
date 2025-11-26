@@ -103,7 +103,7 @@ export const CompanionOrganisationService = {
       linkedByPmsUserId: pmsUserId,
       organisationType,
       role: "ORGANISATION",
-      status: "ACTIVE",
+      status: "PENDING",
     });
   },
 
@@ -112,14 +112,19 @@ export const CompanionOrganisationService = {
     companionId,
     organisationType,
     email,
+    name,
   }: {
     parentId: Types.ObjectId | string;
     companionId: Types.ObjectId | string;
     organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
-    email: string;
+    email?: string | null;
+    name?: string | null;
   }): Promise<CompanionOrganisationDocument> {
-    if (!email) {
-      throw new CompanionOrganisationServiceError("Email required", 400);
+    if (!email && !name) {
+      throw new CompanionOrganisationServiceError(
+        "Email required or Name",
+        400,
+      );
     }
 
     const parent = ensureObjectId(parentId, "parentId");
@@ -131,6 +136,7 @@ export const CompanionOrganisationService = {
       companionId: companion,
       linkedByParentId: parent,
       invitedViaEmail: email,
+      organisationName: name,
       inviteToken: token,
       organisationId: null,
       organisationType,
@@ -338,7 +344,10 @@ export const CompanionOrganisationService = {
       companionId: id,
       organisationType: type,
       status: { $in: ["ACTIVE", "PENDING"] },
-    });
+    }).populate(
+      "organisationId",
+      "name imageURL phoneNo address googlePlacesId",
+    );
 
     const parentComapnionLink = await ParentCompanionModel.findOne({
       companionId: id,

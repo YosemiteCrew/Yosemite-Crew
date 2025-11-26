@@ -1,5 +1,8 @@
 import { ServiceController } from "../../src/controllers/web/service.controller";
-import { ServiceService, ServiceServiceError } from "../../src/services/service.service";
+import {
+  ServiceService,
+  ServiceServiceError,
+} from "../../src/services/service.service";
 import logger from "../../src/utils/logger";
 
 jest.mock("../../src/services/service.service", () => {
@@ -119,6 +122,8 @@ describe("ServiceController", () => {
     expect(res.json).toHaveBeenCalledWith({
       message: "Query paramter serviceName is reqired.",
     });
-    expect(mockedService.listOrganisationsProvidingService).not.toHaveBeenCalled();
+    expect(
+      mockedService.listOrganisationsProvidingService,
+    ).not.toHaveBeenCalled();
   });
 });

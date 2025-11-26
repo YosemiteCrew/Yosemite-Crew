@@ -66,7 +66,7 @@ try {
   } else if (process.env.LOCAL_DEVELOPMENT === "true") {
     mongoUri = "mongodb://localhost:27017/yosemitecrew";
   } else {
-    mongoUri = process.env.MONGO_URI || "";
+    mongoUri = process.env.MONGODB_URI || "";
   }
 
   await mongoose.connect(mongoUri);

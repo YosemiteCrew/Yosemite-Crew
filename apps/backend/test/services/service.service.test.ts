@@ -1,8 +1,15 @@
 import { Types } from "mongoose";
 import ServiceModel from "../../src/models/service";
 import OrganizationModel from "src/models/organization";
-import { ServiceService, ServiceServiceError } from "../../src/services/service.service";
-import { fromServiceRequestDTO, toServiceResponseDTO, type ServiceRequestDTO } from "@yosemite-crew/types";
+import {
+  ServiceService,
+  ServiceServiceError,
+} from "../../src/services/service.service";
+import {
+  fromServiceRequestDTO,
+  toServiceResponseDTO,
+  type ServiceRequestDTO,
+} from "@yosemite-crew/types";
 
 jest.mock("../../src/models/service", () => ({
   __esModule: true,
@@ -64,7 +71,9 @@ describe("ServiceService", () => {
 
   describe("create", () => {
     it("creates a service and maps response", async () => {
-      const dto: ServiceRequestDTO = { resourceType: "HealthcareService" } as any;
+      const dto: ServiceRequestDTO = {
+        resourceType: "HealthcareService",
+      } as any;
       mockedTypes.fromServiceRequestDTO.mockReturnValue({
         organisationId: "507f1f77bcf86cd799439011",
         name: "Consultation",
@@ -88,7 +97,9 @@ describe("ServiceService", () => {
         updatedAt: new Date("2024-01-01T00:00:00.000Z"),
       });
       mockedServiceModel.create.mockResolvedValueOnce(doc);
-      mockedTypes.toServiceResponseDTO.mockImplementation((value: any) => value);
+      mockedTypes.toServiceResponseDTO.mockImplementation(
+        (value: any) => value,
+      );
 
       const result = await ServiceService.create(dto);
 
@@ -135,9 +146,13 @@ describe("ServiceService", () => {
         durationMinutes: 40,
         teamMemberIds: ["abc"],
       });
-      mockedTypes.toServiceResponseDTO.mockImplementation((value: any) => value);
+      mockedTypes.toServiceResponseDTO.mockImplementation(
+        (value: any) => value,
+      );
 
-      const result = await ServiceService.update("507f1f77bcf86cd799439011", { resourceType: "HealthcareService" } as any);
+      const result = await ServiceService.update("507f1f77bcf86cd799439011", {
+        resourceType: "HealthcareService",
+      } as any);
 
       expect(existing.name).toBe("New Name");
       expect(existing.durationMinutes).toBe(40);
@@ -152,7 +167,9 @@ describe("ServiceService", () => {
       mockedTypes.fromServiceRequestDTO.mockReturnValue({});
 
       await expect(
-        ServiceService.update("507f1f77bcf86cd799439011", { resourceType: "HealthcareService" } as any),
+        ServiceService.update("507f1f77bcf86cd799439011", {
+          resourceType: "HealthcareService",
+        } as any),
       ).rejects.toBeInstanceOf(ServiceServiceError);
     });
   });
@@ -172,9 +189,14 @@ describe("ServiceService", () => {
       mockedServiceModel.find.mockReturnValue({
         limit: jest.fn().mockResolvedValue(docs),
       });
-      mockedTypes.toServiceResponseDTO.mockImplementation((value: any) => value);
+      mockedTypes.toServiceResponseDTO.mockImplementation(
+        (value: any) => value,
+      );
 
-      const results = await ServiceService.search("cardio", "507f1f77bcf86cd799439011");
+      const results = await ServiceService.search(
+        "cardio",
+        "507f1f77bcf86cd799439011",
+      );
 
       expect(mockedServiceModel.find).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -189,10 +211,12 @@ describe("ServiceService", () => {
   describe("listOrganisationsProvidingService", () => {
     it("returns organisations mapped from services", async () => {
       mockedServiceModel.find.mockReturnValue({
-        lean: jest.fn().mockResolvedValue([
-          { organisationId: new Types.ObjectId("507f1f77bcf86cd799439011") },
-          { organisationId: new Types.ObjectId("507f1f77bcf86cd799439012") },
-        ]),
+        lean: jest
+          .fn()
+          .mockResolvedValue([
+            { organisationId: new Types.ObjectId("507f1f77bcf86cd799439011") },
+            { organisationId: new Types.ObjectId("507f1f77bcf86cd799439012") },
+          ]),
       });
 
       mockedOrgModel.find.mockReturnValue({
@@ -203,17 +227,34 @@ describe("ServiceService", () => {
         ]),
       });
 
-      const results = await ServiceService.listOrganisationsProvidingService("Cardio");
+      const results =
+        await ServiceService.listOrganisationsProvidingService("Cardio");
 
       expect(mockedServiceModel.find).toHaveBeenCalled();
       expect(mockedOrgModel.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          _id: { $in: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"] },
+          _id: {
+            $in: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"],
+          },
         }),
       );
       expect(results).toEqual([
-        { id: "507f1f77bcf86cd799439011", name: "Org 1", imageURL: undefined, phoneNo: undefined, type: undefined, address: undefined },
-        { id: "507f1f77bcf86cd799439012", name: "Org 2", imageURL: undefined, phoneNo: undefined, type: undefined, address: undefined },
+        {
+          id: "507f1f77bcf86cd799439011",
+          name: "Org 1",
+          imageURL: undefined,
+          phoneNo: undefined,
+          type: undefined,
+          address: undefined,
+        },
+        {
+          id: "507f1f77bcf86cd799439012",
+          name: "Org 2",
+          imageURL: undefined,
+          phoneNo: undefined,
+          type: undefined,
+          address: undefined,
+        },
       ]);
     });
   });
