@@ -51,6 +51,18 @@ const mimeTypeToExtension = (mimeType: string): string => {
       return ".png";
     case "application/pdf":
       return ".pdf";
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      return ".docx";
+    case "application/msword":
+      return ".doc";
+    case "application/vnd.ms-excel":
+      return ".xls";
+    case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+      return ".xlsx"
+    case "application/vnd.ms-powerpoint":
+      return ".ppt";
+    case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+      return ".pptx"
     default:
       return "";
   }
@@ -160,7 +172,7 @@ async function generatePresignedUrl(
     Bucket: bucket,
     Key: key,
     ContentType: mimeType,
-    Expires: 60, // 1 minute validity
+    Expires: 900, // 1 minute validity
   };
 
   try {

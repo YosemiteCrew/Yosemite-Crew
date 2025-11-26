@@ -5,6 +5,7 @@ import { OrganisationInviteController } from "../controllers/web/organisation-in
 import { authorizeCognito } from "src/middlewares/auth";
 const router = Router();
 
+router.get("/check", OrganizationController.checkIsPMSOrganistaion);
 router.post("/", authorizeCognito, OrganizationController.onboardBusiness);
 router.get("/:id", authorizeCognito, OrganizationController.getBusinessById);
 router.get("/", authorizeCognito, OrganizationController.getAllBusinesses);
@@ -34,6 +35,5 @@ router.post(
   "/logo/presigned-url/:orgId",
   OrganizationController.getLogoUploadUrl,
 );
-router.get("/check", OrganizationController.checkIsPMSOrganistaion);
 
 export default router;

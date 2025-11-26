@@ -9,7 +9,6 @@ import {
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
 import escapeStringRegex from "escape-string-regexp";
-import logger from "src/utils/logger";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -215,7 +214,6 @@ const buildPersistableDocument = (
   }
 
   const companionId = ensureObjectId(input.companionId, "companionId");
-  logger.info("Appointment ID: ", input.appointmentId);
   const appointmentId =
     input.appointmentId != null && input.appointmentId !== ""
       ? ensureObjectId(input.appointmentId, "appointmentId")

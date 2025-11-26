@@ -45,13 +45,19 @@ describe("AvailabilityController", () => {
   });
 
   it("rejects base availability without user", async () => {
-    const req = { params: { orgId: "org-1" }, body: { availabilities: [] }, headers: {} } as any;
+    const req = {
+      params: { orgId: "org-1" },
+      body: { availabilities: [] },
+      headers: {},
+    } as any;
     const res = mockResponse();
 
     await AvailabilityController.setAllBaseAvailability(req, res as any);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: "Missing or invalid payload" });
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Missing or invalid payload",
+    });
     expect(mockedService.setAllBaseAvailability).not.toHaveBeenCalled();
   });
 
@@ -72,7 +78,10 @@ describe("AvailabilityController", () => {
       req.body.availabilities,
     );
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({ message: "Base availability saved", data: [{ id: 1 }] });
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Base availability saved",
+      data: [{ id: 1 }],
+    });
   });
 
   it("normalizes occupancy payloads before saving all", async () => {
@@ -110,7 +119,11 @@ describe("AvailabilityController", () => {
   });
 
   it("returns 400 when reference date missing", async () => {
-    const req = { params: { orgId: "org-1" }, query: {}, headers: { "x-user-id": "user-1" } } as any;
+    const req = {
+      params: { orgId: "org-1" },
+      query: {},
+      headers: { "x-user-id": "user-1" },
+    } as any;
     const res = mockResponse();
 
     await AvailabilityController.getFinalAvailability(req, res as any);
@@ -120,14 +133,20 @@ describe("AvailabilityController", () => {
   });
 
   it("logs and maps unexpected errors in current status", async () => {
-    const req = { params: { orgId: "org-1" }, headers: { "x-user-id": "user-1" } } as any;
+    const req = {
+      params: { orgId: "org-1" },
+      headers: { "x-user-id": "user-1" },
+    } as any;
     const res = mockResponse();
     const error = new Error("boom");
     mockedService.getCurrentStatus.mockRejectedValueOnce(error);
 
     await AvailabilityController.getCurrentStatus(req, res as any);
 
-    expect(mockedLogger.error).toHaveBeenCalledWith("getCurrentStatus error", error);
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      "getCurrentStatus error",
+      error,
+    );
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: "boom" });
   });

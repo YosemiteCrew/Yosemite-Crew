@@ -10,6 +10,18 @@ const AddressSchema = new Schema(
     postalCode: { type: String },
     latitude: { type: Number },
     longitude: { type: Number },
+
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [lng, lat]
+        default: undefined,
+      },
+    },
   },
   { _id: false },
 );
@@ -74,7 +86,7 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
 );
 
 OrganizationSchema.index({ googlePlacesId: 1, name: 1 });
-
+OrganizationSchema.index({ "address.location": "2dsphere" });
 export type OrganizationDocument = HydratedDocument<OrganizationMongo>;
 
 const OrganizationModel = model<OrganizationMongo>(
