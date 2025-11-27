@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { randomUUID } from "node:crypto";
 import CompanionOrganisationModel, {
   CompanionOrganisationDocument,
 } from "../models/companion-organisation";
@@ -113,12 +114,14 @@ export const CompanionOrganisationService = {
     organisationType,
     email,
     name,
+    placesId,
   }: {
     parentId: Types.ObjectId | string;
     companionId: Types.ObjectId | string;
     organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
     email?: string | null;
     name?: string | null;
+    placesId?: string | null;
   }): Promise<CompanionOrganisationDocument> {
     if (!email && !name) {
       throw new CompanionOrganisationServiceError(
@@ -130,18 +133,19 @@ export const CompanionOrganisationService = {
     const parent = ensureObjectId(parentId, "parentId");
     const companion = ensureObjectId(companionId, "companionId");
 
-    const token = crypto.randomUUID();
+    const token = randomUUID();
 
     return CompanionOrganisationModel.create({
       companionId: companion,
       linkedByParentId: parent,
       invitedViaEmail: email,
       organisationName: name,
+      organisationPlacesId: placesId,
       inviteToken: token,
       organisationId: null,
       organisationType,
       role: "ORGANISATION",
-      status: "PENDING",
+      status: "INVITED",
     });
   },
 
