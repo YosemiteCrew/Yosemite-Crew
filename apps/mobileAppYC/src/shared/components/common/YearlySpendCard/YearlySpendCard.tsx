@@ -114,7 +114,7 @@ const createStyles = (theme: any) => {
       borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.border,
     },
     icon: {
       width: 24,

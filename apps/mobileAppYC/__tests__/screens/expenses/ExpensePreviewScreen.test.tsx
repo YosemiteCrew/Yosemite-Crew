@@ -116,11 +116,11 @@ jest.mock('@/shared/components/common/Header/Header', () => {
     Header: (props: any) => <View testID="Header" {...props} />,
   };
 });
-jest.mock('@/shared/components/common/AttachmentPreview/AttachmentPreview', () => {
+jest.mock('@/features/documents/components/DocumentAttachmentViewer', () => {
   const {View} = require('react-native');
   return {
     __esModule: true,
-    default: (props: any) => <View testID="AttachmentPreview" {...props} />,
+    default: (props: any) => <View testID="DocumentAttachmentViewer" {...props} />,
   };
 });
 
@@ -283,7 +283,7 @@ describe('ExpensePreviewScreen', () => {
     expect(getByText('$125.50')).toBeTruthy();
     expect(getByText('Buddy')).toBeTruthy();
 
-    const attachmentPreview = getByTestId('AttachmentPreview');
+    const attachmentPreview = getByTestId('DocumentAttachmentViewer');
     expect(attachmentPreview).toBeTruthy();
     expect(attachmentPreview.props.attachments).toEqual(
       mockExternalExpense.attachments,

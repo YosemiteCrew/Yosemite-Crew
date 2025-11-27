@@ -1,4 +1,4 @@
-import React, {useMemo, useCallback} from 'react';
+import React, {useMemo, useCallback, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {useDispatch} from 'react-redux';
+import type {AppDispatch} from '@/app/store';
+import {fetchGooglePlacesImage} from '../thunks';
 import type {LinkedBusiness} from '../types';
 
 interface LinkedBusinessCardProps {
@@ -21,6 +24,12 @@ interface LinkedBusinessCardProps {
   showBorder?: boolean;
 }
 
+const getImageSource = (googlePhoto: string | null, businessPhoto: string | null) => {
+  if (googlePhoto) return {uri: googlePhoto};
+  if (businessPhoto) return {uri: businessPhoto};
+  return Images.sampleHospital1;
+};
+
 export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
   business,
   _onDelete,
@@ -31,6 +40,24 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const dispatch = useDispatch<AppDispatch>();
+  const [googlePlacesPhoto, setGooglePlacesPhoto] = useState<string | null>(null);
+
+  // Fetch Google Places image for all linked businesses
+  useEffect(() => {
+    if (business.placeId && !googlePlacesPhoto) {
+      dispatch(fetchGooglePlacesImage(business.placeId))
+        .unwrap()
+        .then(result => {
+          if (result.photoUrl) {
+            setGooglePlacesPhoto(result.photoUrl);
+          }
+        })
+        .catch(error => {
+          console.warn('[LinkedBusinessCard] Failed to fetch Google Places image:', error);
+        });
+    }
+  }, [business.placeId, dispatch, googlePlacesPhoto]);
 
   const handleDeletePress = useCallback(() => {
     console.log('[LinkedBusinessCard] Delete button pressed for:', business.id, business.businessName);
@@ -71,14 +98,14 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
         disabled={!onPress}>
         <View style={styles.content}>
           <Image
-            source={business.photo || Images.sampleHospital1}
+            source={getImageSource(googlePlacesPhoto, business.photo)}
             style={styles.image}
           />
           <View style={styles.info}>
-            <Text style={styles.name} numberOfLines={1}>
+            <Text style={styles.name} numberOfLines={2}>
               {business.businessName}
             </Text>
-            <Text style={styles.address} numberOfLines={2}>
+            <Text style={styles.address} numberOfLines={3}>
               {business.address || 'Address not available'}
             </Text>
             <View style={styles.footer}>
