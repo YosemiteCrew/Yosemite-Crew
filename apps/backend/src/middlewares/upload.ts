@@ -58,11 +58,11 @@ const mimeTypeToExtension = (mimeType: string): string => {
     case "application/vnd.ms-excel":
       return ".xls";
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-      return ".xlsx"
+      return ".xlsx";
     case "application/vnd.ms-powerpoint":
       return ".ppt";
     case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-      return ".pptx"
+      return ".pptx";
     default:
       return "";
   }
