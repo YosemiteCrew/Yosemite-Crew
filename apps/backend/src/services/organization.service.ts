@@ -313,17 +313,6 @@ const coerceOrganizationType = (value: unknown): Organisation["type"] => {
   return "HOSPITAL";
 };
 
-const hasAddressValues = (address: OrganizationMongo["address"]): boolean =>
-  Boolean(
-    address?.addressLine ||
-      address?.city ||
-      address?.state ||
-      address?.postalCode ||
-      address?.country ||
-      address?.latitude !== undefined ||
-      address?.longitude !== undefined,
-  );
-
 const sanitizeAddress = (
   address: OrganizationDTOAttributes["address"],
 ): OrganizationMongo["address"] | undefined => {
