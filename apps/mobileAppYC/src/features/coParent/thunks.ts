@@ -323,13 +323,18 @@ export const fetchParentAccess = createAsyncThunk<
       permissions: normalizePermissions(link?.permissions),
     }));
 
-    // If no companionId provided in links, try to resolve per companion
+    // If no companionId provided in links, resolve per companion in parallel
     if (companionIds && companionIds.length > 0) {
-      for (const cid of companionIds) {
-        const linksForCompanion = await coParentApi.listByCompanion({
-          companionId: cid,
-          accessToken,
-        });
+      const companionLinksPromises = companionIds.map(cid =>
+        coParentApi
+          .listByCompanion({companionId: cid, accessToken})
+          .then(linksForCompanion => ({cid, linksForCompanion}))
+          .catch(() => ({cid, linksForCompanion: []})),
+      );
+
+      const companionLinksResults = await Promise.all(companionLinksPromises);
+
+      for (const {cid, linksForCompanion} of companionLinksResults) {
         const match = (linksForCompanion ?? []).find(
           (l: any) => (l?.parentId ?? l?.parent?.id) === parentId,
         );

@@ -8,9 +8,11 @@ import documentReducer, {
   deleteDocument,
 } from '@/features/documents/documentSlice';
 
-import type { Document, DocumentFile } from '@/features/documents/types';
-import { generateId } from '@/shared/utils/helpers';
-import { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
+import type {Document, DocumentFile} from '@/features/documents/types';
+import {documentApi} from '@/features/documents/services/documentService';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {generateId} from '@/shared/utils/helpers';
+import {ThunkDispatch, UnknownAction} from '@reduxjs/toolkit';
 
 
 // Mock the generateId helper
@@ -18,23 +20,48 @@ jest.mock('@/shared/utils/helpers', () => ({
   generateId: jest.fn(),
 }));
 
+jest.mock('@/features/auth/sessionManager', () => ({
+  getFreshStoredTokens: jest.fn(),
+  isTokenExpired: jest.fn(),
+}));
+
+jest.mock('@/features/documents/services/documentService', () => ({
+  documentApi: {
+    list: jest.fn(),
+    uploadAttachment: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+    fetchView: jest.fn(),
+  },
+}));
+
 // Use fake timers
 jest.useFakeTimers();
 
 const mockedGenerateId = generateId as jest.Mock;
+const mockedDocumentApi = documentApi as jest.Mocked<typeof documentApi>;
+const mockGetFreshStoredTokens =
+  getFreshStoredTokens as jest.MockedFunction<typeof getFreshStoredTokens>;
+const mockIsTokenExpired =
+  isTokenExpired as jest.MockedFunction<typeof isTokenExpired>;
 const mockDate = new Date('2025-01-01T00:00:00.000Z');
 const mockISODate = mockDate.toISOString();
 
 // Store spy references to restore them specifically
 let dateSpy: jest.SpyInstance | null = null;
-let setTimeoutSpy: jest.SpyInstance | null = null;
 
 describe('documentSlice', () => {
   const initialState = {
     documents: [],
     loading: false,
+    fetching: false,
     error: null,
     uploadProgress: 0,
+    viewLoading: {},
+    searchResults: [],
+    searchLoading: false,
+    searchError: null,
   };
 
   const mockDocumentFile: DocumentFile = {
@@ -69,18 +96,27 @@ describe('documentSlice', () => {
 
   // Set up mocks before each test
   beforeEach(() => {
+    jest.clearAllMocks();
     mockedGenerateId.mockImplementation(() => 'mock-id');
     dateSpy = jest
       .spyOn(globalThis, 'Date')
       .mockImplementation(() => mockDate as any);
+    mockGetFreshStoredTokens.mockResolvedValue({
+      accessToken: 'test-token',
+      expiresAt: mockDate.getTime() + 60 * 1000,
+    });
+    mockIsTokenExpired.mockReturnValue(false);
+    Object.values(mockedDocumentApi).forEach(mockFn => {
+      if (typeof mockFn === 'function' && 'mockReset' in mockFn) {
+        (mockFn as jest.Mock).mockReset();
+      }
+    });
   });
 
   // Clean up mocks after each test
   afterEach(() => {
     dateSpy?.mockRestore();
-    setTimeoutSpy?.mockRestore();
     dateSpy = null;
-    setTimeoutSpy = null;
     jest.clearAllTimers();
     mockedGenerateId.mockClear();
   });
@@ -161,11 +197,12 @@ describe('documentSlice', () => {
   // --- Extra Reducers tests (no changes) ---
   describe('extraReducers - uploadDocumentFiles', () => {
     const files: DocumentFile[] = [mockDocumentFile];
+    const payload = {files, companionId: 'companion_1'};
 
     it('should set loading to true and clear error on pending', () => {
       const state = documentReducer(
         { ...initialState, error: 'previous error' },
-        uploadDocumentFiles.pending('requestId', files),
+        uploadDocumentFiles.pending('requestId', payload),
       );
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
@@ -181,7 +218,7 @@ describe('documentSlice', () => {
       ];
       const state = documentReducer(
         { ...initialState, loading: true },
-        uploadDocumentFiles.fulfilled(uploadedFiles, 'requestId', files),
+        uploadDocumentFiles.fulfilled(uploadedFiles, 'requestId', payload),
       );
       expect(state.loading).toBe(false);
     });
@@ -193,7 +230,7 @@ describe('documentSlice', () => {
         uploadDocumentFiles.rejected(
           new Error(errorMessage),
           'requestId',
-          files,
+          payload,
           errorMessage,
         ),
       );
@@ -223,7 +260,7 @@ describe('documentSlice', () => {
       businessName: 'Veterinary Clinic',
       issueDate: '2024-01-15',
       files: [mockDocumentFile],
-      isSynced: false,
+      appointmentId: '',
     };
 
     it('should set loading to true and clear error on pending', () => {
@@ -283,15 +320,22 @@ describe('documentSlice', () => {
   });
 
   describe('extraReducers - updateDocument', () => {
-    const updatePayload = {
+    const baseUpdateArgs = {
       documentId: 'doc_1',
-      updates: { title: 'Updated Title' },
+      companionId: 'companion_1',
+      category: 'medical',
+      subcategory: 'vaccination',
+      visitType: 'routine',
+      title: 'Updated Title',
+      businessName: 'Veterinary Clinic',
+      issueDate: '2024-01-15',
+      files: [mockDocumentFile],
     };
 
     it('should set loading to true and clear error on pending', () => {
       const state = documentReducer(
         { ...initialState, error: 'previous error' },
-        updateDocument.pending('requestId', updatePayload),
+        updateDocument.pending('requestId', baseUpdateArgs),
       );
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
@@ -303,39 +347,43 @@ describe('documentSlice', () => {
         documents: [mockDocument, mockDocument2],
         loading: true,
       };
-      const fulfilledPayload = {
-        documentId: 'doc_1',
-        updates: {
-          ...updatePayload.updates,
-          updatedAt: '2024-01-20T10:00:00.000Z',
-        },
+      const fulfilledPayload: Document = {
+        ...mockDocument,
+        title: 'Updated Title',
+        updatedAt: '2024-01-20T10:00:00.000Z',
       };
       const state = documentReducer(
         stateWithDocuments,
-        updateDocument.fulfilled(fulfilledPayload, 'requestId', updatePayload),
+        updateDocument.fulfilled(fulfilledPayload, 'requestId', baseUpdateArgs),
       );
       expect(state.loading).toBe(false);
-      expect(state.documents[0].title).toBe('Updated Title');
-      expect(state.documents[0].updatedAt).toBe('2024-01-20T10:00:00.000Z');
-      expect(state.documents[1]).toEqual(mockDocument2);
+      expect(state.documents[0]).toEqual({
+        ...mockDocument,
+        title: 'Updated Title',
+        updatedAt: '2024-01-20T10:00:00.000Z',
+      });
     });
 
-    it('should not update if document not found', () => {
+    it('should append document when not found', () => {
       const stateWithDocuments = {
         ...initialState,
         documents: [mockDocument2],
         loading: true,
       };
-      const payload = {
-        documentId: 'non_existent_id',
-        updates: { title: 'Should Not Update' },
+      const payload: Document = {
+        ...mockDocument,
+        id: 'new_doc',
+        title: 'Should Not Update',
       };
       const state = documentReducer(
         stateWithDocuments,
-        updateDocument.fulfilled(payload, 'requestId', payload),
+        updateDocument.fulfilled(payload, 'requestId', {
+          ...baseUpdateArgs,
+          documentId: 'new_doc',
+        }),
       );
       expect(state.loading).toBe(false);
-      expect(state.documents).toEqual([mockDocument2]);
+      expect(state.documents).toEqual([mockDocument2, payload]);
     });
 
     it('should partially update document fields', () => {
@@ -344,17 +392,17 @@ describe('documentSlice', () => {
         documents: [mockDocument],
         loading: true,
       };
-      const payload = {
-        documentId: 'doc_1',
-        updates: { title: 'Only Title Updated' },
-      };
-      const fulfilledPayload = {
-        documentId: 'doc_1',
-        updates: { ...payload.updates, updatedAt: mockISODate }, // Assuming mockISODate is added on update
+      const payload: Document = {
+        ...mockDocument,
+        title: 'Only Title Updated',
+        updatedAt: mockISODate,
       };
       const state = documentReducer(
         stateWithDocuments,
-        updateDocument.fulfilled(fulfilledPayload, 'requestId', payload),
+        updateDocument.fulfilled(payload, 'requestId', {
+          ...baseUpdateArgs,
+          title: 'Only Title Updated',
+        }),
       );
       expect(state.documents[0].title).toBe('Only Title Updated');
       expect(state.documents[0].businessName).toBe('Veterinary Clinic'); // Unchanged
@@ -367,7 +415,7 @@ describe('documentSlice', () => {
         updateDocument.rejected(
           new Error(errorMessage),
           'requestId',
-          updatePayload,
+          baseUpdateArgs,
           errorMessage,
         ),
       );
@@ -389,11 +437,12 @@ describe('documentSlice', () => {
 
   describe('extraReducers - deleteDocument', () => {
     const documentId = 'doc_1';
+    const deleteArgs = {documentId};
 
     it('should set loading to true and clear error on pending', () => {
       const state = documentReducer(
         { ...initialState, error: 'previous error' },
-        deleteDocument.pending('requestId', documentId),
+        deleteDocument.pending('requestId', deleteArgs),
       );
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
@@ -407,7 +456,7 @@ describe('documentSlice', () => {
       };
       const state = documentReducer(
         stateWithDocuments,
-        deleteDocument.fulfilled('doc_1', 'requestId', documentId),
+        deleteDocument.fulfilled('doc_1', 'requestId', deleteArgs),
       );
       expect(state.loading).toBe(false);
       expect(state.documents).toEqual([mockDocument2]);
@@ -421,7 +470,7 @@ describe('documentSlice', () => {
       };
       const state = documentReducer(
         stateWithDocuments,
-        deleteDocument.fulfilled('doc_1', 'requestId', documentId),
+        deleteDocument.fulfilled('doc_1', 'requestId', deleteArgs),
       );
       expect(state.loading).toBe(false);
       expect(state.documents).toEqual([]);
@@ -438,7 +487,7 @@ describe('documentSlice', () => {
         deleteDocument.fulfilled(
           'non_existent_id',
           'requestId',
-          'non_existent_id',
+          { documentId: 'non_existent_id' },
         ),
       );
       expect(state.loading).toBe(false);
@@ -471,7 +520,7 @@ describe('documentSlice', () => {
         deleteDocument.rejected(
           new Error(errorMessage),
           'requestId',
-          documentId,
+          deleteArgs,
           errorMessage,
         ),
       );
@@ -492,121 +541,75 @@ describe('documentSlice', () => {
   });
 
   // ----------------------------------------------------------------
-  // --- ASYNC THUNK LOGIC TESTS (Final Updates) ---
+  // --- ASYNC THUNK LOGIC TESTS ---
   // ----------------------------------------------------------------
   describe('async thunks', () => {
     type MockDispatch = ThunkDispatch<unknown, unknown, UnknownAction>;
     const mockDispatch = jest.fn() as jest.MockedFunction<MockDispatch>;
-    const mockGetState = jest.fn(() => ({})); // Basic mock getState
+    const mockGetState = jest.fn(() => ({}));
 
     beforeEach(() => {
-      mockDispatch.mockClear();
-      mockGetState.mockClear();
-      // Mocks like Date, generateId are set up in top-level beforeEach
+      mockDispatch.mockReset();
+      mockDispatch.mockImplementation(action => action);
+      mockGetState.mockReset();
     });
 
     describe('uploadDocumentFiles', () => {
-      const progressResetReducer = (
-        lastIndex: number,
-        callArgs: unknown[],
-        currentIndex: number,
-      ): number => {
-        const action = callArgs[0]; // Argument dispatched
-        // Type Guard: Check if it's a plain object with a 'type' property
-        if (action && typeof action === 'object' && 'type' in action) {
-          return action.type === setUploadProgress.type &&
-            (action as any).payload === 0
-            ? currentIndex
-            : lastIndex;
-        }
-        return lastIndex; // Ignore if it's not a recognizable action object
+      const uploadArgs = {
+        files: [mockDocumentFile],
+        companionId: 'companion_1',
       };
 
-      const testUploadSuccess = async () => {
-        const mockFileWithSpace = {
+      it('should successfully upload files and dispatch progress', async () => {
+        const uploadedFile = {
           ...mockDocumentFile,
-          name: 'test file with spaces.pdf',
+          key: 'file-key',
+          s3Url: 'https://mock-s3/doc.pdf',
         };
-        const thunk = uploadDocumentFiles([mockFileWithSpace]);
+        mockedDocumentApi.uploadAttachment.mockResolvedValue(uploadedFile);
 
-        const promise = thunk(mockDispatch, mockGetState, undefined);
-        await jest.runAllTimersAsync();
-        const result = await promise;
+        const result = await uploadDocumentFiles(uploadArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(uploadDocumentFiles.fulfilled.type);
-        expect(result.payload).toEqual([
-          {
-            ...mockFileWithSpace,
-            s3Url:
-              'https://mock-s3-bucket.s3.amazonaws.com/documents/test_file_with_spaces.pdf',
-          },
-        ]);
-
+        expect(result.payload).toEqual([uploadedFile]);
         expect(mockDispatch).toHaveBeenCalledWith(setUploadProgress(0));
-        expect(mockDispatch).toHaveBeenCalledWith(setUploadProgress(100)); // Check final progress
+      });
 
-        const calls = mockDispatch.mock.calls;
-        const resetCallIndex = calls.slice(0, -1).reduce(progressResetReducer, -1);
-        expect(resetCallIndex).not.toBe(-1); // Ensure reset progress(0) was dispatched at some point
+      it('should handle upload failure and reject with error message', async () => {
+        mockedDocumentApi.uploadAttachment.mockRejectedValue(
+          new Error('S3 upload failed'),
+        );
 
-        const lastCallArgs = calls.at(-1);
-        expect(lastCallArgs).toBeDefined(); // Ensure there was a last call
-        if (lastCallArgs) {
-          // Type guard for TypeScript
-          // Ensure the last action is indeed setUploadProgress(100)
-        }
-      };
-      it(
-        'should successfully upload files and dispatch progress',
-        testUploadSuccess,
-      );
-
-      const uploadError = new Error('S3 upload failed');
-      const throwUploadError = () => {
-        throw uploadError;
-      };
-      const testUploadFailure = async () => {
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUploadError);
-
-        const thunk = uploadDocumentFiles([mockDocumentFile]);
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        const result = await uploadDocumentFiles(uploadArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(uploadDocumentFiles.rejected.type);
         expect(result.payload).toBe('S3 upload failed');
-      };
-      it(
-        'should handle upload failure and reject with error message',
-        testUploadFailure,
-      );
+      });
 
-      const uploadErrorString = 'S3 upload failed without message';
-      const throwUploadErrorString = () => {
-        throw uploadErrorString;
-      };
-      const testUploadFailureNoMessage = async () => {
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUploadErrorString);
+      it('should handle upload failure and reject with fallback message', async () => {
+        mockedDocumentApi.uploadAttachment.mockRejectedValue('boom');
 
-        const thunk = uploadDocumentFiles([mockDocumentFile]);
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        const result = await uploadDocumentFiles(uploadArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(uploadDocumentFiles.rejected.type);
-        expect(result.payload).toBe('Failed to upload files'); // <-- Test the fallback
-      };
-      it(
-        'should handle upload failure and reject with fallback message',
-        testUploadFailureNoMessage,
-      );
+        expect(result.payload).toBe('Failed to upload files');
+      });
     });
 
     describe('addDocument', () => {
-      const newDocData: Omit<
-        Document,
-        'id' | 'createdAt' | 'updatedAt' | 'isUserAdded'
-      > = {
+      const addArgs = {
         companionId: 'companion_1',
         category: 'medical',
         subcategory: 'vaccination',
@@ -615,181 +618,148 @@ describe('documentSlice', () => {
         businessName: 'Vet Clinic',
         issueDate: '2024-01-20',
         files: [mockDocumentFile],
-        isSynced: false,
+        appointmentId: '',
       };
 
-      const testAddSuccess = async () => {
-        expect(generateId()).toBe('mock-id'); // Pre-check mock
-        expect(new Date().toISOString()).toBe(mockISODate); // Pre-check mock
-        await jest.runAllTimersAsync(); // Advance timers for the mock async operation
-      };
-      it(
-        'should successfully add a document with correct metadata',
-        testAddSuccess,
-      );
+      it('should successfully add a document', async () => {
+        mockedDocumentApi.create.mockResolvedValue(mockDocument);
 
-      const addError = new Error('Database failed');
-      const throwAddError = () => {
-        throw addError;
-      };
-      const testAddDocumentFailure = async () => {
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwAddError);
+        const result = await addDocument(addArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
-        const thunk = addDocument(newDocData); // newDocData is from the outer scope
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        expect(result.type).toBe(addDocument.fulfilled.type);
+        expect(result.payload).toEqual(mockDocument);
+        expect(mockedDocumentApi.create).toHaveBeenCalledWith({
+          ...addArgs,
+          accessToken: 'test-token',
+        });
+      });
+
+      it('should handle add document failure with error message', async () => {
+        mockedDocumentApi.create.mockRejectedValue(new Error('Database failed'));
+
+        const result = await addDocument(addArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(addDocument.rejected.type);
         expect(result.payload).toBe('Database failed');
-      };
-      it(
-        'should handle add document failure with error message',
-        testAddDocumentFailure,
-      );
+      });
 
-      const throwAddNullError = () => {
-        throw null;
-      };
-      const testAddDocumentFailureNoMessage = async () => {
-        // --- FIX: This is the typo ---
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout') // Was globalTOS
-          .mockImplementationOnce(throwAddNullError);
+      it('should handle add document failure with fallback message', async () => {
+        mockedDocumentApi.create.mockRejectedValue(null);
 
-        const thunk = addDocument(newDocData);
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        const result = await addDocument(addArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(addDocument.rejected.type);
-      };
-      it(
-        'should handle add document failure with fallback message',
-        testAddDocumentFailureNoMessage,
-      );
+        expect(result.payload).toBe('Failed to add document');
+      });
     });
 
     describe('updateDocument', () => {
-      const updatePayload = {
+      const updateArgs = {
         documentId: 'doc_1',
-        updates: { title: 'Updated Title' },
+        companionId: 'companion_1',
+        category: 'medical',
+        subcategory: 'vaccination',
+        visitType: 'routine',
+        title: 'Updated Title',
+        businessName: 'Vet Clinic',
+        issueDate: '2024-01-20',
+        files: [mockDocumentFile],
       };
 
-      const testUpdateSuccess = async () => {
-        const thunk = updateDocument(updatePayload);
-        const promise = thunk(mockDispatch, mockGetState, undefined);
+      it('should successfully update a document', async () => {
+        const updatedDoc = {...mockDocument, title: 'Updated Title'};
+        mockedDocumentApi.update.mockResolvedValue(updatedDoc);
 
-        await jest.runAllTimersAsync();
-        const result = await promise;
+        const result = await updateDocument(updateArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(updateDocument.fulfilled.type);
-        expect(result.payload).toEqual({
-          documentId: 'doc_1',
-          updates: {
-            title: 'Updated Title',
-            updatedAt: mockISODate, // Assuming mock async adds timestamp
-          },
-        });
-      };
-      it(
-        'should successfully update a document and add updatedAt',
-        testUpdateSuccess,
-      );
+        expect(result.payload).toEqual(updatedDoc);
+      });
 
-      const updateError = new Error('Update conflict');
-      const throwUpdateError = () => {
-        throw updateError;
-      };
-      const testUpdateDocumentFailure = async () => {
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUpdateError);
+      it('should handle update document failure with error message', async () => {
+        mockedDocumentApi.update.mockRejectedValue(new Error('Update conflict'));
 
-        const thunk = updateDocument(updatePayload); // updatePayload from outer scope
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        const result = await updateDocument(updateArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(updateDocument.rejected.type);
         expect(result.payload).toBe('Update conflict');
-      };
-      it(
-        'should handle update document failure with error message',
-        testUpdateDocumentFailure,
-      );
+      });
 
-      const updateObjectError = { details: 'no message' };
-      const throwUpdateObjectError = () => {
-        throw updateObjectError;
-      };
-      const testUpdateDocumentFailureNoMessage = async () => {
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUpdateObjectError);
+      it('should handle update document failure with fallback message', async () => {
+        mockedDocumentApi.update.mockRejectedValue({oops: true});
 
-        const thunk = updateDocument(updatePayload);
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        const result = await updateDocument(updateArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(updateDocument.rejected.type);
-        expect(result.payload).toBe('Failed to update document'); // <-- Test the fallback
-      };
-      it(
-        'should handle update document failure with fallback message',
-        testUpdateDocumentFailureNoMessage,
-      );
+        expect(result.payload).toBe('Failed to update document');
+      });
     });
 
     describe('deleteDocument', () => {
-      const testDeleteSuccess = async () => {
-        const documentId = 'doc_1';
-        const thunk = deleteDocument(documentId);
-        const promise = thunk(mockDispatch, mockGetState, undefined);
+      const deleteArgs = {documentId: 'doc_1'};
 
-        await jest.runAllTimersAsync();
-        const result = await promise;
+      it('should successfully delete a document', async () => {
+        mockedDocumentApi.remove.mockResolvedValue(true);
+
+        const result = await deleteDocument(deleteArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(deleteDocument.fulfilled.type);
-        expect(result.payload).toBe(documentId);
-      };
-      it(
-        'should successfully delete a document',
-        testDeleteSuccess,
-      );
+        expect(result.payload).toBe('doc_1');
+      });
 
-      const deleteError = new Error('Timeout failed');
-      const throwDeleteError = () => {
-        throw deleteError;
-      };
-      const testDeleteFailure = async () => {
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwDeleteError);
+      it('should handle delete document failure', async () => {
+        mockedDocumentApi.remove.mockRejectedValue(new Error('Timeout failed'));
 
-        const thunk = deleteDocument('doc_1');
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        const result = await deleteDocument(deleteArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(deleteDocument.rejected.type);
         expect(result.payload).toBe('Timeout failed');
-      };
-      it(
-        'should handle delete document failure',
-        testDeleteFailure,
-      );
+      });
 
-      const throwDeleteUndefinedError = () => {
-        throw undefined;
-      };
-      const testDeleteFailureNoMessage = async () => {
-        setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwDeleteUndefinedError);
+      it('should handle delete document failure with fallback message', async () => {
+        mockedDocumentApi.remove.mockRejectedValue(undefined);
 
-        const thunk = deleteDocument('doc_1');
-        const result = await thunk(mockDispatch, mockGetState, undefined);
+        const result = await deleteDocument(deleteArgs)(
+          mockDispatch,
+          mockGetState,
+          undefined,
+        );
 
         expect(result.type).toBe(deleteDocument.rejected.type);
-      };
-      it(
-        'should handle delete document failure with fallback message',
-        testDeleteFailureNoMessage,
-      );
+        expect(result.payload).toBe('Failed to delete document');
+      });
     });
   });
 });

@@ -29,7 +29,7 @@ import {
   setSelectedCompanion,
   fetchCompanions,
 } from '@/features/companion';
-import {initializeMockData} from '@/features/linkedBusinesses';
+import {initializeMockData, fetchLinkedBusinesses} from '@/features/linkedBusinesses';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
@@ -220,8 +220,25 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     loadCompanionsAndSelectDefault();
   }, [dispatch, user?.parentId]);
 
+  const fetchParentAccessStateRef = React.useRef({
+    lastParentId: null as string | null,
+    lastCompanionCount: 0,
+  });
+
   React.useEffect(() => {
-    if (authUser?.parentId && companions.length > 0) {
+    if (!authUser?.parentId || companions.length === 0) {
+      return;
+    }
+
+    const state = fetchParentAccessStateRef.current;
+    const parentIdChanged = state.lastParentId !== authUser.parentId;
+    const companionCountChanged = state.lastCompanionCount !== companions.length;
+
+    // Dispatch if parent changed (logout/login as different user) OR companions loaded for first time
+    if (parentIdChanged || (companionCountChanged && companions.length > 0)) {
+      state.lastParentId = authUser.parentId;
+      state.lastCompanionCount = companions.length;
+
       dispatch(
         fetchParentAccess({
           parentId: authUser.parentId,
@@ -265,6 +282,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionIdRedux}));
     }
   }, [dispatch, hasAppointmentsHydrated, selectedCompanionIdRedux]);
+
+  // Fetch linked hospitals for emergency feature
+  React.useEffect(() => {
+    if (selectedCompanionIdRedux) {
+      dispatch(
+        fetchLinkedBusinesses({companionId: selectedCompanionIdRedux, category: 'hospital'}),
+      );
+    }
+  }, [dispatch, selectedCompanionIdRedux]);
 
   const previousCurrencyRef = React.useRef(userCurrencyCode);
 

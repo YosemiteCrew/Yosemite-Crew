@@ -21,6 +21,9 @@ import {
   addLinkedBusiness,
   selectLinkedBusinessesLoading,
   fetchBusinessDetails,
+  fetchGooglePlacesImage,
+  inviteBusiness,
+  linkBusiness,
 } from '../index';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
@@ -43,6 +46,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
     photo,
     placeId,
     companionName,
+    organisationId,
   } = route.params;
 
   const {theme} = useTheme();
@@ -63,59 +67,103 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
     console.log('[BusinessAddScreen] Received params:', {
       businessName,
       businessAddress,
+      phone,
+      email,
       photo,
       photoType: typeof photo,
       isPMSRecord,
       placeId,
+      category,
     });
-  }, [businessName, businessAddress, photo, isPMSRecord, placeId]);
+    console.log('[BusinessAddScreen] isPMSRecord:', isPMSRecord, '| Should fetch details:', !isPMSRecord && !!placeId);
+  }, [businessName, businessAddress, phone, email, photo, isPMSRecord, placeId, category]);
 
   // Fetch detailed business information for non-PMS businesses when screen loads
+  // For PMS businesses, only fetch the image from Places API
   // IMPORTANT: Only depend on placeId and isPMSRecord to prevent infinite loops
   // Do NOT include detailedPhoto/Phone/Website in dependencies - they cause re-fetches when state updates
   useEffect(() => {
-    if (!isPMSRecord && placeId) {
+    if (placeId) {
       setFetchingDetails(true);
-      dispatch(fetchBusinessDetails(placeId))
-        .unwrap()
-        .then(result => {
-          console.log('[BusinessAddScreen] Fetched details:', result);
-          if (result.photoUrl) {
-            setDetailedPhoto(result.photoUrl);
-          }
-          if (result.phoneNumber) {
-            setDetailedPhone(result.phoneNumber);
-          }
-          if (result.website) {
-            setDetailedWebsite(result.website);
-          }
-        })
-        .catch(error => {
-          console.warn('[BusinessAddScreen] Failed to fetch details:', error);
-          // Continue without detailed info - graceful degradation
-        })
-        .finally(() => {
-          setFetchingDetails(false);
-        });
+
+      if (isPMSRecord) {
+        // For PMS records, only fetch the image
+        dispatch(fetchGooglePlacesImage(placeId))
+          .unwrap()
+          .then(result => {
+            console.log('[BusinessAddScreen] Fetched Places image:', result.photoUrl);
+            if (result.photoUrl) {
+              console.log('[BusinessAddScreen] Setting detailed photo to:', result.photoUrl);
+              setDetailedPhoto(result.photoUrl);
+            }
+          })
+          .catch(error => {
+            console.warn('[BusinessAddScreen] Failed to fetch Places image:', error);
+            // Continue without image - graceful degradation
+          })
+          .finally(() => {
+            setFetchingDetails(false);
+          });
+      } else {
+        // For non-PMS records, fetch all details (photo, phone, website)
+        dispatch(fetchBusinessDetails(placeId))
+          .unwrap()
+          .then(result => {
+            console.log('[BusinessAddScreen] Fetched details:', result);
+            console.log('[BusinessAddScreen] PhotoUrl from API:', result.photoUrl);
+            if (result.photoUrl) {
+              console.log('[BusinessAddScreen] Setting detailed photo to:', result.photoUrl);
+              setDetailedPhoto(result.photoUrl);
+            }
+            if (result.phoneNumber) {
+              setDetailedPhone(result.phoneNumber);
+            }
+            if (result.website) {
+              setDetailedWebsite(result.website);
+            }
+          })
+          .catch(error => {
+            console.warn('[BusinessAddScreen] Failed to fetch details:', error);
+            // Continue without detailed info - graceful degradation
+          })
+          .finally(() => {
+            setFetchingDetails(false);
+          });
+      }
     }
   }, [isPMSRecord, placeId, dispatch]);
 
+
   const handleAddBusiness = useCallback(async () => {
     try {
-      await dispatch(
-        addLinkedBusiness({
-          companionId,
-          businessId,
-          businessName,
-          category: category as any,
-          address: businessAddress,
-          phone: detailedPhone || phone,
-          email: detailedWebsite || email,
-          distance,
-          rating,
-          photo: detailedPhoto || photo,
-        }),
-      ).unwrap();
+      if (isPMSRecord && organisationId) {
+        // For PMS businesses, use linkBusiness thunk
+        console.log('[BusinessAddScreen] Linking PMS business:', organisationId);
+        await dispatch(
+          linkBusiness({
+            companionId,
+            organisationId,
+            category: category as any,
+          }),
+        ).unwrap();
+      } else {
+        // For non-PMS businesses, use addLinkedBusiness
+        console.log('[BusinessAddScreen] Adding non-PMS business');
+        await dispatch(
+          addLinkedBusiness({
+            companionId,
+            businessId,
+            businessName,
+            category: category as any,
+            address: businessAddress,
+            phone: detailedPhone || phone,
+            email: detailedWebsite || email,
+            distance,
+            rating,
+            photo: detailedPhoto || photo,
+          }),
+        ).unwrap();
+      }
 
       // Show add business confirmation bottom sheet
       addBusinessSheetRef.current?.open();
@@ -123,13 +171,15 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
       console.error('Failed to add business:', error);
       Alert.alert('Error', 'Failed to add business. Please try again.');
     }
-  }, [dispatch, companionId, businessId, businessName, category, businessAddress, phone, email, distance, rating, photo, detailedPhone, detailedWebsite, detailedPhoto]);
+  }, [dispatch, companionId, businessId, businessName, category, businessAddress, phone, email, distance, rating, photo, detailedPhone, detailedWebsite, detailedPhoto, isPMSRecord, organisationId]);
 
   const handleAddBusinessClose = useCallback(() => {
     addBusinessSheetRef.current?.close();
-    // Show notification bottom sheet
-    notifyBusinessSheetRef.current?.open();
-  }, []);
+    // Navigate back to refresh the linked businesses list
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  }, [navigation]);
 
   const handleNotifyClose = useCallback(() => {
     notifyBusinessSheetRef.current?.close();
@@ -142,9 +192,27 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [navigation]);
 
-  const handleNotifyPress = useCallback(() => {
-    notifyBusinessSheetRef.current?.open();
-  }, []);
+
+  const handleNotifyPress = useCallback(async () => {
+    try {
+      console.log('[BusinessAddScreen] Sending invite to business:', businessName);
+      await dispatch(
+        inviteBusiness({
+          companionId,
+          email: '',
+          businessName: businessName || 'Unknown Business',
+          category: category as any,
+        }),
+      ).unwrap();
+
+      // Show notification sheet
+      notifyBusinessSheetRef.current?.open();
+      console.log('[BusinessAddScreen] Invite sent successfully');
+    } catch (error) {
+      console.error('[BusinessAddScreen] Failed to send invite:', error);
+      Alert.alert('Error', 'Failed to send invite. Please try again.');
+    }
+  }, [dispatch, companionId, category, businessName]);
 
   return (
     <SafeAreaView style={styles.container}>

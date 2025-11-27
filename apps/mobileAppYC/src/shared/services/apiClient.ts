@@ -45,6 +45,7 @@ client.interceptors.request.use(config => {
     url,
     headers: config.headers,
     data: config.data,
+    timeout: config.timeout,
     timestamp: new Date().toISOString(),
   });
   return config;
@@ -83,6 +84,7 @@ export const withAuthHeaders = (
   extras?: AxiosRequestConfig['headers'],
 ): AxiosRequestConfig['headers'] => {
   const baseHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
     Authorization: `Bearer ${accessToken}`,
   };
 

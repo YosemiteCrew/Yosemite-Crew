@@ -26,6 +26,7 @@ export interface PlaceDetails {
   longitude?: number;
   formattedAddress?: string;
   photoUrl?: string | null;
+  photoName?: string | null; // Resource name from Google Places API
   phoneNumber?: string | null;
   website?: string | null;
 }
@@ -229,23 +230,32 @@ export const fetchBusinessPlaceDetails = async (placeId: string): Promise<PlaceD
     'nationalPhoneNumber',
     'internationalPhoneNumber',
     'websiteUri',
+    'location',
   ]);
 
-  // Extract first photo URL from Google Places API response
+  // Extract first photo from Google Places API response
   // The photos array contains objects with 'name' field that is the photo resource name
-  // We need to construct the proper photo URL using the name
+  // We construct the URL on-demand using the name and API key
   const photos = Array.isArray(payload?.photos) ? payload.photos : [];
-  const photoUrl = buildPhotoUrl(photos[0]?.name, apiKey);
+  const photoName = photos[0]?.name;
+  const photoUrl = buildPhotoUrl(photoName, apiKey);
 
   // Get phone number and website
   const phoneNumber = payload?.nationalPhoneNumber || payload?.internationalPhoneNumber;
   const website = payload?.websiteUri;
 
+  // Get latitude and longitude from location
+  const latitude = payload?.location?.latitude;
+  const longitude = payload?.location?.longitude;
+
   return {
     photoUrl,
+    photoName,
     phoneNumber,
     website,
     formattedAddress: undefined,
+    latitude,
+    longitude,
   };
 };
 
