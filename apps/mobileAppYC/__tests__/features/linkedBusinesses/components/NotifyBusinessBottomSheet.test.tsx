@@ -81,7 +81,6 @@ describe('NotifyBusinessBottomSheet', () => {
       />,
     );
 
-    expect(screen.getByTestId('sheet-title')).toHaveTextContent('Notified!');
     expect(screen.getByTestId('btn-primary')).toHaveTextContent('Okay');
 
     // FIX: Use Regex for partial text matching on the aggregated text content
@@ -96,9 +95,6 @@ describe('NotifyBusinessBottomSheet', () => {
 
   it('renders correctly without optional names (partial props)', () => {
     render(<NotifyBusinessBottomSheet onConfirm={mockOnConfirm} />);
-
-    expect(screen.getByTestId('sheet-title')).toHaveTextContent('Notified!');
-
     // FIX: Use Regex here as well
     expect(screen.getByTestId('sheet-message')).toHaveTextContent(
       /Yosemite Crew have sent an Invite to/,

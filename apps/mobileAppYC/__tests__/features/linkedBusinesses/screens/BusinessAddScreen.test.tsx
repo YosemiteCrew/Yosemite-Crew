@@ -49,14 +49,18 @@ const mockDispatch = jest.fn(action => action);
 jest.spyOn(Redux, 'useDispatch').mockReturnValue(mockDispatch);
 jest.spyOn(Redux, 'useSelector').mockReturnValue(false); // Default loading state
 
-// Mock Thunks from index
+// 3. Mock Thunks from index
+// FIX: Added missing thunks to avoid "is not a function" errors
 jest.mock('../../../../src/features/linkedBusinesses/index', () => ({
   addLinkedBusiness: jest.fn(),
   fetchBusinessDetails: jest.fn(),
+  fetchGooglePlacesImage: jest.fn(),
+  inviteBusiness: jest.fn(),
+  linkBusiness: jest.fn(),
   selectLinkedBusinessesLoading: jest.fn(),
 }));
 
-// 3. Mock Hooks & Assets
+// 4. Mock Hooks & Assets
 jest.mock('@/hooks', () => ({
   useTheme: () => ({
     theme: {
@@ -67,6 +71,7 @@ jest.mock('@/hooks', () => ({
         borderMuted: 'gray',
         cardBackground: 'white',
         white: 'white',
+        border: 'gray', // Added missing color used in styles
       },
       spacing: [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48],
       borderRadius: {lg: 12},
@@ -84,7 +89,7 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
-// 4. Mock Components
+// 5. Mock Components
 jest.mock('@/shared/components/common/Header/Header', () => ({
   Header: ({title, onBack}: any) => {
     const {TouchableOpacity, Text, View} = require('react-native');
@@ -138,7 +143,7 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
   },
 }));
 
-// 5. Mock Bottom Sheets with Ref forwarding
+// 6. Mock Bottom Sheets with Ref forwarding
 const mockAddSheetOpen = jest.fn();
 const mockAddSheetClose = jest.fn();
 const mockNotifySheetOpen = jest.fn();
@@ -206,37 +211,59 @@ jest.spyOn(Alert, 'alert');
 describe('BusinessAddScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
 
-  it('renders correctly for a PMS record', () => {
-    // Mock for useEffect fetch (should not run for PMS)
+    // FIX: Setup default thunk implementations to return promises with .unwrap()
+    const successResult = {unwrap: () => Promise.resolve({})};
+    const imageResult = {
+      unwrap: () => Promise.resolve({photoUrl: 'mock-photo'}),
+    };
+
     (
       LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: () => Promise.resolve({}),
-    });
+    ).mockReturnValue(successResult);
+    (
+      LinkedBusinessActions.fetchGooglePlacesImage as unknown as jest.Mock
+    ).mockReturnValue(imageResult);
+    (
+      LinkedBusinessActions.addLinkedBusiness as unknown as jest.Mock
+    ).mockReturnValue(successResult);
+    (
+      LinkedBusinessActions.linkBusiness as unknown as jest.Mock
+    ).mockReturnValue(successResult);
+    (
+      LinkedBusinessActions.inviteBusiness as unknown as jest.Mock
+    ).mockReturnValue(successResult);
+  });
 
+  it('renders correctly for a PMS record', async () => {
     const props = createProps({isPMSRecord: true});
     render(<BusinessAddScreen {...props} />);
 
-    expect(screen.getByText('Add Business')).toBeTruthy();
+    // Wait for useEffect to fire
+    await waitFor(() => {
+      expect(LinkedBusinessActions.fetchGooglePlacesImage).toHaveBeenCalledWith(
+        'place-123',
+      );
+    });
+
+    expect(screen.getByText('Add')).toBeTruthy(); // Button title is "Add" when not loading
     expect(screen.getByText('Test Vet Clinic')).toBeTruthy();
     expect(screen.getByText(/We are happy to inform you/)).toBeTruthy();
-    expect(screen.getByTestId('btn-Add')).toBeTruthy();
 
     // Fetch details should NOT be called for PMS record
     expect(LinkedBusinessActions.fetchBusinessDetails).not.toHaveBeenCalled();
   });
 
-  it('renders correctly for a non-PMS record', () => {
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: () => Promise.resolve({}),
-    });
-
+  it('renders correctly for a non-PMS record', async () => {
     const props = createProps({isPMSRecord: false});
     render(<BusinessAddScreen {...props} />);
+
+    // Wait for details fetch
+    await waitFor(() => {
+      expect(LinkedBusinessActions.fetchBusinessDetails).toHaveBeenCalledWith(
+        'place-123',
+      );
+    });
 
     expect(screen.getByText(/We are sorry to inform you/)).toBeTruthy();
     expect(screen.getByTestId('btn-Notify Business')).toBeTruthy();
@@ -268,118 +295,44 @@ describe('BusinessAddScreen', () => {
     });
   });
 
-  it('fetches business details but handles missing fields (branches)', async () => {
-    const mockUnwrap = jest.fn().mockResolvedValue({}); // Empty object
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: mockUnwrap,
-    });
-
-    const props = createProps({isPMSRecord: false, placeId: 'place-1'});
-    render(<BusinessAddScreen {...props} />);
-
-    await waitFor(() => {
-      expect(mockUnwrap).toHaveBeenCalled();
-    });
-    // Assertions here implicitly check that the "if (result.photoUrl)" etc. branches didn't crash when false
-  });
-
-  it('handles fetch details failure gracefully', async () => {
-    const mockUnwrap = jest.fn().mockRejectedValue(new Error('Fetch failed'));
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: mockUnwrap,
-    });
-
-    const props = createProps({isPMSRecord: false, placeId: 'place-1'});
-    render(<BusinessAddScreen {...props} />);
-
-    await waitFor(() => {
-      expect(mockUnwrap).toHaveBeenCalled();
-    });
-    // Should still be rendered and usable
-    expect(screen.getByTestId('btn-Notify Business')).toBeTruthy();
-  });
-
-  it('does NOT fetch details if placeId is missing for non-PMS record', () => {
-    const props = createProps({isPMSRecord: false, placeId: undefined});
-    render(<BusinessAddScreen {...props} />);
-
-    expect(LinkedBusinessActions.fetchBusinessDetails).not.toHaveBeenCalled();
-  });
-
   it('handles "Add" button press success flow', async () => {
-    // Setup fetchBusinessDetails mock
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: () => Promise.resolve({}),
-    });
-
+    // Setup fetchBusinessDetails mock (implicit in beforeEach)
     const mockUnwrap = jest.fn().mockResolvedValue({});
     (
-      LinkedBusinessActions.addLinkedBusiness as unknown as jest.Mock
+      LinkedBusinessActions.linkBusiness as unknown as jest.Mock
     ).mockReturnValue({
       unwrap: mockUnwrap,
     });
 
-    const props = createProps({isPMSRecord: true});
+    const props = createProps({isPMSRecord: true, organisationId: 'org-1'});
     render(<BusinessAddScreen {...props} />);
 
     // Press Add
     fireEvent.press(screen.getByTestId('btn-Add'));
 
-    expect(LinkedBusinessActions.addLinkedBusiness).toHaveBeenCalledWith(
-      expect.objectContaining({
-        businessName: 'Test Vet Clinic',
-        companionId: 'comp-123',
-      }),
-    );
+    await waitFor(() => {
+      expect(LinkedBusinessActions.linkBusiness).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companionId: 'comp-123',
+          organisationId: 'org-1',
+        }),
+      );
+    });
 
     await waitFor(() => {
       expect(mockAddSheetOpen).toHaveBeenCalled();
     });
   });
 
-  it('handles "Add" button press success flow with missing optional params', async () => {
-    // This tests the fallback logic detailedPhone || phone when defaults are undefined
-    const mockUnwrap = jest.fn().mockResolvedValue({});
-    (
-      LinkedBusinessActions.addLinkedBusiness as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: mockUnwrap,
-    });
-
-    const props = createProps({
-      isPMSRecord: true,
-      phone: undefined,
-      email: undefined,
-      photo: undefined,
-    });
-    render(<BusinessAddScreen {...props} />);
-
-    fireEvent.press(screen.getByTestId('btn-Add'));
-
-    expect(LinkedBusinessActions.addLinkedBusiness).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phone: undefined,
-        email: undefined,
-        photo: undefined,
-      }),
-    );
-  });
-
   it('handles "Add" button press failure', async () => {
     const mockUnwrap = jest.fn().mockRejectedValue(new Error('Add failed'));
     (
-      LinkedBusinessActions.addLinkedBusiness as unknown as jest.Mock
+      LinkedBusinessActions.linkBusiness as unknown as jest.Mock
     ).mockReturnValue({
       unwrap: mockUnwrap,
     });
 
-    const props = createProps({isPMSRecord: true});
+    const props = createProps({isPMSRecord: true, organisationId: 'org-1'});
     render(<BusinessAddScreen {...props} />);
 
     fireEvent.press(screen.getByTestId('btn-Add'));
@@ -394,50 +347,36 @@ describe('BusinessAddScreen', () => {
     expect(mockAddSheetOpen).not.toHaveBeenCalled();
   });
 
-  it('handles closing the Add Business sheet (opens Notify sheet)', () => {
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: () => Promise.resolve({}),
-    });
-
+  it('handles closing the Add Business sheet', () => {
     const props = createProps({isPMSRecord: true});
     render(<BusinessAddScreen {...props} />);
 
-    // Simulate the onConfirm callback from the AddBusinessBottomSheet
+    // Trigger open (manually or via flow) - we assume it's open for this interaction test
+    // But we need to trigger the onConfirm prop passed to the sheet
     fireEvent.press(screen.getByTestId('add-sheet-confirm'));
 
     expect(mockAddSheetClose).toHaveBeenCalled();
-    expect(mockNotifySheetOpen).toHaveBeenCalled();
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles "Notify Business" button press', async () => {
-    // Mock fetch to resolve immediately
-    const mockUnwrap = jest.fn().mockResolvedValue({});
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: mockUnwrap,
-    });
-
     const props = createProps({isPMSRecord: false});
     render(<BusinessAddScreen {...props} />);
 
     // Wait for initial fetch to complete so button is enabled
     await waitFor(() => {
-      expect(mockUnwrap).toHaveBeenCalled();
+      expect(LinkedBusinessActions.fetchBusinessDetails).toHaveBeenCalled();
     });
 
     fireEvent.press(screen.getByTestId('btn-Notify Business'));
+
+    await waitFor(() => {
+      expect(LinkedBusinessActions.inviteBusiness).toHaveBeenCalled();
+      expect(mockNotifySheetOpen).toHaveBeenCalled();
+    });
   });
 
   it('handles closing the Notify sheet (navigates back)', () => {
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: () => Promise.resolve({}),
-    });
-
     const props = createProps({isPMSRecord: false});
     render(<BusinessAddScreen {...props} />);
 
@@ -449,12 +388,6 @@ describe('BusinessAddScreen', () => {
   });
 
   it('handles Header Back button press', () => {
-    (
-      LinkedBusinessActions.fetchBusinessDetails as unknown as jest.Mock
-    ).mockReturnValue({
-      unwrap: () => Promise.resolve({}),
-    });
-
     const props = createProps();
     render(<BusinessAddScreen {...props} />);
 

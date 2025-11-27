@@ -8,8 +8,20 @@ import {
 import {LinkedBusinessCard} from '../../../../src/features/linkedBusinesses/components/LinkedBusinessCard';
 // Explicitly import the mocked components to use in UNSAFE_getAllByType
 import {Linking, Alert, Image} from 'react-native';
+import {fetchGooglePlacesImage} from '../../../../src/features/linkedBusinesses/thunks';
 
 // --- Mocks ---
+
+// 1. Mock Redux and Dispatch
+const mockDispatch = jest.fn();
+jest.mock('react-redux', () => ({
+  useDispatch: () => mockDispatch,
+}));
+
+// 2. Mock the Thunk
+jest.mock('../../../../src/features/linkedBusinesses/thunks', () => ({
+  fetchGooglePlacesImage: jest.fn(),
+}));
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({
@@ -42,12 +54,10 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
-// FIX 1: Safe "Manual Mock" for react-native to avoid "DevMenu" crash.
-// We define components here so they have stable identities for UNSAFE_getAllByType.
+// 3. Safe "Manual Mock" for react-native
 jest.mock('react-native', () => {
   const React = require('react');
 
-  // Simple mock components that pass props through
   class MockView extends React.Component {
     render() {
       return React.createElement('View', this.props, this.props.children);
@@ -91,14 +101,14 @@ jest.mock('react-native', () => {
 // Helper to safely find buttons by icon URI
 const getDirectionsButton = () => {
   try {
-    // FIX 2: Pass the imported Image component (which resolves to our MockImage)
     const allImages = screen.UNSAFE_getAllByType(Image);
     return allImages.find(
       (img: any) =>
         img.props.source && img.props.source.uri === 'direction-icon',
     );
-  } finally {
-    console.log('empty');
+  } catch (_error) {
+    // Return undefined to indicate element was not found (simulates queryBy)
+    return undefined;
   }
 };
 
@@ -108,8 +118,9 @@ const getDeleteButton = () => {
     return allImages.find(
       (img: any) => img.props.source && img.props.source.uri === 'delete-icon',
     );
-  } finally {
-    console.log('empty');
+  } catch (_error) {
+    // Return undefined to indicate element was not found (simulates queryBy)
+    return undefined;
   }
 };
 
@@ -117,7 +128,6 @@ describe('LinkedBusinessCard', () => {
   const mockOnPress = jest.fn();
   const mockOnDeletePress = jest.fn();
 
-  // FIX 3: Cast mock data to 'any' to satisfy LinkedBusiness interface without mocking every field
   const mockBusiness: any = {
     id: 'b1',
     businessName: 'City General Hospital',
@@ -125,12 +135,23 @@ describe('LinkedBusinessCard', () => {
     distance: 5.2,
     rating: 4.8,
     photo: {uri: 'custom-photo'},
+    placeId: 'place_123',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     (Linking.canOpenURL as jest.Mock).mockResolvedValue(true);
     (Linking.openURL as jest.Mock).mockResolvedValue(undefined);
+
+    // FIX: Ensure dispatch returns the action object so .unwrap() works in component
+    mockDispatch.mockImplementation(action => action);
+
+    // FIX: Double cast (as unknown as jest.Mock) fixes the TypeScript conversion error
+    (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
+      unwrap: jest
+        .fn()
+        .mockResolvedValue({photoUrl: 'http://google-places.com/photo.jpg'}),
+    });
   });
 
   it('renders business details correctly', () => {
@@ -151,17 +172,28 @@ describe('LinkedBusinessCard', () => {
       photo: undefined,
       distance: undefined,
       rating: undefined,
+      placeId: undefined,
     };
 
     render(
       <LinkedBusinessCard
-        // @ts-ignore - Intentionally testing missing props
+        // @ts-ignore
         business={incompleteBusiness}
         onPress={mockOnPress}
       />,
     );
 
     expect(screen.getByText('Address not available')).toBeTruthy();
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
+
+  it('fetches Google Places image on mount if placeId exists', async () => {
+    render(<LinkedBusinessCard business={mockBusiness} />);
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalled();
+      expect(fetchGooglePlacesImage).toHaveBeenCalledWith('place_123');
+    });
   });
 
   it('handles main card press', () => {
@@ -182,7 +214,6 @@ describe('LinkedBusinessCard', () => {
     );
 
     const deleteBtnImage = getDeleteButton();
-    // FIX 4: Explicitly assert existence before interaction to satisfy TypeScript
     expect(deleteBtnImage).toBeDefined();
     if (deleteBtnImage) {
       fireEvent.press(deleteBtnImage);
@@ -198,6 +229,13 @@ describe('LinkedBusinessCard', () => {
 
     expect(getDirectionsButton()).toBeUndefined();
     expect(getDeleteButton()).toBeUndefined();
+  });
+
+  it('applies border style when showBorder is true', () => {
+    const {toJSON} = render(
+      <LinkedBusinessCard business={mockBusiness} showBorder={true} />,
+    );
+    expect(toJSON()).toBeDefined();
   });
 
   describe('Directions Logic', () => {
@@ -237,10 +275,14 @@ describe('LinkedBusinessCard', () => {
 
       await waitFor(() => {
         expect(Linking.canOpenURL).toHaveBeenCalledWith(
-          expect.stringContaining('maps://maps.google.com/?q='),
+          expect.stringContaining(
+            'maps://maps.google.com/?q=123%20Health%20St%2C%20Mediville',
+          ),
         );
         expect(Linking.openURL).toHaveBeenCalledWith(
-          expect.stringContaining('maps://maps.google.com/?q='),
+          expect.stringContaining(
+            'maps://maps.google.com/?q=123%20Health%20St%2C%20Mediville',
+          ),
         );
       });
     });
@@ -278,7 +320,9 @@ describe('LinkedBusinessCard', () => {
 
       await waitFor(() => {
         expect(Linking.openURL).toHaveBeenCalledWith(
-          expect.stringContaining('https://maps.google.com/?q='),
+          expect.stringContaining(
+            'https://maps.google.com/?q=123%20Health%20St%2C%20Mediville',
+          ),
         );
       });
     });
