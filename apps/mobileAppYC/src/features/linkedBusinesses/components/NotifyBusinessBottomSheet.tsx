@@ -21,12 +21,14 @@ export const NotifyBusinessBottomSheet = forwardRef<NotifyBusinessBottomSheetRef
   ({businessName, companionName, onConfirm, onSheetChange}, ref) => {
     const {theme} = useTheme();
     const styles = React.useMemo(() => createStyles(theme), [theme]);
-    const {sheetRef, handleConfirm} = useConfirmActionSheetRef(ref, onConfirm);
+    const {sheetRef, handleConfirm} = useConfirmActionSheetRef(ref, () => {
+      onConfirm?.();
+    });
 
     return (
       <ConfirmActionBottomSheet
         ref={sheetRef}
-        title="Notified!"
+        title="Invitation Sent!"
         snapPoints={['45%']}
         primaryButton={{
           label: 'Okay',

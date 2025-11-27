@@ -1,7 +1,10 @@
 import {createSlice, type PayloadAction} from '@reduxjs/toolkit';
 import type {LinkedBusinessesState} from './types';
 import {
+  fetchLinkedBusinesses,
   addLinkedBusiness,
+  linkBusiness,
+  inviteBusiness,
   deleteLinkedBusiness,
   acceptBusinessInvite,
   declineBusinessInvite,
@@ -67,6 +70,21 @@ export const linkedBusinessesSlice = createSlice({
         state.error = action.error.message ?? 'Failed to scan QR code';
       });
 
+    // Fetch linked businesses
+    builder
+      .addCase(fetchLinkedBusinesses.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchLinkedBusinesses.fulfilled, (state, action) => {
+        state.loading = false;
+        state.linkedBusinesses = action.payload;
+      })
+      .addCase(fetchLinkedBusinesses.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) ?? 'Failed to fetch linked businesses';
+      });
+
     // Add linked business
     builder
       .addCase(addLinkedBusiness.pending, state => {
@@ -79,7 +97,36 @@ export const linkedBusinessesSlice = createSlice({
       })
       .addCase(addLinkedBusiness.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Failed to add business';
+        state.error = (action.payload as string) ?? 'Failed to add business';
+      });
+
+    // Link business (PMS)
+    builder
+      .addCase(linkBusiness.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(linkBusiness.fulfilled, (state, action) => {
+        state.loading = false;
+        state.linkedBusinesses.push(action.payload);
+      })
+      .addCase(linkBusiness.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) ?? 'Failed to link business';
+      });
+
+    // Invite business (non-PMS)
+    builder
+      .addCase(inviteBusiness.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(inviteBusiness.fulfilled, state => {
+        state.loading = false;
+      })
+      .addCase(inviteBusiness.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) ?? 'Failed to invite business';
       });
 
     // Delete linked business
@@ -104,14 +151,18 @@ export const linkedBusinessesSlice = createSlice({
       })
       .addCase(acceptBusinessInvite.fulfilled, (state, action) => {
         state.loading = false;
-        const business = state.linkedBusinesses.find(b => b.id === action.payload);
+        const business = state.linkedBusinesses.find(b => b.id === action.payload.id || b.linkId === action.payload.linkId);
         if (business) {
           business.inviteStatus = 'accepted';
+          business.state = 'active';
+        } else {
+          // If business not found, add it
+          state.linkedBusinesses.push(action.payload);
         }
       })
       .addCase(acceptBusinessInvite.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Failed to accept invite';
+        state.error = (action.payload as string) ?? 'Failed to accept invite';
       });
 
     // Decline invite
@@ -121,14 +172,15 @@ export const linkedBusinessesSlice = createSlice({
       })
       .addCase(declineBusinessInvite.fulfilled, (state, action) => {
         state.loading = false;
-        const business = state.linkedBusinesses.find(b => b.id === action.payload);
-        if (business) {
-          business.inviteStatus = 'declined';
-        }
+        // Remove the declined invite from the list completely
+        // This ensures it doesn't appear in the linked businesses section
+        state.linkedBusinesses = state.linkedBusinesses.filter(
+          b => !(b.id === action.payload.id || b.linkId === action.payload.linkId)
+        );
       })
       .addCase(declineBusinessInvite.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Failed to decline invite';
+        state.error = (action.payload as string) ?? 'Failed to decline invite';
       });
   },
 });
