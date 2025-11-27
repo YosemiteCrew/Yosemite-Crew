@@ -545,6 +545,9 @@ importers:
       react-native-nitro-sound:
         specifier: ^0.2.9
         version: 0.2.9(react-native-nitro-modules@0.31.5)(react-native@0.81.4)(react@19.1.0)
+      react-native-pdf:
+        specifier: ^7.0.3
+        version: 7.0.3(react-native-blob-util@0.23.2)(react-native@0.81.4)(react@19.1.0)
       react-native-permissions:
         specifier: ^5.2.6
         version: 5.4.2(react-native@0.81.4)(react@19.1.0)
@@ -575,6 +578,9 @@ importers:
       react-native-video:
         specifier: ^6.17.0
         version: 6.17.0(react-native@0.81.4)(react@19.1.0)
+      react-native-webview:
+        specifier: ^13.16.0
+        version: 13.16.0(react-native@0.81.4)(react@19.1.0)
       react-native-worklets:
         specifier: ^0.5.1
         version: 0.5.1(@babel/core@7.28.4)(react-native@0.81.4)(react@19.1.0)
@@ -8813,7 +8819,7 @@ packages:
       '@babel/helper-module-imports': 7.27.1
       '@babel/helper-plugin-utils': 7.27.1
       '@babel/plugin-syntax-jsx': 7.27.1(@babel/core@7.28.5)
-      '@babel/types': 7.28.5
+      '@babel/types': 7.28.4
     transitivePeerDependencies:
       - supports-color
 
@@ -14598,6 +14604,10 @@ packages:
       '@types/react': 19.1.12
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
+    dev: false
+
+  /@react-native/normalize-color@2.1.0:
+    resolution: {integrity: sha512-Z1jQI2NpdFJCVgpY+8Dq/Bt3d+YUi1928Q+/CZm/oh66fzM0RUl54vvuXlPJKybH4pdCZey1eDTPaLHkMPNgWA==}
     dev: false
 
   /@react-native/normalize-colors@0.81.4:
@@ -20681,6 +20691,10 @@ packages:
     resolution: {integrity: sha512-mCxBlsHFYh9C+HVpiEacem8FEBnMXgU9gy4zmNC+SXAZNB/1idgp/aulFJ4FgCi7GPEVbfyng092GqL2k2rmow==}
     dev: true
 
+  /crypto-js@4.2.0:
+    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    dev: false
+
   /crypto-random-string@4.0.0:
     resolution: {integrity: sha512-x8dy3RnvYdlUcPOjkEHqozhiwzKNSq7GcPuXFbnyMOCHxX8V3OgIg/pYuabl2sbUPfIJaeAQB7PMOK8DFIdoRA==}
     engines: {node: '>=12'}
@@ -21285,6 +21299,14 @@ packages:
     resolution: {integrity: sha512-JeMq7fEshyepOWDfcfHK06N3MhyPhz++vtqWhMT5O9A3K42rdsEDpfdVqjaqaAhsw6a+ZqeDvQVtD0hFHQWrzg==}
     engines: {node: '>= 0.6.0'}
     dev: true
+
+  /deprecated-react-native-prop-types@2.3.0:
+    resolution: {integrity: sha512-pWD0voFtNYxrVqvBMYf5gq3NA2GCpfodS1yNynTPc93AYA/KEMGeWDqqeUB6R2Z9ZofVhks2aeJXiuQqKNpesA==}
+    dependencies:
+      '@react-native/normalize-color': 2.1.0
+      invariant: 2.2.4
+      prop-types: 15.8.1
+    dev: false
 
   /dequal@2.0.3:
     resolution: {integrity: sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA==}
@@ -30171,6 +30193,20 @@ packages:
       react-native-nitro-modules: 0.31.5(react-native@0.81.4)(react@19.1.0)
     dev: false
 
+  /react-native-pdf@7.0.3(react-native-blob-util@0.23.2)(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-zDtF6CGXPAfGptQZqX7LQK3CVQrIGsD+rYuBnMK0sVmd8mrq7ciwmWXINT+d92emMtZ7+PLnx1IQZIdsh0fphA==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+      react-native-blob-util: '>=0.13.7'
+    dependencies:
+      crypto-js: 4.2.0
+      deprecated-react-native-prop-types: 2.3.0
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
+      react-native-blob-util: 0.23.2(react-native@0.81.4)(react@19.1.0)
+    dev: false
+
   /react-native-permissions@5.4.2(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-XNMoG1fxrB9q73MLn/ZfTaP7pS8qPu0KWypbeFKVTvoR+JJ3O7uedMOTH/mts9bTG+GKhShOoZ+k0CR63q9jwA==}
     peerDependencies:
@@ -30292,6 +30328,18 @@ packages:
       react: '*'
       react-native: '*'
     dependencies:
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
+    dev: false
+
+  /react-native-webview@13.16.0(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-Nh13xKZWW35C0dbOskD7OX01nQQavOzHbCw9XoZmar4eXCo7AvrYJ0jlUfRVVIJzqINxHlpECYLdmAdFsl9xDA==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+    dependencies:
+      escape-string-regexp: 4.0.0
+      invariant: 2.2.4
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
     dev: false

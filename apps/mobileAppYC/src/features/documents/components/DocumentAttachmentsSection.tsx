@@ -10,6 +10,7 @@ import {
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
+import {isImageFile} from './documentAttachmentUtils';
 
 interface DocumentAttachmentsSectionProps {
   files: DocumentFile[];
@@ -25,8 +26,18 @@ const DEFAULT_EMPTY_TITLE = 'Upload documents';
 const DEFAULT_EMPTY_SUBTITLE =
   'Only DOC, PDF, PNG, JPEG formats\nwith max size 5 MB';
 
-const resolvePreviewSource = (file: DocumentFile) =>
-  file.uri ?? (file as {s3Url?: string}).s3Url ?? null;
+const resolvePreviewSource = (file: DocumentFile) => {
+  if (file.uri) {
+    // Ensure we pass a uri with scheme for React Native Image
+    return file.uri.startsWith('http') ? file.uri : `file://${file.uri.replace(/^file:\/\//, '')}`;
+  }
+  return (
+    (file as {viewUrl?: string}).viewUrl ??
+    (file as {downloadUrl?: string}).downloadUrl ??
+    (file as {s3Url?: string}).s3Url ??
+    null
+  );
+};
 
 interface FilePreviewTileProps {
   file: DocumentFile;
@@ -43,7 +54,7 @@ const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
 }) => {
   const [isImageLoading, setIsImageLoading] = useState(true);
   const sourceUri = resolvePreviewSource(file);
-  const isImage = typeof file.type === 'string' && file.type.startsWith('image/');
+  const isImage = isImageFile(file.type);
   const isPending = file.status === 'pending';
 
   useEffect(() => {

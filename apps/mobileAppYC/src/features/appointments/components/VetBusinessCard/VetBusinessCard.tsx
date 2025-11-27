@@ -6,6 +6,7 @@ import {resolveImageSource} from '@/shared/utils/resolveImageSource';
 
 export interface VetBusinessCardProps {
   photo?: ImageSourcePropType | number | string;
+  fallbackPhoto?: ImageSourcePropType | number | string;
   name: string;
   openHours?: string;
   address?: string;
@@ -16,10 +17,12 @@ export interface VetBusinessCardProps {
   style?: ViewStyle;
   onPress?: () => void;
   cta?: string;
+  onImageLoadError?: () => void;
 }
 
 export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
   photo,
+  fallbackPhoto,
   name,
   openHours,
   address,
@@ -30,15 +33,27 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
   style,
   onPress,
   cta = 'Book an appointment',
+  onImageLoadError,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const [imageSource, setImageSource] = React.useState<ImageSourcePropType | number | string | undefined>(photo);
 
-  const imageSource = useMemo(() => resolveImageSource(photo), [photo]);
+  const resolvedImageSource = useMemo(() => resolveImageSource(imageSource || photo), [imageSource, photo]);
+
+  const handleImageLoadError = React.useCallback(() => {
+    console.log('[VetBusinessCard] Image load failed for:', name);
+    console.log('[VetBusinessCard] Using fallback photo:', fallbackPhoto);
+    onImageLoadError?.();
+    // If we have a fallback photo, use it
+    if (fallbackPhoto && fallbackPhoto !== (imageSource || photo)) {
+      setImageSource(fallbackPhoto);
+    }
+  }, [name, fallbackPhoto, imageSource, photo, onImageLoadError]);
 
   return (
     <View style={[styles.card, style]}>
-      <Image source={imageSource} style={styles.photo} resizeMode="cover" defaultSource={Images.hospitalIcon} />
+      <Image source={resolvedImageSource} style={styles.photo} resizeMode="cover" defaultSource={Images.hospitalIcon} onError={handleImageLoadError} />
       <View style={styles.contentPadding}>
         <View style={styles.infoContainer}>
         <Text style={styles.name} numberOfLines={2}>{name}</Text>

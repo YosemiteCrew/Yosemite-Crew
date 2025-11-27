@@ -139,7 +139,7 @@ const Companion = () => {
             intype="text"
             inname="weight"
             value={formData.weight}
-            inlabel="Current weight (optional) (kgs)"
+            inlabel="Current weight (optional) (lbs)"
             onChange={(e) =>
               setFormData({ ...formData, weight: e.target.value })
             }

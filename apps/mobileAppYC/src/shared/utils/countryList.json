@@ -250,12 +250,6 @@
   {"name": "Nauru", "flag": "🇳🇷", "code": "NR", "dial_code": "+674"},
   {"name": "Nepal", "flag": "🇳🇵", "code": "NP", "dial_code": "+977"},
   {"name": "Netherlands", "flag": "🇳🇱", "code": "NL", "dial_code": "+31"},
-  {
-    "name": "Netherlands Antilles",
-    "flag": "",
-    "code": "AN",
-    "dial_code": "+599"
-  },
   {"name": "New Caledonia", "flag": "🇳🇨", "code": "NC", "dial_code": "+687"},
   {"name": "New Zealand", "flag": "🇳🇿", "code": "NZ", "dial_code": "+64"},
   {"name": "Nicaragua", "flag": "🇳🇮", "code": "NI", "dial_code": "+505"},

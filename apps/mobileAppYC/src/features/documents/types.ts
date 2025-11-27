@@ -7,6 +7,9 @@ export interface Document {
   title: string;
   businessName: string;
   issueDate: string;
+  appointmentId?: string | null;
+  uploadedByParentId?: string | null;
+  uploadedByPmsUserId?: string | null;
   files: DocumentFile[];
   createdAt: string;
   updatedAt: string;
@@ -20,7 +23,10 @@ export interface DocumentFile {
   name: string;
   type: string;
   size: number;
+  key?: string;
   s3Url?: string;
+  viewUrl?: string;
+  downloadUrl?: string;
   status?: 'pending' | 'ready';
 }
 

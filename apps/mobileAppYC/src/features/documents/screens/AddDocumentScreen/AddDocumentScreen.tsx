@@ -59,6 +59,12 @@ export const AddDocumentScreen: React.FC = () => {
     dispatch(setSelectedCompanion(id));
   };
 
+  React.useEffect(() => {
+    if (!selectedCompanionId && companions.length > 0) {
+      dispatch(setSelectedCompanion(companions[0].id));
+    }
+  }, [companions, dispatch, selectedCompanionId]);
+
   const handleBack = () => {
     if (hasUnsavedChanges) {
       discardSheetRef.current?.open();
@@ -75,24 +81,31 @@ export const AddDocumentScreen: React.FC = () => {
     }
 
     try {
+      if (!selectedCompanionId) {
+        throw new Error('Please select a pet profile to upload documents.');
+      }
+
       console.log('[AddDocument] Starting document upload and save process');
 
       const uploadedFiles = await dispatch(
-        uploadDocumentFiles(formData.files)
+        uploadDocumentFiles({
+          files: formData.files,
+          companionId: selectedCompanionId,
+        })
       ).unwrap();
       console.log('[AddDocument] Files uploaded successfully:', uploadedFiles.length);
 
       await dispatch(
         addDocument({
-          companionId: selectedCompanionId!,
+          companionId: selectedCompanionId,
           category: formData.category!,
           subcategory: formData.subcategory!,
-          visitType: formData.visitType || 'general',
+          visitType: formData.visitType || '',
           title: formData.title,
           businessName: formData.businessName,
           issueDate: formData.hasIssueDate ? formData.issueDate.toISOString() : '',
           files: uploadedFiles,
-          isSynced: false,
+          appointmentId: '',
         }),
       ).unwrap();
 
@@ -105,10 +118,11 @@ export const AddDocumentScreen: React.FC = () => {
       );
     } catch (error: any) {
       console.error('[AddDocument] Failed to add document:', error);
-      setFormError(
-        'files',
-        error.message || 'Failed to add document. Please try again.'
-      );
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.message || 'Failed to add document. Please try again.';
+      setFormError('files', message);
     }
   };
 
