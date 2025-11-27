@@ -20,7 +20,8 @@ import {
   resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
-import AttachmentPreview from '@/shared/components/common/AttachmentPreview/AttachmentPreview';
+import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
+import type {DocumentFile} from '@/features/documents/types';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
@@ -120,7 +121,9 @@ export const ExpensePreviewScreen: React.FC = () => {
 
         <View style={styles.previewContainer}>
           {expense.attachments && expense.attachments.length > 0 ? (
-            <AttachmentPreview attachments={expense.attachments} />
+            <DocumentAttachmentViewer
+              attachments={expense.attachments as DocumentFile[]}
+            />
           ) : (
             <View style={styles.fallbackCard}>
               <Image source={Images.documentIcon} style={styles.fallbackIcon} />
