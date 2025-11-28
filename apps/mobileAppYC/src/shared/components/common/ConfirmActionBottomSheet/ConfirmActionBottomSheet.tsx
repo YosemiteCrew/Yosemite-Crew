@@ -51,6 +51,10 @@ interface ConfirmActionBottomSheetProps {
   onSheetChange?: (index: number) => void;
   zIndex?: number;
   bottomInset?: number;
+  enablePanDown?: boolean;
+  enableHandlePanning?: boolean;
+  showCloseButton?: boolean;
+  backdropPressBehavior?: 'close' | 'none';
 }
 
 export const ConfirmActionBottomSheet = forwardRef<
@@ -73,6 +77,10 @@ export const ConfirmActionBottomSheet = forwardRef<
       onSheetChange,
       zIndex,
       bottomInset,
+      enablePanDown = true,
+      enableHandlePanning = true,
+      showCloseButton = true,
+      backdropPressBehavior = 'close',
     },
     ref,
   ) => {
@@ -147,14 +155,14 @@ export const ConfirmActionBottomSheet = forwardRef<
           setIsSheetVisible(index !== -1);
           onSheetChange?.(index);
         }}
-        enablePanDownToClose
+        enablePanDownToClose={enablePanDown}
         enableBackdrop={isSheetVisible}
-        enableHandlePanningGesture
+        enableHandlePanningGesture={enableHandlePanning}
         enableContentPanningGesture={false}
         backdropOpacity={0.5}
         backdropAppearsOnIndex={0}
         backdropDisappearsOnIndex={-1}
-        backdropPressBehavior="close"
+        backdropPressBehavior={backdropPressBehavior}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}
         bottomInset={bottomInset}
@@ -164,6 +172,7 @@ export const ConfirmActionBottomSheet = forwardRef<
             title={title}
             onClose={handleClose}
             theme={theme}
+            showCloseButton={showCloseButton}
           />
           {message ? (
             <Text

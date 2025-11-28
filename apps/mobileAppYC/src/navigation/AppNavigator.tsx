@@ -12,10 +12,15 @@ import {OnboardingScreen} from '@/features/onboarding/screens/OnboardingScreen';
 import {useAuth, type AuthTokens} from '@/features/auth/context/AuthContext';
 import {Loading} from '@/shared/components/common';
 import {EmergencyProvider, useEmergency} from '@/features/home/context/EmergencyContext';
+import {NetworkProvider} from '@/features/network/context/NetworkContext';
 import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSheet';
 import CoParentInviteBottomSheet, {
   type CoParentInviteBottomSheetRef,
 } from '@/features/coParent/components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
+import NetworkStatusBottomSheet, {
+  type NetworkStatusBottomSheetRef,
+} from '@/features/network/components/NetworkStatusBottomSheet';
+import {useNetworkStatus} from '@/features/network/context/NetworkContext';
 import type {AppDispatch, RootState} from '@/app/store';
 import {
   acceptCoParentInvite,
@@ -223,13 +228,16 @@ const checkOnboardingStatus = async () => {
   }
 
   return (
-    <EmergencyProvider>
-      <Stack.Navigator screenOptions={{headerShown: false}}>
-        {screenToRender}
-      </Stack.Navigator>
-      <AppNavigatorEmergencySheet />
-      <AppNavigatorCoParentInviteSheet />
-    </EmergencyProvider>
+    <NetworkProvider>
+      <EmergencyProvider>
+        <Stack.Navigator screenOptions={{headerShown: false}}>
+          {screenToRender}
+        </Stack.Navigator>
+        <AppNavigatorEmergencySheet />
+        <AppNavigatorCoParentInviteSheet />
+        <AppNavigatorNetworkStatusSheet />
+      </EmergencyProvider>
+    </NetworkProvider>
   );
 }
 
@@ -365,6 +373,23 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
       companionProfileImage={currentInvite?.companion?.photoUrl}
       onAccept={handleAccept}
       onDecline={handleDecline}
+    />
+  );
+};
+
+const AppNavigatorNetworkStatusSheet: React.FC = () => {
+  const {setNetworkSheetRef} = useNetworkStatus();
+  const sheetRef = React.useRef<NetworkStatusBottomSheetRef | null>(null);
+
+  React.useEffect(() => {
+    if (sheetRef.current) {
+      setNetworkSheetRef(sheetRef as React.RefObject<{open: () => void; close: () => void}>);
+    }
+  }, [setNetworkSheetRef]);
+
+  return (
+    <NetworkStatusBottomSheet
+      ref={sheetRef}
     />
   );
 };

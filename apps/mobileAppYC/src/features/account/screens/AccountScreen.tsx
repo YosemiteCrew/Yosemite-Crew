@@ -306,7 +306,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         label: 'About us',
         icon: Images.aboutusIcon,
         onPress: () => {
-          Linking.openURL('https://www.yosemitecrew.com/about_us').catch(console.warn);
+          Linking.openURL('https://www.yosemitecrew.com/about').catch(console.warn);
         },
       },
       {
