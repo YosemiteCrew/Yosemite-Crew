@@ -6,51 +6,63 @@ import {
 import logger from "../../utils/logger";
 import { ServiceRequestDTO } from "@yosemite-crew/types";
 
+type BookableSlotsPayload = {
+  serviceId: string;
+  organisationId: string;
+  date: string;
+};
+
+const handleError = (
+  error: unknown,
+  res: Response,
+  defaultMessage: string,
+) => {
+  if (error instanceof ServiceServiceError) {
+    return res.status(error.statusCode).json({ message: error.message });
+  }
+  logger.error(defaultMessage, error);
+  return res.status(500).json({ message: defaultMessage });
+};
+
 export const ServiceController = {
-  createService: async (req: Request, res: Response) => {
+  createService: async (
+    req: Request<unknown, unknown, ServiceRequestDTO>,
+    res: Response,
+  ) => {
     try {
-      const serviceRequest = req.body as ServiceRequestDTO;
+      const serviceRequest = req.body;
       const service = await ServiceService.create(serviceRequest);
       return res.status(201).json(service);
-    } catch (error) {
-      if (error instanceof ServiceServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to create service", error);
-      return res.status(500).json({ message: "Unable to create service." });
+    } catch (error: unknown) {
+      return handleError(error, res, "Unable to create service.");
     }
   },
 
-  updateService: async (req: Request, res: Response) => {
+  updateService: async (
+    req: Request<{ id: string }, unknown, ServiceRequestDTO>,
+    res: Response,
+  ) => {
     try {
       const { id } = req.params;
-      const serviceRequest = req.body as ServiceRequestDTO;
+      const serviceRequest = req.body;
       const updated = await ServiceService.update(id, serviceRequest);
       return res.status(200).json(updated);
-    } catch (error) {
-      if (error instanceof ServiceServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to update service", error);
-      return res.status(500).json({ message: "Unable to update service." });
+    } catch (error: unknown) {
+      return handleError(error, res, "Unable to update service.");
     }
   },
 
-  deleteService: async (req: Request, res: Response) => {
+  deleteService: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const { id } = req.params;
       await ServiceService.delete(id);
       return res.status(204).send();
-    } catch (error) {
-      if (error instanceof ServiceServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to delete service", error);
-      return res.status(500).json({ message: "Unable to delete service." });
+    } catch (error: unknown) {
+      return handleError(error, res, "Unable to delete service.");
     }
   },
 
-  getServiceById: async (req: Request, res: Response) => {
+  getServiceById: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const { id } = req.params;
 
@@ -61,12 +73,8 @@ export const ServiceController = {
       }
 
       return res.status(200).json(service);
-    } catch (error) {
-      if (error instanceof ServiceServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to fetch service", error);
-      return res.status(500).json({ message: "Unable to fetch service." });
+    } catch (error: unknown) {
+      return handleError(error, res, "Unable to fetch service.");
     }
   },
 
@@ -77,12 +85,12 @@ export const ServiceController = {
       const services = await ServiceService.listBySpeciality(specialityId);
 
       return res.status(200).json(services);
-    } catch (error) {
-      if (error instanceof ServiceServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to list services by speciality", error);
-      return res.status(500).json({ message: "Unable to fetch services." });
+    } catch (error: unknown) {
+      return handleError(
+        error,
+        res,
+        "Unable to fetch services by speciality.",
+      );
     }
   },
 
@@ -99,14 +107,50 @@ export const ServiceController = {
       const results =
         await ServiceService.listOrganisationsProvidingService(serviceName);
       return res.status(200).json(results);
-    } catch (error) {
-      if (error instanceof ServiceServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
+    } catch (error: unknown) {
+      return handleError(
+        error,
+        res,
+        "Unable to fetch organisations by service.",
+      );
+    }
+  },
+
+  getBookableSlotsForService: async (
+    req: Request<unknown, unknown, BookableSlotsPayload>,
+    res: Response,
+  ) => {
+    try {
+      const { serviceId, organisationId, date } = req.body;
+
+      if (!serviceId || !organisationId || !date) {
+        return res.status(400).json({
+          success: false,
+          message: "serviceId, organisationId and date are required",
+        });
       }
-      logger.error("Failed to list organisation by service", error);
-      return res
-        .status(500)
-        .json({ message: "Unable to fetch organisations." });
+
+      const referenceDate = new Date(date);
+      if (Number.isNaN(referenceDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid date format (use YYYY-MM-DD)",
+        });
+      }
+
+      const result = await ServiceService.getBookableSlotsService(
+        serviceId,
+        organisationId,
+        referenceDate,
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+
+    } catch (error: unknown) {
+      return handleError(error, res, "Unable to fetch bookable slots");
     }
   },
 };

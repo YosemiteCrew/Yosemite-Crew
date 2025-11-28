@@ -3,7 +3,8 @@ import ServiceModel, {
   type ServiceMongo,
   type ServiceDocument,
 } from "../models/service";
-
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import {
   toServiceResponseDTO,
   fromServiceRequestDTO,
@@ -12,6 +13,11 @@ import {
 } from "@yosemite-crew/types";
 import OrganizationModel from "src/models/organization";
 import escapeStringRegexp from "escape-string-regexp";
+import SpecialityModel from "src/models/speciality";
+import { AvailabilitySlotMongo } from "src/models/base-availability";
+import { AvailabilityService } from "./availability.service";
+
+dayjs.extend(utc);
 
 export class ServiceServiceError extends Error {
   constructor(
@@ -189,7 +195,7 @@ export const ServiceService = {
     // 3. Fetch organisations
     const organisations = await OrganizationModel.find({
       _id: { $in: orgIds },
-      isActive: true,
+      //isActive: true,
     })
       .lean()
       .exec();
@@ -203,4 +209,83 @@ export const ServiceService = {
       address: org.address,
     }));
   },
+
+  async getBookableSlotsService(
+    serviceId: string,
+    organisationId: string,
+    referenceDate: Date
+  ) {
+  
+    const service = await ServiceModel.findById(serviceId);
+    if (!service) throw new Error("Service not found");
+
+    const { specialityId, durationMinutes } = service;
+
+    const speciality = await SpecialityModel.findById(specialityId);
+    if (!speciality) throw new Error("Speciality not found");
+
+    const vetIds = speciality.memberUserIds || [];
+
+
+    if (vetIds.length === 0) {
+      return {
+        date: referenceDate,
+        windows: []
+      };
+    }
+
+    const allWindows: AvailabilitySlotMongo[] = [];
+
+    for (const vetId of vetIds) {
+      const result = await AvailabilityService.getBookableSlotsForDate(
+        organisationId,
+        vetId,
+        durationMinutes,
+        referenceDate
+      )
+
+      if (result?.windows?.length) {
+        allWindows.push(...result.windows);
+      }
+
+    }
+
+    const uniqueSlotsMap = new Map<string, AvailabilitySlotMongo>();
+
+    for (const w of allWindows) {
+      const key = `${w.startTime}-${w.endTime}`;
+      uniqueSlotsMap.set(key, w);
+    }
+
+    let finalWindows: AvailabilitySlotMongo[] = Array.from(
+      uniqueSlotsMap.values(),
+    );
+
+    // Remove past slots if referenceDate == today
+    const todayStr = dayjs().utc().format("YYYY-MM-DD");
+    const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
+
+    if (refStr === todayStr) {
+      const now = dayjs().utc();
+
+      finalWindows = finalWindows.filter(slot => {
+        const slotTime = dayjs(`${refStr} ${slot.startTime}`).utc();
+        return slotTime.isAfter(now);
+      });
+    }
+
+    // Sort ascending by time
+    finalWindows.sort((a, b) => {
+      const t1 = dayjs(`2000-01-01 ${a.startTime}`);
+      const t2 = dayjs(`2000-01-01 ${b.startTime}`);
+      return t1.valueOf() - t2.valueOf();
+    });
+
+    return {
+      date: refStr,
+      dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
+      windows: finalWindows,
+    };
+  },
+
 };
