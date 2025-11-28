@@ -36,7 +36,7 @@ describe("UserHeader", () => {
 
     fireEvent.click(screen.getByLabelText("Open menu"));
     const orgButton = screen
-      .getAllByRole("button", { name: "Organisation" })
+      .getAllByRole("button", { name: "Organization" })
       .find((el) => el.classList.contains("mobile-menu-item-button"));
     expect(orgButton).toBeDefined();
 
@@ -49,7 +49,7 @@ describe("UserHeader", () => {
       jest.advanceTimersByTime(400);
     });
 
-    expect(mockPush).toHaveBeenCalledWith("/organizations");
+    expect(mockPush).toHaveBeenCalledWith("/organization");
   });
 
   test("signs out when clicking Sign out entry", () => {

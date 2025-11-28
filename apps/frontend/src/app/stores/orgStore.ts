@@ -1,113 +1,160 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-
-export type Org = {
-  id: string;
-  name: string;
-  imageURL?: string | null;
-  phoneNo?: string | null;
-  country?: string | null;
-  website?: string | null;
-  isVerified: boolean;
-};
+import { Membership, Org, OrgWithMembership } from "@/app/types/org";
 
 type OrgState = {
-  orgs: Org[];
-  _index: Record<string, number>;
+  orgsById: Record<string, Org>;
+  orgIds: string[];
+  membershipsByOrgId: Record<string, Membership>;
   primaryOrgId: string | null;
-  setOrgs: (orgs: Org[], opts?: { keepPrimaryIfPresent?: boolean }) => void;
-  upsertOrg: (org: Org) => void;
-  removeOrg: (orgId: string) => void;
-  clearOrgs: () => void;
-  setPrimaryOrg: (orgId: string | null) => void;
+
+  setOrgs: (
+    orgs: OrgWithMembership[],
+    opts?: { keepPrimaryIfPresent?: boolean }
+  ) => void;
+  upsertOrg: (org: OrgWithMembership) => void;
+  updateOrg: (orgId: string, patch: Partial<Org>) => void;
   getOrgById: (orgId: string) => Org | null;
   getPrimaryOrg: () => Org | null;
-};
-
-const buildIndex = (orgs: Org[]): Record<string, number> => {
-  const idx: Record<string, number> = {};
-  for (let i = 0; i < orgs.length; i++) idx[orgs[i].id] = i;
-  return idx;
+  removeOrg: (orgId: string) => void;
+  clearOrgs: () => void;
 };
 
 export const useOrgStore = create<OrgState>()(
   persist(
     (set, get) => ({
-      orgs: [],
-      _index: {},
+      orgsById: {},
+      orgIds: [],
+      membershipsByOrgId: {},
       primaryOrgId: null,
-      setOrgs: (orgs, opts) => {
-        const keep = opts?.keepPrimaryIfPresent ?? true;
-        const currentPrimary = get().primaryOrgId;
-        const nextOrgs = [...orgs];
-        const nextIndex = buildIndex(nextOrgs);
-        let nextPrimary: string | null = null;
-        if (keep && currentPrimary && nextIndex[currentPrimary] !== undefined) {
-          nextPrimary = currentPrimary;
-        } else {
-          nextPrimary = nextOrgs[0]?.id ?? null;
-        }
-        set({ orgs: nextOrgs, _index: nextIndex, primaryOrgId: nextPrimary });
-      },
-      upsertOrg: (org) => {
-        const { orgs, _index, primaryOrgId } = get();
-        const pos = _index[org.id];
-        if (pos === undefined) {
-          const nextOrgs = [...orgs, org];
-          set({
-            orgs: nextOrgs,
-            _index: buildIndex(nextOrgs),
-            primaryOrgId: primaryOrgId ?? org.id,
-          });
-          return;
-        }
-        const nextOrgs = [...orgs];
-        nextOrgs[pos] = { ...nextOrgs[pos], ...org };
-        set({ orgs: nextOrgs, _index: _index });
-      },
-      removeOrg: (orgId) => {
-        const { orgs, primaryOrgId } = get();
-        const nextOrgs = orgs.filter((o) => o.id !== orgId);
-        const nextIndex = buildIndex(nextOrgs);
-        let nextPrimary = primaryOrgId;
-        if (primaryOrgId === orgId) {
-          nextPrimary = nextOrgs[0]?.id ?? null;
-        }
-        set({ orgs: nextOrgs, _index: nextIndex, primaryOrgId: nextPrimary });
-      },
-      clearOrgs: () => set({ orgs: [], _index: {}, primaryOrgId: null }),
-      setPrimaryOrg: (orgId) => {
-        if (orgId === null) return set({ primaryOrgId: null });
-        const exists = get()._index[orgId] !== undefined;
-        if (!exists) return;
-        set({ primaryOrgId: orgId });
-      },
+
+      setOrgs: (orgs, opts) =>
+        set((state) => {
+          const orgsById: Record<string, Org> = {};
+          const membershipsByOrgId: Record<string, Membership> = {};
+          const orgIds: string[] = [];
+          for (const o of orgs) {
+            orgsById[o.id] = {
+              id: o.id,
+              name: o.name,
+              type: o.type,
+              isActive: o.isActive,
+              isVerified: o.isVerified,
+            };
+            membershipsByOrgId[o.id] = {
+              orgId: o.id,
+              role: o.membership.role,
+              permissions: o.membership.permissions ?? [],
+            };
+            orgIds.push(o.id);
+          }
+          let primaryOrgId: string | null = null;
+          if (opts?.keepPrimaryIfPresent && state.primaryOrgId) {
+            primaryOrgId = orgIds.includes(state.primaryOrgId)
+              ? state.primaryOrgId
+              : (orgIds[0] ?? null);
+          } else {
+            primaryOrgId = orgIds[0] ?? null;
+          }
+          return {
+            orgsById,
+            orgIds,
+            membershipsByOrgId,
+            primaryOrgId,
+          };
+        }),
+
+      upsertOrg: (org) =>
+        set((state) => {
+          const exists = !!state.orgsById[org.id];
+          const orgsById: Record<string, Org> = {
+            ...state.orgsById,
+            [org.id]: {
+              id: org.id,
+              name: org.name,
+              type: org.type,
+              isActive: org.isActive,
+              isVerified: org.isVerified,
+            },
+          };
+          const membershipsByOrgId: Record<string, Membership> = {
+            ...state.membershipsByOrgId,
+            [org.id]: {
+              orgId: org.id,
+              role: org.membership.role,
+              permissions: org.membership.permissions ?? [],
+            },
+          };
+          const orgIds = exists ? state.orgIds : [...state.orgIds, org.id];
+          return { orgsById, membershipsByOrgId, orgIds };
+        }),
+
+      updateOrg: (orgId, patch) =>
+        set((state) => {
+          const existing = state.orgsById[orgId];
+          if (!existing) return state;
+          const updated: Org = {
+            ...existing,
+            ...patch,
+          };
+          return {
+            orgsById: {
+              ...state.orgsById,
+              [orgId]: updated,
+            },
+          };
+        }),
+
       getOrgById: (orgId) => {
-        const { orgs, _index } = get();
-        const pos = _index[orgId];
-        return pos === undefined ? null : (orgs[pos] ?? null);
+        const { orgsById } = get();
+        return orgsById[orgId] ?? null;
       },
+
       getPrimaryOrg: () => {
-        const { orgs, primaryOrgId, _index } = get();
+        const { primaryOrgId, orgsById } = get();
         if (!primaryOrgId) return null;
-        const pos = _index[primaryOrgId];
-        return pos === undefined ? null : (orgs[pos] ?? null);
+        return orgsById[primaryOrgId] ?? null;
       },
+
+      removeOrg: (orgId) =>
+        set((state) => {
+          if (!state.orgsById[orgId]) return state;
+          const { [orgId]: _, ...nextOrgsById } = state.orgsById;
+          const { [orgId]: __, ...nextMembershipsByOrgId } =
+            state.membershipsByOrgId;
+          const nextOrgIds = state.orgIds.filter((id) => id !== orgId);
+          const nextPrimaryOrgId =
+            state.primaryOrgId === orgId
+              ? (nextOrgIds[0] ?? null)
+              : state.primaryOrgId;
+          return {
+            orgsById: nextOrgsById,
+            membershipsByOrgId: nextMembershipsByOrgId,
+            orgIds: nextOrgIds,
+            primaryOrgId: nextPrimaryOrgId,
+          };
+        }),
+
+      clearOrgs: () =>
+        set(() => ({
+          orgsById: {},
+          membershipsByOrgId: {},
+          orgIds: [],
+          primaryOrgId: null,
+        })),
     }),
     {
       name: "org-store",
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        orgs: state.orgs,
+        orgsById: state.orgsById,
+        orgIds: state.orgIds,
+        membershipsByOrgId: state.membershipsByOrgId,
         primaryOrgId: state.primaryOrgId,
       }),
       migrate: (persisted: any, _version) => {
-        if (!persisted) return persisted;
-        return {
-          ...persisted,
-          _index: buildIndex(persisted.orgs ?? []),
-        };
+        return persisted;
       },
     }
   )

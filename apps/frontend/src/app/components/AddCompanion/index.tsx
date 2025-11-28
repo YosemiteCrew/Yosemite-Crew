@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
-import Parent from "./Forms/Parent";
-import Companion from "./Forms/Companion";
-import Allergies from "./Forms/Allergies";
+import Parent from "./Sections/Parent";
+import Companion from "./Sections/Companion";
+import Allergies from "./Sections/Allergies";
 import Modal from "../Modal";
 import SubLabels from "../Labels/SubLabels";
 

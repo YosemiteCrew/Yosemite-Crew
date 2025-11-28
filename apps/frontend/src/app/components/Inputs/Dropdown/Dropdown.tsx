@@ -48,9 +48,14 @@ const Dropdown = ({
     };
   }, []);
 
+  const isActive = open || !!value;
+
   return (
     <div className="select-wrapper">
-      <div className="select-container" ref={dropdownRef}>
+      <div
+        className={classNames("select-container floating-input", { focused: isActive })}
+        ref={dropdownRef}
+      >
         <button
           className={classNames(
             "select-input-container",
@@ -59,15 +64,12 @@ const Dropdown = ({
           )}
           onClick={() => setOpen((prev) => !prev)}
         >
-          {value ? (
-            <div className="select-input-selected">{value}</div>
-          ) : (
-            <div className="select-input-placeholder">{placeholder}</div>
-          )}
+          {value && <div className="select-input-selected">{value}</div>}
           <div className="select-input-drop-icon">
             <FaSortDown color="#747473" size={20} />
           </div>
         </button>
+        <label className="select-floating-label">{placeholder}</label>
         {open && list.length > 0 && (
           <div className={`select-input-dropdown ${dropdownClassName}`}>
             {list.map((option: any, index: number) => {

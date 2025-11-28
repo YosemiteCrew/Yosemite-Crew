@@ -43,7 +43,7 @@ describe("Sidebar", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "Appointments" }));
 
-    expect(mockPush).toHaveBeenCalledWith("#");
+    expect(mockPush).toHaveBeenCalledWith("/appointments");
   });
 
   test("calls signout when clicking Sign out", () => {

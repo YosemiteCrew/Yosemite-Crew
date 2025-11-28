@@ -56,7 +56,7 @@ describe("<SpecialityCard />", () => {
       <SpecialityCard speciality={speciality} setSpecialities={setSpecialities} />
     );
 
-    fireEvent.click(container.querySelector(".speciality-delete")!);
+    fireEvent.click(container.querySelector(".speciality-delete") as HTMLElement);
     expect(updated?.[0].active).toBe(false);
 
     fireEvent.click(screen.getByText("Cleaning").nextSibling as HTMLElement);

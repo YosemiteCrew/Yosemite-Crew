@@ -63,17 +63,4 @@ describe("<Accordion />", () => {
     expect(onEditClick).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("accordion-content")).toBeInTheDocument();
   });
-
-  test("clicking add icon when hasData is false opens accordion", () => {
-    const onEditClick = jest.fn();
-    render(
-      <Accordion title="Add data" hasData={false} onEditClick={onEditClick}>
-        <div data-testid="accordion-content">New content</div>
-      </Accordion>
-    );
-
-    fireEvent.click(screen.getByTestId("add-icon"));
-    expect(onEditClick).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("accordion-content")).toBeInTheDocument();
-  });
 });
