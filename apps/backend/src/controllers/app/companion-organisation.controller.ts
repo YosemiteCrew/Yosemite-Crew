@@ -33,6 +33,7 @@ type InvitePayload = {
   companionId: string;
   email?: string | null;
   name?: string | null;
+  placesId?: string | null;
   organisationType: OrganisationType;
 };
 
@@ -61,7 +62,7 @@ const parseLinkPayload = (body: unknown): LinkPayload | null => {
 
 const parseInvitePayload = (body: unknown): InvitePayload | null => {
   if (!body || typeof body !== "object") return null;
-  const { companionId, email, name, organisationType } = body as Record<
+  const { companionId, email, name, organisationType, placesId } = body as Record<
     string,
     unknown
   >;
@@ -75,9 +76,10 @@ const parseInvitePayload = (body: unknown): InvitePayload | null => {
 
   const emailValid = typeof email === "string" && email.trim().length > 0;
   const nameValid = typeof name === "string" && name.trim().length > 0;
+  const placesIdValid = typeof placesId === "string" && placesId.trim().length > 0;
 
   // At least one must be present
-  if (!emailValid && !nameValid) {
+  if (!emailValid && !nameValid && !placesId) {
     return null;
   }
 
@@ -85,6 +87,7 @@ const parseInvitePayload = (body: unknown): InvitePayload | null => {
     companionId,
     email: emailValid ? email.trim() : undefined,
     name: nameValid ? name.trim() : undefined,
+    placesId: placesIdValid ? placesId.trim() : undefined,
     organisationType,
   };
 };
