@@ -458,6 +458,9 @@ importers:
       '@reduxjs/toolkit':
         specifier: ^2.6.1
         version: 2.9.0(react-redux@9.2.0)(react@19.1.0)
+      '@stripe/stripe-react-native':
+        specifier: ^0.57.0
+        version: 0.57.0(react-native@0.81.4)(react@19.1.0)
       '@yosemite-crew/fhirtypes':
         specifier: workspace:*
         version: link:../../packages/fhirtypes
@@ -16659,6 +16662,20 @@ packages:
     dev: false
     optional: true
 
+  /@stripe/stripe-react-native@0.57.0(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-l68At+JKyd32TzyB7e3yklHsMqF3X+38KE2+NwByxAEIbxs/K7GKjQTABv3DIGmcZ/yGTpDSlKJqrYxtKH4j2g==}
+    peerDependencies:
+      expo: '>=46.0.9'
+      react: '*'
+      react-native: '*'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
+    dev: false
+
   /@svgr/babel-plugin-add-jsx-attribute@8.0.0(@babel/core@7.28.4):
     resolution: {integrity: sha512-b9MIk7yhdS1pMCZM8VeNfUlSKVRhsHZNMl5O9SfaX0l0t5wjdgu4IDzGB8bpnGBBOjGST3rRFVsaaEtI4W6f7g==}
     engines: {node: '>=14'}
@@ -24129,7 +24146,7 @@ packages:
     engines: {node: '>= 14'}
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
     dev: true
