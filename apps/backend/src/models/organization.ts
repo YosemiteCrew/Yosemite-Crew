@@ -43,6 +43,10 @@ export interface OrganizationMongo {
     postalCode?: string;
     latitude?: number;
     longitude?: number;
+    location?: {
+      type: "Point";
+      coordinates: [number, number];
+    };
   };
   isVerified?: boolean;
   isActive?: boolean;

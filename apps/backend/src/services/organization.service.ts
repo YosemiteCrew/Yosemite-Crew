@@ -313,17 +313,6 @@ const coerceOrganizationType = (value: unknown): Organisation["type"] => {
   return "HOSPITAL";
 };
 
-const hasAddressValues = (address: OrganizationMongo["address"]): boolean =>
-  Boolean(
-    address?.addressLine ||
-      address?.city ||
-      address?.state ||
-      address?.postalCode ||
-      address?.country ||
-      address?.latitude !== undefined ||
-      address?.longitude !== undefined,
-  );
-
 const sanitizeAddress = (
   address: OrganizationDTOAttributes["address"],
 ): OrganizationMongo["address"] | undefined => {
@@ -331,7 +320,7 @@ const sanitizeAddress = (
     return undefined;
   }
 
-  const sanitized = {
+  const sanitized: OrganizationMongo["address"] = {
     addressLine: optionalSafeString(address.addressLine, "Address line"),
     country: optionalSafeString(address.country, "Address country"),
     city: optionalSafeString(address.city, "Address city"),
@@ -341,8 +330,11 @@ const sanitizeAddress = (
     longitude: optionalNumber(address.longitude, "Address longitude"),
   };
 
-  if (!hasAddressValues(sanitized)) {
-    return undefined;
+  if (address?.latitude && address?.longitude) {
+    sanitized.location = {
+      type: "Point",
+      coordinates: [address.longitude, address.latitude],
+    };
   }
 
   return sanitized;
@@ -543,7 +535,11 @@ export const OrganizationService = {
       }
 
       // Update Profile photo url
-      if (persistable.imageURL && document._id.toString()) {
+      if (
+        persistable.imageURL &&
+        document._id.toString() &&
+        !persistable.imageURL?.includes("https://")
+      ) {
         const finalKey = buildS3Key(
           "org",
           document._id.toString(),

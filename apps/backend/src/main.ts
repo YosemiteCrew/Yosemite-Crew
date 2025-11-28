@@ -25,11 +25,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit per IP
+  max: 500, // limit per IP
   standardHeaders: true,
   legacyHeaders: false,
 });
-
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(fileUpload());
 app.use(limiter);
