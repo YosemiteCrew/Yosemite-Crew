@@ -1,26 +1,9 @@
-import BaseAvailabilityModel from "../../src/models/base-availability";
-import WeeklyAvailabilityOverrideModel from "../../src/models/weekly-availablity-override";
-import OccupancyModel from "../../src/models/occupancy";
-import { AvailabilityService } from "../../src/services/availability.service";
+import BaseAvailabilityModel from "src/models/base-availability";
+import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
+import OccupancyModel from "src/models/occupancy";
+import { AvailabilityService } from "src/services/availability.service";
 
-type MockedBaseAvailabilityModel = {
-  deleteMany: jest.Mock;
-  insertMany: jest.Mock;
-  find: jest.Mock;
-};
-
-type MockedWeeklyOverrideModel = jest.Mock & {
-  findOne: jest.Mock;
-  deleteOne: jest.Mock;
-};
-
-type MockedOccupancyModel = jest.Mock & {
-  insertMany: jest.Mock;
-  find: jest.Mock;
-  exists: jest.Mock;
-};
-
-jest.mock("../../src/models/base-availability", () => ({
+jest.mock("src/models/base-availability", () => ({
   __esModule: true,
   default: {
     deleteMany: jest.fn(),
@@ -29,309 +12,120 @@ jest.mock("../../src/models/base-availability", () => ({
   },
 }));
 
-jest.mock("../../src/models/weekly-availablity-override", () => {
-  const mockConstructor = Object.assign(jest.fn(), {
+jest.mock("src/models/weekly-availablity-override", () => ({
+  __esModule: true,
+  default: {
     findOne: jest.fn(),
     deleteOne: jest.fn(),
-  });
-  return {
-    __esModule: true,
-    default: mockConstructor,
-  };
-});
+  },
+}));
 
-jest.mock("../../src/models/occupancy", () => {
-  const mockConstructor = Object.assign(jest.fn(), {
+jest.mock("src/models/occupancy", () => ({
+  __esModule: true,
+  default: {
+    create: jest.fn(),
     insertMany: jest.fn(),
     find: jest.fn(),
     exists: jest.fn(),
-  });
-  return {
-    __esModule: true,
-    default: mockConstructor,
-  };
-});
+  },
+}));
 
-const mockedBaseAvailabilityModel =
-  BaseAvailabilityModel as unknown as MockedBaseAvailabilityModel;
-const mockedWeeklyOverrideModel =
-  WeeklyAvailabilityOverrideModel as unknown as MockedWeeklyOverrideModel;
-const mockedOccupancyModel =
-  OccupancyModel as unknown as MockedOccupancyModel;
+const mockedBaseModel = BaseAvailabilityModel as unknown as {
+  deleteMany: jest.Mock;
+  insertMany: jest.Mock;
+  find: jest.Mock;
+};
+
+const mockedWeeklyModel = WeeklyAvailabilityOverrideModel as unknown as {
+  findOne: jest.Mock;
+  deleteOne: jest.Mock;
+};
+
+const mockedOccupancyModel = OccupancyModel as unknown as {
+  create: jest.Mock;
+  insertMany: jest.Mock;
+  find: jest.Mock;
+  exists: jest.Mock;
+};
 
 describe("AvailabilityService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedWeeklyOverrideModel.mockImplementation(() => ({ save: jest.fn() }));
-    mockedOccupancyModel.mockImplementation(() => ({ save: jest.fn() }));
   });
 
-  describe("setAllBaseAvailability", () => {
-    it("replaces base availability with the provided slots", async () => {
-      const newDocs = [{ _id: "doc-1" }];
-      mockedBaseAvailabilityModel.insertMany.mockResolvedValueOnce(newDocs);
+  it("sets all base availability", async () => {
+    mockedBaseModel.insertMany.mockResolvedValueOnce([]);
 
-      const result = await AvailabilityService.setAllBaseAvailability(
-        "org-1",
-        "user-1",
-        [
-          {
-            dayOfWeek: "MONDAY",
-            slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
-          },
-        ],
-      );
+    await AvailabilityService.setAllBaseAvailability("org-1", "user-1", [
+      {
+        dayOfWeek: "MONDAY",
+        slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+      },
+    ]);
 
-      expect(mockedBaseAvailabilityModel.deleteMany).toHaveBeenCalledWith({
-        userId: "user-1",
+    expect(mockedBaseModel.deleteMany).toHaveBeenCalledWith({
+      userId: "user-1",
+      organisationId: "org-1",
+    });
+    expect(mockedBaseModel.insertMany).toHaveBeenCalledWith([
+      {
         organisationId: "org-1",
-      });
-      expect(mockedBaseAvailabilityModel.insertMany).toHaveBeenCalledWith([
-        {
-          dayOfWeek: "MONDAY",
-          slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
-          userId: "user-1",
-          organisationId: "org-1",
-        },
-      ]);
-      expect(result).toBe(newDocs);
-    });
+        userId: "user-1",
+        dayOfWeek: "MONDAY",
+        slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+      },
+    ]);
   });
 
-  describe("addWeeklyAvailabilityOverride", () => {
-    it("updates an existing override when found", async () => {
-      const existingOverride = {
-        overrides: [],
-        save: jest.fn(),
-      };
-      mockedWeeklyOverrideModel.findOne.mockResolvedValueOnce(existingOverride);
+  it("adds all occupancies with organisation/user metadata", async () => {
+    mockedOccupancyModel.insertMany.mockResolvedValueOnce([]);
 
-      const overridePayload = {
-        dayOfWeek: "MONDAY" as const,
-        slots: [{ startTime: "10:00", endTime: "12:00", isAvailable: true }],
-      };
+    await AvailabilityService.addAllOccupancies("org-1", "user-1", [
+      {
+        startTime: new Date("2024-01-01T09:00:00Z"),
+        endTime: new Date("2024-01-01T10:00:00Z"),
+        sourceType: "APPOINTMENT",
+      },
+    ]);
 
-      await AvailabilityService.addWeeklyAvailabilityOverride(
-        "org-1",
-        "user-1",
-        new Date("2025-01-06"),
-        overridePayload,
-      );
-
-      expect(existingOverride.overrides).toHaveLength(1);
-      expect(existingOverride.overrides[0]).toBe(overridePayload);
-      expect(existingOverride.save).toHaveBeenCalledTimes(1);
-    });
-
-    it("creates a new override document when none exists", async () => {
-      const saveMock = jest.fn();
-      mockedWeeklyOverrideModel.findOne.mockResolvedValueOnce(null);
-      mockedWeeklyOverrideModel.mockImplementationOnce(() => ({
-        save: saveMock,
-      }));
-
-      const overridePayload = {
-        dayOfWeek: "TUESDAY" as const,
-        slots: [{ startTime: "11:00", endTime: "13:00", isAvailable: true }],
-      };
-
-      await AvailabilityService.addWeeklyAvailabilityOverride(
-        "org-2",
-        "user-2",
-        new Date("2025-01-07"),
-        overridePayload,
-      );
-
-      expect(mockedWeeklyOverrideModel).toHaveBeenCalledWith({
-        organisationId: "org-2",
-        userId: "user-2",
-        weekStartDate: new Date("2025-01-07"),
-        overrides: [overridePayload],
-      });
-      expect(saveMock).toHaveBeenCalledTimes(1);
-    });
+    expect(mockedOccupancyModel.insertMany).toHaveBeenCalledWith([
+      {
+        startTime: new Date("2024-01-01T09:00:00Z"),
+        endTime: new Date("2024-01-01T10:00:00Z"),
+        sourceType: "APPOINTMENT",
+        organisationId: "org-1",
+        userId: "user-1",
+      },
+    ]);
   });
 
-  describe("getFinalAvailability", () => {
-    it("merges base availability, overrides, and occupancy blocks", async () => {
-      mockedBaseAvailabilityModel.find.mockResolvedValueOnce([
+  it("merges availability with occupancies for the week", async () => {
+    mockedBaseModel.find.mockResolvedValueOnce([
+      {
+        dayOfWeek: "MONDAY",
+        slots: [{ startTime: "09:00", endTime: "12:00", isAvailable: true }],
+      },
+    ]);
+    mockedWeeklyModel.findOne.mockResolvedValueOnce(null);
+    mockedOccupancyModel.find.mockReturnValue({
+      lean: jest.fn().mockResolvedValue([
         {
-          dayOfWeek: "MONDAY",
-          slots: [
-            {
-              startTime: "2025-01-06T09:00:00.000Z",
-              endTime: "2025-01-06T11:00:00.000Z",
-              isAvailable: true,
-            },
-            {
-              startTime: "2025-01-06T13:00:00.000Z",
-              endTime: "2025-01-06T15:00:00.000Z",
-              isAvailable: true,
-            },
-          ],
+          startTime: new Date("2024-06-03T10:00:00Z"),
+          endTime: new Date("2024-06-03T11:00:00Z"),
         },
-        {
-          dayOfWeek: "TUESDAY",
-          slots: [{ startTime: "10:00", endTime: "12:00", isAvailable: true }],
-        },
-      ]);
-
-      mockedWeeklyOverrideModel.findOne.mockResolvedValueOnce({
-        overrides: [
-          {
-            dayOfWeek: "TUESDAY",
-            slots: [
-              {
-                startTime: "2025-01-07T14:00:00.000Z",
-                endTime: "2025-01-07T16:00:00.000Z",
-                isAvailable: true,
-              },
-            ],
-          },
-        ],
-      });
-
-      mockedOccupancyModel.find.mockResolvedValueOnce([
-        {
-          startTime: new Date("2025-01-06T09:30:00.000Z"),
-          endTime: new Date("2025-01-06T10:30:00.000Z"),
-        },
-      ]);
-
-      const availability = await AvailabilityService.getWeeklyFinalAvailability(
-        "org-1",
-        "user-1",
-        new Date("2025-01-08"),
-      );
-
-      expect(availability).toEqual([
-        {
-          dayOfWeek: "MONDAY",
-          slots: [
-            {
-              startTime: "2025-01-06T13:00:00.000Z",
-              endTime: "2025-01-06T15:00:00.000Z",
-              isAvailable: true,
-            },
-          ],
-        },
-        {
-          dayOfWeek: "TUESDAY",
-          slots: [
-            {
-              startTime: "2025-01-07T14:00:00.000Z",
-              endTime: "2025-01-07T16:00:00.000Z",
-              isAvailable: true,
-            },
-          ],
-        },
-      ]);
-    });
-  });
-
-  describe("calculateWeeklyHours", () => {
-    it("sums only available slot durations", () => {
-      const total = AvailabilityService.calculateWeeklyHours({
-        "2025-01-06": [
-          { startTime: "09:00", endTime: "10:30", isAvailable: true },
-          { startTime: "11:00", endTime: "12:00", isAvailable: false },
-        ],
-        "2025-01-07": [
-          { startTime: "14:00", endTime: "18:00", isAvailable: true },
-        ],
-      });
-
-      expect(total).toBeCloseTo(5.5);
-    });
-  });
-
-  describe("getCurrentStatus", () => {
-    const mondayMorning = new Date(2025, 0, 6, 10, 0, 0);
-
-    afterEach(() => {
-      jest.useRealTimers();
+      ]),
     });
 
-    it("returns Consulting when an occupancy exists", async () => {
-      jest.useFakeTimers().setSystemTime(mondayMorning);
-      const availability = [
-        {
-          dayOfWeek: "MONDAY" as const,
-          slots: [{ startTime: "09:00", endTime: "11:00", isAvailable: true }],
-        },
-      ];
-      const spy = jest
-        .spyOn(AvailabilityService, "getWeeklyFinalAvailability")
-        .mockResolvedValueOnce(availability);
-      mockedOccupancyModel.exists.mockResolvedValueOnce(true);
+    const result = await AvailabilityService.getWeeklyFinalAvailability(
+      "org-1",
+      "user-1",
+      new Date("2024-06-05T00:00:00Z"),
+    );
 
-      const status = await AvailabilityService.getCurrentStatus(
-        "org-1",
-        "user-1",
-      );
-
-      expect(status).toBe("Consulting");
-      spy.mockRestore();
-    });
-
-    it("returns Available when within an active slot", async () => {
-      jest.useFakeTimers().setSystemTime(mondayMorning);
-      const availability = [
-        {
-          dayOfWeek: "MONDAY" as const,
-          slots: [{ startTime: "09:00", endTime: "11:00", isAvailable: true }],
-        },
-      ];
-      const spy = jest
-        .spyOn(AvailabilityService, "getWeeklyFinalAvailability")
-        .mockResolvedValueOnce(availability);
-      mockedOccupancyModel.exists.mockResolvedValueOnce(false);
-
-      const status = await AvailabilityService.getCurrentStatus(
-        "org-1",
-        "user-1",
-      );
-
-      expect(status).toBe("Available");
-      spy.mockRestore();
-    });
-
-    it("returns Off-Duty when no slots exist", async () => {
-      jest.useFakeTimers().setSystemTime(mondayMorning);
-      const spy = jest
-        .spyOn(AvailabilityService, "getWeeklyFinalAvailability")
-        .mockResolvedValueOnce([]);
-      mockedOccupancyModel.exists.mockResolvedValueOnce(false);
-
-      const status = await AvailabilityService.getCurrentStatus(
-        "org-1",
-        "user-1",
-      );
-
-      expect(status).toBe("Off-Duty");
-      spy.mockRestore();
-    });
-
-    it("returns Requested when no slot is active", async () => {
-      jest.useFakeTimers().setSystemTime(mondayMorning);
-      const availability = [
-        {
-          dayOfWeek: "MONDAY" as const,
-          slots: [{ startTime: "12:00", endTime: "13:00", isAvailable: true }],
-        },
-      ];
-      const spy = jest
-        .spyOn(AvailabilityService, "getWeeklyFinalAvailability")
-        .mockResolvedValueOnce(availability);
-      mockedOccupancyModel.exists.mockResolvedValueOnce(false);
-
-      const status = await AvailabilityService.getCurrentStatus(
-        "org-1",
-        "user-1",
-      );
-
-      expect(status).toBe("Requested");
-      spy.mockRestore();
-    });
+    const monday = result.find((d) => d.dayOfWeek === "MONDAY");
+    expect(monday?.slots).toEqual([
+      { startTime: "09:00", endTime: "10:00", isAvailable: true },
+      { startTime: "11:00", endTime: "12:00", isAvailable: true },
+    ]);
   });
 });

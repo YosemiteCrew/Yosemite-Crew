@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp} from '@react-navigation/native';
+import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {HomeStackParamList, TabParamList, type TaskStackParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
@@ -27,7 +29,7 @@ import {
   setSelectedCompanion,
   fetchCompanions,
 } from '@/features/companion';
-import {initializeMockData} from '@/features/linkedBusinesses';
+import {initializeMockData, fetchLinkedBusinesses} from '@/features/linkedBusinesses';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
@@ -57,6 +59,13 @@ import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
 import {selectUnreadCount} from '@/features/notifications/selectors';
 import {openMapsToAddress} from '@/shared/utils/openMaps';
+import {
+  fetchParentAccess,
+  type CoParentPermissions,
+  type ParentCompanionAccess,
+} from '@/features/coParent';
+
+const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -92,6 +101,18 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const expenseSummary = useSelector(
     selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
   );
+  const accessMap = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
+  );
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const globalPermissions = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedPermissions,
+  );
+  const currentAccessEntry = selectedCompanionIdRedux
+    ? accessMap[selectedCompanionIdRedux] ?? null
+    : null;
+  const hasCompanions = companions.length > 0;
   const hasExpenseHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
   );
@@ -123,25 +144,121 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
   );
+  const [headerAvatarError, setHeaderAvatarError] = React.useState(false);
+  const headerAvatarUri = React.useMemo(
+    () => normalizeImageUri(authUser?.profilePicture ?? authUser?.profileToken ?? null),
+    [authUser?.profilePicture, authUser?.profileToken],
+  );
+  const getAccessEntry = React.useCallback(
+    (companionId?: string | null) => {
+      if (companionId) {
+        return accessMap[companionId] ?? null;
+      }
+      return currentAccessEntry ?? defaultAccess;
+    },
+    [accessMap, currentAccessEntry, defaultAccess],
+  );
+  const canAccessFeature = React.useCallback(
+    (permission: keyof CoParentPermissions, companionId?: string | null) => {
+      const entry = getAccessEntry(companionId);
+      const role = (entry?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase();
+      const permissions = entry?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+      const isPrimary = role.includes('PRIMARY');
+      if (isPrimary) {
+        return true;
+      }
+      if (!permissions) {
+        return false;
+      }
+      return Boolean(permissions[permission]);
+    },
+    [
+      defaultAccess?.permissions,
+      defaultAccess?.role,
+      getAccessEntry,
+      globalPermissions,
+      globalRole,
+    ],
+  );
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
+
+  const guardFeature = React.useCallback(
+    (permission: keyof CoParentPermissions, label: string, companionId?: string | null) => {
+      if (!hasCompanions) {
+        return true;
+      }
+      if (!canAccessFeature(permission, companionId)) {
+        showPermissionToast(label);
+        return false;
+      }
+      return true;
+    },
+    [canAccessFeature, hasCompanions, showPermissionToast],
+  );
+
+  React.useEffect(() => {
+    setHeaderAvatarError(false);
+  }, [headerAvatarUri]);
 
   // Fetch companions on mount and set the first one as default
   React.useEffect(() => {
     const loadCompanionsAndSelectDefault = async () => {
-      if (user?.id) {
-        await dispatch(fetchCompanions(user.id));
+      if (user?.parentId) {
+        await dispatch(fetchCompanions(user.parentId));
         // Initialize mock linked business data for testing
         dispatch(initializeMockData());
       }
     };
 
     loadCompanionsAndSelectDefault();
-  }, [dispatch, user?.id]);
+  }, [dispatch, user?.parentId]);
+
+  const fetchParentAccessStateRef = React.useRef({
+    lastParentId: null as string | null,
+    lastCompanionCount: 0,
+  });
+
+  React.useEffect(() => {
+    if (!authUser?.parentId || companions.length === 0) {
+      return;
+    }
+
+    const state = fetchParentAccessStateRef.current;
+    const parentIdChanged = state.lastParentId !== authUser.parentId;
+    const companionCountChanged = state.lastCompanionCount !== companions.length;
+
+    // Dispatch if parent changed (logout/login as different user) OR companions loaded for first time
+    if (parentIdChanged || (companionCountChanged && companions.length > 0)) {
+      state.lastParentId = authUser.parentId;
+      state.lastCompanionCount = companions.length;
+
+      dispatch(
+        fetchParentAccess({
+          parentId: authUser.parentId,
+          companionIds: companions.map(c => c.id),
+        }),
+      );
+    }
+  }, [authUser?.parentId, companions, dispatch]);
 
   // New useEffect to handle default selection once companions are loaded
   React.useEffect(() => {
     // If companions exist and no companion is currently selected, select the first one.
     if (companions.length > 0 && !selectedCompanionIdRedux) {
-      dispatch(setSelectedCompanion(companions[0].id));
+      const fallbackId =
+        companions[0]?.id ??
+        (companions[0] as any)?._id ??
+        (companions[0] as any)?.identifier?.[0]?.value;
+      if (fallbackId) {
+        dispatch(setSelectedCompanion(fallbackId));
+      }
     }
   }, [companions, selectedCompanionIdRedux, dispatch]);
 
@@ -165,6 +282,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionIdRedux}));
     }
   }, [dispatch, hasAppointmentsHydrated, selectedCompanionIdRedux]);
+
+  // Fetch linked hospitals for emergency feature
+  React.useEffect(() => {
+    if (selectedCompanionIdRedux) {
+      dispatch(
+        fetchLinkedBusinesses({companionId: selectedCompanionIdRedux, category: 'hospital'}),
+      );
+    }
+  }, [dispatch, selectedCompanionIdRedux]);
 
   const previousCurrencyRef = React.useRef(userCurrencyCode);
 
@@ -198,17 +324,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return companions.find(c => c.id === selectedCompanionIdRedux);
   }, [companions, selectedCompanionIdRedux]);
 
-  const computeMockTaskCount = React.useCallback((companionId: string) => {
-    if (!companionId) {
-      return 0;
-    }
-    const charSum = Array.from(companionId).reduce(
-      (accumulator, character) => accumulator + (character.codePointAt(0) ?? 0),
-      0,
-    );
-    return (charSum % 5) + 1;
-  }, []);
-
   const renderEmptyStateTile = (
     title: string,
     subtitle: string,
@@ -238,6 +353,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const handleCompleteTask = React.useCallback(
     async (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
       try {
         await dispatch(
           markTaskStatus({
@@ -249,20 +367,26 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         console.error('Failed to complete task:', error);
       }
     },
-    [dispatch],
+    [dispatch, guardFeature],
   );
 
   const handleStartObservationalTool = React.useCallback(() => {
+    if (!guardFeature('tasks', 'tasks')) {
+      return;
+    }
     if (!nextUpcomingTask) {
       return;
     }
     navigation
       .getParent<NavigationProp<TabParamList>>()
       ?.navigate('Tasks', {screen: 'ObservationalTool', params: {taskId: nextUpcomingTask.id}});
-  }, [navigation, nextUpcomingTask]);
+  }, [guardFeature, navigation, nextUpcomingTask]);
 
   const navigateToTasksCategory = React.useCallback(
     (category: TaskStackParamList['TasksList']['category']) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
       if (!selectedCompanionIdRedux && companions.length > 0) {
         dispatch(setSelectedCompanion(companions[0].id));
       }
@@ -271,22 +395,28 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         params: {category},
       });
     },
-    [companions, dispatch, navigation, selectedCompanionIdRedux],
+    [companions, dispatch, guardFeature, navigation, selectedCompanionIdRedux],
   );
 
   const navigateToTaskView = React.useCallback(
     (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
       navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
         screen: 'TaskView',
         params: {taskId, source: 'home'},
       });
     },
-    [navigation],
+    [guardFeature, navigation],
   );
 
   const handleEmergencyPress = React.useCallback(() => {
+    if (!guardFeature('emergencyBasedPermissions', 'emergency actions')) {
+      return;
+    }
     openEmergencySheet();
-  }, [openEmergencySheet]);
+  }, [guardFeature, openEmergencySheet]);
 
 
   const handleViewTask = React.useCallback(() => {
@@ -311,8 +441,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
   }, []);
 
-  const [showFallbackAppointmentCard, setShowFallbackAppointmentCard] = React.useState(true);
-
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
       return null;
@@ -327,16 +455,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const handleViewAppointment = React.useCallback(
     (appointmentId: string) => {
+      if (!guardFeature('appointments', 'appointments')) {
+        return;
+      }
       navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
         screen: 'ViewAppointment',
         params: {appointmentId},
       });
     },
-    [navigation],
+    [guardFeature, navigation],
   );
 
   const handleChatAppointment = React.useCallback(
     (appointmentId: string) => {
+      if (!guardFeature('chatWithVet', 'chat with vet')) {
+        return;
+      }
       const appointment = upcomingAppointments.find(a => a.id === appointmentId);
 
       if (!appointment) {
@@ -406,17 +540,101 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
       navigateToChat();
     },
-    [companions, employeeMap, navigation, serviceMap, upcomingAppointments],
+    [companions, employeeMap, guardFeature, navigation, serviceMap, upcomingAppointments],
   );
 
   const handleCheckInAppointment = React.useCallback(
     (appointmentId: string) => {
+      if (!guardFeature('appointments', 'appointments')) {
+        return;
+      }
       dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}));
     },
-    [dispatch],
+    [dispatch, guardFeature],
   );
 
+  const renderAppointmentCard = (
+    appointment: typeof nextUpcomingAppointment,
+  ) => {
+    if (!appointment) {
+      return null;
+    }
+
+    const biz = businessMap.get(appointment.businessId);
+    const service = serviceMap.get(appointment.serviceId ?? '');
+    const emp = employeeMap.get(appointment.employeeId ?? '');
+    const hasAssignedVet = Boolean(emp);
+    const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
+    const cardTitle = hasAssignedVet
+      ? emp?.name ?? 'Assigned vet'
+      : service?.name ?? appointment.serviceName ?? 'Service request';
+    const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
+    const serviceSubtitle = [
+      service?.specialty ?? appointment.type ?? 'Awaiting vet assignment',
+      servicePriceText,
+    ]
+      .filter(Boolean)
+      .join(' • ');
+    const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+
+    let assignmentNote: string | undefined;
+    if (!hasAssignedVet) {
+      assignmentNote = 'A vet will be assigned once the clinic approves your request.';
+    } else if (appointment.status === 'paid') {
+      assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
+    }
+
+    const formattedDate = formatAppointmentDateTime(appointment.date, appointment.time);
+    const canCheckIn = appointment.status === 'paid' && hasAssignedVet;
+
+    return (
+      <AppointmentCard
+        key={appointment.id}
+        doctorName={cardTitle}
+        specialization={cardSubtitle}
+        hospital={biz?.name || ''}
+        dateTime={formattedDate}
+        note={assignmentNote}
+        avatar={avatarSource}
+        showActions={canCheckIn}
+        onPress={() => handleViewAppointment(appointment.id)}
+        onViewDetails={() => handleViewAppointment(appointment.id)}
+        onGetDirections={() => {
+          if (biz?.address) {
+            openMapsToAddress(biz.address);
+          }
+        }}
+        onChat={() => handleChatAppointment(appointment.id)}
+        onCheckIn={() => {
+          if (canCheckIn) {
+            handleCheckInAppointment(appointment.id);
+          }
+        }}
+        testIDs={{
+          container: 'appointment-card-container',
+          directions: 'appointment-directions',
+          chat: 'appointment-chat',
+          checkIn: 'appointment-checkin',
+        }}
+      />
+    );
+  };
+
   const renderUpcomingTasks = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to start managing upcoming tasks.',
+        'tasks',
+      );
+    }
+    if (!canAccessFeature('tasks')) {
+      return renderEmptyStateTile(
+        'Tasks restricted',
+        'Ask the primary parent to enable tasks access for you.',
+        'tasks',
+      );
+    }
     if (nextUpcomingTask && selectedCompanion) {
       // Get assigned user's profile image and name
       const assignedToData = nextUpcomingTask?.assignedTo === authUser?.id ? {
@@ -432,7 +650,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           date={nextUpcomingTask.date}
           time={nextUpcomingTask.time}
           companionName={selectedCompanion.name}
-          companionAvatar={selectedCompanion.profileImage ?? undefined}
+          companionAvatar={
+            normalizeImageUri(selectedCompanion.profileImage ?? undefined) ?? undefined
+          }
           assignedToName={assignedToData?.name}
           assignedToAvatar={assignedToData?.avatar}
           status={nextUpcomingTask.status}
@@ -454,104 +674,72 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         />
       );
     }
-    return renderEmptyStateTile(
-      'No upcoming tasks',
-      'Add a companion to start managing their tasks',
-      'tasks',
-    );
+    return renderEmptyStateTile('No upcoming tasks', 'You are all caught up for now.', 'tasks');
   };
 
   const renderUpcomingAppointments = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to see upcoming appointments here.',
+        'appointments',
+      );
+    }
+    if (!canAccessFeature('appointments')) {
+      return renderEmptyStateTile(
+        'Appointments restricted',
+        'Ask the primary parent to enable appointment access for you.',
+        'appointments',
+      );
+    }
     if (nextUpcomingAppointment) {
-      const biz = businessMap.get(nextUpcomingAppointment.businessId);
-      const service = serviceMap.get(nextUpcomingAppointment.serviceId ?? '');
-      const emp = employeeMap.get(nextUpcomingAppointment.employeeId ?? '');
-      const hasAssignedVet = Boolean(emp);
-      const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
-      const cardTitle = hasAssignedVet
-        ? emp?.name ?? 'Assigned vet'
-        : service?.name ?? nextUpcomingAppointment.serviceName ?? 'Service request';
-      const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
-      const serviceSubtitle = [
-        service?.specialty ?? nextUpcomingAppointment.type ?? 'Awaiting vet assignment',
-        servicePriceText,
-      ]
-        .filter(Boolean)
-        .join(' • ');
-      const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
-      let assignmentNote: string | undefined;
-      if (!hasAssignedVet) {
-        assignmentNote = 'A vet will be assigned once the clinic approves your request.';
-      } else if (nextUpcomingAppointment.status === 'paid') {
-        assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
-      }
-      const formattedDate = formatAppointmentDateTime(nextUpcomingAppointment.date, nextUpcomingAppointment.time);
-      const canCheckIn = nextUpcomingAppointment.status === 'paid' && hasAssignedVet;
-
-      return (
-        <AppointmentCard
-          key={nextUpcomingAppointment.id}
-          doctorName={cardTitle}
-          specialization={cardSubtitle}
-          hospital={biz?.name || ''}
-          dateTime={formattedDate}
-          note={assignmentNote}
-          avatar={avatarSource}
-          showActions={canCheckIn}
-          onPress={() => handleViewAppointment(nextUpcomingAppointment.id)}
-          onViewDetails={() => handleViewAppointment(nextUpcomingAppointment.id)}
-          onGetDirections={() => {
-            if (biz?.address) {
-              openMapsToAddress(biz.address);
-            }
-          }}
-          onChat={() => handleChatAppointment(nextUpcomingAppointment.id)}
-          onCheckIn={() => {
-            if (canCheckIn) {
-              handleCheckInAppointment(nextUpcomingAppointment.id);
-            }
-          }}
-          testIDs={{
-            container: 'appointment-card-container',
-            directions: 'appointment-directions',
-            chat: 'appointment-chat',
-            checkIn: 'appointment-checkin',
-          }}
-        />
-      );
+      return renderAppointmentCard(nextUpcomingAppointment);
     }
 
-    if (showFallbackAppointmentCard) {
-      return (
-        <AppointmentCard
-          key="fallback-appointment-card"
-          doctorName="Dr. Emily Johnson"
-          specialization="Cardiology"
-          hospital="SMPC Cardiac hospital"
-          dateTime="20 Aug • 4:00 PM"
-          note="Check in is only allowed if you arrive 5 minutes early at location"
-          avatar={Images.cat}
-          showActions
-          onPress={() => handleViewAppointment('fallback')}
-          onViewDetails={() => handleViewAppointment('fallback')}
-          onGetDirections={() => openMapsToAddress('San Francisco, CA')}
-          onChat={() => handleChatAppointment('fallback')}
-          onCheckIn={() => setShowFallbackAppointmentCard(false)}
-          testIDs={{
-            container: 'appointment-card-container',
-            directions: 'appointment-directions',
-            chat: 'appointment-chat',
-            checkIn: 'appointment-checkin',
-          }}
-        />
-      );
-    }
+    const navigateToAppointments =
+      companions.length > 0
+        ? () =>
+            navigation
+              .getParent<NavigationProp<TabParamList>>()
+              ?.navigate('Appointments', {screen: 'BrowseBusinesses'})
+        : undefined;
 
     return renderEmptyStateTile(
       'No upcoming appointments',
       'Book an appointment to see it here.',
       'appointments',
-      () => setShowFallbackAppointmentCard(true),
+      navigateToAppointments,
+    );
+  };
+
+  const renderExpensesSection = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to start tracking expenses.',
+        'expenses',
+      );
+    }
+
+    if (!canAccessFeature('expenses')) {
+      return renderEmptyStateTile(
+        'Expenses restricted',
+        'Ask the primary parent to enable expenses access for you.',
+        'expenses',
+      );
+    }
+
+    return (
+      <YearlySpendCard
+        amount={expenseSummary?.total ?? 0}
+        currencyCode={userCurrencyCode}
+        currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
+        onPressView={() =>
+          navigation.navigate('ExpensesStack', {
+            screen: 'ExpensesMain',
+          })
+        }
+      />
     );
   };
 
@@ -566,10 +754,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onPress={() => navigation.navigate('Account')}
             activeOpacity={0.85}>
             <View style={styles.avatar}>
-              {authUser?.profilePicture ? (
+              {headerAvatarUri && !headerAvatarError ? (
                 <Image
-                  source={{uri: authUser.profilePicture}}
+                  source={{uri: headerAvatarUri}}
                   style={styles.avatarImage}
+                  onError={() => setHeaderAvatarError(true)}
                 />
               ) : (
                 <Text style={styles.avatarInitials}>
@@ -634,9 +823,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onSelect={handleSelectCompanion}
             onAddCompanion={handleAddCompanion}
             showAddButton={true}
-            getBadgeText={companion =>
-              `${computeMockTaskCount(companion.id)} Tasks`
-            }
           />
         )}
 
@@ -649,16 +835,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          <YearlySpendCard
-            amount={expenseSummary?.total ?? 0}
-            currencyCode={userCurrencyCode}
-            currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
-            onPressView={() =>
-              navigation.navigate('ExpensesStack', {
-                screen: 'ExpensesMain',
-              })
-            }
-          />
+          {renderExpensesSection()}
         </View>
 
         <View style={styles.section}>
@@ -668,14 +845,24 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => {
+                  if (!guardFeature('companionProfile', 'companion profile')) {
+                    return;
+                  }
                   // Pass the selected companion's ID to the ProfileOverview screen
-                  if (selectedCompanionIdRedux) {
+                  const companionId =
+                    selectedCompanionIdRedux ??
+                    companions[0]?.id ??
+                    (companions[0] as any)?._id ??
+                    (companions[0] as any)?.identifier?.[0]?.value ??
+                    null;
+
+                  if (companionId) {
+                    // Ensure state stays in sync with the navigation target
+                    handleSelectCompanion(companionId);
                     navigation.navigate('ProfileOverview', {
-                      companionId: selectedCompanionIdRedux,
+                      companionId,
                     });
                   } else {
-                    // This case should ideally not be hit if companions.length > 0
-                    // and the useEffect is working, but it's a good fallback.
                     console.warn('No companion selected to view profile.');
                   }
                 }}>

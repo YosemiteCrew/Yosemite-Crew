@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Switch,
+  Alert,
 } from 'react-native';
 import {Input} from '@/shared/components/common';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -28,6 +29,7 @@ import {formatLabel} from '@/shared/utils/helpers';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
 import type {Companion} from '@/features/companion/types';
+import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 
 export interface DocumentFormData {
   category: string | null;
@@ -109,12 +111,28 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   };
 
   const handleUploadDocuments = () => {
+    if (formData.files.length >= 5) {
+      const message = 'You can upload up to 5 documents only.';
+      onFormChange('files', formData.files);
+      onErrorClear('files');
+      Alert.alert('Limit reached', message);
+      return;
+    }
     openSheet('upload');
     uploadSheetRef.current?.open();
   };
 
   const getCategoryLabel = () => formatLabel(formData.category, 'Select category');
-  const getSubcategoryLabel = () => formatLabel(formData.subcategory, 'Select subcategory');
+  const getSubcategoryLabel = () => {
+    if (!formData.subcategory) {
+      return 'Select subcategory';
+    }
+    const category = DOCUMENT_CATEGORIES.find(cat => cat.id === formData.category);
+    const matchedLabel = category?.subcategories?.find(
+      sub => sub.id === formData.subcategory,
+    )?.label;
+    return matchedLabel ?? formatLabel(formData.subcategory, 'Select subcategory');
+  };
   const getVisitTypeLabel = () => formatLabel(formData.visitType, 'Select visit type');
 
   return (
@@ -129,6 +147,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           onSelect={onCompanionSelect}
           showAddButton={false}
           containerStyle={styles.companionSelector}
+          requiredPermission="documents"
+          permissionLabel="documents"
         />
 
         {showNote && (
@@ -253,7 +273,13 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
         <DocumentAttachmentsSection
           files={formData.files}
-          onAddPress={handleUploadDocuments}
+          onAddPress={() => {
+            if (formData.files.length >= 5) {
+              onErrorClear('files');
+              return;
+            }
+            handleUploadDocuments();
+          }}
           onRequestRemove={file => handleRemoveFile(file.id)}
           error={errors.files}
         />

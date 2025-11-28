@@ -20,6 +20,7 @@ apps/dev-docs/.docusaurus
 apps/mobileAppYC/ios/mobileAppYC/Info.plist
 apps/mobileAppYC/android/app/src/main/res/values/strings.xml
 
+
 # Google-Services File
 #
 google-services.json
@@ -89,6 +90,23 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Log files - any extension or path
+*.log
+logs/
+log/
+**/logs/
+**/log/
+*.log.*
+debug.log
+error.log
+warn.log
+info.log
+trace.log
+lerna-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
@@ -125,3 +143,6 @@ yarn-error.log
 
 
 apps/mobileAppYC/amplify_outputs.json
+
+
+apps/backend/serviceAccount.json

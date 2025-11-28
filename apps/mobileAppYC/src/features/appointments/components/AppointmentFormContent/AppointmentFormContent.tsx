@@ -157,6 +157,8 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
         selectedCompanionId={selectedCompanionId}
         onSelect={onSelectCompanion}
         showAddButton={showAddCompanion}
+        requiredPermission="appointments"
+        permissionLabel="appointments"
       />
 
       <CalendarMonthStrip

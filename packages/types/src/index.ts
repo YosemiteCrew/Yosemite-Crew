@@ -69,13 +69,11 @@ export { fromAddressRequestDTO, toAddressResponseDTO } from "./dto/address.dto";
 export type {
   ParentRequestDTO,
   ParentResponseDTO,
-  ParentDTOAttributesType,
 } from "./dto/parent.dto";
 export { fromParentRequestDTO, toParentResponseDTO } from "./dto/parent.dto";
 export type {
   CompanionRequestDTO,
   CompanionResponseDTO,
-  CompanionDTOAttributes,
 } from "./dto/companion.dto";
 export {
   fromCompanionRequestDTO,
@@ -88,7 +86,14 @@ export type {
   SourceType,
   RecordStatus,
 } from "./companion";
-export { toFHIRCompanion } from "./companion";
+export { toFHIRCompanion, fromFHIRCompanion } from "./companion";
+export type {
+  ParentCompanionRole,
+  ParentCompanionStatus,
+  ParentCompanionPermissions,
+  CompanionParentLink,
+  ParenDetailsForLink
+} from "./parentCompanion";
 
 export type { Organization, Organisation, ToFHIROrganizationOptions } from "./organization";
 export type { OrganisationRoom } from "./organisationRoom";
@@ -150,3 +155,5 @@ export type {
 } from "./complete-vet-profile/complete-vet-profile";
 
 export type { OrganisationInvite, InviteStatus } from "./organisationInvite";
+export type { Service } from "./service"
+export { type ServiceRequestDTO, type ServiceResponseDTO, toServiceResponseDTO, fromServiceRequestDTO } from "./dto/service.dto"

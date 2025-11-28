@@ -1,412 +1,417 @@
-import { Request, Response } from 'express';
-import { AvailabilityService } from 'src/services/availability.service';
-import { AuthenticatedRequest } from '../../middlewares/auth'
-import logger from 'src/utils/logger';
-import { AvailabilitySlotMongo, DayOfWeek } from 'src/models/base-availability';
-import { WeeklyOverrideDay } from 'src/models/weekly-availablity-override';
-import type { OccupancyMongo } from 'src/models/occupancy';
+import { Request, Response } from "express";
+import { AvailabilityService } from "src/services/availability.service";
+import { AuthenticatedRequest } from "../../middlewares/auth";
+import logger from "src/utils/logger";
+import { AvailabilitySlotMongo, DayOfWeek } from "src/models/base-availability";
+import { WeeklyOverrideDay } from "src/models/weekly-availablity-override";
+import type { OccupancyMongo } from "src/models/occupancy";
 
-type OrgParams = { orgId: string };
-
-type AvailabilityBody = {
-    availabilities?: {
-        dayOfWeek: DayOfWeek;
-        slots: AvailabilitySlotMongo[];
-    }[];
-};
-
-type WeeklyOverrideBody = {
-    weekStartDate?: string | number | Date;
-    overrides?: WeeklyOverrideDay;
-};
-
-type WeeklyOverrideQuery = {
-    weekStartDate?: string;
-};
-
-type AddOccupancyBody = {
-    startTime?: string | number | Date;
-    endTime?: string | number | Date;
-    sourceType?: OccupancyMongo['sourceType'];
-    referenceId?: string;
-};
-
-type AddAllOccupanciesBody = {
-    organisationId?: string;
-    userId?: string;
-    occupancies?: {
-        startTime: string | number | Date;
-        endTime: string | number | Date;
-        sourceType: OccupancyMongo['sourceType'];
-        referenceId?: string;
-    }[];
-};
-
-type OccupancyQuery = {
-    startDate?: string;
-    endDate?: string;
-};
-
-type FinalAvailabilityQuery = {
-    referenceDate?: string;
+type NormalizedOccupancy = {
+  startTime: Date;
+  endTime: Date;
+  sourceType: OccupancyMongo["sourceType"];
+  referenceId?: string;
 };
 
 const safeDate = (value?: string | number | Date): Date | undefined => {
-    if (value === undefined || value === null) return undefined;
-    const parsed = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  if (value === undefined || value === null) return undefined;
+  const parsed =
+    value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
-    const authRequest = req as AuthenticatedRequest
-    const headerUserId = req.headers['x-user-id']
-    if (headerUserId && typeof headerUserId === 'string') {
-        return headerUserId
-    }
-    return authRequest.userId
-}
+  const authRequest = req as AuthenticatedRequest;
+  const headerUserId = req.headers["x-user-id"];
+  if (headerUserId && typeof headerUserId === "string") {
+    return headerUserId;
+  }
+  return authRequest.userId;
+};
+
+const handleControllerError = (
+  context: string,
+  err: unknown,
+  res: Response,
+) => {
+  logger.error(context, err);
+  const message = err instanceof Error ? err.message : "Internal server error";
+  return res.status(500).json({ message });
+};
 
 export const AvailabilityController = {
-
-  // Controllers for Base Availability
+  /* ============================
+     BASE AVAILABILITY
+  ===============================*/
 
   async setAllBaseAvailability(
-    req: Request<OrgParams, unknown, AvailabilityBody>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      {
+        availabilities?: {
+          dayOfWeek: DayOfWeek;
+          slots: AvailabilitySlotMongo[];
+        }[];
+      }
+    >,
+    res: Response,
   ) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
       const { availabilities } = req.body;
 
-      if (!organisationId || !userId || !availabilities) {
-        return res.status(400).json({ message: 'Missing required fields' });
+      if (
+        !orgId ||
+        !userId ||
+        !availabilities ||
+        !Array.isArray(availabilities)
+      ) {
+        return res.status(400).json({ message: "Missing or invalid payload" });
       }
 
-      const result = await AvailabilityService.setAllBaseAvailability(
-        organisationId,
+      const data = await AvailabilityService.setAllBaseAvailability(
+        orgId,
         userId,
-        availabilities
+        availabilities,
       );
 
       return res.status(201).json({
-        message: 'Base availability set successfully',
-        data: result,
+        message: "Base availability saved",
+        data,
       });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in setAllBaseAvailability:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+    } catch (err: unknown) {
+      return handleControllerError("setAllBaseAvailability error", err, res);
     }
   },
 
-  async getBaseAvailability(req: Request<OrgParams>, res: Response) {
+  async getBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
 
-      if (!organisationId || !userId) {
-        return res.status(400).json({ message: 'Missing required parameters' });
+      if (!orgId || !userId) {
+        return res.status(400).json({ message: "Missing orgId or userId" });
       }
 
-      const result = await AvailabilityService.getBaseAvailability(
-        String(organisationId),
-        String(userId)
-      );
-
-      return res.status(200).json({ data: result });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in getBaseAvailability:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      const data = await AvailabilityService.getBaseAvailability(orgId, userId);
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      return handleControllerError("getBaseAvailability error", err, res);
     }
   },
 
-  async deleteBaseAvailability(req: Request<OrgParams>, res: Response) {
+  async deleteBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
 
-      if (!organisationId || !userId) {
-        return res.status(400).json({ message: 'Missing required parameters' });
+      if (!orgId || !userId) {
+        return res.status(400).json({ message: "Missing orgId or userId" });
       }
 
-      await AvailabilityService.deleteBaseAvailability(
-        String(organisationId),
-        String(userId)
-      );
+      await AvailabilityService.deleteBaseAvailability(orgId, userId);
 
-      return res.status(200).json({ message: 'Base availability deleted successfully' });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in deleteBaseAvailability:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      return res.status(200).json({
+        message: "Base availability deleted",
+      });
+    } catch (err: unknown) {
+      return handleControllerError("deleteBaseAvailability error", err, res);
     }
   },
 
-  // Contollers for Weekly Availability Overrides
+  /* ============================
+     WEEKLY OVERRIDES
+  ===============================*/
 
   async addWeeklyAvailabilityOverride(
-    req: Request<OrgParams, unknown, WeeklyOverrideBody>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      {
+        weekStartDate?: string | Date;
+        overrides?: WeeklyOverrideDay;
+      }
+    >,
+    res: Response,
   ) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
       const { weekStartDate, overrides } = req.body;
 
-      if (!organisationId || !userId || !weekStartDate || !overrides) {
-        return res.status(400).json({ message: 'Missing required fields' });
+      if (!orgId || !userId || !weekStartDate || !overrides) {
+        return res.status(400).json({ message: "Missing fields" });
       }
 
       const parsedDate = safeDate(weekStartDate);
-
-      if (!parsedDate) {
-        return res.status(400).json({ message: 'Invalid weekStartDate' });
-      }
+      if (!parsedDate) return res.status(400).json({ message: "Invalid date" });
 
       await AvailabilityService.addWeeklyAvailabilityOverride(
-        organisationId,
+        orgId,
         userId,
         parsedDate,
-        overrides
+        overrides,
       );
 
-      return res.status(201).json({ message: 'Weekly override added successfully' });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in addWeeklyAvailabilityOverride:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      return res.status(201).json({ message: "Weekly override added" });
+    } catch (err: unknown) {
+      return handleControllerError(
+        "addWeeklyAvailabilityOverride error",
+        err,
+        res,
+      );
     }
   },
 
   async getWeeklyAvailabilityOverride(
-    req: Request<OrgParams, unknown, unknown, WeeklyOverrideQuery>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { weekStartDate?: string }
+    >,
+    res: Response,
   ) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
-      const { weekStartDate } = req.query;
+      const parsed = safeDate(req.query.weekStartDate);
 
-      if (!organisationId || !userId || !weekStartDate) {
-        return res.status(400).json({ message: 'Missing required parameters' });
+      if (!orgId || !userId || !parsed) {
+        return res.status(400).json({ message: "Missing or invalid params" });
       }
 
-      const parsedDate = safeDate(weekStartDate);
-
-      if (!parsedDate) {
-        return res.status(400).json({ message: 'Invalid weekStartDate' });
-      }
-
-      const result = await AvailabilityService.getWeeklyAvailabilityOverride(
-        String(organisationId),
-        String(userId),
-        parsedDate
+      const data = await AvailabilityService.getWeeklyAvailabilityOverride(
+        orgId,
+        userId,
+        parsed,
       );
 
-      if (!result) return res.status(404).json({ message: 'No weekly override found' });
-
-      return res.status(200).json({ data: result });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in getWeeklyAvailabilityOverride:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      if (!data) return res.status(404).json({ message: "No override found" });
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      return handleControllerError(
+        "getWeeklyAvailabilityOverride error",
+        err,
+        res,
+      );
     }
   },
 
   async deleteWeeklyAvailabilityOverride(
-    req: Request<OrgParams, unknown, unknown, WeeklyOverrideQuery>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { weekStartDate?: string }
+    >,
+    res: Response,
   ) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
-      const { weekStartDate } = req.query;
+      const parsed = safeDate(req.query.weekStartDate);
 
-      if (!organisationId || !userId || !weekStartDate) {
-        return res.status(400).json({ message: 'Missing required parameters' });
-      }
-
-      const parsedDate = safeDate(weekStartDate);
-
-      if (!parsedDate) {
-        return res.status(400).json({ message: 'Invalid weekStartDate' });
+      if (!orgId || !userId || !parsed) {
+        return res.status(400).json({ message: "Missing or invalid params" });
       }
 
       await AvailabilityService.deleteWeeklyAvailabilityOverride(
-        String(organisationId),
-        String(userId),
-        parsedDate
+        orgId,
+        userId,
+        parsed,
       );
 
-      return res.status(200).json({ message: 'Weekly override deleted successfully' });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in deleteWeeklyAvailabilityOverride:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      return res.status(200).json({ message: "Override deleted" });
+    } catch (err: unknown) {
+      return handleControllerError(
+        "deleteWeeklyAvailabilityOverride error",
+        err,
+        res,
+      );
     }
   },
 
-  // Controllers for Occupancy
+  /* ============================
+     OCCUPANCY BLOCKS
+  ===============================*/
 
   async addOccupancy(
-    req: Request<OrgParams, unknown, AddOccupancyBody>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      {
+        startTime?: string | Date;
+        endTime?: string | Date;
+        sourceType?: OccupancyMongo["sourceType"];
+        referenceId?: string;
+      }
+    >,
+    res: Response,
   ) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
       const { startTime, endTime, sourceType, referenceId } = req.body;
 
-      const parsedStart = safeDate(startTime);
-      const parsedEnd = safeDate(endTime);
+      const start = safeDate(startTime);
+      const end = safeDate(endTime);
 
-      if (!organisationId || !userId || !parsedStart || !parsedEnd || !sourceType) {
-        return res.status(400).json({ message: 'Missing required fields' });
+      if (!orgId || !userId || !start || !end || !sourceType) {
+        return res.status(400).json({ message: "Invalid payload" });
       }
 
       await AvailabilityService.addOccupancy(
-        organisationId,
+        orgId,
         userId,
-        parsedStart,
-        parsedEnd,
+        start,
+        end,
         sourceType,
-        referenceId
+        referenceId,
       );
 
-      return res.status(201).json({ message: 'Occupancy added successfully' });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in addOccupancy:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      return res.status(201).json({ message: "Occupancy added" });
+    } catch (err: unknown) {
+      return handleControllerError("addOccupancy error", err, res);
     }
   },
 
+  /* Bulk insert blocking (surgery, off-day, etc.) */
   async addAllOccupancies(
-    req: Request<unknown, unknown, AddAllOccupanciesBody>,
-    res: Response
+    req: Request<
+      unknown,
+      unknown,
+      {
+        organisationId?: string;
+        userId?: string;
+        occupancies?: {
+          startTime: Date | string;
+          endTime: Date | string;
+          sourceType: OccupancyMongo["sourceType"];
+          referenceId?: string;
+        }[];
+      }
+    >,
+    res: Response,
   ) {
     try {
       const { organisationId, userId, occupancies } = req.body;
 
-      if (!organisationId || !userId || !Array.isArray(occupancies) || !occupancies.length) {
-        return res.status(400).json({ message: 'Missing required fields' });
+      if (!organisationId || !userId || !Array.isArray(occupancies)) {
+        return res.status(400).json({ message: "Missing fields" });
       }
 
-      const normalized = [];
+      const normalized: NormalizedOccupancy[] = [];
 
       for (const occupancy of occupancies) {
-        const parsedStart = safeDate(occupancy.startTime);
-        const parsedEnd = safeDate(occupancy.endTime);
+        const startTime = safeDate(occupancy.startTime);
+        const endTime = safeDate(occupancy.endTime);
 
-        if (!parsedStart || !parsedEnd || !occupancy.sourceType) {
-          return res.status(400).json({ message: 'Invalid occupancy payload' });
+        if (!startTime || !endTime || !occupancy.sourceType) {
+          return res.status(400).json({ message: "Invalid occupancy payload" });
         }
 
         normalized.push({
-          startTime: parsedStart,
-          endTime: parsedEnd,
+          startTime,
+          endTime,
           sourceType: occupancy.sourceType,
           referenceId: occupancy.referenceId,
         });
       }
 
-      await AvailabilityService.addAllOccupancies(organisationId, userId, normalized);
+      await AvailabilityService.addAllOccupancies(
+        organisationId,
+        userId,
+        normalized,
+      );
 
-      return res.status(201).json({ message: 'All occupancies added successfully' });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in addAllOccupancies:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      return res.status(201).json({ message: "Occupancies added" });
+    } catch (err: unknown) {
+      return handleControllerError("addAllOccupancies error", err, res);
     }
   },
 
   async getOccupancy(
-    req: Request<OrgParams, unknown, unknown, OccupancyQuery>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { startDate?: string; endDate?: string }
+    >,
+    res: Response,
   ) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
-      const { startDate, endDate } = req.query;
 
-      const parsedStart = safeDate(startDate);
-      const parsedEnd = safeDate(endDate);
+      const start = safeDate(req.query.startDate);
+      const end = safeDate(req.query.endDate);
 
-      if (!organisationId || !userId || !parsedStart || !parsedEnd) {
-        
-        return res.status(400).json({ message: 'Missing required parameters' });
+      if (!orgId || !userId || !start || !end) {
+        return res.status(400).json({ message: "Missing filters" });
       }
 
-      const result = await AvailabilityService.getOccupancy(
-        String(organisationId),
-        String(userId),
-        parsedStart,
-        parsedEnd
+      const data = await AvailabilityService.getOccupancy(
+        orgId,
+        userId,
+        start,
+        end,
       );
-
-      return res.status(200).json({ data: result });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in getOccupancy:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      return handleControllerError("getOccupancy error", err, res);
     }
   },
 
-  // Controllers for Final Availability and Current Status
+  /* ============================
+     FINAL AVAILABILITY (READY FOR BOOKING)
+  ===============================*/
 
   async getFinalAvailability(
-    req: Request<OrgParams, unknown, unknown, FinalAvailabilityQuery>,
-    res: Response
+    req: Request<
+      { orgId: string },
+      unknown,
+      unknown,
+      { referenceDate?: string }
+    >,
+    res: Response,
   ) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
-      const { referenceDate } = req.query;
+      const parsed = safeDate(req.query.referenceDate);
 
-      logger.info(`Received getFinalAvailability request with orgId: ${organisationId}, userId: ${userId}, referenceDate: ${referenceDate}`);
-
-      const parsedDate = safeDate(referenceDate);
-
-      if (!organisationId || !userId || !parsedDate) {
-        
-        return res.status(400).json({ message: 'Missing required parameters' });
+      if (!orgId || !userId || !parsed) {
+        return res.status(400).json({ message: "Missing parameters" });
       }
 
-      const result = await AvailabilityService.getFinalAvailabilityForDate(
-        String(organisationId),
-        String(userId),
-        parsedDate
+      const data = await AvailabilityService.getFinalAvailabilityForDate(
+        orgId,
+        userId,
+        parsed,
       );
 
-      return res.status(200).json({ data: result });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in getFinalAvailability:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      return handleControllerError("getFinalAvailability error", err, res);
     }
   },
 
-  async getCurrentStatus(req: Request<OrgParams>, res: Response) {
+  async getCurrentStatus(req: Request<{ orgId: string }>, res: Response) {
     try {
-      const organisationId = req.params.orgId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
 
-      if (!organisationId || !userId) {
-        return res.status(400).json({ message: 'Missing required parameters' });
+      if (!orgId || !userId) {
+        return res.status(400).json({ message: "Missing parameters" });
       }
 
-      const status = await AvailabilityService.getCurrentStatus(
-        String(organisationId),
-        String(userId)
-      );
-
+      const status = await AvailabilityService.getCurrentStatus(orgId, userId);
       return res.status(200).json({ status });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in getCurrentStatus:', error);
-      return res.status(500).json({ message: 'Internal server error', error: message });
+    } catch (err: unknown) {
+      return handleControllerError("getCurrentStatus error", err, res);
     }
   },
 };

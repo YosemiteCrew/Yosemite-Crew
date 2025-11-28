@@ -1,4 +1,4 @@
-import { handleMultipleFileUpload, deleteFromS3 } from "../middlewares/upload"
+import { handleMultipleFileUpload, deleteFromS3 } from "../middlewares/upload";
 import { S3 } from "aws-sdk";
 import crypto from "node:crypto";
 interface UploadedFile {
@@ -7,22 +7,22 @@ interface UploadedFile {
   data: Buffer;
 }
 
-const helpers =  {
-calculateAge: (date: string | Date): number => {
-  const dob = new Date(date);
-  const diff = Date.now() - dob.getTime();
-  const ageDt = new Date(diff);
-  return Math.abs(ageDt.getUTCFullYear() - 1970);
-},
- capitalizeFirstLetter: (str: string): string => {
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-},
+const helpers = {
+  calculateAge: (date: string | Date): number => {
+    const dob = new Date(date);
+    const diff = Date.now() - dob.getTime();
+    const ageDt = new Date(diff);
+    return Math.abs(ageDt.getUTCFullYear() - 1970);
+  },
+  capitalizeFirstLetter: (str: string): string => {
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  },
 
-  operationOutcome:(
+  operationOutcome: (
     status: string,
     severity: string,
     code: string,
-    diagnostics: string
+    diagnostics: string,
   ) => {
     return {
       resourceType: "OperationOutcome",
@@ -50,8 +50,7 @@ calculateAge: (date: string | Date): number => {
     }
 
     return `${hours}:${minutes}`;
-
-    },
+  },
 
   uploadFiles: async (files: UploadedFile | UploadedFile[]) => {
     const fileArray = Array.isArray(files) ? files : [files];
@@ -62,7 +61,7 @@ calculateAge: (date: string | Date): number => {
     return await deleteFromS3(fileurl);
   },
 
-  getS3Instance: () =>{
+  getS3Instance: () => {
     const s3 = new S3({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -71,15 +70,18 @@ calculateAge: (date: string | Date): number => {
     return s3;
   },
   getSecretHash(username: string): string {
-  const clientId = process.env.COGNITO_CLIENT_ID!;
-  const clientSecret = process.env.COGNITO_CLIENT_SECRET!;
-  return crypto.createHmac('SHA256', clientSecret)
-    .update(username + clientId)
-    .digest('base64');
+    const clientId = process.env.COGNITO_CLIENT_ID!;
+    const clientSecret = process.env.COGNITO_CLIENT_SECRET!;
+    return crypto
+      .createHmac("SHA256", clientSecret)
+      .update(username + clientId)
+      .digest("base64");
   },
   generatePassword(length: number): string {
     if (length < 8) {
-      throw new Error("Password length must be at least 8 characters to meet Cognito policy.");
+      throw new Error(
+        "Password length must be at least 8 characters to meet Cognito policy.",
+      );
     }
 
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -107,39 +109,36 @@ calculateAge: (date: string | Date): number => {
 
     // Shuffle to avoid predictable placement
     password.sort(() => 0.5 - Math.random());
-    return password.join('');
+    return password.join("");
   },
   formatAppointmentDateTime(rawDateTime: string) {
-  // Use the given string as-is, respecting the +05:30 offset
-  const dateObj = new Date(rawDateTime);
+    // Use the given string as-is, respecting the +05:30 offset
+    const dateObj = new Date(rawDateTime);
 
-  // Extract YYYY-MM-DD (with local offset from the input string)
-  const [datePart] = rawDateTime.split("T");
-  const appointmentDate = datePart;
+    // Extract YYYY-MM-DD (with local offset from the input string)
+    const [datePart] = rawDateTime.split("T");
+    const appointmentDate = datePart;
 
-  // Format 12h (AM/PM) in the same timezone
-  const options12: Intl.DateTimeFormatOptions = {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata", // because offset is +05:30
-  };
-  const appointmentTime = dateObj.toLocaleTimeString("en-US", options12);
+    // Format 12h (AM/PM) in the same timezone
+    const options12: Intl.DateTimeFormatOptions = {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Kolkata", // because offset is +05:30
+    };
+    const appointmentTime = dateObj.toLocaleTimeString("en-US", options12);
 
-  // Format 24h (HH:mm) in the same timezone
-  const options24: Intl.DateTimeFormatOptions = {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Kolkata",
-  };
-  const appointmentTime24 = dateObj.toLocaleTimeString("en-GB", options24);
+    // Format 24h (HH:mm) in the same timezone
+    const options24: Intl.DateTimeFormatOptions = {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Kolkata",
+    };
+    const appointmentTime24 = dateObj.toLocaleTimeString("en-GB", options24);
 
-  return { appointmentDate, appointmentTime, appointmentTime24 };
-}
-
-
-}
+    return { appointmentDate, appointmentTime, appointmentTime24 };
+  },
+};
 
 export default helpers;
-
