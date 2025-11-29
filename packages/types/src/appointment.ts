@@ -3,26 +3,27 @@ import dayjs from "dayjs";
 import { SPECIES_SYSTEM_URL } from "./companion";
 
 export type AppointmentStatus =
+  | 'NO_PAYMENT'
   | 'REQUESTED'
   | 'UPCOMING'
-  | 'CHEKED_IN'
+  | 'CHECKED_IN'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED';
 
 export type Appointment = {
-  id: string;
-  companion : {
+  id?: string;
+  companion: {
     id: string;
     name: string;
-    species: string;  
+    species: string;
     breed?: string;
     parent: {
       id: string;
       name: string;
     };
-  }
-  lead: {
+  };
+  lead?: {
     id: string;
     name: string;
   }                           // Vet or practitioner being booked
@@ -49,12 +50,15 @@ export type Appointment = {
   durationMinutes: number;     // Duration in minutes
   endTime: Date;               // Booking end timestamp
   status: AppointmentStatus;
+  isEmergency?: boolean; 
   concern?: string;            // Reason for the appointment
   createdAt?: Date;
   updatedAt?: Date;
 };
 
 const BREED_SYSTEM_URL = 'http://hl7.org/fhir/animal-breed'
+const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency'
+
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
@@ -66,19 +70,17 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
         reference: `Patient/${appointment.companion.id}`,
         display: appointment.companion.name,
       },
-      status: appointment.status,
     },
     {
       actor: {
         reference: `RelatedPerson/${appointment.companion.parent.id}`,
         display: appointment.companion.parent.name,
       },
-      status: appointment.status,
     },
     {
       actor: {
-        reference: `Practitioner/${appointment.lead.id}`,
-        display: appointment.lead.name
+        reference: `Practitioner/${appointment.lead?.id}`,
+        display: appointment.lead?.name
       },
       status: appointment.status,
       type: [{coding: [{code: 'PPRF', system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', display: 'primary performer'}]}]
@@ -87,7 +89,6 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
       actor: {
         reference: `Organization/${appointment.organisationId}`
       },
-      status: appointment.status
     }
   );
 
@@ -142,16 +143,7 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
       ]
     : [];
 
-  const fhirStatusMap: Record<string, string> = {
-    REQUESTED: "proposed",
-    UPCOMING: "booked",
-    CHECKED_IN: "arrived",
-    IN_PROGRESS: "fulfilled",
-    COMPLETED: "fulfilled",
-    CANCELLED: "cancelled",
-  };
-
-  const fhirStatus = fhirStatusMap[appointment.status];
+  const fhirStatus = appointment.status
 
   const extension : Extension[] = []
 
@@ -167,6 +159,13 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
       valueString: appointment.companion.breed
     }
   );
+
+  if (appointment.isEmergency != null) {
+    extension.push({
+      url: EXT_EMERGENCY,
+      valueBoolean: appointment.isEmergency,
+    });
+  }
 
   const fhirAppointment: FHIRAppointment = {
     resourceType: "Appointment",
@@ -200,18 +199,9 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
 
   const speciesExtesnion = FHIRappointment.extension?.find(p => p.id?.includes("species"))
   const breedExtension = FHIRappointment.extension?.find(p => p.id?.includes("breed"))
+  const emergencyExtension = FHIRappointment.extension?.find(p => p.url?.includes(EXT_EMERGENCY))
 
-  const statusMap: Record<string, string> = {
-    proposed: "REQUESTED",
-    booked: "UPCOMING",
-    arrived: "CHECKED_IN",
-    fulfilled: "COMPLETED",
-    cancelled: "CANCELLED",
-  };
-
-  const pmsStatus =
-    statusMap[FHIRappointment.status.toLowerCase()] ||
-    "REQUESTED"; // fallback if unknown status
+  const pmsStatus = FHIRappointment.status // fallback if unknown status
 
   // Construct internal Appointment object
   const appointment: Appointment = {
@@ -258,7 +248,8 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
         id : specialityCoding?.code || "",
         name : specialityCoding?.display || ""
       }
-    }
+    },
+    isEmergency: emergencyExtension?.valueBoolean
   }
 
   return appointment;

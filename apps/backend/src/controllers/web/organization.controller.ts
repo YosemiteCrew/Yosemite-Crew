@@ -205,4 +205,28 @@ export const OrganizationController = {
       res.status(500).json({ message: "Unable to search business." });
     }
   },
+
+  async getNearbyPaginated(req: Request, res: Response) {
+    try {
+      const { lat, lng, radius, page = 1, limit = 10 } = req.query;
+
+      if (!lat || !lng) {
+        return res.status(400).json({ message: "lat & lng required" });
+      }
+
+      const result = await OrganizationService.listNearbyForAppointmentsPaginated(
+        Number(lat),
+        Number(lng),
+        radius ? Number(radius) : 5000,
+        Number(page),
+        Number(limit),
+      );
+
+      res.json(result);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Server error";
+      res.status(500).json({ message });
+    }
+  },
 };

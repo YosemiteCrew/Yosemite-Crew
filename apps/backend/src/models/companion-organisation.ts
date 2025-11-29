@@ -7,9 +7,10 @@ export interface CompanionOrganisationMongo {
   linkedByPmsUserId?: string | null;
   organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
   role: "ORGANISATION";
-  status: "ACTIVE" | "PENDING" | "REVOKED";
+  status: "ACTIVE" | "PENDING" | "REVOKED" | "INVITED";
   invitedViaEmail?: string | null;
   organisationName?: string | null;
+  organisationPlacesId?: string | null;
   inviteToken?: string | null;
   acceptedAt?: Date | null;
   rejectedAt?: Date | null;
@@ -52,12 +53,13 @@ const CompanionOrganisationSchema = new Schema<CompanionOrganisationMongo>(
     },
     status: {
       type: String,
-      enum: ["ACTIVE", "PENDING", "REVOKED"],
+      enum: ["ACTIVE", "PENDING", "REVOKED", "INVITED"],
       required: true,
       default: "ACTIVE",
     },
     invitedViaEmail: { type: String, default: null },
     organisationName: { type: String, default: null },
+    organisationPlacesId: { type: String, default: null },
     inviteToken: { type: String, default: null },
     acceptedAt: { type: Date, default: null },
     rejectedAt: { type: Date, default: null },

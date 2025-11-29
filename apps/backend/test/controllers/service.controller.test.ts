@@ -83,7 +83,7 @@ describe("ServiceController", () => {
     await ServiceController.createService(req, res as any);
 
     expect(mockedLogger.error).toHaveBeenCalledWith(
-      "Failed to create service",
+      "Unable to create service.",
       error,
     );
     expect(res.status).toHaveBeenCalledWith(500);
