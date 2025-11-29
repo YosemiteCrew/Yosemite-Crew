@@ -127,7 +127,9 @@ describe("AppointmentService", () => {
       mockedStripe.createPaymentIntentForInvoice.mockResolvedValueOnce({
         id: "pi_123",
       });
-      mockedTypes.toAppointmentResponseDTO.mockImplementation((value: any) => value);
+      mockedTypes.toAppointmentResponseDTO.mockImplementation(
+        (value: any) => value,
+      );
 
       const result = await AppointmentService.createRequestedFromMobile(dto);
 
@@ -173,7 +175,9 @@ describe("AppointmentService", () => {
           ]),
         }),
       });
-      mockedTypes.toAppointmentResponseDTO.mockImplementation((val: any) => val);
+      mockedTypes.toAppointmentResponseDTO.mockImplementation(
+        (val: any) => val,
+      );
 
       const result = (await AppointmentService.getAppointmentsForCompanion(
         "comp-1",

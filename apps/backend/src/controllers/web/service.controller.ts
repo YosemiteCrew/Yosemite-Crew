@@ -12,11 +12,7 @@ type BookableSlotsPayload = {
   date: string;
 };
 
-const handleError = (
-  error: unknown,
-  res: Response,
-  defaultMessage: string,
-) => {
+const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   if (error instanceof ServiceServiceError) {
     return res.status(error.statusCode).json({ message: error.message });
   }
@@ -86,11 +82,7 @@ export const ServiceController = {
 
       return res.status(200).json(services);
     } catch (error: unknown) {
-      return handleError(
-        error,
-        res,
-        "Unable to fetch services by speciality.",
-      );
+      return handleError(error, res, "Unable to fetch services by speciality.");
     }
   },
 
@@ -148,7 +140,6 @@ export const ServiceController = {
         success: true,
         data: result,
       });
-
     } catch (error: unknown) {
       return handleError(error, res, "Unable to fetch bookable slots");
     }

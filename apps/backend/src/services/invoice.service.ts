@@ -50,19 +50,18 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
 
   const metadata =
     o.metadata && typeof o.metadata === "object"
-      ? Object.entries(o.metadata).reduce<Record<string, string | number | boolean>>(
-          (acc, [key, value]) => {
-            if (
-              typeof value === "string" ||
-              typeof value === "number" ||
-              typeof value === "boolean"
-            ) {
-              acc[key] = value;
-            }
-            return acc;
-          },
-          {},
-        )
+      ? Object.entries(o.metadata).reduce<
+          Record<string, string | number | boolean>
+        >((acc, [key, value]) => {
+          if (
+            typeof value === "string" ||
+            typeof value === "number" ||
+            typeof value === "boolean"
+          ) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {})
       : undefined;
 
   return {

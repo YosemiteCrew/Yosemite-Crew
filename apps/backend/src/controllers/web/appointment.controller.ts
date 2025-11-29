@@ -35,7 +35,7 @@ const parseError = (
     err !== null &&
     "statusCode" in err &&
     typeof (err as ErrorWithStatus).statusCode === "number"
-      ? (err as ErrorWithStatus).statusCode ?? 500
+      ? ((err as ErrorWithStatus).statusCode ?? 500)
       : 500;
 
   const message =
@@ -78,9 +78,8 @@ export const AppointmentController = {
       if (!authUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      const authUser = await AuthUserMobileService.getByProviderUserId(
-        authUserId,
-      );
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
       if (!authUser?.parentId) {
         return res
           .status(400)
@@ -177,14 +176,19 @@ export const AppointmentController = {
     }
   },
 
-  rejectRequested: async (req: Request<{ appointmentId: string }>, res: Response) => {
+  rejectRequested: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
     try {
       const { appointmentId } = req.params;
 
       const result =
         await AppointmentService.rejectRequestedAppointment(appointmentId);
 
-      return res.status(200).json({ message: "Appointment rejected", data: result });
+      return res
+        .status(200)
+        .json({ message: "Appointment rejected", data: result });
     } catch (err: unknown) {
       logger.error("Appiontement rejection error: ", err);
       const { status, message } = parseError(
@@ -253,7 +257,10 @@ export const AppointmentController = {
     }
   },
 
-  cancelFromPMS: async (req: Request<{ appointmentId: string }>, res: Response) => {
+  cancelFromPMS: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
     try {
       const { appointmentId } = req.params;
 
@@ -294,7 +301,10 @@ export const AppointmentController = {
     }
   },
 
-  listByCompanion: async (req: Request<{ companionId: string }>, res: Response) => {
+  listByCompanion: async (
+    req: Request<{ companionId: string }>,
+    res: Response,
+  ) => {
     try {
       const { companionId } = req.params;
 

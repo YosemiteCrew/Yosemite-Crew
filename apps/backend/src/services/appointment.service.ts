@@ -170,7 +170,10 @@ export const AppointmentService = {
 
     // Validate service
     const serviceId = ensureObjectId(input.appointmentType!.id, "serviceId");
-    const organisationId = ensureObjectId(input.organisationId, "organisationId");
+    const organisationId = ensureObjectId(
+      input.organisationId,
+      "organisationId",
+    );
     const service = await ServiceModel.findOne({
       _id: serviceId,
       organisationId: organisationId,
@@ -274,7 +277,10 @@ export const AppointmentService = {
       );
     }
     const serviceId = ensureObjectId(input.appointmentType.id, "serviceId");
-    const organisationId = ensureObjectId(input.organisationId, "organisationId");
+    const organisationId = ensureObjectId(
+      input.organisationId,
+      "organisationId",
+    );
     const service = await ServiceModel.findOne({
       _id: serviceId,
       organisationId: organisationId,

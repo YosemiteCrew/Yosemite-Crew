@@ -70,14 +70,14 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
     },
 
     lead: {
-      id: { type: String},
-      name: { type: String},
+      id: { type: String },
+      name: { type: String },
     },
 
     supportStaff: [
       {
-        id: { type: String},
-        name: { type: String},
+        id: { type: String },
+        name: { type: String },
       },
     ],
 
@@ -141,8 +141,8 @@ AppointmentSchema.index(
     unique: true,
     partialFilterExpression: {
       "lead.id": { $exists: true, $ne: null },
-      status: "UPCOMING"
-    }
+      status: "UPCOMING",
+    },
   },
 );
 

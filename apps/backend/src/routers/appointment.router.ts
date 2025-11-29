@@ -20,8 +20,8 @@ router.patch(
 router.post(
   "/mobile/:appointmentId/reschedule",
   authorizeCognitoMobile,
-  AppointmentController.cancelFromMobile
-)
+  AppointmentController.cancelFromMobile,
+);
 // List appointments for a parent (MOBILE)
 router.get(
   "/mobile/parent",

@@ -25,4 +25,22 @@ router.post(
   (req, res) => StripeController.createPaymentIntent(req, res),
 );
 
+router.post(
+  "/organisation/:organisationId/account",
+  authorizeCognito,
+  (req, res) => StripeController.createOrGetConnectedAccount(req, res),
+);
+
+router.get(
+  "/organisation/:organisationId/account/status",
+  authorizeCognito,
+  (req, res) => StripeController.getAccountStatus(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/onboarding",
+  authorizeCognito,
+  (req, res) => StripeController.createOnboardingLink(req, res),
+);
+
 export default router;

@@ -21,7 +21,8 @@ import companionOrganisationRouter from "./routers/companion-organisation.router
 import docuemntRouter from "./routers/document.router";
 import serviceRouter from "./routers/service.router";
 import appointmentRouter from "./routers/appointment.router";
-import stripeRouter from "./routers/stripe.router"
+import stripeRouter from "./routers/stripe.router";
+import { StripeController } from "./controllers/web/stripe.controller";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,13 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 app.set("trust proxy", 1);
+
+app.post(
+  "/v1/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  StripeController.webhook,
+);
+
 app.use(express.json());
 app.use(fileUpload());
 app.use(limiter);
@@ -53,7 +61,7 @@ app.use(`/v1/companion-organisation`, companionOrganisationRouter);
 app.use(`/v1/document`, docuemntRouter);
 app.use(`/fhir/v1/service`, serviceRouter);
 app.use(`/fhir/v1/appointment`, appointmentRouter);
-app.use(`/v1/stripe`, stripeRouter)
+app.use(`/v1/stripe`, stripeRouter);
 
 let mongoUri: string;
 

@@ -3,7 +3,7 @@
 import { Schema, model, HydratedDocument } from "mongoose";
 
 export interface ChatParticipant {
-  userId: string;          // practitionerId, parentId, support staff id
+  userId: string; // practitionerId, parentId, support staff id
   role: "parent" | "vet";
 }
 
@@ -17,7 +17,7 @@ export interface ChatSessionMongo {
   supportStaffIds?: string[];
 
   channelId: string; // Stream channel ID
-  
+
   participants: ChatParticipant[];
 
   status: "ACTIVE" | "CLOSED";
@@ -36,7 +36,7 @@ const ChatParticipantSchema = new Schema<ChatParticipant>(
       required: true,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const ChatSessionSchema = new Schema<ChatSessionMongo>(
@@ -61,14 +61,14 @@ const ChatSessionSchema = new Schema<ChatSessionMongo>(
 
     closedAt: { type: Date, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export type ChatSessionDocument = HydratedDocument<ChatSessionMongo>;
 
 const ChatSessionModel = model<ChatSessionMongo>(
   "ChatSession",
-  ChatSessionSchema
+  ChatSessionSchema,
 );
 
 export default ChatSessionModel;

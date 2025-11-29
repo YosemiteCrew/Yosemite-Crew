@@ -34,9 +34,7 @@ describe("InvoiceController", () => {
   it("returns invoices for an appointment", async () => {
     const req = { params: { appointmentId: "apt-1" } } as any;
     const res = mockResponse();
-    mockedService.getByAppointmentId.mockResolvedValueOnce([
-      { id: "inv-1" },
-    ]);
+    mockedService.getByAppointmentId.mockResolvedValueOnce([{ id: "inv-1" }]);
 
     await InvoiceController.listInvoicesForAppointment(req, res as any);
 

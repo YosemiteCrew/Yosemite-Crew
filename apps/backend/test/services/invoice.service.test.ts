@@ -49,9 +49,11 @@ describe("InvoiceService", () => {
 
   it("lists invoices by appointment id", async () => {
     mockedInvoiceModel.find.mockReturnValueOnce({
-      sort: jest.fn().mockResolvedValue([
-        makeDoc({ appointmentId: "apt-1", items: [], subtotal: 10 }),
-      ]),
+      sort: jest
+        .fn()
+        .mockResolvedValue([
+          makeDoc({ appointmentId: "apt-1", items: [], subtotal: 10 }),
+        ]),
     });
 
     const result = (await InvoiceService.getByAppointmentId("apt-1")) as any;

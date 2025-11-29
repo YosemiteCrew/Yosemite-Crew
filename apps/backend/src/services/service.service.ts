@@ -213,12 +213,11 @@ export const ServiceService = {
   async getBookableSlotsService(
     serviceId: string,
     organisationId: string,
-    referenceDate: Date
+    referenceDate: Date,
   ) {
-    
-    const id = ensureObjectId(serviceId, "serviceId")
+    const id = ensureObjectId(serviceId, "serviceId");
 
-    const service = await ServiceModel.findOne({_id : id});
+    const service = await ServiceModel.findOne({ _id: id });
     if (!service) throw new Error("Service not found");
 
     const { specialityId, durationMinutes } = service;
@@ -228,11 +227,10 @@ export const ServiceService = {
 
     const vetIds = speciality.memberUserIds || [];
 
-
     if (vetIds.length === 0) {
       return {
         date: referenceDate,
-        windows: []
+        windows: [],
       };
     }
 
@@ -243,13 +241,12 @@ export const ServiceService = {
         organisationId,
         vetId,
         durationMinutes,
-        referenceDate
-      )
+        referenceDate,
+      );
 
       if (result?.windows?.length) {
         allWindows.push(...result.windows);
       }
-
     }
 
     const uniqueSlotsMap = new Map<string, AvailabilitySlotMongo>();
@@ -270,7 +267,7 @@ export const ServiceService = {
     if (refStr === todayStr) {
       const now = dayjs().utc();
 
-      finalWindows = finalWindows.filter(slot => {
+      finalWindows = finalWindows.filter((slot) => {
         const slotTime = dayjs(`${refStr} ${slot.startTime}`).utc();
         return slotTime.isAfter(now);
       });
@@ -289,5 +286,4 @@ export const ServiceService = {
       windows: finalWindows,
     };
   },
-
 };
