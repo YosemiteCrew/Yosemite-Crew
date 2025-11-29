@@ -19,6 +19,8 @@ import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
+import SpecialityModel from "src/models/speciality";
+import ServiceModel from "src/models/service";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -696,4 +698,81 @@ export const OrganizationService = {
       isPmsOrganisation: false,
     };
   },
+
+  // List nearby organisation
+  async listNearbyForAppointmentsPaginated(
+    lat: number,
+    lng: number,
+    radius = 5000,
+    page = 1,
+    limit = 10,
+  ) {
+    if (!lat || !lng) throw new Error("lat/lng are required");
+
+    const skip = (page - 1) * limit;
+
+    // First get all matching IDs (cheap operation because it's indexed)
+    const total = await OrganizationModel.countDocuments({
+      "address.location": {
+        $near: {
+          $geometry: { type: "Point", coordinates: [lng, lat] },
+          $maxDistance: radius,
+        },
+      },
+    });
+
+    const docs = await OrganizationModel.find({
+      "address.location": {
+        $near: {
+          $geometry: { type: "Point", coordinates: [lng, lat] },
+          $maxDistance: radius,
+        },
+      },
+    })
+      .skip(skip)
+      .limit(limit);
+
+    const results = [];
+
+    for (const org of docs) {
+      const orgId = org._id.toString();
+
+      const specialities = await SpecialityModel.find(
+        { organizationId: orgId },
+        { name: 1 }
+      );
+
+      const services = await ServiceModel.find(
+        { organizationId: orgId },
+        { name: 1, price: 1 }
+      );
+
+      results.push({
+        ...buildFHIRResponse(org),
+        distanceInMeters: org.address?.location
+          ? Math.round(
+              Math.sqrt(
+                Math.pow(lat - org.address.location.coordinates[1], 2) +
+                Math.pow(lng - org.address.location.coordinates[0], 2)
+              ) * 111000
+            )
+          : null,
+        rating: org.averageRating,
+        specialities,
+        services,
+      });
+    }
+
+    return {
+      data: results,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+
 };

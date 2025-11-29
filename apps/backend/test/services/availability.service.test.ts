@@ -1,6 +1,6 @@
 import BaseAvailabilityModel from "src/models/base-availability";
 import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
-import OccupancyModel from "src/models/occupancy";
+import { OccupancyModel } from "src/models/occupancy";
 import { AvailabilityService } from "src/services/availability.service";
 
 jest.mock("src/models/base-availability", () => ({
@@ -22,7 +22,7 @@ jest.mock("src/models/weekly-availablity-override", () => ({
 
 jest.mock("src/models/occupancy", () => ({
   __esModule: true,
-  default: {
+  OccupancyModel: {
     create: jest.fn(),
     insertMany: jest.fn(),
     find: jest.fn(),
