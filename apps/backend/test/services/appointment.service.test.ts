@@ -95,12 +95,15 @@ describe("AppointmentService", () => {
     it("creates appointment, invoice and payment intent", async () => {
       const dto = { resourceType: "Appointment" } as AppointmentRequestDTO;
       mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
-        organisationId: "org-1",
+        organisationId: "507f1f77bcf86cd799439013",
         companion: { id: "comp-1", parent: { id: "parent-1" } },
         startTime: new Date("2024-01-01T00:00:00Z"),
         endTime: new Date("2024-01-01T01:00:00Z"),
         durationMinutes: 60,
-        appointmentType: { id: "svc-1", name: "Consult" },
+        appointmentType: {
+          id: "507f1f77bcf86cd799439012",
+          name: "Consult",
+        },
       });
       mockedServiceModel.findOne.mockResolvedValueOnce({
         cost: 100,

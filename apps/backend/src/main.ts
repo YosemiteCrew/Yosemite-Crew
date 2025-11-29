@@ -21,6 +21,7 @@ import companionOrganisationRouter from "./routers/companion-organisation.router
 import docuemntRouter from "./routers/document.router";
 import serviceRouter from "./routers/service.router";
 import appointmentRouter from "./routers/appointment.router";
+import stripeRouter from "./routers/stripe.router"
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -52,6 +53,7 @@ app.use(`/v1/companion-organisation`, companionOrganisationRouter);
 app.use(`/v1/document`, docuemntRouter);
 app.use(`/fhir/v1/service`, serviceRouter);
 app.use(`/fhir/v1/appointment`, appointmentRouter);
+app.use(`/v1/stripe`, stripeRouter)
 
 let mongoUri: string;
 

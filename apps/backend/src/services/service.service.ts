@@ -215,8 +215,10 @@ export const ServiceService = {
     organisationId: string,
     referenceDate: Date
   ) {
-  
-    const service = await ServiceModel.findById(serviceId);
+    
+    const id = ensureObjectId(serviceId, "serviceId")
+
+    const service = await ServiceModel.findOne({_id : id});
     if (!service) throw new Error("Service not found");
 
     const { specialityId, durationMinutes } = service;

@@ -24,3 +24,5 @@ router.post(
   authorizeCognito,
   (req, res) => StripeController.createPaymentIntent(req, res),
 );
+
+export default router;

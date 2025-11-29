@@ -4,22 +4,30 @@ import { InvoiceService } from "./invoice.service";
 import logger from "../utils/logger";
 import InvoiceModel from "src/models/invoice";
 
-// =============== Stripe Client ===============
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+let stripeClient: Stripe | null = null;
 
-// =============== Helpers ===============
+const getStripeClient = () => {
+  if (stripeClient) return stripeClient;
+
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) {
+    throw new Error("STRIPE_SECRET_KEY is not configured");
+  }
+
+  stripeClient = new Stripe(apiKey);
+  return stripeClient;
+};
+
+
 function toStripeAmount(amount: number): number {
   return Math.round(amount * 100); // Convert ₹100 → 10000 paise
 }
 
-// ============================================================================
-//                           STRIPE SERVICE
-// ============================================================================
 export const StripeService = {
-  /**
-   * 1️⃣ Create Payment Intent for an Invoice
-   */
+
   async createPaymentIntentForInvoice(invoiceId: string) {
+    const stripe = getStripeClient();
+
     // Load invoice
     const invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) throw new Error("Invoice not found");
@@ -60,6 +68,8 @@ export const StripeService = {
   },
 
   async refundPaymentIntent(paymentIntentId: string) {
+    const stripe = getStripeClient();
+
     if (!paymentIntentId) {
       throw new Error("paymentIntentId is required");
     }
@@ -85,6 +95,8 @@ export const StripeService = {
    * 2️⃣ Verify & Decode Stripe Webhook Event
    */
   verifyWebhook(body: Buffer, signature: string | string[]) {
+    const stripe = getStripeClient();
+
     return stripe.webhooks.constructEvent(
       body,
       signature,

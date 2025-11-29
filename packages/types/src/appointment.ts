@@ -58,7 +58,6 @@ export type Appointment = {
 
 const BREED_SYSTEM_URL = 'http://hl7.org/fhir/animal-breed'
 const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency'
-const EXT_PRICING = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-pricing';
 
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
@@ -201,28 +200,8 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const speciesExtesnion = FHIRappointment.extension?.find(p => p.id?.includes("species"))
   const breedExtension = FHIRappointment.extension?.find(p => p.id?.includes("breed"))
   const emergencyExtension = FHIRappointment.extension?.find(p => p.url?.includes(EXT_EMERGENCY))
-  const priceExtesnion = FHIRappointment.extension?.find(p => p.url?.includes(EXT_PRICING))
 
   const pmsStatus = FHIRappointment.status // fallback if unknown status
-
-  let pricing : {
-    baseCost: number;
-    discountPercent?: number;
-    finalCost: number;
-    quantity: number;
-  } | undefined;
-
-  if(priceExtesnion?.extension?.length) {
-    const getVal = (name: string) =>
-      priceExtesnion.extension?.find((ex) => ex.url === name);
-
-    pricing = {
-      baseCost: getVal("baseCost")?.valueDecimal ?? 0,
-      finalCost: getVal("finalCost")?.valueDecimal ?? 0,
-      quantity: getVal("quantity")?.valueInteger ?? 1,
-      discountPercent: getVal("discountPercent")?.valueDecimal,
-    };
-  }
 
   // Construct internal Appointment object
   const appointment: Appointment = {
@@ -270,6 +249,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
         name : specialityCoding?.display || ""
       }
     },
+    isEmergency: emergencyExtension?.valueBoolean
   }
 
   return appointment;
