@@ -160,10 +160,7 @@ export const StripeService = {
   },
 
   // Verify & Decode Stripe Webhook Event
-  verifyWebhook(
-    body: Buffer,
-    signature: string | string[] | undefined,
-  ) {
+  verifyWebhook(body: Buffer, signature: string | string[] | undefined) {
     const stripe = getStripeClient();
 
     if (!signature) {

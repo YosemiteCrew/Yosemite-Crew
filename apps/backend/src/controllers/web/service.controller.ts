@@ -5,12 +5,15 @@ import {
 } from "../../services/service.service";
 import logger from "../../utils/logger";
 import { ServiceRequestDTO } from "@yosemite-crew/types";
-
 type BookableSlotsPayload = {
   serviceId: string;
   organisationId: string;
   date: string;
 };
+import { AuthenticatedRequest } from "src/middlewares/auth";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { ParentModel } from "src/models/parent";
+import helpers from "src/utils/helper";
 
 const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   if (error instanceof ServiceServiceError) {
@@ -18,6 +21,15 @@ const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   }
   logger.error(defaultMessage, error);
   return res.status(500).json({ message: defaultMessage });
+};
+
+const resolveUserIdFromRequest = (req: Request): string | undefined => {
+  const authRequest = req as AuthenticatedRequest;
+  const headerUserId = req.headers["x-user-id"];
+  if (headerUserId && typeof headerUserId === "string") {
+    return headerUserId;
+  }
+  return authRequest.userId;
 };
 
 export const ServiceController = {
@@ -88,16 +100,78 @@ export const ServiceController = {
 
   listOrganisationByServiceName: async (req: Request, res: Response) => {
     try {
-      const { serviceName } = req.query;
+      const serviceName = req.query.serviceName as string;
+      const latString = req.query.lat as string | undefined;
+      const lngString = req.query.lng as string | undefined;
 
-      if (!serviceName || typeof serviceName !== "string") {
+      if (!serviceName) {
         return res
           .status(400)
-          .json({ message: "Query paramter serviceName is reqired." });
+          .json({ message: "Query parameter serviceName is required." });
+      }
+
+      let lat: number | null = null;
+      let lng: number | null = null;
+
+      // --- 1. If lat/lng are provided by user, validate & use them ---
+      if (latString && lngString) {
+        lat = Number(latString);
+        lng = Number(lngString);
+
+        if (Number.isNaN(lat) || Number.isNaN(lng)) {
+          return res
+            .status(400)
+            .json({ message: "lat and lng must be valid numbers" });
+        }
+      }
+
+      // --- 2. Otherwise get location from authenticated user's address ---
+      if (!lat || !lng) {
+        const authUserId = resolveUserIdFromRequest(req);
+
+        if (!authUserId) {
+          return res
+            .status(400)
+            .json("Povide Latitude and Longitude if no authenticated request.");
+        }
+
+        const authUser = await AuthUserMobileService.getByProviderUserId(
+          authUserId,
+        );
+
+        const parent = await ParentModel.findById(authUser?.parentId);
+
+        if (!parent?.address?.city || !parent?.address?.postalCode) {
+          return res.status(400).json({
+            message:
+              "Location not provided and user has no saved city/pincode.",
+          });
+        }
+
+        const query = `${parent.address.city} ${parent.address.postalCode}`;
+
+        // 2a. Geocode city + pincode → lat/lng
+        const geo = (await helpers.getGeoLocation(query)) as {
+          lat: number;
+          lng: number;
+        };
+
+        lat = geo.lat;
+        lng = geo.lng;
+
+        if (!lat || !lng) {
+          return res.status(400).json({
+            message: "Unable to resolve location from city and postal code.",
+          });
+        }
       }
 
       const results =
-        await ServiceService.listOrganisationsProvidingService(serviceName);
+        await ServiceService.listOrganisationsProvidingServiceNearby(
+          serviceName,
+          lat,
+          lng,
+        );
       return res.status(200).json(results);
     } catch (error: unknown) {
       return handleError(

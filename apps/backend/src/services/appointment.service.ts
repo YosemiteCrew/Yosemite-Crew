@@ -89,6 +89,7 @@ const toDomainLean = (
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
+    attachments: obj.attachments
   };
 };
 
@@ -107,6 +108,7 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   status: appointment.status,
   isEmergency: appointment.isEmergency ?? false,
   concern: appointment.concern ?? undefined,
+  attachments: appointment.attachments ?? undefined
 });
 
 type DateRangeQuery = {
@@ -200,6 +202,7 @@ export const AppointmentService = {
       lead: undefined,
       supportStaff: [],
       room: undefined,
+      attachments: input.attachments,
 
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -220,7 +223,6 @@ export const AppointmentService = {
           description: service.name,
           quantity: 1,
           unitPrice: service.cost,
-          discountPercent: service.maxDiscount ?? undefined,
         },
       ],
       notes: input.concern,
@@ -321,7 +323,7 @@ export const AppointmentService = {
       lead: input.lead,
       supportStaff: input.supportStaff ?? [],
       room: input.room ?? undefined,
-
+      attachments: input.attachments,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

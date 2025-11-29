@@ -1,8 +1,8 @@
-import { Request, Response } from "express"
-import { AuthenticatedRequest } from "src/middlewares/auth"
+import { Request, Response } from "express";
+import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { OrganizationRatingService } from "src/services/organisationReting.service"
-import logger from "src/utils/logger"
+import { OrganizationRatingService } from "src/services/organisationReting.service";
+import logger from "src/utils/logger";
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -16,22 +16,22 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
 type RatingRequestBody = {
   rating: number;
   review?: string;
-}
+};
 
 export const OrganisationRatingController = {
-
-  rateOrganisation: async(req: Request, res: Response) => {
-
-    try{
+  rateOrganisation: async (req: Request, res: Response) => {
+    try {
       const authUserId = resolveUserIdFromRequest(req);
-      const authUser = await AuthUserMobileService.getByProviderUserId(authUserId!);
+      const authUser = await AuthUserMobileService.getByProviderUserId(
+        authUserId!,
+      );
 
-      const { organisationId } = req.params
+      const { organisationId } = req.params;
 
-      const ratingBody = req.body as RatingRequestBody
+      const ratingBody = req.body as RatingRequestBody;
 
-      if(!ratingBody.rating)
-        return res.status(400).json({message: "Rating is required."})
+      if (!ratingBody.rating)
+        return res.status(400).json({ message: "Rating is required." });
 
       const parentId = authUser?.parentId?.toString();
       if (!parentId) {
@@ -42,16 +42,15 @@ export const OrganisationRatingController = {
         organisationId,
         parentId,
         ratingBody.rating,
-        ratingBody.review
-      )
+        ratingBody.review,
+      );
 
-      return res.status(200).json({message : "Rating submitted successfully."})
-
+      return res
+        .status(200)
+        .json({ message: "Rating submitted successfully." });
     } catch (error) {
-      logger.error("Error while rating an organisation: ", error)
-      res.status(500).json({ message: "Unable to rate."});
+      logger.error("Error while rating an organisation: ", error);
+      res.status(500).json({ message: "Unable to rate." });
     }
-
-  }
-  
-}
+  },
+};

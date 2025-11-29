@@ -54,11 +54,16 @@ export type Appointment = {
   concern?: string;            // Reason for the appointment
   createdAt?: Date;
   updatedAt?: Date;
+  attachments?: {
+    key?: string;
+    name?: string;
+    contentType?: string;
+  }[]
 };
 
 const BREED_SYSTEM_URL = 'http://hl7.org/fhir/animal-breed'
 const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency'
-
+const EXT_APPOINTMENT_ATTACHMENTS = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments"
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
@@ -167,6 +172,19 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
     });
   }
 
+  if (appointment.attachments?.length) {
+  appointment.attachments.forEach(att => {
+    extension.push({
+      url: EXT_APPOINTMENT_ATTACHMENTS,
+      extension: [
+        { url: "key", valueString: att.key },
+        { url: "name", valueString: att.name },
+        { url: "contentType", valueString: att.contentType }
+      ]
+    });
+  });
+}
+
   const fhirAppointment: FHIRAppointment = {
     resourceType: "Appointment",
     id: appointment.id,
@@ -202,6 +220,17 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const emergencyExtension = FHIRappointment.extension?.find(p => p.url?.includes(EXT_EMERGENCY))
 
   const pmsStatus = FHIRappointment.status // fallback if unknown status
+
+  const attachments =
+  FHIRappointment.extension
+    ?.filter(ext => ext.url === EXT_APPOINTMENT_ATTACHMENTS)
+    .map(ext => {
+      const key = ext.extension?.find(e => e.url === "key")?.valueString || "";
+      const name = ext.extension?.find(e => e.url === "name")?.valueString;
+      const contentType = ext.extension?.find(e => e.url === "contentType")?.valueString;
+
+      return { key, name, contentType };
+    }) || [];
 
   // Construct internal Appointment object
   const appointment: Appointment = {
@@ -249,7 +278,8 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
         name : specialityCoding?.display || ""
       }
     },
-    isEmergency: emergencyExtension?.valueBoolean
+    isEmergency: emergencyExtension?.valueBoolean,
+    attachments
   }
 
   return appointment;

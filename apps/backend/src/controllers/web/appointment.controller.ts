@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { AppointmentStatus } from "src/models/appointment";
+import { generatePresignedUrl } from "src/middlewares/upload";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -14,6 +15,8 @@ type RescheduleRequestBody = {
 };
 
 type CancelBody = { reason?: string };
+
+type UploadUrlBody = { companionId?: string; mimeType?: string };
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -396,6 +399,34 @@ export const AppointmentController = {
         "Failed to fetch lead appointments",
       );
       return res.status(status).json({ message });
+    }
+  },
+
+  getDocumentUplaodURL: async (
+    req: Request<unknown, unknown, UploadUrlBody>,
+    res: Response,
+  ) => {
+    try {
+      const { companionId, mimeType } = req.body;
+
+      if (!companionId || !mimeType) {
+        return res
+          .status(400)
+          .json({ message: "companionId and mimeType are required." });
+      }
+
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "companion",
+        companionId,
+      );
+
+      return res.status(200).json({ url, key });
+    } catch (error) {
+      logger.error("Failed to generate upload URL", error);
+      return res
+        .status(500)
+        .json({ message: "Failed to generate upload URL." });
     }
   },
 };

@@ -16,6 +16,7 @@ import escapeStringRegexp from "escape-string-regexp";
 import SpecialityModel from "src/models/speciality";
 import { AvailabilitySlotMongo } from "src/models/base-availability";
 import { AvailabilityService } from "./availability.service";
+import helpers from "src/utils/helper";
 
 dayjs.extend(utc);
 
@@ -285,5 +286,60 @@ export const ServiceService = {
       dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
       windows: finalWindows,
     };
+  },
+
+  async listOrganisationsProvidingServiceNearby(
+    serviceName: string,
+    lat: number,
+    lng: number,
+    query?: string,
+    radius = 5000,
+  ) {
+    const safe = escapeStringRegexp(serviceName.trim());
+    const searchRegex = new RegExp(safe, "i");
+
+    // 1. Find services matching the name
+    const services = await ServiceModel.find({
+      name: searchRegex,
+    }).lean();
+
+    if (!services.length) return [];
+
+    // 2. Extract unique organization IDs
+    const orgIds = [...new Set(services.map((s) => s.organisationId))];
+
+    if (!lat && !lng) {
+      const result = (await helpers.getGeoLocation(query!)) as {
+        lat: number;
+        lng: number;
+      };
+      lat = result.lat;
+      lng = result.lng;
+    }
+
+    // 3. Fetch only nearby organisations that match service
+    const organisations = await OrganizationModel.find({
+      _id: { $in: orgIds },
+      "address.location": {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [lng, lat],
+          },
+          $maxDistance: radius,
+        },
+      },
+    })
+      .lean()
+      .exec();
+
+    return organisations.map((org) => ({
+      id: org._id.toString(),
+      name: org.name,
+      imageURL: org.imageURL,
+      phoneNo: org.phoneNo,
+      type: org.type,
+      address: org.address,
+    }));
   },
 };

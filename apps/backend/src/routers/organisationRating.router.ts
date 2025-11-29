@@ -6,7 +6,7 @@ const router = Router();
 router.post(
   "/:organisationId",
   authorizeCognitoMobile,
-  OrganisationRatingController.rateOrganisation
-)
+  OrganisationRatingController.rateOrganisation,
+);
 
 export default router;

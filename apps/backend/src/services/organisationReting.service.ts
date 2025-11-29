@@ -2,13 +2,17 @@ import { OrganisationRatingModel } from "../models/organisationRating";
 import OrganizationModel from "../models/organization";
 
 export const OrganizationRatingService = {
-
-   async rateOrganisation(organizationId: string, userId: string, rating: number, review?: string) {
+  async rateOrganisation(
+    organizationId: string,
+    userId: string,
+    rating: number,
+    review?: string,
+  ) {
     // Upsert user rating
     await OrganisationRatingModel.findOneAndUpdate(
       { organizationId, userId },
       { rating, review },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     // Recalculate average rating
@@ -47,4 +51,4 @@ export const OrganizationRatingService = {
       });
     }
   },
-}
+};

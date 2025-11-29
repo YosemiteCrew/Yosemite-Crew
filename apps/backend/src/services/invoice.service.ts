@@ -177,8 +177,6 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
-    logger.info("Invoice marked as FAILED:", { invoiceId });
-
     return doc;
   },
 
@@ -193,8 +191,6 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
-    logger.info("Invoice marked as FAILED:", { invoiceId });
-
     return doc;
   },
 
@@ -208,8 +204,6 @@ export const InvoiceService = {
     );
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
-
-    logger.info("Invoice marked REFUNDED:", { invoiceId });
 
     return toDomain(doc);
   },

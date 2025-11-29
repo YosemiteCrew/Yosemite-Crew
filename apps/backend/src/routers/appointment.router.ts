@@ -4,87 +4,101 @@ import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 
 const router = Router();
 
-// routes fo mobile
+// MOBILE ROUTES 
 
+// Create appointment (mobile)
 router.post(
   "/mobile",
   authorizeCognitoMobile,
-  AppointmentController.createRequestedFromMobile,
+  AppointmentController.createRequestedFromMobile
 );
-// Reschedule requested appointment from parent (MOBILE)
-router.patch(
-  "/mobile/:appointmentId/reschedule",
-  authorizeCognitoMobile,
-  AppointmentController.rescheduleFromMobile,
-);
-router.post(
-  "/mobile/:appointmentId/reschedule",
-  authorizeCognitoMobile,
-  AppointmentController.cancelFromMobile,
-);
-// List appointments for a parent (MOBILE)
+
+// List appointments for a parent (static route)
 router.get(
   "/mobile/parent",
   authorizeCognitoMobile,
-  AppointmentController.listByParent,
+  AppointmentController.listByParent
 );
-// List appointments for a parent (MOBILE)
+
+router.post(
+  "/mobile/documentUpload",
+  authorizeCognitoMobile,
+  AppointmentController.getDocumentUplaodURL
+)
+
+// List appointments for a companion (semi-static)
 router.get(
   "/mobile/companion/:companionId",
   authorizeCognitoMobile,
-  AppointmentController.listByCompanion,
+  AppointmentController.listByCompanion
 );
-// Get appointment detail (MOBILE)
+
+// Reschedule appointment (mobile)
+router.patch(
+  "/mobile/:appointmentId/reschedule",
+  authorizeCognitoMobile,
+  AppointmentController.rescheduleFromMobile
+);
+
+// Cancel appointment (mobile) — FIXED PATH
+router.patch(
+  "/mobile/:appointmentId/cancel",
+  authorizeCognitoMobile,
+  AppointmentController.cancelFromMobile
+);
+
+// Get appointment detail (mobile) — dynamic LAST
 router.get(
   "/mobile/:appointmentId",
   authorizeCognitoMobile,
-  AppointmentController.getById,
+  AppointmentController.getById
 );
 
-// routes for PMS
+
+// PMS ROUTES
 
 router.post("/pms", authorizeCognito, AppointmentController.createFromPms);
 
-// Accept & assign vet/staff for a requested appointment
-router.patch(
-  "/pms/:appointmentId/accept",
-  authorizeCognito,
-  AppointmentController.acceptRequested,
-);
-
-// Reject (cancel) requested appointment
-router.patch(
-  "/pms/:appointmentId/reject",
-  authorizeCognito,
-  AppointmentController.rejectRequested,
-);
-
-// Hard cancel appointment (with refund logic)
-router.patch(
-  "/pms/:appointmentId/cancel",
-  authorizeCognito,
-  AppointmentController.cancelFromPMS,
-);
-
-// Update appointment details (assign vet/staff/room)
-router.patch(
-  "/pms/:appointmentId",
-  authorizeCognito,
-  AppointmentController.updateFromPms,
-);
-
-// List PMS appointments (by filters: vet, org, date)
+// List PMS appointments — static path FIRST
 router.get(
   "/pms/organisation/:organisationId",
   authorizeCognito,
-  AppointmentController.listByOrganisation,
+  AppointmentController.listByOrganisation
 );
 
-// Get appointment detail (PMS)
+// Accept & assign vet
+router.patch(
+  "/pms/:appointmentId/accept",
+  authorizeCognito,
+  AppointmentController.acceptRequested
+);
+
+// Reject requested appointment
+router.patch(
+  "/pms/:appointmentId/reject",
+  authorizeCognito,
+  AppointmentController.rejectRequested
+);
+
+// Hard cancel from PMS
+router.patch(
+  "/pms/:appointmentId/cancel",
+  authorizeCognito,
+  AppointmentController.cancelFromPMS
+);
+
+// Update details (assign vet/room)
+router.patch(
+  "/pms/:appointmentId",
+  authorizeCognito,
+  AppointmentController.updateFromPms
+);
+
+// Get appointment detail (dynamic LAST)
 router.get(
   "/pms/:appointmentId",
   authorizeCognito,
-  AppointmentController.getById,
+  AppointmentController.getById
 );
 
 export default router;
