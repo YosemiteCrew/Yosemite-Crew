@@ -1,21 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoSearch } from "react-icons/io5";
+import { Service, Speciality } from "@/app/types/org";
+import { specialtiesByKey } from "@/app/utils/specialities";
 
 import "./ServiceSearch.css";
 
-const ServiceSearch = ({ speciality, setSpecialities, handleToggle }: any) => {
+const ServiceSearch = ({ speciality, setSpecialities }: any) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const SERVICES = specialtiesByKey[speciality.name].services;
+
+  const selectedNames = useMemo(
+    () =>
+      new Set(speciality.services.map((s: Service) => s.name.toLowerCase())),
+    [speciality]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = speciality.services.filter((s: any) => !s.active);
-    if (!q) return list;
-    return list.filter((s: any) =>
-      s.name.toLowerCase().includes(q)
-    );
-  }, [query, speciality]);
+    return SERVICES.filter((s: any) => {
+      const name = s.toLowerCase();
+      if (selectedNames.has(name)) return false;
+      if (!q) return true;
+      return name.includes(q);
+    });
+  }, [query, selectedNames]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -32,34 +42,67 @@ const ServiceSearch = ({ speciality, setSpecialities, handleToggle }: any) => {
     };
   }, []);
 
-  const handleAddService = () => {
-    const name = query.trim();
-    if (!name) return;
-    setSpecialities((prev: any[]) =>
-      prev.map((sp: any) => {
-        if (sp.key !== speciality.key) return sp;
-        const services = sp.services || [];
-        const exists = checkIfServiceExists(services, name)
+  const handleSelectService = (serviceName: string) => {
+    setSpecialities((prev: Speciality[]) =>
+      prev.map((sp) => {
+        if (sp.name.toLowerCase() !== speciality.name.toLowerCase()) return sp;
+        const exists = checkIfAlready(sp.services || [], serviceName)
         if (exists) return sp;
-        const newService = {
-          name,
-          active: true,
-          duration: 20,
-          price: 50,
+        return {
+          ...sp,
+          services: [
+            ...sp.services!,
+            {
+              name: serviceName,
+              description: "",
+              maxDiscount: 10,
+              charge: 10,
+              duration: 15,
+            } as Service,
+          ],
         };
-        return { ...sp, services: [newService, ...services] };
       })
     );
     setQuery("");
     setOpen(false);
   };
 
-  const checkIfServiceExists = (services: any, name: any) =>
-    services.some((svc: any) => svc.name.toLowerCase() === name.toLowerCase());
+  const handleAddService = () => {
+    const name = query.trim();
+    if (!name) return;
+    setSpecialities((prev: Speciality[]) =>
+      prev.map((sp) => {
+        if (sp.name.toLowerCase() !== speciality.name.toLowerCase()) return sp;
+        const exists = checkIfAlready(sp.services || [], name)
+        if (exists) return sp;
+        return {
+          ...sp,
+          services: [
+            ...sp.services!,
+            {
+              name: name.charAt(0).toUpperCase() + name.slice(1),
+              description: "",
+              maxDiscount: 10,
+              charge: 15,
+              duration: 15,
+            } as Service,
+          ],
+        };
+      })
+    );
+    setQuery("");
+    setOpen(false);
+  };
+
+  const checkIfAlready = (services: Service[], name: string) => {
+    return services?.some(
+      (s: Service) => s.name.toLowerCase() === name.toLowerCase()
+    );
+  };
 
   return (
     <div className="service-search" ref={wrapperRef}>
-      <IoSearch size={24} className="service-search-icon" color="#302F2E" />
+      <IoSearch size={20} className="service-search-icon" color="#302F2E" />
       <input
         type="text"
         name="speciality-search"
@@ -77,20 +120,18 @@ const ServiceSearch = ({ speciality, setSpecialities, handleToggle }: any) => {
           {filtered?.length > 0 ? (
             filtered.map((service: any) => (
               <button
-                key={service.name}
+                key={service}
                 className="service-search-speciality"
-                onClick={() => handleToggle(service.name)}
+                onClick={() => handleSelectService(service)}
               >
-                <div className="service-search-speciality-title">
-                  {service.name}
-                </div>
+                <div className="service-search-speciality-title">{service}</div>
               </button>
             ))
           ) : (
             <button
               type="button"
               className="service-search-add"
-              onClick={handleAddService}
+              onClick={() => handleAddService()}
             >
               Add service “{query.trim()}”
             </button>

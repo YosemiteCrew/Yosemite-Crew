@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
-import Link from "next/link";
-import { FaCheckCircle } from "react-icons/fa";
-import { IoIosCloseCircle } from "react-icons/io";
+import { TasksProps } from "@/app/types/tasks";
+import { IoEye } from "react-icons/io5";
+import TaskCard from "../Cards/TaskCard";
 
 import "./DataTable.css";
 
@@ -13,73 +13,32 @@ type Column<T> = {
   render?: (item: T) => React.ReactNode;
 };
 
-type TasksProps = {
-  task: string;
-  description: string;
-  category: string;
-  from: string;
-  to: string;
-  toLabel: string;
-  due: string;
-  status: string;
+type TaskTableProps = {
+  filteredList: TasksProps[];
+  setActiveTask?: (inventory: TasksProps) => void;
+  setViewPopup?: (open: boolean) => void;
 };
 
-const demoData: TasksProps[] = [
-  {
-    task: "Follow up with new client",
-    description: "Send onboarding documents and schedule first meeting.",
-    category: "Client Relations",
-    from: "John Carter",
-    to: "Evergreen Veterinary Clinic",
-    toLabel: "Organisations",
-    due: "2025-11-07",
-    status: "Pending",
-  },
-  {
-    task: "Update vaccination records",
-    description: "Verify and upload updated vaccine certificates for pets.",
-    category: "Records Management",
-    from: "Emily Davis",
-    to: "Sarah Wilson",
-    toLabel: "Companions",
-    due: "2025-11-08",
-    status: "In-Progress",
-  },
-  {
-    task: "Prepare monthly billing report",
-    description: "Generate and review invoices for October.",
-    category: "Finance",
-    from: "Michael Brown",
-    to: "Happy Tails Clinic",
-    toLabel: "Organisations",
-    due: "2025-11-10",
-    status: "Pending",
-  },
-  {
-    task: "Check medication stock",
-    description: "Ensure all essential medicines are in adequate supply.",
-    category: "Inventory",
-    from: "Anna Lee",
-    to: "Dr. Roberts",
-    toLabel: "Companions",
-    due: "2025-11-09",
-    status: "Completed",
-  },
-  {
-    task: "Design promotional banner",
-    description: "Create social media banner for the new wellness campaign.",
-    category: "Marketing",
-    from: "Rachel Green",
-    to: "Healthy Paws Veterinary",
-    toLabel: "Organisations",
-    due: "2025-11-12",
-    status: "Pending",
-  },
-];
+export const getStatusStyle = (status: string) => {
+  switch (status?.toLowerCase()) {
+    case "in-progress":
+      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+    case "completed":
+      return { color: "#fff", backgroundColor: "#008F5D" };
+    default:
+      return { color: "#fff", backgroundColor: "#247AED" };
+  }
+};
 
-const Tasks = () => {
-  const [data] = useState<TasksProps[]>(demoData);
-
+const Tasks = ({
+  filteredList,
+  setActiveTask,
+  setViewPopup,
+}: TaskTableProps) => {
+  const handleViewTask = (task: TasksProps) => {
+    setActiveTask?.(task);
+    setViewPopup?.(true);
+  };
   const columns: Column<TasksProps>[] = [
     {
       label: "Task",
@@ -138,7 +97,9 @@ const Tasks = () => {
       key: "status",
       width: "15%",
       render: (item: TasksProps) => (
-        <div className="appointment-status">{item.status}</div>
+        <div className="appointment-status" style={getStatusStyle(item.status)}>
+          {item.status}
+        </div>
       ),
     },
     {
@@ -147,16 +108,12 @@ const Tasks = () => {
       width: "10%",
       render: (item: TasksProps) => (
         <div className="action-btn-col">
-          <Link
-            href={"#"}
-            className="action-btn"
-            style={{ background: "#E6F4EF" }}
+          <button
+            onClick={() => handleViewTask(item)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
-            <FaCheckCircle size={22} color="#54B492" />
-          </Link>
-          <div className="action-btn" style={{ background: "#FDEBEA" }}>
-            <IoIosCloseCircle size={24} color="#EA3729" />
-          </div>
+            <IoEye size={20} color="#302F2E" />
+          </button>
         </div>
       ),
     },
@@ -164,7 +121,16 @@ const Tasks = () => {
   return (
     <div className="table-wrapper">
       <div className="table-list">
-        <GenericTable data={data} columns={columns} bordered={false} />
+        <GenericTable data={filteredList} columns={columns} bordered={false} />
+      </div>
+      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+        {filteredList.map((item: TasksProps) => (
+          <TaskCard
+            key={item.task}
+            item={item}
+            handleViewTask={handleViewTask}
+          />
+        ))}
       </div>
     </div>
   );

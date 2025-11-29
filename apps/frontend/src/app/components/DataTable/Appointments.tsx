@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import Image from "next/image";
 import Link from "next/link";
 import { FaCheckCircle } from "react-icons/fa";
 import { IoIosCloseCircle } from "react-icons/io";
+import { AppointmentsProps } from "@/app/types/appointments";
+import { IoEye } from "react-icons/io5";
+import AppointmentCard from "../Cards/AppointmentCard";
 
 import "./DataTable.css";
 
@@ -14,110 +17,36 @@ type Column<T> = {
   render?: (item: T) => React.ReactNode;
 };
 
-type AppointmentsProps = {
-  name: string;
-  parentName: string;
-  image: string;
-  reason: string;
-  emergency: boolean;
-  breed: string;
-  species: string;
-  room: string;
-  time: string;
-  date: string;
-  lead: string;
-  leadDepartment: string;
-  support: string[];
-  status: string;
+type AppointmentTableProps = {
+  filteredList: AppointmentsProps[];
+  setActiveAppointment?: (inventory: AppointmentsProps) => void;
+  setViewPopup?: (open: boolean) => void;
 };
 
-const demoData: AppointmentsProps[] = [
-  {
-    name: "Bella",
-    parentName: "Sarah Johnson",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    reason: "Annual vaccination",
-    emergency: false,
-    breed: "Golden Retriever",
-    species: "Dog",
-    room: "Room 3A",
-    time: "10:30 AM",
-    date: "2025-11-06",
-    lead: "Dr. Emily Carter",
-    leadDepartment: "Veterinary Medicine",
-    support: ["Nurse Rachel", "Assistant Tom"],
-    status: "Scheduled",
-  },
-  {
-    name: "Milo",
-    parentName: "John Smith",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    reason: "Limping after walk",
-    emergency: true,
-    breed: "Beagle",
-    species: "Dog",
-    room: "Emergency Bay 1",
-    time: "9:15 AM",
-    date: "2025-11-06",
-    lead: "Dr. Mark Daniels",
-    leadDepartment: "Orthopedics",
+export const getStatusStyle = (status: string) => {
+  switch (status?.toLowerCase()) {
+    case "in-progress":
+      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+    case "completed":
+      return { color: "#fff", backgroundColor: "#008F5D" };
+    case "checked-in":
+      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+    case "requested":
+      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+    default:
+      return { color: "#fff", backgroundColor: "#247AED" };
+  }
+};
 
-    support: ["Nurse Rachel", "Assistant Tom"],
-    status: "In-Progress",
-  },
-  {
-    name: "Luna",
-    parentName: "Priya Mehta",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    reason: "Dental cleaning",
-    emergency: false,
-    breed: "Persian",
-    species: "Cat",
-    room: "Room 2B",
-    time: "1:00 PM",
-    date: "2025-11-06",
-    lead: "Dr. Rebecca Lin",
-    leadDepartment: "Dentistry",
-    status: "Completed",
-    support: ["Nurse Rachel", "Assistant Tom"],
-  },
-  {
-    name: "Rocky",
-    parentName: "David Lee",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    reason: "Regular checkup",
-    emergency: false,
-    breed: "Bulldog",
-    species: "Dog",
-    room: "Room 4C",
-    time: "11:45 AM",
-    date: "2025-11-06",
-    lead: "Dr. Michael Brown",
-    leadDepartment: "General Care",
-    support: ["Nurse Rachel", "Assistant Tom"],
-    status: "Scheduled",
-  },
-  {
-    name: "Coco",
-    parentName: "Elena Garcia",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    reason: "Skin rash and itching",
-    emergency: false,
-    breed: "Poodle",
-    species: "Dog",
-    room: "Room 1A",
-    time: "3:30 PM",
-    date: "2025-11-06",
-    lead: "Dr. Jason Patel",
-    leadDepartment: "Dermatology",
-    status: "Cancelled",
-    support: ["Nurse Rachel", "Assistant Tom"],
-  },
-];
-
-const Appointments = () => {
-  const [data] = useState<AppointmentsProps[]>(demoData);
-
+const Appointments = ({
+  filteredList,
+  setActiveAppointment,
+  setViewPopup,
+}: AppointmentTableProps) => {
+  const handleViewAppointment = (appointment: AppointmentsProps) => {
+    setActiveAppointment?.(appointment);
+    setViewPopup?.(true);
+  };
   const columns: Column<AppointmentsProps>[] = [
     {
       label: "Name",
@@ -153,14 +82,11 @@ const Appointments = () => {
       ),
     },
     {
-      label: "Breed",
-      key: "breed",
+      label: "Service",
+      key: "service",
       width: "10%",
       render: (item: AppointmentsProps) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.species}</div>
-          <div className="appointment-profile-sub">{item.breed}</div>
-        </div>
+        <div className="appointment-profile-title">{item.service}</div>
       ),
     },
     {
@@ -188,8 +114,12 @@ const Appointments = () => {
       width: "10%",
       render: (item: AppointmentsProps) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.lead.split(" ")[0] + " " + item.lead.split(" ")[1]}</div>
-          <div className="appointment-profile-sub">{item.leadDepartment.split(" ")[0]}</div>
+          <div className="appointment-profile-title">
+            {item.lead.split(" ")[0] + " " + item.lead.split(" ")[1]}
+          </div>
+          <div className="appointment-profile-sub">
+            {item.leadDepartment.split(" ")[0]}
+          </div>
         </div>
       ),
     },
@@ -201,11 +131,6 @@ const Appointments = () => {
         <div className="appointment-profile-two">
           {item.support.map((sup, i) => (
             <div key={"sup" + i} className="appointment-profile-sub">
-              {/* <FaUserAlt
-                size={14}
-                color="#252525"
-                style={{ marginRight: "4px" }}
-              /> */}
               {sup.split(" ")[0]}
             </div>
           ))}
@@ -217,7 +142,9 @@ const Appointments = () => {
       key: "status",
       width: "15%",
       render: (item: AppointmentsProps) => (
-        <div className="appointment-status">{item.status}</div>
+        <div className="appointment-status" style={getStatusStyle(item.status)}>
+          {item.status}
+        </div>
       ),
     },
     {
@@ -226,16 +153,27 @@ const Appointments = () => {
       width: "10%",
       render: (item: AppointmentsProps) => (
         <div className="action-btn-col">
-          <Link
-            href={"#"}
-            className="action-btn"
-            style={{ background: "#E6F4EF" }}
-          >
-            <FaCheckCircle size={22} color="#54B492" />
-          </Link>
-          <div className="action-btn" style={{ background: "#FDEBEA" }}>
-            <IoIosCloseCircle size={24} color="#EA3729" />
-          </div>
+          {item.status === "Requested" ? (
+            <>
+              <Link
+                href={"#"}
+                className="action-btn"
+                style={{ background: "#E6F4EF" }}
+              >
+                <FaCheckCircle size={22} color="#54B492" />
+              </Link>
+              <div className="action-btn" style={{ background: "#FDEBEA" }}>
+                <IoIosCloseCircle size={24} color="#EA3729" />
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={() => handleViewAppointment(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <IoEye size={20} color="#302F2E" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -244,7 +182,16 @@ const Appointments = () => {
   return (
     <div className="table-wrapper">
       <div className="table-list">
-        <GenericTable data={data} columns={columns} bordered={false} />
+        <GenericTable data={filteredList} columns={columns} bordered={false} />
+      </div>
+      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+        {filteredList.map((item: AppointmentsProps) => (
+          <AppointmentCard
+            key={item.name}
+            appointment={item}
+            handleViewAppointment={handleViewAppointment}
+          />
+        ))}
       </div>
     </div>
   );

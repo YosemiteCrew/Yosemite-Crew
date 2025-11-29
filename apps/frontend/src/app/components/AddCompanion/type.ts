@@ -11,7 +11,8 @@ export const OriginOptions = [
   "Friends or family",
   "Unknown",
 ];
-export const SpeciesOptions: string[] = ["Dog", "Cat", "Horse"];
+export type Specie = "Dog" | "Cat" | "Horse"
+export const SpeciesOptions: Specie[] = ["Dog", "Cat", "Horse"];
 export type Breed = {
   speciesId: number;
   speciesName: string;

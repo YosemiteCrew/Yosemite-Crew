@@ -60,13 +60,13 @@ const InventoryFilters = ({ list, setFilteredList }: InventoryFiltersProps) => {
   const filteredList = useMemo(() => {
     return list.filter((item: any) => {
       const matchesStatus =
-        item.status.toLowerCase() === activeStatus.toLowerCase();
+        item.basicInfo.status.toLowerCase() === activeStatus.toLowerCase();
       const matchesCategory =
         activeCategory === "all" ||
-        item.category.toLowerCase() === activeCategory.toLowerCase();
+        item.basicInfo.category.toLowerCase() === activeCategory.toLowerCase();
       const matchesSearch =
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.parent.toLowerCase().includes(search.toLowerCase());
+        item.basicInfo.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.basicInfo.description.toLowerCase().includes(search.toLowerCase());
       return matchesStatus && matchesCategory && matchesSearch;
     });
   }, [list, activeCategory, activeStatus, search]);
