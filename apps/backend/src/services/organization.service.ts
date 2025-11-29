@@ -66,7 +66,7 @@ export interface OrganisationSearchInput {
 
 export interface OrganisationSearchResult {
   isPmsOrganisation: boolean;
-  organisation?: OrganizationResponseDTO
+  organisation?: OrganizationResponseDTO;
 }
 
 export class OrganizationServiceError extends Error {
@@ -313,17 +313,6 @@ const coerceOrganizationType = (value: unknown): Organisation["type"] => {
   return "HOSPITAL";
 };
 
-const hasAddressValues = (address: OrganizationMongo["address"]): boolean =>
-  Boolean(
-    address?.addressLine ||
-      address?.city ||
-      address?.state ||
-      address?.postalCode ||
-      address?.country ||
-      address?.latitude !== undefined ||
-      address?.longitude !== undefined,
-  );
-
 const sanitizeAddress = (
   address: OrganizationDTOAttributes["address"],
 ): OrganizationMongo["address"] | undefined => {
@@ -331,7 +320,7 @@ const sanitizeAddress = (
     return undefined;
   }
 
-  const sanitized = {
+  const sanitized: OrganizationMongo["address"] = {
     addressLine: optionalSafeString(address.addressLine, "Address line"),
     country: optionalSafeString(address.country, "Address country"),
     city: optionalSafeString(address.city, "Address city"),
@@ -341,8 +330,11 @@ const sanitizeAddress = (
     longitude: optionalNumber(address.longitude, "Address longitude"),
   };
 
-  if (!hasAddressValues(sanitized)) {
-    return undefined;
+  if (address?.latitude && address?.longitude) {
+    sanitized.location = {
+      type: "Point",
+      coordinates: [address.longitude, address.latitude],
+    };
   }
 
   return sanitized;
@@ -543,7 +535,11 @@ export const OrganizationService = {
       }
 
       // Update Profile photo url
-      if (persistable.imageURL && document._id.toString()) {
+      if (
+        persistable.imageURL &&
+        document._id.toString() &&
+        !persistable.imageURL?.includes("https://")
+      ) {
         const finalKey = buildS3Key(
           "org",
           document._id.toString(),
@@ -637,23 +633,25 @@ export const OrganizationService = {
     return buildFHIRResponse(document);
   },
 
-  async resolveOrganisation(input: OrganisationSearchInput) : Promise<OrganisationSearchResult> {
-
+  async resolveOrganisation(
+    input: OrganisationSearchInput,
+  ): Promise<OrganisationSearchResult> {
     if (!input.placeId && (!input.lat || !input.lng) && !input.name) {
       throw new OrganizationServiceError("Invalid search input.", 400);
     }
 
     // Search using places Id
     if (input.placeId) {
-      const org = await OrganizationModel.findOne({ googlePlaceId: input.placeId });
+      const org = await OrganizationModel.findOne({
+        googlePlaceId: input.placeId,
+      });
       if (org) {
         return {
           isPmsOrganisation: true,
-          organisation: buildFHIRResponse(org)
+          organisation: buildFHIRResponse(org),
         };
       }
     }
-
 
     // Search using latitude and longitude
     if (input.lat && input.lng) {
@@ -662,17 +660,17 @@ export const OrganizationService = {
           $near: {
             $geometry: {
               type: "Point",
-              coordinates: [input.lng, input.lat]
+              coordinates: [input.lng, input.lat],
             },
-            $maxDistance: 120
-          }
-        }
+            $maxDistance: 120,
+          },
+        },
       });
-      
+
       if (org) {
         return {
           isPmsOrganisation: true,
-          organisation: buildFHIRResponse(org)
+          organisation: buildFHIRResponse(org),
         };
       }
     }
@@ -683,19 +681,19 @@ export const OrganizationService = {
       const nameRegex = new RegExp(safe, "i");
 
       const org = await OrganizationModel.findOne({
-        name: nameRegex
+        name: nameRegex,
       });
 
       if (org) {
         return {
           isPmsOrganisation: true,
-          organisation: buildFHIRResponse(org)
+          organisation: buildFHIRResponse(org),
         };
       }
     }
 
     return {
-      isPmsOrganisation: false
-    }
-  }
+      isPmsOrganisation: false,
+    };
+  },
 };

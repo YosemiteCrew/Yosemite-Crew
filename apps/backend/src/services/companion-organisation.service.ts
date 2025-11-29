@@ -1,10 +1,11 @@
 import { Types } from "mongoose";
+import { randomUUID } from "node:crypto";
 import CompanionOrganisationModel, {
   CompanionOrganisationDocument,
 } from "../models/companion-organisation";
 import { assertSafeString } from "src/utils/sanitize";
 import ParentCompanionModel from "src/models/parent-companion";
-import CompanionModel from "../models/companion"
+import CompanionModel from "../models/companion";
 import { ParentModel } from "src/models/parent";
 
 export class CompanionOrganisationServiceError extends Error {
@@ -103,7 +104,7 @@ export const CompanionOrganisationService = {
       linkedByPmsUserId: pmsUserId,
       organisationType,
       role: "ORGANISATION",
-      status: "ACTIVE",
+      status: "PENDING",
     });
   },
 
@@ -112,30 +113,39 @@ export const CompanionOrganisationService = {
     companionId,
     organisationType,
     email,
+    name,
+    placesId,
   }: {
     parentId: Types.ObjectId | string;
     companionId: Types.ObjectId | string;
     organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
-    email: string;
+    email?: string | null;
+    name?: string | null;
+    placesId?: string | null;
   }): Promise<CompanionOrganisationDocument> {
-    if (!email) {
-      throw new CompanionOrganisationServiceError("Email required", 400);
+    if (!email && !name) {
+      throw new CompanionOrganisationServiceError(
+        "Email required or Name",
+        400,
+      );
     }
 
     const parent = ensureObjectId(parentId, "parentId");
     const companion = ensureObjectId(companionId, "companionId");
 
-    const token = crypto.randomUUID();
+    const token = randomUUID();
 
     return CompanionOrganisationModel.create({
       companionId: companion,
       linkedByParentId: parent,
       invitedViaEmail: email,
+      organisationName: name,
+      organisationPlacesId: placesId,
       inviteToken: token,
       organisationId: null,
       organisationType,
       role: "ORGANISATION",
-      status: "PENDING",
+      status: "INVITED",
     });
   },
 
@@ -338,23 +348,26 @@ export const CompanionOrganisationService = {
       companionId: id,
       organisationType: type,
       status: { $in: ["ACTIVE", "PENDING"] },
-    });
+    }).populate(
+      "organisationId",
+      "name imageURL phoneNo address googlePlacesId",
+    );
 
     const parentComapnionLink = await ParentCompanionModel.findOne({
       companionId: id,
-      role: "PRIMARY"
-    }).exec()
+      role: "PRIMARY",
+    }).exec();
 
-    const companion = await CompanionModel.findById(id)
-    const parent = await ParentModel.findById(parentComapnionLink?.parentId)
+    const companion = await CompanionModel.findById(id);
+    const parent = await ParentModel.findById(parentComapnionLink?.parentId);
 
     return {
-      links, 
-      parentName: parent?.firstName + " " + parent?.lastName, 
-      email: parent?.email, 
-      companionName: companion?.name, 
-      phoneNumber: parent?.phoneNumber
-    }
+      links,
+      parentName: parent?.firstName + " " + parent?.lastName,
+      email: parent?.email,
+      companionName: companion?.name,
+      phoneNumber: parent?.phoneNumber,
+    };
   },
 
   async getLinksForOrganisation(organisationId: string | Types.ObjectId) {

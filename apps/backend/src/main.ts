@@ -19,16 +19,17 @@ import coParentInviteRouter from "./routers/coparentInvite.router";
 import parentCompanionRouter from "./routers/parent-companion.router";
 import companionOrganisationRouter from "./routers/companion-organisation.router";
 import docuemntRouter from "./routers/document.router";
+import serviceRouter from "./routers/service.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit per IP
+  max: 500, // limit per IP
   standardHeaders: true,
   legacyHeaders: false,
 });
-
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(fileUpload());
 app.use(limiter);
@@ -48,6 +49,7 @@ app.use(`/v1/coparent-invite`, coParentInviteRouter);
 app.use(`/v1/parent-companion`, parentCompanionRouter);
 app.use(`/v1/companion-organisation`, companionOrganisationRouter);
 app.use(`/v1/document`, docuemntRouter);
+app.use("/fhir/v1/service", serviceRouter);
 
 let mongoUri: string;
 
@@ -64,7 +66,7 @@ try {
   } else if (process.env.LOCAL_DEVELOPMENT === "true") {
     mongoUri = "mongodb://localhost:27017/yosemitecrew";
   } else {
-    mongoUri = process.env.MONGO_URI || "";
+    mongoUri = process.env.MONGODB_URI || "";
   }
 
   await mongoose.connect(mongoUri);

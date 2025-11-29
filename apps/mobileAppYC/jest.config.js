@@ -49,6 +49,8 @@ module.exports = {
     '^react-native-permissions$': '<rootDir>/__mocks__/react-native-permissions.ts',
     '^@react-native-community/datetimepicker$': '<rootDir>/__mocks__/@react-native-community/datetimepicker.js',
     '^@react-native-community/geolocation$': '<rootDir>/__mocks__/react-native-geolocation.js',
+    '^react-native-webview$': '<rootDir>/__mocks__/react-native-webview.js',
+    '^react-native-pdf$': '<rootDir>/__mocks__/react-native-pdf.js',
   },
   testPathIgnorePatterns: [
     '/node_modules/',

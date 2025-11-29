@@ -1,9 +1,11 @@
 export interface LinkedBusiness {
   id: string;
   companionId: string;
-  businessId: string;
+  businessId?: string;
   businessName: string;
+  name?: string;
   category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+  type?: 'HOSPITAL' | 'BOARDER' | 'BREEDER' | 'GROOMER';
   address?: string;
   phone?: string;
   email?: string;
@@ -11,7 +13,15 @@ export interface LinkedBusiness {
   rating?: number;
   photo?: any;
   inviteStatus?: 'pending' | 'accepted' | 'declined';
+  state?: 'active' | 'pending';
   pmsBusinessCode?: string;
+  linkId?: string;
+  parentName?: string;
+  parentEmail?: string;
+  isPMSRecord?: boolean;
+  placeId?: string;
+  lat?: number;
+  lng?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,4 +52,6 @@ export interface BusinessSearchResult {
   businessId?: string;
   rating?: number;
   distance?: number;
+  lat?: number;
+  lng?: number;
 }

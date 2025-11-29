@@ -49,8 +49,8 @@ router.delete(
 router.get(
   "/search/:companionId",
   authorizeCognitoMobile,
-  DocumentController.searchDocument
-)
+  DocumentController.searchDocument,
+);
 
 // PMS routes
 

@@ -31,7 +31,9 @@ type LinkPayload = {
 
 type InvitePayload = {
   companionId: string;
-  email: string;
+  email?: string | null;
+  name?: string | null;
+  placesId?: string | null;
   organisationType: OrganisationType;
 };
 
@@ -60,20 +62,34 @@ const parseLinkPayload = (body: unknown): LinkPayload | null => {
 
 const parseInvitePayload = (body: unknown): InvitePayload | null => {
   if (!body || typeof body !== "object") return null;
-  const { companionId, email, organisationType } = body as Record<
+  const { companionId, email, name, organisationType, placesId } = body as Record<
     string,
     unknown
   >;
 
   if (
     typeof companionId !== "string" ||
-    typeof email !== "string" ||
     !isOrganisationType(organisationType)
   ) {
     return null;
   }
 
-  return { companionId, email, organisationType };
+  const emailValid = typeof email === "string" && email.trim().length > 0;
+  const nameValid = typeof name === "string" && name.trim().length > 0;
+  const placesIdValid = typeof placesId === "string" && placesId.trim().length > 0;
+
+  // At least one must be present
+  if (!emailValid && !nameValid && !placesId) {
+    return null;
+  }
+
+  return {
+    companionId,
+    email: emailValid ? email.trim() : undefined,
+    name: nameValid ? name.trim() : undefined,
+    placesId: placesIdValid ? placesId.trim() : undefined,
+    organisationType,
+  };
 };
 
 const parseInviteResolutionPayload = (

@@ -139,7 +139,7 @@ const createStyles = (theme: any) =>
       gap: 6,
     },
     pillActive: {
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.lightBlueBackground,
       borderColor: theme.colors.primary,
     },
     pillText: {

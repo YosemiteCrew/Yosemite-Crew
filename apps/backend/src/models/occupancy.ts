@@ -26,6 +26,7 @@ const OccupancySchema = new Schema<OccupancyMongo>(
 );
 
 OccupancySchema.index({ userId: 1, startTime: 1, endTime: 1 });
+OccupancySchema.index({ userId: 1, organisationId: 1, startTime: 1 });
 
 export type OccupancyDocument = mongoose.HydratedDocument<OccupancyMongo>;
 

@@ -265,7 +265,7 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       gap: theme.spacing[2],
       marginInline:40,
-        marginVertical: theme.spacing[16],
+        marginVertical: theme.spacing[10],
     },
     dividerLine: {
       flex: 1,

@@ -127,7 +127,7 @@ export const DocumentController = {
           issuingBusinessName: body.issuingBusinessName,
           issueDate: body.issueDate,
           appointmentId: body.appointmentId,
-          visitType: body.visitType
+          visitType: body.visitType,
         },
         {
           parentId: authUserMobile.parentId,
@@ -433,8 +433,8 @@ export const DocumentController = {
   },
 
   searchDocument: async (req: Request, res: Response) => {
-    try{
-      const { companionId } = req.params
+    try {
+      const { companionId } = req.params;
       const title = req.query.title;
 
       if (!companionId) {
@@ -447,8 +447,8 @@ export const DocumentController = {
 
       const results = await DocumentService.searchByTitleForParent({
         companionId: companionId,
-        title: title
-      })
+        title: title,
+      });
 
       return res.status(200).json({ documents: results });
     } catch (error) {
@@ -458,5 +458,5 @@ export const DocumentController = {
       logger.error("Failed to search documents (parent)", error);
       return res.status(500).json({ message: "Unable to search documents." });
     }
-  }
+  },
 };

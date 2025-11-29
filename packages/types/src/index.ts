@@ -155,3 +155,5 @@ export type {
 } from "./complete-vet-profile/complete-vet-profile";
 
 export type { OrganisationInvite, InviteStatus } from "./organisationInvite";
+export type { Service } from "./service"
+export { type ServiceRequestDTO, type ServiceResponseDTO, toServiceResponseDTO, fromServiceRequestDTO } from "./dto/service.dto"

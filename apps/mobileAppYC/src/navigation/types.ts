@@ -65,6 +65,7 @@ export type LinkedBusinessStackParamList = {
     rating?: number;
     distance?: number;
     placeId: string;
+    organisationId?: string;
   };
   QRScanner: {
     companionId: string;
@@ -88,6 +89,7 @@ export type DocumentStackParamList = {
   EditDocument: { documentId: string };
   DocumentPreview: { documentId: string };
   CategoryDetail: { categoryId: string };
+  DocumentSearch: undefined;
 };
 
 // Appointment stack
