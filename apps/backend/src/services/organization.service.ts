@@ -757,6 +757,7 @@ export const OrganizationService = {
               ) * 111000
             )
           : null,
+        rating: org.averageRating,
         specialities,
         services,
       });
