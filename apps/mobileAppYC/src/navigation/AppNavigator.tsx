@@ -12,7 +12,6 @@ import {OnboardingScreen} from '@/features/onboarding/screens/OnboardingScreen';
 import {useAuth, type AuthTokens} from '@/features/auth/context/AuthContext';
 import {Loading} from '@/shared/components/common';
 import {EmergencyProvider, useEmergency} from '@/features/home/context/EmergencyContext';
-import {NetworkProvider} from '@/features/network/context/NetworkContext';
 import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSheet';
 import CoParentInviteBottomSheet, {
   type CoParentInviteBottomSheetRef,
@@ -20,7 +19,7 @@ import CoParentInviteBottomSheet, {
 import NetworkStatusBottomSheet, {
   type NetworkStatusBottomSheetRef,
 } from '@/features/network/components/NetworkStatusBottomSheet';
-import {useNetworkStatus} from '@/features/network/context/NetworkContext';
+import {useNetworkStatus,NetworkProvider} from '@/features/network/context/NetworkContext';
 import type {AppDispatch, RootState} from '@/app/store';
 import {
   acceptCoParentInvite,

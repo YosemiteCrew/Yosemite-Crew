@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useEffect, useState} from 'react';
+import React, {createContext, useContext, useEffect, useMemo, useState} from 'react';
 import {useNetInfo} from '@react-native-community/netinfo';
 
 export interface NetworkContextType {
@@ -25,11 +25,11 @@ export const NetworkProvider: React.FC<{children: React.ReactNode}> = ({children
     }
   }, [netInfo.isConnected, sheetRef]);
 
-  const value: NetworkContextType = {
+  const value = useMemo<NetworkContextType>(() => ({
     isOnline,
     sheetRef,
     setNetworkSheetRef: (ref) => setSheetRef(ref),
-  };
+  }), [isOnline, sheetRef]);
 
   return (
     <NetworkContext.Provider value={value}>
