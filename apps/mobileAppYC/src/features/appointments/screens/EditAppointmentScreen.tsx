@@ -16,12 +16,14 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
 import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
-import {updateAppointmentStatus} from '@/features/appointments/appointmentsSlice';
+import {cancelAppointment, rescheduleAppointment} from '@/features/appointments/appointmentsSlice';
 import {
   getFirstAvailableDate,
   getFutureAvailabilityMarkers,
   getSlotsForDate,
+  parseSlotLabel,
 } from '@/features/appointments/utils/availability';
+import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -46,6 +48,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === apt?.businessId));
   const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === apt?.employeeId));
   const companions = useSelector((s: RootState) => s.companion.companions);
+  const appointmentsLoading = useSelector((s: RootState) => s.appointments.loading);
 
   const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const firstAvailableDate = useMemo(
@@ -54,7 +57,12 @@ export const EditAppointmentScreen: React.FC = () => {
   );
   const [date, setDate] = useState<string>(apt?.date ?? firstAvailableDate);
   const [dateObj, setDateObj] = useState<Date>(new Date(apt?.date ?? firstAvailableDate));
-  const [time, setTime] = useState<string | null>(apt?.time || null);
+  const initialTimeLabel = apt?.time
+    ? apt?.endTime
+      ? `${apt.time} - ${apt.endTime}`
+      : apt.time
+    : null;
+  const [time, setTime] = useState<string | null>(initialTimeLabel);
   const type = apt?.type || 'General Checkup';
   const [concern, setConcern] = useState(apt?.concern || '');
   const [emergency, setEmergency] = useState(apt?.emergency || false);
@@ -79,13 +87,29 @@ export const EditAppointmentScreen: React.FC = () => {
     deleteSheetRef,
   });
 
+  React.useEffect(() => {
+    if (!apt?.businessId || !apt?.serviceId || !date) {
+      return;
+    }
+    dispatch(
+      fetchServiceSlots({
+        businessId: apt.businessId,
+        serviceId: apt.serviceId,
+        date,
+      }),
+    );
+  }, [apt?.businessId, apt?.serviceId, date, dispatch]);
+
   const cancelSheetRef = React.useRef<CancelAppointmentBottomSheetRef>(null);
   const isReschedule = mode === 'reschedule';
 
-  const slots = useMemo(
-    () => getSlotsForDate(availability, date, todayISO),
-    [availability, date, todayISO],
-  );
+  const slots = useMemo(() => {
+    const available = getSlotsForDate(availability, date, todayISO);
+    if (available.length === 0 && time) {
+      return [time];
+    }
+    return available;
+  }, [availability, date, time, todayISO]);
 
   const futureDateMarkers = useMemo(
     () => getFutureAvailabilityMarkers(availability, todayISO),
@@ -95,8 +119,17 @@ export const EditAppointmentScreen: React.FC = () => {
   if (!apt) return null;
 
   const handleSubmit = () => {
-    if (isReschedule) {
-      dispatch(updateAppointmentStatus({appointmentId, status: 'rescheduled'}));
+    if (isReschedule && time) {
+      const {startTime, endTime} = parseSlotLabel(time);
+      dispatch(
+        rescheduleAppointment({
+          appointmentId,
+          startTime: startTime ?? time,
+          endTime: endTime ?? startTime ?? time,
+          isEmergency: emergency,
+          concern,
+        }),
+      );
     }
     navigation.goBack();
   };
@@ -198,6 +231,7 @@ export const EditAppointmentScreen: React.FC = () => {
               onPress={handleSubmit}
               height={56}
               borderRadius={16}
+              disabled={isReschedule && (!time || appointmentsLoading)}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
@@ -235,7 +269,7 @@ export const EditAppointmentScreen: React.FC = () => {
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={() => {
-          dispatch(updateAppointmentStatus({appointmentId, status: 'canceled'}));
+          dispatch(cancelAppointment({appointmentId}));
           navigation.goBack();
         }}
       />

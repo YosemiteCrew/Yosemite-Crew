@@ -28,10 +28,21 @@ export interface GooglePlacesConfig {
 export interface ApiConfig {
   baseUrl: string;
   timeoutMs: number;
+  /**
+   * Optional secondary base for PMS endpoints if they live on a different host (e.g. devapi).
+   * Falls back to baseUrl when not provided.
+   */
+  pmsBaseUrl?: string;
 }
 
 export interface StreamChatConfig {
   apiKey: string;
+}
+
+export interface StripeConfig {
+  publishableKey: string;
+  merchantIdentifier?: string;
+  urlScheme?: string;
 }
 
 // Default/test configuration (safe for CI/CD)
@@ -50,18 +61,27 @@ const DEFAULT_GOOGLE_PLACES_CONFIG: GooglePlacesConfig = {
 };
 
 const DEFAULT_API_CONFIG: ApiConfig = {
-  baseUrl: 'http://localhost:4000',
+  // Default to cloud dev API; override in variables.local.ts for other envs
+  baseUrl: 'https://devapi.yosemitecrew.com',
   timeoutMs: 15000,
+  pmsBaseUrl: 'https://devapi.yosemitecrew.com',
 };
 
 const DEFAULT_STREAM_CHAT_CONFIG: StreamChatConfig = {
   apiKey: '', // Add your Stream API key in variables.local.ts
 };
 
+const DEFAULT_STRIPE_CONFIG: StripeConfig = {
+  publishableKey: '',
+  merchantIdentifier: 'merchant.com.yosemitecrew',
+  urlScheme: 'yosemitecrew',
+};
+
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
 let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
 let apiOverrides: Partial<ApiConfig> | undefined;
 let streamChatOverrides: Partial<StreamChatConfig> | undefined;
+let stripeOverrides: Partial<StripeConfig> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
@@ -91,6 +111,9 @@ try {
   }
   if (localConfig.STREAM_CHAT_CONFIG) {
     streamChatOverrides = localConfig.STREAM_CHAT_CONFIG;
+  }
+  if (localConfig.STRIPE_CONFIG) {
+    stripeOverrides = localConfig.STRIPE_CONFIG;
   }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
@@ -124,6 +147,11 @@ export const API_CONFIG: ApiConfig = {
 export const STREAM_CHAT_CONFIG: StreamChatConfig = {
   ...DEFAULT_STREAM_CHAT_CONFIG,
   ...streamChatOverrides,
+};
+
+export const STRIPE_CONFIG: StripeConfig = {
+  ...DEFAULT_STRIPE_CONFIG,
+  ...stripeOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

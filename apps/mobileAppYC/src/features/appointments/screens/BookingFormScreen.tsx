@@ -1,5 +1,5 @@
-import React, {useMemo, useState, useCallback} from 'react';
-import {ScrollView, StyleSheet} from 'react-native';
+import React, {useMemo, useState} from 'react';
+import {ScrollView, StyleSheet, Alert} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -8,8 +8,7 @@ import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
-import {createAppointment, upsertInvoice} from '@/features/appointments/appointmentsSlice';
-import InfoBottomSheet, {type InfoBottomSheetRef} from '@/features/appointments/components/InfoBottomSheet/InfoBottomSheet';
+import {createAppointment} from '@/features/appointments/appointmentsSlice';
 import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
@@ -17,18 +16,19 @@ import {
   useNavigation,
   useRoute,
   type RouteProp,
-  type NavigationProp,
 } from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {AppointmentStackParamList, TabParamList} from '@/navigation/types';
+import type {AppointmentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
 import {
   getFirstAvailableDate,
   getFutureAvailabilityMarkers,
   getSlotsForDate,
+  parseSlotLabel,
 } from '@/features/appointments/utils/availability';
 import {formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
-import {Images} from '@/assets/images';
+import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
+import {uploadDocumentFiles} from '@/features/documents/documentSlice';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -44,6 +44,7 @@ export const BookingFormScreen: React.FC = () => {
     serviceId,
     serviceName: presetServiceName,
     serviceSpecialty,
+    serviceSpecialtyId,
     employeeId: presetEmployeeId,
     appointmentType,
     otContext,
@@ -51,17 +52,26 @@ export const BookingFormScreen: React.FC = () => {
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
   const selectedService = useSelector(selectServiceById(serviceId ?? null));
+  const effectiveServiceId = useMemo(
+    () => selectedService?.id ?? serviceId ?? '',
+    [selectedService?.id, serviceId],
+  );
   const availabilitySelector = React.useMemo(
     () =>
       selectAvailabilityFor(businessId, {
-        serviceId: selectedService?.id ?? serviceId,
+        serviceId: effectiveServiceId,
         employeeId: selectedService?.defaultEmployeeId ?? presetEmployeeId ?? null,
       }),
-    [businessId, presetEmployeeId, selectedService?.defaultEmployeeId, selectedService?.id, serviceId],
+    [
+      businessId,
+      presetEmployeeId,
+      selectedService?.defaultEmployeeId,
+      effectiveServiceId,
+    ],
   );
   const availability = useSelector(availabilitySelector);
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
-  const bookedSheetRef = React.useRef<InfoBottomSheetRef>(null);
+  const appointmentsLoading = useSelector((s: RootState) => s.appointments.loading);
 
   const todayISO = useMemo(() => formatDateToISODate(new Date()), []);
   const firstAvailableDate = useMemo(
@@ -100,18 +110,37 @@ export const BookingFormScreen: React.FC = () => {
   const [agreeBusiness, setAgreeBusiness] = useState(false);
   const [agreeApp, setAgreeApp] = useState(false);
   const [files, setFiles] = useState<DocumentFile[]>([]);
+  const resolveAttachmentName = React.useCallback(
+    (file: DocumentFile) => {
+      if (file.name && !file.name.startsWith('rn_image_picker_lib_temp')) {
+        return file.name;
+      }
+      if (file.key) {
+        const parts = file.key.split('/').filter(Boolean);
+        const last = parts[parts.length - 1];
+        if (last) {
+          return last;
+        }
+      }
+      return file.name || 'attachment';
+    },
+    [],
+  );
+  // Auto-select the first companion if none selected to avoid disabled CTA
+  React.useEffect(() => {
+    if (!selectedCompanionId && companions.length > 0) {
+      const fallbackId =
+        companions[0]?.id ??
+        (companions[0] as any)?._id ??
+        (companions[0] as any)?.identifier?.[0]?.value;
+      if (fallbackId) {
+        dispatch(setSelectedCompanion(fallbackId));
+      }
+    }
+  }, [companions, dispatch, selectedCompanionId]);
 
   const {refs, openSheet, closeSheet} = useFormBottomSheets();
   const {uploadSheetRef, deleteSheetRef} = refs;
-
-  const resetToMyAppointments = useCallback(() => {
-    const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
-    tabNavigation?.navigate('Appointments', {screen: 'MyAppointments'} as any);
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'MyAppointments'}],
-    });
-  }, [navigation]);
 
   const {
     fileToDelete,
@@ -141,67 +170,102 @@ export const BookingFormScreen: React.FC = () => {
     }
   }, [type, emergency]);
 
-  const selectedServiceName = (selectedService?.name ?? presetServiceName ?? presetServiceLabel ?? '')?.trim() || null;
-  const valid = !!(selectedCompanionId && date && time && agreeApp && agreeBusiness && selectedServiceName);
-
-  const handleBook = async () => {
-    if (!valid || !time || !selectedCompanionId || !selectedServiceName) {
+  React.useEffect(() => {
+    if (!effectiveServiceId || !businessId || !date) {
       return;
     }
-    const action = await dispatch(createAppointment({
-      companionId: selectedCompanionId,
+    dispatch(fetchServiceSlots({businessId, serviceId: effectiveServiceId, date}));
+  }, [businessId, dispatch, effectiveServiceId, date]);
+
+  const selectedServiceName =
+    (selectedService?.name ?? presetServiceName ?? presetServiceLabel ?? '')?.trim() || null;
+  const valid = !!(selectedCompanionId && date && time && agreeApp && agreeBusiness && selectedServiceName);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleBook = async () => {
+    console.log('[Booking] Attempting to book', {
+      selectedCompanionId,
       businessId,
-      serviceId: selectedService?.id ?? serviceId ?? (otContext ? otContext.toolId : null),
-      serviceName: selectedServiceName,
-      employeeId: null,
+      serviceId,
       date,
       time,
-      type,
-      concern,
-      emergency,
-    }));
-    if (createAppointment.fulfilled.match(action)) {
-      const created = action.payload;
-
-      if (otContext) {
-        const companion = companions.find(c => c.id === created.companionId);
-        const evaluationFee = otContext.provider.evaluationFee;
-        const appointmentFee = otContext.provider.appointmentFee;
-        const subtotal = evaluationFee + appointmentFee;
-        dispatch(
-          upsertInvoice({
-            id: `inv_${created.id}`,
-            appointmentId: created.id,
-            items: [
-              {
-                description: `${otContext.provider.businessId === businessId ? 'Observation tool evaluation' : 'Evaluation fee'}`,
-                rate: evaluationFee,
-                lineTotal: evaluationFee,
-                qty: 1,
-              },
-              {
-                description: 'Clinic appointment fee',
-                rate: appointmentFee,
-                lineTotal: appointmentFee,
-                qty: 1,
-              },
-            ],
-            subtotal,
-            total: subtotal,
-            invoiceNumber: `OBS-${created.id.slice(-6).toUpperCase()}`,
-            invoiceDate: new Date().toISOString(),
-            billedToName: companion ? `${companion.name}'s guardian` : undefined,
-            image: Images.sampleInvoice,
-          }),
-        );
+      agreeBusiness,
+      agreeApp,
+      selectedServiceName,
+    });
+    if (!valid || !time || !selectedCompanionId || !selectedServiceName) {
+      const missing: string[] = [];
+      if (!selectedCompanionId) missing.push('companion');
+      if (!date) missing.push('date');
+      if (!time) missing.push('time slot');
+      if (!selectedServiceName) missing.push('service');
+      if (!agreeBusiness || !agreeApp) missing.push('agreements');
+      Alert.alert(
+        'Complete booking details',
+        `Please select ${missing.join(', ')} to continue.`,
+      );
+      return;
+    }
+    const resolvedServiceId = effectiveServiceId;
+    if (!resolvedServiceId) {
+      Alert.alert('Select service', 'Please choose a service before booking.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const {startTime, endTime} = parseSlotLabel(time);
+      let attachments: Array<{key: string; name?: string | null; contentType?: string | null}> =
+        [];
+      if (files.length && selectedCompanionId) {
+        const uploaded = await dispatch(
+          uploadDocumentFiles({files, companionId: selectedCompanionId}),
+        ).unwrap();
+        attachments = uploaded
+          .filter(f => f.key)
+          .map(f => ({
+            key: f.key as string,
+            name: resolveAttachmentName(f),
+            contentType: f.type ?? null,
+          }));
       }
 
-      // Show confirmation bottom sheet, then go to MyAppointments
-      bookedSheetRef.current?.expand?.();
-      setTimeout(() => {
-        bookedSheetRef.current?.close?.();
-        resetToMyAppointments();
-      }, 1200);
+      const action = await dispatch(
+        createAppointment({
+          companionId: selectedCompanionId,
+          businessId,
+          serviceId: resolvedServiceId,
+          serviceName: selectedServiceName,
+          specialityId: selectedService?.specialityId ?? serviceSpecialtyId ?? null,
+          specialityName: serviceSpecialty ?? selectedService?.specialty ?? type,
+          date,
+          startTime: startTime ?? time,
+          endTime: endTime ?? startTime ?? time,
+          concern,
+          emergency,
+          attachments,
+        }),
+      );
+      if (createAppointment.fulfilled.match(action)) {
+        const created = action.payload.appointment;
+        navigation.replace('PaymentInvoice', {
+          appointmentId: created.id,
+          companionId: created.companionId,
+          invoice: action.payload.invoice,
+          paymentIntent: action.payload.paymentIntent,
+        });
+      } else {
+        const message =
+          (action.payload as string) ??
+          (action.error?.message ?? 'Unable to book appointment. Please try again.');
+        Alert.alert('Booking failed', message);
+      }
+    } catch (error) {
+      console.warn('[Booking] Failed to book appointment', error);
+      const message =
+        error instanceof Error ? error.message : 'Unable to book appointment. Please try again.';
+      Alert.alert('Booking failed', message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -270,6 +334,7 @@ export const BookingFormScreen: React.FC = () => {
           slots={slots}
           selectedSlot={time}
           onSelectSlot={slot => setTime(slot)}
+          resetKey={date}
           emptySlotsMessage="No future slots available. Please pick another date or contact the clinic."
           appointmentType={type}
           allowTypeEdit={!typeLocked}
@@ -303,7 +368,7 @@ export const BookingFormScreen: React.FC = () => {
               onPress={handleBook}
               height={56}
               borderRadius={16}
-              disabled={!valid}
+              disabled={appointmentsLoading || submitting}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
@@ -312,15 +377,6 @@ export const BookingFormScreen: React.FC = () => {
         />
 
       </ScrollView>
-
-      <InfoBottomSheet
-        ref={bookedSheetRef}
-        title="Appointment booked"
-        message="We will notify you once the organisation accepts your request."
-        cta="Close"
-        onCta={() => bookedSheetRef.current?.close?.()}
-      />
-
       <UploadDocumentBottomSheet
         ref={uploadSheetRef}
         onTakePhoto={() => {

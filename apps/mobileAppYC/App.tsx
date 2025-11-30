@@ -21,6 +21,7 @@ import {useTheme} from './src/hooks';
 import CustomSplashScreen from './src/shared/components/common/customSplashScreen/customSplash';
 import './src/localization';
 import outputs from './amplify_outputs.json';
+import {StripeProvider} from '@stripe/stripe-react-native';
 import {Amplify} from 'aws-amplify';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
@@ -32,6 +33,7 @@ import {
 } from '@/shared/services/firebaseNotifications';
 import {useAppDispatch} from '@/app/hooks';
 import type {RootStackParamList} from '@/navigation/types';
+import {STRIPE_CONFIG} from '@/config/variables';
 
 Amplify.configure(outputs);
 
@@ -46,6 +48,14 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     configureSocialProviders();
+  }, []);
+
+  useEffect(() => {
+    if (!STRIPE_CONFIG.publishableKey) {
+      console.warn(
+        '[Stripe] Missing publishableKey. Add STRIPE_CONFIG in variables.local.ts to enable payments.',
+      );
+    }
   }, []);
 
   const handleSplashAnimationEnd = () => {
@@ -81,9 +91,15 @@ function App(): React.JSX.Element {
           <SafeAreaProvider>
             <AuthProvider>
               <NotificationBootstrap onNavigate={handleNotificationNavigation}>
-                <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-                  <AppContent />
-                </NavigationContainer>
+                <StripeProvider
+                  publishableKey={STRIPE_CONFIG.publishableKey}
+                  merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
+                  urlScheme={STRIPE_CONFIG.urlScheme}
+                >
+                  <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+                    <AppContent />
+                  </NavigationContainer>
+                </StripeProvider>
               </NotificationBootstrap>
             </AuthProvider>
           </SafeAreaProvider>

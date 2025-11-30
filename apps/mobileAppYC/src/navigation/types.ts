@@ -103,12 +103,18 @@ export type AppointmentStackParamList = {
     serviceId?: string;
     serviceName?: string;
     serviceSpecialty?: string;
+    serviceSpecialtyId?: string;
     employeeId?: string;
     appointmentType?: string;
     otContext?: ObservationalToolBookingContext;
   };
   ViewAppointment: { appointmentId: string };
-  PaymentInvoice: { appointmentId: string; companionId?: string };
+  PaymentInvoice: {
+    appointmentId: string;
+    companionId?: string;
+    invoice?: import('@/features/appointments/types').Invoice | null;
+    paymentIntent?: import('@/features/appointments/types').PaymentIntentInfo | null;
+  };
   PaymentSuccess: { appointmentId: string; companionId?: string };
   Review: { appointmentId: string };
   Chat: { appointmentId: string };
@@ -120,7 +126,7 @@ export type AppointmentStackParamList = {
     petName?: string;
   };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
-  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' };
+  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
 };
 
 export type ExpenseStackParamList = {

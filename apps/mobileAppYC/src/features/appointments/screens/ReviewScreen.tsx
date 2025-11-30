@@ -11,6 +11,8 @@ import RatingStars from '@/shared/components/common/RatingStars/RatingStars';
 import VetBusinessCard from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
+import {appointmentApi} from '@/features/appointments/services/appointmentsService';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -19,10 +21,36 @@ export const ReviewScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [review, setReview] = useState('');
   const [rating, setRating] = useState(4);
+  const [submitting, setSubmitting] = useState(false);
   const navigation = useNavigation<Nav>();
   const appointmentId = (navigation.getState() as any)?.routes?.slice(-1)[0]?.params?.appointmentId;
   const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === apt?.businessId));
+
+  const handleSubmit = async () => {
+    if (!business) {
+      navigation.goBack();
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const tokens = await getFreshStoredTokens();
+      if (!tokens?.accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
+        throw new Error('Session expired. Please sign in again.');
+      }
+      await appointmentApi.rateOrganisation({
+        organisationId: business.id,
+        rating,
+        review,
+        accessToken: tokens.accessToken,
+      });
+      navigation.goBack();
+    } catch (error) {
+      console.warn('[Review] Failed to submit rating', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SafeArea>
@@ -69,11 +97,12 @@ export const ReviewScreen: React.FC = () => {
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
             title="Submit Feedback"
-            onPress={() => navigation.goBack()}
+            onPress={handleSubmit}
             height={56}
             borderRadius={16}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
+            disabled={submitting}
           />
         </View>
       </ScrollView>

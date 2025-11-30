@@ -20,10 +20,10 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
-import {fetchAppointmentsForCompanion, updateAppointmentStatus} from '@/features/appointments/appointmentsSlice';
+import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
 import {createSelectUpcomingAppointments, createSelectPastAppointments} from '@/features/appointments/selectors';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {openMapsToAddress} from '@/shared/utils/openMaps';
@@ -41,7 +41,9 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
-  const hasHydrated = useSelector((s: RootState) => selectedCompanionId ? s.appointments.hydratedCompanions[selectedCompanionId] : false);
+  const hasHydrated = useSelector((s: RootState) =>
+    selectedCompanionId ? s.appointments.hydratedCompanions[selectedCompanionId] : false,
+  );
   const accessMap = useSelector((s: RootState) => s.coParent?.accessByCompanionId ?? {});
   const defaultAccess = useSelector((s: RootState) => s.coParent?.defaultAccess ?? null);
   const globalRole = useSelector((s: RootState) => s.coParent?.lastFetchedRole);
@@ -67,15 +69,38 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   useEffect(() => {
     if (!selectedCompanionId && companions.length > 0) {
-      dispatch(setSelectedCompanion(companions[0].id));
+      const fallbackId =
+        companions[0]?.id ??
+        (companions[0] as any)?._id ??
+        (companions[0] as any)?.identifier?.[0]?.value;
+      if (fallbackId) {
+        dispatch(setSelectedCompanion(fallbackId));
+      }
     }
   }, [companions, selectedCompanionId, dispatch]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (selectedCompanionId) {
+        dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionId}));
+      }
+    }, [dispatch, selectedCompanionId]),
+  );
+
+  // Also refetch when selected companion changes (covers tab switches)
   useEffect(() => {
-    if (selectedCompanionId && !hasHydrated) {
-      dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionId}));
+    const targetId =
+      selectedCompanionId ??
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.identifier?.[0]?.value;
+    if (targetId) {
+      if (!selectedCompanionId) {
+        dispatch(setSelectedCompanion(targetId));
+      }
+      dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
     }
-  }, [dispatch, selectedCompanionId, hasHydrated]);
+  }, [dispatch, selectedCompanionId, companions]);
 
   const businessMap = React.useMemo(() => new Map(businesses.map(b => [b.id, b])), [businesses]);
   const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
@@ -124,6 +149,28 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   type AppointmentItem = (typeof filteredUpcoming)[number];
   type EmployeeRecord = ReturnType<typeof employeeMap.get>;
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'NO_PAYMENT':
+      case 'AWAITING_PAYMENT':
+        return 'Payment pending';
+      case 'PAID':
+        return 'Paid';
+      case 'CONFIRMED':
+      case 'SCHEDULED':
+        return 'Scheduled';
+      case 'RESCHEDULED':
+        return 'Rescheduled';
+      case 'COMPLETED':
+        return 'Completed';
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'PAYMENT_FAILED':
+        return 'Payment failed';
+      default:
+        return status;
+    }
+  };
 
   const handleChatPress = React.useCallback(
     ({
@@ -253,13 +300,17 @@ export const MyAppointmentsScreen: React.FC = () => {
     let assignmentNote: string | undefined;
     if (!hasAssignedVet) {
       assignmentNote = 'A vet will be assigned once the clinic approves your request.';
-    } else if (item.status === 'paid') {
+    } else if (item.status === 'PAID') {
       assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
     }
+    const needsPayment =
+      item.status === 'NO_PAYMENT' ||
+      item.status === 'AWAITING_PAYMENT' ||
+      item.status === 'PAYMENT_FAILED';
     if (section.key === 'upcoming') {
       let footer: React.ReactNode;
 
-      if (item.status === 'approved') {
+      if (needsPayment) {
         footer = (
           <View style={styles.upcomingFooter}>
             <LiquidGlassButton
@@ -285,7 +336,7 @@ export const MyAppointmentsScreen: React.FC = () => {
             dateTime={`${formattedDate} - ${item.time}`}
             avatar={avatarSource || Images.cat}
             note={assignmentNote}
-            showActions={item.status === 'paid' && hasAssignedVet}
+            showActions={false}
             onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
             onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
             onGetDirections={() => {
@@ -301,7 +352,6 @@ export const MyAppointmentsScreen: React.FC = () => {
               })
             }
             onChatBlocked={() => showPermissionToast('chat with vet')}
-            onCheckIn={() => dispatch(updateAppointmentStatus({appointmentId: item.id, status: 'completed'}))}
             footer={footer}
           />
         </View>
@@ -322,11 +372,16 @@ export const MyAppointmentsScreen: React.FC = () => {
           footer={
             <View style={styles.pastFooter}>
               <View style={styles.pastStatusWrapper}>
-                <Text style={[styles.pastStatusBadge, item.status === 'canceled' && styles.pastStatusBadgeCanceled]}>
-                  {item.status === 'canceled' ? 'Canceled' : 'Completed'}
+                <Text
+                  style={[
+                    styles.pastStatusBadge,
+                    item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
+                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
+                  ]}>
+                  {formatStatus(item.status)}
                 </Text>
               </View>
-              {item.status !== 'canceled' && (
+              {item.status === 'COMPLETED' && (
                 <LiquidGlassButton
                   title="Review"
                   onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
@@ -499,6 +554,10 @@ const createStyles = (theme: any) =>
     pastStatusBadgeCanceled: {
       backgroundColor: 'rgba(239, 68, 68, 0.12)',
       color: '#991B1B',
+    },
+    pastStatusBadgeFailed: {
+      backgroundColor: 'rgba(251, 191, 36, 0.16)',
+      color: '#92400E',
     },
     infoTile: {
       borderRadius: theme.borderRadius.lg,

@@ -30,10 +30,13 @@ export const BusinessDetailsScreen: React.FC = () => {
   const totalServices = useSelector((state: RootState) => state.businesses.services.length);
 
   React.useEffect(() => {
+    if (!business) {
+      dispatch(fetchBusinesses({serviceName: undefined}));
+    }
     if (totalServices === 0) {
       dispatch(fetchBusinesses());
     }
-  }, [dispatch, totalServices]);
+  }, [business, dispatch, totalServices]);
 
   // Group services by specialty for accordion
   const specialties = useMemo(() => {
@@ -57,7 +60,8 @@ export const BusinessDetailsScreen: React.FC = () => {
       businessId,
       serviceId,
       serviceName: service?.name,
-      serviceSpecialty: specialtyName,
+      serviceSpecialty: specialtyName ?? undefined,
+      serviceSpecialtyId: service?.specialityId ?? undefined,
     });
   };
 

@@ -1,5 +1,5 @@
-import React, {useMemo} from 'react';
-import {ScrollView, View, Text, StyleSheet, Image} from 'react-native';
+import React, {useMemo, useState, useEffect} from 'react';
+import {ScrollView, View, Text, StyleSheet, Image, Alert} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -13,8 +13,10 @@ import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
 import {recordPayment} from '@/features/appointments/appointmentsSlice';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {Images} from '@/assets/images';
-import type {InvoiceItem} from '@/features/appointments/types';
+import type {InvoiceItem, Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 import {selectAuthUser} from '@/features/auth/selectors';
+import {useStripe} from '@stripe/stripe-react-native';
+import {STRIPE_CONFIG} from '@/config/variables';
 
 const formatDate = (iso?: string) => {
   if (!iso) return '—';
@@ -45,11 +47,22 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
-  const {appointmentId, companionId} = route.params as {
-    appointmentId: string;
+  const {appointmentId, companionId, invoice: routeInvoice, paymentIntent: routeIntent} = route.params as {
+    appointmentId?: string;
     companionId?: string;
+    invoice?: Invoice | null;
+    paymentIntent?: PaymentIntentInfo | null;
   };
-  const invoice = useSelector(selectInvoiceForAppointment(appointmentId));
+
+  // Bail out early if route params are missing (prevents crash)
+  if (!appointmentId) {
+    Alert.alert('Missing data', 'Could not open payment screen without an appointment.');
+    navigation.goBack();
+    return null;
+  }
+  const invoiceFromStore = useSelector(selectInvoiceForAppointment(appointmentId));
+  const invoice = invoiceFromStore ?? routeInvoice ?? null;
+  const fallbackPaymentIntent = routeIntent ?? routeInvoice?.paymentIntent ?? null;
   const apt = useSelector((s: RootState) =>
     s.appointments.items.find(a => a.id === appointmentId),
   );
@@ -61,9 +74,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
       ? s.businesses.services.find(svc => svc.id === apt.serviceId)
       : null,
   );
-  const employee = useSelector((s: RootState) =>
-    s.businesses.employees.find(e => e.id === apt?.employeeId),
-  );
   const companion = useSelector((s: RootState) =>
     companionId ?? apt?.companionId
       ? s.companion.companions.find(
@@ -73,7 +83,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
   );
   const authUser = useSelector(selectAuthUser);
 
-  const total = invoice?.total ?? 0;
   const guardianName =
     [authUser?.firstName, authUser?.lastName]
       .filter(Boolean)
@@ -112,9 +121,138 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoice?.billedToName,
   ]);
 
+  const {initPaymentSheet, presentPaymentSheet} = useStripe();
+  const [presentingSheet, setPresentingSheet] = useState(false);
+  const paymentIntent = invoice?.paymentIntent ?? fallbackPaymentIntent ?? null;
+  const baseInvoice: Invoice | null =
+    invoice ??
+    (paymentIntent
+      ? {
+          id: paymentIntent.paymentIntentId ?? `pi-${appointmentId}`,
+          appointmentId,
+          items: [],
+          subtotal: paymentIntent.amount ?? 0,
+          total: paymentIntent.amount ?? 0,
+          currency: paymentIntent.currency ?? 'USD',
+          paymentIntent,
+          invoiceNumber: paymentIntent.paymentIntentId,
+          status: 'AWAITING_PAYMENT',
+        }
+      : null);
+  const intentCreatedAt = (paymentIntent as any)?.createdAt;
+  const intentDateISO =
+    intentCreatedAt != null
+      ? new Date(intentCreatedAt).toISOString()
+      : new Date().toISOString();
+  const invoiceDateISO = baseInvoice?.invoiceDate ?? intentDateISO;
+  const dueDateISO =
+    baseInvoice?.dueDate ??
+    new Date(new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const effectiveInvoice: Invoice | null = baseInvoice
+    ? {
+        ...baseInvoice,
+        invoiceDate: invoiceDateISO,
+        dueDate: dueDateISO,
+        invoiceNumber:
+          baseInvoice.invoiceNumber ??
+          paymentIntent?.paymentIntentId ??
+          baseInvoice.id ??
+          appointmentId,
+      }
+    : null;
+  const hasPaymentData = effectiveInvoice || paymentIntent;
+
+  useEffect(() => {
+    if (!hasPaymentData) {
+      Alert.alert(
+        'Payment unavailable',
+        'Booking succeeded but payment details are missing. Please retry booking.',
+      );
+      navigation.goBack();
+    }
+  }, [hasPaymentData, navigation]);
+
+  if (!hasPaymentData) {
+    return (
+      <SafeArea>
+        <Header title="Payment" showBackButton onBack={() => navigation.goBack()} />
+        <View style={{padding: 16}}>
+          <Text style={{color: '#F59E0B'}}>
+            Payment details are unavailable for this appointment. Please retry booking or contact support.
+          </Text>
+        </View>
+      </SafeArea>
+    );
+  }
+  const clientSecret = paymentIntent?.clientSecret;
+  const returnUrl = STRIPE_CONFIG.urlScheme
+    ? `${STRIPE_CONFIG.urlScheme}://stripe-redirect`
+    : undefined;
+
+  const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
+  const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
+  const subtotal = effectiveInvoice?.subtotal ?? 0;
+  const discountAmount =
+    effectiveInvoice?.discountPercent != null ? (effectiveInvoice.discountPercent / 100) * subtotal : 0;
+  const taxAmount = effectiveInvoice?.taxPercent != null ? (effectiveInvoice.taxPercent / 100) * subtotal : 0;
+  const total = effectiveInvoice?.total ?? subtotal - discountAmount + taxAmount;
+  const shouldShowPay = !!clientSecret;
+  const invoiceNumberDisplay =
+    effectiveInvoice?.invoiceNumber ??
+    paymentIntent?.paymentIntentId ??
+    effectiveInvoice?.id ??
+    '—';
+  const formatDateTime = (iso?: string) => {
+    if (!iso) return '—';
+    const ts = Date.parse(iso);
+    if (Number.isNaN(ts)) return '—';
+    return new Date(ts).toLocaleString();
+  };
+
+  const buildSheetOptions = () => {
+    const opts: any = {
+      paymentIntentClientSecret: clientSecret as string,
+      merchantDisplayName: business?.name ?? 'Yosemite Crew',
+      defaultBillingDetails: {
+        name: guardianName,
+        email: guardianEmail !== '—' ? guardianEmail : undefined,
+      },
+      customFlow: false, // explicit to avoid native crash when key is missing
+    };
+    // returnURL is optional; omit to reduce risk of malformed deep link causing native crash
+    return opts;
+  };
+
   const handlePayNow = async () => {
-    // Mocked payment success. Integrate Stripe PaymentSheet later.
-    await dispatch(recordPayment({appointmentId}));
+    if (!clientSecret) {
+      Alert.alert('Payment unavailable', 'No payment intent found for this appointment.');
+      return;
+    }
+    setPresentingSheet(true);
+    const {error: initError} = await initPaymentSheet(buildSheetOptions());
+    if (initError) {
+      setPresentingSheet(false);
+      Alert.alert('Payment unavailable', initError.message);
+      return;
+    }
+    try {
+      const {error} = await presentPaymentSheet();
+      setPresentingSheet(false);
+
+      if (error) {
+        Alert.alert('Payment failed', error.message);
+        return;
+      }
+    } catch (err) {
+      setPresentingSheet(false);
+      Alert.alert('Payment failed', 'Unable to present the payment sheet. Please try again.');
+      return;
+    }
+
+    const recordAction = await dispatch(recordPayment({appointmentId}));
+    if (recordPayment.rejected.match(recordAction)) {
+      console.warn('[Payment] Failed to refresh appointment status after payment');
+    }
     navigation.replace('PaymentSuccess', {
       appointmentId,
       companionId: companionId ?? apt?.companionId,
@@ -129,11 +267,15 @@ export const PaymentInvoiceScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.container}>
+        {!effectiveInvoice && (
+          <Text style={styles.warningText}>
+            No invoice found for this booking. Please retry booking or contact support.
+          </Text>
+        )}
         <SummaryCards
           business={business}
           service={service}
           serviceName={apt?.serviceName}
-          employee={employee}
           cardStyle={styles.summaryCard}
         />
 
@@ -141,14 +283,14 @@ export const PaymentInvoiceScreen: React.FC = () => {
           <Text style={styles.metaTitle}>Invoice details</Text>
           <MetaRow
             label="Invoice number"
-            value={invoice?.invoiceNumber ?? '—'}
+            value={invoiceNumberDisplay}
           />
           <MetaRow label="Appointment ID" value={apt?.id ?? '—'} />
           <MetaRow
             label="Invoice date"
-            value={formatDate(invoice?.invoiceDate)}
+            value={formatDateTime(effectiveInvoice?.invoiceDate)}
           />
-          <MetaRow label="Due till" value={invoice?.dueDate ?? '—'} />
+          <MetaRow label="Due till" value={formatDateTime(effectiveInvoice?.dueDate)} />
         </View>
 
         <View style={styles.invoiceForCard}>
@@ -194,35 +336,35 @@ export const PaymentInvoiceScreen: React.FC = () => {
 
         <View style={styles.breakdownCard}>
           <Text style={styles.metaTitle}>Description</Text>
-          {invoice?.items?.map(item => (
+          {effectiveInvoice?.items?.map(item => (
             <BreakdownRow
               key={buildInvoiceItemKey(item)}
               label={item.description}
-              value={`$${item.lineTotal.toFixed(2)}`}
+              value={formatMoney(item.lineTotal)}
             />
           ))}
           <BreakdownRow
             label="Sub Total"
-            value={`$${(invoice?.subtotal ?? 0).toFixed(2)}`}
+            value={formatMoney(subtotal)}
             subtle
           />
-          {!!invoice?.discount && (
+          {!!discountAmount && (
             <BreakdownRow
               label="Discount"
-              value={`-$${invoice.discount.toFixed(2)}`}
+              value={`-${formatMoney(discountAmount)}`}
               subtle
             />
           )}
-          {!!invoice?.tax && (
+          {!!taxAmount && (
             <BreakdownRow
               label="Tax"
-              value={`$${invoice.tax.toFixed(2)}`}
+              value={formatMoney(taxAmount)}
               subtle
             />
           )}
           <BreakdownRow
             label="Total"
-            value={`$${total.toFixed(2)}`}
+            value={formatMoney(total)}
             highlight
           />
           <Text style={styles.breakdownNote}>
@@ -251,27 +393,23 @@ export const PaymentInvoiceScreen: React.FC = () => {
           </Text>
         </View>
         <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Pay now"
-            onPress={handlePayNow}
-            height={56}
-            borderRadius={16}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            textStyle={styles.confirmPrimaryButtonText}
-          />
-          <LiquidGlassButton
-            title="Pay later"
-            onPress={() => navigation.goBack()}
-            height={56}
-            borderRadius={16}
-            glassEffect="clear"
-            tintColor={theme.colors.surface}
-            forceBorder
-            borderColor={theme.colors.secondary}
-            textStyle={styles.payLaterText}
-            shadowIntensity="medium"
-          />
+          {shouldShowPay ? (
+            <LiquidGlassButton
+              title="Pay now"
+              onPress={handlePayNow}
+              height={56}
+              borderRadius={16}
+              disabled={presentingSheet || !clientSecret}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
+            />
+          ) : (
+            <Text style={styles.warningText}>
+              Payment details are unavailable for this appointment. Please retry booking or contact
+              support.
+            </Text>
+          )}
         </View>
       </ScrollView>
     </SafeArea>
@@ -342,6 +480,11 @@ const createStyles = (theme: any) =>
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[1],
+    },
+    warningText: {
+      ...theme.typography.body12,
+      color: '#F59E0B',
+      marginBottom: theme.spacing[2],
     },
     invoiceForCard: {
       borderRadius: 16,
@@ -466,11 +609,6 @@ const createStyles = (theme: any) =>
     confirmPrimaryButtonText: {
       ...theme.typography.button,
       color: theme.colors.white,
-      textAlign: 'center',
-    },
-    payLaterText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
       textAlign: 'center',
     },
   });

@@ -1,17 +1,28 @@
-export type BusinessCategory = 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
+export type BusinessCategory =
+  | 'hospital'
+  | 'groomer'
+  | 'breeder'
+  | 'pet_center'
+  | 'boarder'
+  | 'clinic';
 
 export interface VetBusiness {
   id: string;
   name: string;
   category: BusinessCategory;
   address: string;
-  distanceMi: number;
-  rating: number;
+  distanceMi?: number;
+  distanceMeters?: number;
+  rating?: number;
   openHours?: string;
   photo?: any; // Image source
   specialties?: string[];
   website?: string;
   description?: string;
+  phone?: string;
+  email?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface VetEmployee {
@@ -30,15 +41,19 @@ export interface VetService {
   id: string;
   businessId: string;
   specialty: string;
+  specialityId?: string | null;
   name: string;
   description?: string;
   basePrice?: number;
+  currency?: string;
   icon?: any; // Image source
   defaultEmployeeId?: string;
 }
 
-export interface AvailabilityMap {
-  [dateISO: string]: string[]; // e.g., { '2025-08-20': ['10:00','11:30'] }
+export interface SlotWindow {
+  startTime: string;
+  endTime: string;
+  isAvailable?: boolean;
 }
 
 export interface EmployeeAvailability {
@@ -46,17 +61,20 @@ export interface EmployeeAvailability {
   employeeId?: string | null;
   serviceId?: string | null;
   label?: string;
-  slotsByDate: AvailabilityMap;
+  slotsByDate: Record<string, SlotWindow[]>;
 }
 
 export type AppointmentStatus =
-  | 'requested'
-  | 'approved'
-  | 'paid'
-  | 'checked_in'
-  | 'completed'
-  | 'canceled'
-  | 'rescheduled';
+  | 'NO_PAYMENT'
+  | 'AWAITING_PAYMENT'
+  | 'PAID'
+  | 'CONFIRMED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'RESCHEDULED'
+  | 'SCHEDULED'
+  | 'PAYMENT_FAILED'
+  | 'REQUESTED';
 
 export interface Appointment {
   id: string;
@@ -64,34 +82,60 @@ export interface Appointment {
   businessId: string;
   serviceId?: string | null;
   serviceName?: string | null;
+  serviceCode?: string | null;
+  specialityId?: string | null;
   employeeId?: string | null;
+  employeeName?: string | null;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
+  endTime?: string | null;
+  start?: string;
+  end?: string | null;
   type: string;
   concern?: string;
   emergency?: boolean;
-  uploadedFiles?: { id: string; name: string }[];
+  uploadedFiles?: {id: string; name: string; key?: string; url?: string}[];
   status: AppointmentStatus;
   invoiceId?: string;
-  createdAt: string;
-  updatedAt: string;
+  species?: string | null;
+  breed?: string | null;
+  organisationName?: string | null;
+  organisationAddress?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface InvoiceItem { description: string; rate: number; qty?: number; lineTotal: number; }
+
+export interface PaymentIntentInfo {
+  paymentIntentId: string;
+  clientSecret: string;
+  amount: number;
+  currency: string;
+  paymentLinkUrl?: string | null;
+}
+
 export interface Invoice {
   id: string;
   appointmentId: string;
   items: InvoiceItem[];
   subtotal: number;
-  discount?: number;
-  tax?: number;
+  discountPercent?: number | null;
+  taxPercent?: number | null;
   total: number;
+  currency?: string;
   dueDate?: string;
   invoiceNumber?: string;
   invoiceDate?: string;
   billedToName?: string;
   billedToEmail?: string;
   image?: any; // invoice preview
+  status?: string;
+  stripePaymentIntentId?: string | null;
+  stripeInvoiceId?: string | null;
+  stripePaymentLinkId?: string | null;
+  paymentIntent?: PaymentIntentInfo | null;
+  downloadUrl?: string | null;
 }
 
 export interface AppointmentsState {

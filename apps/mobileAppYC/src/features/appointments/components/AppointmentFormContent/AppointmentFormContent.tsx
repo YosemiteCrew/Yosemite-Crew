@@ -44,6 +44,7 @@ export interface AppointmentFormContentProps {
   slots: string[];
   selectedSlot: string | null;
   onSelectSlot: (slot: string) => void;
+  resetKey?: string | number;
   emptySlotsMessage: string;
   appointmentType: string;
   allowTypeEdit: boolean;
@@ -77,6 +78,7 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
   slots,
   selectedSlot,
   onSelectSlot,
+  resetKey,
   emptySlotsMessage,
   appointmentType,
   allowTypeEdit,
@@ -168,7 +170,7 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
       />
 
       <Text style={styles.sectionTitle}>Available slots</Text>
-      <TimeSlotPills slots={slots} selected={selectedSlot} onSelect={onSelectSlot} />
+      <TimeSlotPills slots={slots} selected={selectedSlot} onSelect={onSelectSlot} resetKey={resetKey} />
       {slots.length === 0 && (
         <Text style={styles.emptySlotsText}>{emptySlotsMessage}</Text>
       )}
@@ -258,7 +260,7 @@ const createStyles = (theme: any) =>
     emptySlotsText: {
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1.5],
+      paddingBottom: theme.spacing[6],
     },
     actionsContainer: {
       marginTop: theme.spacing[4],

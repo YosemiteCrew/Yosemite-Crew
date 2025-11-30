@@ -171,7 +171,11 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_internal_consult',
     label: 'Internal medicine consults',
     slotsByDate: {
-      [todayISO()]: ['10:00', '11:00', '13:00', '15:00', '18:00'],
+      [todayISO()]: ['10:00', '11:00', '13:00', '15:00', '18:00'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
     },
   },
   {
@@ -180,7 +184,11 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_cardiology_eval',
     label: 'Cardiology evaluations',
     slotsByDate: {
-      [todayISO()]: ['09:30', '12:30', '16:00'],
+      [todayISO()]: ['09:30', '12:30', '16:00'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
     },
   },
   {
@@ -189,7 +197,11 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_rehab_program',
     label: 'Rehab intake',
     slotsByDate: {
-      [todayISO()]: ['10:15', '13:45', '17:30'],
+      [todayISO()]: ['10:15', '13:45', '17:30'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
     },
   },
   {
@@ -197,7 +209,11 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_groom_spa',
     label: 'Grooming sessions',
     slotsByDate: {
-      [todayISO()]: ['09:00', '11:30', '14:00'],
+      [todayISO()]: ['09:00', '11:30', '14:00'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
     },
   },
 ];
@@ -213,8 +229,8 @@ export const mockInvoices: Invoice[] = [
       {description: 'Appointment fee', rate: 80, lineTotal: 80},
     ],
     subtotal: 100,
-    discount: 20,
-    tax: 15,
+    discountPercent: 20,
+    taxPercent: 15,
     total: 115,
     invoiceNumber: 'BDY024474',
     invoiceDate: new Date().toISOString(),

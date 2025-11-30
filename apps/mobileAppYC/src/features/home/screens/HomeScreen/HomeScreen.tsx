@@ -20,6 +20,7 @@ import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -119,16 +120,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasTasksHydrated = useSelector(
     selectHasHydratedTasksCompanion(selectedCompanionIdRedux ?? null),
   );
+  const hasAppointmentsHydrated = useSelector(
+    (state: RootState) =>
+      selectedCompanionIdRedux
+        ? state.appointments.hydratedCompanions[selectedCompanionIdRedux]
+        : false,
+  );
   const nextUpcomingTask = useSelector(
     selectNextUpcomingTask(selectedCompanionIdRedux ?? null),
   );
   const unreadNotifications = useSelector(selectUnreadCount);
   const userCurrencyCode = authUser?.currency ?? 'USD';
-
-  const hasAppointmentsHydrated = useSelector((s: RootState) => {
-    if (!selectedCompanionIdRedux) return false;
-    return s.appointments?.hydratedCompanions?.[selectedCompanionIdRedux] ?? false;
-  });
   const businesses = useSelector((s: RootState) => s.businesses?.businesses ?? []);
   const employees = useSelector((s: RootState) => s.businesses?.employees ?? []);
   const services = useSelector((s: RootState) => s.businesses?.services ?? []);
@@ -277,11 +279,21 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [dispatch, hasTasksHydrated, selectedCompanionIdRedux]);
 
+  // Always refresh appointments when companion changes or initial load finishes
   React.useEffect(() => {
-    if (selectedCompanionIdRedux && !hasAppointmentsHydrated) {
-      dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionIdRedux}));
+    const targetId =
+      selectedCompanionIdRedux ??
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.identifier?.[0]?.value;
+    if (!targetId) {
+      return;
     }
-  }, [dispatch, hasAppointmentsHydrated, selectedCompanionIdRedux]);
+    if (!selectedCompanionIdRedux) {
+      dispatch(setSelectedCompanion(targetId));
+    }
+    dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
+  }, [dispatch, selectedCompanionIdRedux, companions]);
 
   // Fetch linked hospitals for emergency feature
   React.useEffect(() => {
@@ -548,7 +560,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       if (!guardFeature('appointments', 'appointments')) {
         return;
       }
-      dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}));
+      dispatch(updateAppointmentStatus({appointmentId, status: 'COMPLETED'}));
     },
     [dispatch, guardFeature],
   );
@@ -580,12 +592,37 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     let assignmentNote: string | undefined;
     if (!hasAssignedVet) {
       assignmentNote = 'A vet will be assigned once the clinic approves your request.';
-    } else if (appointment.status === 'paid') {
+    } else if (appointment.status === 'PAID') {
       assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
     }
+    const needsPayment =
+      appointment.status === 'NO_PAYMENT' ||
+      appointment.status === 'AWAITING_PAYMENT' ||
+      appointment.status === 'PAYMENT_FAILED';
+    const footer = needsPayment ? (
+      <View style={styles.upcomingFooter}>
+        <LiquidGlassButton
+          title="Pay now"
+          onPress={() =>
+            navigation
+              .getParent<NavigationProp<TabParamList>>()
+              ?.navigate('Appointments', {
+                screen: 'PaymentInvoice',
+                params: {appointmentId: appointment.id, companionId: appointment.companionId},
+              })
+          }
+          height={48}
+          borderRadius={12}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.reviewButtonText}
+          style={styles.reviewButtonCard}
+        />
+      </View>
+    ) : undefined;
 
     const formattedDate = formatAppointmentDateTime(appointment.date, appointment.time);
-    const canCheckIn = appointment.status === 'paid' && hasAssignedVet;
+    const canCheckIn = appointment.status === 'PAID' && hasAssignedVet && !needsPayment;
 
     return (
       <AppointmentCard
@@ -596,7 +633,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         dateTime={formattedDate}
         note={assignmentNote}
         avatar={avatarSource}
-        showActions={canCheckIn}
+        showActions={!needsPayment && canCheckIn}
         onPress={() => handleViewAppointment(appointment.id)}
         onViewDetails={() => handleViewAppointment(appointment.id)}
         onGetDirections={() => {
@@ -616,6 +653,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           chat: 'appointment-chat',
           checkIn: 'appointment-checkin',
         }}
+        footer={footer}
       />
     );
   };
@@ -1110,6 +1148,11 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelXsBold,
       color: theme.colors.secondary,
       textAlign: 'center',
+    },
+    reviewButtonCard: {marginTop: theme.spacing[1]},
+    reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
+    upcomingFooter: {
+      gap: theme.spacing[2],
     },
   });
 const isObservationalToolDetails = (

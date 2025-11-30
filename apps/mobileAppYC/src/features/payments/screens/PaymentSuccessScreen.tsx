@@ -1,5 +1,5 @@
 import React, {useMemo, useCallback} from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, Image, TouchableOpacity, Linking} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -12,6 +12,7 @@ import type {NavigationProp} from '@react-navigation/native';
 import type {AppointmentStackParamList, TabParamList} from '@/navigation/types';
 import type {RootState} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
+import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -23,7 +24,27 @@ export const PaymentSuccessScreen: React.FC = () => {
   const route = useRoute<any>();
   const {appointmentId, companionId} = route.params as {appointmentId: string; companionId?: string};
   const appointment = useSelector((state: RootState) => state.appointments.items.find(a => a.id === appointmentId));
+  const invoice = useSelector(selectInvoiceForAppointment(appointmentId));
   const resolvedCompanionId = companionId ?? appointment?.companionId ?? null;
+  const invoiceNumber = invoice?.invoiceNumber ?? invoice?.id ?? '—';
+  const invoiceDate = invoice?.invoiceDate
+    ? new Date(invoice.invoiceDate).toLocaleDateString()
+    : '—';
+  const appointmentDate = appointment?.start
+    ? new Date(appointment.start)
+    : appointment?.date
+      ? new Date(`${appointment.date}T${appointment.time}:00Z`)
+      : null;
+  const formattedAppointmentDate = appointmentDate
+    ? appointmentDate.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : '—';
+  const downloadUrl = invoice?.downloadUrl ?? invoice?.paymentIntent?.paymentLinkUrl ?? null;
   const resetToMyAppointments = useCallback(() => {
     if (resolvedCompanionId) {
       dispatch(setSelectedCompanion(resolvedCompanionId));
@@ -35,6 +56,14 @@ export const PaymentSuccessScreen: React.FC = () => {
       routes: [{name: 'MyAppointments'}],
     });
   }, [dispatch, navigation, resolvedCompanionId]);
+  const handleDownload = useCallback(() => {
+    if (!downloadUrl) {
+      return;
+    }
+    Linking.openURL(downloadUrl).catch(err =>
+      console.warn('[PaymentSuccess] Failed to open invoice URL', err),
+    );
+  }, [downloadUrl]);
 
   return (
     <SafeArea>
@@ -47,26 +76,33 @@ export const PaymentSuccessScreen: React.FC = () => {
         <Text style={styles.detailsTitle}>Invoice Details</Text>
           <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Invoice number</Text>
-            <Text style={styles.detailValue}>BDY024474</Text>
+            <Text style={styles.detailValue}>{invoiceNumber}</Text>
           </View>
           <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Invoice Date</Text>
-            <Text style={styles.detailValue}>Aug 15th, 2025</Text>
+            <Text style={styles.detailValue}>{invoiceDate}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Invoice</Text>
-            <TouchableOpacity style={styles.downloadInvoiceTouchable}>
-              <Text style={[styles.detailValue, styles.link]}>Download Invoice </Text>
-              <Image source={Images.downloadInvoice} style={styles.downloadInvoiceIcon} />
+            <TouchableOpacity
+              style={styles.downloadInvoiceTouchable}
+              disabled={!downloadUrl}
+              onPress={handleDownload}>
+              <Text style={[styles.detailValue, styles.link]}>
+                {downloadUrl ? 'Download Invoice ' : 'Not available'}
+              </Text>
+              {downloadUrl ? (
+                <Image source={Images.downloadInvoice} style={styles.downloadInvoiceIcon} />
+              ) : null}
             </TouchableOpacity>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Appointment date</Text>
-            <Text style={styles.detailValue}>September 5th, 2025</Text>
+            <Text style={styles.detailValue}>{formattedAppointmentDate}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Appointment time</Text>
-            <Text style={styles.detailValue}>11:00 AM CET</Text>
+            <Text style={styles.detailValue}>{appointment?.time ?? '—'}</Text>
           </View>
         </View>
         <View style={styles.buttonContainer}>

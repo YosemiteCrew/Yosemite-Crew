@@ -1,5 +1,5 @@
-import React, {useMemo} from 'react';
-import {ScrollView, View, Text, StyleSheet} from 'react-native';
+import React, {useEffect, useMemo} from 'react';
+import {ScrollView, View, Text, StyleSheet, Linking, TouchableOpacity} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -8,11 +8,19 @@ import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {AppointmentStackParamList} from '@/navigation/types';
-import {updateAppointmentStatus} from '@/features/appointments/appointmentsSlice';
+import type {AppointmentStackParamList, TabParamList} from '@/navigation/types';
+import {
+  cancelAppointment,
+  fetchAppointmentById,
+} from '@/features/appointments/appointmentsSlice';
 import RescheduledInfoSheet from '@/features/appointments/components/InfoBottomSheet/RescheduledInfoSheet';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {CancelAppointmentBottomSheet, type CancelAppointmentBottomSheetRef} from '@/features/appointments/components/CancelAppointmentBottomSheet';
+import {DocumentCard} from '@/shared/components/common/DocumentCard/DocumentCard';
+import {fetchDocuments} from '@/features/documents/documentSlice';
+import type {NavigationProp} from '@react-navigation/native';
+import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
+import {createSelector} from '@reduxjs/toolkit';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -28,25 +36,71 @@ export const ViewAppointmentScreen: React.FC = () => {
   const service = useSelector((s: RootState) =>
     apt?.serviceId ? s.businesses.services.find(svc => svc.id === apt.serviceId) : null,
   );
-  const employees = useSelector((s: RootState) => s.businesses.employees);
   const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === (apt?.employeeId ?? '')));
   const companion = useSelector((s: RootState) => s.companion.companions.find(c => c.id === apt?.companionId));
   const cancelSheetRef = React.useRef<CancelAppointmentBottomSheetRef>(null);
   const rescheduledRef = React.useRef<any>(null);
+  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+  const appointmentDocsSelector = React.useMemo(
+    () =>
+      createSelector(
+        [(state: RootState) => state.documents.documents],
+        docs => docs.filter(doc => doc.appointmentId === appointmentId),
+      ),
+    [appointmentId],
+  );
+  const appointmentDocuments = useSelector(appointmentDocsSelector);
+
+  useEffect(() => {
+    if (!apt) {
+      dispatch(fetchAppointmentById({appointmentId}));
+    }
+  }, [apt, appointmentId, dispatch]);
+
+  useEffect(() => {
+    if (apt?.companionId) {
+      dispatch(fetchDocuments({companionId: apt.companionId}));
+    }
+  }, [apt?.companionId, dispatch]);
 
   if (!apt) {
     return null;
   }
 
+  const handleOpenDocument = (documentId: string) => {
+    if (tabNavigation) {
+      tabNavigation.navigate('Documents', {
+        screen: 'DocumentPreview',
+        params: {documentId},
+      } as any);
+    }
+  };
+
+  const handleOpenAttachment = (url?: string | null) => {
+    if (!url) return;
+    Linking.openURL(url).catch(err => console.warn('Failed to open attachment', err));
+  };
+
   const getStatusDisplay = (status: string) => {
     switch (status) {
-      case 'requested': return {text: 'Pending Confirmation', color: '#F59E0B'};
-      case 'approved': return {text: 'Approved - Payment Required', color: '#10B981'};
-      case 'paid': return {text: 'Paid - Ready for Check-in', color: '#3B82F6'};
-      case 'completed': return {text: 'Completed', color: '#10B981'};
-      case 'canceled': return {text: 'Canceled', color: '#EF4444'};
-      case 'rescheduled': return {text: 'Rescheduled', color: '#F59E0B'};
-      default: return {text: status, color: theme.colors.textSecondary};
+      case 'NO_PAYMENT':
+      case 'AWAITING_PAYMENT':
+        return {text: 'Payment pending', color: '#F59E0B'};
+      case 'PAYMENT_FAILED':
+        return {text: 'Payment failed', color: '#F59E0B'};
+      case 'PAID':
+        return {text: 'Paid', color: '#3B82F6'};
+      case 'CONFIRMED':
+      case 'SCHEDULED':
+        return {text: 'Scheduled', color: '#10B981'};
+      case 'COMPLETED':
+        return {text: 'Completed', color: '#10B981'};
+      case 'CANCELLED':
+        return {text: 'Cancelled', color: '#EF4444'};
+      case 'RESCHEDULED':
+        return {text: 'Rescheduled', color: '#F59E0B'};
+      default:
+        return {text: status, color: theme.colors.textSecondary};
     }
   };
 
@@ -80,79 +134,93 @@ export const ViewAppointmentScreen: React.FC = () => {
           <DetailRow label="Type" value={apt.type} />
           <DetailRow label="Service" value={service?.name ?? apt.serviceName ?? '—'} />
           {companion && <DetailRow label="Companion" value={companion.name} />}
+          {apt.species && <DetailRow label="Species" value={apt.species} />}
+          {apt.breed && <DetailRow label="Breed" value={apt.breed} />}
           {apt.concern && <DetailRow label="Concern" value={apt.concern} multiline />}
+        </View>
+
+        {apt.uploadedFiles?.length ? (
+          <View style={styles.detailsCard}>
+            <Text style={styles.sectionTitle}>Your uploaded documents</Text>
+            <DocumentAttachmentViewer
+              attachments={
+                apt.uploadedFiles.map(f => ({
+                  id: f.id ?? f.key ?? f.name ?? 'attachment',
+                  name: f.name ?? f.key ?? 'Attachment',
+                  viewUrl: f.url ?? undefined,
+                  downloadUrl: f.url ?? undefined,
+                  uri: f.url ?? undefined,
+                })) as any
+              }
+              documentTitle="Appointment attachments"
+            />
+          </View>
+        ) : null}
+
+        <View style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>Clinic documents</Text>
+          {appointmentDocuments.length ? (
+            appointmentDocuments.map(doc => (
+              <DocumentCard
+                key={doc.id}
+                title={doc.title}
+                businessName={doc.businessName ?? business?.name ?? 'Clinic'}
+                visitType={doc.visitType ?? doc.category ?? ''}
+                issueDate={doc.issueDate ?? doc.createdAt ?? ''}
+                onPressView={() => handleOpenDocument(doc.id)}
+                onPress={() => handleOpenDocument(doc.id)}
+                showEditAction={false}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyDocsText}>No documents shared for this appointment yet.</Text>
+          )}
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
-          {apt.status === 'requested' && (
-            <LiquidGlassButton
-              title="Approve (Mock)"
-              onPress={() => {
-                const assignedEmployeeId =
-                  service?.defaultEmployeeId ??
-                  apt.employeeId ??
-                  employees.find(e => e.businessId === apt.businessId)?.id ??
-                  null;
-                dispatch(updateAppointmentStatus({
-                  appointmentId,
-                  status: 'approved',
-                  employeeId: assignedEmployeeId ?? undefined,
-                }));
-                navigation.navigate('PaymentInvoice', {appointmentId, companionId: apt.companionId});
-              }}
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.confirmPrimaryButtonText}
-            />
-          )}
-          {apt.status === 'approved' && (
+          {(apt.status === 'NO_PAYMENT' ||
+            apt.status === 'AWAITING_PAYMENT' ||
+            apt.status === 'PAYMENT_FAILED') && (
             <LiquidGlassButton
               title="Pay Now"
-              onPress={() => navigation.navigate('PaymentInvoice', {appointmentId, companionId: apt.companionId})}
+              onPress={() =>
+                navigation.navigate('PaymentInvoice', {
+                  appointmentId,
+                  companionId: apt.companionId,
+                })
+              }
               height={56}
               borderRadius={16}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.confirmPrimaryButtonText}
-            />
-          )}
-          {apt.status === 'paid' && (
-            <LiquidGlassButton
-              title="Check In"
-              onPress={() => dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}))}
-              height={56}
-              borderRadius={16}
-              glassEffect="clear"
-              interactive
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
             />
           )}
 
-          {apt.status !== 'completed' && apt.status !== 'canceled' && (
+          {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && (
             <>
-              {apt.status !== 'paid' && (
-                <LiquidGlassButton
-                  title="Edit Appointment"
-                  onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
-                  height={56}
-                  borderRadius={16}
-                  glassEffect="clear"
-                  tintColor={theme.colors.surface}
-                  forceBorder
-                  borderColor={theme.colors.secondary}
-                  textStyle={styles.secondaryButtonText}
-                  shadowIntensity="medium"
-                  interactive
-                />
-              )}
+              <LiquidGlassButton
+                title="Edit Appointment"
+                onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
+                height={56}
+                borderRadius={16}
+                glassEffect="clear"
+                tintColor={theme.colors.surface}
+                forceBorder
+                borderColor={theme.colors.secondary}
+                textStyle={styles.secondaryButtonText}
+                shadowIntensity="medium"
+                interactive
+              />
               <LiquidGlassButton
                 title="Request Reschedule"
-                onPress={() => navigation.navigate('EditAppointment', {appointmentId, mode: 'reschedule'})}
+                onPress={() =>
+                  navigation.navigate('EditAppointment', {
+                    appointmentId,
+                    mode: 'reschedule',
+                  })
+                }
                 height={56}
                 borderRadius={16}
                 glassEffect="clear"
@@ -182,7 +250,7 @@ export const ViewAppointmentScreen: React.FC = () => {
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={() => {
-          dispatch(updateAppointmentStatus({appointmentId, status: 'canceled'}));
+          dispatch(cancelAppointment({appointmentId}));
           navigation.goBack();
         }}
       />
@@ -277,6 +345,31 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...theme.typography.titleMedium,
     color: theme.colors.secondary,
     marginBottom: theme.spacing[3],
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border + '40',
+  },
+  attachmentName: {
+    ...theme.typography.body14,
+    color: theme.colors.secondary,
+    flex: 1,
+  },
+  attachmentLink: {
+    ...theme.typography.body14,
+    color: theme.colors.primary,
+    marginLeft: theme.spacing[2],
+  },
+  attachmentPreview: {
+    maxHeight: 220,
+  },
+  emptyDocsText: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
   },
   actionsContainer: {
     gap: theme.spacing[3],

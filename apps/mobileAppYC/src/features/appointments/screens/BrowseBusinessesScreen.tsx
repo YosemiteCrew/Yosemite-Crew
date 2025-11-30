@@ -6,7 +6,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
-import {fetchBusinesses, fetchAvailability} from '@/features/appointments/businessesSlice';
+import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import type {BusinessCategory, VetBusiness} from '@/features/appointments/types';
 import {useNavigation} from '@react-navigation/native';
@@ -22,6 +22,7 @@ const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'Breeder', id: 'breeder'},
   {label: 'Pet Center', id: 'pet_center'},
   {label: 'Boarder', id: 'boarder'},
+  {label: 'Clinic', id: 'clinic'},
 ];
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
@@ -40,30 +41,22 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const availability = useSelector((s: RootState) => s.businesses.availability);
 
   useEffect(() => {
-    const needsRefresh =
-      businesses.length === 0 ||
-      businesses.some(
-        b =>
-          !b.description ||
-          b.description.trim().length === 0 ||
-          !b.photo,
-      );
-    if (needsRefresh) {
-      dispatch(fetchBusinesses());
-      dispatch(fetchAvailability());
-    }
-  }, [dispatch, businesses]);
+    dispatch(fetchBusinesses(undefined));
+  }, [dispatch]);
 
-  const allCategories = ['hospital','groomer','breeder','pet_center','boarder'] as const;
+  const allCategories = ['hospital','groomer','breeder','pet_center','boarder','clinic'] as const;
 
   const resolveDescription = React.useCallback((biz: VetBusiness) => {
+    if (biz.address && biz.address.trim().length > 0) {
+      return biz.address.trim();
+    }
     if (biz.description && biz.description.trim().length > 0) {
       return biz.description.trim();
     }
     if (biz.specialties && biz.specialties.length > 0) {
       return biz.specialties.slice(0, 3).join(', ');
     }
-    return `${biz.name} located at ${biz.address}`;
+    return `${biz.name}`;
   }, []);
 
 
@@ -114,8 +107,14 @@ export const BrowseBusinessesScreen: React.FC = () => {
                 name={b.name}
                 openText={b.openHours}
                 description={resolveDescription(b)}
-                distanceText={`${b.distanceMi}mi`}
-                ratingText={`${b.rating}`}
+                distanceText={
+                  b.distanceMi != null
+                    ? `${b.distanceMi.toFixed(1)}mi`
+                    : b.distanceMeters != null
+                      ? `${(b.distanceMeters / 1609.344).toFixed(1)}mi`
+                      : undefined
+                }
+                ratingText={b.rating != null ? `${b.rating}` : undefined}
                 photo={b.photo}
                 onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
               />
@@ -143,8 +142,14 @@ export const BrowseBusinessesScreen: React.FC = () => {
                         name={items[0].name}
                         openText={items[0].openHours}
                         description={resolveDescription(items[0])}
-                        distanceText={`${items[0].distanceMi}mi`}
-                        ratingText={`${items[0].rating}`}
+                        distanceText={
+                          items[0].distanceMi != null
+                            ? `${items[0].distanceMi.toFixed(1)}mi`
+                            : items[0].distanceMeters != null
+                              ? `${(items[0].distanceMeters / 1609.344).toFixed(1)}mi`
+                              : undefined
+                        }
+                        ratingText={items[0].rating != null ? `${items[0].rating}` : undefined}
                         photo={items[0].photo}
                         onBook={() => navigation.navigate('BusinessDetails', {businessId: items[0].id})}
                       />
@@ -157,8 +162,14 @@ export const BrowseBusinessesScreen: React.FC = () => {
                           name={b.name}
                           openText={b.openHours}
                           description={resolveDescription(b)}
-                          distanceText={`${b.distanceMi}mi`}
-                          ratingText={`${b.rating}`}
+                          distanceText={
+                            b.distanceMi != null
+                              ? `${b.distanceMi.toFixed(1)}mi`
+                              : b.distanceMeters != null
+                                ? `${(b.distanceMeters / 1609.344).toFixed(1)}mi`
+                                : undefined
+                          }
+                          ratingText={b.rating != null ? `${b.rating}` : undefined}
                           photo={b.photo}
                           onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
                           compact

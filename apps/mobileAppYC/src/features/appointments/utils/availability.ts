@@ -1,9 +1,10 @@
-import type {EmployeeAvailability} from '@/features/appointments/types';
+import type {EmployeeAvailability, SlotWindow} from '@/features/appointments/types';
 import {addDays, formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
 
 const sortIsoDates = (a: string, b: string) => a.localeCompare(b);
-const DEFAULT_TIME_SLOTS = ['09:00', '10:30', '12:00', '13:30', '15:00', '16:30'];
 const DEFAULT_MARKER_WINDOW_DAYS = 30;
+const formatSlotLabel = (slot: SlotWindow) => `${slot.startTime} - ${slot.endTime}`;
+const isSlotAvailable = (slot: SlotWindow) => slot.isAvailable !== false;
 
 export const getFirstAvailableDate = (
   availability: EmployeeAvailability | null | undefined,
@@ -14,8 +15,9 @@ export const getFirstAvailableDate = (
     return fallback ?? todayISO;
   }
 
-  const dates = Object.keys(availability.slotsByDate)
-    .filter(date => date >= todayISO)
+  const dates = Object.entries(availability.slotsByDate)
+    .filter(([date, slots]) => date >= todayISO && slots.some(isSlotAvailable))
+    .map(([date]) => date)
     .sort(sortIsoDates);
 
   if (dates.length > 0) {
@@ -34,22 +36,16 @@ export const getSlotsForDate = (
     return [];
   }
 
-  if (availability) {
-    const sameDaySlots = availability.slotsByDate?.[date];
-    if (sameDaySlots?.length) {
-      return sameDaySlots;
-    }
-
-    const futureSlots = Object.entries(availability.slotsByDate ?? {})
-      .filter(([iso]) => iso >= todayISO)
-      .flatMap(([, values]) => values);
-
-    if (futureSlots.length > 0) {
-      return futureSlots;
-    }
+  if (!availability) {
+    return [];
   }
 
-  return DEFAULT_TIME_SLOTS;
+  const sameDaySlots = availability.slotsByDate?.[date];
+  if (sameDaySlots?.length) {
+    return sameDaySlots.filter(isSlotAvailable).map(formatSlotLabel);
+  }
+
+  return [];
 };
 
 export const getFutureAvailabilityMarkers = (
@@ -66,12 +62,22 @@ export const getFutureAvailabilityMarkers = (
   }
 
   if (availability) {
-    for (const key of Object.keys(availability.slotsByDate)) {
-      if (key >= todayISO) {
+    for (const [key, slots] of Object.entries(availability.slotsByDate)) {
+      if (key >= todayISO && slots.some(isSlotAvailable)) {
         markers.add(key);
       }
     }
   }
 
   return markers;
+};
+
+export const parseSlotLabel = (
+  value: string | null | undefined,
+): {startTime: string | null; endTime: string | null} => {
+  if (!value) {
+    return {startTime: null, endTime: null};
+  }
+  const [start, end] = value.split('-').map(part => part.trim());
+  return {startTime: start || null, endTime: end || null};
 };
