@@ -712,17 +712,27 @@ export const OrganizationService = {
 
     const skip = (page - 1) * limit;
 
-    const docs = await OrganizationModel.find({
-      "address.location": {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [lng, lat],
+    const docs = await OrganizationModel.find(
+      {
+        "address.location": {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: [lng, lat],
+            },
+            $maxDistance: radius,
           },
-          $maxDistance: radius,
         },
       },
-    })
+      {
+        _id: 1,
+        name: 1,
+        imageURL: 1,
+        phoneNo: 1,
+        type: 1,
+        address: 1,
+      }
+    )
       .skip(skip)
       .limit(limit);
 
@@ -735,13 +745,26 @@ export const OrganizationService = {
         { name: 1 },
       );
 
+      // fetch services of org
       const services = await ServiceModel.find(
         { organisationId: org._id },
-        { name: 1, cost: 1 },
+        { name: 1, cost: 1, specialityId: 1 }
       );
 
+      // group services inside each speciality
+      const specialitiesWithServices = specialities.map((spec) => {
+        const specServices = services.filter(
+          (srv) => srv.specialityId?.toString() === spec._id.toString()
+        );
+
+        return {
+          ...spec.toObject(),
+          services: specServices,
+        };
+      });
+
       results.push({
-        ...buildFHIRResponse(org),
+        org,
         distanceInMeters: org.address?.location
           ? Math.round(
               Math.sqrt(
@@ -751,8 +774,7 @@ export const OrganizationService = {
             )
           : null,
         rating: org.averageRating,
-        specialities,
-        services,
+        specialitiesWithServices,
       });
     }
 

@@ -299,15 +299,13 @@ export const ServiceService = {
     const searchRegex = new RegExp(safe, "i");
 
     // 1. Find services matching the name
-    const services = await ServiceModel.find({
-      name: searchRegex,
-    }).lean();
-
-    if (!services.length) return [];
+    const matchedServices = await ServiceModel.find({ name: searchRegex }).lean();
+    if (!matchedServices.length) return [];
 
     // 2. Extract unique organization IDs
-    const orgIds = [...new Set(services.map((s) => s.organisationId))];
+    const orgIds = [...new Set(matchedServices.map((s) => s.organisationId))];
 
+    // 3. If lat/lng missing, geocode
     if (!lat && !lng) {
       const result = (await helpers.getGeoLocation(query!)) as {
         lat: number;
@@ -317,7 +315,7 @@ export const ServiceService = {
       lng = result.lng;
     }
 
-    // 3. Fetch only nearby organisations that match service
+    // 4. Fetch only nearby organisations
     const organisations = await OrganizationModel.find({
       _id: { $in: orgIds },
       "address.location": {
@@ -329,17 +327,50 @@ export const ServiceService = {
           $maxDistance: radius,
         },
       },
-    })
-      .lean()
-      .exec();
+    }).lean();
 
-    return organisations.map((org) => ({
-      id: org._id.toString(),
-      name: org.name,
-      imageURL: org.imageURL,
-      phoneNo: org.phoneNo,
-      type: org.type,
-      address: org.address,
-    }));
+    // 5. Fetch specialities + all services for these organisations
+    const allSpecialities = await SpecialityModel.find(
+      { organisationId: { $in: orgIds } },
+      { _id: 1, name: 1, organisationId: 1 }
+    ).lean();
+
+    const allServicesForOrgs = await ServiceModel.find(
+      { organisationId: { $in: orgIds } },
+      { _id: 1, name: 1, cost: 1, specialityId: 1, organisationId: 1 }
+    ).lean();
+
+    // 6. Group specialities + services for each org
+    return organisations.map((org) => {
+      const orgSpecialities = allSpecialities.filter(
+        (s) => s.organisationId.toString() === org._id.toString()
+      );
+
+      const orgServices = allServicesForOrgs.filter(
+        (s) => s.organisationId.toString() === org._id.toString()
+      );
+
+      const specialitiesWithServices = orgSpecialities.map((spec) => {
+        const specServices = orgServices.filter(
+          (srv) =>
+            srv.specialityId?.toString() === spec._id.toString()
+        );
+
+        return {
+          ...spec,
+          services: specServices,
+        };
+      });
+
+      return {
+        id: org._id.toString(),
+        name: org.name,
+        imageURL: org.imageURL,
+        phoneNo: org.phoneNo,
+        type: org.type,
+        address: org.address,
+        specialities: specialitiesWithServices,
+      };
+    });
   },
 };
