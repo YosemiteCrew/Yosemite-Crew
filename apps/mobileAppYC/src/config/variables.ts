@@ -44,6 +44,10 @@ export interface StripeConfig {
   urlScheme?: string;
 }
 
+export interface AuthFeatureFlags {
+  enableReviewLogin: boolean;
+}
+
 // Default/test configuration (safe for CI/CD)
 const DEFAULT_PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   profileServiceUrl: '',
@@ -75,11 +79,16 @@ const DEFAULT_STRIPE_CONFIG: StripeConfig = {
   urlScheme: 'yosemitecrew',
 };
 
+const DEFAULT_AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
+  enableReviewLogin: true,
+};
+
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
 let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
 let apiOverrides: Partial<ApiConfig> | undefined;
 let streamChatOverrides: Partial<StreamChatConfig> | undefined;
 let stripeOverrides: Partial<StripeConfig> | undefined;
+let authFlagsOverrides: Partial<AuthFeatureFlags> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
@@ -112,6 +121,9 @@ try {
   }
   if (localConfig.STRIPE_CONFIG) {
     stripeOverrides = localConfig.STRIPE_CONFIG;
+  }
+  if (localConfig.AUTH_FEATURE_FLAGS) {
+    authFlagsOverrides = localConfig.AUTH_FEATURE_FLAGS;
   }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
@@ -150,6 +162,11 @@ export const STREAM_CHAT_CONFIG: StreamChatConfig = {
 export const STRIPE_CONFIG: StripeConfig = {
   ...DEFAULT_STRIPE_CONFIG,
   ...stripeOverrides,
+};
+
+export const AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
+  ...DEFAULT_AUTH_FEATURE_FLAGS,
+  ...authFlagsOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

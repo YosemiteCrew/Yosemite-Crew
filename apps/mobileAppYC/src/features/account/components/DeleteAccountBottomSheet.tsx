@@ -186,19 +186,19 @@ const createStyles = (theme: any) =>
       gap: 0,
     },
     noteLabel: {
-      ...theme.typography.subtitleBold14,
+      ...theme.typography.inputLabel,
       color: theme.colors.primary,
       textAlign: 'left',
     },
     noteBody: {
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.secondary,
+      ...theme.typography.inputLabel,
+      color: theme.colors.textPrimary,
       textAlign: 'left',
       flex: 1,
     },
     warning: {
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.error,
+      ...theme.typography.inputLabel,
+      color: theme.colors.error ?? theme.colors.secondary,
       textAlign: 'left',
     },
     actionsRow: {

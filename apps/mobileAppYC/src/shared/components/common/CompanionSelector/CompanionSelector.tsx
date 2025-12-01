@@ -65,6 +65,53 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
   const globalPermissions = useSelector(
     (state: RootState) => state.coParent?.lastFetchedPermissions,
   );
+  const originalOrderRef = React.useRef<Map<string, number>>(new Map());
+  React.useEffect(() => {
+    const map = new Map<string, number>();
+    companions.forEach((companion, index) => {
+      const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+      if (companionId) {
+        map.set(companionId, index);
+      }
+    });
+    originalOrderRef.current = map;
+  }, [companions]);
+
+  const resolveRolePriority = React.useCallback(
+    (companion: T) => {
+      const companionId =
+        companion.id ?? (companion as any)._id ?? (companion as any).companionId ?? '';
+      const access = accessMap?.[companionId] ?? defaultAccess ?? null;
+      const role = (access?.role ?? globalRole ?? '').toUpperCase();
+      if (role.includes('PRIMARY')) {
+        return 0; // primary parent
+      }
+      if (role.includes('CO') || role.includes('COPARENT')) {
+        return 1; // co-parent
+      }
+      return 2; // fallback/unknown role
+    },
+    [accessMap, defaultAccess, globalRole],
+  );
+
+  const sortedCompanions = React.useMemo(() => {
+    const items = [...companions];
+    return items.sort((a, b) => {
+      const priorityA = resolveRolePriority(a);
+      const priorityB = resolveRolePriority(b);
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      // keep original order when priorities match
+      const idA =
+        a.id ?? (a as any)._id ?? (a as any).companionId ?? '__missingA__';
+      const idB =
+        b.id ?? (b as any)._id ?? (b as any).companionId ?? '__missingB__';
+      const indexA = originalOrderRef.current.get(idA) ?? 0;
+      const indexB = originalOrderRef.current.get(idB) ?? 0;
+      return indexA - indexB;
+    });
+  }, [companions, resolveRolePriority]);
 
   const handleImageError = React.useCallback((id: string) => {
     setFailedImages(prev => {
@@ -183,7 +230,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={[styles.companionRow, containerStyle]}>
-      {companions.map(renderCompanionBadge)}
+      {sortedCompanions.map(renderCompanionBadge)}
       {showAddButton && onAddCompanion && renderAddCompanionBadge()}
     </ScrollView>
   );
