@@ -4,11 +4,11 @@ import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {CancelAppointmentBottomSheet, type CancelAppointmentBottomSheetRef} from '@/features/appointments/components/CancelAppointmentBottomSheet';
+import {DocumentUploadSheets} from '@/features/appointments/components/DocumentUploadSheets';
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
-import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
+import {useTheme} from '@/hooks';
+import {useDocumentUpload} from '@/shared/hooks/useDocumentUpload';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -57,34 +57,34 @@ export const EditAppointmentScreen: React.FC = () => {
   );
   const [date, setDate] = useState<string>(apt?.date ?? firstAvailableDate);
   const [dateObj, setDateObj] = useState<Date>(new Date(apt?.date ?? firstAvailableDate));
-  const initialTimeLabel = apt?.time
-    ? apt?.endTime
-      ? `${apt.time} - ${apt.endTime}`
-      : apt.time
-    : null;
+  const initialTimeLabel = (() => {
+    if (!apt?.time) {
+      return null;
+    }
+    if (apt.endTime) {
+      return `${apt.time} - ${apt.endTime}`;
+    }
+    return apt.time;
+  })();
   const [time, setTime] = useState<string | null>(initialTimeLabel);
   const type = apt?.type || 'General Checkup';
   const [concern, setConcern] = useState(apt?.concern || '');
   const [emergency, setEmergency] = useState(apt?.emergency || false);
   const [files, setFiles] = useState<DocumentFile[]>([]);
 
-  const {refs, openSheet, closeSheet} = useFormBottomSheets();
-  const {uploadSheetRef, deleteSheetRef} = refs;
-
   const {
+    refs: {uploadSheetRef, deleteSheetRef},
     fileToDelete,
     handleTakePhoto,
     handleChooseFromGallery,
     handleUploadFromDrive,
     handleRemoveFile,
     confirmDeleteFile,
-  } = useFileOperations({
-    files,
-    setFiles,
-    clearError: () => {},
     openSheet,
     closeSheet,
-    deleteSheetRef,
+  } = useDocumentUpload({
+    files,
+    setFiles,
   });
 
   React.useEffect(() => {
@@ -240,30 +240,16 @@ export const EditAppointmentScreen: React.FC = () => {
         />
       </ScrollView>
 
-      <UploadDocumentBottomSheet
-        ref={uploadSheetRef}
-        onTakePhoto={() => {
-          handleTakePhoto();
-          closeSheet();
-        }}
-        onChooseGallery={() => {
-          handleChooseFromGallery();
-          closeSheet();
-        }}
-        onUploadDrive={() => {
-          handleUploadFromDrive();
-          closeSheet();
-        }}
-      />
-
-      <DeleteDocumentBottomSheet
-        ref={deleteSheetRef}
-        documentTitle={
-          fileToDelete
-            ? files.find(f => f.id === fileToDelete)?.name
-            : 'this file'
-        }
-        onDelete={confirmDeleteFile}
+      <DocumentUploadSheets
+        uploadSheetRef={uploadSheetRef}
+        deleteSheetRef={deleteSheetRef}
+        fileToDelete={fileToDelete}
+        files={files}
+        onTakePhoto={handleTakePhoto}
+        onChooseGallery={handleChooseFromGallery}
+        onUploadDrive={handleUploadFromDrive}
+        confirmDeleteFile={confirmDeleteFile}
+        closeSheet={closeSheet}
       />
 
       <CancelAppointmentBottomSheet

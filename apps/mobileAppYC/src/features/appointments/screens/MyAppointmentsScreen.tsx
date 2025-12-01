@@ -114,10 +114,15 @@ export const MyAppointmentsScreen: React.FC = () => {
   );
 
   const filteredUpcoming = React.useMemo(() => {
-    return upcoming.filter(apt => {
+    const filtered = upcoming.filter(apt => {
       if (filter === 'all') return true;
       const biz = businessMap.get(apt.businessId);
       return biz?.category === filter;
+    });
+    return filtered.sort((a, b) => {
+      const aTime = new Date(`${a.date}T${a.time ?? '00:00'}`).getTime();
+      const bTime = new Date(`${b.date}T${b.time ?? '00:00'}`).getTime();
+      return aTime - bTime;
     });
   }, [upcoming, filter, businessMap]);
 

@@ -30,11 +30,15 @@ export const PaymentSuccessScreen: React.FC = () => {
   const invoiceDate = invoice?.invoiceDate
     ? new Date(invoice.invoiceDate).toLocaleDateString()
     : '—';
-  const appointmentDate = appointment?.start
-    ? new Date(appointment.start)
-    : appointment?.date
-      ? new Date(`${appointment.date}T${appointment.time}:00Z`)
-      : null;
+  const appointmentDate = (() => {
+    if (appointment?.start) {
+      return new Date(appointment.start);
+    }
+    if (appointment?.date) {
+      return new Date(`${appointment.date}T${appointment.time}:00Z`);
+    }
+    return null;
+  })();
   const formattedAppointmentDate = appointmentDate
     ? appointmentDate.toLocaleString(undefined, {
         month: 'short',

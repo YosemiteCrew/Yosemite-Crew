@@ -91,7 +91,7 @@ export const createAppointment = createAsyncThunk<
     );
 
     const attachmentExtensions =
-      payload.attachments && payload.attachments.length
+      payload.attachments?.length
         ? payload.attachments
             .filter(att => att.key)
             .map(att => ({
@@ -110,14 +110,14 @@ export const createAppointment = createAsyncThunk<
       companion?.category
         ? {
             id: 'species',
-            url: 'http://hl7.org/fhir/animal-species',
+            url: 'https://hl7.org/fhir/animal-species',
             valueString: companion.category.charAt(0).toUpperCase() + companion.category.slice(1),
           }
         : null,
       companion?.breed?.breedName
         ? {
             id: 'breed',
-            url: 'http://hl7.org/fhir/animal-breed',
+            url: 'https://hl7.org/fhir/animal-breed',
             valueString: companion.breed.breedName,
           }
         : null,
@@ -134,7 +134,7 @@ export const createAppointment = createAsyncThunk<
         {
           coding: [
             {
-              system: 'http://example.org/appointment-types',
+              system: 'https://example.org/appointment-types',
               code: payload.serviceId,
               display: payload.serviceName,
             },
@@ -147,7 +147,7 @@ export const createAppointment = createAsyncThunk<
             {
               coding: [
                 {
-                  system: 'http://yosemitecrew.com/fhir/specialty',
+                  system: 'https://yosemitecrew.com/fhir/specialty',
                   code: payload.specialityId ?? payload.specialityName,
                   display: payload.specialityName ?? payload.specialityId ?? undefined,
                 },
@@ -324,7 +324,7 @@ const appointmentsSlice = createSlice({
         state.error = (action.payload as string) ?? 'Unable to fetch appointments';
       })
       .addCase(fetchAppointmentById.fulfilled, (state, action) => {
-        upsertAppointment(state, action.payload as Appointment);
+        upsertAppointment(state, action.payload);
       })
       .addCase(createAppointment.pending, state => {
         state.loading = true;
@@ -384,10 +384,10 @@ const appointmentsSlice = createSlice({
         }
       })
       .addCase(rescheduleAppointment.fulfilled, (state, action) => {
-        upsertAppointment(state, action.payload as Appointment);
+        upsertAppointment(state, action.payload);
       })
       .addCase(cancelAppointment.fulfilled, (state, action) => {
-        const canceled = action.payload as Appointment;
+        const canceled = action.payload;
         const normalized: Appointment = {
           ...canceled,
           status: canceled.status ?? 'CANCELLED',

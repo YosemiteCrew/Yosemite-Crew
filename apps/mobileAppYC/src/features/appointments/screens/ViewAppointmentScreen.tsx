@@ -158,6 +158,7 @@ export const ViewAppointmentScreen: React.FC = () => {
                   viewUrl: f.url ?? undefined,
                   downloadUrl: f.url ?? undefined,
                   uri: f.url ?? undefined,
+                  type: f.type ?? undefined,
                 })) as any
               }
               documentTitle="Appointment attachments"

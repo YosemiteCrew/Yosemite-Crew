@@ -1,5 +1,5 @@
 import React, {useMemo, useState, useEffect} from 'react';
-import {ScrollView, View, Text, StyleSheet, Image, Alert} from 'react-native';
+import {ScrollView, View, Text, StyleSheet, Image, Alert, Platform} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -110,42 +110,47 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const {initPaymentSheet, presentPaymentSheet} = useStripe();
   const [presentingSheet, setPresentingSheet] = useState(false);
   const paymentIntent = invoice?.paymentIntent ?? fallbackPaymentIntent ?? null;
-  const baseInvoice: Invoice | null =
-    invoice ??
-    (paymentIntent
-      ? {
-          id: paymentIntent.paymentIntentId ?? `pi-${appointmentId}`,
-          appointmentId,
-          items: [],
-          subtotal: paymentIntent.amount ?? 0,
-          total: paymentIntent.amount ?? 0,
-          currency: paymentIntent.currency ?? 'USD',
-          paymentIntent,
-          invoiceNumber: paymentIntent.paymentIntentId,
-          status: 'AWAITING_PAYMENT',
-        }
-      : null);
-  const intentCreatedAt = (paymentIntent as any)?.createdAt;
-  const intentDateISO =
-    intentCreatedAt != null
+
+  const buildEffectiveInvoice = (): Invoice | null => {
+    const baseInvoice: Invoice | null =
+      invoice ??
+      (paymentIntent
+        ? {
+            id: paymentIntent.paymentIntentId ?? `pi-${appointmentId}`,
+            appointmentId,
+            items: [],
+            subtotal: paymentIntent.amount ?? 0,
+            total: paymentIntent.amount ?? 0,
+            currency: paymentIntent.currency ?? 'USD',
+            paymentIntent,
+            invoiceNumber: paymentIntent.paymentIntentId,
+            status: 'AWAITING_PAYMENT',
+          }
+        : null);
+    if (!baseInvoice) return null;
+
+    const intentCreatedAt = (paymentIntent as any)?.createdAt;
+    const intentDateISO = intentCreatedAt
       ? new Date(intentCreatedAt).toISOString()
       : new Date().toISOString();
-  const invoiceDateISO = baseInvoice?.invoiceDate ?? intentDateISO;
-  const dueDateISO =
-    baseInvoice?.dueDate ??
-    new Date(new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000).toISOString();
-  const effectiveInvoice: Invoice | null = baseInvoice
-    ? {
-        ...baseInvoice,
-        invoiceDate: invoiceDateISO,
-        dueDate: dueDateISO,
-        invoiceNumber:
-          baseInvoice.invoiceNumber ??
-          paymentIntent?.paymentIntentId ??
-          baseInvoice.id ??
-          appointmentId,
-      }
-    : null;
+    const invoiceDateISO = baseInvoice.invoiceDate ?? intentDateISO;
+    const dueDateISO =
+      baseInvoice.dueDate ??
+      new Date(new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+    return {
+      ...baseInvoice,
+      invoiceDate: invoiceDateISO,
+      dueDate: dueDateISO,
+      invoiceNumber:
+        baseInvoice.invoiceNumber ??
+        paymentIntent?.paymentIntentId ??
+        baseInvoice.id ??
+        appointmentId,
+    };
+  };
+
+  const effectiveInvoice = buildEffectiveInvoice();
   const hasPaymentData = effectiveInvoice || paymentIntent;
 
   useEffect(() => {
@@ -179,9 +184,22 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
   const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
   const subtotal = effectiveInvoice?.subtotal ?? 0;
-  const discountAmount =
-    effectiveInvoice?.discountPercent != null ? (effectiveInvoice.discountPercent / 100) * subtotal : 0;
-  const taxAmount = effectiveInvoice?.taxPercent != null ? (effectiveInvoice.taxPercent / 100) * subtotal : 0;
+  const getDiscountAmount = (): number => {
+    if (effectiveInvoice?.discountPercent) {
+      return (effectiveInvoice.discountPercent / 100) * subtotal;
+    }
+    return 0;
+  };
+
+  const getTaxAmount = (): number => {
+    if (effectiveInvoice?.taxPercent) {
+      return (effectiveInvoice.taxPercent / 100) * subtotal;
+    }
+    return 0;
+  };
+
+  const discountAmount = getDiscountAmount();
+  const taxAmount = getTaxAmount();
   const total = effectiveInvoice?.total ?? subtotal - discountAmount + taxAmount;
   const shouldShowPay = !!clientSecret;
   const invoiceNumberDisplay =
@@ -202,12 +220,17 @@ export const PaymentInvoiceScreen: React.FC = () => {
       merchantDisplayName: business?.name ?? 'Yosemite Crew',
       defaultBillingDetails: {
         name: guardianName,
-        email: guardianEmail !== '—' ? guardianEmail : undefined,
+        email: guardianEmail === '—' ? undefined : guardianEmail,
       },
       customFlow: false, // explicit to avoid native crash when key is missing
     };
     if (STRIPE_CONFIG.urlScheme) {
       opts.returnURL = `${STRIPE_CONFIG.urlScheme}://stripe-redirect`;
+    }
+    if (Platform.OS === 'ios' && STRIPE_CONFIG.merchantIdentifier) {
+      opts.applePay = {
+        merchantCountryCode: 'US',
+      };
     }
     return opts;
   };
@@ -234,6 +257,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
       }
     } catch (err) {
       setPresentingSheet(false);
+      console.warn('[Payment] Error presenting payment sheet:', err);
       Alert.alert('Payment failed', 'Unable to present the payment sheet. Please try again.');
       return;
     }

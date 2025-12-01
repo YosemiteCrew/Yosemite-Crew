@@ -27,6 +27,117 @@ const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
+const getDistanceText = (business: VetBusiness): string | undefined => {
+  if (business.distanceMi != null) {
+    return `${business.distanceMi.toFixed(1)}mi`;
+  }
+  if (business.distanceMeters != null) {
+    return `${(business.distanceMeters / 1609.344).toFixed(1)}mi`;
+  }
+  return undefined;
+};
+
+const getRatingText = (business: VetBusiness): string | undefined => {
+  if (business.rating != null) {
+    return `${business.rating}`;
+  }
+  return undefined;
+};
+
+interface BusinessCardProps {
+  business: VetBusiness;
+  navigation: Nav;
+  resolveDescription: (b: VetBusiness) => string;
+  compact?: boolean;
+}
+
+const BusinessCardRenderer: React.FC<BusinessCardProps> = ({business, navigation, resolveDescription, compact}) => (
+  <BusinessCard
+    key={business.id}
+    name={business.name}
+    openText={business.openHours}
+    description={resolveDescription(business)}
+    distanceText={getDistanceText(business)}
+    ratingText={getRatingText(business)}
+    photo={business.photo}
+    onBook={() => navigation.navigate('BusinessDetails', {businessId: business.id})}
+    compact={compact}
+  />
+);
+
+interface CategoryBusinessesProps {
+  businesses: VetBusiness[];
+  navigation: Nav;
+  resolveDescription: (b: VetBusiness) => string;
+}
+
+const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navigation, resolveDescription}) => (
+  <>
+    {businesses.map(b => (
+      <BusinessCardRenderer
+        key={b.id}
+        business={b}
+        navigation={navigation}
+        resolveDescription={resolveDescription}
+      />
+    ))}
+  </>
+);
+
+interface AllCategoriesViewProps {
+  allCategories: readonly string[];
+  businesses: VetBusiness[];
+  query: string;
+  resolveDescription: (b: VetBusiness) => string;
+  navigation: Nav;
+  styles: any;
+}
+
+const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, query, resolveDescription, navigation, styles}) => (
+  <>
+    {allCategories.map(cat => {
+      const items = businesses.filter(x => x.category === cat && x.name.toLowerCase().includes(query.toLowerCase()));
+      if (items.length === 0) return null;
+      return (
+        <View key={cat} style={styles.sectionWrapper}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeader}>{CATEGORIES.find(c => c.id === cat)?.label}</Text>
+            <View style={styles.sectionHeaderRight}>
+              <Text style={styles.sectionCount}>{items.length} Near You</Text>
+              {items.length > 1 && (
+                <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('BusinessesList', {category: cat as BusinessCategory})}>
+                  <Text style={styles.viewMore}>View more</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          {items.length === 1 ? (
+            <View style={styles.singleCardWrapper}>
+              <BusinessCardRenderer
+                business={items[0]}
+                navigation={navigation}
+                resolveDescription={resolveDescription}
+              />
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {items.map(b => (
+                <BusinessCardRenderer
+                  key={b.id}
+                  business={b}
+                  navigation={navigation}
+                  resolveDescription={resolveDescription}
+                  compact
+                />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      );
+    })}
+  </>
+);
+
 export const BrowseBusinessesScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -99,87 +210,20 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
         <View style={styles.resultsWrapper}>
           {category ? (
-            businesses
-              .filter(b => b.name.toLowerCase().includes(query.toLowerCase()))
-              .map(b => (
-              <BusinessCard
-                key={b.id}
-                name={b.name}
-                openText={b.openHours}
-                description={resolveDescription(b)}
-                distanceText={
-                  b.distanceMi != null
-                    ? `${b.distanceMi.toFixed(1)}mi`
-                    : b.distanceMeters != null
-                      ? `${(b.distanceMeters / 1609.344).toFixed(1)}mi`
-                      : undefined
-                }
-                ratingText={b.rating != null ? `${b.rating}` : undefined}
-                photo={b.photo}
-                onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
-              />
-            ))
+            <CategoryBusinesses
+              businesses={businesses.filter(b => b.name.toLowerCase().includes(query.toLowerCase()))}
+              navigation={navigation}
+              resolveDescription={resolveDescription}
+            />
           ) : (
-            allCategories.map(cat => {
-              const items = businesses.filter(x => x.category === cat && x.name.toLowerCase().includes(query.toLowerCase()));
-              if (!items.length) return null;
-              return (
-                <View key={cat} style={styles.sectionWrapper}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionHeader}>{CATEGORIES.find(c => c.id === cat)?.label}</Text>
-                    <View style={styles.sectionHeaderRight}>
-                      <Text style={styles.sectionCount}>{items.length} Near You</Text>
-                      {items.length > 1 && (
-                        <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('BusinessesList', {category: cat})}>
-                          <Text style={styles.viewMore}>View more</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                  {items.length === 1 ? (
-                    <View style={styles.singleCardWrapper}>
-                      <BusinessCard
-                        name={items[0].name}
-                        openText={items[0].openHours}
-                        description={resolveDescription(items[0])}
-                        distanceText={
-                          items[0].distanceMi != null
-                            ? `${items[0].distanceMi.toFixed(1)}mi`
-                            : items[0].distanceMeters != null
-                              ? `${(items[0].distanceMeters / 1609.344).toFixed(1)}mi`
-                              : undefined
-                        }
-                        ratingText={items[0].rating != null ? `${items[0].rating}` : undefined}
-                        photo={items[0].photo}
-                        onBook={() => navigation.navigate('BusinessDetails', {businessId: items[0].id})}
-                      />
-                    </View>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-                      {items.map(b => (
-                        <BusinessCard
-                          key={b.id}
-                          name={b.name}
-                          openText={b.openHours}
-                          description={resolveDescription(b)}
-                          distanceText={
-                            b.distanceMi != null
-                              ? `${b.distanceMi.toFixed(1)}mi`
-                              : b.distanceMeters != null
-                                ? `${(b.distanceMeters / 1609.344).toFixed(1)}mi`
-                                : undefined
-                          }
-                          ratingText={b.rating != null ? `${b.rating}` : undefined}
-                          photo={b.photo}
-                          onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
-                          compact
-                        />
-                      ))}
-                    </ScrollView>
-                  )}
-                </View>
-              );
-            })
+            <AllCategoriesView
+              allCategories={allCategories}
+              businesses={businesses}
+              query={query}
+              resolveDescription={resolveDescription}
+              navigation={navigation}
+              styles={styles}
+            />
           )}
         </View>
       </ScrollView>

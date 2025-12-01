@@ -41,11 +41,17 @@ export interface StreamChatConfig {
 
 export interface StripeConfig {
   publishableKey: string;
+  merchantIdentifier?: string;
   urlScheme?: string;
 }
 
 export interface AuthFeatureFlags {
   enableReviewLogin: boolean;
+}
+
+export interface DemoLoginConfig {
+  email?: string;
+  password?: string;
 }
 
 // Default/test configuration (safe for CI/CD)
@@ -76,11 +82,17 @@ const DEFAULT_STREAM_CHAT_CONFIG: StreamChatConfig = {
 
 const DEFAULT_STRIPE_CONFIG: StripeConfig = {
   publishableKey: '',
+  merchantIdentifier: 'merchant.com.yosemitecrew',
   urlScheme: 'yosemitecrew',
 };
 
 const DEFAULT_AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
   enableReviewLogin: true,
+};
+
+const DEFAULT_DEMO_LOGIN_CONFIG: DemoLoginConfig = {
+  email: '',
+  password: '',
 };
 
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
@@ -89,6 +101,7 @@ let apiOverrides: Partial<ApiConfig> | undefined;
 let streamChatOverrides: Partial<StreamChatConfig> | undefined;
 let stripeOverrides: Partial<StripeConfig> | undefined;
 let authFlagsOverrides: Partial<AuthFeatureFlags> | undefined;
+let demoLoginOverrides: Partial<DemoLoginConfig> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
@@ -124,6 +137,9 @@ try {
   }
   if (localConfig.AUTH_FEATURE_FLAGS) {
     authFlagsOverrides = localConfig.AUTH_FEATURE_FLAGS;
+  }
+  if (localConfig.DEMO_LOGIN_CONFIG) {
+    demoLoginOverrides = localConfig.DEMO_LOGIN_CONFIG;
   }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
@@ -167,6 +183,11 @@ export const STRIPE_CONFIG: StripeConfig = {
 export const AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
   ...DEFAULT_AUTH_FEATURE_FLAGS,
   ...authFlagsOverrides,
+};
+
+export const DEMO_LOGIN_CONFIG: DemoLoginConfig = {
+  ...DEFAULT_DEMO_LOGIN_CONFIG,
+  ...demoLoginOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

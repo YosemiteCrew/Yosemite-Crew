@@ -4,13 +4,13 @@ import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
+import {useTheme} from '@/hooks';
+import {useDocumentUpload} from '@/shared/hooks/useDocumentUpload';
 import type {RootState, AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
 import {createAppointment} from '@/features/appointments/appointmentsSlice';
-import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {DocumentUploadSheets} from '@/features/appointments/components/DocumentUploadSheets';
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
 import {
   useNavigation,
@@ -117,7 +117,7 @@ export const BookingFormScreen: React.FC = () => {
       }
       if (file.key) {
         const parts = file.key.split('/').filter(Boolean);
-        const last = parts[parts.length - 1];
+        const last = parts.at(-1);
         if (last) {
           return last;
         }
@@ -139,23 +139,19 @@ export const BookingFormScreen: React.FC = () => {
     }
   }, [companions, dispatch, selectedCompanionId]);
 
-  const {refs, openSheet, closeSheet} = useFormBottomSheets();
-  const {uploadSheetRef, deleteSheetRef} = refs;
-
   const {
+    refs: {uploadSheetRef, deleteSheetRef},
     fileToDelete,
     handleTakePhoto,
     handleChooseFromGallery,
     handleUploadFromDrive,
     handleRemoveFile,
     confirmDeleteFile,
-  } = useFileOperations({
-    files,
-    setFiles,
-    clearError: () => {},
     openSheet,
     closeSheet,
-    deleteSheetRef,
+  } = useDocumentUpload({
+    files,
+    setFiles,
   });
 
   const typeLocked = Boolean(presetSpecialtyLabel);
@@ -182,6 +178,39 @@ export const BookingFormScreen: React.FC = () => {
   const valid = !!(selectedCompanionId && date && time && agreeApp && agreeBusiness && selectedServiceName);
   const [submitting, setSubmitting] = useState(false);
 
+  const validateBookingInputs = (): boolean => {
+    if (valid && time && selectedCompanionId && selectedServiceName) {
+      return true;
+    }
+    const missing: string[] = [];
+    if (!selectedCompanionId) missing.push('companion');
+    if (!date) missing.push('date');
+    if (!time) missing.push('time slot');
+    if (!selectedServiceName) missing.push('service');
+    if (!agreeBusiness || !agreeApp) missing.push('agreements');
+    Alert.alert(
+      'Complete booking details',
+      `Please select ${missing.join(', ')} to continue.`,
+    );
+    return false;
+  };
+
+  const prepareAttachments = async (companionId: string): Promise<Array<{key: string; name?: string | null; contentType?: string | null}>> => {
+    if (!files.length) {
+      return [];
+    }
+    const uploaded = await dispatch(
+      uploadDocumentFiles({files, companionId}),
+    ).unwrap();
+    return uploaded
+      .filter(f => f.key)
+      .map(f => ({
+        key: f.key as string,
+        name: resolveAttachmentName(f),
+        contentType: f.type ?? null,
+      }));
+  };
+
   const handleBook = async () => {
     console.log('[Booking] Attempting to book', {
       selectedCompanionId,
@@ -193,17 +222,7 @@ export const BookingFormScreen: React.FC = () => {
       agreeApp,
       selectedServiceName,
     });
-    if (!valid || !time || !selectedCompanionId || !selectedServiceName) {
-      const missing: string[] = [];
-      if (!selectedCompanionId) missing.push('companion');
-      if (!date) missing.push('date');
-      if (!time) missing.push('time slot');
-      if (!selectedServiceName) missing.push('service');
-      if (!agreeBusiness || !agreeApp) missing.push('agreements');
-      Alert.alert(
-        'Complete booking details',
-        `Please select ${missing.join(', ')} to continue.`,
-      );
+    if (!validateBookingInputs()) {
       return;
     }
     const resolvedServiceId = effectiveServiceId;
@@ -214,32 +233,19 @@ export const BookingFormScreen: React.FC = () => {
     setSubmitting(true);
     try {
       const {startTime, endTime} = parseSlotLabel(time);
-      let attachments: Array<{key: string; name?: string | null; contentType?: string | null}> =
-        [];
-      if (files.length && selectedCompanionId) {
-        const uploaded = await dispatch(
-          uploadDocumentFiles({files, companionId: selectedCompanionId}),
-        ).unwrap();
-        attachments = uploaded
-          .filter(f => f.key)
-          .map(f => ({
-            key: f.key as string,
-            name: resolveAttachmentName(f),
-            contentType: f.type ?? null,
-          }));
-      }
+      const attachments = await prepareAttachments(selectedCompanionId!);
 
       const action = await dispatch(
         createAppointment({
-          companionId: selectedCompanionId,
+          companionId: selectedCompanionId!,
           businessId,
           serviceId: resolvedServiceId,
-          serviceName: selectedServiceName,
+          serviceName: selectedServiceName!,
           specialityId: selectedService?.specialityId ?? serviceSpecialtyId ?? null,
           specialityName: serviceSpecialty ?? selectedService?.specialty ?? type,
           date,
-          startTime: startTime ?? time,
-          endTime: endTime ?? startTime ?? time,
+          startTime: startTime ?? time!,
+          endTime: endTime ?? startTime ?? time!,
           concern,
           emergency,
           attachments,
@@ -377,30 +383,16 @@ export const BookingFormScreen: React.FC = () => {
         />
 
       </ScrollView>
-      <UploadDocumentBottomSheet
-        ref={uploadSheetRef}
-        onTakePhoto={() => {
-          handleTakePhoto();
-          closeSheet();
-        }}
-        onChooseGallery={() => {
-          handleChooseFromGallery();
-          closeSheet();
-        }}
-        onUploadDrive={() => {
-          handleUploadFromDrive();
-          closeSheet();
-        }}
-      />
-
-      <DeleteDocumentBottomSheet
-        ref={deleteSheetRef}
-        documentTitle={
-          fileToDelete
-            ? files.find(f => f.id === fileToDelete)?.name
-            : 'this file'
-        }
-        onDelete={confirmDeleteFile}
+      <DocumentUploadSheets
+        uploadSheetRef={uploadSheetRef}
+        deleteSheetRef={deleteSheetRef}
+        fileToDelete={fileToDelete}
+        files={files}
+        onTakePhoto={handleTakePhoto}
+        onChooseGallery={handleChooseFromGallery}
+        onUploadDrive={handleUploadFromDrive}
+        confirmDeleteFile={confirmDeleteFile}
+        closeSheet={closeSheet}
       />
     </SafeArea>
   );

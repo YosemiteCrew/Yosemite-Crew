@@ -94,7 +94,7 @@ export interface Appointment {
   type: string;
   concern?: string;
   emergency?: boolean;
-  uploadedFiles?: {id: string; name: string; key?: string; url?: string}[];
+  uploadedFiles?: {id: string; name: string; key?: string; url?: string; type?: string | null}[];
   status: AppointmentStatus;
   invoiceId?: string;
   species?: string | null;

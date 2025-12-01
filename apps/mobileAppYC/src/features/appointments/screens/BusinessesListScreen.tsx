@@ -30,11 +30,21 @@ export const BusinessesListScreen: React.FC = () => {
     }
   }, [businesses.length, dispatch]);
 
+  const getDistanceText = (business: (typeof businesses)[number]): string | undefined => {
+    if (business.distanceMi !== null && business.distanceMi !== undefined) {
+      return `${business.distanceMi.toFixed(1)}mi`;
+    }
+    if (business.distanceMeters !== null && business.distanceMeters !== undefined) {
+      return `${(business.distanceMeters / 1609.344).toFixed(1)}mi`;
+    }
+    return undefined;
+  };
+
   const resolveDescription = (biz: (typeof businesses)[number]) => {
-    if (biz.description && biz.description.trim().length > 0) {
+    if (biz.description?.trim()) {
       return biz.description.trim();
     }
-    if (biz.specialties && biz.specialties.length > 0) {
+    if (biz.specialties?.length) {
       return biz.specialties.slice(0, 3).join(', ');
     }
     return `${biz.name} located at ${biz.address}`;
@@ -52,8 +62,8 @@ export const BusinessesListScreen: React.FC = () => {
             name={b.name}
             openText={b.openHours}
             description={resolveDescription(b)}
-            distanceText={b.distanceMi != null ? `${b.distanceMi.toFixed(1)}mi` : undefined}
-            ratingText={b.rating != null ? `${b.rating}` : undefined}
+            distanceText={getDistanceText(b)}
+            ratingText={b.rating ? `${b.rating}` : undefined}
             photo={b.photo}
             onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
           />

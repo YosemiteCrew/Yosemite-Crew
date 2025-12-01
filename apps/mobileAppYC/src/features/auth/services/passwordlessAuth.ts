@@ -13,9 +13,10 @@ import {
 import {AuthError} from 'aws-amplify/auth';
 import type {ProfileStatus} from '@/features/account/services/profileService';
 import {syncAuthUser} from '@/features/auth/services/authUserService';
+import {AUTH_FEATURE_FLAGS, DEMO_LOGIN_CONFIG} from '@/config/variables';
 
-export const DEMO_LOGIN_EMAIL = 'test@yosemitecrew.com';
-export const DEMO_LOGIN_PASSWORD = 'Test@YosemiteCrew@1234';
+export const DEMO_LOGIN_EMAIL = (DEMO_LOGIN_CONFIG.email ?? '').trim().toLowerCase();
+export const DEMO_LOGIN_PASSWORD = DEMO_LOGIN_CONFIG.password ?? '';
 const DEFAULT_OTP_LENGTH = 4;
 
 export type PasswordlessSignInRequestResult = {
@@ -81,10 +82,11 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const ensureUserRegistration = async (username: string): Promise<boolean> => {
   try {
     console.log('[Auth] ensureUserRegistration signUp attempt', { username });
-    const isDemoLogin = username === DEMO_LOGIN_EMAIL;
+    const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
+    const isDemoLogin = allowReviewLogin && DEMO_LOGIN_EMAIL.length > 0 && username === DEMO_LOGIN_EMAIL;
     await signUp({
       username,
-      password: isDemoLogin ? DEMO_LOGIN_PASSWORD : randomPassword(),
+      password: isDemoLogin && DEMO_LOGIN_PASSWORD ? DEMO_LOGIN_PASSWORD : randomPassword(),
       options: {
         userAttributes: {
           email: username,
@@ -178,7 +180,9 @@ export const requestPasswordlessEmailCode = async (
   const username = normalizeEmail(email);
   console.log('[Auth] requestPasswordlessEmailCode normalized email', { email, username });
   let isNewUser = false;
-  const isDemoLogin = username === DEMO_LOGIN_EMAIL;
+  const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
+  const isDemoLogin =
+    allowReviewLogin && DEMO_LOGIN_EMAIL.length > 0 && username === DEMO_LOGIN_EMAIL;
 
   // First, ensure we sign out any existing session
   try {

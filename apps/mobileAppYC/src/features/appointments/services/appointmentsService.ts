@@ -2,6 +2,7 @@ import {Platform} from 'react-native';
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
 import {API_CONFIG} from '@/config/variables';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
+import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 import type {
   Appointment,
   AppointmentStatus,
@@ -65,7 +66,7 @@ const parseParticipant = (participants: any[], prefix: string) => {
 const extractExtensionValue = (
   extensions: any[] | undefined,
   matcher: (ext: any) => boolean,
-): any | null => {
+): Record<string, any> | null => {
   if (!Array.isArray(extensions)) {
     return null;
   }
@@ -89,7 +90,7 @@ const parseAttachments = (extensions: any[] | undefined) => {
     return [];
   }
 
-  const attachmentGroups = (attachmentExt.extension as any[]).reduce<Record<string, any>>(
+  const attachmentGroups = attachmentExt.extension.reduce<Record<string, any>>(
     (acc: Record<string, any>, ext: any) => {
       const key = ext?.url ?? '';
       if (!acc[key]) {
@@ -117,6 +118,7 @@ const parseAttachments = (extensions: any[] | undefined) => {
       name: item.name || `Attachment ${index + 1}`,
       key: item.key,
       url: item.url || item.valueUrl || buildCdnUrlFromKey(item.key) || null,
+      type: item.contentType ?? null,
     }))
     .filter(att => att.name || att.key);
 };
@@ -179,30 +181,14 @@ const buildAddressString = (raw: any): string => {
   return parts.join(', ');
 };
 
-const CDN_BASE = 'https://d2kyjiikho62xx.cloudfront.net/';
-
-const stripSlashes = (value: string): string => {
-  let start = 0;
-  let end = value.length;
-
-  while (start < end && value[start] === '/') {
-    start += 1;
+const extractArrayFromResponse = (data: any): any[] => {
+  if (Array.isArray(data)) {
+    return data;
   }
-
-  while (end > start && value[end - 1] === '/') {
-    end -= 1;
+  if (Array.isArray(data?.data)) {
+    return data.data;
   }
-
-  return value.slice(start, end);
-};
-
-const buildCdnUrlFromKey = (key?: string | null): string | null => {
-  if (!key) {
-    return null;
-  }
-  const normalizedKey = stripSlashes(key);
-  const base = CDN_BASE.endsWith('/') ? CDN_BASE.slice(0, -1) : CDN_BASE;
-  return `${base}/${normalizedKey}`;
+  return [];
 };
 
 const mapAppointmentResource = (resource: any): Appointment => {
@@ -228,11 +214,11 @@ const mapAppointmentResource = (resource: any): Appointment => {
   const speciesExt = extractExtensionValue(
     resource?.extension,
     (ext: any) =>
-      ext?.id === 'species' || ext?.url === 'http://hl7.org/fhir/animal-species',
+      ext?.id === 'species' || ext?.url === 'https://hl7.org/fhir/animal-species',
   );
   const breedExt = extractExtensionValue(
     resource?.extension,
-    (ext: any) => ext?.id === 'breed' || ext?.url === 'http://hl7.org/fhir/animal-breed',
+    (ext: any) => ext?.id === 'breed' || ext?.url === 'https://hl7.org/fhir/animal-breed',
   );
 
   return {
@@ -319,10 +305,9 @@ const mapInvoiceFromApi = (
 
   const invoiceCreatedAt: string | undefined =
     raw.invoiceDate ?? raw.createdAt ?? raw.paymentIntent?.createdAt;
-  const dueTill =
-    invoiceCreatedAt != null
-      ? new Date(new Date(invoiceCreatedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
-      : raw.dueDate;
+  const dueTill = invoiceCreatedAt
+    ? new Date(new Date(invoiceCreatedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
+    : raw.dueDate;
 
   const invoice: Invoice = {
     id: raw.id ?? raw._id ?? raw.invoiceId ?? `invoice-${Date.now()}`,
@@ -363,8 +348,8 @@ const mapBusinessFromApi = (
       org?.organisationType ??
       org?.typeCode,
   );
-  const addressObj = Array.isArray(org?.address) ? org.address[0] : org?.address;
-  const distanceMi = distanceMeters != null ? distanceMeters / 1609.344 : undefined;
+  const addressObj = Array.isArray(org?.address) ? org.address.at(0) : org?.address;
+  const distanceMi = distanceMeters ? distanceMeters / 1609.344 : undefined;
   const photo =
     org?.imageURL ??
     org?.imageUrl ??
@@ -372,11 +357,11 @@ const mapBusinessFromApi = (
     org?.photo ??
     org?.extension?.find?.(
       (ext: any) =>
-        ext?.url === 'http://example.org/fhir/StructureDefinition/organisation-image',
+        ext?.url === 'https://example.org/fhir/StructureDefinition/organisation-image',
     )?.valueUrl ??
     org?.extension?.find?.(
       (ext: any) =>
-        ext?.url === 'http://example.org/fhir/StructureDefinition/organisation-image',
+        ext?.url === 'https://example.org/fhir/StructureDefinition/organisation-image',
     )?.valueUrl;
 
   const specialities =
@@ -511,7 +496,7 @@ export const appointmentApi = {
     );
     const config = accessToken ? {headers: withAuthHeaders(accessToken)} : undefined;
     const {data} = await apiClient.get(url, config);
-    const items = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    const items = extractArrayFromResponse(data);
     const mapped: Array<{business: VetBusiness; services: VetService[]}> =
       items.map(mapBusinessFromApi);
     return {

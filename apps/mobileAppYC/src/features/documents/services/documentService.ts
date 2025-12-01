@@ -3,33 +3,7 @@ import {uploadFileToPresignedUrl} from '@/shared/services/uploadService';
 import {generateId} from '@/shared/utils/helpers';
 import type {Document, DocumentFile} from '@/features/documents/types';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
-
-const CDN_BASE = 'https://d2kyjiikho62xx.cloudfront.net/';
-
-const stripSlashes = (value: string): string => {
-  let start = 0;
-  let end = value.length;
-
-  while (start < end && value[start] === '/') {
-    start += 1;
-  }
-
-  while (end > start && value[end - 1] === '/') {
-    end -= 1;
-  }
-
-  return value.slice(start, end);
-};
-
-const buildCdnUrlFromKey = (key?: string | null): string | null => {
-  if (!key) {
-    return null;
-  }
-
-  const normalizedKey = stripSlashes(key);
-  const base = CDN_BASE.endsWith('/') ? CDN_BASE.slice(0, -1) : CDN_BASE;
-  return `${base}/${normalizedKey}`;
-};
+import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 
 const CATEGORY_ALIASES: Record<string, string> = {
   hygiene: 'hygiene-maintenance',

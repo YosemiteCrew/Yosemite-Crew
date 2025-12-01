@@ -132,25 +132,62 @@ const buildUserPayload = (
   return mergeUserWithParentProfile(baseUser, completion.profile.parent);
 };
 
-  const verifyOtpCode = async (code: string) => {
-    if (cancellationRef.current) {
-      return;
-    }
+  const validateCode = (code: string): boolean => {
     const trimmed = code.trim();
     if (isDemoLogin && trimmed.length === 0) {
       setOtpError('Please enter the review password to continue.');
-      return;
+      return false;
     }
-
     if (!isDemoLogin && trimmed.length !== expectedLength) {
       setOtpError(`Please enter the ${expectedLength}-digit code.`);
+      return false;
+    }
+    return true;
+  };
+
+  const handleLinkedParent = async (completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>, userPayload: User, tokens: any) => {
+    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+    await login(userPayload, tokens);
+  };
+
+  const handleNewAccount = async (completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>, userPayload: User, tokens: any) => {
+    const createAccountPayload: AuthStackParamList['CreateAccount'] = {
+      email: userPayload.email,
+      userId: userPayload.id,
+      profileToken: completion.profile.profileToken,
+      tokens,
+      initialAttributes: {
+        firstName: userPayload.firstName,
+        lastName: userPayload.lastName,
+        phone: userPayload.phone,
+        dateOfBirth: userPayload.dateOfBirth,
+        profilePicture: userPayload.profilePicture,
+        address: userPayload.address,
+      },
+      hasRemoteProfile: completion.profile.exists,
+      existingParentProfile: completion.profile.parent ?? null,
+      showOtpSuccess: true,
+    };
+    await AsyncStorage.setItem(
+      PENDING_PROFILE_STORAGE_KEY,
+      JSON.stringify(createAccountPayload),
+    );
+    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+    navigation.reset({
+      index: 0,
+      routes: [{name: 'CreateAccount', params: createAccountPayload}],
+    });
+  };
+
+  const verifyOtpCode = async (code: string) => {
+    if (cancellationRef.current || !validateCode(code)) {
       return;
     }
 
     setIsVerifying(true);
-
     try {
-      const completion = await completePasswordlessSignIn(trimmed);
+      const completion = await completePasswordlessSignIn(code.trim());
       if (cancellationRef.current) {
         return;
       }
@@ -159,44 +196,15 @@ const buildUserPayload = (
       const tokens = completion.tokens;
 
       if (completion.parentLinked && completion.profile.parent) {
-        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
-        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-        await login(userPayload, tokens);
+        await handleLinkedParent(completion, userPayload, tokens);
       } else {
-        const createAccountPayload: AuthStackParamList['CreateAccount'] = {
-          email: userPayload.email,
-          userId: userPayload.id,
-          profileToken: completion.profile.profileToken,
-          tokens,
-          initialAttributes: {
-            firstName: userPayload.firstName,
-            lastName: userPayload.lastName,
-            phone: userPayload.phone,
-            dateOfBirth: userPayload.dateOfBirth,
-            profilePicture: userPayload.profilePicture,
-            address: userPayload.address,
-          },
-          hasRemoteProfile: completion.profile.exists,
-          existingParentProfile: completion.profile.parent ?? null,
-          showOtpSuccess: true,
-        };
-        await AsyncStorage.setItem(
-          PENDING_PROFILE_STORAGE_KEY,
-          JSON.stringify(createAccountPayload),
-        );
-        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-        navigation.reset({
-          index: 0,
-          routes: [{name: 'CreateAccount', params: createAccountPayload}],
-        });
+        await handleNewAccount(completion, userPayload, tokens);
       }
     } catch (error) {
       const formatted = formatAuthError(error);
-      if (formatted === 'Unexpected authentication error. Please retry.') {
-        setOtpError('The code you entered is incorrect. Please try again.');
-      } else {
-        setOtpError(formatted);
-      }
+      setOtpError(formatted === 'Unexpected authentication error. Please retry.'
+        ? 'The code you entered is incorrect. Please try again.'
+        : formatted);
     } finally {
       if (!cancellationRef.current) {
         setIsVerifying(false);
@@ -228,6 +236,12 @@ const buildUserPayload = (
         setIsResending(false);
       }
     }
+  };
+
+  const getButtonTitle = (): string => {
+    if (isVerifying) return 'Verifying...';
+    if (isDemoLogin) return 'Sign in with password';
+    return 'Verify code';
   };
 
   const handleGoBack = useCallback(() => {
@@ -343,7 +357,7 @@ const buildUserPayload = (
 
         <View style={styles.bottomSection}>
           <LiquidGlassButton
-            title={isVerifying ? 'Verifying...' : isDemoLogin ? 'Sign in with password' : 'Verify code'}
+            title={getButtonTitle()}
             onPress={handleVerifyCode}
             style={styles.verifyButton}
             textStyle={styles.verifyButtonText}

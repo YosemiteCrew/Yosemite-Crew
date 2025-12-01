@@ -43,7 +43,7 @@ const ensureAccessTokenOptional = async (): Promise<string | null> => {
   }
 };
 
-const DEFAULT_NEARBY = {lat: 23.0, lng: 34.909, page: 1};
+const DEFAULT_NEARBY = {lat: 23, lng: 34.909, page: 1};
 const DEFAULT_SEARCH = {
   serviceName: '',
   lat: 39.7834,
