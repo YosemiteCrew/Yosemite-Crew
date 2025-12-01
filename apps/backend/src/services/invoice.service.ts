@@ -7,7 +7,6 @@ import {
   InvoiceStatus,
   toInvoiceResponseDTO,
 } from "@yosemite-crew/types";
-import logger from "../utils/logger";
 import { Currency } from "@yosemite-crew/fhirtypes";
 import { StripeService } from "./stripe.service";
 

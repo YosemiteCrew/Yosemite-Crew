@@ -65,10 +65,10 @@ export const StripeController = {
 
   async createPaymentIntent(req: Request, res: Response) {
     try {
-      const { invoiceId } = req.params;
+      const { appointmentId } = req.params;
 
       const paymentIntent =
-        await StripeService.createPaymentIntentForInvoice(invoiceId);
+        await StripeService.createPaymentIntentForAppointment(appointmentId);
 
       return res.status(200).json(paymentIntent);
     } catch (err) {

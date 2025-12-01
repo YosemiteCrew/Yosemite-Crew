@@ -4,6 +4,8 @@ import { InvoiceService } from "./invoice.service";
 import logger from "../utils/logger";
 import InvoiceModel from "src/models/invoice";
 import OrganizationModel from "src/models/organization";
+import ServiceModel from "src/models/service";
+import AppointmentModel from "src/models/appointment";
 
 let stripeClient: Stripe | null = null;
 
@@ -76,6 +78,50 @@ export const StripeService = {
 
     return {
       client_secret: accountSession.client_secret,
+    };
+  },
+
+  async createPaymentIntentForAppointment(appointmentId: string) {
+    const stripe = getStripeClient();
+
+    const appointment = await AppointmentModel.findById(appointmentId);
+    if (!appointment) throw new Error("Appointment not found");
+
+    const service = await ServiceModel.findById(appointment.appointmentType?.id);
+    if (!service) throw new Error("Service not found");
+
+    const organisation = await OrganizationModel.findById(
+        appointment.organisationId
+    );
+    if (!organisation?.stripeAccountId)
+        throw new Error("Organisation has no Stripe account");
+
+    const amount = toStripeAmount(service.cost);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: "usd",
+      metadata: {
+        appointmentId,
+        organisationId: appointment.organisationId,
+        parentId: appointment.companion.parent.id,
+        companionId: appointment.companion.id,
+      },
+      transfer_data: {
+        destination: organisation.stripeAccountId,
+      },
+    });
+
+    await AppointmentModel.updateOne(
+      { _id: appointmentId },
+      { stripePaymentIntentId: paymentIntent.id }
+    );
+
+    return {
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
+      amount: service.cost,
+      currency: "usd",
     };
   },
 
@@ -204,55 +250,128 @@ export const StripeService = {
 
   // Payment success handler
   async _handlePaymentSucceeded(pi: Stripe.PaymentIntent) {
-    const invoiceId = pi.metadata?.invoiceId;
-    if (!invoiceId) {
-      logger.error("payment_intent.succeeded missing invoiceId metadata");
+    const appointmentId = pi.metadata?.appointmentId;
+
+    if (!appointmentId) {
+      logger.error("payment_intent.succeeded missing appointmentId metadata");
       return;
     }
 
-    const invoice = await InvoiceModel.findById(invoiceId);
-    if (!invoice) {
-      logger.error(`Invoice not found for id ${invoiceId}`);
+    const appointment = await AppointmentModel.findById(appointmentId);
+    if (!appointment) {
+      logger.error(`Appointment not found for id ${appointmentId}`);
       return;
     }
 
-    // Prevent double-processing
-    if (invoice.status === "PAID") {
-      logger.info(`Invoice ${invoiceId} already marked paid.`);
+    // Already processed?
+    const existingInvoice = await InvoiceModel.findOne({
+      appointmentId,
+      status: "PAID"
+    });
+    
+    if (existingInvoice) {
+      logger.info(`Invoice already created for appointment ${appointmentId}`);
       return;
     }
 
-    // Update Invoice
-    await InvoiceService.markPaid(invoiceId);
+    // Extract charge
+    const charge = pi.latest_charge as Stripe.Charge;
+    if (!charge) {
+      logger.error("payment_intent.succeeded missing charge data");
+      return;
+    }
 
-    // Update appointment (optional: only if tied to invoice)
-    // if (invoice.appointmentId) {
-    //   await AppointmentService.
-    // }
+    const receiptUrl = charge.receipt_url;
 
-    logger.info(`Invoice ${invoiceId} marked PAID`);
+    // Fetch service details for invoice line item
+    const service = await ServiceModel.findById(appointment.appointmentType?.id);
+    if (!service) {
+      logger.error("Service not found for appointment");
+      return;
+    }
+
+    // 💥 CREATE FINAL INTERNAL INVOICE HERE
+    const invoice = await InvoiceModel.create({
+      appointmentId,
+      organisationId: appointment.organisationId,
+      parentId: appointment.companion.parent.id,
+      companionId: appointment.companion.id,
+      currency: pi.currency,
+
+      status: "PAID",
+
+      items: [
+        {
+          description: service.name,
+          quantity: 1,
+          unitPrice: service.cost,
+          total: service.cost,
+        }
+      ],
+
+      subtotal: service.cost,
+      discountTotal: 0,
+      taxTotal: 0,
+      totalAmount: service.cost,
+
+      stripePaymentIntentId: pi.id,
+      stripeChargeId: charge.id,
+      stripeReceiptUrl: receiptUrl,
+    });
+
+    // Update appointment
+    await AppointmentModel.updateOne(
+      { _id: appointmentId },
+      {
+        status: "PAID",
+        invoiceId: invoice._id,
+        stripePaymentIntentId: pi.id,
+        stripeChargeId: charge.id,
+        updatedAt: new Date(),
+      }
+    );
+
+    logger.info(`Appointment ${appointmentId} marked PAID & Invoice created ${invoice.id}`);
   },
 
   //Payment Failed Handler
   async _handlePaymentFailed(pi: Stripe.PaymentIntent) {
-    const invoiceId = pi.metadata?.invoiceId;
-    if (!invoiceId) return;
+    const appointmentId = pi.metadata?.appointmentId;
+    if (!appointmentId) return;
 
-    await InvoiceService.markFailed(invoiceId);
+    const invoice = await InvoiceModel.findOne({ appointmentId });
+    if (!invoice) {
+      logger.warn(`Payment failed for appointment ${appointmentId}, no invoice to update.`);
+      return;
+    }
 
-    logger.warn(`Invoice ${invoiceId} marked FAILED`);
+    await InvoiceModel.updateOne(
+      { _id: invoice._id },
+      { status: "FAILED" }
+    );
+
+    logger.warn(`Invoice ${invoice.id} marked FAILED`);
   },
 
   //Refund Handler
   async _handleRefund(charge: Stripe.Charge) {
-    const invoiceId = charge.metadata?.invoiceId;
-    if (!invoiceId) {
-      logger.error("charge.refunded missing invoiceId metadata");
+    const appointmentId = charge.metadata?.appointmentId;
+    if (!appointmentId) {
+      logger.error("charge.refunded missing appointmentId metadata");
       return;
     }
 
-    await InvoiceService.markRefunded(invoiceId);
+    const invoice = await InvoiceModel.findOne({ appointmentId });
+    if (!invoice) {
+      logger.error(`Refund webhook received but no invoice for appointment ${appointmentId}`);
+      return;
+    }
 
-    logger.warn(`Invoice ${invoiceId} marked REFUNDED`);
-  },
+    await InvoiceModel.updateOne(
+      { _id: invoice._id },
+      { status: "REFUNDED" }
+    );
+
+    logger.warn(`Invoice ${invoice.id} marked REFUNDED`);
+  }
 };

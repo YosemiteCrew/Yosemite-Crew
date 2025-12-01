@@ -237,11 +237,24 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      if (!authUser?.parentId) {
+        return res
+          .status(400)
+          .json({ message: "Parent information missing for user" });
+      }
+
       const { appointmentId } = req.params;
       const { reason } = req.body;
-      const result = await AppointmentService.cancelAppointment(
+      const result = await AppointmentService.cancelAppointmentFromParent(
         appointmentId,
-        reason,
+        authUser.parentId.toString(),
+        reason!,
       );
 
       return res.status(200).json({

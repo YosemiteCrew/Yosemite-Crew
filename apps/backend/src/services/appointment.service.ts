@@ -58,6 +58,7 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
+    attachments: obj.attachments
   };
 };
 
@@ -211,24 +212,23 @@ export const AppointmentService = {
     const persistable = toPersistable(appointment);
     const savedAppointment = await AppointmentModel.create(persistable);
 
-    // Create Invoice (awaiting payment)
     const invoice = await InvoiceService.createDraftForAppointment({
       appointmentId: savedAppointment._id.toString(),
-      parentId: savedAppointment.companion.parent.id,
-      organisationId: savedAppointment.organisationId,
-      companionId: savedAppointment.companion.id,
-      currency: "USD",
+      parentId: appointment.companion.parent.id,
+      companionId: appointment.companion.id,
+      organisationId: appointment.organisationId,
+      currency: "usd",
       items: [
         {
-          description: service.name,
+          description: appointment.appointmentType?.name ?? "Consultation",
           quantity: 1,
           unitPrice: service.cost,
+          discountPercent: service.maxDiscount ?? undefined,
         },
       ],
-      notes: input.concern,
+      notes: appointment.concern,
     });
 
-    // Create Stripe checkout session or payment intent
     const paymentIntent = await StripeService.createPaymentIntentForInvoice(
       invoice._id.toString(),
     );

@@ -12,7 +12,7 @@ router.post(
 );
 
 // Mobile Payment Intent Router
-router.post("/payment-intent/:invoiceId", authorizeCognitoMobile, (req, res) =>
+router.post("/payment-intent/:appointmentId", authorizeCognitoMobile, (req, res) =>
   StripeController.createPaymentIntent(req, res),
 );
 
@@ -38,5 +38,6 @@ router.post(
   authorizeCognito,
   (req, res) => StripeController.createOnboardingLink(req, res),
 );
+
 
 export default router;

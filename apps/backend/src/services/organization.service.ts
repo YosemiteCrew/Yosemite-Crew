@@ -21,7 +21,6 @@ import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
 import SpecialityModel from "src/models/speciality";
 import ServiceModel from "src/models/service";
-import logger from "src/utils/logger";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
