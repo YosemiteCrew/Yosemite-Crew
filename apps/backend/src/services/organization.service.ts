@@ -703,7 +703,7 @@ export const OrganizationService = {
   async listNearbyForAppointmentsPaginated(
     lat: number,
     lng: number,
-    radius = 5000,
+    radius = 50000,
     page = 1,
     limit = 10,
   ) {
@@ -730,6 +730,7 @@ export const OrganizationService = {
         phoneNo: 1,
         type: 1,
         address: 1,
+        googlePlacesId: 1,
       }
     )
       .skip(skip)
