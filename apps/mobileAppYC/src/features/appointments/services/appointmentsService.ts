@@ -208,7 +208,6 @@ const buildCdnUrlFromKey = (key?: string | null): string | null => {
 const mapAppointmentResource = (resource: any): Appointment => {
   const participants = Array.isArray(resource?.participant) ? resource.participant : [];
   const patient = parseParticipant(participants, 'Patient/');
-  const relatedPerson = parseParticipant(participants, 'RelatedPerson/');
   const practitioner = parseParticipant(participants, 'Practitioner/');
   const organisation = parseParticipant(participants, 'Organization/');
 

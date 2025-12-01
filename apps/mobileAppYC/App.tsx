@@ -93,7 +93,6 @@ function App(): React.JSX.Element {
               <NotificationBootstrap onNavigate={handleNotificationNavigation}>
                 <StripeProvider
                   publishableKey={STRIPE_CONFIG.publishableKey}
-                  merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
                   urlScheme={STRIPE_CONFIG.urlScheme}
                 >
                   <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>

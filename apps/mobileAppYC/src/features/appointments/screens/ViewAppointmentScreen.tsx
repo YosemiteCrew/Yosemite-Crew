@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo} from 'react';
-import {ScrollView, View, Text, StyleSheet, Linking, TouchableOpacity} from 'react-native';
+import {ScrollView, View, Text, StyleSheet} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -77,11 +77,6 @@ export const ViewAppointmentScreen: React.FC = () => {
     }
   };
 
-  const handleOpenAttachment = (url?: string | null) => {
-    if (!url) return;
-    Linking.openURL(url).catch(err => console.warn('Failed to open attachment', err));
-  };
-
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case 'NO_PAYMENT':
@@ -107,7 +102,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const statusInfo = getStatusDisplay(apt.status);
 
-  const handleCancelAppointment = React.useCallback(async () => {
+  const handleCancelAppointment = async () => {
     try {
       await dispatch(cancelAppointment({appointmentId})).unwrap();
       if (apt?.companionId) {
@@ -117,7 +112,7 @@ export const ViewAppointmentScreen: React.FC = () => {
     } catch (error) {
       console.warn('[Appointment] Cancel failed', error);
     }
-  }, [apt?.companionId, appointmentId, dispatch, navigation]);
+  };
 
   return (
     <SafeArea>

@@ -120,12 +120,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasTasksHydrated = useSelector(
     selectHasHydratedTasksCompanion(selectedCompanionIdRedux ?? null),
   );
-  const hasAppointmentsHydrated = useSelector(
-    (state: RootState) =>
-      selectedCompanionIdRedux
-        ? state.appointments.hydratedCompanions[selectedCompanionIdRedux]
-        : false,
-  );
   const nextUpcomingTask = useSelector(
     selectNextUpcomingTask(selectedCompanionIdRedux ?? null),
   );

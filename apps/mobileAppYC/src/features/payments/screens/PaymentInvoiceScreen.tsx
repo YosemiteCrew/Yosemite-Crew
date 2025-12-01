@@ -16,21 +16,6 @@ import {Images} from '@/assets/images';
 import type {InvoiceItem, Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {useStripe} from '@stripe/stripe-react-native';
-import {STRIPE_CONFIG} from '@/config/variables';
-
-const formatDate = (iso?: string) => {
-  if (!iso) return '—';
-  const timestamp = Date.parse(iso);
-  if (Number.isNaN(timestamp)) {
-    return '—';
-  }
-
-  return new Date(timestamp).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -47,27 +32,27 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
-  const {appointmentId, companionId, invoice: routeInvoice, paymentIntent: routeIntent} = route.params as {
+  const routeParams = (route.params ?? {}) as {
     appointmentId?: string;
     companionId?: string;
     invoice?: Invoice | null;
     paymentIntent?: PaymentIntentInfo | null;
   };
+  const appointmentId = routeParams.appointmentId ?? '';
+  const companionId = routeParams.companionId;
+  const routeInvoice = routeParams.invoice;
+  const routeIntent = routeParams.paymentIntent;
 
-  // Bail out early if route params are missing (prevents crash)
-  if (!appointmentId) {
-    Alert.alert('Missing data', 'Could not open payment screen without an appointment.');
-    navigation.goBack();
-    return null;
-  }
-  const invoiceFromStore = useSelector(selectInvoiceForAppointment(appointmentId));
+  const invoiceFromStore = useSelector(
+    appointmentId ? selectInvoiceForAppointment(appointmentId) : () => null,
+  );
   const invoice = invoiceFromStore ?? routeInvoice ?? null;
   const fallbackPaymentIntent = routeIntent ?? routeInvoice?.paymentIntent ?? null;
   const apt = useSelector((s: RootState) =>
-    s.appointments.items.find(a => a.id === appointmentId),
+    appointmentId ? s.appointments.items.find(a => a.id === appointmentId) : undefined,
   );
   const business = useSelector((s: RootState) =>
-    s.businesses.businesses.find(b => b.id === apt?.businessId),
+    apt?.businessId ? s.businesses.businesses.find(b => b.id === apt.businessId) : undefined,
   );
   const service = useSelector((s: RootState) =>
     apt?.serviceId
@@ -163,6 +148,11 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const hasPaymentData = effectiveInvoice || paymentIntent;
 
   useEffect(() => {
+    if (!appointmentId) {
+      Alert.alert('Missing data', 'Could not open payment screen without an appointment.');
+      navigation.goBack();
+      return;
+    }
     if (!hasPaymentData) {
       Alert.alert(
         'Payment unavailable',
@@ -170,14 +160,14 @@ export const PaymentInvoiceScreen: React.FC = () => {
       );
       navigation.goBack();
     }
-  }, [hasPaymentData, navigation]);
+  }, [appointmentId, hasPaymentData, navigation]);
 
   if (!hasPaymentData) {
     return (
       <SafeArea>
         <Header title="Payment" showBackButton onBack={() => navigation.goBack()} />
-        <View style={{padding: 16}}>
-          <Text style={{color: '#F59E0B'}}>
+        <View style={styles.missingContainer}>
+          <Text style={styles.warningText}>
             Payment details are unavailable for this appointment. Please retry booking or contact support.
           </Text>
         </View>
@@ -185,10 +175,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
     );
   }
   const clientSecret = paymentIntent?.clientSecret;
-  const returnUrl = STRIPE_CONFIG.urlScheme
-    ? `${STRIPE_CONFIG.urlScheme}://stripe-redirect`
-    : undefined;
-
   const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
   const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
   const subtotal = effectiveInvoice?.subtotal ?? 0;
@@ -485,6 +471,9 @@ const createStyles = (theme: any) =>
       ...theme.typography.body12,
       color: '#F59E0B',
       marginBottom: theme.spacing[2],
+    },
+    missingContainer: {
+      padding: theme.spacing[4],
     },
     invoiceForCard: {
       borderRadius: 16,

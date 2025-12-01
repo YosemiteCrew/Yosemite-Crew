@@ -41,9 +41,6 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
-  const hasHydrated = useSelector((s: RootState) =>
-    selectedCompanionId ? s.appointments.hydratedCompanions[selectedCompanionId] : false,
-  );
   const accessMap = useSelector((s: RootState) => s.coParent?.accessByCompanionId ?? {});
   const defaultAccess = useSelector((s: RootState) => s.coParent?.defaultAccess ?? null);
   const globalRole = useSelector((s: RootState) => s.coParent?.lastFetchedRole);
