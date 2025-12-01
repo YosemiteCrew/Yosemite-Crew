@@ -13,17 +13,16 @@ router.get(
 );
 
 router.get(
-  "/mobile/:invoiceId",
-  authorizeCognitoMobile,
-  InvoiceController.getInvoiceById
-);
-
-router.get(
   "/mobile/payment-intent/:paymentIntentId",
   authorizeCognitoMobile,
   InvoiceController.getInvoiceByPaymentIntentId
 );
 
+router.get(
+  "/mobile/:invoiceId",
+  authorizeCognitoMobile,
+  InvoiceController.getInvoiceById
+);
 // Routes for PMS
 
 // List invoices for an appointment
@@ -33,6 +32,13 @@ router.get(
   InvoiceController.listInvoicesForAppointment
 );
 
+// Get invoice by Payment Intent ID
+router.get(
+  "/payment-intent/:paymentIntentId",
+  authorizeCognito,
+  InvoiceController.getInvoiceByPaymentIntentId
+);
+
 // Get invoice by ID
 router.get(
   "/:invoiceId",
@@ -40,11 +46,5 @@ router.get(
   InvoiceController.getInvoiceById
 );
 
-// Get invoice by Payment Intent ID
-router.get(
-  "/payment-intent/:paymentIntentId",
-  authorizeCognito,
-  InvoiceController.getInvoiceByPaymentIntentId
-);
 
 export default router;
