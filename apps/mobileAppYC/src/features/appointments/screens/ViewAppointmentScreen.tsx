@@ -12,6 +12,7 @@ import type {AppointmentStackParamList, TabParamList} from '@/navigation/types';
 import {
   cancelAppointment,
   fetchAppointmentById,
+  fetchAppointmentsForCompanion,
 } from '@/features/appointments/appointmentsSlice';
 import RescheduledInfoSheet from '@/features/appointments/components/InfoBottomSheet/RescheduledInfoSheet';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
@@ -105,6 +106,18 @@ export const ViewAppointmentScreen: React.FC = () => {
   };
 
   const statusInfo = getStatusDisplay(apt.status);
+
+  const handleCancelAppointment = React.useCallback(async () => {
+    try {
+      await dispatch(cancelAppointment({appointmentId})).unwrap();
+      if (apt?.companionId) {
+        dispatch(fetchAppointmentsForCompanion({companionId: apt.companionId}));
+      }
+      navigation.goBack();
+    } catch (error) {
+      console.warn('[Appointment] Cancel failed', error);
+    }
+  }, [apt?.companionId, appointmentId, dispatch, navigation]);
 
   return (
     <SafeArea>
@@ -249,10 +262,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
-        onConfirm={() => {
-          dispatch(cancelAppointment({appointmentId}));
-          navigation.goBack();
-        }}
+        onConfirm={handleCancelAppointment}
       />
       <RescheduledInfoSheet ref={rescheduledRef} onClose={() => rescheduledRef.current?.close?.()} />
     </SafeArea>

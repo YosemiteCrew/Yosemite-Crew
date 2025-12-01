@@ -614,7 +614,9 @@ export const appointmentApi = {
       `/fhir/v1/appointment/mobile/${encodeURIComponent(appointmentId)}/cancel`,
       {usePms: true},
     );
-    const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+    const {data} = await apiClient.patch(url, undefined, {
+      headers: withAuthHeaders(accessToken),
+    });
     const resource = data?.data ?? data;
     return mapAppointmentResource(resource);
   },

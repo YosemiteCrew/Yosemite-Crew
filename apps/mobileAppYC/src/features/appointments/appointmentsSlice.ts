@@ -387,7 +387,12 @@ const appointmentsSlice = createSlice({
         upsertAppointment(state, action.payload as Appointment);
       })
       .addCase(cancelAppointment.fulfilled, (state, action) => {
-        upsertAppointment(state, action.payload as Appointment);
+        const canceled = action.payload as Appointment;
+        const normalized: Appointment = {
+          ...canceled,
+          status: canceled.status ?? 'CANCELLED',
+        };
+        upsertAppointment(state, normalized);
       })
       .addCase(recordPayment.fulfilled, (state, action) => {
         const refreshed = (action.payload as any)?.appointment as Appointment | undefined;
