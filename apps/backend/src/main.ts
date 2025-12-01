@@ -24,6 +24,7 @@ import appointmentRouter from "./routers/appointment.router";
 import stripeRouter from "./routers/stripe.router";
 import { StripeController } from "./controllers/web/stripe.controller";
 import ratingRouter from "./routers/organisationRating.router";
+import invoiceRouter from "./routers/invoice.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -64,6 +65,7 @@ app.use(`/fhir/v1/service`, serviceRouter);
 app.use(`/fhir/v1/appointment`, appointmentRouter);
 app.use(`/v1/stripe`, stripeRouter);
 app.use(`v1/oragnisation-rating`, ratingRouter);
+app.use(`/fhir/v1/invoice`, invoiceRouter);
 
 let mongoUri: string;
 

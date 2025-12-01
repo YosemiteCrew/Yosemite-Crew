@@ -13,4 +13,30 @@ export const InvoiceController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
+  async getInvoiceById(req: Request, res: Response) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      const invoice = await InvoiceService.getById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      return res.status(200).json(invoice);
+    } catch (err) {
+      logger.error("Error fetching invoice by ID", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+  async getInvoiceByPaymentIntentId(req: Request, res: Response) {
+    try {
+      const paymentIntentId = req.params.paymentIntentId;
+      const invoice = await InvoiceService.getByPaymentIntentId(paymentIntentId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      return res.status(200).json(invoice);
+    } catch (err) {
+      logger.error("Error fetching invoice by Payment Intent ID", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
 };

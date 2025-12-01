@@ -346,4 +346,16 @@ export const InvoiceService = {
     // Fallback — unknown (should not happen)
     return { action: "NO_ACTION", status: invoice.status };
   },
+
+  async getByPaymentIntentId(paymentIntentId: string) {
+    const doc = await InvoiceModel.findOne({
+      stripePaymentIntentId: paymentIntentId,
+    });
+
+    if (!doc) {
+      return null;
+    }
+
+    return toInvoiceResponseDTO(toDomain(doc));
+  },
 };
