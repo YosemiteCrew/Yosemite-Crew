@@ -16,6 +16,7 @@ import {Images} from '@/assets/images';
 import type {InvoiceItem, Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {useStripe} from '@stripe/stripe-react-native';
+import {STRIPE_CONFIG} from '@/config/variables';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -205,7 +206,9 @@ export const PaymentInvoiceScreen: React.FC = () => {
       },
       customFlow: false, // explicit to avoid native crash when key is missing
     };
-    // returnURL is optional; omit to reduce risk of malformed deep link causing native crash
+    if (STRIPE_CONFIG.urlScheme) {
+      opts.returnURL = `${STRIPE_CONFIG.urlScheme}://stripe-redirect`;
+    }
     return opts;
   };
 
