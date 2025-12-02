@@ -328,7 +328,7 @@ export const StripeService = {
     await AppointmentModel.updateOne(
       { _id: appointmentId },
       {
-        status: "PAID",
+        status: "REQUESTED",
         invoiceId: invoice._id,
         stripePaymentIntentId: pi.id,
         stripeChargeId: charge.id,
