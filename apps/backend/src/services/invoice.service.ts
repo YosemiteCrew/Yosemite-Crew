@@ -222,7 +222,7 @@ export const InvoiceService = {
 
   async getByAppointmentId(appId: string) {
     const docs = await InvoiceModel.find({
-      appId,
+      appointmentId: appId,
     }).sort({ createdAt: -1 });
 
     return docs.map((d) => toInvoiceResponseDTO(toDomain(d)));

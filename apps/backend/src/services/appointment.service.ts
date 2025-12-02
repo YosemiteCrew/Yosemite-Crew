@@ -16,6 +16,7 @@ import ServiceModel from "src/models/service";
 import { InvoiceService } from "./invoice.service";
 import { StripeService } from "./stripe.service";
 import { OccupancyModel } from "src/models/occupancy";
+import OrganizationModel from "src/models/organization";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -824,7 +825,7 @@ export const AppointmentService = {
 
   async getAppointmentsForCompanion(
     companionId: string,
-  ): Promise<AppointmentResponseDTO[]> {
+  ) {
     if (!companionId) {
       throw new AppointmentServiceError("companionId is required", 400);
     }
@@ -835,7 +836,38 @@ export const AppointmentService = {
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
 
-    return docs.map((doc) => toAppointmentResponseDTO(toDomainLean(doc)));
+    if (docs.length === 0) return [];
+
+    // 2. Extract unique organisationIds
+    const orgIds = [
+      ...new Set(docs.map((d) => d.organisationId?.toString())),
+    ].filter(Boolean);
+
+    // 3. Fetch organisations in one query
+    const organisations = await OrganizationModel.find(
+      { _id: { $in: orgIds }},
+      { name: 1, imageURL: 1, address: 1, phoneNo: 1, googlePlacesId: 1 },
+    ).lean();
+
+    console.log("organisations", organisations);
+    
+    // Convert array → map for O(1) lookup
+    const orgMap = new Map(
+      organisations.map((org) => [org._id.toString(), org]),
+    );
+
+    return docs.map((doc) => {
+      const domainObj = toDomainLean(doc);
+      const dto = toAppointmentResponseDTO(domainObj);
+
+      // Attach organisation data
+      const org = orgMap.get(doc.organisationId?.toString()) || null;
+
+      return {
+        appointment: dto,
+        organisation: org,
+      }
+    });
   },
 
   async getById(appointmentId: string): Promise<AppointmentResponseDTO> {

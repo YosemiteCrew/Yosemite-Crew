@@ -189,17 +189,18 @@ export const StripeService = {
     });
     if (!invoice) throw new Error("Invoice not found");
 
-    const org = await OrganizationModel.findById(invoice.organisationId);
-    if (!org || !org.stripeAccountId)
-      throw new Error("Organisation does not have a Stripe connected account");
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge"],
+    });
 
-    const refund = await stripe.refunds.create(
-      { payment_intent: paymentIntentId },
-      { stripeAccount: org.stripeAccountId },
-    );
+    const charge = paymentIntent.latest_charge as Stripe.Charge;
+    if (!charge) throw new Error("No charge found for PaymentIntent");
 
-    const invoiceId = invoice._id?.toString?.() ?? String(invoice.id);
-    await InvoiceService.markRefunded(invoiceId);
+    const refund = await stripe.refunds.create({
+      charge: charge.id,
+    });
+
+    await InvoiceService.markRefunded(invoice._id.toString());
 
     return {
       refundId: refund.id,
