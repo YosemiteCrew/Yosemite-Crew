@@ -77,7 +77,9 @@ const Appointments = ({
       render: (item: AppointmentsProps) => (
         <div className="appointment-profile-two">
           <div className="appointment-profile-title">{item.reason}</div>
-          <div className="appointment-emergency-label">Emergency</div>
+          {item.emergency && (
+            <div className="appointment-emergency-label">Emergency</div>
+          )}
         </div>
       ),
     },

@@ -280,6 +280,12 @@ export const demoSpecialities: Speciality[] = [
   },
 ];
 
+export const getAllServiceNames = (specialities: Speciality[]): string[] => {
+  return specialities.flatMap(s => (s.services || []).map(service => service.name));
+};
+
+export const flatServices = getAllServiceNames(demoSpecialities)
+
 export const DemoTeam: AvailabilityProps[] = [
   {
     name: "Dr. Emily Johnson",
