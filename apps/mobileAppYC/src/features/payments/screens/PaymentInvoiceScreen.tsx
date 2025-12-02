@@ -39,12 +39,138 @@ import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBus
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
+const useGuardianInfo = (authUser: any, invoice: any) => {
+  return useMemo(() => {
+    const guardianName = [authUser?.firstName, authUser?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || authUser?.email || invoice?.billedToName || 'Pet guardian';
+    const guardianInitial = guardianName.trim().charAt(0).toUpperCase() || 'Y';
+    const guardianAvatar = authUser?.profilePicture ? {uri: authUser.profilePicture} : null;
+    const guardianEmail = authUser?.email ?? invoice?.billedToEmail ?? '—';
+    return {guardianName, guardianInitial, guardianAvatar, guardianEmail};
+  }, [authUser?.firstName, authUser?.lastName, authUser?.email, authUser?.profilePicture, invoice?.billedToName, invoice?.billedToEmail]);
+};
+
+const useCompanionInfo = (companion: any) => {
+  return useMemo(() => {
+    const companionName = companion?.name ?? 'Companion';
+    const companionInitial = companionName.trim().charAt(0).toUpperCase() || 'C';
+    const companionAvatar = companion?.profileImage ? {uri: companion.profileImage} : null;
+    return {companionName, companionInitial, companionAvatar};
+  }, [companion?.name, companion?.profileImage]);
+};
+
+const useInvoiceCalculations = (effectiveInvoice: any) => {
+  return useMemo(() => {
+    const subtotal = effectiveInvoice?.subtotal ?? 0;
+    const discountAmount = effectiveInvoice?.discountPercent ? (effectiveInvoice.discountPercent / 100) * subtotal : 0;
+    const taxAmount = effectiveInvoice?.taxPercent ? (effectiveInvoice.taxPercent / 100) * subtotal : 0;
+    const total = effectiveInvoice?.total ?? subtotal - discountAmount + taxAmount;
+    return {subtotal, discountAmount, taxAmount, total};
+  }, [effectiveInvoice?.subtotal, effectiveInvoice?.total, effectiveInvoice?.discountPercent, effectiveInvoice?.taxPercent]);
+};
+
+const useAppointmentSelectors = (appointmentId: string, companionId?: string) => {
+  const apt = useSelector((s: RootState) =>
+    appointmentId ? s.appointments.items.find(a => a.id === appointmentId) : undefined,
+  );
+  const business = useSelector((s: RootState) =>
+    apt?.businessId ? s.businesses.businesses.find(b => b.id === apt.businessId) : undefined,
+  );
+  const service = useSelector((s: RootState) =>
+    apt?.serviceId ? s.businesses.services.find(svc => svc.id === apt.serviceId) : null,
+  );
+  const companion = useSelector((s: RootState) =>
+    companionId ?? apt?.companionId
+      ? s.companion.companions.find(c => c.id === (companionId ?? apt?.companionId))
+      : null,
+  );
+  return {apt, business, service, companion};
+};
+
+const usePaymentStatus = (aptStatus?: string) => {
+  return useMemo(() => {
+    const isPaymentPendingStatus = aptStatus === 'NO_PAYMENT' || aptStatus === 'AWAITING_PAYMENT' || aptStatus === 'PAYMENT_FAILED';
+    return {isPaymentPendingStatus};
+  }, [aptStatus]);
+};
+
+const buildInvoices = (invoice: any, paymentIntent: any, appointmentId: string) => {
+  const buildBaseInvoice = (): Invoice | null => {
+    if (invoice) return invoice;
+    if (!paymentIntent) return null;
+    return {
+      id: paymentIntent.paymentIntentId ?? `pi-${appointmentId}`,
+      appointmentId,
+      items: [],
+      subtotal: paymentIntent.amount ?? 0,
+      total: paymentIntent.amount ?? 0,
+      currency: paymentIntent.currency ?? 'USD',
+      paymentIntent,
+      invoiceNumber: paymentIntent.paymentIntentId,
+      status: 'AWAITING_PAYMENT',
+    };
+  };
+
+  const buildEffectiveInvoice = (): Invoice | null => {
+    const baseInvoice = buildBaseInvoice();
+    if (!baseInvoice) return null;
+    const intentCreatedAt = paymentIntent?.createdAt;
+    const intentDateISO = intentCreatedAt ? new Date(intentCreatedAt).toISOString() : new Date().toISOString();
+    const invoiceDateISO = baseInvoice.invoiceDate ?? intentDateISO;
+    const dueDateISO = baseInvoice.dueDate ?? new Date(new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    return {...baseInvoice, invoiceDate: invoiceDateISO, dueDate: dueDateISO, invoiceNumber: baseInvoice.invoiceNumber ?? paymentIntent?.paymentIntentId ?? baseInvoice.id ?? appointmentId, status: baseInvoice.status ?? 'PAID'};
+  };
+
+  return buildEffectiveInvoice();
+};
+
+const useInvoiceDisplayData = (effectiveInvoice: any, paymentIntent: any) => {
+  return useMemo(() => {
+    const clientSecret = paymentIntent?.clientSecret;
+    const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
+    const invoiceNumberDisplay = effectiveInvoice?.invoiceNumber ?? paymentIntent?.paymentIntentId ?? effectiveInvoice?.id ?? '—';
+    const receiptUrl = effectiveInvoice?.downloadUrl ?? effectiveInvoice?.paymentIntent?.paymentLinkUrl ?? paymentIntent?.paymentLinkUrl ?? null;
+    const checkRefundStatus = (status?: string | null) => status?.toUpperCase?.().includes?.('REFUND') ?? false;
+    const hasRefund = effectiveInvoice?.refundId || checkRefundStatus(effectiveInvoice?.refundStatus) || checkRefundStatus(effectiveInvoice?.status);
+    const refundAmountDisplay = effectiveInvoice?.refundAmount == null ? '—' : `${effectiveInvoice?.currency ?? 'USD'} ${effectiveInvoice?.refundAmount}`;
+    return {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay};
+  }, [effectiveInvoice, paymentIntent]);
+};
+
 const buildInvoiceItemKey = ({
   description,
   rate,
   lineTotal,
   qty,
 }: InvoiceItem) => `${description}-${rate}-${lineTotal}-${qty ?? 0}`;
+
+const buildPaymentSheetOptions = (
+  clientSecret: string,
+  businessName: string,
+  guardianName: string,
+  guardianEmail: string,
+) => {
+  const opts: any = {
+    paymentIntentClientSecret: clientSecret,
+    merchantDisplayName: businessName || 'Yosemite Crew',
+    defaultBillingDetails: {
+      name: guardianName,
+      email: guardianEmail === '—' ? undefined : guardianEmail,
+    },
+    customFlow: false,
+  };
+  if (STRIPE_CONFIG.urlScheme) {
+    opts.returnURL = `${STRIPE_CONFIG.urlScheme}://stripe-redirect`;
+  }
+  if (Platform.OS === 'ios' && STRIPE_CONFIG.merchantIdentifier) {
+    opts.applePay = {
+      merchantCountryCode: 'US',
+    };
+  }
+  return opts;
+};
 
 const useFetchAppointmentById = ({
   appointmentId,
@@ -178,53 +304,15 @@ export const PaymentInvoiceScreen: React.FC = () => {
     appointmentId ? selectInvoiceForAppointment(appointmentId) : () => null,
   );
   const invoice = invoiceFromStore ?? routeInvoice ?? null;
-  const fallbackPaymentIntent =
-    routeIntent ?? routeInvoice?.paymentIntent ?? null;
-  const apt = useSelector((s: RootState) =>
-    appointmentId
-      ? s.appointments.items.find(a => a.id === appointmentId)
-      : undefined,
-  );
-  const business = useSelector((s: RootState) =>
-    apt?.businessId
-      ? s.businesses.businesses.find(b => b.id === apt.businessId)
-      : undefined,
-  );
-  const service = useSelector((s: RootState) =>
-    apt?.serviceId
-      ? s.businesses.services.find(svc => svc.id === apt.serviceId)
-      : null,
-  );
-  const companion = useSelector((s: RootState) =>
-    companionId ?? apt?.companionId
-      ? s.companion.companions.find(
-          c => c.id === (companionId ?? apt?.companionId),
-        )
-      : null,
-  );
+  const fallbackPaymentIntent = routeIntent ?? routeInvoice?.paymentIntent ?? null;
+  const {apt, business, service, companion} = useAppointmentSelectors(appointmentId, companionId);
   const authUser = useSelector(selectAuthUser);
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
   const businessName = business?.name ?? apt?.organisationName ?? 'Your clinic';
   const businessAddress = business?.address ?? apt?.organisationAddress ?? undefined;
 
-  const guardianName =
-    [authUser?.firstName, authUser?.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim() ||
-    authUser?.email ||
-    invoice?.billedToName ||
-    'Pet guardian';
-  const companionName = companion?.name ?? 'Companion';
-  const guardianInitial = guardianName.trim().charAt(0).toUpperCase() || 'Y';
-  const companionInitial = companionName.trim().charAt(0).toUpperCase() || 'C';
-  const guardianAvatar = authUser?.profilePicture
-    ? {uri: authUser.profilePicture}
-    : null;
-  const companionAvatar = companion?.profileImage
-    ? {uri: companion.profileImage}
-    : null;
-  const guardianEmail = authUser?.email ?? invoice?.billedToEmail ?? '—';
+  const {guardianName, guardianInitial, guardianAvatar, guardianEmail} = useGuardianInfo(authUser, invoice);
+  const {companionName, companionInitial, companionAvatar} = useCompanionInfo(companion);
   const guardianAddress = useMemo(() => {
     const addressParts = [
       authUser?.address?.addressLine,
@@ -269,59 +357,8 @@ export const PaymentInvoiceScreen: React.FC = () => {
     photo: resolvedBusinessPhoto ?? null,
   };
 
-  const buildBaseInvoice = (): Invoice | null => {
-    if (invoice) {
-      return invoice;
-    }
-    if (!paymentIntent) {
-      return null;
-    }
-    return {
-      id: paymentIntent.paymentIntentId ?? `pi-${appointmentId}`,
-      appointmentId,
-      items: [],
-      subtotal: paymentIntent.amount ?? 0,
-      total: paymentIntent.amount ?? 0,
-      currency: paymentIntent.currency ?? 'USD',
-      paymentIntent,
-      invoiceNumber: paymentIntent.paymentIntentId,
-      status: 'AWAITING_PAYMENT',
-    };
-  };
-
-  const buildEffectiveInvoice = (): Invoice | null => {
-    const baseInvoice = buildBaseInvoice();
-    if (!baseInvoice) return null;
-
-    const intentCreatedAt = (paymentIntent as any)?.createdAt;
-    const intentDateISO = intentCreatedAt
-      ? new Date(intentCreatedAt).toISOString()
-      : new Date().toISOString();
-    const invoiceDateISO = baseInvoice.invoiceDate ?? intentDateISO;
-    const dueDateISO =
-      baseInvoice.dueDate ??
-      new Date(
-        new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000,
-      ).toISOString();
-
-    return {
-      ...baseInvoice,
-      invoiceDate: invoiceDateISO,
-      dueDate: dueDateISO,
-      invoiceNumber:
-        baseInvoice.invoiceNumber ??
-        paymentIntent?.paymentIntentId ??
-        baseInvoice.id ??
-        appointmentId,
-      status: baseInvoice.status ?? apt?.status ?? 'PAID',
-    };
-  };
-
-  const effectiveInvoice = buildEffectiveInvoice();
-  const isPaymentPendingStatus =
-    apt?.status === 'NO_PAYMENT' ||
-    apt?.status === 'AWAITING_PAYMENT' ||
-    apt?.status === 'PAYMENT_FAILED';
+  const effectiveInvoice = buildInvoices(invoice, paymentIntent, appointmentId);
+  const {isPaymentPendingStatus} = usePaymentStatus(apt?.status);
   useFetchAppointmentById({appointmentId, apt, dispatch});
   useBusinessPhoto({googlePlacesId, dispatch, setFallbackPhoto});
   useEnsurePaymentData({
@@ -335,52 +372,17 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoiceRequestedRef,
   });
 
-  const clientSecret = paymentIntent?.clientSecret;
-  const currencySymbol = effectiveInvoice?.currency
-    ? `${effectiveInvoice.currency} `
-    : '$';
+  const {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay} = useInvoiceDisplayData(effectiveInvoice, paymentIntent);
   const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
-  const subtotal = effectiveInvoice?.subtotal ?? 0;
-  const getDiscountAmount = (): number => {
-    if (effectiveInvoice?.discountPercent) {
-      return (effectiveInvoice.discountPercent / 100) * subtotal;
-    }
-    return 0;
-  };
-
-  const getTaxAmount = (): number => {
-    if (effectiveInvoice?.taxPercent) {
-      return (effectiveInvoice.taxPercent / 100) * subtotal;
-    }
-    return 0;
-  };
-
-  const discountAmount = getDiscountAmount();
-  const taxAmount = getTaxAmount();
-  const total =
-    effectiveInvoice?.total ?? subtotal - discountAmount + taxAmount;
+  const {subtotal, discountAmount, taxAmount, total} = useInvoiceCalculations(effectiveInvoice);
   const shouldShowPay = isPaymentPendingStatus && !!clientSecret;
   const headerTitle = isPaymentPendingStatus ? 'Book appointment' : 'Invoice details';
-  const invoiceNumberDisplay =
-    effectiveInvoice?.invoiceNumber ??
-    paymentIntent?.paymentIntentId ??
-    effectiveInvoice?.id ??
-    '—';
-  const receiptUrl =
-    effectiveInvoice?.downloadUrl ??
-    effectiveInvoice?.paymentIntent?.paymentLinkUrl ??
-    paymentIntent?.paymentLinkUrl ??
-    null;
   const isInvoiceLoaded = Boolean(effectiveInvoice);
   const shouldShowLoadingNotice = !isInvoiceLoaded && !isPaymentPendingStatus;
-  const hasRefund =
-    effectiveInvoice?.refundId ||
-    effectiveInvoice?.refundStatus?.toUpperCase?.().includes?.('REFUND') ||
-    effectiveInvoice?.status?.toUpperCase?.().includes?.('REFUND');
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—';
     const ts = Date.parse(iso);
-    if (Number.isNaN(ts)) return '—';
+    if (Number.isFinite(ts) === false) return '—';
     return new Date(ts).toLocaleString('en-US', {
       day: '2-digit',
       month: 'short',
@@ -393,7 +395,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const formatDateOnly = (iso?: string | null) => {
     if (!iso) return 'the stated due date';
     const ts = Date.parse(iso);
-    if (Number.isNaN(ts)) return 'the stated due date';
+    if (Number.isFinite(ts) === false) return 'the stated due date';
     return new Date(ts).toLocaleDateString('en-US', {
       day: '2-digit',
       month: 'short',
@@ -402,26 +404,39 @@ export const PaymentInvoiceScreen: React.FC = () => {
   };
   const paymentDueLabel = formatDateOnly(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
-  const buildSheetOptions = () => {
-    const opts: any = {
-      paymentIntentClientSecret: clientSecret as string,
-      merchantDisplayName: business?.name ?? 'Yosemite Crew',
-      defaultBillingDetails: {
-        name: guardianName,
-        email: guardianEmail === '—' ? undefined : guardianEmail,
-      },
-      customFlow: false, // explicit to avoid native crash when key is missing
-    };
-    if (STRIPE_CONFIG.urlScheme) {
-      opts.returnURL = `${STRIPE_CONFIG.urlScheme}://stripe-redirect`;
-    }
-    if (Platform.OS === 'ios' && STRIPE_CONFIG.merchantIdentifier) {
-      opts.applePay = {
-        merchantCountryCode: 'US',
-      };
-    }
-    return opts;
-  };
+  const renderRefundSection = () => (
+    <>
+      <Text style={styles.metaTitle}>Refund</Text>
+      <MetaRow label="Refund ID" value={effectiveInvoice?.refundId ?? '—'} />
+      <MetaRow
+        label="Refund status"
+        value={effectiveInvoice?.refundStatus ?? effectiveInvoice?.status ?? '—'}
+      />
+      <MetaRow label="Refund amount" value={refundAmountDisplay} />
+      <MetaRow
+        label="Refund date"
+        value={formatDateTime(effectiveInvoice?.refundDate ?? undefined)}
+      />
+      {effectiveInvoice?.refundReceiptUrl || effectiveInvoice?.downloadUrl ? (
+        <View style={styles.refundLinkRow}>
+          <LiquidGlassButton
+            title="View refund receipt"
+            onPress={() => {
+              const url = effectiveInvoice?.refundReceiptUrl ?? effectiveInvoice?.downloadUrl;
+              if (url) {
+                Linking.openURL(url);
+              }
+            }}
+            height={48}
+            borderRadius={12}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="light"
+            textStyle={styles.confirmPrimaryButtonText}
+          />
+        </View>
+      ) : null}
+    </>
+  );
 
   const handlePayNow = async () => {
     if (!clientSecret) {
@@ -432,7 +447,8 @@ export const PaymentInvoiceScreen: React.FC = () => {
       return;
     }
     setPresentingSheet(true);
-    const {error: initError} = await initPaymentSheet(buildSheetOptions());
+    const sheetOptions = buildPaymentSheetOptions(clientSecret, businessName, guardianName, guardianEmail);
+    const {error: initError} = await initPaymentSheet(sheetOptions);
     if (initError) {
       setPresentingSheet(false);
       Alert.alert('Payment unavailable', initError.message);
@@ -507,48 +523,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
         </View>
 
         {hasRefund ? (
-          <View style={styles.metaCard}>
-            <Text style={styles.metaTitle}>Refund</Text>
-            <MetaRow label="Refund ID" value={effectiveInvoice?.refundId ?? '—'} />
-            <MetaRow
-              label="Refund status"
-              value={
-                effectiveInvoice?.refundStatus ??
-                effectiveInvoice?.status ??
-                '—'
-              }
-            />
-            <MetaRow
-              label="Refund amount"
-              value={
-                effectiveInvoice?.refundAmount != null
-                  ? `${effectiveInvoice.currency ?? 'USD'} ${effectiveInvoice.refundAmount}`
-                  : '—'
-              }
-            />
-            <MetaRow
-              label="Refund date"
-              value={formatDateTime(effectiveInvoice?.refundDate)}
-            />
-            {effectiveInvoice?.refundReceiptUrl || effectiveInvoice?.downloadUrl ? (
-              <View style={styles.refundLinkRow}>
-                <LiquidGlassButton
-                  title="View refund receipt"
-                  onPress={() => {
-                    const url = effectiveInvoice.refundReceiptUrl ?? effectiveInvoice.downloadUrl;
-                    if (url) {
-                      Linking.openURL(url);
-                    }
-                  }}
-                  height={48}
-                  borderRadius={12}
-                  tintColor={theme.colors.secondary}
-                  shadowIntensity="light"
-                  textStyle={styles.confirmPrimaryButtonText}
-                />
-              </View>
-            ) : null}
-          </View>
+          <View style={styles.metaCard}>{renderRefundSection()}</View>
         ) : null}
 
         <View style={styles.invoiceForCard}>
@@ -899,6 +874,10 @@ const createStyles = (theme: any) =>
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
       lineHeight: 18,
+    },
+    refundLinkRow: {
+      gap: theme.spacing[2],
+      marginTop: theme.spacing[2],
     },
     buttonContainer: {
       gap: theme.spacing[3],
