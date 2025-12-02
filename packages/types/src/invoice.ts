@@ -37,6 +37,11 @@ export type Invoice = {
 
   currency: Currency;            
 
+  discountTotal?: number;
+  taxTotal?: number;
+
+  stripeChargeId?: string;
+  stripeReceiptUrl?: string;
   stripePaymentIntentId?: string;
   stripePaymentLinkId?: string; 
   stripeInvoiceId?: string;      
@@ -54,6 +59,8 @@ const EXT_STRIPE_INVOICE_ID = "https://yosemitecrew.com/fhir/StructureDefinition
 const EXT_STRIPE_PI_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id";
 const EXT_STRIPE_PL_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-link-id";
 const EXT_STRIPE_CUSTOMER_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-customer-id";
+const EXT_STRIPE_CHARGE_ID = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-charge-id";
+const EXT_STRIPE_RECEIPT_URL = "https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url";
 const EXT_PMS_STATUS = "https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status";
 const EXT_INVOICE_METADATA = "https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata";
 const EXT_APPOINTMENT_ID = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-id";
@@ -171,12 +178,28 @@ const buildTotalPriceComponents = (invoice: Invoice): FHIRInvoice["totalPriceCom
     },
   ];
 
-  if (invoice.taxPercent != null) {
+  if (invoice.discountTotal != null) {
+    components.push({
+      type: "discount",
+      amount: {
+        value: invoice.discountTotal,
+        currency: invoice.currency,
+      },
+    });
+  }
+
+  if (invoice.taxPercent != null || invoice.taxTotal != null) {
+    const taxableAmount = invoice.subtotal - (invoice.discountTotal ?? 0);
+    const taxAmount =
+      invoice.taxTotal != null
+        ? invoice.taxTotal
+        : taxableAmount * ((invoice.taxPercent ?? 0) / 100);
+
     components.push({
       type: "tax",
-      factor: invoice.taxPercent / 100,
+      factor: invoice.taxPercent != null ? invoice.taxPercent / 100 : undefined,
       amount: {
-        value: invoice.subtotal * (invoice.taxPercent / 100),
+        value: taxAmount,
         currency: invoice.currency,
       },
     });
@@ -243,6 +266,20 @@ export function toFHIRInvoice(invoice: Invoice): FHIRInvoice {
     });
   }
 
+  if (invoice.stripeChargeId) {
+    extensions.push({
+      url: EXT_STRIPE_CHARGE_ID,
+      valueString: invoice.stripeChargeId,
+    });
+  }
+
+  if (invoice.stripeReceiptUrl) {
+    extensions.push({
+      url: EXT_STRIPE_RECEIPT_URL,
+      valueUri: invoice.stripeReceiptUrl,
+    });
+  }
+
   extensions.push({
     url: EXT_PMS_STATUS,
     valueString: invoice.status,
@@ -275,7 +312,7 @@ export function toFHIRInvoice(invoice: Invoice): FHIRInvoice {
     lineItem: lineItems,
     totalPriceComponent: buildTotalPriceComponents(invoice),
     totalNet: {
-      value: invoice.subtotal,
+      value: invoice.subtotal - (invoice.discountTotal ?? 0),
       currency: invoice.currency,
     },
     totalGross: {
@@ -324,8 +361,16 @@ const parseLineItems = (lineItems?: InvoiceLineItem[]): InvoiceItem[] => {
 const parseTotalValues = (
   fhirInvoice: FHIRInvoice,
   lineItems: InvoiceItem[],
-): { subtotal: number; totalAmount: number; taxPercent?: number; currency: Currency } => {
+): {
+  subtotal: number;
+  discountTotal?: number;
+  taxTotal?: number;
+  totalAmount: number;
+  taxPercent?: number;
+  currency: Currency;
+} => {
   const baseComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "base");
+  const discountComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "discount");
   const taxComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "tax");
   const informationalComponent = fhirInvoice.totalPriceComponent?.find((pc) => pc.type === "informational");
   const lineItemBase = fhirInvoice.lineItem?.[0]?.priceComponent?.find((pc) => pc.type === "base");
@@ -334,24 +379,58 @@ const parseTotalValues = (
     fhirInvoice.totalGross?.currency ||
     fhirInvoice.totalNet?.currency ||
     baseComponent?.amount?.currency ||
+    taxComponent?.amount?.currency ||
+    discountComponent?.amount?.currency ||
     lineItemBase?.amount?.currency ||
     "USD"
   ) as Currency;
 
-  const subtotal =
-    fhirInvoice.totalNet?.value ??
-    baseComponent?.amount?.value ??
-    lineItems.reduce((acc, item) => acc + item.total, 0);
+  const subtotalFromBase = baseComponent?.amount?.value;
+  const subtotalFromLineItemBase = lineItems.length
+    ? lineItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0)
+    : undefined;
+  const subtotalFromNetAndDiscount =
+    fhirInvoice.totalNet?.value != null && discountComponent?.amount?.value != null
+      ? fhirInvoice.totalNet.value + discountComponent.amount.value
+      : undefined;
 
-  const totalAmount =
+  const subtotal =
+    subtotalFromBase ??
+    subtotalFromLineItemBase ??
+    subtotalFromNetAndDiscount ??
+    (fhirInvoice.totalNet?.value != null ? fhirInvoice.totalNet.value + (discountComponent?.amount?.value ?? 0) : undefined) ??
+    (lineItems.length ? lineItems.reduce((acc, item) => acc + item.total, 0) : 0);
+
+  let discountTotal = discountComponent?.amount?.value;
+  if (discountTotal == null && subtotal != null && fhirInvoice.totalNet?.value != null) {
+    const inferredDiscount = subtotal - fhirInvoice.totalNet.value;
+    discountTotal = inferredDiscount !== 0 ? inferredDiscount : undefined;
+  }
+
+  const netAfterDiscount =
+    fhirInvoice.totalNet?.value != null ? fhirInvoice.totalNet.value : subtotal - (discountTotal ?? 0);
+
+  let taxTotal =
+    taxComponent?.amount?.value ??
+    (taxComponent?.factor != null && netAfterDiscount != null ? netAfterDiscount * taxComponent.factor : undefined);
+
+  let totalAmount =
     fhirInvoice.totalGross?.value ??
     informationalComponent?.amount?.value ??
-    subtotal + (taxComponent?.amount?.value ?? 0);
+    (netAfterDiscount != null ? netAfterDiscount + (taxTotal ?? 0) : undefined) ??
+    subtotal;
 
-  const taxPercent = taxComponent?.factor != null ? taxComponent.factor * 100 : undefined;
+  const taxPercent =
+    taxComponent?.factor != null
+      ? taxComponent.factor * 100
+      : taxTotal != null && netAfterDiscount != null
+        ? (taxTotal / netAfterDiscount) * 100
+        : undefined;
 
   return {
     subtotal,
+    discountTotal,
+    taxTotal,
     totalAmount,
     taxPercent,
     currency,
@@ -363,7 +442,7 @@ export function fromFHIRInvoice(fhirInvoice: FHIRInvoice): Invoice {
   const pmsStatus = (statusExtension?.valueString as InvoiceStatus | undefined) ?? statusMapReverse[fhirInvoice.status] ?? "PENDING";
 
   const lineItems = parseLineItems(fhirInvoice.lineItem);
-  const { subtotal, totalAmount, taxPercent, currency } = parseTotalValues(fhirInvoice, lineItems);
+  const { subtotal, discountTotal, taxTotal, totalAmount, taxPercent, currency } = parseTotalValues(fhirInvoice, lineItems);
 
   const metadata = parseMetadataExtension(fhirInvoice.extension);
 
@@ -380,13 +459,19 @@ export function fromFHIRInvoice(fhirInvoice: FHIRInvoice): Invoice {
       "",
     items: lineItems,
     subtotal,
+    discountTotal,
     taxPercent,
+    taxTotal,
     totalAmount,
     currency,
     stripePaymentIntentId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PI_ID)?.valueString,
     stripePaymentLinkId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PL_ID)?.valueString,
     stripeInvoiceId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_INVOICE_ID)?.valueString,
     stripeCustomerId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CUSTOMER_ID)?.valueString,
+    stripeChargeId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHARGE_ID)?.valueString,
+    stripeReceiptUrl:
+      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueUri ??
+      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueString,
     status: pmsStatus,
     metadata,
     createdAt: fhirInvoice.date ? new Date(fhirInvoice.date) : new Date(),
