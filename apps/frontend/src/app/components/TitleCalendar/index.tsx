@@ -5,7 +5,7 @@ import { BsCalendar2DateFill, BsCalendar2DayFill } from "react-icons/bs";
 import { FaUser } from "react-icons/fa6";
 
 type TitleCalendarProps = {
-  activeCalendar: number;
+  activeCalendar: string;
   title: string;
   setActiveCalendar: any;
   setAddPopup: any;
@@ -34,30 +34,30 @@ const TitleCalendar = ({
         </button>
         <div className="flex items-center rounded-2xl">
           <button
-            onClick={() => setActiveCalendar(0)}
-            className={`${activeCalendar === 0 ? "border-blue-text! bg-[#EAF3FF]" : "border-grey-light!"} rounded-l-2xl! border! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out`}
+            onClick={() => setActiveCalendar("vet")}
+            className={`${activeCalendar === "vet" ? "border-blue-text! bg-[#EAF3FF]" : "border-grey-light!"} rounded-l-2xl! border! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out`}
           >
             <BsCalendar2DateFill
               size={30}
-              color={activeCalendar === 0 ? "#247AED" : "#302f2e"}
+              color={activeCalendar === "vet" ? "#247AED" : "#302f2e"}
             />
           </button>
           <button
-            onClick={() => setActiveCalendar(1)}
-            className={`${activeCalendar === 1 ? "border-blue-text! bg-[#EAF3FF]" : "border-grey-light!"} border! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out`}
+            onClick={() => setActiveCalendar("week")}
+            className={`${activeCalendar === "week" ? "border-blue-text! bg-[#EAF3FF]" : "border-grey-light!"} border! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out`}
           >
             <BsCalendar2DayFill
               size={30}
-              color={activeCalendar === 1 ? "#247AED" : "#302f2e"}
+              color={activeCalendar === "week" ? "#247AED" : "#302f2e"}
             />
           </button>
           <button
-            onClick={() => setActiveCalendar(2)}
-            className={`${activeCalendar === 2 ? "border-blue-text! bg-[#EAF3FF]" : "border-grey-light!"} rounded-r-2xl! border! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out`}
+            onClick={() => setActiveCalendar("day")}
+            className={`${activeCalendar === "day" ? "border-blue-text! bg-[#EAF3FF]" : "border-grey-light!"} rounded-r-2xl! border! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out`}
           >
             <FaUser
               size={28}
-              color={activeCalendar === 2 ? "#247AED" : "#302f2e"}
+              color={activeCalendar === "day" ? "#247AED" : "#302f2e"}
             />
           </button>
         </div>

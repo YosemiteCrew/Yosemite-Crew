@@ -5,6 +5,7 @@ import { IoIosCloseCircleOutline } from "react-icons/io";
 import Details from "./Details";
 import Build from "./Build";
 import Review from "./Review";
+import { FormsProps } from "@/app/types/forms";
 
 const Labels = [
   {
@@ -28,6 +29,14 @@ type AddFormProps = {
 
 const AddForm = ({ showModal, setShowModal }: AddFormProps) => {
   const [activeLabel, setActiveLabel] = useState("form-details");
+  const [formData, setFormData] = useState<FormsProps>({
+    name: "",
+    category: "Discharge",
+    usage: "Internal",
+    updatedBy: "",
+    lastUpdated: "",
+    fields: []
+  });
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -56,9 +65,13 @@ const AddForm = ({ showModal, setShowModal }: AddFormProps) => {
         />
 
         <div className="flex overflow-y-auto flex-1">
-          {activeLabel === "form-details" && <Details />}
-          {activeLabel === "build-form" && <Build />}
-          {activeLabel === "review" && <Review />}
+          {activeLabel === "form-details" && (
+            <Details formData={formData} setFormData={setFormData} />
+          )}
+          {activeLabel === "build-form" && (
+            <Build formData={formData} setFormData={setFormData} />
+          )}
+          {activeLabel === "review" && <Review formData={formData} />}
         </div>
       </div>
     </Modal>

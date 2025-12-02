@@ -31,7 +31,7 @@ const DashboardProfile = () => {
             <div className="dashboard-verify bg-[#E6F4EF]!">
               <span className="text-[#008F5D]!">Verified</span>
             </div>
-            <Primary text="Setup stripe" href="/stripe-onboarding" />
+            <Primary text="Setup stripe" href="/finance" />
           </>
         ) : (
           <>

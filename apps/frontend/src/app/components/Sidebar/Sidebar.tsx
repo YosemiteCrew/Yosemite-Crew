@@ -20,7 +20,7 @@ const appRoutes: RouteItem[] = [
   { name: "Appointments", href: "/appointments" },
   { name: "Tasks", href: "/tasks" },
   { name: "Chat", href: "/chat" },
-  { name: "Finance", href: "#" },
+  { name: "Finance", href: "/finance" },
   { name: "Companions", href: "/companions" },
   { name: "Inventory", href: "/inventory" },
   { name: "Forms", href: "/forms" },

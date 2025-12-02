@@ -23,4 +23,6 @@ export type AppointmentsProps = {
   status: Status;
   breed: string;
   species: string;
+  start: Date;
+  end: Date;
 };
