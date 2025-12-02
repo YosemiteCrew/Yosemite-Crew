@@ -13,7 +13,7 @@ import { useTheme } from '@/hooks';
 interface CheckboxProps {
   value: boolean;
   onValueChange: (value: boolean) => void;
-  label?: string;
+  label?: React.ReactNode;
   error?: string;
   labelStyle?: StyleProp<TextStyle>;
 }
@@ -46,9 +46,9 @@ export const Checkbox: React.FC<CheckboxProps> = ({
             <Text style={styles.checkmark}>✓</Text>
           )}
         </View>
-        {label && (
+        {label ? (
           <Text style={[styles.label, labelStyle as any]}>{label}</Text>
-        )}
+        ) : null}
       </TouchableOpacity>
       {error && (
         <Text style={styles.errorText}>{error}</Text>
@@ -89,11 +89,7 @@ const createStyles = (theme: any) =>
       fontWeight: 'bold',
     },
     label: {
-      // Use Satoshi 14 regular as requested
-      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_REGULAR,
-      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
-      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
-      fontWeight: theme.typography.subtitleRegular14?.fontWeight || '400',
+      ...theme.typography.paragraph,
       color: theme.colors.text,
       flex: 1,
     },

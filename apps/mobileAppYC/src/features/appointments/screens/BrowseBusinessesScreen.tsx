@@ -14,6 +14,7 @@ import CalendarMonthStrip from '@/features/appointments/components/CalendarMonth
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -49,9 +50,16 @@ interface BusinessCardProps {
   navigation: Nav;
   resolveDescription: (b: VetBusiness) => string;
   compact?: boolean;
+  fallbackPhoto?: string | null;
 }
 
-const BusinessCardRenderer: React.FC<BusinessCardProps> = ({business, navigation, resolveDescription, compact}) => (
+const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
+  business,
+  navigation,
+  resolveDescription,
+  compact,
+  fallbackPhoto,
+}) => (
   <BusinessCard
     key={business.id}
     name={business.name}
@@ -59,7 +67,8 @@ const BusinessCardRenderer: React.FC<BusinessCardProps> = ({business, navigation
     description={resolveDescription(business)}
     distanceText={getDistanceText(business)}
     ratingText={getRatingText(business)}
-    photo={business.photo}
+    photo={business.photo ?? undefined}
+    fallbackPhoto={fallbackPhoto ?? undefined}
     onBook={() => navigation.navigate('BusinessDetails', {businessId: business.id})}
     compact={compact}
   />
@@ -69,9 +78,10 @@ interface CategoryBusinessesProps {
   businesses: VetBusiness[];
   navigation: Nav;
   resolveDescription: (b: VetBusiness) => string;
+  fallbacks: Record<string, {photo?: string | null}>;
 }
 
-const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navigation, resolveDescription}) => (
+const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navigation, resolveDescription, fallbacks}) => (
   <>
     {businesses.map(b => (
       <BusinessCardRenderer
@@ -79,6 +89,7 @@ const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navi
         business={b}
         navigation={navigation}
         resolveDescription={resolveDescription}
+        fallbackPhoto={fallbacks[b.id]?.photo ?? null}
       />
     ))}
   </>
@@ -91,9 +102,10 @@ interface AllCategoriesViewProps {
   resolveDescription: (b: VetBusiness) => string;
   navigation: Nav;
   styles: any;
+  fallbacks: Record<string, {photo?: string | null}>;
 }
 
-const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, query, resolveDescription, navigation, styles}) => (
+const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, query, resolveDescription, navigation, styles, fallbacks}) => (
   <>
     {allCategories.map(cat => {
       const items = businesses.filter(x => x.category === cat && x.name.toLowerCase().includes(query.toLowerCase()));
@@ -117,6 +129,7 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
                 business={items[0]}
                 navigation={navigation}
                 resolveDescription={resolveDescription}
+                fallbackPhoto={fallbacks[items[0].id]?.photo ?? null}
               />
             </View>
           ) : (
@@ -127,6 +140,7 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
                   business={b}
                   navigation={navigation}
                   resolveDescription={resolveDescription}
+                  fallbackPhoto={fallbacks[b.id]?.photo ?? null}
                   compact
                 />
               ))}
@@ -143,6 +157,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
+  const [fallbacks, setFallbacks] = useState<Record<string, {photo?: string | null; phone?: string; website?: string}>>({});
+  const requestedDetailsRef = React.useRef<Set<string>>(new Set());
 
   const [category, setCategory] = useState<BusinessCategory | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -154,6 +170,44 @@ export const BrowseBusinessesScreen: React.FC = () => {
   useEffect(() => {
     dispatch(fetchBusinesses(undefined));
   }, [dispatch]);
+
+  useEffect(() => {
+    businesses.forEach(biz => {
+      const isDummyPhoto =
+        typeof biz.photo === 'string' &&
+        (biz.photo.includes('example.com') || biz.photo.includes('placeholder'));
+      const needsPhoto = (!biz.photo || isDummyPhoto) && biz.googlePlacesId;
+      const needsContact = (!biz.phone || !biz.website) && biz.googlePlacesId;
+      if ((needsPhoto || needsContact) && biz.googlePlacesId && !requestedDetailsRef.current.has(biz.googlePlacesId)) {
+        requestedDetailsRef.current.add(biz.googlePlacesId);
+        dispatch(fetchBusinessDetails(biz.googlePlacesId))
+          .unwrap()
+          .then(result => {
+            setFallbacks(prev => ({
+              ...prev,
+              [biz.id]: {
+                photo: result.photoUrl ?? prev[biz.id]?.photo ?? null,
+                phone: result.phoneNumber ?? prev[biz.id]?.phone,
+                website: result.website ?? prev[biz.id]?.website,
+              },
+            }));
+          })
+          .catch(() => {
+            dispatch(fetchGooglePlacesImage(biz.googlePlacesId as string))
+              .unwrap()
+              .then(img => {
+                if (img.photoUrl) {
+                  setFallbacks(prev => ({
+                    ...prev,
+                    [biz.id]: {...prev[biz.id], photo: img.photoUrl},
+                  }));
+                }
+              })
+              .catch(() => {});
+          });
+      }
+    });
+  }, [businesses, dispatch]);
 
   const allCategories = ['hospital','groomer','breeder','pet_center','boarder','clinic'] as const;
 
@@ -214,6 +268,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
               businesses={businesses.filter(b => b.name.toLowerCase().includes(query.toLowerCase()))}
               navigation={navigation}
               resolveDescription={resolveDescription}
+              fallbacks={fallbacks}
             />
           ) : (
             <AllCategoriesView
@@ -223,6 +278,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
               resolveDescription={resolveDescription}
               navigation={navigation}
               styles={styles}
+              fallbacks={fallbacks}
             />
           )}
         </View>

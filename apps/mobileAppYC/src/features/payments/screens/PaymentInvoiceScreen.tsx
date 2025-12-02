@@ -1,5 +1,14 @@
-import React, {useMemo, useState, useEffect} from 'react';
-import {ScrollView, View, Text, StyleSheet, Image, Alert, Platform} from 'react-native';
+import React, {useMemo, useState, useEffect, useRef} from 'react';
+import {
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  Alert,
+  Platform,
+  Linking,
+} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -10,13 +19,23 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
-import {recordPayment} from '@/features/appointments/appointmentsSlice';
+import {
+  recordPayment,
+  fetchInvoiceForAppointment,
+  fetchAppointmentById,
+} from '@/features/appointments/appointmentsSlice';
+import {fetchPaymentIntentForAppointment} from '@/features/appointments/appointmentsSlice';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {Images} from '@/assets/images';
-import type {InvoiceItem, Invoice, PaymentIntentInfo} from '@/features/appointments/types';
+import type {
+  InvoiceItem,
+  Invoice,
+  PaymentIntentInfo,
+} from '@/features/appointments/types';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {useStripe} from '@stripe/stripe-react-native';
 import {STRIPE_CONFIG} from '@/config/variables';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -43,17 +62,23 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const companionId = routeParams.companionId;
   const routeInvoice = routeParams.invoice;
   const routeIntent = routeParams.paymentIntent;
+  const invoiceRequestedRef = useRef(false);
 
   const invoiceFromStore = useSelector(
     appointmentId ? selectInvoiceForAppointment(appointmentId) : () => null,
   );
   const invoice = invoiceFromStore ?? routeInvoice ?? null;
-  const fallbackPaymentIntent = routeIntent ?? routeInvoice?.paymentIntent ?? null;
+  const fallbackPaymentIntent =
+    routeIntent ?? routeInvoice?.paymentIntent ?? null;
   const apt = useSelector((s: RootState) =>
-    appointmentId ? s.appointments.items.find(a => a.id === appointmentId) : undefined,
+    appointmentId
+      ? s.appointments.items.find(a => a.id === appointmentId)
+      : undefined,
   );
   const business = useSelector((s: RootState) =>
-    apt?.businessId ? s.businesses.businesses.find(b => b.id === apt.businessId) : undefined,
+    apt?.businessId
+      ? s.businesses.businesses.find(b => b.id === apt.businessId)
+      : undefined,
   );
   const service = useSelector((s: RootState) =>
     apt?.serviceId
@@ -68,6 +93,9 @@ export const PaymentInvoiceScreen: React.FC = () => {
       : null,
   );
   const authUser = useSelector(selectAuthUser);
+  const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
+  const businessName = business?.name ?? apt?.organisationName ?? 'Your clinic';
+  const businessAddress = business?.address ?? apt?.organisationAddress ?? undefined;
 
   const guardianName =
     [authUser?.firstName, authUser?.lastName]
@@ -109,7 +137,27 @@ export const PaymentInvoiceScreen: React.FC = () => {
 
   const {initPaymentSheet, presentPaymentSheet} = useStripe();
   const [presentingSheet, setPresentingSheet] = useState(false);
-  const paymentIntent = invoice?.paymentIntent ?? fallbackPaymentIntent ?? null;
+  const paymentIntent =
+    invoice?.paymentIntent ??
+    routeIntent ??
+    apt?.paymentIntent ??
+    fallbackPaymentIntent ??
+    null;
+  const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
+  const isDummyPhoto = React.useCallback(
+    (photo?: string | null) =>
+      typeof photo === 'string' &&
+      (photo.includes('example.com') || photo.includes('placeholder')),
+    [],
+  );
+  const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
+  const resolvedBusinessPhoto = fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto);
+  const summaryBusiness = {
+    name: businessName,
+    address: businessAddress,
+    description: undefined,
+    photo: (resolvedBusinessPhoto as any) ?? null,
+  };
 
   const buildEffectiveInvoice = (): Invoice | null => {
     const baseInvoice: Invoice | null =
@@ -136,7 +184,9 @@ export const PaymentInvoiceScreen: React.FC = () => {
     const invoiceDateISO = baseInvoice.invoiceDate ?? intentDateISO;
     const dueDateISO =
       baseInvoice.dueDate ??
-      new Date(new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000).toISOString();
+      new Date(
+        new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000,
+      ).toISOString();
 
     return {
       ...baseInvoice,
@@ -147,41 +197,82 @@ export const PaymentInvoiceScreen: React.FC = () => {
         paymentIntent?.paymentIntentId ??
         baseInvoice.id ??
         appointmentId,
+      status: baseInvoice.status ?? apt?.status ?? 'PAID',
     };
   };
 
   const effectiveInvoice = buildEffectiveInvoice();
-  const hasPaymentData = effectiveInvoice || paymentIntent;
+  const isPaymentPendingStatus =
+    apt?.status === 'NO_PAYMENT' ||
+    apt?.status === 'AWAITING_PAYMENT' ||
+    apt?.status === 'PAYMENT_FAILED';
+  useEffect(() => {
+    if (!apt && appointmentId) {
+      dispatch(fetchAppointmentById({appointmentId}));
+    }
+  }, [apt, appointmentId, dispatch]);
+  useEffect(() => {
+    if (!googlePlacesId) return;
+    dispatch(fetchBusinessDetails(googlePlacesId))
+      .unwrap()
+      .then(res => {
+        if (res.photoUrl) setFallbackPhoto(res.photoUrl);
+      })
+      .catch(() => {
+        dispatch(fetchGooglePlacesImage(googlePlacesId))
+          .unwrap()
+          .then(img => {
+            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
+          })
+          .catch(() => {});
+      });
+  }, [dispatch, googlePlacesId]);
 
   useEffect(() => {
     if (!appointmentId) {
-      Alert.alert('Missing data', 'Could not open payment screen without an appointment.');
+      Alert.alert(
+        'Missing data',
+        'Could not open payment screen without an appointment.',
+      );
       navigation.goBack();
       return;
     }
-    if (!hasPaymentData) {
-      Alert.alert(
-        'Payment unavailable',
-        'Booking succeeded but payment details are missing. Please retry booking.',
-      );
-      navigation.goBack();
+    const isPaymentPendingNow =
+      apt?.status === 'NO_PAYMENT' ||
+      apt?.status === 'AWAITING_PAYMENT' ||
+      apt?.status === 'PAYMENT_FAILED';
+    if (
+      appointmentId &&
+      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId) &&
+      isPaymentPendingNow
+    ) {
+      dispatch(fetchPaymentIntentForAppointment({appointmentId}));
     }
-  }, [appointmentId, hasPaymentData, navigation]);
+    const needsInvoice = !invoiceFromStore && !routeInvoice;
+    if (
+      appointmentId &&
+      needsInvoice &&
+      !isPaymentPendingNow &&
+      !invoiceRequestedRef.current
+    ) {
+      invoiceRequestedRef.current = true;
+      dispatch(fetchInvoiceForAppointment({appointmentId}));
+    }
+  }, [
+    appointmentId,
+    apt?.status,
+    dispatch,
+    invoiceFromStore,
+    navigation,
+    paymentIntent?.clientSecret,
+    paymentIntent?.paymentIntentId,
+    routeInvoice,
+  ]);
 
-  if (!hasPaymentData) {
-    return (
-      <SafeArea>
-        <Header title="Payment" showBackButton onBack={() => navigation.goBack()} />
-        <View style={styles.missingContainer}>
-          <Text style={styles.warningText}>
-            Payment details are unavailable for this appointment. Please retry booking or contact support.
-          </Text>
-        </View>
-      </SafeArea>
-    );
-  }
   const clientSecret = paymentIntent?.clientSecret;
-  const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
+  const currencySymbol = effectiveInvoice?.currency
+    ? `${effectiveInvoice.currency} `
+    : '$';
   const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
   const subtotal = effectiveInvoice?.subtotal ?? 0;
   const getDiscountAmount = (): number => {
@@ -200,19 +291,34 @@ export const PaymentInvoiceScreen: React.FC = () => {
 
   const discountAmount = getDiscountAmount();
   const taxAmount = getTaxAmount();
-  const total = effectiveInvoice?.total ?? subtotal - discountAmount + taxAmount;
-  const shouldShowPay = !!clientSecret;
+  const total =
+    effectiveInvoice?.total ?? subtotal - discountAmount + taxAmount;
+  const shouldShowPay = isPaymentPendingStatus && !!clientSecret;
+  const headerTitle = isPaymentPendingStatus ? 'Book appointment' : 'Invoice details';
   const invoiceNumberDisplay =
     effectiveInvoice?.invoiceNumber ??
     paymentIntent?.paymentIntentId ??
     effectiveInvoice?.id ??
     '—';
+  const receiptUrl =
+    effectiveInvoice?.downloadUrl ??
+    effectiveInvoice?.paymentIntent?.paymentLinkUrl ??
+    paymentIntent?.paymentLinkUrl ??
+    null;
+  const isInvoiceLoaded = Boolean(effectiveInvoice);
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—';
     const ts = Date.parse(iso);
     if (Number.isNaN(ts)) return '—';
     return new Date(ts).toLocaleString();
   };
+  const formatDateOnly = (iso?: string | null) => {
+    if (!iso) return 'the stated due date';
+    const ts = Date.parse(iso);
+    if (Number.isNaN(ts)) return 'the stated due date';
+    return new Date(ts).toLocaleDateString();
+  };
+  const paymentDueLabel = formatDateOnly(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
   const buildSheetOptions = () => {
     const opts: any = {
@@ -237,7 +343,10 @@ export const PaymentInvoiceScreen: React.FC = () => {
 
   const handlePayNow = async () => {
     if (!clientSecret) {
-      Alert.alert('Payment unavailable', 'No payment intent found for this appointment.');
+      Alert.alert(
+        'Payment unavailable',
+        'No payment intent found for this appointment.',
+      );
       return;
     }
     setPresentingSheet(true);
@@ -258,13 +367,18 @@ export const PaymentInvoiceScreen: React.FC = () => {
     } catch (err) {
       setPresentingSheet(false);
       console.warn('[Payment] Error presenting payment sheet:', err);
-      Alert.alert('Payment failed', 'Unable to present the payment sheet. Please try again.');
+      Alert.alert(
+        'Payment failed',
+        'Unable to present the payment sheet. Please try again.',
+      );
       return;
     }
 
     const recordAction = await dispatch(recordPayment({appointmentId}));
     if (recordPayment.rejected.match(recordAction)) {
-      console.warn('[Payment] Failed to refresh appointment status after payment');
+      console.warn(
+        '[Payment] Failed to refresh appointment status after payment',
+      );
     }
     navigation.replace('PaymentSuccess', {
       appointmentId,
@@ -275,18 +389,22 @@ export const PaymentInvoiceScreen: React.FC = () => {
   return (
     <SafeArea>
       <Header
-        title="Book an Appointment"
+        title={headerTitle}
         showBackButton
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.container}>
+        {!isInvoiceLoaded && !isPaymentPendingStatus && (
+          <Text style={styles.warningText}>Loading invoice details…</Text>
+        )}
         {!effectiveInvoice && (
           <Text style={styles.warningText}>
-            No invoice found for this booking. Please retry booking or contact support.
+            No invoice found for this booking. Please retry booking or contact
+            support.
           </Text>
         )}
         <SummaryCards
-          business={business}
+          businessSummary={summaryBusiness as any}
           service={service}
           serviceName={apt?.serviceName}
           cardStyle={styles.summaryCard}
@@ -294,16 +412,16 @@ export const PaymentInvoiceScreen: React.FC = () => {
 
         <View style={styles.metaCard}>
           <Text style={styles.metaTitle}>Invoice details</Text>
-          <MetaRow
-            label="Invoice number"
-            value={invoiceNumberDisplay}
-          />
+          <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
           <MetaRow label="Appointment ID" value={apt?.id ?? '—'} />
           <MetaRow
             label="Invoice date"
             value={formatDateTime(effectiveInvoice?.invoiceDate)}
           />
-          <MetaRow label="Due till" value={formatDateTime(effectiveInvoice?.dueDate)} />
+          <MetaRow
+            label="Due till"
+            value={formatDateTime(effectiveInvoice?.dueDate)}
+          />
         </View>
 
         <View style={styles.invoiceForCard}>
@@ -335,17 +453,12 @@ export const PaymentInvoiceScreen: React.FC = () => {
                 <Text style={styles.invoiceAddressText}>{guardianAddress}</Text>
               </View>
               <Text style={styles.appointmentForText}>
-                Appointment for : {' '}
+                Appointment for :{' '}
                 <Text style={styles.appointmentForName}>{companionName}</Text>
               </Text>
             </View>
           </View>
         </View>
-
-        <Image
-          source={invoice?.image ?? Images.sampleInvoice}
-          style={styles.invoiceImage}
-        />
 
         <View style={styles.breakdownCard}>
           <Text style={styles.metaTitle}>Description</Text>
@@ -369,44 +482,65 @@ export const PaymentInvoiceScreen: React.FC = () => {
             />
           )}
           {!!taxAmount && (
-            <BreakdownRow
-              label="Tax"
-              value={formatMoney(taxAmount)}
-              subtle
-            />
+            <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
           )}
-          <BreakdownRow
-            label="Total"
-            value={formatMoney(total)}
-            highlight
-          />
+          <BreakdownRow label="Total" value={formatMoney(total)} highlight />
           <Text style={styles.breakdownNote}>
             Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts
             + Taxes.
           </Text>
         </View>
+        {receiptUrl && (
+          <View style={styles.previewCard}>
+            <Text style={styles.metaTitle}>Invoice & receipt</Text>
+            <LiquidGlassButton
+              title="View invoice"
+              onPress={() => {
+                Linking.canOpenURL(receiptUrl)
+                  .then(canOpen => {
+                    if (canOpen) {
+                      return Linking.openURL(receiptUrl);
+                    }
+                    throw new Error('cannot-open');
+                  })
+                  .catch(() =>
+                    Alert.alert(
+                      'Unable to open invoice',
+                      'Please try again or copy the link from your receipt.',
+                    ),
+                  );
+              }}
+              height={48}
+              borderRadius={12}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
+            />
+            <Text style={styles.missingSubtitle}>
+              You will be redirected to the secure Stripe receipt in your
+              browser.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.termsCard}>
-          <Text style={styles.metaTitle}>Payment Terms & Legal Disclaimer</Text>
+          <Text style={styles.metaTitle}>Payment terms & legal</Text>
           <Text style={styles.termsLine}>
-            Payment Terms: Net 14 days (due 21 Jul 2025)
+            Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
           </Text>
           <Text style={styles.termsLine}>
-            Statutory Liability: You have the right to request correction or
-            refund for any defective services.
+            Services are provided by {businessName}
+            {businessAddress && businessAddress !== '—' ? ` (${businessAddress})` : ''}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.
           </Text>
           <Text style={styles.termsLine}>
-            After-Sales Service & Guarantee: Free post-op consultation within 7
-            days. 24×7 emergency hotline available.
+            Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
           </Text>
           <Text style={styles.termsLine}>
-            Complaints to: San Francisco Animal Medical Center, 456 Referral Rd,
-            Suite 200, San Francisco CA 94103, (415) 555-0199,
-            complaints@sfamc.com
+            This invoice is not emergency advice. If your pet needs urgent care, contact the clinic or local emergency services immediately.
           </Text>
         </View>
         <View style={styles.buttonContainer}>
-          {shouldShowPay ? (
+          {shouldShowPay && (
             <LiquidGlassButton
               title="Pay now"
               onPress={handlePayNow}
@@ -417,11 +551,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
             />
-          ) : (
-            <Text style={styles.warningText}>
-              Payment details are unavailable for this appointment. Please retry booking or contact
-              support.
-            </Text>
           )}
         </View>
       </ScrollView>
@@ -500,7 +629,31 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[2],
     },
     missingContainer: {
+      flex: 1,
       padding: theme.spacing[4],
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing[2.5],
+    },
+    missingBadge: {
+      paddingHorizontal: theme.spacing[2.5],
+      paddingVertical: theme.spacing[1],
+      borderRadius: 999,
+      backgroundColor: theme.colors.primaryTint,
+    },
+    missingBadgeText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.primary,
+    },
+    missingTitle: {
+      ...theme.typography.h4,
+      color: theme.colors.secondary,
+    },
+    missingSubtitle: {
+      ...theme.typography.body14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
     },
     invoiceForCard: {
       borderRadius: 16,
@@ -510,44 +663,52 @@ const createStyles = (theme: any) =>
       padding: theme.spacing[4],
       gap: theme.spacing[1],
     },
+    previewCard: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.cardBackground,
+      padding: theme.spacing[4],
+      gap: theme.spacing[2],
+    },
     invoiceForRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing[3],
     },
-  invoiceInfoColumn: {
-    flex: 1,
-    gap: theme.spacing[1],
-  },
+    invoiceInfoColumn: {
+      flex: 1,
+      gap: theme.spacing[1],
+    },
     invoiceInfoRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing[2],
     },
-  infoIcon: {
-    width: 18,
-    height: 18,
-    resizeMode: 'contain',
-    tintColor: theme.colors.secondary,
+    infoIcon: {
+      width: 18,
+      height: 18,
+      resizeMode: 'contain',
+      tintColor: theme.colors.secondary,
     },
     invoiceContactText: {
       ...theme.typography.body14,
       color: theme.colors.secondary,
     },
-  invoiceAddressText: {
-    ...theme.typography.body12,
-    color: theme.colors.textSecondary,
-    flex: 1,
-  },
-  appointmentForText: {
-    ...theme.typography.body14,
-    color: theme.colors.textSecondary,
-    marginTop: theme.spacing[2],
-  },
-  appointmentForName: {
-    ...theme.typography.titleSmall,
-    color: theme.colors.secondary,
-  },
+    invoiceAddressText: {
+      ...theme.typography.body12,
+      color: theme.colors.textSecondary,
+      flex: 1,
+    },
+    appointmentForText: {
+      ...theme.typography.body14,
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing[2],
+    },
+    appointmentForName: {
+      ...theme.typography.titleSmall,
+      color: theme.colors.secondary,
+    },
     avatarStack: {
       width: 80,
       height: 104,
@@ -585,12 +746,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.titleSmall,
       color: theme.colors.primary,
       fontWeight: '700',
-    },
-    invoiceImage: {
-      width: '100%',
-      height: 200,
-      resizeMode: 'cover',
-      borderRadius: 16,
     },
     breakdownCard: {
       borderRadius: 16,

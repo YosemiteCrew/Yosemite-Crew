@@ -191,7 +191,9 @@ const extractArrayFromResponse = (data: any): any[] => {
   return [];
 };
 
-const mapAppointmentResource = (resource: any): Appointment => {
+const mapAppointmentResource = (incoming: any): Appointment => {
+  const resource = incoming?.appointment ?? incoming;
+  const org = incoming?.organisation ?? incoming?.organization;
   const participants = Array.isArray(resource?.participant) ? resource.participant : [];
   const patient = parseParticipant(participants, 'Patient/');
   const practitioner = parseParticipant(participants, 'Practitioner/');
@@ -221,6 +223,10 @@ const mapAppointmentResource = (resource: any): Appointment => {
     (ext: any) => ext?.id === 'breed' || ext?.url === 'https://hl7.org/fhir/animal-breed',
   );
 
+  const locationAddress = buildAddressString(resource?.location?.address ?? {});
+  const orgAddress = buildAddressString(org?.address);
+  const organisationAddress = locationAddress?.trim?.().length ? locationAddress : orgAddress;
+
   return {
     id: resource?.id ?? resource?._id ?? '',
     companionId: patient.id ?? '',
@@ -244,8 +250,10 @@ const mapAppointmentResource = (resource: any): Appointment => {
     uploadedFiles: parseAttachments(resource?.extension),
     status: toStatus(resource?.status),
     invoiceId: resource?.invoiceId ?? null,
-    organisationName: organisation.display ?? null,
-    organisationAddress: buildAddressString(resource?.location?.address ?? {}),
+    organisationName: organisation.display ?? org?.name ?? null,
+    organisationAddress,
+    businessPhoto: org?.imageURL ?? org?.imageUrl ?? org?.logoUrl ?? null,
+    businessGooglePlacesId: org?.googlePlacesId ?? org?.placeId ?? null,
     createdAt:
       resource?.createdAt ??
       resource?.meta?.lastUpdated ??
@@ -304,31 +312,56 @@ const mapInvoiceFromApi = (
     : null;
 
   const invoiceCreatedAt: string | undefined =
-    raw.invoiceDate ?? raw.createdAt ?? raw.paymentIntent?.createdAt;
+    raw.invoiceDate ?? raw.createdAt ?? raw.paymentIntent?.createdAt ?? raw.date;
   const dueTill = invoiceCreatedAt
     ? new Date(new Date(invoiceCreatedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
     : raw.dueDate;
 
+  const extensions = Array.isArray(raw.extension) ? raw.extension : [];
+  const receiptUrl =
+    extensions.find(
+      (ext: any) =>
+        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+    )?.valueUri ?? raw.invoiceUrl ?? raw.downloadUrl ?? null;
+  const appointmentFromExt =
+    extensions.find(
+      (ext: any) =>
+        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+    )?.valueString;
+  const statusFromExt =
+    extensions.find(
+      (ext: any) =>
+        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
+    )?.valueString;
+  const totalPriceComponents = Array.isArray(raw.totalPriceComponent)
+    ? raw.totalPriceComponent
+    : [];
+  const subtotalFromTotals = totalPriceComponents.find((pc: any) => pc?.type === 'base')?.amount
+    ?.value;
+  const grandTotalFromTotals = totalPriceComponents.find(
+    (pc: any) => pc?.code?.text === 'grand-total' || pc?.type === 'informational',
+  )?.amount?.value;
+
   const invoice: Invoice = {
     id: raw.id ?? raw._id ?? raw.invoiceId ?? `invoice-${Date.now()}`,
-    appointmentId: raw.appointmentId ?? '',
+    appointmentId: appointmentFromExt ?? raw.appointmentId ?? '',
     items: normalizedItems,
-    subtotal,
+    subtotal: subtotalFromTotals ?? subtotal,
     discountPercent: raw.discountPercent ?? null,
     taxPercent: raw.taxPercent ?? null,
-    total,
+    total: grandTotalFromTotals ?? total,
     currency: raw.currency ?? paymentIntent?.currency ?? 'USD',
     dueDate: dueTill,
     invoiceNumber: raw.invoiceNumber ?? raw.invoiceNo ?? raw.number,
     invoiceDate: invoiceCreatedAt,
     billedToName: raw.billedToName,
     billedToEmail: raw.billedToEmail,
-    status: raw.status,
+    status: statusFromExt ?? raw.status,
     stripePaymentIntentId: raw.stripePaymentIntentId ?? null,
     stripeInvoiceId: raw.stripeInvoiceId ?? null,
     stripePaymentLinkId: raw.stripePaymentLinkId ?? null,
     paymentIntent,
-    downloadUrl: raw.invoiceUrl ?? raw.downloadUrl ?? null,
+    downloadUrl: receiptUrl,
   };
 
   return {invoice, paymentIntent};
@@ -420,6 +453,7 @@ const mapBusinessFromApi = (
     email: org?.email,
     lat: addressObj?.latitude ?? addressObj?.location?.coordinates?.[1],
     lng: addressObj?.longitude ?? addressObj?.location?.coordinates?.[0],
+    googlePlacesId: org?.googlePlacesId ?? org?.placeId ?? org?.googlePlaceId ?? null,
   };
 
   return {business, services};
@@ -572,6 +606,7 @@ export const appointmentApi = {
   }): Promise<Appointment> {
     const url = buildUrl(
       `/fhir/v1/appointment/mobile/${encodeURIComponent(appointmentId)}/reschedule`,
+      {usePms: true},
     );
     const {data} = await apiClient.patch(
       url,
@@ -585,6 +620,72 @@ export const appointmentApi = {
     );
     const resource = data?.data ?? data;
     return mapAppointmentResource(resource);
+  },
+
+  async fetchInvoiceForAppointment({
+    appointmentId,
+    accessToken,
+  }: {
+    appointmentId: string;
+    accessToken: string;
+  }): Promise<{invoice: Invoice | null; paymentIntent?: PaymentIntentInfo | null}> {
+    const url = buildUrl(
+      `/fhir/v1/invoice/mobile/appointment/${encodeURIComponent(appointmentId)}`,
+      {usePms: true},
+    );
+    const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+    const collection = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    const raw = collection[0] ?? null;
+    if (!raw) return {invoice: null, paymentIntent: undefined};
+    const base = mapInvoiceFromApi(raw);
+    const stripeReceipt =
+      raw?.extension?.find?.(
+        (ext: any) =>
+          ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+      )?.valueUri ?? null;
+    const appointmentExt =
+      raw?.extension?.find?.(
+        (ext: any) =>
+          ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+      )?.valueString ?? appointmentId;
+    const statusExt =
+      raw?.extension?.find?.(
+        (ext: any) =>
+          ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
+      )?.valueString;
+
+    return {
+      invoice: base.invoice
+        ? {
+            ...base.invoice,
+            id: raw.id ?? base.invoice.id,
+            appointmentId: appointmentExt ?? appointmentId,
+            invoiceDate: raw.date ?? base.invoice.invoiceDate,
+            status: statusExt ?? base.invoice.status,
+            downloadUrl: base.invoice.downloadUrl ?? stripeReceipt,
+          }
+        : null,
+      paymentIntent: base.paymentIntent,
+    };
+  },
+
+  async createPaymentIntent({
+    appointmentId,
+    accessToken,
+  }: {
+    appointmentId: string;
+    accessToken: string;
+  }): Promise<PaymentIntentInfo> {
+    const url = buildUrl(`/v1/stripe/payment-intent/${encodeURIComponent(appointmentId)}`);
+    const {data} = await apiClient.post(url, undefined, {headers: withAuthHeaders(accessToken)});
+    const payload = data?.data ?? data ?? {};
+    return {
+      paymentIntentId: payload.paymentIntentId ?? payload.id ?? `pi-${appointmentId}`,
+      clientSecret: payload.clientSecret,
+      amount: payload.amount,
+      currency: payload.currency ?? 'USD',
+      paymentLinkUrl: payload.paymentLinkUrl ?? null,
+    };
   },
 
   async cancelAppointment({

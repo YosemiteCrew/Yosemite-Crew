@@ -2,6 +2,7 @@ import {createSlice, createAsyncThunk} from '@reduxjs/toolkit';
 import type {BusinessesState, VetBusiness, VetService, SlotWindow} from './types';
 import {appointmentApi} from './services/appointmentsService';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 
 const toErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -137,6 +138,10 @@ const dedupeById = <T extends {id: string}>(items: T[]): T[] => {
   return Array.from(map.values());
 };
 
+const isDummyPhoto = (photo?: string | null) =>
+  typeof photo === 'string' &&
+  (photo.includes('example.com') || photo.includes('placeholder'));
+
 const businessesSlice = createSlice({
   name: 'businesses',
   initialState,
@@ -162,6 +167,26 @@ const businessesSlice = createSlice({
       .addCase(fetchBusinesses.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) ?? 'Failed to fetch businesses';
+      })
+      .addCase(fetchBusinessDetails.fulfilled, (state, action) => {
+        const {placeId, photoUrl, phoneNumber, website} = action.payload as any;
+        if (!placeId) return;
+        const biz = state.businesses.find(b => b.googlePlacesId === placeId);
+        if (biz) {
+          if (photoUrl && (!biz.photo || isDummyPhoto(biz.photo as string))) {
+            biz.photo = photoUrl;
+          }
+          biz.phone = biz.phone || phoneNumber || biz.phone;
+          biz.website = biz.website || website || biz.website;
+        }
+      })
+      .addCase(fetchGooglePlacesImage.fulfilled, (state, action) => {
+        const {photoUrl} = action.payload;
+        if (!photoUrl) return;
+        state.businesses = state.businesses.map(b => {
+          const shouldReplace = !b.photo || isDummyPhoto(b.photo as string);
+          return shouldReplace ? {...b, photo: photoUrl} : b;
+        });
       })
       .addCase(fetchServiceSlots.fulfilled, (state, action) => {
         const {businessId, serviceId, date, windows} = action.payload as {

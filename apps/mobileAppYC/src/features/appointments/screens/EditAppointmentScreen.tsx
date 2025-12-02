@@ -1,20 +1,17 @@
-import React, {useMemo, useState} from 'react';
-import {ScrollView, StyleSheet} from 'react-native';
+import React, {useEffect, useMemo, useState} from 'react';
+import {ScrollView, StyleSheet, Text} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CancelAppointmentBottomSheet, type CancelAppointmentBottomSheetRef} from '@/features/appointments/components/CancelAppointmentBottomSheet';
-import {DocumentUploadSheets} from '@/features/appointments/components/DocumentUploadSheets';
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
 import {useTheme} from '@/hooks';
-import {useDocumentUpload} from '@/shared/hooks/useDocumentUpload';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import type {DocumentFile} from '@/features/documents/types';
 import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
 import {cancelAppointment, rescheduleAppointment} from '@/features/appointments/appointmentsSlice';
 import {
@@ -24,6 +21,9 @@ import {
   parseSlotLabel,
 } from '@/features/appointments/utils/availability';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import type {NavigationProp} from '@react-navigation/native';
+import type {TabParamList, RootStackParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -33,7 +33,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
-  const {appointmentId, mode} = route.params as {appointmentId: string; mode?: 'reschedule'};
+  const {appointmentId} = route.params as {appointmentId: string};
   const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
   const service = useSelector(selectServiceById(apt?.serviceId ?? null));
   const availabilitySelector = React.useMemo(
@@ -70,22 +70,51 @@ export const EditAppointmentScreen: React.FC = () => {
   const type = apt?.type || 'General Checkup';
   const [concern, setConcern] = useState(apt?.concern || '');
   const [emergency, setEmergency] = useState(apt?.emergency || false);
-  const [files, setFiles] = useState<DocumentFile[]>([]);
-
-  const {
-    refs: {uploadSheetRef, deleteSheetRef},
-    fileToDelete,
-    handleTakePhoto,
-    handleChooseFromGallery,
-    handleUploadFromDrive,
-    handleRemoveFile,
-    confirmDeleteFile,
-    openSheet,
-    closeSheet,
-  } = useDocumentUpload({
-    files,
-    setFiles,
-  });
+  const [saving, setSaving] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
+  const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
+  const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
+  const linkStyle = {
+    ...theme.typography.paragraphBold,
+    color: theme.colors.primary,
+  };
+  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+  const rootNavigation = tabNavigation?.getParent<NavigationProp<RootStackParamList>>();
+  const findNavigatorWithRoute = (routeName: string) => {
+    let nav: any = navigation;
+    while (nav) {
+      const state = nav.getState?.();
+      if (state?.routeNames?.includes(routeName)) {
+        return nav as NavigationProp<any>;
+      }
+      nav = nav.getParent?.();
+    }
+    return null;
+  };
+  const handleOpenTerms = () => {
+    navigation.popToTop();
+    const nav =
+      findNavigatorWithRoute('HomeStack') ??
+      rootNavigation ??
+      tabNavigation ??
+      navigation.getParent<NavigationProp<TabParamList>>();
+    nav?.navigate('HomeStack' as any, {screen: 'TermsAndConditions'});
+  };
+  const handleOpenPrivacy = () => {
+    navigation.popToTop();
+    const nav =
+      findNavigatorWithRoute('HomeStack') ??
+      rootNavigation ??
+      tabNavigation ??
+      navigation.getParent<NavigationProp<TabParamList>>();
+    nav?.navigate('HomeStack' as any, {screen: 'PrivacyPolicy'});
+  };
+  const isDummyPhoto = React.useCallback(
+    (photo?: string | null) =>
+      typeof photo === 'string' &&
+      (photo.includes('example.com') || photo.includes('placeholder')),
+    [],
+  );
 
   React.useEffect(() => {
     if (!apt?.businessId || !apt?.serviceId || !date) {
@@ -101,7 +130,7 @@ export const EditAppointmentScreen: React.FC = () => {
   }, [apt?.businessId, apt?.serviceId, date, dispatch]);
 
   const cancelSheetRef = React.useRef<CancelAppointmentBottomSheetRef>(null);
-  const isReschedule = mode === 'reschedule';
+  const isReschedule = true;
 
   const slots = useMemo(() => {
     const available = getSlotsForDate(availability, date, todayISO);
@@ -116,33 +145,58 @@ export const EditAppointmentScreen: React.FC = () => {
     [availability, todayISO],
   );
 
+  useEffect(() => {
+    if (!googlePlacesId) return;
+    const needsPhoto = (!businessPhoto || isDummyPhoto(businessPhoto)) && !fallbackPhoto;
+    if (!needsPhoto) return;
+    dispatch(fetchBusinessDetails(googlePlacesId))
+      .unwrap()
+      .then(res => {
+        if (res.photoUrl) setFallbackPhoto(res.photoUrl);
+      })
+      .catch(() => {
+        dispatch(fetchGooglePlacesImage(googlePlacesId))
+          .unwrap()
+          .then(img => {
+            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
+          })
+          .catch(() => {});
+      });
+  }, [businessPhoto, dispatch, fallbackPhoto, googlePlacesId, isDummyPhoto]);
+
   if (!apt) return null;
 
-  const handleSubmit = () => {
-    if (isReschedule && time) {
-      const {startTime, endTime} = parseSlotLabel(time);
-      dispatch(
+  const handleSubmit = async () => {
+    if (!time) {
+      navigation.goBack();
+      return;
+    }
+    const {startTime, endTime} = parseSlotLabel(time);
+    const startIso = new Date(`${date}T${(startTime ?? time).padEnd(5, ':00')}Z`).toISOString();
+    const endIso = new Date(`${date}T${(endTime ?? startTime ?? time).padEnd(5, ':00')}Z`).toISOString();
+    setSaving(true);
+    try {
+      await dispatch(
         rescheduleAppointment({
           appointmentId,
-          startTime: startTime ?? time,
-          endTime: endTime ?? startTime ?? time,
+          startTime: startIso,
+          endTime: endIso,
           isEmergency: emergency,
           concern,
         }),
-      );
+      ).unwrap();
+      navigation.goBack();
+    } catch (error) {
+      console.warn('[EditAppointment] Failed to reschedule', error);
+    } finally {
+      setSaving(false);
     }
-    navigation.goBack();
-  };
-
-  const handleUploadDocuments = () => {
-    openSheet('upload');
-    uploadSheetRef.current?.open();
   };
 
   return (
     <SafeArea>
       <Header
-        title="Edit Appointments"
+        title="Reschedule Appointment"
         showBackButton
         onBack={() => navigation.goBack()}
         rightIcon={Images.deleteIcon}
@@ -155,11 +209,14 @@ export const EditAppointmentScreen: React.FC = () => {
       >
         <AppointmentFormContent
           businessCard={{
-            title: business?.name ?? '',
-            subtitlePrimary: business?.address ?? undefined,
+            title: business?.name ?? apt?.organisationName ?? '',
+            subtitlePrimary: business?.address ?? apt?.organisationAddress ?? undefined,
             subtitleSecondary: business?.description ?? undefined,
-            image: business?.photo,
-            onEdit: () => navigation.goBack(),
+            image: fallbackPhoto || (isDummyPhoto(businessPhoto) ? undefined : businessPhoto),
+            interactive: false,
+            maxTitleLines: 2,
+            maxSubtitleLines: 2,
+            avatarSize: 96,
           }}
           serviceCard={
             (service || apt.serviceName)
@@ -209,20 +266,41 @@ export const EditAppointmentScreen: React.FC = () => {
           emergency={emergency}
           onEmergencyChange={setEmergency}
           emergencyMessage="I confirm this is an emergency. For urgent concerns, please contact my vet here."
-          files={files}
-          onAddDocuments={handleUploadDocuments}
-          onRequestRemoveFile={handleRemoveFile}
+          showAttachments={false}
           agreements={[
             {
               id: 'business-terms',
               value: true,
-              label:
-                "I agree to the (Pet Business name)'s terms and conditions, and privacy policy. I consent to the sharing of my companion's health information with (Pet Business name) for the purpose of assessment.",
+              label: (
+                <Text>
+                  I agree to {(business?.name ?? apt?.organisationName ?? 'this clinic')}'s{' '}
+                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                    terms and conditions
+                  </Text>
+                  , and{' '}
+                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                    privacy policy
+                  </Text>
+                  . I consent to the sharing of my companion's health information with{' '}
+                  {business?.name ?? apt?.organisationName ?? 'this clinic'} for the purpose of assessment.
+                </Text>
+              ),
             },
             {
               id: 'app-terms',
               value: true,
-              label: "I agree to Yosemite Crew's terms and conditions and privacy policy",
+              label: (
+                <Text>
+                  I agree to Yosemite Crew's{' '}
+                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                    terms and conditions
+                  </Text>{' '}
+                  and{' '}
+                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                    privacy policy
+                  </Text>
+                </Text>
+              ),
             },
           ]}
           actions={
@@ -239,18 +317,6 @@ export const EditAppointmentScreen: React.FC = () => {
           }
         />
       </ScrollView>
-
-      <DocumentUploadSheets
-        uploadSheetRef={uploadSheetRef}
-        deleteSheetRef={deleteSheetRef}
-        fileToDelete={fileToDelete}
-        files={files}
-        onTakePhoto={handleTakePhoto}
-        onChooseGallery={handleChooseFromGallery}
-        onUploadDrive={handleUploadFromDrive}
-        confirmDeleteFile={confirmDeleteFile}
-        closeSheet={closeSheet}
-      />
 
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}

@@ -65,6 +65,7 @@ import {
   type CoParentPermissions,
   type ParentCompanionAccess,
 } from '@/features/coParent';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
@@ -136,6 +137,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     upcomingAppointmentsSelector(state, selectedCompanionIdRedux ?? null),
   );
   const hasUnreadNotifications = unreadNotifications > 0;
+  const [businessFallbacks, setBusinessFallbacks] = React.useState<Record<string, {photo?: string | null}>>({});
+  const requestedPlacesRef = React.useRef<Set<string>>(new Set());
+  const isDummyPhoto = React.useCallback(
+    (photo?: string | null) =>
+      typeof photo === 'string' &&
+      (photo.includes('example.com') || photo.includes('placeholder')),
+    [],
+  );
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
@@ -447,6 +456,35 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
   }, []);
 
+  React.useEffect(() => {
+    upcomingAppointments.forEach(apt => {
+      const biz = businessMap.get(apt.businessId);
+      const googlePlacesId = biz?.googlePlacesId ?? apt.businessGooglePlacesId ?? null;
+      const photoCandidate = (biz?.photo ?? apt.businessPhoto) as string | null | undefined;
+      const needsPhoto = (!photoCandidate || isDummyPhoto(photoCandidate)) && googlePlacesId;
+      if (needsPhoto && googlePlacesId && !requestedPlacesRef.current.has(googlePlacesId)) {
+        requestedPlacesRef.current.add(googlePlacesId);
+        dispatch(fetchBusinessDetails(googlePlacesId))
+          .unwrap()
+          .then(res => {
+            if (res.photoUrl) {
+              setBusinessFallbacks(prev => ({...prev, [apt.businessId]: {photo: res.photoUrl}}));
+            }
+          })
+          .catch(() => {
+            dispatch(fetchGooglePlacesImage(googlePlacesId))
+              .unwrap()
+              .then(img => {
+                if (img.photoUrl) {
+                  setBusinessFallbacks(prev => ({...prev, [apt.businessId]: {photo: img.photoUrl}}));
+                }
+              })
+              .catch(() => {});
+          });
+      }
+    });
+  }, [businessMap, dispatch, isDummyPhoto, upcomingAppointments]);
+
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
       return null;
@@ -570,7 +608,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     const service = serviceMap.get(appointment.serviceId ?? '');
     const emp = employeeMap.get(appointment.employeeId ?? '');
     const hasAssignedVet = Boolean(emp);
-    const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
+    const companionAvatar =
+      companions.find(c => c.id === appointment.companionId)?.profileImage ?? null;
+    const googlePlacesId = biz?.googlePlacesId ?? appointment.businessGooglePlacesId ?? null;
+    const businessPhoto = biz?.photo ?? appointment.businessPhoto ?? null;
+    const fallbackPhoto = businessFallbacks[appointment.businessId]?.photo ?? null;
+    const avatarSource =
+      businessPhoto ||
+      fallbackPhoto ||
+      (companionAvatar ? {uri: companionAvatar} : Images.cat);
     const cardTitle = hasAssignedVet
       ? emp?.name ?? 'Assigned vet'
       : service?.name ?? appointment.serviceName ?? 'Service request';
@@ -582,10 +628,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       .filter(Boolean)
       .join(' • ');
     const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+    const businessName = biz?.name || appointment.organisationName || '';
+    const businessAddress = biz?.address || appointment.organisationAddress || '';
 
     let assignmentNote: string | undefined;
     if (!hasAssignedVet) {
-      assignmentNote = 'A vet will be assigned once the clinic approves your request.';
+      assignmentNote = 'Your request is pending review. The business will assign a provider once it’s approved.';
     } else if (appointment.status === 'PAID') {
       assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
     }
@@ -617,22 +665,42 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
     const formattedDate = formatAppointmentDateTime(appointment.date, appointment.time);
     const canCheckIn = appointment.status === 'PAID' && hasAssignedVet && !needsPayment;
+    const isRequested = appointment.status === 'REQUESTED';
+    const statusBadge = isRequested ? (
+      <View style={styles.requestedBadge}>
+        <Text style={styles.requestedBadgeText}>Requested</Text>
+      </View>
+    ) : null;
 
     return (
       <AppointmentCard
         key={appointment.id}
         doctorName={cardTitle}
         specialization={cardSubtitle}
-        hospital={biz?.name || ''}
+        hospital={businessName}
         dateTime={formattedDate}
         note={assignmentNote}
         avatar={avatarSource}
+        fallbackAvatar={fallbackPhoto ?? undefined}
+        onAvatarError={() => {
+          if (googlePlacesId && !requestedPlacesRef.current.has(googlePlacesId)) {
+            requestedPlacesRef.current.add(googlePlacesId);
+            dispatch(fetchGooglePlacesImage(googlePlacesId))
+              .unwrap()
+              .then(img => {
+                if (img.photoUrl) {
+                  setBusinessFallbacks(prev => ({...prev, [appointment.businessId]: {photo: img.photoUrl}}));
+                }
+              })
+              .catch(() => {});
+          }
+        }}
         showActions={!needsPayment && canCheckIn}
         onPress={() => handleViewAppointment(appointment.id)}
         onViewDetails={() => handleViewAppointment(appointment.id)}
         onGetDirections={() => {
-          if (biz?.address) {
-            openMapsToAddress(biz.address);
+          if (businessAddress) {
+            openMapsToAddress(businessAddress);
           }
         }}
         onChat={() => handleChatAppointment(appointment.id)}
@@ -647,7 +715,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           chat: 'appointment-chat',
           checkIn: 'appointment-checkin',
         }}
-        footer={footer}
+        footer={
+          statusBadge ? (
+            <View style={styles.upcomingFooter}>
+              {statusBadge}
+              {footer}
+            </View>
+          ) : (
+            footer
+          )
+        }
       />
     );
   };
@@ -1145,9 +1222,20 @@ const createStyles = (theme: any) =>
     },
     reviewButtonCard: {marginTop: theme.spacing[1]},
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
-    upcomingFooter: {
-      gap: theme.spacing[2],
-    },
+  upcomingFooter: {
+    gap: theme.spacing[2],
+  },
+  requestedBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing[2.5],
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: theme.colors.primaryTint,
+  },
+  requestedBadgeText: {
+    ...theme.typography.title,
+    color: theme.colors.primary,
+  },
   });
 const isObservationalToolDetails = (
   details: unknown,

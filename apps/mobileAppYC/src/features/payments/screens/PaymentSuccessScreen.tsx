@@ -1,4 +1,4 @@
-import React, {useMemo, useCallback} from 'react';
+import React, {useMemo, useCallback, useEffect} from 'react';
 import {View, Text, StyleSheet, Image, TouchableOpacity, Linking} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
@@ -10,14 +10,15 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {NavigationProp} from '@react-navigation/native';
 import type {AppointmentStackParamList, TabParamList} from '@/navigation/types';
-import type {RootState} from '@/app/store';
+import type {RootState, AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
+import {fetchInvoiceForAppointment} from '@/features/appointments/appointmentsSlice';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 export const PaymentSuccessScreen: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
@@ -27,8 +28,8 @@ export const PaymentSuccessScreen: React.FC = () => {
   const invoice = useSelector(selectInvoiceForAppointment(appointmentId));
   const resolvedCompanionId = companionId ?? appointment?.companionId ?? null;
   const invoiceNumber = invoice?.invoiceNumber ?? invoice?.id ?? '—';
-  const invoiceDate = invoice?.invoiceDate
-    ? new Date(invoice.invoiceDate).toLocaleDateString()
+  const invoiceDateTime = invoice?.invoiceDate
+    ? new Date(invoice.invoiceDate).toLocaleString()
     : '—';
   const appointmentDate = (() => {
     if (appointment?.start) {
@@ -48,7 +49,13 @@ export const PaymentSuccessScreen: React.FC = () => {
         minute: '2-digit',
       })
     : '—';
-  const downloadUrl = invoice?.downloadUrl ?? invoice?.paymentIntent?.paymentLinkUrl ?? null;
+  const receiptUrl = invoice?.downloadUrl ?? invoice?.paymentIntent?.paymentLinkUrl ?? null;
+
+  useEffect(() => {
+    if (appointmentId) {
+      dispatch(fetchInvoiceForAppointment({appointmentId}));
+    }
+  }, [appointmentId, dispatch]);
   const resetToMyAppointments = useCallback(() => {
     if (resolvedCompanionId) {
       dispatch(setSelectedCompanion(resolvedCompanionId));
@@ -60,14 +67,14 @@ export const PaymentSuccessScreen: React.FC = () => {
       routes: [{name: 'MyAppointments'}],
     });
   }, [dispatch, navigation, resolvedCompanionId]);
-  const handleDownload = useCallback(() => {
-    if (!downloadUrl) {
+  const handleViewInvoice = useCallback(() => {
+    if (!receiptUrl) {
       return;
     }
-    Linking.openURL(downloadUrl).catch(err =>
+    Linking.openURL(receiptUrl).catch(err =>
       console.warn('[PaymentSuccess] Failed to open invoice URL', err),
     );
-  }, [downloadUrl]);
+  }, [receiptUrl]);
 
   return (
     <SafeArea>
@@ -79,23 +86,27 @@ export const PaymentSuccessScreen: React.FC = () => {
         <View style={styles.detailsBlock}>
         <Text style={styles.detailsTitle}>Invoice Details</Text>
           <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Invoice number</Text>
+            <Text style={styles.detailLabel}>Invoice number</Text>
             <Text style={styles.detailValue}>{invoiceNumber}</Text>
           </View>
           <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Invoice Date</Text>
-            <Text style={styles.detailValue}>{invoiceDate}</Text>
+            <Text style={styles.detailLabel}>Invoice date & time</Text>
+            <Text style={styles.detailValue}>{invoiceDateTime}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Invoice ID</Text>
+            <Text style={styles.detailValue}>{invoice?.id ?? '—'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Invoice</Text>
             <TouchableOpacity
               style={styles.downloadInvoiceTouchable}
-              disabled={!downloadUrl}
-              onPress={handleDownload}>
+              disabled={!receiptUrl}
+              onPress={handleViewInvoice}>
               <Text style={[styles.detailValue, styles.link]}>
-                {downloadUrl ? 'Download Invoice ' : 'Not available'}
+                {receiptUrl ? 'View invoice' : 'Not available'}
               </Text>
-              {downloadUrl ? (
+              {receiptUrl ? (
                 <Image source={Images.downloadInvoice} style={styles.downloadInvoiceIcon} />
               ) : null}
             </TouchableOpacity>

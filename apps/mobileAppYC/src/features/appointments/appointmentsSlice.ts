@@ -80,6 +80,7 @@ export const createAppointment = createAsyncThunk<
     const state = getState();
     const companion = state.companion.companions.find(c => c.id === payload.companionId);
     const user = state.auth.user;
+    const parentId = (user as any)?.parentId ?? user?.id;
 
     const startISO = new Date(`${payload.date}T${payload.startTime}:00Z`).toISOString();
     const endISO = payload.endTime
@@ -166,7 +167,7 @@ export const createAppointment = createAsyncThunk<
           ? [
               {
                 actor: {
-                  reference: `RelatedPerson/${user.id}`,
+                  reference: `RelatedPerson/${parentId ?? user.id}`,
                   display:
                     [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
                     user.email,
@@ -263,6 +264,19 @@ export const cancelAppointment = createAsyncThunk(
   },
 );
 
+export const fetchPaymentIntentForAppointment = createAsyncThunk(
+  'appointments/fetchPaymentIntent',
+  async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
+    try {
+      const accessToken = await ensureAccessToken();
+      const intent = await appointmentApi.createPaymentIntent({appointmentId, accessToken});
+      return {appointmentId, intent};
+    } catch (error) {
+      return rejectWithValue(toErrorMessage(error, 'Unable to fetch payment intent'));
+    }
+  },
+);
+
 export const recordPayment = createAsyncThunk(
   'appointments/recordPayment',
   async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
@@ -272,6 +286,22 @@ export const recordPayment = createAsyncThunk(
       return {appointment: refreshed};
     } catch (error) {
       return rejectWithValue(toErrorMessage(error, 'Unable to record payment'));
+    }
+  },
+);
+
+export const fetchInvoiceForAppointment = createAsyncThunk(
+  'appointments/fetchInvoiceForAppointment',
+  async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
+    try {
+      const accessToken = await ensureAccessToken();
+      const {invoice, paymentIntent} = await appointmentApi.fetchInvoiceForAppointment({
+        appointmentId,
+        accessToken,
+      });
+      return {appointmentId, invoice, paymentIntent};
+    } catch (error) {
+      return rejectWithValue(toErrorMessage(error, 'Unable to fetch invoice'));
     }
   },
 );
@@ -393,6 +423,43 @@ const appointmentsSlice = createSlice({
           status: canceled.status ?? 'CANCELLED',
         };
         upsertAppointment(state, normalized);
+      })
+      .addCase(fetchPaymentIntentForAppointment.fulfilled, (state, action) => {
+        const {appointmentId, intent} = action.payload as {appointmentId: string; intent: PaymentIntentInfo};
+        const idx = state.items.findIndex(a => a.id === appointmentId);
+        if (idx >= 0) {
+          state.items[idx] = {
+            ...state.items[idx],
+            paymentIntent: intent,
+          };
+        }
+        const invIdx = state.invoices.findIndex(inv => inv.appointmentId === appointmentId);
+        if (invIdx >= 0) {
+          state.invoices[invIdx] = {
+            ...state.invoices[invIdx],
+            paymentIntent: intent,
+            invoiceNumber: state.invoices[invIdx].invoiceNumber ?? intent.paymentIntentId,
+          };
+        }
+      })
+      .addCase(fetchInvoiceForAppointment.fulfilled, (state, action) => {
+        const {appointmentId, invoice, paymentIntent} = action.payload as {
+          appointmentId: string;
+          invoice: Invoice | null;
+          paymentIntent?: PaymentIntentInfo | null;
+        };
+        if (invoice) {
+          const idx = state.invoices.findIndex(inv => inv.appointmentId === appointmentId);
+          if (idx >= 0) {
+            state.invoices[idx] = {...state.invoices[idx], ...invoice, paymentIntent};
+          } else {
+            state.invoices.push({...invoice, paymentIntent});
+          }
+        }
+        const aptIdx = state.items.findIndex(a => a.id === appointmentId);
+        if (aptIdx >= 0 && paymentIntent) {
+          state.items[aptIdx] = {...state.items[aptIdx], paymentIntent};
+        }
       })
       .addCase(recordPayment.fulfilled, (state, action) => {
         const refreshed = (action.payload as any)?.appointment as Appointment | undefined;

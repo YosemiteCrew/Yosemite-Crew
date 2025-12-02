@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from 'react';
-import {ScrollView, StyleSheet, Alert} from 'react-native';
+import {ScrollView, StyleSheet, Alert, Text} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -29,6 +29,8 @@ import {
 import {formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {uploadDocumentFiles} from '@/features/documents/documentSlice';
+import type {NavigationProp} from '@react-navigation/native';
+import type {TabParamList, RootStackParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -72,6 +74,45 @@ export const BookingFormScreen: React.FC = () => {
   const availability = useSelector(availabilitySelector);
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
   const appointmentsLoading = useSelector((s: RootState) => s.appointments.loading);
+  const businessDisplayName =
+    (business?.name ?? '').trim().length > 0
+      ? business?.name
+      : 'the clinic';
+  const linkStyle = {
+    ...theme.typography.paragraphBold,
+    color: theme.colors.primary,
+  };
+  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+  const rootNavigation = tabNavigation?.getParent<NavigationProp<RootStackParamList>>();
+  const findNavigatorWithRoute = (routeName: string) => {
+    let nav: any = navigation;
+    while (nav) {
+      const state = nav.getState?.();
+      if (state?.routeNames?.includes(routeName)) {
+        return nav as NavigationProp<any>;
+      }
+      nav = nav.getParent?.();
+    }
+    return null;
+  };
+  const handleOpenTerms = () => {
+    navigation.popToTop();
+    const nav =
+      findNavigatorWithRoute('HomeStack') ??
+      rootNavigation ??
+      tabNavigation ??
+      navigation.getParent<NavigationProp<TabParamList>>();
+    nav?.navigate('HomeStack' as any, {screen: 'TermsAndConditions'});
+  };
+  const handleOpenPrivacy = () => {
+    navigation.popToTop();
+    const nav =
+      findNavigatorWithRoute('HomeStack') ??
+      rootNavigation ??
+      tabNavigation ??
+      navigation.getParent<NavigationProp<TabParamList>>();
+    nav?.navigate('HomeStack' as any, {screen: 'PrivacyPolicy'});
+  };
 
   const todayISO = useMemo(() => formatDateToISODate(new Date()), []);
   const firstAvailableDate = useMemo(
@@ -358,13 +399,36 @@ export const BookingFormScreen: React.FC = () => {
             {
               id: 'business-terms',
               value: agreeBusiness,
-              label: "I agree to the business terms and privacy policy.",
+              label: (
+                <Text>
+                  I agree to {businessDisplayName}'s{' '}
+                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                    terms and conditions
+                  </Text>
+                  , and{' '}
+                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                    privacy policy
+                  </Text>
+                  .
+                </Text>
+              ),
               onChange: setAgreeBusiness,
             },
             {
               id: 'app-terms',
               value: agreeApp,
-              label: "I agree to Yosemite Crew's terms and conditions and privacy policy",
+              label: (
+                <Text>
+                  I agree to Yosemite Crew's{' '}
+                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                    terms and conditions
+                  </Text>{' '}
+                  and{' '}
+                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                    privacy policy
+                  </Text>
+                </Text>
+              ),
               onChange: setAgreeApp,
             },
           ]}

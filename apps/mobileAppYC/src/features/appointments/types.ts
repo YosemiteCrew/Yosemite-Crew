@@ -23,6 +23,7 @@ export interface VetBusiness {
   email?: string;
   lat?: number;
   lng?: number;
+  googlePlacesId?: string | null;
 }
 
 export interface VetEmployee {
@@ -97,10 +98,13 @@ export interface Appointment {
   uploadedFiles?: {id: string; name: string; key?: string; url?: string; type?: string | null}[];
   status: AppointmentStatus;
   invoiceId?: string;
+  paymentIntent?: PaymentIntentInfo | null;
   species?: string | null;
   breed?: string | null;
   organisationName?: string | null;
   organisationAddress?: string | null;
+  businessPhoto?: string | null;
+  businessGooglePlacesId?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

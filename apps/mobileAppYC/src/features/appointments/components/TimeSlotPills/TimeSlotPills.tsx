@@ -60,12 +60,16 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#302F2E',
     alignItems: 'center',
     justifyContent: 'center',
   },
   active: {backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary},
-  text: {...theme.typography.labelXsBold, color: theme.colors.text},
+  text: {
+    ...theme.typography.clashBody13,
+    color: '#302F2E',
+    textAlign: 'center',
+  },
   activeText: {color: theme.colors.primary},
 });
 

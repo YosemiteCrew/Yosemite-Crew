@@ -1,9 +1,10 @@
 import React, {useMemo} from 'react';
-import {View, Text, Image, StyleSheet, TouchableOpacity} from 'react-native';
+import {View, Text, Image, StyleSheet, TouchableOpacity, ImageSourcePropType} from 'react-native';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {resolveImageSource} from '@/shared/utils/resolveImageSource';
 
 export const AppointmentCard = ({
   doctorName,
@@ -12,6 +13,8 @@ export const AppointmentCard = ({
   dateTime,
   note,
   avatar,
+  fallbackAvatar,
+  onAvatarError,
   onGetDirections,
   onChat,
   onCheckIn,
@@ -29,6 +32,8 @@ export const AppointmentCard = ({
   dateTime: string;
   note?: string;
   avatar: any;
+  fallbackAvatar?: ImageSourcePropType | number | string | null;
+  onAvatarError?: () => void;
   onGetDirections?: () => void;
   onChat?: () => void;
   canChat?: boolean;
@@ -47,6 +52,15 @@ export const AppointmentCard = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const isDummyPhoto = React.useCallback((src?: any) => {
+    if (typeof src !== 'string') return false;
+    return src.includes('example.com') || src.includes('placeholder');
+  }, []);
+  const [avatarSource, setAvatarSource] = React.useState<any>(avatar);
+  const resolvedAvatar = useMemo(
+    () => resolveImageSource(avatarSource ?? avatar ?? fallbackAvatar ?? Images.cat),
+    [avatar, avatarSource, fallbackAvatar],
+  );
 
   const handleViewPress = () => {
     onViewDetails?.();
@@ -55,6 +69,25 @@ export const AppointmentCard = ({
   const handlePress = () => {
     onPress?.();
   };
+
+  const handleAvatarError = React.useCallback(() => {
+    onAvatarError?.();
+    if (fallbackAvatar && avatarSource !== fallbackAvatar) {
+      setAvatarSource(fallbackAvatar as any);
+    }
+  }, [avatarSource, fallbackAvatar, onAvatarError]);
+
+  React.useEffect(() => {
+    if (fallbackAvatar && isDummyPhoto(avatar)) {
+      setAvatarSource(fallbackAvatar as any);
+    }
+  }, [avatar, fallbackAvatar, isDummyPhoto]);
+
+  React.useEffect(() => {
+    if (avatar && avatarSource !== avatar && !(fallbackAvatar && isDummyPhoto(avatar))) {
+      setAvatarSource(avatar);
+    }
+  }, [avatar, avatarSource, fallbackAvatar, isDummyPhoto]);
 
   return (
     <SwipeableGlassCard
@@ -86,7 +119,7 @@ export const AppointmentCard = ({
       >
         {/* Top Row: Avatar and Text Block */}
         <View style={styles.topRow}>
-          <Image source={avatar} style={styles.avatar} />
+          <Image source={resolvedAvatar} style={styles.avatar} onError={handleAvatarError} />
           <View style={styles.textBlock}>
             <Text style={styles.name}>{doctorName}</Text>
             <Text style={styles.sub}>{specialization}</Text>
@@ -223,11 +256,11 @@ const createStyles = (theme: any) =>
     sub: {...theme.typography.labelXsBold, color: theme.colors.placeholder},
     date: {...theme.typography.labelXsBold, color: theme.colors.secondary},
     noteContainer: {
-      marginBottom: theme.spacing[4], // Spacing before the buttons
+      marginBottom: theme.spacing[2], // Tighter spacing to the next section
     },
     note: {...theme.typography.labelXsBold, color: theme.colors.placeholder},
     noteLabel: {color: theme.colors.primary},
-    buttonContainer: {gap: theme.spacing[3]}, // Removed marginTop as noteContainer handles spacing
+    buttonContainer: {gap: theme.spacing[2]}, // Reduced gap to bring sections closer
     inlineButtons: {
       flexDirection: 'row',
       justifyContent: 'space-between',

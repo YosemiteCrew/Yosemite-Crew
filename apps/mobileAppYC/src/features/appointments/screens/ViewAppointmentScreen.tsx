@@ -13,6 +13,7 @@ import {
   cancelAppointment,
   fetchAppointmentById,
   fetchAppointmentsForCompanion,
+  fetchInvoiceForAppointment,
 } from '@/features/appointments/appointmentsSlice';
 import RescheduledInfoSheet from '@/features/appointments/components/InfoBottomSheet/RescheduledInfoSheet';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
@@ -22,6 +23,7 @@ import {fetchDocuments} from '@/features/documents/documentSlice';
 import type {NavigationProp} from '@react-navigation/native';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {createSelector} from '@reduxjs/toolkit';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -51,6 +53,7 @@ export const ViewAppointmentScreen: React.FC = () => {
     [appointmentId],
   );
   const appointmentDocuments = useSelector(appointmentDocsSelector);
+  const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
 
   useEffect(() => {
     if (!apt) {
@@ -63,6 +66,34 @@ export const ViewAppointmentScreen: React.FC = () => {
       dispatch(fetchDocuments({companionId: apt.companionId}));
     }
   }, [apt?.companionId, dispatch]);
+
+  const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
+  const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
+  const isDummyPhoto = React.useCallback(
+    (photo?: string | null) =>
+      typeof photo === 'string' &&
+      (photo.includes('example.com') || photo.includes('placeholder')),
+    [],
+  );
+
+  useEffect(() => {
+    if (!googlePlacesId) return;
+    const needsPhoto = (!businessPhoto || isDummyPhoto(businessPhoto)) && !fallbackPhoto;
+    if (!needsPhoto) return;
+    dispatch(fetchBusinessDetails(googlePlacesId))
+      .unwrap()
+      .then(res => {
+        if (res.photoUrl) setFallbackPhoto(res.photoUrl);
+      })
+      .catch(() => {
+        dispatch(fetchGooglePlacesImage(googlePlacesId))
+          .unwrap()
+          .then(img => {
+            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
+          })
+          .catch(() => {});
+      });
+  }, [businessPhoto, dispatch, fallbackPhoto, googlePlacesId, isDummyPhoto]);
 
   if (!apt) {
     return null;
@@ -79,28 +110,54 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
+      case 'REQUESTED':
+        return {text: 'Requested', textColor: theme.colors.primary, backgroundColor: theme.colors.primaryTint};
       case 'NO_PAYMENT':
       case 'AWAITING_PAYMENT':
-        return {text: 'Payment pending', color: '#F59E0B'};
+        return {text: 'Payment pending', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
       case 'PAYMENT_FAILED':
-        return {text: 'Payment failed', color: '#F59E0B'};
+        return {text: 'Payment failed', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
       case 'PAID':
-        return {text: 'Paid', color: '#3B82F6'};
+        return {text: 'Paid', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
       case 'CONFIRMED':
       case 'SCHEDULED':
-        return {text: 'Scheduled', color: '#10B981'};
+        return {text: 'Scheduled', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
       case 'COMPLETED':
-        return {text: 'Completed', color: '#10B981'};
+        return {text: 'Completed', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
       case 'CANCELLED':
-        return {text: 'Cancelled', color: '#EF4444'};
+        return {text: 'Cancelled', textColor: '#991B1B', backgroundColor: 'rgba(239, 68, 68, 0.12)'};
       case 'RESCHEDULED':
-        return {text: 'Rescheduled', color: '#F59E0B'};
+        return {text: 'Rescheduled', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
       default:
-        return {text: status, color: theme.colors.textSecondary};
+        return {text: status, textColor: theme.colors.textSecondary, backgroundColor: theme.colors.border + '40'};
     }
   };
 
   const statusInfo = getStatusDisplay(apt.status);
+  const isPaymentPending =
+    apt.status === 'NO_PAYMENT' ||
+    apt.status === 'AWAITING_PAYMENT' ||
+    apt.status === 'PAYMENT_FAILED';
+  const isRequested = apt.status === 'REQUESTED';
+  const hasAssignedEmployee = Boolean(employee);
+  const isTerminal = apt.status === 'COMPLETED' || apt.status === 'CANCELLED';
+  const cancellationNote =
+    apt.status === 'CANCELLED'
+      ? 'This appointment was cancelled. Refunds, if applicable, are processed per the clinic’s policy and card network timelines.'
+      : null;
+  const businessName = business?.name || apt.organisationName || 'Clinic';
+  const businessAddress = business?.address || apt.organisationAddress || '';
+  const resolvedPhoto = fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto);
+  const businessSummary = {
+    name: businessName,
+    address: businessAddress,
+    description: business?.description ?? undefined,
+    photo: resolvedPhoto ?? undefined,
+  };
+  const statusHelpText =
+    !hasAssignedEmployee && isRequested
+      ? 'Your request is pending review. The business will assign a provider once it’s approved.'
+      : null;
 
   const handleCancelAppointment = async () => {
     try {
@@ -122,13 +179,16 @@ export const ViewAppointmentScreen: React.FC = () => {
         {/* Status Card */}
         <View style={styles.statusCard}>
           <Text style={styles.statusLabel}>Status</Text>
-          <View style={[styles.statusBadge, {backgroundColor: statusInfo.color + '20'}]}>
-            <Text style={[styles.statusText, {color: statusInfo.color}]}>{statusInfo.text}</Text>
+          <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
+            <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
           </View>
+          {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
+          {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
         </View>
 
         <SummaryCards
           business={business}
+          businessSummary={businessSummary}
           service={service}
           serviceName={apt.serviceName}
           employee={employee}
@@ -141,6 +201,8 @@ export const ViewAppointmentScreen: React.FC = () => {
           <DetailRow label="Date & Time" value={`${new Date(apt.date).toLocaleDateString()} • ${apt.time}`} />
           <DetailRow label="Type" value={apt.type} />
           <DetailRow label="Service" value={service?.name ?? apt.serviceName ?? '—'} />
+          <DetailRow label="Business" value={businessName} />
+          {businessAddress ? <DetailRow label="Address" value={businessAddress} multiline /> : null}
           {companion && <DetailRow label="Companion" value={companion.name} />}
           {apt.species && <DetailRow label="Species" value={apt.species} />}
           {apt.breed && <DetailRow label="Breed" value={apt.breed} />}
@@ -188,9 +250,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
-          {(apt.status === 'NO_PAYMENT' ||
-            apt.status === 'AWAITING_PAYMENT' ||
-            apt.status === 'PAYMENT_FAILED') && (
+          {isPaymentPending && !isRequested && (
             <LiquidGlassButton
               title="Pay Now"
               onPress={() =>
@@ -207,51 +267,77 @@ export const ViewAppointmentScreen: React.FC = () => {
             />
           )}
 
-          {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && (
-            <>
-              <LiquidGlassButton
-                title="Edit Appointment"
-                onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
-                height={56}
-                borderRadius={16}
-                glassEffect="clear"
-                tintColor={theme.colors.surface}
-                forceBorder
-                borderColor={theme.colors.secondary}
-                textStyle={styles.secondaryButtonText}
-                shadowIntensity="medium"
-                interactive
-              />
-              <LiquidGlassButton
-                title="Request Reschedule"
-                onPress={() =>
-                  navigation.navigate('EditAppointment', {
-                    appointmentId,
-                    mode: 'reschedule',
-                  })
+          {!isTerminal && (
+            <LiquidGlassButton
+              title="Edit Appointment"
+              onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
+              height={56}
+              borderRadius={16}
+              glassEffect="clear"
+              tintColor={theme.colors.surface}
+              forceBorder
+              borderColor={theme.colors.secondary}
+              textStyle={styles.secondaryButtonText}
+              shadowIntensity="medium"
+              interactive
+            />
+          )}
+
+          {!isTerminal && !isPaymentPending && !isRequested && (
+            <LiquidGlassButton
+              title="Request Reschedule"
+              onPress={() =>
+                navigation.navigate('EditAppointment', {
+                  appointmentId,
+                  mode: 'reschedule',
+                })
+              }
+              height={56}
+              borderRadius={16}
+              glassEffect="clear"
+              tintColor={theme.colors.surface}
+              forceBorder
+              borderColor={theme.colors.secondary}
+              textStyle={styles.secondaryButtonText}
+              shadowIntensity="medium"
+              interactive
+            />
+          )}
+
+          {!isTerminal && !isPaymentPending && (
+            <LiquidGlassButton
+              title="View Invoice"
+              onPress={async () => {
+                try {
+                  await dispatch(fetchInvoiceForAppointment({appointmentId})).unwrap();
+                } catch {
+                  // best-effort; still navigate
                 }
-                height={56}
-                borderRadius={16}
-                glassEffect="clear"
-                tintColor={theme.colors.surface}
-                forceBorder
-                borderColor={theme.colors.secondary}
-                textStyle={styles.secondaryButtonText}
-                shadowIntensity="medium"
-                interactive
-              />
-              <LiquidGlassButton
-                title="Cancel Appointment"
-                onPress={() => cancelSheetRef.current?.open?.()}
-                height={56}
-                borderRadius={16}
-                tintColor="#FEE2E2"
-                forceBorder
-                borderColor="#EF4444"
-                textStyle={styles.alertButtonText}
-                shadowIntensity="none"
-              />
-            </>
+                navigation.navigate('PaymentInvoice', {
+                  appointmentId,
+                  companionId: apt.companionId,
+                });
+              }}
+              height={56}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
+            />
+          )}
+
+          {!isTerminal && (!isPaymentPending || isRequested) && (
+            <LiquidGlassButton
+              title="Cancel Appointment"
+              onPress={() => cancelSheetRef.current?.open?.()}
+              height={56}
+              borderRadius={16}
+              tintColor="#FEE2E2"
+              forceBorder
+              borderColor="#EF4444"
+              textStyle={styles.alertButtonText}
+              shadowIntensity="none"
+            />
           )}
         </View>
       </ScrollView>
@@ -313,6 +399,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingBottom: theme.spacing[24],
     gap: theme.spacing[2],
   },
+  statusNote: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
+  },
   statusCard: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
@@ -323,18 +413,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: theme.spacing[2],
   },
   statusLabel: {
-    ...theme.typography.body12,
+    ...theme.typography.paragraphBold,
     color: theme.colors.textSecondary,
   },
   statusBadge: {
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[2],
-    borderRadius: 8,
     alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing[2.5],
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   statusText: {
-    ...theme.typography.titleSmall,
-    fontWeight: '600',
+    ...theme.typography.title,
   },
   summaryCard: {
     marginBottom: theme.spacing[3],
