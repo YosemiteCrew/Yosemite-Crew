@@ -172,6 +172,31 @@ const buildPaymentSheetOptions = (
   return opts;
 };
 
+const formatDateTimeDisplay = (iso?: string) => {
+  if (!iso) return '—';
+  const ts = Date.parse(iso);
+  if (Number.isFinite(ts) === false) return '—';
+  return new Date(ts).toLocaleString('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+const formatDateOnlyDisplay = (iso?: string | null) => {
+  if (!iso) return 'the stated due date';
+  const ts = Date.parse(iso);
+  if (Number.isFinite(ts) === false) return 'the stated due date';
+  return new Date(ts).toLocaleDateString('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
 const useFetchAppointmentById = ({
   appointmentId,
   apt,
@@ -379,30 +404,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const headerTitle = isPaymentPendingStatus ? 'Book appointment' : 'Invoice details';
   const isInvoiceLoaded = Boolean(effectiveInvoice);
   const shouldShowLoadingNotice = !isInvoiceLoaded && !isPaymentPendingStatus;
-  const formatDateTime = (iso?: string) => {
-    if (!iso) return '—';
-    const ts = Date.parse(iso);
-    if (Number.isFinite(ts) === false) return '—';
-    return new Date(ts).toLocaleString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
-  const formatDateOnly = (iso?: string | null) => {
-    if (!iso) return 'the stated due date';
-    const ts = Date.parse(iso);
-    if (Number.isFinite(ts) === false) return 'the stated due date';
-    return new Date(ts).toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-  const paymentDueLabel = formatDateOnly(effectiveInvoice?.dueDate ?? apt?.date ?? null);
+  const paymentDueLabel = formatDateOnlyDisplay(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
   const renderRefundSection = () => (
     <>
@@ -415,7 +417,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
       <MetaRow label="Refund amount" value={refundAmountDisplay} />
       <MetaRow
         label="Refund date"
-        value={formatDateTime(effectiveInvoice?.refundDate ?? undefined)}
+        value={formatDateTimeDisplay(effectiveInvoice?.refundDate ?? undefined)}
       />
       {effectiveInvoice?.refundReceiptUrl || effectiveInvoice?.downloadUrl ? (
         <View style={styles.refundLinkRow}>
@@ -514,11 +516,11 @@ export const PaymentInvoiceScreen: React.FC = () => {
           <MetaRow label="Appointment ID" value={apt?.id ?? '—'} />
           <MetaRow
             label="Invoice date"
-            value={formatDateTime(effectiveInvoice?.invoiceDate)}
+            value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
           />
           <MetaRow
             label="Due till"
-            value={formatDateTime(effectiveInvoice?.dueDate)}
+            value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
           />
         </View>
 
