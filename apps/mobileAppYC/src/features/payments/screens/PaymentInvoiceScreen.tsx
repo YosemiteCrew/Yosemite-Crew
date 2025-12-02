@@ -197,6 +197,50 @@ const formatDateOnlyDisplay = (iso?: string | null) => {
   });
 };
 
+const RefundSection = ({
+  effectiveInvoice,
+  refundAmountDisplay,
+  theme,
+  styles,
+}: {
+  effectiveInvoice: any;
+  refundAmountDisplay: string;
+  theme: any;
+  styles: any;
+}) => (
+  <>
+    <Text style={styles.metaTitle}>Refund</Text>
+    <MetaRow label="Refund ID" value={effectiveInvoice?.refundId ?? '—'} />
+    <MetaRow
+      label="Refund status"
+      value={effectiveInvoice?.refundStatus ?? effectiveInvoice?.status ?? '—'}
+    />
+    <MetaRow label="Refund amount" value={refundAmountDisplay} />
+    <MetaRow
+      label="Refund date"
+      value={formatDateTimeDisplay(effectiveInvoice?.refundDate ?? undefined)}
+    />
+    {effectiveInvoice?.refundReceiptUrl || effectiveInvoice?.downloadUrl ? (
+      <View style={styles.refundLinkRow}>
+        <LiquidGlassButton
+          title="View refund receipt"
+          onPress={() => {
+            const url = effectiveInvoice?.refundReceiptUrl ?? effectiveInvoice?.downloadUrl;
+            if (url) {
+              Linking.openURL(url);
+            }
+          }}
+          height={48}
+          borderRadius={12}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="light"
+          textStyle={styles.confirmPrimaryButtonText}
+        />
+      </View>
+    ) : null}
+  </>
+);
+
 const useFetchAppointmentById = ({
   appointmentId,
   apt,
@@ -406,40 +450,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const shouldShowLoadingNotice = !isInvoiceLoaded && !isPaymentPendingStatus;
   const paymentDueLabel = formatDateOnlyDisplay(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
-  const renderRefundSection = () => (
-    <>
-      <Text style={styles.metaTitle}>Refund</Text>
-      <MetaRow label="Refund ID" value={effectiveInvoice?.refundId ?? '—'} />
-      <MetaRow
-        label="Refund status"
-        value={effectiveInvoice?.refundStatus ?? effectiveInvoice?.status ?? '—'}
-      />
-      <MetaRow label="Refund amount" value={refundAmountDisplay} />
-      <MetaRow
-        label="Refund date"
-        value={formatDateTimeDisplay(effectiveInvoice?.refundDate ?? undefined)}
-      />
-      {effectiveInvoice?.refundReceiptUrl || effectiveInvoice?.downloadUrl ? (
-        <View style={styles.refundLinkRow}>
-          <LiquidGlassButton
-            title="View refund receipt"
-            onPress={() => {
-              const url = effectiveInvoice?.refundReceiptUrl ?? effectiveInvoice?.downloadUrl;
-              if (url) {
-                Linking.openURL(url);
-              }
-            }}
-            height={48}
-            borderRadius={12}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="light"
-            textStyle={styles.confirmPrimaryButtonText}
-          />
-        </View>
-      ) : null}
-    </>
-  );
-
   const handlePayNow = async () => {
     if (!clientSecret) {
       Alert.alert(
@@ -525,7 +535,14 @@ export const PaymentInvoiceScreen: React.FC = () => {
         </View>
 
         {hasRefund ? (
-          <View style={styles.metaCard}>{renderRefundSection()}</View>
+          <View style={styles.metaCard}>
+            <RefundSection
+              effectiveInvoice={effectiveInvoice}
+              refundAmountDisplay={refundAmountDisplay}
+              theme={theme}
+              styles={styles}
+            />
+          </View>
         ) : null}
 
         <View style={styles.invoiceForCard}>
