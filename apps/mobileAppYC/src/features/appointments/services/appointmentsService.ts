@@ -39,12 +39,16 @@ const toStatus = (status?: string): AppointmentStatus => {
     case 'AWAITING_PAYMENT':
     case 'NO_PAYMENT':
     case 'PAID':
+    case 'UPCOMING':
+    case 'CHECKED_IN':
     case 'CONFIRMED':
     case 'COMPLETED':
     case 'RESCHEDULED':
     case 'SCHEDULED':
     case 'PAYMENT_FAILED':
       return upper as AppointmentStatus;
+    case 'ARRIVED':
+      return 'CHECKED_IN';
     case 'CANCELLED':
     case 'CANCELED':
       return 'CANCELLED';
@@ -196,7 +200,14 @@ const mapAppointmentResource = (incoming: any): Appointment => {
   const org = incoming?.organisation ?? incoming?.organization;
   const participants = Array.isArray(resource?.participant) ? resource.participant : [];
   const patient = parseParticipant(participants, 'Patient/');
+  const practitionerEntry = participants?.find?.((p: any) =>
+    (p?.actor?.reference ?? '').toString().startsWith('Practitioner/'),
+  );
   const practitioner = parseParticipant(participants, 'Practitioner/');
+  const practitionerRole =
+    practitionerEntry?.type?.[0]?.coding?.[0]?.display ??
+    practitionerEntry?.type?.[0]?.text ??
+    null;
   const organisation = parseParticipant(participants, 'Organization/');
 
   const serviceType = Array.isArray(resource?.serviceType) ? resource.serviceType[0] : null;
@@ -223,9 +234,14 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     (ext: any) => ext?.id === 'breed' || ext?.url === 'https://hl7.org/fhir/animal-breed',
   );
 
-  const locationAddress = buildAddressString(resource?.location?.address ?? {});
+  const locationAddressObj = resource?.location?.address;
+  const locationAddress = buildAddressString(locationAddressObj ?? {});
   const orgAddress = buildAddressString(org?.address);
   const organisationAddress = locationAddress?.trim?.().length ? locationAddress : orgAddress;
+  const addressObj =
+    (Array.isArray(org?.address) ? org.address.at(0) : org?.address) ??
+    locationAddressObj ??
+    {};
 
   return {
     id: resource?.id ?? resource?._id ?? '',
@@ -237,6 +253,7 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     specialityId: specialityCoding?.code ?? null,
     employeeId: practitioner.id,
     employeeName: practitioner.display,
+    employeeTitle: practitionerRole,
     date,
     time,
     endTime,
@@ -252,6 +269,8 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     invoiceId: resource?.invoiceId ?? null,
     organisationName: organisation.display ?? org?.name ?? null,
     organisationAddress,
+    businessLat: addressObj?.latitude ?? addressObj?.location?.coordinates?.[1] ?? null,
+    businessLng: addressObj?.longitude ?? addressObj?.location?.coordinates?.[0] ?? null,
     businessPhoto: org?.imageURL ?? org?.imageUrl ?? org?.logoUrl ?? null,
     businessGooglePlacesId: org?.googlePlacesId ?? org?.placeId ?? null,
     createdAt:
@@ -325,14 +344,30 @@ const mapInvoiceFromApi = (
     )?.valueUri ?? raw.invoiceUrl ?? raw.downloadUrl ?? null;
   const appointmentFromExt =
     extensions.find(
-      (ext: any) =>
-        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
-    )?.valueString;
+    (ext: any) =>
+      ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+  )?.valueString;
   const statusFromExt =
     extensions.find(
       (ext: any) =>
         ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
     )?.valueString;
+  const refundMetadata = extensions.find(
+    (ext: any) =>
+      ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata',
+  );
+  const refundId =
+    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'refundId')?.valueString ??
+    null;
+  const refundAmount =
+    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'amount')?.valueDecimal ??
+    null;
+  const refundDate =
+    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'refundDate')?.valueString ??
+    null;
+  const refundReason =
+    refundMetadata?.extension?.find?.((ext: any) => ext?.url === 'cancellationReason')?.valueString ??
+    null;
   const totalPriceComponents = Array.isArray(raw.totalPriceComponent)
     ? raw.totalPriceComponent
     : [];
@@ -362,6 +397,12 @@ const mapInvoiceFromApi = (
     stripePaymentLinkId: raw.stripePaymentLinkId ?? null,
     paymentIntent,
     downloadUrl: receiptUrl,
+    refundId,
+    refundAmount,
+    refundDate,
+    refundStatus: statusFromExt ?? raw.status,
+    refundReason,
+    refundReceiptUrl: receiptUrl,
   };
 
   return {invoice, paymentIntent};
@@ -482,6 +523,23 @@ export const appointmentApi = {
   }): Promise<Appointment> {
     const url = buildUrl(`/fhir/v1/appointment/mobile/${encodeURIComponent(appointmentId)}`);
     const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+    const resource = data?.data ?? data;
+    return mapAppointmentResource(resource);
+  },
+
+  async checkInAppointment({
+    appointmentId,
+    accessToken,
+  }: {
+    appointmentId: string;
+    accessToken: string;
+  }): Promise<Appointment> {
+    const url = buildUrl(
+      `/fhir/v1/appointment/mobile/${encodeURIComponent(appointmentId)}/checkin`,
+    );
+    const {data} = await apiClient.patch(url, undefined, {
+      headers: withAuthHeaders(accessToken),
+    });
     const resource = data?.data ?? data;
     return mapAppointmentResource(resource);
   },
@@ -634,7 +692,12 @@ export const appointmentApi = {
       {usePms: true},
     );
     const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
-    const collection = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    let collection: any[] = [];
+    if (Array.isArray(data?.data)) {
+      collection = data.data;
+    } else if (Array.isArray(data)) {
+      collection = data;
+    }
     const raw = collection[0] ?? null;
     if (!raw) return {invoice: null, paymentIntent: undefined};
     const base = mapInvoiceFromApi(raw);

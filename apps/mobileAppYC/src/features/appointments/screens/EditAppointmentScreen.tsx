@@ -9,21 +9,24 @@ import {AppointmentFormContent} from '@/features/appointments/components/Appoint
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, type NavigationProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {AppointmentStackParamList} from '@/navigation/types';
+import type {
+  AppointmentStackParamList,
+  TabParamList,
+  RootStackParamList,
+} from '@/navigation/types';
 import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
 import {cancelAppointment, rescheduleAppointment} from '@/features/appointments/appointmentsSlice';
 import {
   getFirstAvailableDate,
   getFutureAvailabilityMarkers,
   getSlotsForDate,
+  findSlotByLabel,
   parseSlotLabel,
 } from '@/features/appointments/utils/availability';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
-import type {NavigationProp} from '@react-navigation/native';
-import type {TabParamList, RootStackParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -57,21 +60,37 @@ export const EditAppointmentScreen: React.FC = () => {
   );
   const [date, setDate] = useState<string>(apt?.date ?? firstAvailableDate);
   const [dateObj, setDateObj] = useState<Date>(new Date(apt?.date ?? firstAvailableDate));
+  const buildLocalSlotLabel = (dateStr: string, start?: string | null, end?: string | null) => {
+    const normalize = (value?: string | null) => {
+      if (!value) return null;
+      const normalized = value.length === 5 ? `${value}:00` : value;
+      const asDate = new Date(`${dateStr}T${normalized}Z`);
+      if (Number.isNaN(asDate.getTime())) return value;
+      return asDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    };
+    const startLocal = normalize(start);
+    const endLocal = normalize(end);
+    if (startLocal && endLocal) {
+      return `${startLocal} - ${endLocal}`;
+    }
+    return startLocal ?? start ?? null;
+  };
   const initialTimeLabel = (() => {
     if (!apt?.time) {
       return null;
     }
-    if (apt.endTime) {
-      return `${apt.time} - ${apt.endTime}`;
-    }
-    return apt.time;
+    return buildLocalSlotLabel(apt.date, apt.time, apt.endTime);
   })();
   const [time, setTime] = useState<string | null>(initialTimeLabel);
   const type = apt?.type || 'General Checkup';
   const [concern, setConcern] = useState(apt?.concern || '');
   const [emergency, setEmergency] = useState(apt?.emergency || false);
-  const [saving, setSaving] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
   const linkStyle = {
@@ -171,9 +190,14 @@ export const EditAppointmentScreen: React.FC = () => {
       navigation.goBack();
       return;
     }
+    const slotWindow = findSlotByLabel(availability, date, time);
     const {startTime, endTime} = parseSlotLabel(time);
-    const startIso = new Date(`${date}T${(startTime ?? time).padEnd(5, ':00')}Z`).toISOString();
-    const endIso = new Date(`${date}T${(endTime ?? startTime ?? time).padEnd(5, ':00')}Z`).toISOString();
+    const startIso =
+      slotWindow?.startTimeUtc ??
+      new Date(`${date}T${(startTime ?? time).padEnd(5, ':00')}Z`).toISOString();
+    const endIso =
+      slotWindow?.endTimeUtc ??
+      new Date(`${date}T${(endTime ?? startTime ?? time).padEnd(5, ':00')}Z`).toISOString();
     setSaving(true);
     try {
       await dispatch(
@@ -309,7 +333,7 @@ export const EditAppointmentScreen: React.FC = () => {
               onPress={handleSubmit}
               height={56}
               borderRadius={16}
-              disabled={isReschedule && (!time || appointmentsLoading)}
+              disabled={isReschedule && (!time || appointmentsLoading || saving)}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}

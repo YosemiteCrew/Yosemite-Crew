@@ -37,6 +37,8 @@ type BookAppointmentInput = {
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm
+  startTimeUtc?: string | null;
+  endTimeUtc?: string | null;
   concern?: string;
   emergency?: boolean;
   companionId: string;
@@ -82,10 +84,16 @@ export const createAppointment = createAsyncThunk<
     const user = state.auth.user;
     const parentId = (user as any)?.parentId ?? user?.id;
 
-    const startISO = new Date(`${payload.date}T${payload.startTime}:00Z`).toISOString();
-    const endISO = payload.endTime
-      ? new Date(`${payload.date}T${payload.endTime}:00Z`).toISOString()
-      : new Date(new Date(startISO).getTime() + 15 * 60 * 1000).toISOString();
+    const startISO =
+      payload.startTimeUtc ??
+      new Date(`${payload.date}T${payload.startTime}:00Z`).toISOString();
+    let endISO = payload.endTimeUtc ?? null;
+    if (!endISO && payload.endTime) {
+      endISO = new Date(`${payload.date}T${payload.endTime}:00Z`).toISOString();
+    }
+    if (!endISO) {
+      endISO = new Date(new Date(startISO).getTime() + 15 * 60 * 1000).toISOString();
+    }
     const minutesDuration = Math.max(
       1,
       Math.round((new Date(endISO).getTime() - new Date(startISO).getTime()) / 60000),
@@ -218,6 +226,19 @@ export const updateAppointmentStatus = createAsyncThunk(
       return {appointment: {...updated, status}, employeeId: employeeId ?? null};
     } catch (error) {
       return rejectWithValue(toErrorMessage(error, 'Unable to update appointment'));
+    }
+  },
+);
+
+export const checkInAppointment = createAsyncThunk(
+  'appointments/checkIn',
+  async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
+    try {
+      const accessToken = await ensureAccessToken();
+      const updated = await appointmentApi.checkInAppointment({appointmentId, accessToken});
+      return updated;
+    } catch (error) {
+      return rejectWithValue(toErrorMessage(error, 'Unable to check in'));
     }
   },
 );
@@ -411,6 +432,12 @@ const appointmentsSlice = createSlice({
         if (appointment) {
           const updated = {...appointment, employeeId: employeeId ?? appointment.employeeId};
           upsertAppointment(state, updated);
+        }
+      })
+      .addCase(checkInAppointment.fulfilled, (state, action) => {
+        const appointment = action.payload as Appointment | undefined;
+        if (appointment) {
+          upsertAppointment(state, appointment);
         }
       })
       .addCase(rescheduleAppointment.fulfilled, (state, action) => {

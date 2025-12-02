@@ -29,7 +29,14 @@ export const PaymentSuccessScreen: React.FC = () => {
   const resolvedCompanionId = companionId ?? appointment?.companionId ?? null;
   const invoiceNumber = invoice?.invoiceNumber ?? invoice?.id ?? '—';
   const invoiceDateTime = invoice?.invoiceDate
-    ? new Date(invoice.invoiceDate).toLocaleString()
+    ? new Date(invoice.invoiceDate).toLocaleString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
     : '—';
   const appointmentDate = (() => {
     if (appointment?.start) {
@@ -43,7 +50,7 @@ export const PaymentSuccessScreen: React.FC = () => {
   const formattedAppointmentDate = appointmentDate
     ? appointmentDate.toLocaleString(undefined, {
         month: 'short',
-        day: 'numeric',
+        day: '2-digit',
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',

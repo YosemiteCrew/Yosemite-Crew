@@ -14,6 +14,7 @@ type Props = {
   service?: VetService | null;
   serviceName?: string | null;
   employee?: VetEmployee | null;
+  employeeDepartment?: string | null;
   cardStyle?: ViewStyle;
 };
 
@@ -23,17 +24,13 @@ export const SummaryCards: React.FC<Props> = ({
   service,
   serviceName,
   employee,
+  employeeDepartment,
   cardStyle,
 }) => {
-  const resolvedBusiness = (() => {
-    if (business || businessSummary) {
-      return {
-        ...(business ?? {}),
-        ...(businessSummary ?? {}),
-      } as any;
-    }
-    return null;
-  })();
+  const resolvedBusiness =
+    business && businessSummary
+      ? {...business, ...businessSummary}
+      : business ?? businessSummary ?? null;
   return (
     <>
       {resolvedBusiness && (
@@ -64,7 +61,7 @@ export const SummaryCards: React.FC<Props> = ({
         <BookingSummaryCard
           title={employee.name}
           subtitlePrimary={employee.specialization}
-          subtitleSecondary={employee.title}
+          subtitleSecondary={employeeDepartment ?? employee.title}
           image={employee.avatar}
           interactive={false}
           style={cardStyle}

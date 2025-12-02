@@ -171,6 +171,42 @@ export const BrowseBusinessesScreen: React.FC = () => {
     dispatch(fetchBusinesses(undefined));
   }, [dispatch]);
 
+  const requestBusinessDetails = React.useCallback(
+    async (biz: VetBusiness) => {
+      const googlePlacesId = biz.googlePlacesId;
+      if (!googlePlacesId || requestedDetailsRef.current.has(googlePlacesId)) {
+        return;
+      }
+      requestedDetailsRef.current.add(googlePlacesId);
+      try {
+        const result = await dispatch(fetchBusinessDetails(googlePlacesId)).unwrap();
+        setFallbacks(prev => ({
+          ...prev,
+          [biz.id]: {
+            photo: result.photoUrl ?? prev[biz.id]?.photo ?? null,
+            phone: result.phoneNumber ?? prev[biz.id]?.phone,
+            website: result.website ?? prev[biz.id]?.website,
+          },
+        }));
+        return;
+      } catch {
+        // Ignore and try photo-only fallback below
+      }
+      try {
+        const img = await dispatch(fetchGooglePlacesImage(googlePlacesId)).unwrap();
+        if (img.photoUrl) {
+          setFallbacks(prev => ({
+            ...prev,
+            [biz.id]: {...prev[biz.id], photo: img.photoUrl},
+          }));
+        }
+      } catch {
+        // Swallow errors; UI will use defaults
+      }
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
     businesses.forEach(biz => {
       const isDummyPhoto =
@@ -178,36 +214,11 @@ export const BrowseBusinessesScreen: React.FC = () => {
         (biz.photo.includes('example.com') || biz.photo.includes('placeholder'));
       const needsPhoto = (!biz.photo || isDummyPhoto) && biz.googlePlacesId;
       const needsContact = (!biz.phone || !biz.website) && biz.googlePlacesId;
-      if ((needsPhoto || needsContact) && biz.googlePlacesId && !requestedDetailsRef.current.has(biz.googlePlacesId)) {
-        requestedDetailsRef.current.add(biz.googlePlacesId);
-        dispatch(fetchBusinessDetails(biz.googlePlacesId))
-          .unwrap()
-          .then(result => {
-            setFallbacks(prev => ({
-              ...prev,
-              [biz.id]: {
-                photo: result.photoUrl ?? prev[biz.id]?.photo ?? null,
-                phone: result.phoneNumber ?? prev[biz.id]?.phone,
-                website: result.website ?? prev[biz.id]?.website,
-              },
-            }));
-          })
-          .catch(() => {
-            dispatch(fetchGooglePlacesImage(biz.googlePlacesId as string))
-              .unwrap()
-              .then(img => {
-                if (img.photoUrl) {
-                  setFallbacks(prev => ({
-                    ...prev,
-                    [biz.id]: {...prev[biz.id], photo: img.photoUrl},
-                  }));
-                }
-              })
-              .catch(() => {});
-          });
+      if ((needsPhoto || needsContact) && biz.googlePlacesId) {
+        requestBusinessDetails(biz);
       }
     });
-  }, [businesses, dispatch]);
+  }, [businesses, dispatch, requestBusinessDetails]);
 
   const allCategories = ['hospital','groomer','breeder','pet_center','boarder','clinic'] as const;
 

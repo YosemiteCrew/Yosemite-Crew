@@ -102,7 +102,11 @@ export const ExpensePreviewScreen: React.FC = () => {
             Visit type: {resolveVisitTypeLabel(expense.visitType)}
           </Text>
           <Text style={styles.summaryDate}>
-            {new Date(expense.date).toLocaleDateString()}
+            {new Date(expense.date).toLocaleDateString('en-US', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}
           </Text>
           <Text style={styles.summaryAmount}>{formattedAmount}</Text>
           {expense.source === 'inApp' && expense.status === 'unpaid' ? (

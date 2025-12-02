@@ -23,8 +23,8 @@ import {
   recordPayment,
   fetchInvoiceForAppointment,
   fetchAppointmentById,
+  fetchPaymentIntentForAppointment,
 } from '@/features/appointments/appointmentsSlice';
-import {fetchPaymentIntentForAppointment} from '@/features/appointments/appointmentsSlice';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {Images} from '@/assets/images';
 import type {
@@ -45,6 +45,116 @@ const buildInvoiceItemKey = ({
   lineTotal,
   qty,
 }: InvoiceItem) => `${description}-${rate}-${lineTotal}-${qty ?? 0}`;
+
+const useFetchAppointmentById = ({
+  appointmentId,
+  apt,
+  dispatch,
+}: {
+  appointmentId: string;
+  apt?: any;
+  dispatch: AppDispatch;
+}) => {
+  useEffect(() => {
+    if (!apt && appointmentId) {
+      dispatch(fetchAppointmentById({appointmentId}));
+    }
+  }, [apt, appointmentId, dispatch]);
+};
+
+const useBusinessPhoto = ({
+  googlePlacesId,
+  dispatch,
+  setFallbackPhoto,
+}: {
+  googlePlacesId: string | null;
+  dispatch: AppDispatch;
+  setFallbackPhoto: (value: string | null) => void;
+}) => {
+  useEffect(() => {
+    if (!googlePlacesId) return;
+    const fetchPhoto = async () => {
+      try {
+        const res = await dispatch(fetchBusinessDetails(googlePlacesId)).unwrap();
+        if (res.photoUrl) {
+          setFallbackPhoto(res.photoUrl);
+          return;
+        }
+      } catch {
+        // Ignore and try image fallback
+      }
+      try {
+        const img = await dispatch(fetchGooglePlacesImage(googlePlacesId)).unwrap();
+        if (img.photoUrl) setFallbackPhoto(img.photoUrl);
+      } catch {
+        // Swallow errors; UI can continue without extra photo
+      }
+    };
+    fetchPhoto();
+  }, [dispatch, googlePlacesId, setFallbackPhoto]);
+};
+
+const useEnsurePaymentData = ({
+  appointmentId,
+  aptStatus,
+  paymentIntent,
+  dispatch,
+  invoiceFromStore,
+  routeInvoice,
+  navigation,
+  invoiceRequestedRef,
+}: {
+  appointmentId: string;
+  aptStatus?: string;
+  paymentIntent: PaymentIntentInfo | null;
+  dispatch: AppDispatch;
+  invoiceFromStore: Invoice | null;
+  routeInvoice: Invoice | null | undefined;
+  navigation: any;
+  invoiceRequestedRef: React.RefObject<boolean>;
+}) => {
+  useEffect(() => {
+    if (!appointmentId) {
+      Alert.alert(
+        'Missing data',
+        'Could not open payment screen without an appointment.',
+      );
+      navigation.goBack();
+      return;
+    }
+    const isPaymentPendingNow =
+      aptStatus === 'NO_PAYMENT' ||
+      aptStatus === 'AWAITING_PAYMENT' ||
+      aptStatus === 'PAYMENT_FAILED';
+    if (
+      appointmentId &&
+      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId) &&
+      isPaymentPendingNow
+    ) {
+      dispatch(fetchPaymentIntentForAppointment({appointmentId}));
+    }
+    const needsInvoice = !invoiceFromStore && !routeInvoice;
+    if (
+      appointmentId &&
+      needsInvoice &&
+      !isPaymentPendingNow &&
+      !invoiceRequestedRef.current
+    ) {
+      invoiceRequestedRef.current = true;
+      dispatch(fetchInvoiceForAppointment({appointmentId}));
+    }
+  }, [
+    appointmentId,
+    aptStatus,
+    dispatch,
+    invoiceFromStore,
+    navigation,
+    paymentIntent?.clientSecret,
+    paymentIntent?.paymentIntentId,
+    routeInvoice,
+    invoiceRequestedRef,
+  ]);
+};
 
 export const PaymentInvoiceScreen: React.FC = () => {
   const {theme} = useTheme();
@@ -156,25 +266,31 @@ export const PaymentInvoiceScreen: React.FC = () => {
     name: businessName,
     address: businessAddress,
     description: undefined,
-    photo: (resolvedBusinessPhoto as any) ?? null,
+    photo: resolvedBusinessPhoto ?? null,
+  };
+
+  const buildBaseInvoice = (): Invoice | null => {
+    if (invoice) {
+      return invoice;
+    }
+    if (!paymentIntent) {
+      return null;
+    }
+    return {
+      id: paymentIntent.paymentIntentId ?? `pi-${appointmentId}`,
+      appointmentId,
+      items: [],
+      subtotal: paymentIntent.amount ?? 0,
+      total: paymentIntent.amount ?? 0,
+      currency: paymentIntent.currency ?? 'USD',
+      paymentIntent,
+      invoiceNumber: paymentIntent.paymentIntentId,
+      status: 'AWAITING_PAYMENT',
+    };
   };
 
   const buildEffectiveInvoice = (): Invoice | null => {
-    const baseInvoice: Invoice | null =
-      invoice ??
-      (paymentIntent
-        ? {
-            id: paymentIntent.paymentIntentId ?? `pi-${appointmentId}`,
-            appointmentId,
-            items: [],
-            subtotal: paymentIntent.amount ?? 0,
-            total: paymentIntent.amount ?? 0,
-            currency: paymentIntent.currency ?? 'USD',
-            paymentIntent,
-            invoiceNumber: paymentIntent.paymentIntentId,
-            status: 'AWAITING_PAYMENT',
-          }
-        : null);
+    const baseInvoice = buildBaseInvoice();
     if (!baseInvoice) return null;
 
     const intentCreatedAt = (paymentIntent as any)?.createdAt;
@@ -206,68 +322,18 @@ export const PaymentInvoiceScreen: React.FC = () => {
     apt?.status === 'NO_PAYMENT' ||
     apt?.status === 'AWAITING_PAYMENT' ||
     apt?.status === 'PAYMENT_FAILED';
-  useEffect(() => {
-    if (!apt && appointmentId) {
-      dispatch(fetchAppointmentById({appointmentId}));
-    }
-  }, [apt, appointmentId, dispatch]);
-  useEffect(() => {
-    if (!googlePlacesId) return;
-    dispatch(fetchBusinessDetails(googlePlacesId))
-      .unwrap()
-      .then(res => {
-        if (res.photoUrl) setFallbackPhoto(res.photoUrl);
-      })
-      .catch(() => {
-        dispatch(fetchGooglePlacesImage(googlePlacesId))
-          .unwrap()
-          .then(img => {
-            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
-          })
-          .catch(() => {});
-      });
-  }, [dispatch, googlePlacesId]);
-
-  useEffect(() => {
-    if (!appointmentId) {
-      Alert.alert(
-        'Missing data',
-        'Could not open payment screen without an appointment.',
-      );
-      navigation.goBack();
-      return;
-    }
-    const isPaymentPendingNow =
-      apt?.status === 'NO_PAYMENT' ||
-      apt?.status === 'AWAITING_PAYMENT' ||
-      apt?.status === 'PAYMENT_FAILED';
-    if (
-      appointmentId &&
-      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId) &&
-      isPaymentPendingNow
-    ) {
-      dispatch(fetchPaymentIntentForAppointment({appointmentId}));
-    }
-    const needsInvoice = !invoiceFromStore && !routeInvoice;
-    if (
-      appointmentId &&
-      needsInvoice &&
-      !isPaymentPendingNow &&
-      !invoiceRequestedRef.current
-    ) {
-      invoiceRequestedRef.current = true;
-      dispatch(fetchInvoiceForAppointment({appointmentId}));
-    }
-  }, [
+  useFetchAppointmentById({appointmentId, apt, dispatch});
+  useBusinessPhoto({googlePlacesId, dispatch, setFallbackPhoto});
+  useEnsurePaymentData({
     appointmentId,
-    apt?.status,
+    aptStatus: apt?.status,
+    paymentIntent,
     dispatch,
     invoiceFromStore,
-    navigation,
-    paymentIntent?.clientSecret,
-    paymentIntent?.paymentIntentId,
     routeInvoice,
-  ]);
+    navigation,
+    invoiceRequestedRef,
+  });
 
   const clientSecret = paymentIntent?.clientSecret;
   const currencySymbol = effectiveInvoice?.currency
@@ -306,17 +372,33 @@ export const PaymentInvoiceScreen: React.FC = () => {
     paymentIntent?.paymentLinkUrl ??
     null;
   const isInvoiceLoaded = Boolean(effectiveInvoice);
+  const shouldShowLoadingNotice = !isInvoiceLoaded && !isPaymentPendingStatus;
+  const hasRefund =
+    effectiveInvoice?.refundId ||
+    effectiveInvoice?.refundStatus?.toUpperCase?.().includes?.('REFUND') ||
+    effectiveInvoice?.status?.toUpperCase?.().includes?.('REFUND');
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—';
     const ts = Date.parse(iso);
     if (Number.isNaN(ts)) return '—';
-    return new Date(ts).toLocaleString();
+    return new Date(ts).toLocaleString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
   };
   const formatDateOnly = (iso?: string | null) => {
     if (!iso) return 'the stated due date';
     const ts = Date.parse(iso);
     if (Number.isNaN(ts)) return 'the stated due date';
-    return new Date(ts).toLocaleDateString();
+    return new Date(ts).toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
   const paymentDueLabel = formatDateOnly(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
@@ -394,7 +476,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        {!isInvoiceLoaded && !isPaymentPendingStatus && (
+        {shouldShowLoadingNotice && (
           <Text style={styles.warningText}>Loading invoice details…</Text>
         )}
         {!effectiveInvoice && (
@@ -423,6 +505,51 @@ export const PaymentInvoiceScreen: React.FC = () => {
             value={formatDateTime(effectiveInvoice?.dueDate)}
           />
         </View>
+
+        {hasRefund ? (
+          <View style={styles.metaCard}>
+            <Text style={styles.metaTitle}>Refund</Text>
+            <MetaRow label="Refund ID" value={effectiveInvoice?.refundId ?? '—'} />
+            <MetaRow
+              label="Refund status"
+              value={
+                effectiveInvoice?.refundStatus ??
+                effectiveInvoice?.status ??
+                '—'
+              }
+            />
+            <MetaRow
+              label="Refund amount"
+              value={
+                effectiveInvoice?.refundAmount != null
+                  ? `${effectiveInvoice.currency ?? 'USD'} ${effectiveInvoice.refundAmount}`
+                  : '—'
+              }
+            />
+            <MetaRow
+              label="Refund date"
+              value={formatDateTime(effectiveInvoice?.refundDate)}
+            />
+            {effectiveInvoice?.refundReceiptUrl || effectiveInvoice?.downloadUrl ? (
+              <View style={styles.refundLinkRow}>
+                <LiquidGlassButton
+                  title="View refund receipt"
+                  onPress={() => {
+                    const url = effectiveInvoice.refundReceiptUrl ?? effectiveInvoice.downloadUrl;
+                    if (url) {
+                      Linking.openURL(url);
+                    }
+                  }}
+                  height={48}
+                  borderRadius={12}
+                  tintColor={theme.colors.secondary}
+                  shadowIntensity="light"
+                  textStyle={styles.confirmPrimaryButtonText}
+                />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.invoiceForCard}>
           <Text style={styles.metaTitle}>Invoice for</Text>

@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo} from 'react';
-import {ScrollView, View, Text, StyleSheet} from 'react-native';
+import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -13,6 +13,7 @@ import {
   cancelAppointment,
   fetchAppointmentById,
   fetchAppointmentsForCompanion,
+  checkInAppointment,
   fetchInvoiceForAppointment,
 } from '@/features/appointments/appointmentsSlice';
 import RescheduledInfoSheet from '@/features/appointments/components/InfoBottomSheet/RescheduledInfoSheet';
@@ -24,6 +25,8 @@ import type {NavigationProp} from '@react-navigation/native';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {createSelector} from '@reduxjs/toolkit';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import LocationService from '@/shared/services/LocationService';
+import {distanceBetweenCoordsMeters} from '@/shared/utils/geoDistance';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -54,6 +57,9 @@ export const ViewAppointmentScreen: React.FC = () => {
   );
   const appointmentDocuments = useSelector(appointmentDocsSelector);
   const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
+  const CHECKIN_RADIUS_METERS = 200;
+  const CHECKIN_BUFFER_MS = 5 * 60 * 1000;
+  const [checkingIn, setCheckingIn] = React.useState(false);
 
   useEffect(() => {
     if (!apt) {
@@ -66,6 +72,10 @@ export const ViewAppointmentScreen: React.FC = () => {
       dispatch(fetchDocuments({companionId: apt.companionId}));
     }
   }, [apt?.companionId, dispatch]);
+
+  if (!apt) {
+    return null;
+  }
 
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
@@ -95,6 +105,36 @@ export const ViewAppointmentScreen: React.FC = () => {
       });
   }, [businessPhoto, dispatch, fallbackPhoto, googlePlacesId, isDummyPhoto]);
 
+  const businessCoords = React.useMemo(
+    () => ({
+      lat: business?.lat ?? apt?.businessLat ?? null,
+      lng: business?.lng ?? apt?.businessLng ?? null,
+    }),
+    [apt?.businessLat, apt?.businessLng, business?.lat, business?.lng],
+  );
+
+  const isWithinCheckInWindow = React.useMemo(() => {
+    if (!apt) return false;
+    const normalizedTime =
+      (apt.time ?? '00:00').length === 5 ? `${apt.time ?? '00:00'}:00` : apt.time ?? '00:00';
+    const start = new Date(`${apt.date}T${normalizedTime}Z`).getTime();
+    if (Number.isNaN(start)) {
+      return true;
+    }
+    return Date.now() >= start - CHECKIN_BUFFER_MS;
+  }, [apt, CHECKIN_BUFFER_MS]);
+
+  const formatLocalStartTime = React.useCallback(() => {
+    if (!apt) return '';
+    const normalizedTime =
+      (apt.time ?? '00:00').length === 5 ? `${apt.time ?? '00:00'}:00` : apt.time ?? '00:00';
+    const start = new Date(`${apt.date}T${normalizedTime}Z`);
+    if (Number.isNaN(start.getTime())) {
+      return apt.time ?? '';
+    }
+    return start.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+  }, [apt]);
+
   if (!apt) {
     return null;
   }
@@ -110,6 +150,10 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
+      case 'UPCOMING':
+        return {text: 'Upcoming', textColor: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
+      case 'CHECKED_IN':
+        return {text: 'Checked in', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
       case 'REQUESTED':
         return {text: 'Requested', textColor: theme.colors.primary, backgroundColor: theme.colors.primaryTint};
       case 'NO_PAYMENT':
@@ -134,13 +178,29 @@ export const ViewAppointmentScreen: React.FC = () => {
   };
 
   const statusInfo = getStatusDisplay(apt.status);
-  const isPaymentPending =
-    apt.status === 'NO_PAYMENT' ||
-    apt.status === 'AWAITING_PAYMENT' ||
-    apt.status === 'PAYMENT_FAILED';
-  const isRequested = apt.status === 'REQUESTED';
+  const statusFlags = useMemo(() => {
+    const isPaymentPending =
+      apt.status === 'NO_PAYMENT' ||
+      apt.status === 'AWAITING_PAYMENT' ||
+      apt.status === 'PAYMENT_FAILED';
+    const isRequested = apt.status === 'REQUESTED';
+    const isUpcoming = apt.status === 'UPCOMING';
+    const isCheckedIn = apt.status === 'CHECKED_IN';
+    const isTerminal = apt.status === 'COMPLETED' || apt.status === 'CANCELLED';
+    return {
+      isPaymentPending,
+      isRequested,
+      isUpcoming,
+      isCheckedIn,
+      isTerminal,
+      showPayNow: isPaymentPending && !isRequested,
+      showInvoice: true,
+      showCancel: !isTerminal,
+    };
+  }, [apt.status]);
+  const {isPaymentPending, isRequested, isUpcoming, isCheckedIn, isTerminal, showPayNow, showInvoice, showCancel} =
+    statusFlags;
   const hasAssignedEmployee = Boolean(employee);
-  const isTerminal = apt.status === 'COMPLETED' || apt.status === 'CANCELLED';
   const cancellationNote =
     apt.status === 'CANCELLED'
       ? 'This appointment was cancelled. Refunds, if applicable, are processed per the clinic’s policy and card network timelines.'
@@ -154,10 +214,125 @@ export const ViewAppointmentScreen: React.FC = () => {
     description: business?.description ?? undefined,
     photo: resolvedPhoto ?? undefined,
   };
+  const department = service?.specialty ?? apt.type ?? service?.name ?? apt.serviceName ?? null;
+  const employeeFallback =
+    !employee && (apt.employeeName || apt.employeeTitle)
+      ? {
+          id: apt.employeeId ?? 'provider',
+          businessId: apt.businessId,
+          name: apt.employeeName ?? 'Assigned provider',
+          title: apt.employeeTitle ?? '',
+          specialization: apt.employeeTitle ?? department ?? '',
+          avatar: undefined,
+        }
+      : null;
   const statusHelpText =
     !hasAssignedEmployee && isRequested
       ? 'Your request is pending review. The business will assign a provider once it’s approved.'
       : null;
+  const showCheckInButton = (isUpcoming || isCheckedIn) && !isTerminal;
+  const canCheckIn = isUpcoming && !isPaymentPending && !isTerminal && isWithinCheckInWindow;
+  const normalizedStartTime =
+    (apt.time?.length === 5 ? `${apt.time}:00` : apt.time ?? '00:00') ?? '00:00';
+  const localStartDate = new Date(`${apt.date}T${normalizedStartTime}Z`);
+  const dateLabel = Number.isNaN(localStartDate.getTime())
+    ? apt.date
+    : localStartDate.toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+  const timeLabel =
+    apt.time && !Number.isNaN(localStartDate.getTime())
+      ? localStartDate.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'})
+      : apt.time ?? '';
+  const dateTimeLabel = timeLabel ? `${dateLabel} • ${timeLabel}` : dateLabel;
+
+  const renderActionButtons = () => (
+    <View style={styles.actionsContainer}>
+      {showCheckInButton && (
+        <LiquidGlassButton
+          title={isCheckedIn ? 'Checked in' : 'Check in'}
+          onPress={canCheckIn ? handleCheckIn : () => {}}
+          height={56}
+          borderRadius={16}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.confirmPrimaryButtonText}
+          disabled={!canCheckIn || checkingIn || isCheckedIn}
+        />
+      )}
+
+      {showPayNow && (
+        <LiquidGlassButton
+          title="Pay Now"
+          onPress={() =>
+            navigation.navigate('PaymentInvoice', {
+              appointmentId,
+              companionId: apt.companionId,
+            })
+          }
+          height={56}
+          borderRadius={16}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.confirmPrimaryButtonText}
+        />
+      )}
+
+      {showInvoice && (
+        <LiquidGlassButton
+          title="View Invoice"
+          onPress={async () => {
+            try {
+              await dispatch(fetchInvoiceForAppointment({appointmentId})).unwrap();
+            } catch {
+              // best-effort; still navigate
+            }
+            navigation.navigate('PaymentInvoice', {
+              appointmentId,
+              companionId: apt.companionId,
+            });
+          }}
+          height={56}
+          borderRadius={16}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.confirmPrimaryButtonText}
+        />
+      )}
+
+      {isRequested && !isTerminal && (
+        <LiquidGlassButton
+          title="Edit Appointment"
+          onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
+          height={56}
+          borderRadius={16}
+          glassEffect="clear"
+          tintColor={theme.colors.surface}
+          forceBorder
+          borderColor={theme.colors.secondary}
+          textStyle={styles.secondaryButtonText}
+          shadowIntensity="medium"
+          interactive
+        />
+      )}
+
+      {showCancel && (
+        <LiquidGlassButton
+          title="Cancel Appointment"
+          onPress={() => cancelSheetRef.current?.open?.()}
+          height={56}
+          borderRadius={16}
+          tintColor="#FEE2E2"
+          forceBorder
+          borderColor="#EF4444"
+          textStyle={styles.alertButtonText}
+          shadowIntensity="none"
+        />
+      )}
+    </View>
+  );
 
   const handleCancelAppointment = async () => {
     try {
@@ -168,6 +343,58 @@ export const ViewAppointmentScreen: React.FC = () => {
       navigation.goBack();
     } catch (error) {
       console.warn('[Appointment] Cancel failed', error);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (!isWithinCheckInWindow) {
+      const startLabel = formatLocalStartTime();
+      Alert.alert(
+        'Too early to check in',
+        `You can check in starting 5 minutes before your appointment at ${startLabel}.`,
+      );
+      return;
+    }
+    if (!businessCoords.lat || !businessCoords.lng) {
+      Alert.alert('Location unavailable', 'Clinic location is missing. Please try again later.');
+      return;
+    }
+    const userCoords = await LocationService.getLocationWithRetry(2);
+    if (!userCoords) {
+      return;
+    }
+    const distance = distanceBetweenCoordsMeters(
+      userCoords.latitude,
+      userCoords.longitude,
+      businessCoords.lat,
+      businessCoords.lng,
+    );
+    if (distance === null) {
+      Alert.alert('Location unavailable', 'Unable to determine distance for check-in.');
+      return;
+    }
+    if (distance > CHECKIN_RADIUS_METERS) {
+      Alert.alert(
+        'Too far to check in',
+        `Move closer to the clinic to check in. You are ~${Math.round(distance)}m away.`,
+      );
+      return;
+    }
+    setCheckingIn(true);
+    try {
+      await dispatch(checkInAppointment({appointmentId})).unwrap();
+      await dispatch(fetchAppointmentById({appointmentId})).unwrap();
+      if (apt?.companionId) {
+        dispatch(fetchAppointmentsForCompanion({companionId: apt.companionId}));
+      }
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Checked in', ToastAndroid.SHORT);
+      }
+    } catch (error) {
+      console.warn('[Appointment] Check-in failed', error);
+      Alert.alert('Check-in failed', 'Unable to check in right now. Please try again.');
+    } finally {
+      setCheckingIn(false);
     }
   };
 
@@ -191,14 +418,15 @@ export const ViewAppointmentScreen: React.FC = () => {
           businessSummary={businessSummary}
           service={service}
           serviceName={apt.serviceName}
-          employee={employee}
+          employee={employee ?? employeeFallback ?? null}
+          employeeDepartment={department}
           cardStyle={styles.summaryCard}
         />
 
         {/* Appointment Details Card */}
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>Appointment Details</Text>
-          <DetailRow label="Date & Time" value={`${new Date(apt.date).toLocaleDateString()} • ${apt.time}`} />
+          <DetailRow label="Date & Time" value={dateTimeLabel} />
           <DetailRow label="Type" value={apt.type} />
           <DetailRow label="Service" value={service?.name ?? apt.serviceName ?? '—'} />
           <DetailRow label="Business" value={businessName} />
@@ -248,98 +476,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionsContainer}>
-          {isPaymentPending && !isRequested && (
-            <LiquidGlassButton
-              title="Pay Now"
-              onPress={() =>
-                navigation.navigate('PaymentInvoice', {
-                  appointmentId,
-                  companionId: apt.companionId,
-                })
-              }
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.confirmPrimaryButtonText}
-            />
-          )}
-
-          {!isTerminal && (
-            <LiquidGlassButton
-              title="Edit Appointment"
-              onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
-              height={56}
-              borderRadius={16}
-              glassEffect="clear"
-              tintColor={theme.colors.surface}
-              forceBorder
-              borderColor={theme.colors.secondary}
-              textStyle={styles.secondaryButtonText}
-              shadowIntensity="medium"
-              interactive
-            />
-          )}
-
-          {!isTerminal && !isPaymentPending && !isRequested && (
-            <LiquidGlassButton
-              title="Request Reschedule"
-              onPress={() =>
-                navigation.navigate('EditAppointment', {
-                  appointmentId,
-                  mode: 'reschedule',
-                })
-              }
-              height={56}
-              borderRadius={16}
-              glassEffect="clear"
-              tintColor={theme.colors.surface}
-              forceBorder
-              borderColor={theme.colors.secondary}
-              textStyle={styles.secondaryButtonText}
-              shadowIntensity="medium"
-              interactive
-            />
-          )}
-
-          {!isTerminal && !isPaymentPending && (
-            <LiquidGlassButton
-              title="View Invoice"
-              onPress={async () => {
-                try {
-                  await dispatch(fetchInvoiceForAppointment({appointmentId})).unwrap();
-                } catch {
-                  // best-effort; still navigate
-                }
-                navigation.navigate('PaymentInvoice', {
-                  appointmentId,
-                  companionId: apt.companionId,
-                });
-              }}
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.confirmPrimaryButtonText}
-            />
-          )}
-
-          {!isTerminal && (!isPaymentPending || isRequested) && (
-            <LiquidGlassButton
-              title="Cancel Appointment"
-              onPress={() => cancelSheetRef.current?.open?.()}
-              height={56}
-              borderRadius={16}
-              tintColor="#FEE2E2"
-              forceBorder
-              borderColor="#EF4444"
-              textStyle={styles.alertButtonText}
-              shadowIntensity="none"
-            />
-          )}
-        </View>
+        {renderActionButtons()}
       </ScrollView>
 
       <CancelAppointmentBottomSheet

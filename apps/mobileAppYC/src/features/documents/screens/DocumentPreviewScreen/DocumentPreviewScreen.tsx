@@ -77,7 +77,11 @@ export const DocumentPreviewScreen: React.FC = () => {
     if (Number.isNaN(parsed.getTime())) {
       return '—';
     }
-    return parsed.toLocaleDateString();
+    return parsed.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   }, [document?.issueDate]);
 
   if (!document) {

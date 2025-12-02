@@ -20,16 +20,22 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
-import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
+import {
+  checkInAppointment,
+  fetchAppointmentById,
+  fetchAppointmentsForCompanion,
+} from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
 import {createSelectUpcomingAppointments, createSelectPastAppointments} from '@/features/appointments/selectors';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import {openMapsToAddress} from '@/shared/utils/openMaps';
+import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {RootState as RS} from '@/app/store';
 import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/mockStreamBackend';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import LocationService from '@/shared/services/LocationService';
+import {distanceBetweenCoordsMeters} from '@/shared/utils/geoDistance';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -66,6 +72,9 @@ export const MyAppointmentsScreen: React.FC = () => {
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
   const [businessFallbacks, setBusinessFallbacks] = React.useState<Record<string, {photo?: string | null}>>({});
   const requestedPlacesRef = React.useRef<Set<string>>(new Set());
+  const CHECKIN_RADIUS_METERS = 200;
+  const CHECKIN_BUFFER_MS = 5 * 60 * 1000;
+  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const isDummyPhoto = React.useCallback(
     (photo?: string | null) =>
       typeof photo === 'string' &&
@@ -112,15 +121,26 @@ export const MyAppointmentsScreen: React.FC = () => {
   const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
   const serviceMap = React.useMemo(() => new Map(services.map(s => [s.id, s])), [services]);
 
-  const formatDate = React.useCallback(
-    (iso: string) =>
-      new Date(iso).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-    [],
-  );
+  const formatDate = React.useCallback((iso: string) => {
+    return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }, []);
+  const formatTime = React.useCallback((date: string, time?: string | null) => {
+    if (!time) return '';
+    const normalized = time.length === 5 ? `${time}:00` : time;
+    const asDate = new Date(`${date}T${normalized}Z`);
+    if (Number.isNaN(asDate.getTime())) {
+      return time;
+    }
+    return asDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }, []);
 
   const filteredUpcoming = React.useMemo(() => {
     const filtered = upcoming.filter(apt => {
@@ -129,8 +149,8 @@ export const MyAppointmentsScreen: React.FC = () => {
       return biz?.category === filter;
     });
     return filtered.sort((a, b) => {
-      const aTime = new Date(`${a.date}T${a.time ?? '00:00'}`).getTime();
-      const bTime = new Date(`${b.date}T${b.time ?? '00:00'}`).getTime();
+      const aTime = new Date(`${a.date}T${a.time ?? '00:00'}Z`).getTime();
+      const bTime = new Date(`${b.date}T${b.time ?? '00:00'}Z`).getTime();
       return aTime - bTime;
     });
   }, [upcoming, filter, businessMap]);
@@ -162,39 +182,93 @@ export const MyAppointmentsScreen: React.FC = () => {
     }
   }, [canUseAppointments, selectedCompanionId, showPermissionToast]);
 
+  const requestBusinessPhoto = React.useCallback(
+    async (googlePlacesId: string, businessId: string) => {
+      if (requestedPlacesRef.current.has(googlePlacesId)) {
+        return;
+      }
+      requestedPlacesRef.current.add(googlePlacesId);
+      try {
+        const res = await dispatch(fetchBusinessDetails(googlePlacesId)).unwrap();
+        if (res.photoUrl) {
+          setBusinessFallbacks(prev => ({...prev, [businessId]: {photo: res.photoUrl}}));
+          return;
+        }
+      } catch {
+        // Ignore and try fallback image fetch below
+      }
+      try {
+        const img = await dispatch(fetchGooglePlacesImage(googlePlacesId)).unwrap();
+        if (img.photoUrl) {
+          setBusinessFallbacks(prev => ({...prev, [businessId]: {photo: img.photoUrl}}));
+        }
+      } catch {
+        // Swallow errors; UI will use defaults
+      }
+    },
+    [dispatch],
+  );
+
+  const handleAvatarError = React.useCallback(
+    (googlePlacesId: string | null, businessId: string) => {
+      if (!googlePlacesId) return;
+      requestBusinessPhoto(googlePlacesId, businessId);
+    },
+    [requestBusinessPhoto],
+  );
+
   React.useEffect(() => {
     appointmentsForFallback.forEach(apt => {
       const biz = businessMap.get(apt.businessId);
       const googlePlacesId = biz?.googlePlacesId ?? apt.businessGooglePlacesId ?? null;
       const photoCandidate = (biz?.photo ?? apt.businessPhoto) as string | null | undefined;
       const needsPhoto = (!photoCandidate || isDummyPhoto(photoCandidate)) && googlePlacesId;
-      if (needsPhoto && googlePlacesId && !requestedPlacesRef.current.has(googlePlacesId)) {
-        requestedPlacesRef.current.add(googlePlacesId);
-        dispatch(fetchBusinessDetails(googlePlacesId))
-          .unwrap()
-          .then(res => {
-            if (res.photoUrl) {
-              setBusinessFallbacks(prev => ({...prev, [apt.businessId]: {photo: res.photoUrl}}));
-            }
-          })
-          .catch(() => {
-            dispatch(fetchGooglePlacesImage(googlePlacesId))
-              .unwrap()
-              .then(img => {
-                if (img.photoUrl) {
-                  setBusinessFallbacks(prev => ({...prev, [apt.businessId]: {photo: img.photoUrl}}));
-                }
-              })
-              .catch(() => {});
-          });
+      if (needsPhoto && googlePlacesId) {
+        requestBusinessPhoto(googlePlacesId, apt.businessId);
       }
     });
-  }, [appointmentsForFallback, businessMap, dispatch, isDummyPhoto]);
+  }, [appointmentsForFallback, businessMap, isDummyPhoto, requestBusinessPhoto]);
 
   type AppointmentItem = (typeof filteredUpcoming)[number];
   type EmployeeRecord = ReturnType<typeof employeeMap.get>;
+  const getBusinessCoordinates = React.useCallback(
+    (apt: AppointmentItem | null | undefined) => {
+      if (!apt) return {lat: null, lng: null};
+      const biz = businessMap.get(apt.businessId);
+      return {
+        lat: biz?.lat ?? apt.businessLat ?? null,
+        lng: biz?.lng ?? apt.businessLng ?? null,
+      };
+    },
+    [businessMap],
+  );
+  const isWithinCheckInWindow = React.useCallback(
+    (dateStr: string, timeStr?: string | null) => {
+      const normalizedTime =
+        (timeStr ?? '00:00').length === 5 ? `${timeStr ?? '00:00'}:00` : timeStr ?? '00:00';
+      const start = new Date(`${dateStr}T${normalizedTime}Z`).getTime();
+      if (Number.isNaN(start)) {
+        return true;
+      }
+      return Date.now() >= start - CHECKIN_BUFFER_MS;
+    },
+    [CHECKIN_BUFFER_MS],
+  );
+  const formatLocalStartTime = React.useCallback((dateStr: string, timeStr?: string | null) => {
+    const normalizedTime =
+      (timeStr ?? '00:00').length === 5 ? `${timeStr ?? '00:00'}:00` : timeStr ?? '00:00';
+    const start = new Date(`${dateStr}T${normalizedTime}Z`);
+    if (Number.isNaN(start.getTime())) {
+      return timeStr ?? '';
+    }
+    return start.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+  }, []);
   const formatStatus = (status: string) => {
     switch (status) {
+      case 'UPCOMING':
+        return 'Upcoming';
+      case 'CHECKED_IN':
+        return 'Checked in';
       case 'NO_PAYMENT':
       case 'AWAITING_PAYMENT':
         return 'Payment pending';
@@ -286,6 +360,73 @@ export const MyAppointmentsScreen: React.FC = () => {
     [navigation],
   );
 
+  const handleCheckIn = React.useCallback(
+    async (appointment: AppointmentItem) => {
+      if (!canUseAppointments) {
+        showPermissionToast('appointments');
+        return;
+      }
+      const withinTimeWindow = isWithinCheckInWindow(appointment.date, appointment.time);
+      if (!withinTimeWindow) {
+        const startLabel = formatLocalStartTime(appointment.date, appointment.time);
+        Alert.alert(
+          'Too early to check in',
+          `You can check in starting 5 minutes before your appointment at ${startLabel}.`,
+        );
+        return;
+      }
+      const coords = getBusinessCoordinates(appointment);
+      if (!coords.lat || !coords.lng) {
+        Alert.alert('Location unavailable', 'Clinic location is missing. Please try again later.');
+        return;
+      }
+      const userCoords = await LocationService.getLocationWithRetry(2);
+      if (!userCoords) {
+        return;
+      }
+      const distance = distanceBetweenCoordsMeters(
+        userCoords.latitude,
+        userCoords.longitude,
+        coords.lat,
+        coords.lng,
+      );
+      if (distance === null) {
+        Alert.alert('Location unavailable', 'Unable to determine distance for check-in.');
+        return;
+      }
+      if (distance > CHECKIN_RADIUS_METERS) {
+        Alert.alert(
+          'Too far to check in',
+          `Move closer to the clinic to check in. You are ~${Math.round(distance)}m away.`,
+        );
+        return;
+      }
+      setCheckingIn(prev => ({...prev, [appointment.id]: true}));
+      try {
+        await dispatch(checkInAppointment({appointmentId: appointment.id})).unwrap();
+        await dispatch(fetchAppointmentById({appointmentId: appointment.id})).unwrap();
+        dispatch(fetchAppointmentsForCompanion({companionId: appointment.companionId}));
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Checked in', ToastAndroid.SHORT);
+        }
+      } catch (error) {
+        console.warn('[Appointment] Check-in failed', error);
+        Alert.alert('Check-in failed', 'Unable to check in right now. Please try again.');
+      } finally {
+        setCheckingIn(prev => ({...prev, [appointment.id]: false}));
+      }
+    },
+    [
+      CHECKIN_RADIUS_METERS,
+      canUseAppointments,
+      dispatch,
+      getBusinessCoordinates,
+      isWithinCheckInWindow,
+      formatLocalStartTime,
+      showPermissionToast,
+    ],
+  );
+
   const renderEmptyCard = (title: string, subtitle: string) => (
     <LiquidGlassCard
       key={`${title}-empty`}
@@ -319,18 +460,204 @@ export const MyAppointmentsScreen: React.FC = () => {
     </View>
   );
 
+  const renderUpcomingCard = ({
+    item,
+    cardTitle,
+    cardSubtitle,
+    businessName,
+    dateTimeLabel,
+    avatarSource,
+    fallbackPhoto,
+    googlePlacesId,
+    assignmentNote,
+    businessAddress,
+    petName,
+    emp,
+    needsPayment,
+    isRequested,
+    statusAllowsActions,
+    canCheckIn,
+    isCheckedIn,
+    isCheckingIn,
+  }: {
+    item: (typeof filteredUpcoming)[number];
+    cardTitle: string;
+    cardSubtitle: string;
+    businessName: string;
+    dateTimeLabel: string;
+    avatarSource: any;
+    fallbackPhoto: string | null;
+    googlePlacesId: string | null;
+    assignmentNote?: string;
+    businessAddress: string;
+    petName?: string;
+    emp?: EmployeeRecord;
+    needsPayment: boolean;
+    isRequested: boolean;
+    statusAllowsActions: boolean;
+    canCheckIn: boolean;
+    isCheckedIn: boolean;
+    isCheckingIn: boolean;
+  }) => {
+    const paymentFooter = needsPayment ? (
+      <View style={styles.upcomingFooter}>
+        <LiquidGlassButton
+          title="Pay now"
+          onPress={() =>
+            navigation.navigate('PaymentInvoice', {
+              appointmentId: item.id,
+              companionId: item.companionId,
+            })
+          }
+          height={48}
+          borderRadius={12}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.reviewButtonText}
+          style={styles.reviewButtonCard}
+        />
+      </View>
+    ) : null;
+
+    const requestedBadge = isRequested ? (
+      <View style={[styles.pastStatusBadge, styles.pastStatusBadgeRequested]}>
+        <Text style={[styles.pastStatusBadgeText, styles.pastStatusBadgeTextRequested]}>Requested</Text>
+      </View>
+    ) : null;
+
+    const footer =
+      paymentFooter || requestedBadge ? (
+        <View style={styles.upcomingFooter}>
+          {requestedBadge}
+          {paymentFooter}
+        </View>
+      ) : undefined;
+
+    return (
+      <View style={styles.cardWrapper}>
+        <AppointmentCard
+          doctorName={cardTitle}
+          specialization={cardSubtitle}
+          hospital={businessName}
+          dateTime={dateTimeLabel}
+          avatar={avatarSource || Images.cat}
+          fallbackAvatar={fallbackPhoto ?? undefined}
+          onAvatarError={() => handleAvatarError(googlePlacesId, item.businessId)}
+          note={assignmentNote}
+          showActions={statusAllowsActions}
+          onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+          onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+          onGetDirections={() => {
+            if (googlePlacesId) {
+              openMapsToPlaceId(googlePlacesId, businessAddress);
+            } else if (businessAddress) {
+              openMapsToAddress(businessAddress);
+            }
+          }}
+          canChat={canUseChat}
+          onChat={() =>
+            handleChatPress({
+              appointment: item,
+              employee: emp,
+              doctorName: cardTitle,
+              petName,
+            })
+          }
+          onChatBlocked={() => showPermissionToast('chat with vet')}
+          checkInLabel={isCheckedIn ? 'Checked in' : 'Check in'}
+          checkInDisabled={isCheckedIn || isCheckingIn || !canCheckIn}
+          onCheckIn={() => {
+            if (canCheckIn && !isCheckingIn && !isCheckedIn) {
+              handleCheckIn(item);
+            }
+          }}
+          footer={footer}
+        />
+      </View>
+    );
+  };
+
+  const renderPastCard = ({
+    item,
+    cardTitle,
+    cardSubtitle,
+    businessName,
+    dateTimeLabel,
+    avatarSource,
+    fallbackPhoto,
+    googlePlacesId,
+  }: {
+    item: (typeof filteredUpcoming)[number];
+    cardTitle: string;
+    cardSubtitle: string;
+    businessName: string;
+    dateTimeLabel: string;
+    avatarSource: any;
+    fallbackPhoto: string | null;
+    googlePlacesId: string | null;
+  }) => (
+    <View style={styles.cardWrapper}>
+      <AppointmentCard
+        doctorName={cardTitle}
+        specialization={cardSubtitle}
+        hospital={businessName}
+        dateTime={dateTimeLabel}
+        avatar={avatarSource || Images.cat}
+        fallbackAvatar={fallbackPhoto ?? undefined}
+        onAvatarError={() => handleAvatarError(googlePlacesId, item.businessId)}
+        showActions={false}
+        onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        footer={
+          <View style={styles.pastFooter}>
+            <View style={styles.pastStatusWrapper}>
+              <View
+                style={[
+                  styles.pastStatusBadge,
+                  item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
+                  item.status === 'REQUESTED' && styles.pastStatusBadgeRequested,
+                  item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
+                ]}>
+                <Text
+                  style={[
+                    styles.pastStatusBadgeText,
+                    item.status === 'CANCELLED' && styles.pastStatusBadgeTextCanceled,
+                    item.status === 'REQUESTED' && styles.pastStatusBadgeTextRequested,
+                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeTextFailed,
+                  ]}>
+                  {formatStatus(item.status)}
+                </Text>
+              </View>
+            </View>
+            {item.status === 'COMPLETED' && (
+              <LiquidGlassButton
+                title="Review"
+                onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
+                height={48}
+                borderRadius={12}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="medium"
+                textStyle={styles.reviewButtonText}
+                style={styles.reviewButtonCard}
+              />
+            )}
+          </View>
+        }
+      />
+    </View>
+  );
+
   const renderItem = ({item, section}: {item: (typeof filteredUpcoming)[number]; section: {key: string}}) => {
-    if (!item) {
-      return null;
-    }
-    if (!canUseAppointments) {
+    if (!item || !canUseAppointments) {
       return null;
     }
     const emp = employeeMap.get(item.employeeId ?? '');
     const service = serviceMap.get(item.serviceId ?? '');
     const biz = businessMap.get(item.businessId);
     const formattedDate = formatDate(item.date);
-    const hasAssignedVet = Boolean(emp);
+    const timeLabel = formatTime(item.date, item.time);
+    const dateTimeLabel = timeLabel ? `${formattedDate} - ${timeLabel}` : formattedDate;
+    const hasAssignedVet = Boolean(emp || item.employeeName);
     const companionAvatar =
       companions.find(c => c.id === item.companionId)?.profileImage ?? null;
     const googlePlacesId = biz?.googlePlacesId ?? item.businessGooglePlacesId ?? null;
@@ -341,166 +668,74 @@ export const MyAppointmentsScreen: React.FC = () => {
       fallbackPhoto ||
       (companionAvatar ? {uri: companionAvatar} : Images.cat);
     const cardTitle = hasAssignedVet
-      ? emp?.name ?? 'Assigned vet'
+      ? emp?.name ?? item.employeeName ?? 'Assigned vet'
       : service?.name ?? item.serviceName ?? 'Service request';
     const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
     const serviceSubtitle = [service?.specialty ?? item.type ?? 'Awaiting vet assignment', servicePriceText]
       .filter(Boolean)
       .join(' • ');
-    const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+    const providerDesignation =
+      emp?.specialization ?? item.employeeTitle ?? service?.specialty ?? item.type ?? '';
+    const cardSubtitle = hasAssignedVet ? providerDesignation : serviceSubtitle;
     const petName = companions.find(c => c.id === item.companionId)?.name;
     const businessName = biz?.name || item.organisationName || '';
     const businessAddress = biz?.address || item.organisationAddress || '';
     let assignmentNote: string | undefined;
     if (!hasAssignedVet) {
-      assignmentNote = 'Your request is pending review. The business will assign a provider once it’s approved.';
-    } else if (item.status === 'PAID') {
-      assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
+      assignmentNote =
+        'Your request is pending review. The business will assign a provider once it’s approved.';
+    } else if (
+      item.status === 'PAID' ||
+      item.status === 'UPCOMING' ||
+      item.status === 'CHECKED_IN'
+    ) {
+      assignmentNote =
+        'Check-in unlocks when you are within ~200m of the clinic and 5 minutes before start time.';
     }
     const needsPayment =
       item.status === 'NO_PAYMENT' ||
       item.status === 'AWAITING_PAYMENT' ||
       item.status === 'PAYMENT_FAILED';
     const isRequested = item.status === 'REQUESTED';
-    if (section.key === 'upcoming') {
-      let footer: React.ReactNode;
+    const isCheckedIn = item.status === 'CHECKED_IN';
+    const withinTimeWindow = isWithinCheckInWindow(item.date, item.time);
+    const statusAllowsActions =
+      (item.status === 'UPCOMING' || isCheckedIn) && !needsPayment;
+    const canCheckIn =
+      item.status === 'UPCOMING' && hasAssignedVet && !needsPayment && withinTimeWindow;
+    const isCheckingIn = Boolean(checkingIn[item.id]);
 
-      if (needsPayment) {
-        footer = (
-          <View style={styles.upcomingFooter}>
-            <LiquidGlassButton
-              title="Pay now"
-              onPress={() => navigation.navigate('PaymentInvoice', {appointmentId: item.id, companionId: item.companionId})}
-              height={48}
-              borderRadius={12}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.reviewButtonText}
-              style={styles.reviewButtonCard}
-            />
-          </View>
-        );
-      }
-
-      if (isRequested) {
-        footer = (
-          <View style={styles.upcomingFooter}>
-            <View style={[styles.pastStatusBadge, styles.pastStatusBadgeRequested]}>
-              <Text style={[styles.pastStatusBadgeText, styles.pastStatusBadgeTextRequested]}>Requested</Text>
-            </View>
-            {footer}
-          </View>
-        );
-      }
-
-      return (
-        <View style={styles.cardWrapper}>
-          <AppointmentCard
-            doctorName={cardTitle}
-            specialization={cardSubtitle}
-            hospital={businessName}
-            dateTime={`${formattedDate} - ${item.time}`}
-            avatar={avatarSource || Images.cat}
-            fallbackAvatar={fallbackPhoto ?? undefined}
-            onAvatarError={() => {
-              if (googlePlacesId && !requestedPlacesRef.current.has(googlePlacesId)) {
-                requestedPlacesRef.current.add(googlePlacesId);
-                dispatch(fetchGooglePlacesImage(googlePlacesId))
-                  .unwrap()
-                  .then(img => {
-                    if (img.photoUrl) {
-                      setBusinessFallbacks(prev => ({...prev, [item.businessId]: {photo: img.photoUrl}}));
-                    }
-                  })
-                  .catch(() => {});
-              }
-            }}
-            note={assignmentNote}
-            showActions={false}
-            onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-            onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-            onGetDirections={() => {
-              if (businessAddress) openMapsToAddress(businessAddress);
-            }}
-            canChat={canUseChat}
-            onChat={() =>
-              handleChatPress({
-                appointment: item,
-                employee: emp,
-                doctorName: cardTitle,
-                petName,
-              })
-            }
-            onChatBlocked={() => showPermissionToast('chat with vet')}
-            footer={footer}
-          />
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.cardWrapper}>
-        <AppointmentCard
-          doctorName={cardTitle}
-          specialization={cardSubtitle}
-          hospital={businessName}
-          dateTime={`${formattedDate} - ${item.time}`}
-          avatar={avatarSource || Images.cat}
-          fallbackAvatar={fallbackPhoto ?? undefined}
-          onAvatarError={() => {
-            if (googlePlacesId && !requestedPlacesRef.current.has(googlePlacesId)) {
-              requestedPlacesRef.current.add(googlePlacesId);
-              dispatch(fetchGooglePlacesImage(googlePlacesId))
-                .unwrap()
-                .then(img => {
-                  if (img.photoUrl) {
-                    setBusinessFallbacks(prev => ({...prev, [item.businessId]: {photo: img.photoUrl}}));
-                  }
-                })
-                .catch(() => {});
-            }
-          }}
-          showActions={false}
-          onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-           onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-          footer={
-            <View style={styles.pastFooter}>
-              <View style={styles.pastStatusWrapper}>
-                <View
-                  style={[
-                    styles.pastStatusBadge,
-                    item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
-                    item.status === 'REQUESTED' && styles.pastStatusBadgeRequested,
-                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.pastStatusBadgeText,
-                      item.status === 'CANCELLED' && styles.pastStatusBadgeTextCanceled,
-                      item.status === 'REQUESTED' && styles.pastStatusBadgeTextRequested,
-                      item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeTextFailed,
-                    ]}>
-                    {formatStatus(item.status)}
-                  </Text>
-                </View>
-              </View>
-              {item.status === 'COMPLETED' && (
-                <LiquidGlassButton
-                  title="Review"
-                  onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
-                  height={48}
-                  borderRadius={12}
-                  tintColor={theme.colors.secondary}
-                  shadowIntensity="medium"
-                  textStyle={styles.reviewButtonText}
-                  style={styles.reviewButtonCard}
-                />
-              )}
-            </View>
-          }
-        />
-      </View>
-    );
+    return section.key === 'upcoming'
+      ? renderUpcomingCard({
+          item,
+          cardTitle,
+          cardSubtitle,
+          businessName,
+          dateTimeLabel,
+          avatarSource,
+          fallbackPhoto,
+          googlePlacesId,
+          assignmentNote,
+          businessAddress,
+          petName,
+          emp,
+          needsPayment,
+          isRequested,
+          statusAllowsActions,
+          canCheckIn,
+          isCheckedIn,
+          isCheckingIn,
+        })
+      : renderPastCard({
+          item,
+          cardTitle,
+          cardSubtitle,
+          businessName,
+          dateTimeLabel,
+          avatarSource,
+          fallbackPhoto,
+          googlePlacesId,
+        });
   };
 
   const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;

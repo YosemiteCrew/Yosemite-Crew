@@ -16,21 +16,25 @@ import {
   useNavigation,
   useRoute,
   type RouteProp,
+  type NavigationProp,
 } from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {AppointmentStackParamList} from '@/navigation/types';
+import type {
+  AppointmentStackParamList,
+  TabParamList,
+  RootStackParamList,
+} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
 import {
   getFirstAvailableDate,
   getFutureAvailabilityMarkers,
   getSlotsForDate,
+  findSlotByLabel,
   parseSlotLabel,
 } from '@/features/appointments/utils/availability';
 import {formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {uploadDocumentFiles} from '@/features/documents/documentSlice';
-import type {NavigationProp} from '@react-navigation/native';
-import type {TabParamList, RootStackParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -273,7 +277,14 @@ export const BookingFormScreen: React.FC = () => {
     }
     setSubmitting(true);
     try {
+      const slotWindow = findSlotByLabel(availability, date, time);
       const {startTime, endTime} = parseSlotLabel(time);
+      const startIsoUtc =
+        slotWindow?.startTimeUtc ??
+        new Date(`${date}T${(startTime ?? time!).padEnd(5, ':00')}Z`).toISOString();
+      const endIsoUtc =
+        slotWindow?.endTimeUtc ??
+        new Date(`${date}T${(endTime ?? startTime ?? time!).padEnd(5, ':00')}Z`).toISOString();
       const attachments = await prepareAttachments(selectedCompanionId!);
 
       const action = await dispatch(
@@ -285,8 +296,10 @@ export const BookingFormScreen: React.FC = () => {
           specialityId: selectedService?.specialityId ?? serviceSpecialtyId ?? null,
           specialityName: serviceSpecialty ?? selectedService?.specialty ?? type,
           date,
-          startTime: startTime ?? time!,
-          endTime: endTime ?? startTime ?? time!,
+          startTime: slotWindow?.startTimeLocal ?? startTime ?? time!,
+          endTime: slotWindow?.endTimeLocal ?? endTime ?? startTime ?? time!,
+          startTimeUtc: startIsoUtc,
+          endTimeUtc: endIsoUtc,
           concern,
           emergency,
           attachments,

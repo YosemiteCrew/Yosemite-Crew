@@ -25,6 +25,8 @@ export const AppointmentCard = ({
   onViewDetails,
   onPress,
   testIDs,
+  checkInLabel = 'Check in',
+  checkInDisabled = false,
 }: {
   doctorName: string;
   specialization: string;
@@ -43,6 +45,8 @@ export const AppointmentCard = ({
   footer?: React.ReactNode;
   onViewDetails?: () => void;
   onPress?: () => void;
+  checkInLabel?: string;
+  checkInDisabled?: boolean;
   testIDs?: {
     container?: string;
     directions?: string;
@@ -173,7 +177,7 @@ export const AppointmentCard = ({
             </View>
             <View style={styles.actionButtonWrapper} testID={testIDs?.checkIn}>
               <LiquidGlassButton
-                title="Check in"
+                title={checkInLabel ?? 'Check in'}
                 onPress={onCheckIn ?? (() => {})}
                 style={styles.actionButton}
                 textStyle={styles.actionButtonText}
@@ -183,6 +187,7 @@ export const AppointmentCard = ({
                 borderColor="#302F2E"
                 height={52}
                 borderRadius={16}
+                disabled={checkInDisabled}
               />
             </View>
           </View>
@@ -256,11 +261,11 @@ const createStyles = (theme: any) =>
     sub: {...theme.typography.labelXsBold, color: theme.colors.placeholder},
     date: {...theme.typography.labelXsBold, color: theme.colors.secondary},
     noteContainer: {
-      marginBottom: theme.spacing[2], // Tighter spacing to the next section
+      marginBottom: theme.spacing[4], // Tighter spacing to the next section
     },
     note: {...theme.typography.labelXsBold, color: theme.colors.placeholder},
     noteLabel: {color: theme.colors.primary},
-    buttonContainer: {gap: theme.spacing[2]}, // Reduced gap to bring sections closer
+    buttonContainer: {gap: theme.spacing[4]}, // Reduced gap to bring sections closer
     inlineButtons: {
       flexDirection: 'row',
       justifyContent: 'space-between',

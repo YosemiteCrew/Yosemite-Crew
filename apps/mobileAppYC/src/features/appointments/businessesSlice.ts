@@ -142,6 +142,48 @@ const isDummyPhoto = (photo?: string | null) =>
   typeof photo === 'string' &&
   (photo.includes('example.com') || photo.includes('placeholder'));
 
+const toDateFromTime = (time: string | null | undefined, date: string): Date | null => {
+  if (!time) return null;
+  const trimmed = time.toString().trim();
+  const direct = new Date(trimmed);
+  if (!Number.isNaN(direct.getTime())) {
+    return direct;
+  }
+  const normalizedTime = trimmed.length === 5 ? `${trimmed}:00` : trimmed;
+  const candidate = new Date(`${date}T${normalizedTime}${normalizedTime.endsWith('Z') ? '' : 'Z'}`);
+  return Number.isNaN(candidate.getTime()) ? null : candidate;
+};
+
+const toLocalTimeString = (d: Date | null) =>
+  d
+    ? d.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : null;
+
+const normalizeSlotsToLocal = (windows: SlotWindow[] | undefined, date: string): SlotWindow[] => {
+  if (!windows?.length) {
+    return [];
+  }
+  return windows.map(window => {
+    const startDate = toDateFromTime(window.startTime ?? (window as any)?.start, date);
+    const endDate = toDateFromTime(window.endTime ?? (window as any)?.end ?? window.startTime, date);
+    const startLocal = toLocalTimeString(startDate) ?? window.startTime;
+    const endLocal = toLocalTimeString(endDate) ?? window.endTime ?? window.startTime;
+    return {
+      ...window,
+      startTime: startLocal ?? '',
+      endTime: endLocal ?? '',
+      startTimeLocal: startLocal ?? undefined,
+      endTimeLocal: endLocal ?? undefined,
+      startTimeUtc: startDate?.toISOString(),
+      endTimeUtc: endDate?.toISOString(),
+    };
+  });
+};
+
 const businessesSlice = createSlice({
   name: 'businesses',
   initialState,
@@ -169,7 +211,7 @@ const businessesSlice = createSlice({
         state.error = (action.payload as string) ?? 'Failed to fetch businesses';
       })
       .addCase(fetchBusinessDetails.fulfilled, (state, action) => {
-        const {placeId, photoUrl, phoneNumber, website} = action.payload as any;
+        const {placeId, photoUrl, phoneNumber, website} = action.payload;
         if (!placeId) return;
         const biz = state.businesses.find(b => b.googlePlacesId === placeId);
         if (biz) {
@@ -195,6 +237,7 @@ const businessesSlice = createSlice({
           date: string;
           windows: SlotWindow[];
         };
+        const normalizedWindows = normalizeSlotsToLocal(windows, date);
         const idx = state.availability.findIndex(
           av => av.businessId === businessId && av.serviceId === serviceId,
         );
@@ -203,14 +246,14 @@ const businessesSlice = createSlice({
             ...state.availability[idx],
             slotsByDate: {
               ...state.availability[idx].slotsByDate,
-              [date]: windows,
+              [date]: normalizedWindows,
             },
           };
         } else {
           state.availability.push({
             businessId,
             serviceId,
-            slotsByDate: {[date]: windows},
+            slotsByDate: {[date]: normalizedWindows},
           });
         }
       });

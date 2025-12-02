@@ -55,6 +55,10 @@ export interface SlotWindow {
   startTime: string;
   endTime: string;
   isAvailable?: boolean;
+  startTimeUtc?: string;
+  endTimeUtc?: string;
+  startTimeLocal?: string;
+  endTimeLocal?: string;
 }
 
 export interface EmployeeAvailability {
@@ -69,6 +73,8 @@ export type AppointmentStatus =
   | 'NO_PAYMENT'
   | 'AWAITING_PAYMENT'
   | 'PAID'
+  | 'UPCOMING'
+  | 'CHECKED_IN'
   | 'CONFIRMED'
   | 'COMPLETED'
   | 'CANCELLED'
@@ -87,6 +93,7 @@ export interface Appointment {
   specialityId?: string | null;
   employeeId?: string | null;
   employeeName?: string | null;
+  employeeTitle?: string | null;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   endTime?: string | null;
@@ -103,6 +110,8 @@ export interface Appointment {
   breed?: string | null;
   organisationName?: string | null;
   organisationAddress?: string | null;
+  businessLat?: number | null;
+  businessLng?: number | null;
   businessPhoto?: string | null;
   businessGooglePlacesId?: string | null;
   createdAt?: string;
@@ -140,6 +149,12 @@ export interface Invoice {
   stripePaymentLinkId?: string | null;
   paymentIntent?: PaymentIntentInfo | null;
   downloadUrl?: string | null;
+  refundId?: string | null;
+  refundAmount?: number | null;
+  refundDate?: string | null;
+  refundStatus?: string | null;
+  refundReason?: string | null;
+  refundReceiptUrl?: string | null;
 }
 
 export interface AppointmentsState {
