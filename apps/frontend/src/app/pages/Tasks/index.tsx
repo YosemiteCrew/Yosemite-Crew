@@ -17,7 +17,7 @@ const Tasks = () => {
   const [activeTask, setActiveTask] = useState<TasksProps | null>(
     demoTasks[0] ?? null
   );
-  const [activeCalendar, setActiveCalendar] = useState(2);
+  const [activeCalendar, setActiveCalendar] = useState("day");
 
   useEffect(() => {
     if (filteredList.length > 0) {

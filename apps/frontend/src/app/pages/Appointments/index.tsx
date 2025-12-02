@@ -9,6 +9,7 @@ import AddAppointment from "./Sections/AddAppointment";
 import AppoitmentInfo from "./Sections/AppointmentInfo";
 import TitleCalendar from "@/app/components/TitleCalendar";
 import AppointmentCalendar from "@/app/components/Calendar/AppointmentCalendar";
+import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
 
 const Appointments = () => {
   const [list] = useState<AppointmentsProps[]>(demoAppointments);
@@ -19,7 +20,14 @@ const Appointments = () => {
   const [activeAppointment, setActiveAppointment] =
     useState<AppointmentsProps | null>(demoAppointments[0] ?? null);
   const [activeCalendar, setActiveCalendar] = useState("day");
-  const [currentDate, setCurrentDate] = useState<Date>(new Date("2025-12-01"));
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
+
+  useEffect(() => {
+    if (activeCalendar === "week") {
+      setWeekStart(getStartOfWeek(currentDate));
+    }
+  }, [currentDate, activeCalendar]);
 
   useEffect(() => {
     if (filteredList.length > 0) {
@@ -47,6 +55,8 @@ const Appointments = () => {
           activeCalendar={activeCalendar}
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
         />
         <AppointmentsTable
           filteredList={filteredList}
