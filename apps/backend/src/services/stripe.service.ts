@@ -278,13 +278,13 @@ export const StripeService = {
     }
 
     // Extract charge
-    const charge = pi.latest_charge as Stripe.Charge;
-    if (!charge) {
+    const chargeId = pi.latest_charge as string | undefined;
+    if (!chargeId) {
       logger.error("payment_intent.succeeded missing charge data");
       return;
     }
 
-    const receiptUrl = charge.receipt_url;
+    const charge = await getStripeClient().charges.retrieve(chargeId);
 
     // Fetch service details for invoice line item
     const service = await ServiceModel.findById(appointment.appointmentType?.id);
@@ -305,7 +305,8 @@ export const StripeService = {
 
       items: [
         {
-          description: service.name,
+          name: service.name,
+          description: service.description,
           quantity: 1,
           unitPrice: service.cost,
           total: service.cost,
@@ -319,7 +320,7 @@ export const StripeService = {
 
       stripePaymentIntentId: pi.id,
       stripeChargeId: charge.id,
-      stripeReceiptUrl: receiptUrl,
+      stripeReceiptUrl: charge.receipt_url,
     });
 
     // Update appointment
