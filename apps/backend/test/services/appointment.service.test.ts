@@ -37,6 +37,14 @@ jest.mock("src/services/invoice.service", () => ({
 jest.mock("src/services/stripe.service", () => ({
   StripeService: {
     createPaymentIntentForInvoice: jest.fn(),
+    createPaymentIntentForAppointment: jest.fn(),
+  },
+}));
+
+jest.mock("src/models/organization", () => ({
+  __esModule: true,
+  default: {
+    find: jest.fn(),
   },
 }));
 
@@ -65,7 +73,13 @@ const mockedInvoice = InvoiceService as unknown as {
 
 const mockedStripe = StripeService as unknown as {
   createPaymentIntentForInvoice: jest.Mock;
+  createPaymentIntentForAppointment: jest.Mock;
 };
+
+const mockedOrganizationModel = jest.requireMock("src/models/organization")
+  .default as {
+    find: jest.Mock;
+  };
 
 const mockedTypes = {
   fromAppointmentRequestDTO: fromAppointmentRequestDTO as jest.Mock,
@@ -121,11 +135,9 @@ describe("AppointmentService", () => {
         status: "NO_PAYMENT",
       });
       mockedAppointmentModel.create.mockResolvedValueOnce(doc);
-      mockedInvoice.createDraftForAppointment.mockResolvedValueOnce({
-        _id: new Types.ObjectId("657f1f77bcf86cd799439022"),
-      });
-      mockedStripe.createPaymentIntentForInvoice.mockResolvedValueOnce({
+      mockedStripe.createPaymentIntentForAppointment.mockResolvedValueOnce({
         id: "pi_123",
+        clientSecret: "secret",
       });
       mockedTypes.toAppointmentResponseDTO.mockImplementation(
         (value: any) => value,
@@ -134,8 +146,7 @@ describe("AppointmentService", () => {
       const result = await AppointmentService.createRequestedFromMobile(dto);
 
       expect(mockedServiceModel.findOne).toHaveBeenCalled();
-      expect(mockedInvoice.createDraftForAppointment).toHaveBeenCalled();
-      expect(mockedStripe.createPaymentIntentForInvoice).toHaveBeenCalled();
+      expect(mockedStripe.createPaymentIntentForAppointment).toHaveBeenCalled();
       expect(result.appointment).toBeDefined();
     });
 
@@ -175,6 +186,9 @@ describe("AppointmentService", () => {
           ]),
         }),
       });
+      mockedOrganizationModel.find.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue([]),
+      });
       mockedTypes.toAppointmentResponseDTO.mockImplementation(
         (val: any) => val,
       );
@@ -183,7 +197,7 @@ describe("AppointmentService", () => {
         "comp-1",
       )) as any;
 
-      expect(result[0].companion.id).toBe("comp-1");
+      expect(result[0].appointment.companion.id).toBe("comp-1");
     });
   });
 });

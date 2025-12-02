@@ -47,6 +47,12 @@ router.patch(
   AppointmentController.cancelFromMobile
 );
 
+router.patch(
+  "/mobile/:appointmentId/checkin",
+  //authorizeCognitoMobile,
+  AppointmentController.checkInAppointment
+);
+
 // Get appointment detail (mobile) — dynamic LAST
 router.get(
   "/mobile/:appointmentId",

@@ -152,12 +152,14 @@ export const AppointmentController = {
   },
 
   acceptRequested: async (
-    req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
+    req: Request,
     res: Response,
   ) => {
     try {
       const { appointmentId } = req.params;
-      const dto = req.body; // partial FHIR update fields
+      logger.info("Request Path: ", req.params);
+      logger.info("Accepting appointment with ID:", appointmentId);
+      const dto = req.body as AppointmentRequestDTO; // partial FHIR update fields
 
       const result = await AppointmentService.approveRequestedFromPms(
         appointmentId,
@@ -197,6 +199,44 @@ export const AppointmentController = {
       const { status, message } = parseError(
         err,
         "Failed to reject appointment",
+      );
+      return res.status(status).json({
+        message,
+      });
+    }
+  },
+
+  checkInAppointment: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const { appointmentId } = req.params;
+      const authUserId = resolveUserIdFromRequest(req);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      if (!authUser?.parentId) {
+        return res
+          .status(400)
+          .json({ message: "Parent information missing for user" });
+      }
+
+      const result = await AppointmentService.checkInAppointmentParent(
+        appointmentId,
+        authUser.parentId.toString(),
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Appointment checked in", data: result });
+    } catch (err: unknown) {
+      logger.error("Appiontement check-in error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to check-in appointment",
       );
       return res.status(status).json({
         message,

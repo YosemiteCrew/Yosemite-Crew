@@ -3,7 +3,7 @@ import { InvoiceService } from "src/services/invoice.service";
 import logger from "src/utils/logger";
 
 export const InvoiceController = {
-  async listInvoicesForAppointment(req: Request, res: Response) {
+  async listInvoicesForAppointment(this: void, req: Request, res: Response) {
     try {
       const appointmentId = req.params.appointmentId;
       const invoices = await InvoiceService.getByAppointmentId(appointmentId);
@@ -13,7 +13,7 @@ export const InvoiceController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
-  async getInvoiceById(req: Request, res: Response) {
+  async getInvoiceById(this: void, req: Request, res: Response) {
     try {
       const invoiceId = req.params.invoiceId;
       const invoice = await InvoiceService.getById(invoiceId);
@@ -26,7 +26,7 @@ export const InvoiceController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
-  async getInvoiceByPaymentIntentId(req: Request, res: Response) {
+  async getInvoiceByPaymentIntentId(this: void, req: Request, res: Response) {
     try {
       const paymentIntentId = req.params.paymentIntentId;
       const invoice = await InvoiceService.getByPaymentIntentId(paymentIntentId);

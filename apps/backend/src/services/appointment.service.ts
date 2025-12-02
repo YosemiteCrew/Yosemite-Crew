@@ -397,7 +397,7 @@ export const AppointmentService = {
     appointmentId: string,
     dto: AppointmentRequestDTO,
   ) {
-    if (appointmentId) {
+    if (!appointmentId) {
       throw new AppointmentServiceError("Appointment ID missing", 400);
     }
 
@@ -704,6 +704,35 @@ export const AppointmentService = {
       await session.endSession();
       throw err;
     }
+  },
+
+  async checkInAppointmentParent(
+    appointmentId: string,
+    parentId: string,
+  ) {
+    const appointment = await AppointmentModel.findById(appointmentId);
+    if (!appointment) {
+      throw new AppointmentServiceError("Appointment not found", 404);
+    }
+
+    // Verify parent is owner of companion
+    if (appointment.companion.parent.id !== parentId) {
+      throw new AppointmentServiceError("Not your appointment", 403);
+    }
+
+    // Only UPCOMING appointments can be checked in
+    if (appointment.status !== "UPCOMING") {
+      throw new AppointmentServiceError(
+        "Only upcoming appointments can be checked in",
+        400,
+      );
+    }
+
+    appointment.status = "CHECKED_IN";
+    appointment.updatedAt = new Date();
+    await appointment.save();
+
+    return toAppointmentResponseDTO(toDomain(appointment));
   },
 
   async rescheduleFromParent(

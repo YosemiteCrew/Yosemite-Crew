@@ -162,3 +162,35 @@ export type { Invoice, InvoiceItem, InvoiceStatus } from "./invoice"
 export type { Appointment } from "./appointment"
 export { toFHIRInvoice, fromFHIRInvoice } from "./invoice"
 export { type InvoiceRequestDTO, type InvoiceResponseDTO, toInvoiceResponseDTO, fromInvoiceRequestDTO} from "./dto/invoice.dto"
+export {
+  type FormRequestDTO,
+  type FormResponseDTO,
+  type FormSubmissionRequestDTO,
+  type FormSubmissionResponseDTO,
+  fromFormRequestDTO,
+  toFormResponseDTO,
+  fromFormSubmissionRequestDTO,
+  toFormSubmissionResponseDTO,
+} from "./dto/form.dto"
+export type {
+  FieldType,
+  FieldOption,
+  BaseField,
+  InputField,
+  ChoiceField,
+  BooleanField,
+  DateField,
+  SignatureField,
+  GroupField,
+  FormField,
+  FormSchema,
+  Form,
+  FormVersion,
+  FormSubmission,
+} from "./form"
+export {
+  toFHIRQuestionnaire,
+  fromFHIRQuestionnaire,
+  toFHIRQuestionnaireResponse,
+  fromFHIRQuestionnaireResponse,
+} from "./form"
