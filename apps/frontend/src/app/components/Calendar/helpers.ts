@@ -28,7 +28,7 @@ export const DAY_START_MINUTES = 0;
 export const DAY_END_MINUTES = 24 * 60;
 
 export const MINUTES_PER_STEP = 5;
-export const PIXELS_PER_STEP = 30;
+export const PIXELS_PER_STEP = 25;
 export const EVENT_VERTICAL_GAP_PX = 2;
 export const EVENT_HORIZONTAL_GAP_PX = 2;
 

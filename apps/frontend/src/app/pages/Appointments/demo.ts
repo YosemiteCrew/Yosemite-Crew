@@ -146,13 +146,30 @@ export function generateAppointments(
     const room = randomFrom(rooms);
     const vet = randomFrom(vets);
     const status = randomFrom(statuses);
-    const startHour = 7 + Math.floor(Math.random() * 11); // 7–17
+    const startHour = Math.floor(Math.random() * 24); // 0–23
     const startMinute = Math.floor(Math.random() * 12) * 5; // nearest 5 min
+
     const start = new Date(
-      `${forDate}T${String(startHour).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}:00`
+      `${forDate}T${String(startHour).padStart(2, "0")}:${String(
+        startMinute
+      ).padStart(2, "0")}:00`
     );
-    const duration = 20 + Math.floor(Math.random() * 30);
+
+    // --- Duration & clamping to same day ---
+    const startTotalMinutes = startHour * 60 + startMinute;
+    const minDuration = 20;
+    const maxDuration = 50;
+    const maxSameDayMinutes = 24 * 60 - 5 - startTotalMinutes; // ensure we don't go past 23:55
+
+    let duration =
+      minDuration + Math.floor(Math.random() * (maxDuration - minDuration + 1));
+
+    if (duration > maxSameDayMinutes) {
+      duration = Math.max(5, maxSameDayMinutes); // at least 5 mins if near end of day
+    }
+
     const end = new Date(start.getTime() + duration * 60_000);
+
     const time = formatTime(start);
     result.push({
       name,
@@ -177,5 +194,12 @@ export function generateAppointments(
   return result;
 }
 
-
-export const demoAppointments = generateAppointments(30, "2025-12-01");
+export const demoAppointments = [
+  ...generateAppointments(20, "2025-12-01"),
+  ...generateAppointments(20, "2025-12-02"),
+  ...generateAppointments(20, "2025-12-03"),
+  ...generateAppointments(20, "2025-12-04"),
+  ...generateAppointments(20, "2025-12-05"),
+  ...generateAppointments(20, "2025-12-06"),
+  ...generateAppointments(20, "2025-12-07"),
+];

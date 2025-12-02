@@ -69,7 +69,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         />
       </div>
       <div
-        className="overflow-y-scroll overflow-x-hidden flex-1 px-2"
+        className="overflow-y-auto overflow-x-hidden flex-1 px-2 max-h-[800px]"
         ref={scrollRef}
       >
         <div
@@ -81,15 +81,15 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
           <TimeLabels />
           <div className="relative h-full">
             <HorizontalLines date={date} scrollRef={scrollRef} />
-            {laidOut.map((ev) => {
+            {laidOut.map((ev, i) => {
               const widthPercent = 100 / ev.columnsCount;
               const leftPercent = widthPercent * ev.columnIndex;
               const horizontalGapPx = EVENT_HORIZONTAL_GAP_PX;
               const verticalGapPx = EVENT_VERTICAL_GAP_PX;
               return (
                 <button
-                  key={ev.name}
-                  className="absolute rounded-2xl! p-2 overflow-x-scroll overflow-y-scroll whitespace-nowrap text-ellipsis flex flex-col items-start cursor-pointer"
+                  key={ev.name+i}
+                  className="absolute rounded-2xl! p-2 overflow-auto scrollbar-hidden whitespace-nowrap text-ellipsis flex flex-col items-start cursor-pointer"
                   style={{
                     top: ev.topPx,
                     height: Math.max(ev.heightPx - verticalGapPx, 12),

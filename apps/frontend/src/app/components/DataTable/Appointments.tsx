@@ -187,9 +187,9 @@ const Appointments = ({
         <GenericTable data={filteredList} columns={columns} bordered={false} />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((item: AppointmentsProps) => (
+        {filteredList.map((item, i) => (
           <AppointmentCard
-            key={item.name}
+            key={item.name+i}
             appointment={item}
             handleViewAppointment={handleViewAppointment}
           />

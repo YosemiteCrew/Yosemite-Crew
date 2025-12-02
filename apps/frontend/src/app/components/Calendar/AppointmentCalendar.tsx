@@ -1,10 +1,9 @@
 import { AppointmentsProps } from "@/app/types/appointments";
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { isSameDay } from "./helpers";
 import DayCalendar from "./common/DayCalendar";
 import Header from "./common/Header";
 import WeekCalendar from "./common/WeekCalendar";
-import { getStartOfWeek } from "./weekHelpers";
 
 type AppointmentCalendarProps = {
   filteredList: AppointmentsProps[];
@@ -13,6 +12,8 @@ type AppointmentCalendarProps = {
   activeCalendar: string;
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  weekStart: Date;
+  setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
 };
 
 const AppointmentCalendar = ({
@@ -22,14 +23,13 @@ const AppointmentCalendar = ({
   activeCalendar,
   currentDate,
   setCurrentDate,
+  weekStart,
+  setWeekStart
 }: AppointmentCalendarProps) => {
   const handleViewAppointment = (appointment: AppointmentsProps) => {
     setActiveAppointment?.(appointment);
     setViewPopup?.(true);
   };
-  const [weekStart, setWeekStart] = useState(
-    getStartOfWeek(new Date("2025-12-01"))
-  );
 
   const dayEvents = useMemo(
     () =>
@@ -40,7 +40,7 @@ const AppointmentCalendar = ({
   );
 
   return (
-    <div className="border border-grey-light rounded-2xl h-[800px] w-full flex flex-col mb-10!">
+    <div className="border border-grey-light rounded-2xl w-full flex flex-col mb-10!">
       <Header currentDate={currentDate} setCurrentDate={setCurrentDate} />
       {activeCalendar === "day" && (
         <DayCalendar
@@ -52,11 +52,11 @@ const AppointmentCalendar = ({
       )}
       {activeCalendar === "week" && (
         <WeekCalendar
-          events={dayEvents}
+          events={filteredList}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
-          weekStart={currentDate}
-          setWeekStart={setCurrentDate}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
         />
       )}
     </div>
