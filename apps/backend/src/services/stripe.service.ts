@@ -87,6 +87,9 @@ export const StripeService = {
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) throw new Error("Appointment not found");
 
+    if (appointment.status !== "NO_PAYMENT")
+      throw new Error("Appointment does not require payment");
+
     const service = await ServiceModel.findById(appointment.appointmentType?.id);
     if (!service) throw new Error("Service not found");
 

@@ -212,30 +212,12 @@ export const AppointmentService = {
     const persistable = toPersistable(appointment);
     const savedAppointment = await AppointmentModel.create(persistable);
 
-    const invoice = await InvoiceService.createDraftForAppointment({
-      appointmentId: savedAppointment._id.toString(),
-      parentId: appointment.companion.parent.id,
-      companionId: appointment.companion.id,
-      organisationId: appointment.organisationId,
-      currency: "usd",
-      items: [
-        {
-          description: appointment.appointmentType?.name ?? "Consultation",
-          quantity: 1,
-          unitPrice: service.cost,
-          discountPercent: service.maxDiscount ?? undefined,
-        },
-      ],
-      notes: appointment.concern,
-    });
-
-    const paymentIntent = await StripeService.createPaymentIntentForInvoice(
-      invoice._id.toString(),
+    const paymentIntent = await StripeService.createPaymentIntentForAppointment(
+      savedAppointment._id.toString(),
     );
 
     return {
       appointment: toAppointmentResponseDTO(toDomain(savedAppointment)),
-      invoice,
       paymentIntent,
     };
   },
