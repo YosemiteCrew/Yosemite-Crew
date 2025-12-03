@@ -14,6 +14,7 @@ import type {RootState, AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
 import {fetchInvoiceForAppointment} from '@/features/appointments/appointmentsSlice';
+import {markInAppExpenseStatus} from '@/features/expenses';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -23,7 +24,7 @@ export const PaymentSuccessScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
-  const {appointmentId, companionId} = route.params as {appointmentId: string; companionId?: string};
+  const {appointmentId, companionId, expenseId} = route.params as {appointmentId: string; companionId?: string; expenseId?: string};
   const appointment = useSelector((state: RootState) => state.appointments.items.find(a => a.id === appointmentId));
   const invoice = useSelector(selectInvoiceForAppointment(appointmentId));
   const resolvedCompanionId = companionId ?? appointment?.companionId ?? null;
@@ -62,18 +63,28 @@ export const PaymentSuccessScreen: React.FC = () => {
     if (appointmentId) {
       dispatch(fetchInvoiceForAppointment({appointmentId}));
     }
-  }, [appointmentId, dispatch]);
+    // Update expense status if payment was initiated from an expense
+    if (expenseId) {
+      dispatch(markInAppExpenseStatus({expenseId, status: 'PAID'}));
+    }
+  }, [appointmentId, expenseId, dispatch]);
   const resetToMyAppointments = useCallback(() => {
     if (resolvedCompanionId) {
       dispatch(setSelectedCompanion(resolvedCompanionId));
     }
     const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
-    tabNavigation?.navigate('Appointments', {screen: 'MyAppointments'} as any);
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'MyAppointments'}],
-    });
-  }, [dispatch, navigation, resolvedCompanionId]);
+
+    // If payment was initiated from an expense, navigate back to Expenses
+    if (expenseId) {
+      tabNavigation?.navigate('HomeStack', {
+        screen: 'ExpensesStack',
+        params: {screen: 'ExpensesMain'},
+      } as any);
+    } else {
+      // Otherwise navigate to Appointments
+      tabNavigation?.navigate('Appointments', {screen: 'MyAppointments'} as any);
+    }
+  }, [dispatch, navigation, resolvedCompanionId, expenseId]);
   const handleViewInvoice = useCallback(() => {
     if (!receiptUrl) {
       return;
@@ -129,7 +140,7 @@ export const PaymentSuccessScreen: React.FC = () => {
         </View>
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
-            title="Dashboard"
+            title={expenseId ? 'Back to Expenses' : 'Dashboard'}
             onPress={resetToMyAppointments}
             height={56}
             borderRadius={16}

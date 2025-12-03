@@ -76,8 +76,8 @@ const useStatusFlags = (status: string) => {
       isCheckedIn,
       isTerminal,
       showPayNow: isPaymentPending && !isRequested,
-      showInvoice: true,
-      showCancel: !isTerminal,
+      showInvoice: !isPaymentPending,
+      showCancel: !isTerminal && !isPaymentPending,
     };
   }, [status]);
 };
@@ -265,6 +265,9 @@ export const ViewAppointmentScreen: React.FC = () => {
         avatar: employee.avatar ?? (apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined),
       }
     : null;
+  // Show provider card only for upcoming appointments (hide for requested/pending/cancelled/etc.)
+  const shouldShowEmployee =
+    !statusFlags.isPaymentPending && statusFlags.isUpcoming;
   const showCheckInButton = (isUpcoming || isCheckedIn) && !isTerminal;
   const normalizedStartTime =
     (apt.time?.length === 5 ? `${apt.time}:00` : apt.time ?? '00:00') ?? '00:00';
@@ -336,7 +339,7 @@ export const ViewAppointmentScreen: React.FC = () => {
         />
       )}
 
-      {isRequested && !isTerminal && (
+      {(isRequested || statusFlags.isPaymentPending) && !isTerminal && (
         <LiquidGlassButton
           title="Edit Appointment"
           onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
@@ -460,7 +463,9 @@ export const ViewAppointmentScreen: React.FC = () => {
           businessSummary={businessSummary}
           service={service}
           serviceName={apt.serviceName}
-          employee={employeeWithAvatar ?? employeeFallback ?? null}
+          employee={
+            shouldShowEmployee ? employeeWithAvatar ?? employeeFallback ?? null : null
+          }
           employeeDepartment={department}
           cardStyle={styles.summaryCard}
         />
@@ -548,20 +553,19 @@ const createDetailStyles = (theme: any) =>
     row: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: theme.spacing[2],
       paddingVertical: theme.spacing[2],
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border + '40',
     },
     label: {
-      ...theme.typography.body12,
+      ...theme.typography.body14,
       color: theme.colors.textSecondary,
+      fontWeight: '500',
     },
     value: {
       ...theme.typography.body14,
       color: theme.colors.secondary,
-      fontWeight: '500',
+      fontWeight: '600',
       flexShrink: 1,
       flexGrow: 1,
       textAlign: 'right',

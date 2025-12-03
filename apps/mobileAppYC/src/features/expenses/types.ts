@@ -2,7 +2,14 @@ import type {DocumentFile} from '@/features/documents/types';
 
 export type ExpenseSource = 'inApp' | 'external';
 
-export type ExpensePaymentStatus = 'paid' | 'unpaid';
+export type ExpensePaymentStatus =
+  | 'PAID'
+  | 'AWAITING_PAYMENT'
+  | 'PAYMENT_FAILED'
+  | 'NO_PAYMENT'
+  | 'REFUNDED'
+  | 'CANCELLED'
+  | 'UNPAID';
 
 export interface ExpenseAttachment extends DocumentFile {
   /**
@@ -21,16 +28,24 @@ export interface Expense {
   amount: number;
   currencyCode: string;
   status: ExpensePaymentStatus;
+  rawStatus?: string | null;
   source: ExpenseSource;
   date: string;
   createdAt: string;
   updatedAt: string;
   attachments: ExpenseAttachment[];
   providerName?: string;
+  businessName?: string;
+  description?: string;
+  invoiceId?: string | null;
+  note?: string | null;
+  parentId?: string | null;
 }
 
 export interface ExpenseSummary {
   total: number;
+  invoiceTotal?: number;
+  externalTotal?: number;
   currencyCode: string;
   lastUpdated: string;
 }

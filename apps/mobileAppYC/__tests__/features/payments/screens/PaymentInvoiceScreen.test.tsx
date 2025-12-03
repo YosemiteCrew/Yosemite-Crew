@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, fireEvent, screen, act, waitFor} from '@testing-library/react-native';
+import {render, fireEvent, screen, waitFor} from '@testing-library/react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {useRoute} from '@react-navigation/native';
 

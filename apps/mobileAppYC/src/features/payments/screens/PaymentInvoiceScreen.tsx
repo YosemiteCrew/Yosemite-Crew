@@ -7,6 +7,7 @@ import {
   Image,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
@@ -93,6 +94,15 @@ const usePaymentStatus = (aptStatus?: string) => {
   }, [aptStatus]);
 };
 
+const isInvoiceMissingTotals = (invoice: any): boolean => {
+  const comps = invoice?.totalPriceComponent;
+  if (!Array.isArray(comps) || comps.length === 0) return true;
+  const hasBase = comps.some(pc => (pc?.type ?? '').toString().toLowerCase() === 'base');
+  const hasDiscount = comps.some(pc => (pc?.type ?? '').toString().toLowerCase() === 'discount');
+  const hasTax = comps.some(pc => (pc?.type ?? '').toString().toLowerCase() === 'tax');
+  return !(hasBase && hasDiscount && hasTax);
+};
+
 const buildInvoices = (invoice: any, paymentIntent: any, appointmentId: string) => {
   const buildBaseInvoice = (): Invoice | null => {
     if (invoice) return invoice;
@@ -123,16 +133,20 @@ const buildInvoices = (invoice: any, paymentIntent: any, appointmentId: string) 
   return buildEffectiveInvoice();
 };
 
-const useInvoiceDisplayData = (effectiveInvoice: any, paymentIntent: any) => {
-  return useMemo(() => {
-    const clientSecret = paymentIntent?.clientSecret;
-    const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
-    const invoiceNumberDisplay = effectiveInvoice?.invoiceNumber ?? paymentIntent?.paymentIntentId ?? effectiveInvoice?.id ?? '—';
-    const receiptUrl = effectiveInvoice?.downloadUrl ?? effectiveInvoice?.paymentIntent?.paymentLinkUrl ?? paymentIntent?.paymentLinkUrl ?? null;
-    const checkRefundStatus = (status?: string | null) => status?.toUpperCase?.().includes?.('REFUND') ?? false;
-    const hasRefund = effectiveInvoice?.refundId || checkRefundStatus(effectiveInvoice?.refundStatus) || checkRefundStatus(effectiveInvoice?.status);
-    const refundAmountDisplay = effectiveInvoice?.refundAmount == null ? '—' : `${effectiveInvoice?.currency ?? 'USD'} ${effectiveInvoice?.refundAmount}`;
-    return {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay};
+  const useInvoiceDisplayData = (effectiveInvoice: any, paymentIntent: any) => {
+    return useMemo(() => {
+      const clientSecret = paymentIntent?.clientSecret;
+      const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
+      const invoiceNumberDisplay =
+        effectiveInvoice?.invoiceNumber ??
+        effectiveInvoice?.id ??
+        paymentIntent?.paymentIntentId ??
+        '—';
+      const receiptUrl = effectiveInvoice?.downloadUrl ?? effectiveInvoice?.paymentIntent?.paymentLinkUrl ?? paymentIntent?.paymentLinkUrl ?? null;
+      const checkRefundStatus = (status?: string | null) => status?.toUpperCase?.().includes?.('REFUND') ?? false;
+      const hasRefund = effectiveInvoice?.refundId || checkRefundStatus(effectiveInvoice?.refundStatus) || checkRefundStatus(effectiveInvoice?.status);
+      const refundAmountDisplay = effectiveInvoice?.refundAmount == null ? '—' : `${effectiveInvoice?.currency ?? 'USD'} ${effectiveInvoice?.refundAmount}`;
+      return {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay};
   }, [effectiveInvoice, paymentIntent]);
 };
 
@@ -182,7 +196,10 @@ const InvoiceDetailsCard = ({
   <View style={styles.metaCard}>
     <Text style={styles.metaTitle}>Invoice details</Text>
     <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
-    <MetaRow label="Appointment ID" value={apt?.id ?? '—'} />
+    <MetaRow
+      label="Appointment ID"
+      value={effectiveInvoice?.appointmentId ?? apt?.id ?? '—'}
+    />
     <MetaRow
       label="Invoice date"
       value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
@@ -301,6 +318,7 @@ const BreakdownCard = ({
   taxAmount,
   total,
   formatMoney,
+  currency,
   styles,
 }: {
   effectiveInvoice: any;
@@ -309,6 +327,7 @@ const BreakdownCard = ({
   taxAmount: number;
   total: number;
   formatMoney: (value: number) => string;
+  currency: string;
   styles: any;
 }) => (
   <View style={styles.breakdownCard}>
@@ -320,16 +339,48 @@ const BreakdownCard = ({
         value={formatMoney(item.lineTotal)}
       />
     ))}
-    <BreakdownRow label="Sub Total" value={formatMoney(subtotal)} subtle />
-    {!!discountAmount && (
-      <BreakdownRow
-        label="Discount"
-        value={`-${formatMoney(discountAmount)}`}
-        subtle
-      />
-    )}
-    {!!taxAmount && (
-      <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
+    {Array.isArray(effectiveInvoice?.totalPriceComponent) &&
+    effectiveInvoice.totalPriceComponent.length > 0 ? (
+      effectiveInvoice.totalPriceComponent
+        .filter((pc: any) => {
+          const codeText = (pc?.code?.text ?? '').toLowerCase();
+          const typeText = (pc?.type ?? '').toString().toLowerCase();
+          return codeText !== 'grand-total' && typeText !== 'informational';
+        })
+        .map((pc: any, idx: number) => {
+        const rawLabel =
+          pc.code?.text ??
+          pc.type?.toString().replace(/_/g, ' ').replace(/-/g, ' ') ??
+          `Line ${idx + 1}`;
+        const label =
+          rawLabel.length > 0 ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel;
+        const value =
+          typeof pc.amount?.value === 'number'
+            ? `${(pc.amount?.currency ?? currency ?? '').toUpperCase()} ${pc.amount.value.toFixed(2)}`
+            : '—';
+        return (
+          <BreakdownRow
+            key={`${label}-${idx}`}
+            label={label}
+            value={value}
+            subtle={label.toLowerCase().includes('discount')}
+          />
+        );
+      })
+    ) : (
+      <>
+        <BreakdownRow label="Sub Total" value={formatMoney(subtotal)} subtle />
+        {!!discountAmount && (
+          <BreakdownRow
+            label="Discount"
+            value={`-${formatMoney(discountAmount)}`}
+            subtle
+          />
+        )}
+        {!!taxAmount && (
+          <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
+        )}
+      </>
     )}
     <BreakdownRow label="Total" value={formatMoney(total)} highlight />
     <Text style={styles.breakdownNote}>
@@ -500,6 +551,7 @@ const useEnsurePaymentData = ({
   routeInvoice,
   navigation,
   invoiceRequestedRef,
+  isInvoiceIncomplete,
 }: {
   appointmentId: string;
   aptStatus?: string;
@@ -509,36 +561,33 @@ const useEnsurePaymentData = ({
   routeInvoice: Invoice | null | undefined;
   navigation: any;
   invoiceRequestedRef: React.RefObject<boolean>;
+  isInvoiceIncomplete: boolean;
 }) => {
   useEffect(() => {
-    if (!appointmentId) {
+    // If we have a route invoice (from expense context), we don't need to validate appointmentId
+    const hasInvoiceFromRoute = Boolean(routeInvoice);
+
+    if (!appointmentId && !hasInvoiceFromRoute) {
       Alert.alert(
         'Missing data',
-        'Could not open payment screen without an appointment.',
+        'Could not open payment screen without appointment or invoice.',
       );
       navigation.goBack();
       return;
     }
-    const isPaymentPendingNow =
-      aptStatus === 'NO_PAYMENT' ||
-      aptStatus === 'AWAITING_PAYMENT' ||
-      aptStatus === 'PAYMENT_FAILED';
-    if (
-      appointmentId &&
-      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId) &&
-      isPaymentPendingNow
-    ) {
-      dispatch(fetchPaymentIntentForAppointment({appointmentId}));
-    }
-    const needsInvoice = !invoiceFromStore && !routeInvoice;
-    if (
-      appointmentId &&
-      needsInvoice &&
-      !isPaymentPendingNow &&
-      !invoiceRequestedRef.current
-    ) {
-      invoiceRequestedRef.current = true;
-      dispatch(fetchInvoiceForAppointment({appointmentId}));
+
+    // Only fetch appointment-specific data if we don't have a route invoice
+    if (!hasInvoiceFromRoute && appointmentId) {
+      const needsInvoice = !invoiceFromStore && !routeInvoice;
+      const shouldFetchInvoice =
+        !(aptStatus === 'NO_PAYMENT' || aptStatus === 'AWAITING_PAYMENT' || aptStatus === 'PAYMENT_FAILED') &&
+        !invoiceRequestedRef.current &&
+        (needsInvoice || isInvoiceIncomplete);
+
+      if (shouldFetchInvoice) {
+        invoiceRequestedRef.current = true;
+        dispatch(fetchInvoiceForAppointment({appointmentId}));
+      }
     }
   }, [
     appointmentId,
@@ -550,6 +599,7 @@ const useEnsurePaymentData = ({
     paymentIntent?.paymentIntentId,
     routeInvoice,
     invoiceRequestedRef,
+    isInvoiceIncomplete,
   ]);
 };
 
@@ -562,14 +612,23 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const routeParams = (route.params ?? {}) as {
     appointmentId?: string;
     companionId?: string;
+    expenseId?: string;
     invoice?: Invoice | null;
     paymentIntent?: PaymentIntentInfo | null;
   };
   const appointmentId = routeParams.appointmentId ?? '';
   const companionId = routeParams.companionId;
+  const expenseId = routeParams.expenseId;
   const routeInvoice = routeParams.invoice;
   const routeIntent = routeParams.paymentIntent;
   const invoiceRequestedRef = useRef(false);
+  const paymentIntentRequestedRef = useRef(false);
+
+  // Reset one-shot guards when navigating between different appointments
+  useEffect(() => {
+    invoiceRequestedRef.current = false;
+    paymentIntentRequestedRef.current = false;
+  }, [appointmentId]);
 
   const invoiceFromStore = useSelector(
     appointmentId ? selectInvoiceForAppointment(appointmentId) : () => null,
@@ -579,8 +638,31 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const {apt, business, service, companion} = useAppointmentSelectors(appointmentId, companionId);
   const authUser = useSelector(selectAuthUser);
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
-  const businessName = business?.name ?? apt?.organisationName ?? 'Your clinic';
-  const businessAddress = business?.address ?? apt?.organisationAddress ?? undefined;
+
+  // Extract organization details from invoice if available (expense/invoice-based flow)
+  const invoiceOrganisation = (invoice as any)?.organisation;
+  const invoiceOrganisationAddress = invoiceOrganisation?.address;
+  const invoiceBusinessName = invoiceOrganisation?.name;
+  const invoiceGooglePlaceId =
+    invoiceOrganisation?.placesId ??
+    invoiceOrganisation?.placeId ??
+    invoiceOrganisation?.googlePlacesId ??
+    null;
+  const invoiceBusinessAddress = invoiceOrganisationAddress
+    ? [
+        invoiceOrganisationAddress.addressLine,
+        invoiceOrganisationAddress.city,
+        invoiceOrganisationAddress.state,
+        invoiceOrganisationAddress.postalCode,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : undefined;
+  const invoiceBusinessImage = invoiceOrganisation?.image;
+
+  // Use invoice organization if available, otherwise use appointment/business data
+  const businessName = invoiceBusinessName ?? business?.name ?? apt?.organisationName ?? 'Your clinic';
+  const businessAddress = invoiceBusinessAddress ?? business?.address ?? apt?.organisationAddress ?? undefined;
 
   const {guardianName, guardianInitial, guardianAvatar, guardianEmail} = useGuardianInfo(authUser, invoice);
   const {companionName, companionInitial, companionAvatar} = useCompanionInfo(companion);
@@ -610,14 +692,18 @@ export const PaymentInvoiceScreen: React.FC = () => {
     apt?.paymentIntent ??
     fallbackPaymentIntent ??
     null;
-  const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
+  const googlePlacesId =
+    invoiceGooglePlaceId ??
+    business?.googlePlacesId ??
+    apt?.businessGooglePlacesId ??
+    null;
   const isDummyPhoto = React.useCallback(
     (photo?: string | null) =>
       typeof photo === 'string' &&
       (photo.includes('example.com') || photo.includes('placeholder')),
     [],
   );
-  const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
+  const businessPhoto = invoiceBusinessImage ?? business?.photo ?? apt?.businessPhoto ?? null;
   const resolvedBusinessPhoto = fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto);
   const summaryBusiness = {
     name: businessName,
@@ -628,8 +714,16 @@ export const PaymentInvoiceScreen: React.FC = () => {
 
   const effectiveInvoice = buildInvoices(invoice, paymentIntent, appointmentId);
   const {isPaymentPendingStatus} = usePaymentStatus(apt?.status);
-  useFetchAppointmentById({appointmentId, apt, dispatch});
-  useBusinessPhoto({googlePlacesId, dispatch, setFallbackPhoto});
+  const isInvoiceBasedFlow = Boolean(routeInvoice); // Check if this is an expense/invoice-based flow
+  const invoiceToCheck = invoiceFromStore ?? routeInvoice ?? null;
+  const invoiceIncomplete = isInvoiceMissingTotals(invoiceToCheck);
+
+  useFetchAppointmentById({appointmentId, apt: isInvoiceBasedFlow ? {} : apt, dispatch});
+  useBusinessPhoto({
+    googlePlacesId,
+    dispatch,
+    setFallbackPhoto,
+  });
   useEnsurePaymentData({
     appointmentId,
     aptStatus: apt?.status,
@@ -639,15 +733,43 @@ export const PaymentInvoiceScreen: React.FC = () => {
     routeInvoice,
     navigation,
     invoiceRequestedRef,
+    isInvoiceIncomplete: invoiceIncomplete,
   });
+
+  useEffect(() => {
+    // Always ensure we have a payment intent when opening from Pay Now
+    const needsIntent =
+      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId) &&
+      (isPaymentPendingStatus ||
+        (effectiveInvoice?.status ?? '').toString().toUpperCase() === 'AWAITING_PAYMENT');
+    if (!appointmentId || paymentIntentRequestedRef.current || !needsIntent) {
+      return;
+    }
+    paymentIntentRequestedRef.current = true;
+    dispatch(fetchPaymentIntentForAppointment({appointmentId}));
+  }, [
+    appointmentId,
+    dispatch,
+    effectiveInvoice?.status,
+    isPaymentPendingStatus,
+    paymentIntent?.clientSecret,
+    paymentIntent?.paymentIntentId,
+  ]);
 
   const {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay} = useInvoiceDisplayData(effectiveInvoice, paymentIntent);
   const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
   const {subtotal, discountAmount, taxAmount, total} = useInvoiceCalculations(effectiveInvoice);
   const shouldShowPay = isPaymentPendingStatus && !!clientSecret;
-  const headerTitle = isPaymentPendingStatus ? 'Book appointment' : 'Invoice details';
+  const headerTitle = isInvoiceBasedFlow ? 'Invoice payment' : isPaymentPendingStatus ? 'Book appointment' : 'Invoice details';
   const isInvoiceLoaded = Boolean(effectiveInvoice);
-  const shouldShowLoadingNotice = !isInvoiceLoaded && !isPaymentPendingStatus;
+  const isPaymentIntentLoading =
+    paymentIntentRequestedRef.current &&
+    (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId);
+  const isInvoiceLoading =
+    (!isInvoiceLoaded && (isPaymentPendingStatus || invoiceRequestedRef.current)) ||
+    (!isInvoiceLoaded && isPaymentIntentLoading);
+  const shouldShowLoadingNotice =
+    isInvoiceLoading || isPaymentIntentLoading || (!isInvoiceLoaded && isPaymentPendingStatus);
   const paymentDueLabel = formatDateOnlyDisplay(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
   const {handlePayNow, presentingSheet} = usePaymentHandler({
@@ -658,6 +780,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     appointmentId,
     companionId,
     aptCompanionId: apt?.companionId,
+    expenseId,
     navigation,
   });
 
@@ -669,15 +792,17 @@ export const PaymentInvoiceScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        {shouldShowLoadingNotice && (
-          <Text style={styles.warningText}>Loading invoice details…</Text>
-        )}
-        {!effectiveInvoice && (
+        {shouldShowLoadingNotice ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <Text style={styles.loadingText}>Preparing payment details…</Text>
+          </View>
+        ) : !effectiveInvoice ? (
           <Text style={styles.warningText}>
             No invoice found for this booking. Please retry booking or contact
             support.
           </Text>
-        )}
+        ) : null}
         <SummaryCards
           businessSummary={summaryBusiness as any}
           service={service}
@@ -703,16 +828,18 @@ export const PaymentInvoiceScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <InvoiceForCard
-          companionAvatar={companionAvatar}
-          companionInitial={companionInitial}
-          guardianAvatar={guardianAvatar}
-          guardianInitial={guardianInitial}
-          guardianEmail={guardianEmail}
-          guardianAddress={guardianAddress}
-          companionName={companionName}
-          styles={styles}
-        />
+        {!isInvoiceBasedFlow && (
+          <InvoiceForCard
+            companionAvatar={companionAvatar}
+            companionInitial={companionInitial}
+            guardianAvatar={guardianAvatar}
+            guardianInitial={guardianInitial}
+            guardianEmail={guardianEmail}
+            guardianAddress={guardianAddress}
+            companionName={companionName}
+            styles={styles}
+          />
+        )}
 
         <BreakdownCard
           effectiveInvoice={effectiveInvoice}
@@ -721,6 +848,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
           taxAmount={taxAmount}
           total={total}
           formatMoney={formatMoney}
+          currency={effectiveInvoice?.currency ?? paymentIntent?.currency ?? 'USD'}
           styles={styles}
         />
 
@@ -796,6 +924,20 @@ const createStyles = (theme: any) =>
     },
     summaryCard: {
       marginBottom: theme.spacing[2],
+    },
+    loadingBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing[2],
+      padding: theme.spacing[3],
+      borderRadius: 12,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted ?? theme.colors.border,
+    },
+    loadingText: {
+      ...theme.typography.body14,
+      color: theme.colors.textSecondary,
     },
     metaCard: {
       borderRadius: 16,

@@ -1,16 +1,18 @@
-import React, {useMemo} from 'react';
-import {Image, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {useDispatch, useSelector} from 'react-redux';
+import React, {useMemo, useState, useEffect} from 'react';
+import {Image, ScrollView, StyleSheet, Text, View, ActivityIndicator} from 'react-native';
+import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
-import type {AppDispatch, RootState} from '@/app/store';
+import type {RootState, AppDispatch} from '@/app/store';
 import {
-  markInAppExpenseStatus,
   selectExpenseById,
+  fetchExpenseInvoice,
+  fetchExpensePaymentIntent,
+  fetchExpenseById,
 } from '@/features/expenses';
 import type {ExpenseStackParamList} from '@/navigation/types';
 import {Images} from '@/assets/images';
@@ -22,6 +24,11 @@ import {
 } from '@/features/expenses/utils/expenseLabels';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import type {DocumentFile} from '@/features/documents/types';
+import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
+import {hasInvoice, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
+import {fetchBusinessDetails} from '@/features/linkedBusinesses';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
@@ -32,16 +39,67 @@ export const ExpensePreviewScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const {openPaymentScreen, processingPayment} = useExpensePayment();
 
-  const {expenseId} = route.params;
+  const expenseId = (route.params as any)?.expenseId ?? '';
   const expense = useSelector(selectExpenseById(expenseId));
-  const companions = useSelector((state: RootState) => state.companion.companions);
-  const companion = expense
-    ? companions.find(item => item.id === expense.companionId)
-    : null;
   const userCurrencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? 'USD',
   );
+  const currencyCode = expense?.currencyCode ?? userCurrencyCode;
+
+  const [invoiceData, setInvoiceData] = useState<any>(null);
+  const [organisationData, setOrganisationData] = useState<any>(null);
+  const [paymentIntent, setPaymentIntent] = useState<any>(null);
+  const [loadingPayment, setLoadingPayment] = useState(false);
+  const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
+
+  // Always fetch latest expense details (including external) from backend
+  useEffect(() => {
+    if (expenseId && expense?.source === 'external') {
+      dispatch(fetchExpenseById({expenseId}));
+    }
+  }, [dispatch, expenseId, expense?.source]);
+
+  // Fetch invoice and payment intent data
+  useEffect(() => {
+    if (!expense?.invoiceId || expense.source !== 'inApp') {
+      return;
+    }
+
+    const fetchInvoiceData = async () => {
+      try {
+        const result = await dispatch(
+          fetchExpenseInvoice({invoiceId: expense.invoiceId!})
+        ).unwrap();
+        setInvoiceData(result.invoice);
+        // Handle API response with typo: "organistion" instead of "organisation"
+        setOrganisationData(result.organistion || result.organisation || null);
+
+        // If payment is pending and we have a payment intent ID, fetch the latest intent
+        if (
+          isExpensePaymentPending(expense) &&
+          result.paymentIntentId
+        ) {
+          setLoadingPayment(true);
+          try {
+            const intentResult = await dispatch(
+              fetchExpensePaymentIntent({paymentIntentId: result.paymentIntentId})
+            ).unwrap();
+            setPaymentIntent(intentResult);
+          } catch (error) {
+            console.error('Failed to fetch payment intent:', error);
+          } finally {
+            setLoadingPayment(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch invoice:', error);
+      }
+    };
+
+    fetchInvoiceData();
+  }, [expense?.invoiceId, expense?.source, dispatch, expense]);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -49,33 +107,87 @@ export const ExpensePreviewScreen: React.FC = () => {
     }
   };
 
-  if (!expense) {
-    return (
-      <SafeArea>
-        <Header title="Expense" showBackButton onBack={handleBack} />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Expense not found</Text>
-        </View>
-      </SafeArea>
-    );
-  }
-
-  const canEdit = expense.source === 'external';
-  const formattedAmount = formatCurrency(expense.amount, {
-    currencyCode: userCurrencyCode,
-  });
+  const canEdit = expense?.source === 'external';
+  const formattedAmount =
+    expense != null
+      ? formatCurrency(expense.amount, {currencyCode})
+      : formatCurrency(0, {currencyCode});
 
   const handleEdit = () => {
-    if (canEdit) {
+    if (expense && canEdit) {
       navigation.navigate('EditExpense', {expenseId});
     }
   };
 
-  // Sharing handled per-attachment in AttachmentPreview component
-
-  const handlePay = () => {
-    dispatch(markInAppExpenseStatus({expenseId: expense.id, status: 'paid'}));
+  const handleOpenInvoice = () => {
+    if (expense && !processingPayment && !loadingPayment) {
+      openPaymentScreen(expense, invoiceData, paymentIntent);
+    }
   };
+
+  // Extract organization details from the separated organisationData
+  const orgAddress = organisationData?.address;
+  const businessNameFromOrg = organisationData?.name ?? expense?.businessName ?? 'Healthcare Provider';
+  const businessAddress = orgAddress?.addressLine ?? 'Address not available';
+  const businessCity = orgAddress?.city ?? '';
+  const businessState = orgAddress?.state ?? '';
+  const businessPostalCode = orgAddress?.postalCode ?? '';
+  const businessImage = organisationData?.image ?? null;
+  const placesId = organisationData?.placesId ?? null;
+
+  // Check if the image is a dummy/placeholder URL
+  const isDummyImage =
+    typeof businessImage === 'string' &&
+    (businessImage.includes('example.com') || businessImage.includes('placeholder'));
+
+  const fullBusinessAddress = [businessAddress, businessCity, businessState, businessPostalCode]
+    .filter(Boolean)
+    .join(', ');
+
+  // Use organisation image only if it's not a dummy, otherwise use fallback photo
+  // If placesId is empty/invalid, the image will be undefined (no fallback available)
+  const resolvedBusinessImage = !isDummyImage && businessImage ? businessImage : fallbackPhoto;
+
+  const businessSummary = {
+    name: businessNameFromOrg,
+    address: fullBusinessAddress,
+    description: undefined,
+    photo: resolvedBusinessImage ?? undefined,
+  };
+
+  // Fetch fallback image from Google Places if:
+  // 1. Primary image is dummy or missing
+  // 2. PlacesId is available and valid (not empty string)
+  // 3. Fallback photo hasn't been fetched yet
+  useEffect(() => {
+    // Exit early if placesId is empty, null, or undefined
+    if (!placesId || typeof placesId !== 'string' || placesId.trim() === '') {
+      return;
+    }
+
+    // Only fetch if we have a dummy image or no image
+    if (!isDummyImage && businessImage) {
+      return;
+    }
+
+    // Don't re-fetch if we already have a fallback photo
+    if (fallbackPhoto) {
+      return;
+    }
+
+    dispatch(fetchBusinessDetails(placesId))
+      .unwrap()
+      .then(res => {
+        if (res?.photoUrl) {
+          setFallbackPhoto(res.photoUrl);
+        }
+      })
+      .catch(() => {
+        // Silently fail - no fallback image available
+        console.debug('[ExpensePreview] Could not fetch places image for placesId:', placesId);
+      });
+  }, [placesId, isDummyImage, businessImage, fallbackPhoto, dispatch]);
+
 
   return (
     <SafeArea>
@@ -83,60 +195,143 @@ export const ExpensePreviewScreen: React.FC = () => {
         title="Expenses"
         showBackButton
         onBack={handleBack}
-        rightIcon={canEdit ? Images.blackEdit : undefined}
-        onRightPress={canEdit ? handleEdit : undefined}
+        rightIcon={expense && canEdit ? Images.blackEdit : undefined}
+        onRightPress={expense && canEdit ? handleEdit : undefined}
       />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>{expense.title}</Text>
-          <Text style={styles.summarySubtitle}>
-            {resolveCategoryLabel(expense.category)}
-          </Text>
-          <Text style={styles.summarySubtitle}>
-            Sub category: {resolveSubcategoryLabel(expense.category, expense.subcategory)}
-          </Text>
-          <Text style={styles.summarySubtitle}>
-            Visit type: {resolveVisitTypeLabel(expense.visitType)}
-          </Text>
-          <Text style={styles.summaryDate}>
-            {new Date(expense.date).toLocaleDateString('en-US', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </Text>
-          <Text style={styles.summaryAmount}>{formattedAmount}</Text>
-          {expense.source === 'inApp' && expense.status === 'unpaid' ? (
-            <TouchableOpacity style={styles.payButton} onPress={handlePay}>
-              <Image source={Images.walletIcon} style={styles.payIcon} />
-              <Text style={styles.payLabel}>Pay {formattedAmount}</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.paidBadge}>
-              <Text style={styles.paidText}>
-                {expense.source === 'inApp' ? 'Paid' : companion?.name ?? ''}
+      {!expense ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Expense not found</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}>
+          {/* Business Info Card using SummaryCards */}
+          {expense.source === 'inApp' && invoiceData && (
+            <SummaryCards
+              businessSummary={businessSummary as any}
+            />
+          )}
+
+        {/* Expense Details Card (main) */}
+        <View style={styles.invoiceDetailsCard}>
+          <Text style={styles.invoiceDetailsTitle}>Expense Details</Text>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Title</Text>
+            <Text style={styles.detailValue}>{expense.title}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Business</Text>
+            <Text style={styles.detailValue}>{businessNameFromOrg ?? expense.businessName ?? '—'}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Category</Text>
+            <Text style={styles.detailValue}>
+             {resolveCategoryLabel(expense.category)}
+            </Text>
+          </View>
+
+          {expense.subcategory && expense.subcategory !== 'none' && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Sub category</Text>
+              <Text style={styles.detailValue}>
+                {resolveSubcategoryLabel(expense.category, expense.subcategory)}
               </Text>
             </View>
           )}
-        </View>
 
-        <View style={styles.previewContainer}>
-          {expense.attachments && expense.attachments.length > 0 ? (
-            <DocumentAttachmentViewer
-              attachments={expense.attachments as DocumentFile[]}
-            />
-          ) : (
-            <View style={styles.fallbackCard}>
-              <Image source={Images.documentIcon} style={styles.fallbackIcon} />
-              <Text style={styles.fallbackTitle}>No attachments</Text>
-              <Text style={styles.fallbackText}>There are no files attached to this expense.</Text>
+          {expense.visitType && expense.visitType !== 'other' && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Visit type</Text>
+              <Text style={styles.detailValue}>{resolveVisitTypeLabel(expense.visitType)}</Text>
             </View>
           )}
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Date</Text>
+            <Text style={styles.detailValue}>
+              {new Date(expense.date).toLocaleDateString('en-US', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Amount</Text>
+            <Text style={[styles.detailValue, styles.detailValueBold]}>{formattedAmount}</Text>
+          </View>
+
+          {expense.description ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Description</Text>
+              <Text style={styles.detailValue}>{expense.description}</Text>
+            </View>
+          ) : null}
+
+          <View style={[styles.statusBadgeContainer, {marginTop: theme.spacing[2]}]}>
+            {expense.source === 'inApp' ? (
+              isExpensePaymentPending(expense) ? (
+                <View style={[styles.statusBadge, styles.pendingBadge]}>
+                  <Text style={styles.pendingText}>Awaiting Payment</Text>
+                </View>
+              ) : (
+                <View style={[styles.statusBadge, styles.paidBadge]}>
+                  <Text style={styles.paidText}>Paid</Text>
+                </View>
+              )
+            ) : (
+              <View style={[styles.statusBadge, styles.externalBadge]}>
+                <Text style={styles.externalText}>External expense</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </ScrollView>
+
+        {/* Invoice Details Card removed for in-app to keep UI cleaner */}
+
+        {/* Payment Button */}
+        {expense.source === 'inApp' && (isExpensePaymentPending(expense) || hasInvoice(expense)) && (
+          <View style={styles.paymentButtonContainer}>
+            {loadingPayment ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : (
+              <LiquidGlassButton
+                title={isExpensePaymentPending(expense) ? `Pay ${formattedAmount}` : 'View Invoice'}
+                onPress={handleOpenInvoice}
+                height={48}
+                borderRadius={12}
+                disabled={processingPayment || loadingPayment}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="medium"
+                textStyle={styles.paymentButtonText}
+              />
+            )}
+          </View>
+        )}
+
+          <View style={styles.previewContainer}>
+            {expense.attachments && expense.attachments.length > 0 ? (
+              <DocumentAttachmentViewer
+                attachments={expense.attachments as DocumentFile[]}
+              />
+            ) : (
+              <View style={styles.fallbackCard}>
+                <Image source={Images.documentIcon} style={styles.fallbackIcon} />
+                <Text style={styles.fallbackTitle}>No attachments</Text>
+                <Text style={styles.fallbackText}>There are no files attached to this expense.</Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      )}
     </SafeArea>
   );
 };
@@ -167,7 +362,7 @@ const createStyles = (theme: any) =>
       padding: theme.spacing[4],
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      gap: theme.spacing[1],
+      gap: theme.spacing[2],
     },
     summaryTitle: {
       ...theme.typography.titleLarge,
@@ -180,6 +375,11 @@ const createStyles = (theme: any) =>
     summaryDate: {
       ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
+    },
+    description: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.secondary,
+      fontStyle: 'italic',
       marginTop: theme.spacing[1],
     },
     summaryAmount: {
@@ -187,37 +387,91 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
       marginTop: theme.spacing[2],
     },
-    payButton: {
-      marginTop: theme.spacing[4],
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.xl,
-      paddingVertical: theme.spacing[2],
-      gap: theme.spacing[2],
-    },
-    payIcon: {
-      width: 18,
-      height: 18,
-      resizeMode: 'contain',
-    },
-    payLabel: {
-      ...theme.typography.label,
-      color: theme.colors.secondary,
-    },
-    paidBadge: {
+    statusBadgeContainer: {
       marginTop: theme.spacing[3],
+    },
+    statusBadge: {
       paddingVertical: theme.spacing[1],
       paddingHorizontal: theme.spacing[3],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
       alignSelf: 'flex-start',
+    },
+    paidBadge: {
+      backgroundColor: 'rgba(0, 143, 93, 0.12)',
     },
     paidText: {
       ...theme.typography.labelSmall,
       color: theme.colors.success,
+    },
+    pendingBadge: {
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    },
+    pendingText: {
+      ...theme.typography.labelSmall,
+      color: '#F59E0B',
+    },
+    externalBadge: {
+      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    },
+    externalText: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.primary,
+    },
+    invoiceDetailsCard: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing[4],
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      gap: theme.spacing[2],
+    },
+    invoiceDetailsTitle: {
+      ...theme.typography.titleSmall,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing[1],
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: theme.spacing[2],
+    },
+    detailLabel: {
+      ...theme.typography.body14,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+      maxWidth: '45%',
+    },
+    detailValue: {
+      ...theme.typography.body14,
+      color: theme.colors.secondary,
+      fontWeight: '600',
+      flex: 1,
+      textAlign: 'right',
+      flexWrap: 'wrap',
+    },
+    detailValueBold: {
+      fontWeight: '700',
+    },
+    loadingContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: theme.spacing[6],
+      gap: theme.spacing[2],
+    },
+    loadingText: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.textSecondary,
+    },
+    paymentButtonContainer: {
+      gap: theme.spacing[2],
+      marginBottom: theme.spacing[4],
+    },
+    paymentButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.white,
+      textAlign: 'center',
+      fontWeight: '600',
     },
     previewContainer: {
       gap: theme.spacing[4],

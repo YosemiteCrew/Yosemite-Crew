@@ -326,6 +326,16 @@ const mapInvoiceFromApi = (
     0;
   const total = raw.totalAmount ?? raw.total ?? subtotal;
 
+  const extensions = Array.isArray(raw.extension) ? raw.extension : [];
+  const paymentIntentIdFromExt =
+    extensions.find(
+      (ext: any) =>
+        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id',
+    )?.valueString ??
+    raw.stripePaymentIntentId ??
+    raw.paymentIntentId ??
+    null;
+
   const paymentIntent = raw.paymentIntent
     ? {
         paymentIntentId: raw.paymentIntent.paymentIntentId ?? raw.paymentIntent.id,
@@ -334,7 +344,19 @@ const mapInvoiceFromApi = (
         currency: raw.paymentIntent.currency ?? raw.currency ?? 'USD',
         paymentLinkUrl: raw.paymentIntent.paymentLinkUrl ?? null,
       }
-    : null;
+    : paymentIntentIdFromExt
+      ? {
+          paymentIntentId: paymentIntentIdFromExt,
+          clientSecret:
+            raw.paymentIntent?.clientSecret ??
+            raw.clientSecret ??
+            raw.paymentIntentClientSecret ??
+            '',
+          amount: raw.paymentIntent?.amount ?? total,
+          currency: raw.paymentIntent?.currency ?? raw.currency ?? 'USD',
+          paymentLinkUrl: raw.paymentIntent?.paymentLinkUrl ?? null,
+        }
+      : null;
 
   const invoiceCreatedAt: string | undefined =
     raw.invoiceDate ?? raw.createdAt ?? raw.paymentIntent?.createdAt ?? raw.date;
@@ -342,7 +364,6 @@ const mapInvoiceFromApi = (
     ? new Date(new Date(invoiceCreatedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
     : raw.dueDate;
 
-  const extensions = Array.isArray(raw.extension) ? raw.extension : [];
   const receiptUrl =
     extensions.find(
       (ext: any) =>
@@ -350,9 +371,14 @@ const mapInvoiceFromApi = (
     )?.valueUri ?? raw.invoiceUrl ?? raw.downloadUrl ?? null;
   const appointmentFromExt =
     extensions.find(
-    (ext: any) =>
-      ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
-  )?.valueString;
+      (ext: any) =>
+        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+    )?.valueString;
+  const appointmentFromAccount =
+    typeof raw?.account?.reference === 'string' &&
+    raw.account.reference.includes('Appointment/')
+      ? raw.account.reference.split('/').pop()
+      : null;
   const statusFromExt =
     extensions.find(
       (ext: any) =>
@@ -382,15 +408,22 @@ const mapInvoiceFromApi = (
   const grandTotalFromTotals = totalPriceComponents.find(
     (pc: any) => pc?.code?.text === 'grand-total' || pc?.type === 'informational',
   )?.amount?.value;
+  const normalizedPriceComponents = totalPriceComponents.map((pc: any) => ({
+    type: pc?.type ?? pc?.Type ?? pc?.name,
+    amount: pc?.amount ?? pc?.Amount,
+    code: pc?.code ?? pc?.Code,
+    factor: pc?.factor ?? pc?.Factor ?? null,
+  }));
 
   const invoice: Invoice = {
     id: raw.id ?? raw._id ?? raw.invoiceId ?? `invoice-${Date.now()}`,
-    appointmentId: appointmentFromExt ?? raw.appointmentId ?? '',
+    appointmentId: appointmentFromExt ?? appointmentFromAccount ?? raw.appointmentId ?? '',
     items: normalizedItems,
     subtotal: subtotalFromTotals ?? subtotal,
     discountPercent: raw.discountPercent ?? null,
     taxPercent: raw.taxPercent ?? null,
     total: grandTotalFromTotals ?? total,
+    totalPriceComponent: normalizedPriceComponents,
     currency: raw.currency ?? paymentIntent?.currency ?? 'USD',
     dueDate: dueTill,
     invoiceNumber: raw.invoiceNumber ?? raw.invoiceNo ?? raw.number,

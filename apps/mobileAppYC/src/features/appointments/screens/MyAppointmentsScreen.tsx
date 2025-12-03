@@ -60,14 +60,28 @@ export const MyAppointmentsScreen: React.FC = () => {
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
+  const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
   useAutoSelectCompanion(companions, selectedCompanionId);
+
+  const fetchAppointmentsOnce = React.useCallback(
+    (companionId?: string | null) => {
+      if (!companionId) return;
+      if (lastFetchedCompanionIdRef.current === companionId) return;
+      lastFetchedCompanionIdRef.current = companionId;
+      dispatch(fetchAppointmentsForCompanion({companionId}));
+    },
+    [dispatch],
+  );
 
   useFocusEffect(
     React.useCallback(() => {
       if (selectedCompanionId) {
-        dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionId}));
+        fetchAppointmentsOnce(selectedCompanionId);
       }
-    }, [dispatch, selectedCompanionId]),
+      return () => {
+        lastFetchedCompanionIdRef.current = null;
+      };
+    }, [fetchAppointmentsOnce, selectedCompanionId]),
   );
 
   // Also refetch when selected companion changes (covers tab switches)
@@ -81,9 +95,9 @@ export const MyAppointmentsScreen: React.FC = () => {
       if (!selectedCompanionId) {
         dispatch(setSelectedCompanion(targetId));
       }
-      dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
+      fetchAppointmentsOnce(targetId);
     }
-  }, [dispatch, selectedCompanionId, companions]);
+  }, [dispatch, selectedCompanionId, companions, fetchAppointmentsOnce]);
 
   const filteredUpcoming = React.useMemo(() => {
     const filtered = upcoming.filter(apt => {

@@ -56,8 +56,9 @@ const resolveFlag = (countryCode: string) => {
   return country?.flag ?? '🇺🇸';
 };
 
+// We lock the currency to USD for now; keep a single selectable option.
 const mapToOptions = (): CurrencyOption[] =>
-  CURRENCIES.map(currency => {
+  CURRENCIES.filter(currency => currency.code === 'USD').map(currency => {
     const flag = resolveFlag(currency.countryCode);
     return {
       id: currency.code,
@@ -77,7 +78,7 @@ export const CurrencyBottomSheet = forwardRef<
   const currencyOptions = useMemo(() => mapToOptions(), []);
 
   const selectedItem = useMemo(
-    () => currencyOptions.find(option => option.code === selectedCurrency) ?? null,
+    () => currencyOptions.find(option => option.code === selectedCurrency) ?? currencyOptions[0] ?? null,
     [currencyOptions, selectedCurrency],
   );
 
@@ -90,8 +91,8 @@ export const CurrencyBottomSheet = forwardRef<
     },
   }));
 
-  const handleSave = (item: SelectItem | null) => {
-    onSave(item?.id ?? selectedCurrency);
+  const handleSave = (_item: SelectItem | null) => {
+    onSave('USD');
   };
 
   return (

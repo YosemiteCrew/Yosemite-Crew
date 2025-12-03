@@ -134,6 +134,12 @@ export interface Invoice {
   appointmentId: string;
   items: InvoiceItem[];
   subtotal: number;
+  totalPriceComponent?: Array<{
+    type?: string;
+    amount?: {value: number; currency?: string};
+    code?: {text?: string};
+    factor?: number | null;
+  }>;
   discountPercent?: number | null;
   taxPercent?: number | null;
   total: number;

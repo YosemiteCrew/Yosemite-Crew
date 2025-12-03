@@ -170,8 +170,16 @@ export const EditAppointmentScreen: React.FC = () => {
         title="Reschedule Appointment"
         showBackButton
         onBack={() => navigation.goBack()}
-        rightIcon={Images.deleteIcon}
-        onRightPress={() => cancelSheetRef.current?.open?.()}
+        rightIcon={
+          apt.status === 'NO_PAYMENT' || apt.status === 'AWAITING_PAYMENT' || apt.status === 'PAYMENT_FAILED'
+            ? undefined
+            : Images.deleteIcon
+        }
+        onRightPress={
+          apt.status === 'NO_PAYMENT' || apt.status === 'AWAITING_PAYMENT' || apt.status === 'PAYMENT_FAILED'
+            ? undefined
+            : () => cancelSheetRef.current?.open?.()
+        }
       />
       <ScrollView
         style={styles.scrollView}

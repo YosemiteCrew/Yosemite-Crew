@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {NavigationProp} from '@react-navigation/native';
+import {NavigationProp, useFocusEffect} from '@react-navigation/native';
 import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
@@ -35,9 +35,9 @@ import {AppointmentCard} from '@/shared/components/common/AppointmentCard/Appoin
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
-  fetchExpensesForCompanion,
+  fetchExpenseSummary,
   selectExpenseSummaryByCompanion,
-  selectHasHydratedCompanion,
+  selectHasHydratedCompanion as selectExpensesHydrated,
 } from '@/features/expenses';
 import {
   fetchTasksForCompanion,
@@ -102,9 +102,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
-  const expenseSummary = useSelector(
-    selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
+  const expenseSummarySelector = React.useMemo(
+    () => selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
+    [selectedCompanionIdRedux],
   );
+  const expenseSummary = useSelector(expenseSummarySelector);
+  const hasExpenseHydrated = useSelector(selectExpensesHydrated(selectedCompanionIdRedux ?? null));
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
   );
@@ -117,9 +120,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ? accessMap[selectedCompanionIdRedux] ?? null
     : null;
   const hasCompanions = companions.length > 0;
-  const hasExpenseHydrated = useSelector(
-    selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
-  );
   const hasTasksHydrated = useSelector(
     selectHasHydratedTasksCompanion(selectedCompanionIdRedux ?? null),
   );
@@ -138,6 +138,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
   );
+  // Hydrate expenses summary when companion changes and not yet loaded or missing
+  useEffect(() => {
+    if (
+      selectedCompanionIdRedux &&
+      hasCompanions &&
+      (!hasExpenseHydrated || !expenseSummary)
+    ) {
+      dispatch(
+        fetchExpenseSummary({
+          companionId: selectedCompanionIdRedux,
+        }),
+      );
+    }
+  }, [dispatch, selectedCompanionIdRedux, hasCompanions, hasExpenseHydrated, expenseSummary]);
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const {businessFallbacks, handleAvatarError, requestBusinessPhoto} = useBusinessPhotoFallback();
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
@@ -260,14 +274,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [companions, selectedCompanionIdRedux, dispatch]);
 
-  React.useEffect(() => {
-    if (selectedCompanionIdRedux && !hasExpenseHydrated) {
-      dispatch(
-        fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}),
-      );
-    }
-  }, [dispatch, hasExpenseHydrated, selectedCompanionIdRedux]);
-
   // Fetch tasks for selected companion
   React.useEffect(() => {
     if (selectedCompanionIdRedux && !hasTasksHydrated) {
@@ -310,7 +316,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ) {
       previousCurrencyRef.current = userCurrencyCode;
       dispatch(
-        fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}),
+        fetchExpenseSummary({companionId: selectedCompanionIdRedux}),
       );
     }
   }, [
@@ -319,6 +325,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     userCurrencyCode,
     hasExpenseHydrated,
   ]);
+
+  // Always refresh expense summary when returning to Home
+  useFocusEffect(
+    React.useCallback(() => {
+      if (selectedCompanionIdRedux) {
+        dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
+      }
+    }, [dispatch, selectedCompanionIdRedux]),
+  );
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -786,8 +801,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return (
       <YearlySpendCard
         amount={expenseSummary?.total ?? 0}
-        currencyCode={userCurrencyCode}
-        currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
+        currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
+        currencySymbol={resolveCurrencySymbol(
+          expenseSummary?.currencyCode ?? userCurrencyCode,
+          '$',
+        )}
         onPressView={() =>
           navigation.navigate('ExpensesStack', {
             screen: 'ExpensesMain',
@@ -1182,6 +1200,7 @@ const createStyles = (theme: any) =>
     color: theme.colors.primary,
   },
   });
+
 const isObservationalToolDetails = (
   details: unknown,
 ): details is ObservationalToolTaskDetails => {

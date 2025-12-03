@@ -13,6 +13,7 @@ export const usePaymentHandler = ({
   appointmentId,
   companionId,
   aptCompanionId,
+  expenseId,
   navigation,
 }: {
   clientSecret: string | null;
@@ -22,6 +23,7 @@ export const usePaymentHandler = ({
   appointmentId: string;
   companionId?: string;
   aptCompanionId?: string;
+  expenseId?: string;
   navigation: any;
 }) => {
   const {initPaymentSheet, presentPaymentSheet} = useStripe();
@@ -108,6 +110,7 @@ export const usePaymentHandler = ({
     navigation.replace('PaymentSuccess', {
       appointmentId,
       companionId: companionId ?? aptCompanionId,
+      expenseId,
     });
   }, [
     clientSecret,
@@ -120,6 +123,7 @@ export const usePaymentHandler = ({
     appointmentId,
     companionId,
     aptCompanionId,
+    expenseId,
     navigation,
     buildPaymentSheetOptions,
   ]);
