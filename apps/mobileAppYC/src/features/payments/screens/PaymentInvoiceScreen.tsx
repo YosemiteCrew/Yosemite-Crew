@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Image,
   Alert,
-  Platform,
   Linking,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
@@ -20,7 +19,6 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
 import {
-  recordPayment,
   fetchInvoiceForAppointment,
   fetchAppointmentById,
   fetchPaymentIntentForAppointment,
@@ -33,9 +31,8 @@ import type {
   PaymentIntentInfo,
 } from '@/features/appointments/types';
 import {selectAuthUser} from '@/features/auth/selectors';
-import {useStripe} from '@stripe/stripe-react-native';
-import {STRIPE_CONFIG} from '@/config/variables';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {usePaymentHandler} from '@/features/payments/hooks/usePaymentHandler';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -145,32 +142,6 @@ const buildInvoiceItemKey = ({
   lineTotal,
   qty,
 }: InvoiceItem) => `${description}-${rate}-${lineTotal}-${qty ?? 0}`;
-
-const buildPaymentSheetOptions = (
-  clientSecret: string,
-  businessName: string,
-  guardianName: string,
-  guardianEmail: string,
-) => {
-  const opts: any = {
-    paymentIntentClientSecret: clientSecret,
-    merchantDisplayName: businessName || 'Yosemite Crew',
-    defaultBillingDetails: {
-      name: guardianName,
-      email: guardianEmail === '—' ? undefined : guardianEmail,
-    },
-    customFlow: false,
-  };
-  if (STRIPE_CONFIG.urlScheme) {
-    opts.returnURL = `${STRIPE_CONFIG.urlScheme}://stripe-redirect`;
-  }
-  if (Platform.OS === 'ios' && STRIPE_CONFIG.merchantIdentifier) {
-    opts.applePay = {
-      merchantCountryCode: 'US',
-    };
-  }
-  return opts;
-};
 
 const formatDateTimeDisplay = (iso?: string) => {
   if (!iso) return '—';
@@ -402,8 +373,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoice?.billedToName,
   ]);
 
-  const {initPaymentSheet, presentPaymentSheet} = useStripe();
-  const [presentingSheet, setPresentingSheet] = useState(false);
   const paymentIntent =
     invoice?.paymentIntent ??
     routeIntent ??
@@ -450,51 +419,16 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const shouldShowLoadingNotice = !isInvoiceLoaded && !isPaymentPendingStatus;
   const paymentDueLabel = formatDateOnlyDisplay(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
-  const handlePayNow = async () => {
-    if (!clientSecret) {
-      Alert.alert(
-        'Payment unavailable',
-        'No payment intent found for this appointment.',
-      );
-      return;
-    }
-    setPresentingSheet(true);
-    const sheetOptions = buildPaymentSheetOptions(clientSecret, businessName, guardianName, guardianEmail);
-    const {error: initError} = await initPaymentSheet(sheetOptions);
-    if (initError) {
-      setPresentingSheet(false);
-      Alert.alert('Payment unavailable', initError.message);
-      return;
-    }
-    try {
-      const {error} = await presentPaymentSheet();
-      setPresentingSheet(false);
-
-      if (error) {
-        Alert.alert('Payment failed', error.message);
-        return;
-      }
-    } catch (err) {
-      setPresentingSheet(false);
-      console.warn('[Payment] Error presenting payment sheet:', err);
-      Alert.alert(
-        'Payment failed',
-        'Unable to present the payment sheet. Please try again.',
-      );
-      return;
-    }
-
-    const recordAction = await dispatch(recordPayment({appointmentId}));
-    if (recordPayment.rejected.match(recordAction)) {
-      console.warn(
-        '[Payment] Failed to refresh appointment status after payment',
-      );
-    }
-    navigation.replace('PaymentSuccess', {
-      appointmentId,
-      companionId: companionId ?? apt?.companionId,
-    });
-  };
+  const {handlePayNow, presentingSheet} = usePaymentHandler({
+    clientSecret,
+    businessName,
+    guardianName,
+    guardianEmail,
+    appointmentId,
+    companionId,
+    aptCompanionId: apt?.companionId,
+    navigation,
+  });
 
   return (
     <SafeArea>
