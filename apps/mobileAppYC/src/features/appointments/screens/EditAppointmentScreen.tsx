@@ -9,13 +9,9 @@ import {AppointmentFormContent} from '@/features/appointments/components/Appoint
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
-import {useRoute, useNavigation, type NavigationProp} from '@react-navigation/native';
+import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {
-  AppointmentStackParamList,
-  TabParamList,
-  RootStackParamList,
-} from '@/navigation/types';
+import type {AppointmentStackParamList} from '@/navigation/types';
 import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
 import {cancelAppointment, rescheduleAppointment} from '@/features/appointments/appointmentsSlice';
 import {
@@ -25,8 +21,11 @@ import {
   findSlotByLabel,
   parseSlotLabel,
 } from '@/features/appointments/utils/availability';
+import {formatTimeRange} from '@/features/appointments/utils/timeFormatting';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -37,6 +36,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const {appointmentId} = route.params as {appointmentId: string};
+  const {handleOpenTerms, handleOpenPrivacy} = useNavigateToLegalPages();
   const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
   const service = useSelector(selectServiceById(apt?.serviceId ?? null));
   const availabilitySelector = React.useMemo(
@@ -61,23 +61,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const [date, setDate] = useState<string>(apt?.date ?? firstAvailableDate);
   const [dateObj, setDateObj] = useState<Date>(new Date(apt?.date ?? firstAvailableDate));
   const buildLocalSlotLabel = (dateStr: string, start?: string | null, end?: string | null) => {
-    const normalize = (value?: string | null) => {
-      if (!value) return null;
-      const normalized = value.length === 5 ? `${value}:00` : value;
-      const asDate = new Date(`${dateStr}T${normalized}Z`);
-      if (Number.isNaN(asDate.getTime())) return value;
-      return asDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    };
-    const startLocal = normalize(start);
-    const endLocal = normalize(end);
-    if (startLocal && endLocal) {
-      return `${startLocal} - ${endLocal}`;
-    }
-    return startLocal ?? start ?? null;
+    return formatTimeRange(dateStr, start, end);
   };
   const initialTimeLabel = (() => {
     if (!apt?.time) {
@@ -97,43 +81,6 @@ export const EditAppointmentScreen: React.FC = () => {
     ...theme.typography.paragraphBold,
     color: theme.colors.primary,
   };
-  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
-  const rootNavigation = tabNavigation?.getParent<NavigationProp<RootStackParamList>>();
-  const findNavigatorWithRoute = (routeName: string) => {
-    let nav: any = navigation;
-    while (nav) {
-      const state = nav.getState?.();
-      if (state?.routeNames?.includes(routeName)) {
-        return nav as NavigationProp<any>;
-      }
-      nav = nav.getParent?.();
-    }
-    return null;
-  };
-  const handleOpenTerms = () => {
-    navigation.popToTop();
-    const nav =
-      findNavigatorWithRoute('HomeStack') ??
-      rootNavigation ??
-      tabNavigation ??
-      navigation.getParent<NavigationProp<TabParamList>>();
-    nav?.navigate('HomeStack' as any, {screen: 'TermsAndConditions'});
-  };
-  const handleOpenPrivacy = () => {
-    navigation.popToTop();
-    const nav =
-      findNavigatorWithRoute('HomeStack') ??
-      rootNavigation ??
-      tabNavigation ??
-      navigation.getParent<NavigationProp<TabParamList>>();
-    nav?.navigate('HomeStack' as any, {screen: 'PrivacyPolicy'});
-  };
-  const isDummyPhoto = React.useCallback(
-    (photo?: string | null) =>
-      typeof photo === 'string' &&
-      (photo.includes('example.com') || photo.includes('placeholder')),
-    [],
-  );
 
   React.useEffect(() => {
     if (!apt?.businessId || !apt?.serviceId || !date) {
@@ -181,7 +128,7 @@ export const EditAppointmentScreen: React.FC = () => {
           })
           .catch(() => {});
       });
-  }, [businessPhoto, dispatch, fallbackPhoto, googlePlacesId, isDummyPhoto]);
+  }, [businessPhoto, dispatch, fallbackPhoto, googlePlacesId]);
 
   if (!apt) return null;
 
