@@ -27,6 +27,7 @@ type UnifiedExpense = {
   invoiceId?: string;
   expenseId?: string;
   businessName?: string;
+  appointmentId?: string;
   currency?: string;
 };
 
@@ -95,6 +96,7 @@ export const ExpenseService = {
           source: "IN_APP",
           date: inv.createdAt,
           amount: inv.totalAmount,
+          appointmentId: inv.appointmentId,
           title: "Invoice",
           description: inv.items?.map((i) => i.name).join(", "),
           status: inv.status,
@@ -148,6 +150,7 @@ export const ExpenseService = {
         invoiceId: invoice._id.toString(),
         currency: invoice.currency,
         businessName,
+        appointmentId: invoice.appointmentId,
       };
 
       return mapped;
