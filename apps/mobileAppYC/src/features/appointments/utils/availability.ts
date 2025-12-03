@@ -3,9 +3,12 @@ import {addDays, formatDateToISODate, parseISODate} from '@/shared/utils/dateHel
 
 const sortIsoDates = (a: string, b: string) => a.localeCompare(b);
 const DEFAULT_MARKER_WINDOW_DAYS = 30;
+const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 const normalizeTimeString = (value?: string | null): string | undefined => {
   if (!value) return undefined;
   const trimmed = value.trim();
+  const ampmMatch = /^(\d{1,2}):(\d{2})\s*(am|pm)$/i.exec(trimmed);
   const hhmmMatch = /^(\d{1,2}):(\d{2})/.exec(trimmed);
   // If this looks like an ISO date, convert to local HH:mm
   const asDate = new Date(trimmed);
@@ -14,7 +17,15 @@ const normalizeTimeString = (value?: string | null): string | undefined => {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
+      timeZone: deviceTimeZone,
     });
+  }
+  if (ampmMatch) {
+    const hours = Number(ampmMatch[1]);
+    const minutes = ampmMatch[2];
+    const suffix = ampmMatch[3].toUpperCase();
+    const displayHour = ((hours + 11) % 12) + 1;
+    return `${displayHour}:${minutes} ${suffix}`;
   }
   if (hhmmMatch) {
     const hours = Number(hhmmMatch[1]);
@@ -25,13 +36,39 @@ const normalizeTimeString = (value?: string | null): string | undefined => {
   }
   return trimmed;
 };
-const resolveSlotTimes = (slot: SlotWindow) => {
-  const start = normalizeTimeString(slot.startTimeLocal ?? slot.startTime);
-  const end = normalizeTimeString(slot.endTimeLocal ?? slot.endTime) ?? start;
+
+const resolveSlotTimes = (slot: SlotWindow, date?: string) => {
+  const buildLocalFromUtc = (timeUtc?: string | null) => {
+    if (!timeUtc || !date) return null;
+    const [y, m, d] = date.split('-').map(Number);
+    const [hh, mm] = (timeUtc.split(':') ?? []).map(Number);
+    if ([y, m, d, hh, mm].some(n => Number.isNaN(n))) return null;
+    const millis = Date.UTC(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0);
+    const dt = new Date(millis);
+    return dt.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: deviceTimeZone,
+    });
+  };
+
+  const derivedStart =
+    slot.startTimeLocal ??
+    buildLocalFromUtc(slot.startTimeUtc ?? slot.startTime) ??
+    normalizeTimeString(slot.startTime);
+  const derivedEnd =
+    slot.endTimeLocal ??
+    buildLocalFromUtc(slot.endTimeUtc ?? slot.endTime ?? slot.startTime) ??
+    normalizeTimeString(slot.endTime ?? slot.startTime) ??
+    derivedStart;
+  const start = normalizeTimeString(derivedStart);
+  const end = normalizeTimeString(derivedEnd) ?? start;
   return {start, end};
 };
-const formatSlotLabel = (slot: SlotWindow) => {
-  const {start, end} = resolveSlotTimes(slot);
+
+const formatSlotLabel = (slot: SlotWindow, date?: string) => {
+  const {start, end} = resolveSlotTimes(slot, date);
   if (!start) {
     return '';
   }
@@ -77,7 +114,7 @@ export const getSlotsForDate = (
   if (sameDaySlots?.length) {
     return sameDaySlots
       .filter(isSlotAvailable)
-      .map(formatSlotLabel)
+      .map(slot => formatSlotLabel(slot, date))
       .filter(label => Boolean(label?.trim?.()));
   }
 
@@ -129,7 +166,10 @@ export const findSlotByLabel = (
   const slots = availability.slotsByDate?.[date] ?? [];
   const normalizedTarget = label.replaceAll(/\s+/g, '').toLowerCase();
   return (
-    slots.find(slot => formatSlotLabel(slot).replaceAll(/\s+/g, '').toLowerCase() === normalizedTarget) ??
+    slots.find(
+      slot =>
+        formatSlotLabel(slot, date).replaceAll(/\s+/g, '').toLowerCase() === normalizedTarget,
+    ) ??
     null
   );
 };

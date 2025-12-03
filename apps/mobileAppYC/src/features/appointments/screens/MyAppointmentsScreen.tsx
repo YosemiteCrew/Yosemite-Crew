@@ -6,9 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
-  Platform,
-  ToastAndroid,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
@@ -21,8 +18,6 @@ import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
 import {
-  checkInAppointment,
-  fetchAppointmentById,
   fetchAppointmentsForCompanion,
 } from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
@@ -31,11 +26,17 @@ import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
-import {RootState as RS} from '@/app/store';
-import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/mockStreamBackend';
-import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
-import LocationService from '@/shared/services/LocationService';
-import {distanceBetweenCoordsMeters} from '@/shared/utils/geoDistance';
+import {formatDateLocale, formatTimeLocale} from '@/features/appointments/utils/timeFormatting';
+import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
+import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
+import {transformAppointmentCardData} from '@/features/appointments/utils/appointmentCardData';
+import {handleChatActivation} from '@/features/appointments/utils/chatActivation';
+import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/appointments/utils/businessCoordinates';
+import {usePermissions} from '@/shared/hooks/usePermissions';
+import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
+import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
+import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
+import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -48,51 +49,18 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
-  const accessMap = useSelector((s: RootState) => s.coParent?.accessByCompanionId ?? {});
-  const defaultAccess = useSelector((s: RootState) => s.coParent?.defaultAccess ?? null);
-  const globalRole = useSelector((s: RootState) => s.coParent?.lastFetchedRole);
-  const globalPermissions = useSelector((s: RootState) => s.coParent?.lastFetchedPermissions);
-  const accessForCompanion = selectedCompanionId
-    ? accessMap[selectedCompanionId] ?? defaultAccess ?? null
-    : defaultAccess;
-  const role = (accessForCompanion?.role ?? defaultAccess?.role ?? globalRole ?? '').toUpperCase();
-  const permissions =
-    accessForCompanion?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
-  const isPrimary = role.includes('PRIMARY');
-  const canUseAppointments = isPrimary || Boolean(permissions?.appointments);
-  const canUseChat = isPrimary || Boolean(permissions?.chatWithVet);
+  const {canUseAppointments, canUseChat} = usePermissions(selectedCompanionId);
 
   const upcomingSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
   const pastSelector = React.useMemo(() => createSelectPastAppointments(), []);
   const upcoming = useSelector((state: RootState) => upcomingSelector(state, selectedCompanionId ?? null));
   const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
-  const businesses = useSelector((s: RS) => s.businesses.businesses);
-  const employees = useSelector((s: RS) => s.businesses.employees);
-  const services = useSelector((s: RS) => s.businesses.services);
+  const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
-  const [businessFallbacks, setBusinessFallbacks] = React.useState<Record<string, {photo?: string | null}>>({});
-  const requestedPlacesRef = React.useRef<Set<string>>(new Set());
-  const CHECKIN_RADIUS_METERS = 200;
-  const CHECKIN_BUFFER_MS = 5 * 60 * 1000;
+  const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
-  const isDummyPhoto = React.useCallback(
-    (photo?: string | null) =>
-      typeof photo === 'string' &&
-      (photo.includes('example.com') || photo.includes('placeholder')),
-    [],
-  );
-
-  useEffect(() => {
-    if (!selectedCompanionId && companions.length > 0) {
-      const fallbackId =
-        companions[0]?.id ??
-        (companions[0] as any)?._id ??
-        (companions[0] as any)?.identifier?.[0]?.value;
-      if (fallbackId) {
-        dispatch(setSelectedCompanion(fallbackId));
-      }
-    }
-  }, [companions, selectedCompanionId, dispatch]);
+  const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
+  useAutoSelectCompanion(companions, selectedCompanionId);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -116,31 +84,6 @@ export const MyAppointmentsScreen: React.FC = () => {
       dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
     }
   }, [dispatch, selectedCompanionId, companions]);
-
-  const businessMap = React.useMemo(() => new Map(businesses.map(b => [b.id, b])), [businesses]);
-  const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
-  const serviceMap = React.useMemo(() => new Map(services.map(s => [s.id, s])), [services]);
-
-  const formatDate = React.useCallback((iso: string) => {
-    return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  }, []);
-  const formatTime = React.useCallback((date: string, time?: string | null) => {
-    if (!time) return '';
-    const normalized = time.length === 5 ? `${time}:00` : time;
-    const asDate = new Date(`${date}T${normalized}Z`);
-    if (Number.isNaN(asDate.getTime())) {
-      return time;
-    }
-    return asDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  }, []);
 
   const filteredUpcoming = React.useMemo(() => {
     const filtered = upcoming.filter(apt => {
@@ -167,102 +110,25 @@ export const MyAppointmentsScreen: React.FC = () => {
     [filteredPast, filteredUpcoming],
   );
 
-  const showPermissionToast = React.useCallback((label: string) => {
-    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(message, ToastAndroid.SHORT);
-    } else {
-      Alert.alert('Permission needed', message);
-    }
-  }, []);
-
+  // Show permission toast when appointments access is denied
   React.useEffect(() => {
     if (selectedCompanionId && !canUseAppointments) {
-      showPermissionToast('appointments');
+      showPermissionDeniedToast('appointments');
     }
-  }, [canUseAppointments, selectedCompanionId, showPermissionToast]);
+  }, [canUseAppointments, selectedCompanionId]);
 
-  const requestBusinessPhoto = React.useCallback(
-    async (googlePlacesId: string, businessId: string) => {
-      if (requestedPlacesRef.current.has(googlePlacesId)) {
-        return;
-      }
-      requestedPlacesRef.current.add(googlePlacesId);
-      try {
-        const res = await dispatch(fetchBusinessDetails(googlePlacesId)).unwrap();
-        if (res.photoUrl) {
-          setBusinessFallbacks(prev => ({...prev, [businessId]: {photo: res.photoUrl}}));
-          return;
-        }
-      } catch {
-        // Ignore and try fallback image fetch below
-      }
-      try {
-        const img = await dispatch(fetchGooglePlacesImage(googlePlacesId)).unwrap();
-        if (img.photoUrl) {
-          setBusinessFallbacks(prev => ({...prev, [businessId]: {photo: img.photoUrl}}));
-        }
-      } catch {
-        // Swallow errors; UI will use defaults
-      }
-    },
-    [dispatch],
-  );
-
-  const handleAvatarError = React.useCallback(
-    (googlePlacesId: string | null, businessId: string) => {
-      if (!googlePlacesId) return;
-      requestBusinessPhoto(googlePlacesId, businessId);
-    },
-    [requestBusinessPhoto],
-  );
-
-  React.useEffect(() => {
-    appointmentsForFallback.forEach(apt => {
-      const biz = businessMap.get(apt.businessId);
-      const googlePlacesId = biz?.googlePlacesId ?? apt.businessGooglePlacesId ?? null;
-      const photoCandidate = (biz?.photo ?? apt.businessPhoto) as string | null | undefined;
-      const needsPhoto = (!photoCandidate || isDummyPhoto(photoCandidate)) && googlePlacesId;
-      if (needsPhoto && googlePlacesId) {
-        requestBusinessPhoto(googlePlacesId, apt.businessId);
-      }
-    });
-  }, [appointmentsForFallback, businessMap, isDummyPhoto, requestBusinessPhoto]);
+  // Fetch business photo fallbacks when primary photos are missing or dummy
+  useFetchPhotoFallbacks(appointmentsForFallback, businessMap, requestBusinessPhoto);
 
   type AppointmentItem = (typeof filteredUpcoming)[number];
   type EmployeeRecord = ReturnType<typeof employeeMap.get>;
-  const getBusinessCoordinates = React.useCallback(
+  const getCoordinatesFromUtility = React.useCallback(
     (apt: AppointmentItem | null | undefined) => {
       if (!apt) return {lat: null, lng: null};
-      const biz = businessMap.get(apt.businessId);
-      return {
-        lat: biz?.lat ?? apt.businessLat ?? null,
-        lng: biz?.lng ?? apt.businessLng ?? null,
-      };
+      return getBusinessCoordinatesUtil(apt, businessMap);
     },
     [businessMap],
   );
-  const isWithinCheckInWindow = React.useCallback(
-    (dateStr: string, timeStr?: string | null) => {
-      const normalizedTime =
-        (timeStr ?? '00:00').length === 5 ? `${timeStr ?? '00:00'}:00` : timeStr ?? '00:00';
-      const start = new Date(`${dateStr}T${normalizedTime}Z`).getTime();
-      if (Number.isNaN(start)) {
-        return true;
-      }
-      return Date.now() >= start - CHECKIN_BUFFER_MS;
-    },
-    [CHECKIN_BUFFER_MS],
-  );
-  const formatLocalStartTime = React.useCallback((dateStr: string, timeStr?: string | null) => {
-    const normalizedTime =
-      (timeStr ?? '00:00').length === 5 ? `${timeStr ?? '00:00'}:00` : timeStr ?? '00:00';
-    const start = new Date(`${dateStr}T${normalizedTime}Z`);
-    if (Number.isNaN(start.getTime())) {
-      return timeStr ?? '';
-    }
-    return start.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
-  }, []);
   const formatStatus = (status: string) => {
     switch (status) {
       case 'UPCOMING':
@@ -302,11 +168,8 @@ export const MyAppointmentsScreen: React.FC = () => {
       doctorName: string;
       petName?: string;
     }) => {
-      const appointmentDateTime = `${appointment.date}T${appointment.time}:00`;
-      const activationMinutes = 5;
-      const chatIsActive = isChatActive(appointmentDateTime, activationMinutes);
-
       const openChat = () => {
+        const appointmentDateTime = `${appointment.date}T${appointment.time}:00`;
         navigation.navigate('ChatChannel', {
           appointmentId: appointment.id,
           vetId: employee?.id || 'vet-1',
@@ -316,115 +179,31 @@ export const MyAppointmentsScreen: React.FC = () => {
         });
       };
 
-      if (!chatIsActive) {
-        const timeRemaining = getTimeUntilChatActivation(appointmentDateTime, activationMinutes);
-
-        if (timeRemaining) {
-          const {minutes, seconds} = timeRemaining;
-          const formattedTime = formatAppointmentTime(appointmentDateTime);
-
-          Alert.alert(
-            'Chat Locked 🔒',
-            `Chat will be available ${activationMinutes} minutes before your appointment.\n\n` +
-              `Appointment: ${formattedTime}\n` +
-              `Unlocks in: ${minutes}m ${seconds}s\n\n` +
-              `(This restriction comes from your clinic's settings)`,
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel',
-              },
-              {
-                text: 'Mock Chat (Testing)',
-                style: 'default',
-                onPress: () => {
-                  console.log('[MOCK] Bypassing chat time restriction for testing');
-                  openChat();
-                },
-              },
-            ],
-            {cancelable: true},
-          );
-        } else {
-          Alert.alert(
-            'Chat Unavailable',
-            'This appointment has ended and chat is no longer available.',
-            [{text: 'OK'}],
-          );
-        }
-        return;
-      }
-
-      openChat();
+      handleChatActivation({
+        appointment,
+        employee,
+        companions,
+        doctorName,
+        petName,
+        onOpenChat: openChat,
+      });
     },
-    [navigation],
+    [navigation, companions],
   );
 
   const handleCheckIn = React.useCallback(
     async (appointment: AppointmentItem) => {
-      if (!canUseAppointments) {
-        showPermissionToast('appointments');
-        return;
-      }
-      const withinTimeWindow = isWithinCheckInWindow(appointment.date, appointment.time);
-      if (!withinTimeWindow) {
-        const startLabel = formatLocalStartTime(appointment.date, appointment.time);
-        Alert.alert(
-          'Too early to check in',
-          `You can check in starting 5 minutes before your appointment at ${startLabel}.`,
-        );
-        return;
-      }
-      const coords = getBusinessCoordinates(appointment);
-      if (!coords.lat || !coords.lng) {
-        Alert.alert('Location unavailable', 'Clinic location is missing. Please try again later.');
-        return;
-      }
-      const userCoords = await LocationService.getLocationWithRetry(2);
-      if (!userCoords) {
-        return;
-      }
-      const distance = distanceBetweenCoordsMeters(
-        userCoords.latitude,
-        userCoords.longitude,
-        coords.lat,
-        coords.lng,
-      );
-      if (distance === null) {
-        Alert.alert('Location unavailable', 'Unable to determine distance for check-in.');
-        return;
-      }
-      if (distance > CHECKIN_RADIUS_METERS) {
-        Alert.alert(
-          'Too far to check in',
-          `Move closer to the clinic to check in. You are ~${Math.round(distance)}m away.`,
-        );
-        return;
-      }
-      setCheckingIn(prev => ({...prev, [appointment.id]: true}));
-      try {
-        await dispatch(checkInAppointment({appointmentId: appointment.id})).unwrap();
-        await dispatch(fetchAppointmentById({appointmentId: appointment.id})).unwrap();
-        dispatch(fetchAppointmentsForCompanion({companionId: appointment.companionId}));
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Checked in', ToastAndroid.SHORT);
-        }
-      } catch (error) {
-        console.warn('[Appointment] Check-in failed', error);
-        Alert.alert('Check-in failed', 'Unable to check in right now. Please try again.');
-      } finally {
-        setCheckingIn(prev => ({...prev, [appointment.id]: false}));
-      }
+      await handleCheckInUtil({
+        appointment,
+        businessCoordinates: getCoordinatesFromUtility(appointment),
+        onCheckingInChange: (id, checking) => {
+          setCheckingIn(prev => ({...prev, [id]: checking}));
+        },
+        hasPermission: canUseAppointments,
+        onPermissionDenied: () => showPermissionDeniedToast('appointments'),
+      });
     },
-    [
-      CHECKIN_RADIUS_METERS,
-      canUseAppointments,
-      dispatch,
-      getBusinessCoordinates,
-      isWithinCheckInWindow,
-      formatLocalStartTime,
-      showPermissionToast,
-    ],
+    [handleCheckInUtil, canUseAppointments, getCoordinatesFromUtility],
   );
 
   const renderEmptyCard = (title: string, subtitle: string) => (
@@ -476,7 +255,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     needsPayment,
     isRequested,
     statusAllowsActions,
-    canCheckIn,
     isCheckedIn,
     isCheckingIn,
   }: {
@@ -495,7 +273,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     needsPayment: boolean;
     isRequested: boolean;
     statusAllowsActions: boolean;
-    canCheckIn: boolean;
     isCheckedIn: boolean;
     isCheckingIn: boolean;
   }) => {
@@ -563,11 +340,11 @@ export const MyAppointmentsScreen: React.FC = () => {
               petName,
             })
           }
-          onChatBlocked={() => showPermissionToast('chat with vet')}
+          onChatBlocked={() => showPermissionDeniedToast('chat with vet')}
           checkInLabel={isCheckedIn ? 'Checked in' : 'Check in'}
-          checkInDisabled={isCheckedIn || isCheckingIn || !canCheckIn}
+          checkInDisabled={isCheckedIn || isCheckingIn}
           onCheckIn={() => {
-            if (canCheckIn && !isCheckingIn && !isCheckedIn) {
+            if (!isCheckingIn && !isCheckedIn) {
               handleCheckIn(item);
             }
           }}
@@ -652,58 +429,36 @@ export const MyAppointmentsScreen: React.FC = () => {
       return null;
     }
     const emp = employeeMap.get(item.employeeId ?? '');
-    const service = serviceMap.get(item.serviceId ?? '');
-    const biz = businessMap.get(item.businessId);
-    const formattedDate = formatDate(item.date);
-    const timeLabel = formatTime(item.date, item.time);
+    const formattedDate = formatDateLocale(item.date);
+    const timeLabel = formatTimeLocale(item.date, item.time);
     const dateTimeLabel = timeLabel ? `${formattedDate} - ${timeLabel}` : formattedDate;
-    const hasAssignedVet = Boolean(emp || item.employeeName);
-    const companionAvatar =
-      companions.find(c => c.id === item.companionId)?.profileImage ?? null;
-    const googlePlacesId = biz?.googlePlacesId ?? item.businessGooglePlacesId ?? null;
-    const businessPhoto = biz?.photo ?? item.businessPhoto ?? null;
-    const fallbackPhoto = businessFallbacks[item.businessId]?.photo ?? null;
-    const avatarSource =
-      businessPhoto ||
-      fallbackPhoto ||
-      (companionAvatar ? {uri: companionAvatar} : Images.cat);
-    const cardTitle = hasAssignedVet
-      ? emp?.name ?? item.employeeName ?? 'Assigned vet'
-      : service?.name ?? item.serviceName ?? 'Service request';
-    const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
-    const serviceSubtitle = [service?.specialty ?? item.type ?? 'Awaiting vet assignment', servicePriceText]
-      .filter(Boolean)
-      .join(' • ');
-    const providerDesignation =
-      emp?.specialization ?? item.employeeTitle ?? service?.specialty ?? item.type ?? '';
-    const cardSubtitle = hasAssignedVet ? providerDesignation : serviceSubtitle;
-    const petName = companions.find(c => c.id === item.companionId)?.name;
-    const businessName = biz?.name || item.organisationName || '';
-    const businessAddress = biz?.address || item.organisationAddress || '';
-    let assignmentNote: string | undefined;
-    if (!hasAssignedVet) {
-      assignmentNote =
-        'Your request is pending review. The business will assign a provider once it’s approved.';
-    } else if (
-      item.status === 'PAID' ||
-      item.status === 'UPCOMING' ||
-      item.status === 'CHECKED_IN'
-    ) {
-      assignmentNote =
-        'Check-in unlocks when you are within ~200m of the clinic and 5 minutes before start time.';
-    }
-    const needsPayment =
-      item.status === 'NO_PAYMENT' ||
-      item.status === 'AWAITING_PAYMENT' ||
-      item.status === 'PAYMENT_FAILED';
-    const isRequested = item.status === 'REQUESTED';
-    const isCheckedIn = item.status === 'CHECKED_IN';
-    const withinTimeWindow = isWithinCheckInWindow(item.date, item.time);
-    const statusAllowsActions =
-      (item.status === 'UPCOMING' || isCheckedIn) && !needsPayment;
-    const canCheckIn =
-      item.status === 'UPCOMING' && hasAssignedVet && !needsPayment && withinTimeWindow;
     const isCheckingIn = Boolean(checkingIn[item.id]);
+
+    const cardData = transformAppointmentCardData(
+      item,
+      businessMap,
+      employeeMap,
+      serviceMap,
+      companions,
+      businessFallbacks,
+      Images,
+    );
+
+    const {
+      cardTitle,
+      cardSubtitle,
+      businessName,
+      businessAddress,
+      petName,
+      avatarSource,
+      fallbackPhoto,
+      googlePlacesId,
+      assignmentNote,
+      needsPayment,
+      isRequested,
+      statusAllowsActions,
+      isCheckedIn,
+    } = cardData;
 
     return section.key === 'upcoming'
       ? renderUpcomingCard({
@@ -722,7 +477,6 @@ export const MyAppointmentsScreen: React.FC = () => {
           needsPayment,
           isRequested,
           statusAllowsActions,
-          canCheckIn,
           isCheckedIn,
           isCheckingIn,
         })

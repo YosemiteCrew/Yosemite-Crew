@@ -144,15 +144,17 @@ const isDummyPhoto = (photo?: string | null) =>
 
 const toDateFromTime = (time: string | null | undefined, date: string): Date | null => {
   if (!time) return null;
-  const trimmed = time.toString().trim();
-  const direct = new Date(trimmed);
-  if (!Number.isNaN(direct.getTime())) {
-    return direct;
+  const [yyyy, mm, dd] = date.split('-').map(Number);
+  const [hh, min] = time.split(':').map(Number);
+  if ([yyyy, mm, dd, hh, min].some(n => Number.isNaN(n))) {
+    const fallback = new Date(`${date}T${time}`);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
   }
-  const normalizedTime = trimmed.length === 5 ? `${trimmed}:00` : trimmed;
-  const candidate = new Date(`${date}T${normalizedTime}${normalizedTime.endsWith('Z') ? '' : 'Z'}`);
-  return Number.isNaN(candidate.getTime()) ? null : candidate;
+  const utcMillis = Date.UTC(yyyy, (mm ?? 1) - 1, dd ?? 1, hh ?? 0, min ?? 0);
+  return new Date(utcMillis);
 };
+
+const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const toLocalTimeString = (d: Date | null) =>
   d
@@ -160,6 +162,7 @@ const toLocalTimeString = (d: Date | null) =>
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
+        timeZone: deviceTimeZone,
       })
     : null;
 

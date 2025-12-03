@@ -30,6 +30,92 @@ import {distanceBetweenCoordsMeters} from '@/shared/utils/geoDistance';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
+const useStatusDisplay = (theme: any) => {
+  const getStatusDisplay = (statusValue: string) => {
+    switch (statusValue) {
+      case 'UPCOMING':
+        return {text: 'Upcoming', textColor: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
+      case 'CHECKED_IN':
+        return {text: 'Checked in', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+      case 'REQUESTED':
+        return {text: 'Requested', textColor: theme.colors.primary, backgroundColor: theme.colors.primaryTint};
+      case 'NO_PAYMENT':
+      case 'AWAITING_PAYMENT':
+        return {text: 'Payment pending', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+      case 'PAYMENT_FAILED':
+        return {text: 'Payment failed', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+      case 'PAID':
+        return {text: 'Paid', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+      case 'CONFIRMED':
+      case 'SCHEDULED':
+        return {text: 'Scheduled', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+      case 'COMPLETED':
+        return {text: 'Completed', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+      case 'CANCELLED':
+        return {text: 'Cancelled', textColor: '#991B1B', backgroundColor: 'rgba(239, 68, 68, 0.12)'};
+      case 'RESCHEDULED':
+        return {text: 'Rescheduled', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+      default:
+        return {text: statusValue, textColor: theme.colors.textSecondary, backgroundColor: theme.colors.border + '40'};
+    }
+  };
+  return getStatusDisplay;
+};
+
+const useStatusFlags = (status: string) => {
+  return useMemo(() => {
+    const isPaymentPending = status === 'NO_PAYMENT' || status === 'AWAITING_PAYMENT' || status === 'PAYMENT_FAILED';
+    const isRequested = status === 'REQUESTED';
+    const isUpcoming = status === 'UPCOMING';
+    const isCheckedIn = status === 'CHECKED_IN';
+    const isTerminal = status === 'COMPLETED' || status === 'CANCELLED';
+    return {
+      isPaymentPending,
+      isRequested,
+      isUpcoming,
+      isCheckedIn,
+      isTerminal,
+      showPayNow: isPaymentPending && !isRequested,
+      showInvoice: true,
+      showCancel: !isTerminal,
+    };
+  }, [status]);
+};
+
+const useAppointmentDisplayData = (params: {
+  apt: any;
+  business: any;
+  service: any;
+  employee: any;
+  isDummyPhoto: (photo?: string | null) => boolean;
+  businessPhoto: any;
+  fallbackPhoto: any;
+  isRequested: boolean;
+}) => {
+  const {apt, business, service, employee, isDummyPhoto, businessPhoto, fallbackPhoto, isRequested} = params;
+  return useMemo(() => {
+    const hasAssignedEmployee = Boolean(employee);
+    const cancellationNote = apt.status === 'CANCELLED'
+      ? 'This appointment was cancelled. Refunds, if applicable, are processed per the clinic\'s policy and card network timelines.'
+      : null;
+    const businessName = business?.name || apt.organisationName || 'Clinic';
+    const businessAddress = business?.address || apt.organisationAddress || '';
+    const resolvedPhoto = fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto);
+    const department = service?.specialty ?? apt.type ?? service?.name ?? apt.serviceName ?? null;
+    const statusHelpText = !hasAssignedEmployee && isRequested
+      ? 'Your request is pending review. The business will assign a provider once it\'s approved.'
+      : null;
+    return {
+      cancellationNote,
+      businessName,
+      businessAddress,
+      resolvedPhoto,
+      department,
+      statusHelpText,
+    };
+  }, [apt, business, service, employee, isDummyPhoto, businessPhoto, fallbackPhoto, isRequested]);
+};
+
 export const ViewAppointmentScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -73,10 +159,6 @@ export const ViewAppointmentScreen: React.FC = () => {
     }
   }, [apt?.companionId, dispatch]);
 
-  if (!apt) {
-    return null;
-  }
-
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
   const isDummyPhoto = React.useCallback(
@@ -87,22 +169,19 @@ export const ViewAppointmentScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!googlePlacesId) return;
-    const needsPhoto = (!businessPhoto || isDummyPhoto(businessPhoto)) && !fallbackPhoto;
-    if (!needsPhoto) return;
-    dispatch(fetchBusinessDetails(googlePlacesId))
-      .unwrap()
-      .then(res => {
+    if (!googlePlacesId || (!businessPhoto || isDummyPhoto(businessPhoto)) === false || fallbackPhoto) return;
+    const fetchPhoto = async () => {
+      try {
+        const res = await dispatch(fetchBusinessDetails(googlePlacesId)).unwrap();
         if (res.photoUrl) setFallbackPhoto(res.photoUrl);
-      })
-      .catch(() => {
-        dispatch(fetchGooglePlacesImage(googlePlacesId))
-          .unwrap()
-          .then(img => {
-            if (img.photoUrl) setFallbackPhoto(img.photoUrl);
-          })
-          .catch(() => {});
-      });
+      } catch {
+        try {
+          const img = await dispatch(fetchGooglePlacesImage(googlePlacesId)).unwrap();
+          if (img.photoUrl) setFallbackPhoto(img.photoUrl);
+        } catch {}
+      }
+    };
+    fetchPhoto();
   }, [businessPhoto, dispatch, fallbackPhoto, googlePlacesId, isDummyPhoto]);
 
   const businessCoords = React.useMemo(
@@ -135,8 +214,24 @@ export const ViewAppointmentScreen: React.FC = () => {
     return start.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
   }, [apt]);
 
+  const status = apt?.status ?? 'REQUESTED';
+  const getStatusDisplay = useStatusDisplay(theme);
+  const statusFlags = useStatusFlags(status);
+  const {isRequested, isUpcoming, isCheckedIn, isTerminal, showPayNow, showInvoice, showCancel} =
+    statusFlags;
+  const statusInfo = getStatusDisplay(status);
+  const displayData = useAppointmentDisplayData({apt, business, service, employee, isDummyPhoto, businessPhoto, fallbackPhoto, isRequested});
+  const {cancellationNote, businessName, businessAddress, resolvedPhoto, department, statusHelpText} = displayData;
+
   if (!apt) {
-    return null;
+    return (
+      <SafeArea>
+        <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading appointment...</Text>
+        </View>
+      </SafeArea>
+    );
   }
 
   const handleOpenDocument = (documentId: string) => {
@@ -147,74 +242,12 @@ export const ViewAppointmentScreen: React.FC = () => {
       } as any);
     }
   };
-
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'UPCOMING':
-        return {text: 'Upcoming', textColor: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
-      case 'CHECKED_IN':
-        return {text: 'Checked in', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
-      case 'REQUESTED':
-        return {text: 'Requested', textColor: theme.colors.primary, backgroundColor: theme.colors.primaryTint};
-      case 'NO_PAYMENT':
-      case 'AWAITING_PAYMENT':
-        return {text: 'Payment pending', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
-      case 'PAYMENT_FAILED':
-        return {text: 'Payment failed', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
-      case 'PAID':
-        return {text: 'Paid', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
-      case 'CONFIRMED':
-      case 'SCHEDULED':
-        return {text: 'Scheduled', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
-      case 'COMPLETED':
-        return {text: 'Completed', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
-      case 'CANCELLED':
-        return {text: 'Cancelled', textColor: '#991B1B', backgroundColor: 'rgba(239, 68, 68, 0.12)'};
-      case 'RESCHEDULED':
-        return {text: 'Rescheduled', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
-      default:
-        return {text: status, textColor: theme.colors.textSecondary, backgroundColor: theme.colors.border + '40'};
-    }
-  };
-
-  const statusInfo = getStatusDisplay(apt.status);
-  const statusFlags = useMemo(() => {
-    const isPaymentPending =
-      apt.status === 'NO_PAYMENT' ||
-      apt.status === 'AWAITING_PAYMENT' ||
-      apt.status === 'PAYMENT_FAILED';
-    const isRequested = apt.status === 'REQUESTED';
-    const isUpcoming = apt.status === 'UPCOMING';
-    const isCheckedIn = apt.status === 'CHECKED_IN';
-    const isTerminal = apt.status === 'COMPLETED' || apt.status === 'CANCELLED';
-    return {
-      isPaymentPending,
-      isRequested,
-      isUpcoming,
-      isCheckedIn,
-      isTerminal,
-      showPayNow: isPaymentPending && !isRequested,
-      showInvoice: true,
-      showCancel: !isTerminal,
-    };
-  }, [apt.status]);
-  const {isPaymentPending, isRequested, isUpcoming, isCheckedIn, isTerminal, showPayNow, showInvoice, showCancel} =
-    statusFlags;
-  const hasAssignedEmployee = Boolean(employee);
-  const cancellationNote =
-    apt.status === 'CANCELLED'
-      ? 'This appointment was cancelled. Refunds, if applicable, are processed per the clinic’s policy and card network timelines.'
-      : null;
-  const businessName = business?.name || apt.organisationName || 'Clinic';
-  const businessAddress = business?.address || apt.organisationAddress || '';
-  const resolvedPhoto = fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto);
   const businessSummary = {
     name: businessName,
     address: businessAddress,
     description: business?.description ?? undefined,
     photo: resolvedPhoto ?? undefined,
   };
-  const department = service?.specialty ?? apt.type ?? service?.name ?? apt.serviceName ?? null;
   const employeeFallback =
     !employee && (apt.employeeName || apt.employeeTitle)
       ? {
@@ -226,12 +259,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           avatar: undefined,
         }
       : null;
-  const statusHelpText =
-    !hasAssignedEmployee && isRequested
-      ? 'Your request is pending review. The business will assign a provider once it’s approved.'
-      : null;
   const showCheckInButton = (isUpcoming || isCheckedIn) && !isTerminal;
-  const canCheckIn = isUpcoming && !isPaymentPending && !isTerminal && isWithinCheckInWindow;
   const normalizedStartTime =
     (apt.time?.length === 5 ? `${apt.time}:00` : apt.time ?? '00:00') ?? '00:00';
   const localStartDate = new Date(`${apt.date}T${normalizedStartTime}Z`);
@@ -253,13 +281,13 @@ export const ViewAppointmentScreen: React.FC = () => {
       {showCheckInButton && (
         <LiquidGlassButton
           title={isCheckedIn ? 'Checked in' : 'Check in'}
-          onPress={canCheckIn ? handleCheckIn : () => {}}
+          onPress={handleCheckIn}
           height={56}
           borderRadius={16}
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
           textStyle={styles.confirmPrimaryButtonText}
-          disabled={!canCheckIn || checkingIn || isCheckedIn}
+          disabled={checkingIn || isCheckedIn}
         />
       )}
 
@@ -346,23 +374,24 @@ export const ViewAppointmentScreen: React.FC = () => {
     }
   };
 
-  const handleCheckIn = async () => {
-    if (!isWithinCheckInWindow) {
-      const startLabel = formatLocalStartTime();
-      Alert.alert(
-        'Too early to check in',
-        `You can check in starting 5 minutes before your appointment at ${startLabel}.`,
-      );
-      return;
-    }
+  const validateCheckInTime = (): boolean => {
+    if (isWithinCheckInWindow) return true;
+    const startLabel = formatLocalStartTime();
+    Alert.alert(
+      'Too early to check in',
+      `You can check in starting 5 minutes before your appointment at ${startLabel}.`,
+    );
+    return false;
+  };
+
+  const validateCheckInLocation = async (): Promise<boolean> => {
     if (!businessCoords.lat || !businessCoords.lng) {
       Alert.alert('Location unavailable', 'Clinic location is missing. Please try again later.');
-      return;
+      return false;
     }
     const userCoords = await LocationService.getLocationWithRetry(2);
-    if (!userCoords) {
-      return;
-    }
+    if (!userCoords) return false;
+
     const distance = distanceBetweenCoordsMeters(
       userCoords.latitude,
       userCoords.longitude,
@@ -371,15 +400,22 @@ export const ViewAppointmentScreen: React.FC = () => {
     );
     if (distance === null) {
       Alert.alert('Location unavailable', 'Unable to determine distance for check-in.');
-      return;
+      return false;
     }
     if (distance > CHECKIN_RADIUS_METERS) {
       Alert.alert(
         'Too far to check in',
         `Move closer to the clinic to check in. You are ~${Math.round(distance)}m away.`,
       );
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const handleCheckIn = async () => {
+    if (!validateCheckInTime()) return;
+    if (!(await validateCheckInLocation())) return;
+
     setCheckingIn(true);
     try {
       await dispatch(checkInAppointment({appointmentId})).unwrap();
@@ -606,6 +642,13 @@ const createStyles = (theme: any) => StyleSheet.create({
   actionsContainer: {
     gap: theme.spacing[3],
     marginTop: theme.spacing[2],
+  },
+  loadingContainer: {
+    padding: theme.spacing[4],
+  },
+  loadingText: {
+    ...theme.typography.body14,
+    color: theme.colors.textSecondary,
   },
   confirmPrimaryButtonText: {
     ...theme.typography.button,

@@ -10,7 +10,6 @@ import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import type {BusinessCategory, VetBusiness} from '@/features/appointments/types';
 import {useNavigation} from '@react-navigation/native';
-import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
@@ -161,11 +160,9 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const requestedDetailsRef = React.useRef<Set<string>>(new Set());
 
   const [category, setCategory] = useState<BusinessCategory | undefined>(undefined);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [query, setQuery] = useState('');
   const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
   const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
-  const availability = useSelector((s: RootState) => s.businesses.availability);
 
   useEffect(() => {
     dispatch(fetchBusinesses(undefined));
@@ -256,20 +253,6 @@ export const BrowseBusinessesScreen: React.FC = () => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-
-        <CalendarMonthStrip
-          selectedDate={selectedDate}
-          onChange={setSelectedDate}
-          datesWithMarkers={useMemo(() => {
-            const set = new Set<string>();
-            const allowedBiz = new Set(businesses.map(b => b.id));
-            for (const av of availability) {
-              if (!allowedBiz.has(av.businessId)) continue;
-              for (const key of Object.keys(av.slotsByDate)) set.add(key);
-            }
-            return set;
-          }, [availability, businesses])}
-        />
 
         <SearchBar placeholder="Search for services" mode="input" value={query} onChangeText={setQuery} />
 

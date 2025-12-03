@@ -16,13 +16,10 @@ import {
   useNavigation,
   useRoute,
   type RouteProp,
-  type NavigationProp,
 } from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {
   AppointmentStackParamList,
-  TabParamList,
-  RootStackParamList,
 } from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
 import {
@@ -35,6 +32,8 @@ import {
 import {formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {uploadDocumentFiles} from '@/features/documents/documentSlice';
+import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
+import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -86,37 +85,8 @@ export const BookingFormScreen: React.FC = () => {
     ...theme.typography.paragraphBold,
     color: theme.colors.primary,
   };
-  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
-  const rootNavigation = tabNavigation?.getParent<NavigationProp<RootStackParamList>>();
-  const findNavigatorWithRoute = (routeName: string) => {
-    let nav: any = navigation;
-    while (nav) {
-      const state = nav.getState?.();
-      if (state?.routeNames?.includes(routeName)) {
-        return nav as NavigationProp<any>;
-      }
-      nav = nav.getParent?.();
-    }
-    return null;
-  };
-  const handleOpenTerms = () => {
-    navigation.popToTop();
-    const nav =
-      findNavigatorWithRoute('HomeStack') ??
-      rootNavigation ??
-      tabNavigation ??
-      navigation.getParent<NavigationProp<TabParamList>>();
-    nav?.navigate('HomeStack' as any, {screen: 'TermsAndConditions'});
-  };
-  const handleOpenPrivacy = () => {
-    navigation.popToTop();
-    const nav =
-      findNavigatorWithRoute('HomeStack') ??
-      rootNavigation ??
-      tabNavigation ??
-      navigation.getParent<NavigationProp<TabParamList>>();
-    nav?.navigate('HomeStack' as any, {screen: 'PrivacyPolicy'});
-  };
+  const {handleOpenTerms, handleOpenPrivacy} = useNavigateToLegalPages();
+  useAutoSelectCompanion(companions, selectedCompanionId);
 
   const todayISO = useMemo(() => formatDateToISODate(new Date()), []);
   const firstAvailableDate = useMemo(
@@ -171,18 +141,6 @@ export const BookingFormScreen: React.FC = () => {
     },
     [],
   );
-  // Auto-select the first companion if none selected to avoid disabled CTA
-  React.useEffect(() => {
-    if (!selectedCompanionId && companions.length > 0) {
-      const fallbackId =
-        companions[0]?.id ??
-        (companions[0] as any)?._id ??
-        (companions[0] as any)?.identifier?.[0]?.value;
-      if (fallbackId) {
-        dispatch(setSelectedCompanion(fallbackId));
-      }
-    }
-  }, [companions, dispatch, selectedCompanionId]);
 
   const {
     refs: {uploadSheetRef, deleteSheetRef},
