@@ -89,7 +89,7 @@ export const mockGetOrCreateAppointmentChannel = async (
  *
  * Chat is active from (appointment - activationMinutes) until (appointment + 30 minutes)
  *
- * @param appointmentTime - ISO8601 timestamp of appointment
+ * @param appointmentTime - ISO8601 timestamp of appointment (UTC with Z suffix)
  * @param activationMinutes - Minutes before appointment when chat unlocks (default: 5)
  * @returns boolean - Whether chat is currently active
  */
@@ -98,7 +98,19 @@ export const isChatActive = (
   activationMinutes: number = 5,
 ): boolean => {
   const now = new Date();
-  const appointment = new Date(appointmentTime);
+
+  // appointmentTime should be ISO string with Z suffix for UTC
+  // If it doesn't have Z, it was created from UTC date/time and needs Z
+  const isoTime = appointmentTime.endsWith('Z')
+    ? appointmentTime
+    : `${appointmentTime}Z`;
+
+  const appointment = new Date(isoTime);
+
+  if (Number.isNaN(appointment.getTime())) {
+    console.warn('[MOCK] Invalid appointment time:', appointmentTime);
+    return false;
+  }
 
   // Calculate when chat should unlock
   const activationTime = new Date(
@@ -112,6 +124,7 @@ export const isChatActive = (
 
   console.log('[MOCK] Chat active check:', {
     now: now.toISOString(),
+    appointmentTime: appointment.toISOString(),
     activationTime: activationTime.toISOString(),
     endTime: endTime.toISOString(),
     isActive,
@@ -142,11 +155,22 @@ export const getMockUser = (userId: string) => {
 /**
  * Format appointment time for display
  *
- * @param appointmentTime - ISO8601 timestamp
+ * @param appointmentTime - ISO8601 timestamp (UTC with Z suffix, or UTC date+time)
  * @returns Formatted string like "Today at 2:00 PM" or "Jan 15 at 2:00 PM"
  */
 export const formatAppointmentTime = (appointmentTime: string): string => {
-  const date = new Date(appointmentTime);
+  // Ensure time is treated as UTC
+  const isoTime = appointmentTime.endsWith('Z')
+    ? appointmentTime
+    : `${appointmentTime}Z`;
+
+  const date = new Date(isoTime);
+
+  if (Number.isNaN(date.getTime())) {
+    console.warn('[MOCK] Invalid appointment time for formatting:', appointmentTime);
+    return appointmentTime;
+  }
+
   const now = new Date();
 
   const isToday = date.toDateString() === now.toDateString();
@@ -173,7 +197,7 @@ export const formatAppointmentTime = (appointmentTime: string): string => {
 /**
  * Get time remaining until chat activation
  *
- * @param appointmentTime - ISO8601 timestamp
+ * @param appointmentTime - ISO8601 timestamp (UTC with Z suffix, or UTC date+time)
  * @param activationMinutes - Minutes before appointment when chat unlocks
  * @returns Object with minutes and seconds remaining, or null if already active
  */
@@ -182,7 +206,19 @@ export const getTimeUntilChatActivation = (
   activationMinutes: number = 5,
 ): {minutes: number; seconds: number} | null => {
   const now = new Date();
-  const appointment = new Date(appointmentTime);
+
+  // Ensure time is treated as UTC
+  const isoTime = appointmentTime.endsWith('Z')
+    ? appointmentTime
+    : `${appointmentTime}Z`;
+
+  const appointment = new Date(isoTime);
+
+  if (Number.isNaN(appointment.getTime())) {
+    console.warn('[MOCK] Invalid appointment time for countdown:', appointmentTime);
+    return null;
+  }
+
   const activationTime = new Date(
     appointment.getTime() - activationMinutes * 60000,
   );

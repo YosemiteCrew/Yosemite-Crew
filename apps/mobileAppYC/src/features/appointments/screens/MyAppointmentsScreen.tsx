@@ -169,7 +169,13 @@ export const MyAppointmentsScreen: React.FC = () => {
       petName?: string;
     }) => {
       const openChat = () => {
-        const appointmentDateTime = `${appointment.date}T${appointment.time}:00`;
+        // Backend sends appointment.date and appointment.time in UTC
+        // Convert to ISO format with Z suffix for proper UTC handling
+        const normalized = appointment.time.length === 5
+          ? `${appointment.time}:00`
+          : appointment.time;
+        const appointmentDateTime = `${appointment.date}T${normalized}Z`;
+
         navigation.navigate('ChatChannel', {
           appointmentId: appointment.id,
           vetId: employee?.id || 'vet-1',

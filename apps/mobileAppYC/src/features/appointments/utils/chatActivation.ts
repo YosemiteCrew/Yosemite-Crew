@@ -1,10 +1,13 @@
 /**
  * Shared utility for handling chat activation logic
  * Eliminates duplication between MyAppointmentsScreen and HomeScreen
+ *
+ * Note: Appointment date/time from backend are in UTC
  */
 
 import {Alert} from 'react-native';
 import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/mockStreamBackend';
+import {getAppointmentTimeAsIso} from '@/shared/utils/timezoneUtils';
 
 export interface ChatActivationConfig {
   appointment: any;
@@ -18,11 +21,17 @@ export interface ChatActivationConfig {
 /**
  * Handle chat activation logic with proper time validation
  * Shows alerts if chat is locked or unavailable
+ *
+ * Backend sends appointment.date and appointment.time in UTC
  */
 export const handleChatActivation = (config: ChatActivationConfig): void => {
   const {appointment, onOpenChat} = config;
 
-  const appointmentDateTime = `${appointment.date}T${appointment.time}:00`;
+  // Convert UTC date/time to ISO format with Z suffix
+  const appointmentDateTime = getAppointmentTimeAsIso(
+    appointment.date,
+    appointment.time,
+  );
   const activationMinutes = 5;
   const chatIsActive = isChatActive(appointmentDateTime, activationMinutes);
 
