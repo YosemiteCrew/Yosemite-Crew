@@ -5,6 +5,14 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 
+jest.mock('@stripe/stripe-react-native', () => ({
+  StripeProvider: ({children}: {children: React.ReactNode}) => <>{children}</>,
+  useStripe: () => ({
+    initPaymentSheet: jest.fn(),
+    presentPaymentSheet: jest.fn(),
+  }),
+}));
+
 jest.mock('@/shared/services/firebaseNotifications', () => ({
   initializeNotifications: jest.fn().mockResolvedValue(undefined),
   areNotificationsInitialized: jest.fn(() => true),

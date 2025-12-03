@@ -249,7 +249,7 @@ describe('NotificationCard', () => {
 
     it('displays formatted date for >= 7 days', () => {
       renderWithTime(new Date('2024-12-22T12:00:00Z').toISOString());
-      expect(screen.getByText('Dec 22')).toBeTruthy();
+      expect(screen.getByText('Dec 22, 2024')).toBeTruthy();
     });
   });
 

@@ -212,6 +212,12 @@ describe('Checkbox', () => {
     const themeWithoutTypography = {
       ...mockTheme,
       typography: {
+        paragraph: {
+          fontFamily: 'Satoshi-Regular-Fallback',
+          fontSize: 14,
+          lineHeight: 16.8,
+          fontWeight: '400',
+        },
         SATOSHI_REGULAR: 'Satoshi-Regular-Fallback',
         // subtitleRegular14 is deliberately missing
       },
@@ -229,10 +235,10 @@ describe('Checkbox', () => {
     const style = label.props.style[0];
 
     expect(style.fontFamily).toBe(
-      themeWithoutTypography.typography.SATOSHI_REGULAR,
+      themeWithoutTypography.typography.paragraph.fontFamily,
     );
     expect(style.fontSize).toBe(14);
-    expect(style.lineHeight).toBe(14 * 1.2);
+    expect(style.lineHeight).toBe(16.8);
     expect(style.fontWeight).toBe('400');
   });
 });

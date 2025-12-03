@@ -73,6 +73,9 @@ describe('passwordlessAuth', () => {
       expect(result).toEqual({
         destination: 'test@example.com',
         isNewUser: true,
+        challengeLength: 4,
+        challengeType: 'otp',
+        isDemoLogin: false,
         nextStep: {
           signInStep: 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE',
         },
@@ -124,6 +127,9 @@ describe('passwordlessAuth', () => {
       expect(result).toEqual({
         destination: 'existing@example.com',
         isNewUser: false,
+        challengeLength: 4,
+        challengeType: 'otp',
+        isDemoLogin: false,
         nextStep: {
           signInStep: 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE',
         },

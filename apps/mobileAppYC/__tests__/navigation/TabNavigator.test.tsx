@@ -4,6 +4,17 @@ import {NavigationContainer} from '@react-navigation/native';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
 
+// Mock Stripe before importing anything that uses it
+jest.mock('@stripe/stripe-react-native', () => ({
+  useStripe: () => ({
+    initPaymentSheet: jest.fn(),
+    presentPaymentSheet: jest.fn(),
+  }),
+  useConfirmPayment: () => ({
+    confirmPayment: jest.fn(),
+  }),
+}));
+
 // Mock bottom tabs
 jest.mock('@react-navigation/bottom-tabs', () => ({
   createBottomTabNavigator: () => ({

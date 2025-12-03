@@ -278,7 +278,11 @@ describe('ExpensePreviewScreen', () => {
     expect(getByText(/Sub category:\s+Sub:subcat-checkup/)).toBeTruthy();
     expect(getByText(/Visit type:\s+Visit:visit-annual/)).toBeTruthy();
     expect(
-      getByText(new Date(mockExternalExpense.date).toLocaleDateString()),
+      getByText(new Date(mockExternalExpense.date).toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })),
     ).toBeTruthy();
     expect(getByText('$125.50')).toBeTruthy();
     expect(getByText('Buddy')).toBeTruthy();
