@@ -29,7 +29,8 @@ export const InvoiceController = {
   async getInvoiceByPaymentIntentId(this: void, req: Request, res: Response) {
     try {
       const paymentIntentId = req.params.paymentIntentId;
-      const invoice = await InvoiceService.getByPaymentIntentId(paymentIntentId);
+      const invoice =
+        await InvoiceService.getByPaymentIntentId(paymentIntentId);
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }

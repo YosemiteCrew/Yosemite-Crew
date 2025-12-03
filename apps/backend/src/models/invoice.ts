@@ -10,7 +10,7 @@ export type InvoiceStatusMongo =
 
 export type InvoiceItemMongo = {
   id?: string;
-  name: string;                       // REQUIRED for line item
+  name: string; // REQUIRED for line item
   description?: string | null;
   quantity: number;
   unitPrice: number;
@@ -21,14 +21,14 @@ export type InvoiceItemMongo = {
 const InvoiceItemSchema = new Schema(
   {
     id: { type: String },
-    name: { type: String, required: true },          // ← required
+    name: { type: String, required: true }, // ← required
     description: { type: String, default: null },
     quantity: { type: Number, required: true },
     unitPrice: { type: Number, required: true },
     discountPercent: { type: Number, default: null },
     total: { type: Number, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 export interface InvoiceMongo {
@@ -80,8 +80,8 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
     },
 
     subtotal: { type: Number, required: true },
-    discountTotal: { type: Number, default: 0 },      // ← added
-    taxTotal: { type: Number, default: 0 },           // ← added
+    discountTotal: { type: Number, default: 0 }, // ← added
+    taxTotal: { type: Number, default: 0 }, // ← added
     taxPercent: { type: Number, default: 0 },
 
     totalAmount: { type: Number, required: true },
@@ -93,8 +93,8 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
     stripePaymentLinkId: { type: String, default: null },
     stripeInvoiceId: { type: String, default: null },
     stripeCustomerId: { type: String, default: null },
-    stripeChargeId: { type: String, default: null },       // ← added
-    stripeReceiptUrl: { type: String, default: null },     // ← added
+    stripeChargeId: { type: String, default: null }, // ← added
+    stripeReceiptUrl: { type: String, default: null }, // ← added
 
     status: {
       type: String,
@@ -111,7 +111,7 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
 
     metadata: { type: Schema.Types.Mixed },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Indexes

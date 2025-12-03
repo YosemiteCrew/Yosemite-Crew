@@ -1,4 +1,4 @@
-import {Request, Response} from "express";
+import { Request, Response } from "express";
 import { FormService, FormServiceError } from "src/services/form.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { FormRequestDTO, FormSubmissionRequestDTO } from "@yosemite-crew/types";
@@ -14,13 +14,14 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
 };
 
 export const FormController = {
-
   createForm: async (req: Request, res: Response) => {
     try {
       const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized: User ID missing" });
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
       }
 
       const formRequest = req.body as FormRequestDTO;
@@ -72,7 +73,9 @@ export const FormController = {
       const formId = req.params.formId;
       const userId = resolveUserIdFromRequest(req);
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized: User ID missing" });
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
       }
 
       const formRequest = req.body as FormRequestDTO;
@@ -93,7 +96,9 @@ export const FormController = {
       const formId = req.params.formId;
       const userId = resolveUserIdFromRequest(req);
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized: User ID missing" });
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
       }
 
       const form = await FormService.publish(formId, userId);
@@ -112,7 +117,9 @@ export const FormController = {
       const formId = req.params.formId;
       const userId = resolveUserIdFromRequest(req);
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized: User ID missing" });
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
       }
 
       const form = await FormService.unpublish(formId, userId);
@@ -131,7 +138,9 @@ export const FormController = {
       const formId = req.params.formId;
       const userId = resolveUserIdFromRequest(req);
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized: User ID missing" });
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
       }
 
       const form = await FormService.archive(formId, userId);
@@ -149,9 +158,13 @@ export const FormController = {
     try {
       const submissionRequest = req.body as FormSubmissionRequestDTO;
       const authUserId = resolveUserIdFromRequest(req);
-      const authUser = await AuthUserMobileService.getByProviderUserId(authUserId!);
+      const authUser = await AuthUserMobileService.getByProviderUserId(
+        authUserId!,
+      );
       if (!authUser) {
-        return res.status(401).json({ message: "Unauthorized: User not found" });
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User not found" });
       }
 
       const submission = await FormService.submitFHIR(submissionRequest);
@@ -165,7 +178,7 @@ export const FormController = {
     }
   },
 
-  getFormSubmissions: async (req: Request, res: Response)=> {
+  getFormSubmissions: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.formId;
 
@@ -194,5 +207,4 @@ export const FormController = {
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
-  
 };

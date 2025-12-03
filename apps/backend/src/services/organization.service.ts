@@ -731,7 +731,7 @@ export const OrganizationService = {
         type: 1,
         address: 1,
         googlePlacesId: 1,
-      }
+      },
     )
       .skip(skip)
       .limit(limit);
@@ -748,13 +748,13 @@ export const OrganizationService = {
       // fetch services of org
       const services = await ServiceModel.find(
         { organisationId: org._id },
-        { name: 1, cost: 1, specialityId: 1 }
+        { name: 1, cost: 1, specialityId: 1 },
       );
 
       // group services inside each speciality
       const specialitiesWithServices = specialities.map((spec) => {
         const specServices = services.filter(
-          (srv) => srv.specialityId?.toString() === spec._id.toString()
+          (srv) => srv.specialityId?.toString() === spec._id.toString(),
         );
 
         return {

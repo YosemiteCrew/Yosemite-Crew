@@ -6,20 +6,23 @@ import {
   FormSubmissionModel,
 } from "../models/form";
 
-import { 
-  Form, 
-  FormField, 
+import {
+  Form,
+  FormField,
   FormSubmission,
   FormRequestDTO,
-  toFormResponseDTO, 
-  fromFormRequestDTO, 
-  fromFormSubmissionRequestDTO, 
+  toFormResponseDTO,
+  fromFormRequestDTO,
+  fromFormSubmissionRequestDTO,
   FormSubmissionRequestDTO,
-  toFHIRQuestionnaireResponse
+  toFHIRQuestionnaireResponse,
 } from "@yosemite-crew/types";
 
 export class FormServiceError extends Error {
-  constructor(message: string, public readonly statusCode: number) {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
     super(message);
     this.name = "FormServiceError";
   }
@@ -61,14 +64,14 @@ const syncFormFields = async (formId: string, schema: FormField[]) => {
       required: f.required,
       order: f.order,
       group: f.group,
-      options: "options" in f && Array.isArray(f.options) ? f.options : undefined,
+      options:
+        "options" in f && Array.isArray(f.options) ? f.options : undefined,
       meta: f.meta,
-    }))
+    })),
   );
 };
 
 export const FormService = {
-
   async create(orgId: string, fhir: FormRequestDTO, userId: string) {
     const oid = ensureObjectId(orgId, "orgId");
 
@@ -111,7 +114,7 @@ export const FormService = {
 
   async getFormForUser(formId: string) {
     const fid = ensureObjectId(formId, "formId");
-    
+
     const version = await FormVersionModel.findOne({ formId: fid }).sort({
       version: -1,
     });
@@ -119,9 +122,8 @@ export const FormService = {
     if (!version)
       throw new FormServiceError("Form has no published version", 400);
 
-    const form = await FormModel.findById(version.formId)
-    if (!form)
-      throw new FormServiceError("Form not found", 404);
+    const form = await FormModel.findById(version.formId);
+    if (!form) throw new FormServiceError("Form not found", 404);
 
     const fhirForm = {
       _id: fid.toString(),
@@ -147,7 +149,7 @@ export const FormService = {
     const fid = ensureObjectId(formId, "formId");
 
     const existing = await FormModel.findById(fid);
-      if (!existing) throw new FormServiceError("Form not found", 404);
+    if (!existing) throw new FormServiceError("Form not found", 404);
 
     const internal: Form = fromFormRequestDTO(fhir);
 
@@ -227,7 +229,7 @@ export const FormService = {
   async submitFHIR(response: FormSubmissionRequestDTO, schema?: FormField[]) {
     const submission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
-      schema
+      schema,
     );
 
     const created = await FormSubmissionModel.create({
@@ -248,7 +250,7 @@ export const FormService = {
     const sid = ensureObjectId(submissionId, "submissionId");
 
     const sub = await FormSubmissionModel.findById(sid).lean();
-      if (!sub) throw new FormServiceError("Submission not found", 404);
+    if (!sub) throw new FormServiceError("Submission not found", 404);
 
     const version = await FormVersionModel.findOne({
       formId: sub.formId,
@@ -294,5 +296,4 @@ export const FormService = {
 
     return FormModel.find(filter).lean();
   },
-
-}
+};

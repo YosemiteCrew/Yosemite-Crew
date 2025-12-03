@@ -151,10 +151,7 @@ export const AppointmentController = {
     }
   },
 
-  acceptRequested: async (
-    req: Request,
-    res: Response,
-  ) => {
+  acceptRequested: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
       logger.info("Request Path: ", req.params);

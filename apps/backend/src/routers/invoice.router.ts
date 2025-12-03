@@ -9,19 +9,19 @@ const router = Router();
 router.get(
   "/mobile/appointment/:appointmentId",
   authorizeCognitoMobile,
-  InvoiceController.listInvoicesForAppointment
+  InvoiceController.listInvoicesForAppointment,
 );
 
 router.get(
   "/mobile/payment-intent/:paymentIntentId",
   authorizeCognitoMobile,
-  InvoiceController.getInvoiceByPaymentIntentId
+  InvoiceController.getInvoiceByPaymentIntentId,
 );
 
 router.get(
   "/mobile/:invoiceId",
   authorizeCognitoMobile,
-  InvoiceController.getInvoiceById
+  InvoiceController.getInvoiceById,
 );
 // Routes for PMS
 
@@ -29,22 +29,17 @@ router.get(
 router.get(
   "/appointment/:appointmentId",
   authorizeCognito,
-  InvoiceController.listInvoicesForAppointment
+  InvoiceController.listInvoicesForAppointment,
 );
 
 // Get invoice by Payment Intent ID
 router.get(
   "/payment-intent/:paymentIntentId",
   authorizeCognito,
-  InvoiceController.getInvoiceByPaymentIntentId
+  InvoiceController.getInvoiceByPaymentIntentId,
 );
 
 // Get invoice by ID
-router.get(
-  "/:invoiceId",
-  authorizeCognito,
-  InvoiceController.getInvoiceById
-);
-
+router.get("/:invoiceId", authorizeCognito, InvoiceController.getInvoiceById);
 
 export default router;

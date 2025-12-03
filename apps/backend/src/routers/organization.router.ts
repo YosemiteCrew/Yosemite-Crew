@@ -14,7 +14,9 @@ router.get("/getNearby", (req, res) =>
   OrganizationController.getNearbyPaginated(req, res),
 );
 
-router.get("/mobile/getNearby", authorizeCognitoMobile, (req, res) => OrganizationController.getNearbyPaginated(req, res))
+router.get("/mobile/getNearby", authorizeCognitoMobile, (req, res) =>
+  OrganizationController.getNearbyPaginated(req, res),
+);
 
 router.post("/logo/presigned-url", (req, res) =>
   OrganizationController.getLogoUploadUrl(req, res),

@@ -78,8 +78,8 @@ const mockedStripe = StripeService as unknown as {
 
 const mockedOrganizationModel = jest.requireMock("src/models/organization")
   .default as {
-    find: jest.Mock;
-  };
+  find: jest.Mock;
+};
 
 const mockedTypes = {
   fromAppointmentRequestDTO: fromAppointmentRequestDTO as jest.Mock,

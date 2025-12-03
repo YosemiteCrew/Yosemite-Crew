@@ -90,14 +90,16 @@ export const StripeService = {
     if (appointment.status !== "NO_PAYMENT")
       throw new Error("Appointment does not require payment");
 
-    const service = await ServiceModel.findById(appointment.appointmentType?.id);
+    const service = await ServiceModel.findById(
+      appointment.appointmentType?.id,
+    );
     if (!service) throw new Error("Service not found");
 
     const organisation = await OrganizationModel.findById(
-        appointment.organisationId
+      appointment.organisationId,
     );
     if (!organisation?.stripeAccountId)
-        throw new Error("Organisation has no Stripe account");
+      throw new Error("Organisation has no Stripe account");
 
     const amount = toStripeAmount(service.cost);
 
@@ -117,7 +119,7 @@ export const StripeService = {
 
     await AppointmentModel.updateOne(
       { _id: appointmentId },
-      { stripePaymentIntentId: paymentIntent.id }
+      { stripePaymentIntentId: paymentIntent.id },
     );
 
     return {
@@ -189,9 +191,12 @@ export const StripeService = {
     });
     if (!invoice) throw new Error("Invoice not found");
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
-      expand: ["latest_charge"],
-    });
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      paymentIntentId,
+      {
+        expand: ["latest_charge"],
+      },
+    );
 
     const charge = paymentIntent.latest_charge as Stripe.Charge;
     if (!charge) throw new Error("No charge found for PaymentIntent");
@@ -270,9 +275,9 @@ export const StripeService = {
     // Already processed?
     const existingInvoice = await InvoiceModel.findOne({
       appointmentId,
-      status: "PAID"
+      status: "PAID",
     });
-    
+
     if (existingInvoice) {
       logger.info(`Invoice already created for appointment ${appointmentId}`);
       return;
@@ -288,7 +293,9 @@ export const StripeService = {
     const charge = await getStripeClient().charges.retrieve(chargeId);
 
     // Fetch service details for invoice line item
-    const service = await ServiceModel.findById(appointment.appointmentType?.id);
+    const service = await ServiceModel.findById(
+      appointment.appointmentType?.id,
+    );
     if (!service) {
       logger.error("Service not found for appointment");
       return;
@@ -311,7 +318,7 @@ export const StripeService = {
           quantity: 1,
           unitPrice: service.cost,
           total: service.cost,
-        }
+        },
       ],
 
       subtotal: service.cost,
@@ -333,10 +340,12 @@ export const StripeService = {
         stripePaymentIntentId: pi.id,
         stripeChargeId: charge.id,
         updatedAt: new Date(),
-      }
+      },
     );
 
-    logger.info(`Appointment ${appointmentId} marked PAID & Invoice created ${invoice.id}`);
+    logger.info(
+      `Appointment ${appointmentId} marked PAID & Invoice created ${invoice.id}`,
+    );
   },
 
   //Payment Failed Handler
@@ -346,14 +355,13 @@ export const StripeService = {
 
     const invoice = await InvoiceModel.findOne({ appointmentId });
     if (!invoice) {
-      logger.warn(`Payment failed for appointment ${appointmentId}, no invoice to update.`);
+      logger.warn(
+        `Payment failed for appointment ${appointmentId}, no invoice to update.`,
+      );
       return;
     }
 
-    await InvoiceModel.updateOne(
-      { _id: invoice._id },
-      { status: "FAILED" }
-    );
+    await InvoiceModel.updateOne({ _id: invoice._id }, { status: "FAILED" });
 
     logger.warn(`Invoice ${invoice.id} marked FAILED`);
   },
@@ -368,15 +376,14 @@ export const StripeService = {
 
     const invoice = await InvoiceModel.findOne({ appointmentId });
     if (!invoice) {
-      logger.error(`Refund webhook received but no invoice for appointment ${appointmentId}`);
+      logger.error(
+        `Refund webhook received but no invoice for appointment ${appointmentId}`,
+      );
       return;
     }
 
-    await InvoiceModel.updateOne(
-      { _id: invoice._id },
-      { status: "REFUNDED" }
-    );
+    await InvoiceModel.updateOne({ _id: invoice._id }, { status: "REFUNDED" });
 
     logger.warn(`Invoice ${invoice.id} marked REFUNDED`);
-  }
+  },
 };

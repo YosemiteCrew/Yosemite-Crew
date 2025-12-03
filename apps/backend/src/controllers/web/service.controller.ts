@@ -135,9 +135,8 @@ export const ServiceController = {
             .json("Povide Latitude and Longitude if no authenticated request.");
         }
 
-        const authUser = await AuthUserMobileService.getByProviderUserId(
-          authUserId,
-        );
+        const authUser =
+          await AuthUserMobileService.getByProviderUserId(authUserId);
 
         const parent = await ParentModel.findById(authUser?.parentId);
 

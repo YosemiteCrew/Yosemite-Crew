@@ -59,7 +59,7 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
-    attachments: obj.attachments
+    attachments: obj.attachments,
   };
 };
 
@@ -91,7 +91,7 @@ const toDomainLean = (
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
-    attachments: obj.attachments
+    attachments: obj.attachments,
   };
 };
 
@@ -110,7 +110,7 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   status: appointment.status,
   isEmergency: appointment.isEmergency ?? false,
   concern: appointment.concern ?? undefined,
-  attachments: appointment.attachments ?? undefined
+  attachments: appointment.attachments ?? undefined,
 });
 
 type DateRangeQuery = {
@@ -706,10 +706,7 @@ export const AppointmentService = {
     }
   },
 
-  async checkInAppointmentParent(
-    appointmentId: string,
-    parentId: string,
-  ) {
+  async checkInAppointmentParent(appointmentId: string, parentId: string) {
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) {
       throw new AppointmentServiceError("Appointment not found", 404);
@@ -852,9 +849,7 @@ export const AppointmentService = {
     }
   },
 
-  async getAppointmentsForCompanion(
-    companionId: string,
-  ) {
+  async getAppointmentsForCompanion(companionId: string) {
     if (!companionId) {
       throw new AppointmentServiceError("companionId is required", 400);
     }
@@ -874,12 +869,12 @@ export const AppointmentService = {
 
     // 3. Fetch organisations in one query
     const organisations = await OrganizationModel.find(
-      { _id: { $in: orgIds }},
+      { _id: { $in: orgIds } },
       { name: 1, imageURL: 1, address: 1, phoneNo: 1, googlePlacesId: 1 },
     ).lean();
 
     console.log("organisations", organisations);
-    
+
     // Convert array → map for O(1) lookup
     const orgMap = new Map(
       organisations.map((org) => [org._id.toString(), org]),
@@ -895,7 +890,7 @@ export const AppointmentService = {
       return {
         appointment: dto,
         organisation: org,
-      }
+      };
     });
   },
 

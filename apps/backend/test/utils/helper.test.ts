@@ -47,5 +47,4 @@ describe("helpers utilities", () => {
       appointmentTime24: "15:30",
     });
   });
-
 });

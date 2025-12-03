@@ -299,7 +299,9 @@ export const ServiceService = {
     const searchRegex = new RegExp(safe, "i");
 
     // 1. Find services matching the name
-    const matchedServices = await ServiceModel.find({ name: searchRegex }).lean();
+    const matchedServices = await ServiceModel.find({
+      name: searchRegex,
+    }).lean();
     if (!matchedServices.length) return [];
 
     // 2. Extract unique organization IDs
@@ -332,28 +334,27 @@ export const ServiceService = {
     // 5. Fetch specialities + all services for these organisations
     const allSpecialities = await SpecialityModel.find(
       { organisationId: { $in: orgIds } },
-      { _id: 1, name: 1, organisationId: 1 }
+      { _id: 1, name: 1, organisationId: 1 },
     ).lean();
 
     const allServicesForOrgs = await ServiceModel.find(
       { organisationId: { $in: orgIds } },
-      { _id: 1, name: 1, cost: 1, specialityId: 1, organisationId: 1 }
+      { _id: 1, name: 1, cost: 1, specialityId: 1, organisationId: 1 },
     ).lean();
 
     // 6. Group specialities + services for each org
     return organisations.map((org) => {
       const orgSpecialities = allSpecialities.filter(
-        (s) => s.organisationId.toString() === org._id.toString()
+        (s) => s.organisationId.toString() === org._id.toString(),
       );
 
       const orgServices = allServicesForOrgs.filter(
-        (s) => s.organisationId.toString() === org._id.toString()
+        (s) => s.organisationId.toString() === org._id.toString(),
       );
 
       const specialitiesWithServices = orgSpecialities.map((spec) => {
         const specServices = orgServices.filter(
-          (srv) =>
-            srv.specialityId?.toString() === spec._id.toString()
+          (srv) => srv.specialityId?.toString() === spec._id.toString(),
         );
 
         return {

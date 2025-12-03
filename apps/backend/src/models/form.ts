@@ -3,54 +3,56 @@ import { model, Schema } from "mongoose";
 
 // Schema for Form
 
-const FormSchema = new Schema<Form>({
-  orgId: { type: String, required: true },
+const FormSchema = new Schema<Form>(
+  {
+    orgId: { type: String, required: true },
 
-  name: { type: String, required: true },
-  category: { type: String, required: true },
-  description: String,
+    name: { type: String, required: true },
+    category: { type: String, required: true },
+    description: String,
 
-  visibilityType: {
-    type: String,
-    enum: ["Internal", "External"],
-    required: true,
+    visibilityType: {
+      type: String,
+      enum: ["Internal", "External"],
+      required: true,
+    },
+
+    serviceId: {
+      type: [String],
+      default: [],
+      required: false,
+    },
+
+    speciesFilter: {
+      type: [String],
+      default: [],
+    },
+
+    status: {
+      type: String,
+      enum: ["draft", "published", "archived"],
+      default: "draft",
+    },
+
+    // Full schema JSON from frontend
+    schema: {
+      type: Schema.Types.Mixed, // stores FormField[]
+      required: true,
+      default: [],
+    },
+
+    createdBy: { type: String, required: true },
+    updatedBy: { type: String, required: true },
   },
-
-  serviceId: { 
-    type: [String], 
-    default: [], 
-    required: false
-  },
-
-  speciesFilter: {
-    type: [String],
-    default: [],
-  },
-
-  status: {
-    type: String,
-    enum: ["draft", "published", "archived"],
-    default: "draft",
-  },
-
-  // Full schema JSON from frontend
-  schema: {
-    type: Schema.Types.Mixed, // stores FormField[]
-    required: true,
-    default: [],
-  },
-
-  createdBy: { type: String, required: true },
-  updatedBy: { type: String, required: true },
-
-}, { timestamps: true });
+  { timestamps: true },
+);
 
 FormSchema.index({ orgId: 1, status: 1 });
 FormSchema.index({ orgId: 1, category: 1 });
 FormSchema.index({ serviceId: 1 });
 FormSchema.index({ status: 1 });
 
-export const FormModel =  model<Form>("Form", FormSchema);
+export const FormModel = model<Form>("Form", FormSchema);
 
 // Schema for FormFeild
 
@@ -70,37 +72,42 @@ export interface FormFieldDocument {
   meta?: Record<string, unknown>;
 }
 
+const FormFieldSchema = new Schema<FormFieldDocument>(
+  {
+    formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
 
-const FormFieldSchema = new Schema<FormFieldDocument>({
-  formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
+    // IMPORTANT: FE field ID
+    id: { type: String, required: true },
 
-  // IMPORTANT: FE field ID
-  id: { type: String, required: true },
+    type: { type: String, required: true },
+    label: { type: String, required: true },
 
-  type: { type: String, required: true },
-  label: { type: String, required: true },
+    placeholder: { type: String },
+    required: { type: Boolean },
+    order: { type: Number },
+    group: { type: String },
 
-  placeholder: { type: String },
-  required: { type: Boolean },
-  order: { type: Number },
-  group: { type: String },
+    options: {
+      type: [
+        {
+          label: String,
+          value: String,
+        },
+      ],
+    },
 
-  options: {
-    type: [
-      {
-        label: String,
-        value: String,
-      },
-    ],
+    meta: { type: Schema.Types.Mixed },
   },
-
-  meta: { type: Schema.Types.Mixed },
-}, { timestamps: true });
+  { timestamps: true },
+);
 
 FormFieldSchema.index({ formId: 1 });
 FormFieldSchema.index({ type: 1 });
 
-export const FormFieldModel = model<FormFieldDocument>("FormField", FormFieldSchema);
+export const FormFieldModel = model<FormFieldDocument>(
+  "FormField",
+  FormFieldSchema,
+);
 
 // Schema for FormVersion
 
@@ -112,28 +119,33 @@ export interface IFormVersionDocument {
   publishedAt: Date;
 }
 
-const FormVersionSchema = new Schema<IFormVersionDocument>({
-  formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
-  version: { type: Number, required: true },
+const FormVersionSchema = new Schema<IFormVersionDocument>(
+  {
+    formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
+    version: { type: Number, required: true },
 
-  schemaSnapshot: {
-    type: Schema.Types.Mixed, // stores array of FormField
-    required: true,
+    schemaSnapshot: {
+      type: Schema.Types.Mixed, // stores array of FormField
+      required: true,
+    },
+
+    fieldsSnapshot: {
+      type: Schema.Types.Mixed, // normalized field rows
+      required: true,
+    },
+
+    publishedAt: { type: Date, default: Date.now },
   },
-
-  fieldsSnapshot: {
-    type: Schema.Types.Mixed, // normalized field rows
-    required: true,
-  },
-
-  publishedAt: { type: Date, default: Date.now },
-
-}, { timestamps: true });
+  { timestamps: true },
+);
 
 FormVersionSchema.index({ formId: 1, version: 1 }, { unique: true });
 FormVersionSchema.index({ formId: 1 });
 
-export const FormVersionModel =  model<IFormVersionDocument>("FormVersion", FormVersionSchema);
+export const FormVersionModel = model<IFormVersionDocument>(
+  "FormVersion",
+  FormVersionSchema,
+);
 
 // Schema for FormSubmission
 
@@ -148,23 +160,25 @@ export interface FormSubmissionDocument {
   submittedAt: Date;
 }
 
-const FormSubmissionSchema = new Schema<FormSubmissionDocument>({
-  formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
-  formVersion: { type: Number, required: true },
+const FormSubmissionSchema = new Schema<FormSubmissionDocument>(
+  {
+    formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
+    formVersion: { type: Number, required: true },
 
-  appointmentId: String,
-  companionId: String,
-  parentId: String,
-  submittedBy: String,
+    appointmentId: String,
+    companionId: String,
+    parentId: String,
+    submittedBy: String,
 
-  answers: {
-    type: Schema.Types.Mixed,
-    required: true,
+    answers: {
+      type: Schema.Types.Mixed,
+      required: true,
+    },
+
+    submittedAt: { type: Date, default: Date.now },
   },
-
-  submittedAt: { type: Date, default: Date.now },
-
-}, { timestamps: true });
+  { timestamps: true },
+);
 
 FormSubmissionSchema.index({ formId: 1 });
 FormSubmissionSchema.index({ formId: 1, formVersion: 1 });
@@ -173,4 +187,7 @@ FormSubmissionSchema.index({ companionId: 1 });
 FormSubmissionSchema.index({ parentId: 1 });
 FormSubmissionSchema.index({ submittedAt: -1 });
 
-export const FormSubmissionModel = model<FormSubmissionDocument>("FormSubmission", FormSubmissionSchema);
+export const FormSubmissionModel = model<FormSubmissionDocument>(
+  "FormSubmission",
+  FormSubmissionSchema,
+);
