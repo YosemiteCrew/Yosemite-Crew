@@ -168,6 +168,32 @@ const formatDateOnlyDisplay = (iso?: string | null) => {
   });
 };
 
+const InvoiceDetailsCard = ({
+  invoiceNumberDisplay,
+  effectiveInvoice,
+  apt,
+  styles,
+}: {
+  invoiceNumberDisplay: string;
+  effectiveInvoice: any;
+  apt: any;
+  styles: any;
+}) => (
+  <View style={styles.metaCard}>
+    <Text style={styles.metaTitle}>Invoice details</Text>
+    <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
+    <MetaRow label="Appointment ID" value={apt?.id ?? '—'} />
+    <MetaRow
+      label="Invoice date"
+      value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
+    />
+    <MetaRow
+      label="Due till"
+      value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
+    />
+  </View>
+);
+
 const RefundSection = ({
   effectiveInvoice,
   refundAmountDisplay,
@@ -211,6 +237,211 @@ const RefundSection = ({
     ) : null}
   </>
 );
+
+const InvoiceForCard = ({
+  companionAvatar,
+  companionInitial,
+  guardianAvatar,
+  guardianInitial,
+  guardianEmail,
+  guardianAddress,
+  companionName,
+  styles,
+}: {
+  companionAvatar: any;
+  companionInitial: string;
+  guardianAvatar: any;
+  guardianInitial: string;
+  guardianEmail: string;
+  guardianAddress: string;
+  companionName: string;
+  styles: any;
+}) => (
+  <View style={styles.invoiceForCard}>
+    <Text style={styles.metaTitle}>Invoice for</Text>
+    <View style={styles.invoiceForRow}>
+      <View style={styles.avatarStack}>
+        <View style={[styles.avatarCircle, styles.avatarCompanion]}>
+          {companionAvatar ? (
+            <Image source={companionAvatar} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarInitial}>{companionInitial}</Text>
+          )}
+        </View>
+        <View style={[styles.avatarCircle, styles.avatarGuardian]}>
+          {guardianAvatar ? (
+            <Image source={guardianAvatar} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarInitial}>{guardianInitial}</Text>
+          )}
+        </View>
+      </View>
+      <View style={styles.invoiceInfoColumn}>
+        <View style={styles.invoiceInfoRow}>
+          <Image source={Images.emailIcon} style={styles.infoIcon} />
+          <Text style={styles.invoiceContactText}>{guardianEmail}</Text>
+        </View>
+        <View style={styles.invoiceInfoRow}>
+          <Image source={Images.locationIcon} style={styles.infoIcon} />
+          <Text style={styles.invoiceAddressText}>{guardianAddress}</Text>
+        </View>
+        <Text style={styles.appointmentForText}>
+          Appointment for :{' '}
+          <Text style={styles.appointmentForName}>{companionName}</Text>
+        </Text>
+      </View>
+    </View>
+  </View>
+);
+
+const BreakdownCard = ({
+  effectiveInvoice,
+  subtotal,
+  discountAmount,
+  taxAmount,
+  total,
+  formatMoney,
+  styles,
+}: {
+  effectiveInvoice: any;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  total: number;
+  formatMoney: (value: number) => string;
+  styles: any;
+}) => (
+  <View style={styles.breakdownCard}>
+    <Text style={styles.metaTitle}>Description</Text>
+    {effectiveInvoice?.items?.map((item: InvoiceItem) => (
+      <BreakdownRow
+        key={buildInvoiceItemKey(item)}
+        label={item.description}
+        value={formatMoney(item.lineTotal)}
+      />
+    ))}
+    <BreakdownRow label="Sub Total" value={formatMoney(subtotal)} subtle />
+    {!!discountAmount && (
+      <BreakdownRow
+        label="Discount"
+        value={`-${formatMoney(discountAmount)}`}
+        subtle
+      />
+    )}
+    {!!taxAmount && (
+      <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
+    )}
+    <BreakdownRow label="Total" value={formatMoney(total)} highlight />
+    <Text style={styles.breakdownNote}>
+      Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts +
+      Taxes.
+    </Text>
+  </View>
+);
+
+const ReceiptCard = ({
+  receiptUrl,
+  theme,
+  styles,
+}: {
+  receiptUrl: string | null;
+  theme: any;
+  styles: any;
+}) => {
+  if (!receiptUrl) return null;
+  return (
+    <View style={styles.previewCard}>
+      <Text style={styles.metaTitle}>Invoice & receipt</Text>
+      <LiquidGlassButton
+        title="View invoice"
+        onPress={() => {
+          Linking.canOpenURL(receiptUrl)
+            .then(canOpen => {
+              if (canOpen) {
+                return Linking.openURL(receiptUrl);
+              }
+              throw new Error('cannot-open');
+            })
+            .catch(() =>
+              Alert.alert(
+                'Unable to open invoice',
+                'Please try again or copy the link from your receipt.',
+              ),
+            );
+        }}
+        height={48}
+        borderRadius={12}
+        tintColor={theme.colors.secondary}
+        shadowIntensity="medium"
+        textStyle={styles.confirmPrimaryButtonText}
+      />
+      <Text style={styles.missingSubtitle}>
+        You will be redirected to the secure Stripe receipt in your browser.
+      </Text>
+    </View>
+  );
+};
+
+const TermsCard = ({
+  paymentDueLabel,
+  businessName,
+  businessAddress,
+  styles,
+}: {
+  paymentDueLabel: string;
+  businessName: string;
+  businessAddress?: string;
+  styles: any;
+}) => (
+  <View style={styles.termsCard}>
+    <Text style={styles.metaTitle}>Payment terms & legal</Text>
+    <Text style={styles.termsLine}>
+      Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
+    </Text>
+    <Text style={styles.termsLine}>
+      Services are provided by {businessName}
+      {businessAddress && businessAddress !== '—' ? ` (${businessAddress})` : ''}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.
+    </Text>
+    <Text style={styles.termsLine}>
+      Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
+    </Text>
+    <Text style={styles.termsLine}>
+      This invoice is not emergency advice. If your pet needs urgent care, contact the clinic or local emergency services immediately.
+    </Text>
+  </View>
+);
+
+const PayButton = ({
+  shouldShowPay,
+  presentingSheet,
+  clientSecret,
+  theme,
+  handlePayNow,
+  styles,
+}: {
+  shouldShowPay: boolean;
+  presentingSheet: boolean;
+  clientSecret: string | null;
+  theme: any;
+  handlePayNow: () => void;
+  styles: any;
+}) => {
+  if (!shouldShowPay) return null;
+  return (
+    <View style={styles.buttonContainer}>
+      <LiquidGlassButton
+        title="Pay now"
+        onPress={handlePayNow}
+        height={56}
+        borderRadius={16}
+        disabled={presentingSheet || !clientSecret}
+        tintColor={theme.colors.secondary}
+        shadowIntensity="medium"
+        textStyle={styles.confirmPrimaryButtonText}
+      />
+    </View>
+  );
+};
 
 const useFetchAppointmentById = ({
   appointmentId,
@@ -454,19 +685,12 @@ export const PaymentInvoiceScreen: React.FC = () => {
           cardStyle={styles.summaryCard}
         />
 
-        <View style={styles.metaCard}>
-          <Text style={styles.metaTitle}>Invoice details</Text>
-          <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
-          <MetaRow label="Appointment ID" value={apt?.id ?? '—'} />
-          <MetaRow
-            label="Invoice date"
-            value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
-          />
-          <MetaRow
-            label="Due till"
-            value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
-          />
-        </View>
+        <InvoiceDetailsCard
+          invoiceNumberDisplay={invoiceNumberDisplay}
+          effectiveInvoice={effectiveInvoice}
+          apt={apt}
+          styles={styles}
+        />
 
         {hasRefund ? (
           <View style={styles.metaCard}>
@@ -479,135 +703,44 @@ export const PaymentInvoiceScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <View style={styles.invoiceForCard}>
-          <Text style={styles.metaTitle}>Invoice for</Text>
-          <View style={styles.invoiceForRow}>
-            <View style={styles.avatarStack}>
-              <View style={[styles.avatarCircle, styles.avatarCompanion]}>
-                {companionAvatar ? (
-                  <Image source={companionAvatar} style={styles.avatarImage} />
-                ) : (
-                  <Text style={styles.avatarInitial}>{companionInitial}</Text>
-                )}
-              </View>
-              <View style={[styles.avatarCircle, styles.avatarGuardian]}>
-                {guardianAvatar ? (
-                  <Image source={guardianAvatar} style={styles.avatarImage} />
-                ) : (
-                  <Text style={styles.avatarInitial}>{guardianInitial}</Text>
-                )}
-              </View>
-            </View>
-            <View style={styles.invoiceInfoColumn}>
-              <View style={styles.invoiceInfoRow}>
-                <Image source={Images.emailIcon} style={styles.infoIcon} />
-                <Text style={styles.invoiceContactText}>{guardianEmail}</Text>
-              </View>
-              <View style={styles.invoiceInfoRow}>
-                <Image source={Images.locationIcon} style={styles.infoIcon} />
-                <Text style={styles.invoiceAddressText}>{guardianAddress}</Text>
-              </View>
-              <Text style={styles.appointmentForText}>
-                Appointment for :{' '}
-                <Text style={styles.appointmentForName}>{companionName}</Text>
-              </Text>
-            </View>
-          </View>
-        </View>
+        <InvoiceForCard
+          companionAvatar={companionAvatar}
+          companionInitial={companionInitial}
+          guardianAvatar={guardianAvatar}
+          guardianInitial={guardianInitial}
+          guardianEmail={guardianEmail}
+          guardianAddress={guardianAddress}
+          companionName={companionName}
+          styles={styles}
+        />
 
-        <View style={styles.breakdownCard}>
-          <Text style={styles.metaTitle}>Description</Text>
-          {effectiveInvoice?.items?.map(item => (
-            <BreakdownRow
-              key={buildInvoiceItemKey(item)}
-              label={item.description}
-              value={formatMoney(item.lineTotal)}
-            />
-          ))}
-          <BreakdownRow
-            label="Sub Total"
-            value={formatMoney(subtotal)}
-            subtle
-          />
-          {!!discountAmount && (
-            <BreakdownRow
-              label="Discount"
-              value={`-${formatMoney(discountAmount)}`}
-              subtle
-            />
-          )}
-          {!!taxAmount && (
-            <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
-          )}
-          <BreakdownRow label="Total" value={formatMoney(total)} highlight />
-          <Text style={styles.breakdownNote}>
-            Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts
-            + Taxes.
-          </Text>
-        </View>
-        {receiptUrl && (
-          <View style={styles.previewCard}>
-            <Text style={styles.metaTitle}>Invoice & receipt</Text>
-            <LiquidGlassButton
-              title="View invoice"
-              onPress={() => {
-                Linking.canOpenURL(receiptUrl)
-                  .then(canOpen => {
-                    if (canOpen) {
-                      return Linking.openURL(receiptUrl);
-                    }
-                    throw new Error('cannot-open');
-                  })
-                  .catch(() =>
-                    Alert.alert(
-                      'Unable to open invoice',
-                      'Please try again or copy the link from your receipt.',
-                    ),
-                  );
-              }}
-              height={48}
-              borderRadius={12}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.confirmPrimaryButtonText}
-            />
-            <Text style={styles.missingSubtitle}>
-              You will be redirected to the secure Stripe receipt in your
-              browser.
-            </Text>
-          </View>
-        )}
+        <BreakdownCard
+          effectiveInvoice={effectiveInvoice}
+          subtotal={subtotal}
+          discountAmount={discountAmount}
+          taxAmount={taxAmount}
+          total={total}
+          formatMoney={formatMoney}
+          styles={styles}
+        />
 
-        <View style={styles.termsCard}>
-          <Text style={styles.metaTitle}>Payment terms & legal</Text>
-          <Text style={styles.termsLine}>
-            Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
-          </Text>
-          <Text style={styles.termsLine}>
-            Services are provided by {businessName}
-            {businessAddress && businessAddress !== '—' ? ` (${businessAddress})` : ''}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.
-          </Text>
-          <Text style={styles.termsLine}>
-            Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
-          </Text>
-          <Text style={styles.termsLine}>
-            This invoice is not emergency advice. If your pet needs urgent care, contact the clinic or local emergency services immediately.
-          </Text>
-        </View>
-        <View style={styles.buttonContainer}>
-          {shouldShowPay && (
-            <LiquidGlassButton
-              title="Pay now"
-              onPress={handlePayNow}
-              height={56}
-              borderRadius={16}
-              disabled={presentingSheet || !clientSecret}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.confirmPrimaryButtonText}
-            />
-          )}
-        </View>
+        <ReceiptCard receiptUrl={receiptUrl} theme={theme} styles={styles} />
+
+        <TermsCard
+          paymentDueLabel={paymentDueLabel}
+          businessName={businessName}
+          businessAddress={businessAddress}
+          styles={styles}
+        />
+
+        <PayButton
+          shouldShowPay={shouldShowPay}
+          presentingSheet={presentingSheet}
+          clientSecret={clientSecret}
+          theme={theme}
+          handlePayNow={handlePayNow}
+          styles={styles}
+        />
       </ScrollView>
     </SafeArea>
   );
