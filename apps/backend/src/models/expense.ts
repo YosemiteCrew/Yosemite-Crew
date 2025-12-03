@@ -2,8 +2,8 @@ import { Schema, model, HydratedDocument } from "mongoose";
 
 export interface ExternalExpenseAttachment {
   key: string;
-  mimeType: string;
-  size?: number;
+  mimeType?: string;
+  name?: string;
 }
 
 export interface ExternalExpenseMongo {
@@ -32,8 +32,8 @@ export interface ExternalExpenseMongo {
 const AttachmentSchema = new Schema<ExternalExpenseAttachment>(
   {
     key: { type: String, required: true },
-    mimeType: { type: String, required: true },
-    size: { type: Number },
+    mimeType: { type: String },
+    name : { type: String },
   },
   { _id: false },
 );

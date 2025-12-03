@@ -4,6 +4,7 @@ import {
   ExternalExpenseServiceError,
 } from "../../services/expense.service";
 import type { ExternalExpenseMongo } from "src/models/expense";
+import logger from "src/utils/logger";
 
 export const ExpenseController = {
   getExpenseSummary: async (req: Request, res: Response) => {
@@ -13,11 +14,11 @@ export const ExpenseController = {
         await ExpenseService.getTotalExpenseForCompanion(companionId);
       res.status(200).json(summary);
     } catch (error) {
-      if (error instanceof ExternalExpenseServiceError) {
+      if (error instanceof ExternalExpenseServiceError)
         res.status(error.statusCode).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: "Internal Server Error" });
-      }
+
+      logger.error("Error fetching expense summary:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
@@ -30,11 +31,11 @@ export const ExpenseController = {
       const newExpense = await ExpenseService.createExpense(expenseData);
       res.status(201).json(newExpense);
     } catch (error) {
-      if (error instanceof ExternalExpenseServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: "Internal Server Error" });
-      }
+      if (error instanceof ExternalExpenseServiceError)
+        return res.status(error.statusCode).json({ message: error.message });
+
+      logger.error("Error creating expense:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
@@ -48,11 +49,11 @@ export const ExpenseController = {
       );
       res.status(200).json(updatedExpense);
     } catch (error) {
-      if (error instanceof ExternalExpenseServiceError) {
+      if (error instanceof ExternalExpenseServiceError)
         res.status(error.statusCode).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: "Internal Server Error" });
-      }
+
+      logger.error("Error updating expense:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
@@ -62,11 +63,11 @@ export const ExpenseController = {
       await ExpenseService.deleteExpense(expenseId);
       res.status(204).send();
     } catch (error) {
-      if (error instanceof ExternalExpenseServiceError) {
+      if (error instanceof ExternalExpenseServiceError)
         res.status(error.statusCode).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: "Internal Server Error" });
-      }
+      
+      logger.error("Error deleting expense:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
@@ -76,11 +77,11 @@ export const ExpenseController = {
       const expenses = await ExpenseService.getExpensesByCompanion(companionId);
       res.status(200).json(expenses);
     } catch (error) {
-      if (error instanceof ExternalExpenseServiceError) {
+      if (error instanceof ExternalExpenseServiceError)
         res.status(error.statusCode).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: "Internal Server Error" });
-      }
+
+      logger.error("Error fetching expenses:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
@@ -90,11 +91,11 @@ export const ExpenseController = {
       const expense = await ExpenseService.getExpenseById(expenseId);
       res.status(200).json(expense);
     } catch (error) {
-      if (error instanceof ExternalExpenseServiceError) {
+      if (error instanceof ExternalExpenseServiceError)
         res.status(error.statusCode).json({ message: error.message });
-      } else {
-        res.status(500).json({ message: "Internal Server Error" });
-      }
+
+      logger.error("Error fetching expense by ID:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
 };
