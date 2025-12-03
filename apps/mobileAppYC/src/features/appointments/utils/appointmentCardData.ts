@@ -41,8 +41,13 @@ export const transformAppointmentCardData = (
   const googlePlacesId = biz?.googlePlacesId ?? appointment.businessGooglePlacesId ?? null;
   const businessPhoto = biz?.photo ?? appointment.businessPhoto ?? null;
   const fallbackPhoto = businessFallbacks[appointment.businessId]?.photo ?? null;
+  const providerAvatar =
+    hasAssignedVet && appointment.employeeAvatar ? {uri: appointment.employeeAvatar} : null;
   const avatarSource =
-    businessPhoto || fallbackPhoto || (companionAvatar ? {uri: companionAvatar} : Images.cat);
+    providerAvatar ||
+    businessPhoto ||
+    fallbackPhoto ||
+    (companionAvatar ? {uri: companionAvatar} : Images.cat);
 
   const cardTitle = hasAssignedVet
     ? emp?.name ?? appointment.employeeName ?? 'Assigned vet'

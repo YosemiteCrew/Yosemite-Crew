@@ -93,6 +93,7 @@ export interface Appointment {
   specialityId?: string | null;
   employeeId?: string | null;
   employeeName?: string | null;
+  employeeAvatar?: string | null;
   employeeTitle?: string | null;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm

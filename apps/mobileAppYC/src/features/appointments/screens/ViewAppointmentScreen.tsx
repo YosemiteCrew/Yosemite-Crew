@@ -256,9 +256,15 @@ export const ViewAppointmentScreen: React.FC = () => {
           name: apt.employeeName ?? 'Assigned provider',
           title: apt.employeeTitle ?? '',
           specialization: apt.employeeTitle ?? department ?? '',
-          avatar: undefined,
+          avatar: apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined,
         }
       : null;
+  const employeeWithAvatar = employee
+    ? {
+        ...employee,
+        avatar: employee.avatar ?? (apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined),
+      }
+    : null;
   const showCheckInButton = (isUpcoming || isCheckedIn) && !isTerminal;
   const normalizedStartTime =
     (apt.time?.length === 5 ? `${apt.time}:00` : apt.time ?? '00:00') ?? '00:00';
@@ -454,7 +460,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           businessSummary={businessSummary}
           service={service}
           serviceName={apt.serviceName}
-          employee={employee ?? employeeFallback ?? null}
+          employee={employeeWithAvatar ?? employeeFallback ?? null}
           employeeDepartment={department}
           cardStyle={styles.summaryCard}
         />

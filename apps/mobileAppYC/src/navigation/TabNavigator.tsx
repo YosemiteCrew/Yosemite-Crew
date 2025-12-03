@@ -43,11 +43,13 @@ const createTabPressListener = (
       return;
     }
     const state = navigation.getState();
-    const tabRoute = state.routes.find((r: any) => r.name === route.name);
+    const targetIndex = state.routes.findIndex((r: any) => r.name === route.name);
+    const isFocused = state.index === targetIndex;
+    const tabRoute = state.routes[targetIndex];
     const nestedState = tabRoute && 'state' in tabRoute ? tabRoute.state : null;
 
-    // If the nested stack has more than 1 route, pop to the top
-    if (isNestedState(nestedState) && nestedState.routes.length > 1) {
+    // Only intercept when the tab is already focused; otherwise let it switch normally
+    if (isFocused && isNestedState(nestedState) && nestedState.routes.length > 1) {
       e.preventDefault();
       // Pop to top of the nested stack (target that stack specifically)
       const targetKey = nestedState.key;
@@ -66,7 +68,7 @@ const createTabPressListener = (
 
     // If nested stack has exactly 1 route but it's not the initial screen,
     // navigate to the known initial route for that tab.
-    if (isNestedState(nestedState) && nestedState.routes.length === 1) {
+    if (isFocused && isNestedState(nestedState) && nestedState.routes.length === 1) {
       const currentRouteName = nestedState.routes[nestedState.index || 0]?.name;
       // Map of tab name -> initial screen name of its stack
       const initialByTab: Partial<Record<keyof TabParamList, string>> = {

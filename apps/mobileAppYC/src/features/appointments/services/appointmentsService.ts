@@ -64,7 +64,12 @@ const parseParticipant = (participants: any[], prefix: string) => {
   const reference: string = match?.actor?.reference ?? '';
   const display: string | undefined = match?.actor?.display;
   const id = reference.includes('/') ? reference.split('/')[1] : reference;
-  return {id: id || null, display: display ?? null};
+  const avatar =
+    match?.extension?.find?.(
+      (ext: any) =>
+        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url',
+    )?.valueString ?? null;
+  return {id: id || null, display: display ?? null, avatar};
 };
 
 const extractExtensionValue = (
@@ -253,6 +258,7 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     specialityId: specialityCoding?.code ?? null,
     employeeId: practitioner.id,
     employeeName: practitioner.display,
+    employeeAvatar: practitioner.avatar,
     employeeTitle: practitionerRole,
     date,
     time,
