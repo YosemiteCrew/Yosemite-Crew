@@ -26,6 +26,7 @@ export type Appointment = {
   lead?: {
     id: string;
     name: string;
+    profileUrl?: string;
   }                           // Vet or practitioner being booked
   supportStaff?: {
     id: string;
@@ -64,6 +65,7 @@ export type Appointment = {
 const BREED_SYSTEM_URL = 'http://hl7.org/fhir/animal-breed'
 const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency'
 const EXT_APPOINTMENT_ATTACHMENTS = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments"
+const EXT_LEAD_PROFILE_URL = "https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url"
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
@@ -88,7 +90,10 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
         display: appointment.lead?.name
       },
       status: appointment.status,
-      type: [{coding: [{code: 'PPRF', system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', display: 'primary performer'}]}]
+      type: [{coding: [{code: 'PPRF', system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', display: 'primary performer'}]}],
+      extension: appointment.lead?.profileUrl
+        ? [{ url: EXT_LEAD_PROFILE_URL, valueString: appointment.lead.profileUrl }]
+        : undefined
     },
     {
       actor: {
@@ -218,6 +223,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const speciesExtesnion = FHIRappointment.extension?.find(p => p.id?.includes("species"))
   const breedExtension = FHIRappointment.extension?.find(p => p.id?.includes("breed"))
   const emergencyExtension = FHIRappointment.extension?.find(p => p.url?.includes(EXT_EMERGENCY))
+  const leadProfileExtension = leadParticipant?.extension?.find(ext => ext.url === EXT_LEAD_PROFILE_URL)
 
   const pmsStatus = FHIRappointment.status // fallback if unknown status
 
@@ -250,6 +256,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     lead: {
       id: leadParticipant?.actor?.reference?.split("/")[1] ?? "",
       name: leadParticipant?.actor?.display ?? "",
+      profileUrl: leadProfileExtension?.valueString,
     },
     supportStaff: supportStaffParticipants.map((s) => ({
       id: s.actor?.reference?.split("/")[1] ?? "",

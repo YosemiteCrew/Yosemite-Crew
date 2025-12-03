@@ -17,6 +17,7 @@ import { InvoiceService } from "./invoice.service";
 import { StripeService } from "./stripe.service";
 import { OccupancyModel } from "src/models/occupancy";
 import OrganizationModel from "src/models/organization";
+import UserProfileModel from "src/models/user-profile";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -459,10 +460,16 @@ export const AppointmentService = {
         { session },
       );
 
+      const lead = await UserProfileModel.findOne(
+        { userId: extracted.leadVetId, },
+        { personalDetails: 1 }
+      )
+
       // Apply changes from PMS
       appointment.lead = {
         id: extracted.leadVetId,
         name: extracted.leadVetName ?? "Vet",
+        profileUrl: lead?.personalDetails?.profilePictureUrl ?? `https://ui-avatars.com/api/?name=${extracted.leadVetName}`,
       };
 
       appointment.supportStaff = extracted.supportStaff ?? [];

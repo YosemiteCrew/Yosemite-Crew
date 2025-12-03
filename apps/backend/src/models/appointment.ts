@@ -19,7 +19,7 @@ export interface AppointmentMongo {
     parent: { id: string; name: string };
   };
 
-  lead?: { id: string; name: string };
+  lead?: { id: string; name: string, profileUrl?: string };
 
   supportStaff?: { id: string; name: string }[];
 
@@ -72,6 +72,7 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
     lead: {
       id: { type: String },
       name: { type: String },
+      profileUrl: { type: String },
     },
 
     supportStaff: [
