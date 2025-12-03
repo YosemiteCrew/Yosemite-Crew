@@ -183,6 +183,16 @@ export const StripeService = {
     };
   },
 
+  async retrievePaymentIntent(paymentIntentId: string) {
+    const stripe = getStripeClient();
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      paymentIntentId,
+    );
+
+    return paymentIntent;
+  },
+
   async refundPaymentIntent(paymentIntentId: string) {
     const stripe = getStripeClient();
 

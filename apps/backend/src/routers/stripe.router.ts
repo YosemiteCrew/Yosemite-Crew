@@ -18,6 +18,12 @@ router.post(
   (req, res) => StripeController.createPaymentIntent(req, res),
 );
 
+router.get(
+  "/payment-intent/:paymentIntentId",
+  authorizeCognitoMobile,
+  (req, res) => StripeController.retrievePaymentIntent(req, res),
+);  
+
 // PMS Payment Intent Router
 router.post("/pms/payment-intent/:invoiceId", authorizeCognito, (req, res) =>
   StripeController.createPaymentIntent(req, res),

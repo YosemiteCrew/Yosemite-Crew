@@ -880,8 +880,6 @@ export const AppointmentService = {
       { name: 1, imageURL: 1, address: 1, phoneNo: 1, googlePlacesId: 1 },
     ).lean();
 
-    console.log("organisations", organisations);
-
     // Convert array → map for O(1) lookup
     const orgMap = new Map(
       organisations.map((org) => [org._id.toString(), org]),

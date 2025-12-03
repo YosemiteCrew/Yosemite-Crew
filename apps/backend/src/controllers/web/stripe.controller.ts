@@ -79,6 +79,22 @@ export const StripeController = {
     }
   },
 
+  async retrievePaymentIntent(req: Request, res: Response) {
+    try {
+      const { paymentIntentId } = req.params;
+
+      const paymentIntent =
+        await StripeService.retrievePaymentIntent(paymentIntentId);
+
+      return res.status(200).json(paymentIntent);
+    } catch (err) {
+      logger.error("Error retrievePaymentIntent:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
   async createOnboardingLink(req: Request, res: Response) {
     try {
       const { organisationId } = req.params;

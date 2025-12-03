@@ -9,6 +9,7 @@ import {
 } from "@yosemite-crew/types";
 import { Currency } from "@yosemite-crew/fhirtypes";
 import { StripeService } from "./stripe.service";
+import OrganizationModel from "src/models/organization";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -232,8 +233,19 @@ export const InvoiceService = {
     const _id = ensureObjectId(id, "invoiceId");
 
     const doc = await InvoiceModel.findById(_id);
+    const org = await OrganizationModel.findById(doc?.organisationId);
 
-    return toInvoiceResponseDTO(toDomain(doc!));
+    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404); 
+
+    return {
+      organistion :{
+        name: org?.name || '',
+        placesId: org?.googlePlacesId || '',
+        address: org?.address || '',
+        image: org?.imageURL || ''
+      },
+      invoice: toInvoiceResponseDTO(toDomain(doc))
+    };
   },
 
   async listForOrganisation(organisationId: string) {
