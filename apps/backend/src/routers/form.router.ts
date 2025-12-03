@@ -35,7 +35,7 @@ router.post(
 );
 
 // PUBLIC ROUTES
-router.get("/forms/:formId", FormController.getFormForClient);
+router.get("/public/:formId", FormController.getFormForClient);
 
 // MOBILE ROUTES
 router.post(
