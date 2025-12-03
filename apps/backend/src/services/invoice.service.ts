@@ -10,6 +10,8 @@ import {
 import { Currency } from "@yosemite-crew/fhirtypes";
 import { StripeService } from "./stripe.service";
 import OrganizationModel from "src/models/organization";
+import { NotificationTemplates } from "src/utils/notificationTemplates";
+import { NotificationService } from "./notification.service";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -152,6 +154,14 @@ export const InvoiceService = {
 
       notes: input.notes,
     });
+
+    const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
+      totalPayable,
+    )
+    await NotificationService.sendToUser(
+      input.parentId,
+      notificationPayload
+    )
 
     return invoice;
   },

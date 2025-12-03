@@ -6,6 +6,8 @@ import InvoiceModel from "src/models/invoice";
 import OrganizationModel from "src/models/organization";
 import ServiceModel from "src/models/service";
 import AppointmentModel from "src/models/appointment";
+import { NotificationTemplates } from "src/utils/notificationTemplates";
+import { NotificationService } from "./notification.service";
 
 let stripeClient: Stripe | null = null;
 
@@ -393,6 +395,15 @@ export const StripeService = {
     }
 
     await InvoiceModel.updateOne({ _id: invoice._id }, { status: "REFUNDED" });
+
+    const notificationPayload = NotificationTemplates.Payment.REFUND_ISSUED(
+      charge.amount / 100,
+    );
+    const parentId = invoice.parentId;
+    await NotificationService.sendToUser(
+      parentId!,
+      notificationPayload,
+    );
 
     logger.warn(`Invoice ${invoice.id} marked REFUNDED`);
   },

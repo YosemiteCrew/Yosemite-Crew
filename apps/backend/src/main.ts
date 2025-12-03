@@ -27,6 +27,7 @@ import ratingRouter from "./routers/organisationRating.router";
 import invoiceRouter from "./routers/invoice.router";
 import formRouter from "./routers/form.router";
 import expenseRouter from "./routers/expense.router";
+import deviceTokenRouter from "./routers/deviceToken.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,6 +71,7 @@ app.use(`v1/oragnisation-rating`, ratingRouter);
 app.use(`/fhir/v1/invoice`, invoiceRouter);
 app.use(`/fhir/v1/form`, formRouter);
 app.use(`/v1/expense`, expenseRouter);
+app.use(`/v1/device-token`, deviceTokenRouter);
 
 let mongoUri: string;
 

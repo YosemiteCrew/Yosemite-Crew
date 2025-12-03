@@ -18,6 +18,8 @@ import { StripeService } from "./stripe.service";
 import { OccupancyModel } from "src/models/occupancy";
 import OrganizationModel from "src/models/organization";
 import UserProfileModel from "src/models/user-profile";
+import { NotificationTemplates } from "src/utils/notificationTemplates";
+import { NotificationService } from "./notification.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -379,6 +381,18 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      const notificationPayload = NotificationTemplates.Appointment.APPROVED(
+        appointment.companion.name,
+        appointment.startTime.toDateString(),
+      )
+
+      // Send notification to parent
+      const parentId = appointment.companion.parent.id;
+      await NotificationService.sendToUser(
+        parentId,
+        notificationPayload
+      )
+
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),
         invoice,
@@ -482,6 +496,18 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      const notificationPayload = NotificationTemplates.Appointment.APPROVED(
+        appointment.companion.name,
+        appointment.startTime.toDateString(),
+      )
+
+      // Send notification to parent
+      const parentId = appointment.companion.parent.id;
+      await NotificationService.sendToUser(
+        parentId,
+        notificationPayload
+      )
+
       // Convert final domain → FHIR appointment
       return toAppointmentResponseDTO(toDomain(appointment));
     } catch (err) {
@@ -533,6 +559,14 @@ export const AppointmentService = {
 
       await session.commitTransaction();
       await session.endSession();
+
+      const notificationPayload = NotificationTemplates.Appointment.CANCELLED(appointment.companion.name);
+      // Send notification to parent
+      const parentId = appointment.companion.parent.id;
+      await NotificationService.sendToUser(
+        parentId,
+        notificationPayload
+      )
     } catch (err) {
       await session.abortTransaction();
       await session.endSession();
@@ -614,6 +648,18 @@ export const AppointmentService = {
     appointment.updatedAt = new Date();
 
     await appointment.save();
+
+    const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
+      appointment.companion.name,
+    )
+
+    // Send notification to parent
+    const parentId = appointment.companion.parent.id;
+    await NotificationService.sendToUser(
+      parentId,
+      notificationPayload
+    )
+
     return toAppointmentResponseDTO(toDomain(appointment));
   },
 
