@@ -109,6 +109,7 @@ export const StripeService = {
       amount,
       currency: "usd",
       metadata: {
+        type: "APPOINTMENT_BOOKING",
         appointmentId,
         organisationId: appointment.organisationId,
         parentId: appointment.companion.parent.id,
@@ -160,6 +161,8 @@ export const StripeService = {
       amount: stripeAmount,
       currency: invoice.currency || "usd",
       metadata: {
+        type: "INVOICE_PAYMENT",
+        appointmentId: invoice.appointmentId || "",
         invoiceId,
         organisationId: invoice.organisationId ?? "",
         parentId: invoice.parentId ?? "",
@@ -271,49 +274,57 @@ export const StripeService = {
 
   // Payment success handler
   async _handlePaymentSucceeded(pi: Stripe.PaymentIntent) {
+    const type = pi.metadata?.type;
+
+    if (!type) {
+      logger.error("payment_intent.succeeded missing metadata.type");
+      return;
+    }
+
+    if (type === "INVOICE_PAYMENT") {
+      return this._handleInvoicePayment(pi);
+    }
+
+    if (type === "APPOINTMENT_BOOKING") {
+      return this._handleAppointmentBookingPayment(pi);
+    }
+
+    logger.error("Unknown payment type in metadata");
+  },
+
+  async _handleAppointmentBookingPayment(pi: Stripe.PaymentIntent) {
     const appointmentId = pi.metadata?.appointmentId;
 
     if (!appointmentId) {
-      logger.error("payment_intent.succeeded missing appointmentId metadata");
+      logger.error("APPOINTMENT_BOOKING missing appointmentId");
       return;
     }
 
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) {
-      logger.error(`Appointment not found for id ${appointmentId}`);
+      logger.error(`Appointment not found: ${appointmentId}`);
       return;
     }
 
-    // Already processed?
     const existingInvoice = await InvoiceModel.findOne({
       appointmentId,
-      status: "PAID",
+      status: "PAID"
     });
 
     if (existingInvoice) {
-      logger.info(`Invoice already created for appointment ${appointmentId}`);
+      logger.info(`Booking invoice already created for ${appointmentId}`);
       return;
     }
 
-    // Extract charge
-    const chargeId = pi.latest_charge as string | undefined;
-    if (!chargeId) {
-      logger.error("payment_intent.succeeded missing charge data");
-      return;
-    }
-
+    const chargeId = pi.latest_charge as string;
     const charge = await getStripeClient().charges.retrieve(chargeId);
 
-    // Fetch service details for invoice line item
-    const service = await ServiceModel.findById(
-      appointment.appointmentType?.id,
-    );
+    const service = await ServiceModel.findById(appointment.appointmentType?.id);
     if (!service) {
       logger.error("Service not found for appointment");
       return;
     }
 
-    // 💥 CREATE FINAL INTERNAL INVOICE HERE
     const invoice = await InvoiceModel.create({
       appointmentId,
       organisationId: appointment.organisationId,
@@ -322,7 +333,6 @@ export const StripeService = {
       currency: pi.currency,
 
       status: "PAID",
-
       items: [
         {
           name: service.name,
@@ -332,7 +342,6 @@ export const StripeService = {
           total: service.cost,
         },
       ],
-
       subtotal: service.cost,
       discountTotal: 0,
       taxTotal: 0,
@@ -343,7 +352,6 @@ export const StripeService = {
       stripeReceiptUrl: charge.receipt_url,
     });
 
-    // Update appointment
     await AppointmentModel.updateOne(
       { _id: appointmentId },
       {
@@ -352,12 +360,42 @@ export const StripeService = {
         stripePaymentIntentId: pi.id,
         stripeChargeId: charge.id,
         updatedAt: new Date(),
-      },
+      }
     );
 
-    logger.info(
-      `Appointment ${appointmentId} marked PAID & Invoice created ${invoice.id}`,
-    );
+    logger.info(`Appointment ${appointmentId} booking PAID. Invoice ${invoice.id} created`);
+  },
+
+  async _handleInvoicePayment(pi: Stripe.PaymentIntent) {
+    const invoiceId = pi.metadata?.invoiceId;
+
+    if (!invoiceId) {
+      logger.error("INVOICE_PAYMENT missing invoiceId");
+      return;
+    }
+
+    const invoice = await InvoiceModel.findById(invoiceId);
+    if (!invoice) {
+      logger.error(`Invoice not found: ${invoiceId}`);
+      return;
+    }
+
+    if (invoice.status === "PAID") {
+      logger.info(`Invoice ${invoiceId} is already PAID`);
+      return;
+    }
+
+    const chargeId = pi.latest_charge as string;
+    const charge = await getStripeClient().charges.retrieve(chargeId);
+
+    invoice.status = "PAID";
+    invoice.stripePaymentIntentId = pi.id;
+    invoice.stripeChargeId = charge.id;
+    invoice.stripeReceiptUrl = charge.receipt_url!;
+    invoice.updatedAt = new Date();
+    await invoice.save();
+
+    logger.info(`Invoice ${invoiceId} marked PAID`);
   },
 
   //Payment Failed Handler
