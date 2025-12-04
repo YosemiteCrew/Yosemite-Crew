@@ -26,6 +26,7 @@ import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
+import {resolveCurrencySymbol} from '@/shared/utils/currency';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -203,7 +204,7 @@ export const EditAppointmentScreen: React.FC = () => {
                   title: service?.name ?? apt.serviceName ?? 'Requested service',
                   subtitlePrimary: service?.description,
                   subtitleSecondary: undefined,
-                  badgeText: service?.basePrice ? `$${service.basePrice}` : null,
+                  badgeText: service?.basePrice ? `${resolveCurrencySymbol(service?.currency ?? 'USD')}${service.basePrice}` : null,
                   image: undefined,
                   showAvatar: false,
                   interactive: false,

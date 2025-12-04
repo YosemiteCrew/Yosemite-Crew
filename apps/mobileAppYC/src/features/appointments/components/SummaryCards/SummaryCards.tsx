@@ -2,6 +2,7 @@ import React from 'react';
 import type {ViewStyle} from 'react-native';
 import {BookingSummaryCard} from '@/features/appointments/components/BookingSummaryCard';
 import type {VetBusiness, VetService, VetEmployee} from '@/features/appointments/types';
+import {resolveCurrencySymbol} from '@/shared/utils/currency';
 
 type Props = {
   business?: VetBusiness | null;
@@ -49,7 +50,7 @@ export const SummaryCards: React.FC<Props> = ({
           title={service?.name ?? serviceName ?? 'Requested service'}
           subtitlePrimary={service?.description}
           subtitleSecondary={undefined}
-          badgeText={service?.basePrice ? `$${service.basePrice}` : null}
+          badgeText={service?.basePrice ? `${resolveCurrencySymbol(service?.currency ?? 'USD')}${service.basePrice}` : null}
           image={undefined}
           showAvatar={false}
           interactive={false}

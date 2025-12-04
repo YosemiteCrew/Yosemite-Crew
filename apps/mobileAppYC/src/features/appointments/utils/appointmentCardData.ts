@@ -3,6 +3,8 @@
  * Eliminates duplication between MyAppointmentsScreen and HomeScreen
  */
 
+import {resolveCurrencySymbol} from '@/shared/utils/currency';
+
 export interface AppointmentCardData {
   cardTitle: string;
   cardSubtitle: string;
@@ -53,7 +55,7 @@ export const transformAppointmentCardData = (
     ? emp?.name ?? appointment.employeeName ?? 'Assigned vet'
     : service?.name ?? appointment.serviceName ?? 'Service request';
 
-  const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
+  const servicePriceText = service?.basePrice ? `${resolveCurrencySymbol(service?.currency ?? 'USD')}${service.basePrice}` : null;
   const serviceSubtitle = [
     service?.specialty ?? appointment.type ?? 'Awaiting vet assignment',
     servicePriceText,

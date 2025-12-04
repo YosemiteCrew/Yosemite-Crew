@@ -3,12 +3,14 @@ import {View, Text, TouchableOpacity, StyleSheet, Image, Animated} from 'react-n
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {resolveCurrencySymbol} from '@/shared/utils/currency';
 
 interface Service {
   id: string;
   name: string;
   description?: string;
   basePrice?: number;
+  currency?: string;
   icon?: any;
 }
 
@@ -82,7 +84,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
                 </Text>
                 {service.basePrice ? (
                   <View style={styles.priceChip}>
-                    <Text style={styles.priceChipText}>${service.basePrice}</Text>
+                    <Text style={styles.priceChipText}>{resolveCurrencySymbol(service?.currency ?? 'USD')}{service.basePrice}</Text>
                   </View>
                 ) : null}
               </View>

@@ -67,7 +67,7 @@ export const useExpensePayment = () => {
       }
 
       // Only fetch latest payment intent for unpaid invoices
-      if (isExpensePaymentPending(expense)) {
+      if (isExpensePaymentPending(expense) && !resolvedIntent?.clientSecret) {
         try {
           resolvedIntent = await dispatch(
             fetchExpensePaymentIntentByInvoice({invoiceId: expense.invoiceId!}),

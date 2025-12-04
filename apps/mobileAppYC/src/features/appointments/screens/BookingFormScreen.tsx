@@ -34,6 +34,7 @@ import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {uploadDocumentFiles} from '@/features/documents/documentSlice';
 import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
+import {resolveCurrencySymbol} from '@/shared/utils/currency';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -329,7 +330,7 @@ export const BookingFormScreen: React.FC = () => {
                     selectedService?.description ??
                     (otContext ? 'Observational tool assessment' : undefined),
                   subtitleSecondary: undefined,
-                  badgeText: selectedService?.basePrice ? `$${selectedService.basePrice}` : null,
+                  badgeText: selectedService?.basePrice ? `${resolveCurrencySymbol(selectedService?.currency ?? 'USD')}${selectedService.basePrice}` : null,
                   image: undefined,
                   showAvatar: false,
                   onEdit: otContext ? undefined : () => navigation.goBack(),

@@ -11,6 +11,7 @@ import {
 } from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import countryList from '@/shared/utils/countryList.json';
 import currencyList from '@/shared/utils/currencyList.json';
+import {SUPPORTED_CURRENCIES} from '@/shared/utils/currency';
 
 export interface CurrencyBottomSheetRef {
   open: () => void;
@@ -56,18 +57,19 @@ const resolveFlag = (countryCode: string) => {
   return country?.flag ?? '🇺🇸';
 };
 
-// We lock the currency to USD for now; keep a single selectable option.
+// Map only supported currencies (EUR, USD) to options with their flags
 const mapToOptions = (): CurrencyOption[] =>
-  CURRENCIES.filter(currency => currency.code === 'USD').map(currency => {
-    const flag = resolveFlag(currency.countryCode);
-    return {
-      id: currency.code,
-      label: `${flag} ${currency.name} (${currency.symbol})`,
-      code: currency.code,
-      symbol: currency.symbol,
-      flag,
-    };
-  });
+  CURRENCIES.filter(currency => SUPPORTED_CURRENCIES.includes(currency.code as any))
+    .map(currency => {
+      const flag = resolveFlag(currency.countryCode);
+      return {
+        id: currency.code,
+        label: `${flag} ${currency.name} (${currency.symbol})`,
+        code: currency.code,
+        symbol: currency.symbol,
+        flag,
+      };
+    });
 
 export const CurrencyBottomSheet = forwardRef<
   CurrencyBottomSheetRef,
@@ -78,7 +80,7 @@ export const CurrencyBottomSheet = forwardRef<
   const currencyOptions = useMemo(() => mapToOptions(), []);
 
   const selectedItem = useMemo(
-    () => currencyOptions.find(option => option.code === selectedCurrency) ?? currencyOptions[0] ?? null,
+    () => currencyOptions.find(option => option.code === selectedCurrency) ?? currencyOptions.find(o => o.code === 'USD') ?? currencyOptions[0] ?? null,
     [currencyOptions, selectedCurrency],
   );
 
@@ -91,8 +93,10 @@ export const CurrencyBottomSheet = forwardRef<
     },
   }));
 
-  const handleSave = (_item: SelectItem | null) => {
-    onSave('USD');
+  const handleSave = (item: SelectItem | null) => {
+    if (item && 'code' in item) {
+      onSave((item as CurrencyOption).code);
+    }
   };
 
   return (

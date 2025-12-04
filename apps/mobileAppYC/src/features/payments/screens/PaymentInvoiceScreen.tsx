@@ -34,6 +34,8 @@ import type {
 import {selectAuthUser} from '@/features/auth/selectors';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import {usePaymentHandler} from '@/features/payments/hooks/usePaymentHandler';
+import {resolveCurrencySymbol} from '@/shared/utils/currency';
+import {resolveCurrencyForBusiness, normalizeCurrencyCode} from '@/shared/utils/currencyResolver';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -94,6 +96,11 @@ const usePaymentStatus = (aptStatus?: string) => {
   }, [aptStatus]);
 };
 
+const isInvoicePending = (status?: string | null) => {
+  const normalized = (status ?? '').toString().toUpperCase();
+  return normalized !== 'PAID' && normalized !== 'REFUNDED' && normalized !== 'CANCELLED';
+};
+
 const isInvoiceMissingTotals = (invoice: any): boolean => {
   const comps = invoice?.totalPriceComponent;
   if (!Array.isArray(comps) || comps.length === 0) return true;
@@ -133,10 +140,15 @@ const buildInvoices = (invoice: any, paymentIntent: any, appointmentId: string) 
   return buildEffectiveInvoice();
 };
 
-  const useInvoiceDisplayData = (effectiveInvoice: any, paymentIntent: any) => {
+  const useInvoiceDisplayData = (effectiveInvoice: any, paymentIntent: any, businessAddress?: string) => {
     return useMemo(() => {
       const clientSecret = paymentIntent?.clientSecret;
-      const currencySymbol = effectiveInvoice?.currency ? `${effectiveInvoice.currency} ` : '$';
+      // Normalize and resolve currency: prefer explicit currency from API, fall back to business location
+      const rawCurrency = effectiveInvoice?.currency ?? paymentIntent?.currency;
+      const currencyCode = rawCurrency
+        ? normalizeCurrencyCode(rawCurrency)
+        : resolveCurrencyForBusiness(businessAddress);
+      const currencySymbol = resolveCurrencySymbol(currencyCode, '$');
       const invoiceNumberDisplay =
         effectiveInvoice?.invoiceNumber ??
         effectiveInvoice?.id ??
@@ -145,9 +157,9 @@ const buildInvoices = (invoice: any, paymentIntent: any, appointmentId: string) 
       const receiptUrl = effectiveInvoice?.downloadUrl ?? effectiveInvoice?.paymentIntent?.paymentLinkUrl ?? paymentIntent?.paymentLinkUrl ?? null;
       const checkRefundStatus = (status?: string | null) => status?.toUpperCase?.().includes?.('REFUND') ?? false;
       const hasRefund = effectiveInvoice?.refundId || checkRefundStatus(effectiveInvoice?.refundStatus) || checkRefundStatus(effectiveInvoice?.status);
-      const refundAmountDisplay = effectiveInvoice?.refundAmount == null ? '—' : `${effectiveInvoice?.currency ?? 'USD'} ${effectiveInvoice?.refundAmount}`;
+      const refundAmountDisplay = effectiveInvoice?.refundAmount == null ? '—' : `${currencySymbol}${effectiveInvoice?.refundAmount.toFixed(2)}`;
       return {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay};
-  }, [effectiveInvoice, paymentIntent]);
+  }, [effectiveInvoice, paymentIntent, businessAddress]);
 };
 
 const buildInvoiceItemKey = ({
@@ -356,7 +368,7 @@ const BreakdownCard = ({
           rawLabel.length > 0 ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel;
         const value =
           typeof pc.amount?.value === 'number'
-            ? `${(pc.amount?.currency ?? currency ?? '').toUpperCase()} ${pc.amount.value.toFixed(2)}`
+            ? `${resolveCurrencySymbol(pc.amount?.currency ?? currency ?? 'USD')}${pc.amount.value.toFixed(2)}`
             : '—';
         return (
           <BreakdownRow
@@ -551,6 +563,7 @@ const useEnsurePaymentData = ({
   navigation,
   invoiceRequestedRef,
   isInvoiceIncomplete,
+  isInvoiceBasedFlow,
 }: {
   appointmentId: string;
   aptStatus?: string;
@@ -560,8 +573,12 @@ const useEnsurePaymentData = ({
   navigation: any;
   invoiceRequestedRef: React.RefObject<boolean>;
   isInvoiceIncomplete: boolean;
+  isInvoiceBasedFlow: boolean;
 }) => {
   useEffect(() => {
+    if (isInvoiceBasedFlow) {
+      return;
+    }
     const hasInvoiceFromRoute = Boolean(routeInvoice);
     if (!appointmentId && !hasInvoiceFromRoute) {
       Alert.alert(
@@ -595,6 +612,7 @@ const useEnsurePaymentData = ({
     routeInvoice,
     invoiceRequestedRef,
     isInvoiceIncomplete,
+    isInvoiceBasedFlow,
   ]);
 };
 
@@ -787,7 +805,11 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const invoiceFromStore = useSelector(
     appointmentId ? selectInvoiceForAppointment(appointmentId) : () => null,
   );
-  const invoice = invoiceFromStore ?? routeInvoice ?? null;
+  const isInvoiceBasedFlow = Boolean(routeInvoice || expenseId); // expense/invoice-based flow
+  const invoicePreferred = isInvoiceBasedFlow
+    ? routeInvoice ?? invoiceFromStore ?? null
+    : invoiceFromStore ?? routeInvoice ?? null;
+  const invoice = invoicePreferred;
   const fallbackPaymentIntent = routeIntent ?? routeInvoice?.paymentIntent ?? null;
   const {apt, business, service, companion} = useAppointmentSelectors(appointmentId, companionId);
   const authUser = useSelector(selectAuthUser);
@@ -841,7 +863,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
   ]);
 
   const paymentIntent =
-    invoice?.paymentIntent ??
+    (isInvoiceBasedFlow ? routeIntent ?? invoice?.paymentIntent : invoice?.paymentIntent) ??
     routeIntent ??
     apt?.paymentIntent ??
     fallbackPaymentIntent ??
@@ -867,9 +889,11 @@ export const PaymentInvoiceScreen: React.FC = () => {
   };
 
   const effectiveInvoice = buildInvoices(invoice, paymentIntent, appointmentId);
-  const {isPaymentPendingStatus} = usePaymentStatus(apt?.status);
-  const isInvoiceBasedFlow = Boolean(routeInvoice); // Check if this is an expense/invoice-based flow
-  const invoiceToCheck = invoiceFromStore ?? routeInvoice ?? null;
+  const invoiceToCheck = invoicePreferred;
+  const {isPaymentPendingStatus: aptPaymentPending} = usePaymentStatus(apt?.status);
+  const isPaymentPendingStatus = isInvoiceBasedFlow
+    ? isInvoicePending(invoiceToCheck?.status)
+    : aptPaymentPending;
   const invoiceIncomplete = isInvoiceMissingTotals(invoiceToCheck);
 
   useFetchAppointmentById({appointmentId, apt: isInvoiceBasedFlow ? {} : apt, dispatch});
@@ -887,6 +911,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     navigation,
     invoiceRequestedRef,
     isInvoiceIncomplete: invoiceIncomplete,
+    isInvoiceBasedFlow,
   });
 
   useEffect(() => {
@@ -895,7 +920,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
       (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId) &&
       (isPaymentPendingStatus ||
         (effectiveInvoice?.status ?? '').toString().toUpperCase() === 'AWAITING_PAYMENT');
-    if (!appointmentId || paymentIntentRequestedRef.current || !needsIntent) {
+    if (isInvoiceBasedFlow || !appointmentId || paymentIntentRequestedRef.current || !needsIntent) {
       return;
     }
     paymentIntentRequestedRef.current = true;
@@ -904,18 +929,22 @@ export const PaymentInvoiceScreen: React.FC = () => {
     appointmentId,
     dispatch,
     effectiveInvoice?.status,
+    isInvoiceBasedFlow,
     isPaymentPendingStatus,
     paymentIntent?.clientSecret,
     paymentIntent?.paymentIntentId,
   ]);
 
-  const {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay} = useInvoiceDisplayData(effectiveInvoice, paymentIntent);
+  const {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay} = useInvoiceDisplayData(effectiveInvoice, paymentIntent, businessAddress);
   const formatMoney = useCallback(
     (value: number) => `${currencySymbol}${value.toFixed(2)}`,
     [currencySymbol],
   );
   const {subtotal, discountAmount, taxAmount, total} = useInvoiceCalculations(effectiveInvoice);
-  const shouldShowPay = isPaymentPendingStatus && !!clientSecret;
+  const shouldShowPay =
+    (isPaymentPendingStatus ||
+      (isInvoiceBasedFlow && isInvoicePending(invoiceToCheck?.status))) &&
+    !!clientSecret;
   const headerTitle = getHeaderTitle(isInvoiceBasedFlow, isPaymentPendingStatus);
   const {shouldShowLoadingNotice} = useInvoiceLoadingState({
     effectiveInvoice,
