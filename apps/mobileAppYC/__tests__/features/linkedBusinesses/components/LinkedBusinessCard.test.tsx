@@ -56,26 +56,27 @@ jest.mock('@/assets/images', () => ({
 
 // 3. Safe "Manual Mock" for react-native
 jest.mock('react-native', () => {
-  const ReactModule = require('react');
+  // FIX: Alias React to avoid shadowing the top-level import
+  const ReactMock = require('react');
 
-  class MockView extends ReactModule.Component {
+  class MockView extends ReactMock.Component {
     render() {
-      return ReactModule.createElement('View', this.props, this.props.children);
+      return ReactMock.createElement('View', this.props, this.props.children);
     }
   }
-  class MockText extends ReactModule.Component {
+  class MockText extends ReactMock.Component {
     render() {
-      return ReactModule.createElement('Text', this.props, this.props.children);
+      return ReactMock.createElement('Text', this.props, this.props.children);
     }
   }
-  class MockImage extends ReactModule.Component {
+  class MockImage extends ReactMock.Component {
     render() {
-      return ReactModule.createElement('Image', this.props, this.props.children);
+      return ReactMock.createElement('Image', this.props, this.props.children);
     }
   }
-  class MockTouchableOpacity extends ReactModule.Component {
+  class MockTouchableOpacity extends ReactMock.Component {
     render() {
-      return ReactModule.createElement(
+      return ReactMock.createElement(
         'TouchableOpacity',
         this.props,
         this.props.children,

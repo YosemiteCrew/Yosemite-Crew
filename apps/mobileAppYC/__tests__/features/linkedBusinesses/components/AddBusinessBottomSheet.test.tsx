@@ -22,6 +22,7 @@ jest.mock('@/hooks', () => ({
 jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
+
     const {View, Text, TouchableOpacity} = require('react-native');
     const ReactModule = require('react');
 

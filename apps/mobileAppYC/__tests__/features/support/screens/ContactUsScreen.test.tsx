@@ -229,11 +229,13 @@ jest.mock(
   () => ({
     __esModule: true,
     default: (function () {
-      const ReactModule = require('react');
+
+      // FIX: Use ReactMock to avoid shadowing
+      const ReactMock = require('react');
       const {View, Text, TouchableOpacity} = require('react-native');
 
-      return ReactModule.forwardRef((props: any, ref: any) => {
-        ReactModule.useImperativeHandle(ref, () => ({
+      return ReactMock.forwardRef((props: any, ref: any) => {
+        ReactMock.useImperativeHandle(ref, () => ({
           open: mockLawSheetOpen,
           close: jest.fn(),
         }));
@@ -261,11 +263,13 @@ jest.mock(
   '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet',
   () => ({
     UploadDocumentBottomSheet: (function () {
-      const ReactModule = require('react');
+
+      // FIX: Use ReactMock to avoid shadowing
+      const ReactMock = require('react');
       const {View, TouchableOpacity, Text} = require('react-native');
 
-      return ReactModule.forwardRef((props: any, ref: any) => {
-        ReactModule.useImperativeHandle(ref, () => ({
+      return ReactMock.forwardRef((props: any, ref: any) => {
+        ReactMock.useImperativeHandle(ref, () => ({
           open: mockUploadSheetOpen,
           close: mockUploadSheetClose,
         }));
@@ -298,11 +302,12 @@ jest.mock(
   '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet',
   () => ({
     DeleteDocumentBottomSheet: (function () {
-      const ReactModule = require('react');
+      // FIX: Use ReactMock to avoid shadowing
+      const ReactMock = require('react');
       const {View, TouchableOpacity, Text} = require('react-native');
 
-      return ReactModule.forwardRef((props: any, ref: any) => {
-        ReactModule.useImperativeHandle(ref, () => ({
+      return ReactMock.forwardRef((props: any, ref: any) => {
+        ReactMock.useImperativeHandle(ref, () => ({
           open: mockDeleteSheetOpen,
           close: mockDeleteSheetClose,
         }));
