@@ -39,12 +39,12 @@ export function getPrevWeek(currentWeekStart: Date): Date {
   d.setDate(d.getDate() - 7);
   return d;
 }
-export function getStartOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 = Sun, 1 = Mon ...
-  const diff = d.getDate() - day + 1; // shift to Monday
 
-  d.setDate(diff);
+export function getStartOfWeek(date: Date, weekStartsOn: 0 | 1 = 1): Date {
+  const d = new Date(date);
   d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 = Sun, 1 = Mon, ...
+  const diff = (day - weekStartsOn + 7) % 7; // how many days since week start
+  d.setDate(d.getDate() - diff); // go BACK to the start of the week
   return d;
 }

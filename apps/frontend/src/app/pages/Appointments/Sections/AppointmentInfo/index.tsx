@@ -172,7 +172,7 @@ const AppoitmentInfo = ({
         />
 
         <div className="flex overflow-y-auto flex-1">
-          {Content ? <Content /> : null}
+          {Content ? <Content activeAppointment={activeAppointment} /> : null}
         </div>
       </div>
     </Modal>

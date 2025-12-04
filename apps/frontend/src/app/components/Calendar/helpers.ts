@@ -9,6 +9,9 @@ export function isSameDay(a: Date, b: Date) {
   );
 }
 
+export const isSameMonth = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+
 export const getMonthYear = (date: Date) => {
   return date.toLocaleDateString("en-US", {
     month: "long",

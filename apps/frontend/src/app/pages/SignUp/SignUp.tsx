@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Col, Form, Row } from "react-bootstrap";
+import { Col, Form, Row } from "react-bootstrap";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GoCheckCircleFill } from "react-icons/go";
@@ -12,6 +12,7 @@ import OtpModal from "@/app/components/OtpModal/OtpModal";
 
 import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import { Primary } from "@/app/components/Buttons";
 
 import "./SignUp.css";
 
@@ -380,13 +381,12 @@ const SignUp = ({
               </div>
 
               <div className="Signbtn">
-                <MainBtn
-                  btnicon={<GoCheckCircleFill />}
-                  btnname="Sign up"
-                  iconPosition="left"
+                <Primary
+                  text="Sign up"
                   onClick={handleSignUp}
+                  href="#"
+                  style={{ width: "100%" }}
                 />
-                {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
                 <h6>
                   {" "}
                   Already have an account?{" "}
@@ -410,28 +410,3 @@ const SignUp = ({
 };
 
 export default SignUp;
-
-// MainBtnProps started
-type MainBtnProps = {
-  btnname: string;
-  btnicon?: React.ReactNode;
-  iconPosition?: "left" | "right";
-  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
-};
-const MainBtn = ({
-  btnname,
-  btnicon,
-  iconPosition,
-  onClick,
-}: Readonly<MainBtnProps>) => {
-  return (
-    <Button className="BlackButton" type="submit" onClick={onClick}>
-      {iconPosition === "left" && btnicon && <span>{btnicon}</span>}
-      <span className="mx-1">{btnname}</span>
-      {iconPosition === "right" && btnicon && <span>{btnicon}</span>}
-    </Button>
-  );
-};
-// MainBtnProps Ended
-
-export { MainBtn };

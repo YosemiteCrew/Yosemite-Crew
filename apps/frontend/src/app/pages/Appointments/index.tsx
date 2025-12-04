@@ -24,9 +24,7 @@ const Appointments = () => {
   const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
 
   useEffect(() => {
-    if (activeCalendar === "week") {
-      setWeekStart(getStartOfWeek(currentDate));
-    }
+    setWeekStart(getStartOfWeek(currentDate));
   }, [currentDate, activeCalendar]);
 
   useEffect(() => {
@@ -44,6 +42,8 @@ const Appointments = () => {
         title="Appointments"
         setActiveCalendar={setActiveCalendar}
         setAddPopup={setAddPopup}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
       />
 
       <div className="w-full flex flex-col gap-6">

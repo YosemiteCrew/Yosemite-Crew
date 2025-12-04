@@ -203,3 +203,93 @@ export const demoAppointments = [
   ...generateAppointments(20, "2025-12-06"),
   ...generateAppointments(20, "2025-12-07"),
 ];
+
+export type CompanionDataProps = {
+  id: string;
+  companion: string;
+  specie: string;
+  breed: string;
+  parent: string;
+};
+
+export const CompanionData: CompanionDataProps[] = [
+  {
+    id: "0",
+    companion: "Milo",
+    specie: "Feline",
+    parent: "Arun Patel",
+    breed: "Siamese",
+  },
+  {
+    id: "1",
+    companion: "Nova",
+    specie: "Canine",
+    parent: "Rachel Gomez",
+    breed: "Golden Retriever",
+  },
+  {
+    id: "2",
+    companion: "Koda",
+    specie: "Canine",
+    parent: "Marcus Hill",
+    breed: "Husky",
+  },
+  {
+    id: "3",
+    companion: "Willow",
+    specie: "Feline",
+    parent: "Charlotte Nguyen",
+    breed: "Maine Coon",
+  },
+  {
+    id: "4",
+    companion: "Pip",
+    specie: "Avian",
+    parent: "Julia Rivera",
+    breed: "Cockatiel",
+  },
+  {
+    id: "5",
+    companion: "Biscuit",
+    specie: "Canine",
+    parent: "Tomás Alvarez",
+    breed: "Beagle",
+  },
+  {
+    id: "6",
+    companion: "Maple",
+    specie: "Feline",
+    parent: "Sara Williams",
+    breed: "British Shorthair",
+  },
+  {
+    id: "7",
+    companion: "Rocco",
+    specie: "Reptile",
+    parent: "Daniel Kim",
+    breed: "Leopard Gecko",
+  },
+  {
+    id: "8",
+    companion: "Zuri",
+    specie: "Canine",
+    parent: "Amelia Brooks",
+    breed: "Shiba Inu",
+  },
+  {
+    id: "9",
+    companion: "Pebble",
+    specie: "Rodent",
+    parent: "Jenna Wright",
+    breed: "Guinea Pig",
+  },
+];
+
+const convertCompanionData = (data: CompanionDataProps[]) => {
+  return data.map((item) => ({
+    key: item.id,
+    value: `${item.companion}-${item.parent}`,
+  }));
+};
+
+export const CompanionDataOptions = convertCompanionData(CompanionData);
