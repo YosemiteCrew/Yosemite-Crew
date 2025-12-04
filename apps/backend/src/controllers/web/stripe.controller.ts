@@ -79,6 +79,22 @@ export const StripeController = {
     }
   },
 
+  async createPaymentIntentForInvoice(req: Request, res: Response) {
+    try {
+      const { invoiceId } = req.params;
+
+      const paymentIntent =
+        await StripeService.createPaymentIntentForInvoice(invoiceId);
+
+      return res.status(200).json(paymentIntent);
+    } catch (err) {
+      logger.error("Error createPaymentIntentForInvoice:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
   async retrievePaymentIntent(req: Request, res: Response) {
     try {
       const { paymentIntentId } = req.params;
