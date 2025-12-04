@@ -109,7 +109,7 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const headerUserId = req.headers?.["x-user-id"];
   if (typeof headerUserId === "string") return headerUserId;
   if (authReq.userId) return authReq.userId;
-  return "6324c8f2-a031-700e-4c85-22f68a8f3646";
+  return authReq.userId;
 };
 
 export const CompanionOrganisationController = {

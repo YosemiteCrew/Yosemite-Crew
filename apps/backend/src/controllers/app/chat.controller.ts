@@ -78,7 +78,7 @@ export const ChatController = {
       if (err instanceof ChatServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
       }
-      logger.error("Error ensuring chat session", err);
+      logger.error(`Error ensuring chat session: ${err}`);
       return res.status(500).json({ message: "Failed to ensure chat session." });
     }
   },

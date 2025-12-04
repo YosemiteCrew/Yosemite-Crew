@@ -29,6 +29,7 @@ import formRouter from "./routers/form.router";
 import expenseRouter from "./routers/expense.router";
 import deviceTokenRouter from "./routers/deviceToken.router";
 import chatRouter from "./routers/chat.router";
+import notificationRouter from "./routers/notification.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -74,6 +75,7 @@ app.use(`/fhir/v1/form`, formRouter);
 app.use(`/v1/expense`, expenseRouter);
 app.use(`/v1/device-token`, deviceTokenRouter);
 app.use(`/v1/chat`, chatRouter);
+app.use(`/v1/notification`, notificationRouter);
 
 let mongoUri: string;
 

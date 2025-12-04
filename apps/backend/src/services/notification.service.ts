@@ -2,6 +2,7 @@ import admin from "firebase-admin";
 import logger from "src/utils/logger";
 import { NotificationPayload } from "src/utils/notificationTemplates";
 import { DeviceTokenService } from "./deviceToken.service";
+import { NotificationModel } from "src/models/notification";
 
 export type Platform = "ANDROID" | "IOS" | "WEB";
 
@@ -150,6 +151,24 @@ export const NotificationService = {
 
       const result = await this.sendToDevice(record.deviceToken, payload, options);
       results.push(result);
+
+      NotificationModel.insertOne({
+        userId,
+        title: payload.title,
+        body: payload.body,
+        type: payload.type,
+        enabled: true,
+        isSeen: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).catch((err) => {
+        logger.error(
+          `Failed to log notification for user ${userId}: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`,
+        );
+      });
+
     }
 
     return results;
@@ -182,5 +201,31 @@ export const NotificationService = {
     }
 
     return summary;
+  },
+
+  async listNotificationsForUser(userId: string) {
+    if (!isNonEmptyString(userId)) {
+      throw new Error("userId is required to list notifications");
+    }
+
+    const notifications = await NotificationModel.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return notifications;
+  },
+
+  async markNotificationAsSeen(notificationId: string) {
+    if (!isNonEmptyString(notificationId)) {
+      throw new Error("notificationId is required to mark as seen");
+    }
+
+    const notification = await NotificationModel.findById(notificationId);
+    if (!notification) {
+      throw new Error("Notification not found");
+    }
+
+    notification.isSeen = true;
+    await notification.save();
   },
 };

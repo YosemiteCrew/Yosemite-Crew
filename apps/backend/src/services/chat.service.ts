@@ -1,5 +1,4 @@
 // src/services/chat.service.ts
-
 import { ChannelData, StreamChat } from "stream-chat";
 import dayjs from "dayjs";
 
@@ -12,6 +11,7 @@ import AppointmentModel, {
 
 const STREAM_KEY = process.env.STREAM_API_KEY!;
 const STREAM_SECRET = process.env.STREAM_API_SECRET!;
+const SYSTEM_USER_ID = "system-yosemite";
 
 if (!STREAM_KEY || !STREAM_SECRET) {
   throw new Error("Stream Chat credentials missing in env");
@@ -20,7 +20,7 @@ if (!STREAM_KEY || !STREAM_SECRET) {
 const streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 
 // How long before/after appointment chat is allowed
-const PRE_WINDOW_MINUTES = 60;   // 1 hour before
+const PRE_WINDOW_MINUTES = 60 * 24 * 1;   // 1 day before
 const POST_WINDOW_MINUTES = 120; // 2 hours after
 
 // Appointment statuses where chat is allowed
@@ -119,37 +119,59 @@ export const ChatService = {
     };
   },
 
+  async initSystemUserOnce() {
+    // you can call this at app startup
+    await streamServer.upsertUser({
+      id: SYSTEM_USER_ID,
+      name: "Yosemite System",
+      role: "admin",
+    });
+  },
+
   /**
    * Ensure there is a chat session and channel for the given appointment.
    * If it already exists, returns it. If not, creates Mongo + Stream channel.
    */
   async ensureSession(appointmentId: string): Promise<ChatSessionDocument> {
     const appointment = await AppointmentModel.findById(appointmentId);
-
-    if (!appointment) {
-      throw new ChatServiceError("Appointment not found", 404);
-    }
+    if (!appointment) throw new ChatServiceError("Appointment not found", 404);
 
     // Already created?
     let session = await ChatSessionModel.findOne({ appointmentId });
     if (session) return session;
 
-    // Extract participants
     const parentId = appointment.companion.parent.id;
+    //Upsert parent user in Stream
+    await streamServer.upsertUser({
+      id: parentId,
+      name: appointment.companion.parent.name || "Pet Owner",
+      role: "user",
+    });
+
     const vetId = appointment.lead?.id ?? null;
+    // Upsert vet user in Stream if assigned
+    await streamServer.upsertUser({
+      id: vetId!,
+      name: appointment.lead?.name || "Vet",
+      role: "user",
+    }); 
+
     const orgId = appointment.organisationId;
     const companionId = appointment.companion.id;
 
-    const members: string[] = [parentId];
+    const members = [parentId];
     if (vetId) members.push(vetId);
+
+    await streamServer.upsertUser({
+      id: SYSTEM_USER_ID,
+      name: "Yosemite System",
+      role: "admin",
+    });
 
     const channelId = `appointment-${appointmentId}`;
 
-    const { allowedFrom, allowedUntil } =
-      getChatWindowFromAppointment(appointment);
-
     const data: YosemiteChannelData = {
-      name: `Chat with ${appointment.companion.parent.name || "Pet Owner"}`,
+      name: `Chat with ${appointment.companion.name || "Companion"}`,
       appointmentId,
       organisationId: orgId,
       companionId,
@@ -159,11 +181,16 @@ export const ChatService = {
       members,
     };
 
-    // Create Stream channel
-    const channel = streamServer.channel("messaging", channelId, data);
-    await channel.create();
+    // IMPORTANT: include created_by_id (or created_by)
+    const channel = streamServer.channel("messaging", channelId, {
+      ...data,
+      created_by_id: SYSTEM_USER_ID,
+    });
 
-    // Create ChatSession in DB (start as PENDING)
+    await channel.create(); // no extra args needed here
+
+    const { allowedFrom, allowedUntil } = getChatWindowFromAppointment(appointment);
+
     session = await ChatSessionModel.create({
       appointmentId,
       channelId,
@@ -172,9 +199,9 @@ export const ChatService = {
       parentId,
       vetId,
       members,
-      status: "PENDING",
       allowedFrom,
       allowedUntil,
+      status: "ACTIVE",
     });
 
     return session;
