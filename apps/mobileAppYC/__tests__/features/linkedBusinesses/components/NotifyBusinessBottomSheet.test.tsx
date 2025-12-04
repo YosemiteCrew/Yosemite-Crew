@@ -18,7 +18,7 @@ jest.mock('@/hooks', () => ({
 
 // Mock the custom hook
 jest.mock('@/shared/hooks/useConfirmActionSheetRef', () => ({
-  useConfirmActionSheetRef: (ref: any, onConfirm: any) => {
+  useConfirmActionSheetRef: (_ref: any, onConfirm: any) => {
     return {
       sheetRef: {current: {}},
       handleConfirm: onConfirm || jest.fn(),
@@ -83,7 +83,6 @@ describe('NotifyBusinessBottomSheet', () => {
 
     expect(screen.getByTestId('btn-primary')).toHaveTextContent('Okay');
 
-    // FIX: Use Regex for partial text matching on the aggregated text content
     expect(screen.getByTestId('sheet-message')).toHaveTextContent(
       /Yosemite Crew have sent an Invite to/,
     );
@@ -95,7 +94,6 @@ describe('NotifyBusinessBottomSheet', () => {
 
   it('renders correctly without optional names (partial props)', () => {
     render(<NotifyBusinessBottomSheet onConfirm={mockOnConfirm} />);
-    // FIX: Use Regex here as well
     expect(screen.getByTestId('sheet-message')).toHaveTextContent(
       /Yosemite Crew have sent an Invite to/,
     );

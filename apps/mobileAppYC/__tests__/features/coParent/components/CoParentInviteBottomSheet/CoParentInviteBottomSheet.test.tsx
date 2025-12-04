@@ -63,14 +63,15 @@ const mockInternalSheetClose = jest.fn();
 jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
-    const React = require('react');
+    // FIX: Require React inside the mock but alias it to avoid shadowing the global 'React'
+    const ReactMock = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
 
     return {
-      ConfirmActionBottomSheet: React.forwardRef(
+      ConfirmActionBottomSheet: ReactMock.forwardRef(
         ({title, primaryButton, secondaryButton, children}: any, ref: any) => {
           // Assign mocks to the ref passed from the parent (CoParentInviteBottomSheet)
-          React.useImperativeHandle(ref, () => ({
+          ReactMock.useImperativeHandle(ref, () => ({
             open: mockInternalSheetOpen,
             close: mockInternalSheetClose,
           }));

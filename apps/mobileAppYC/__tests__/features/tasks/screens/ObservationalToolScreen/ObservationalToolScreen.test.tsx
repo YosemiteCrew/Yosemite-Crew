@@ -38,7 +38,7 @@ jest.mock('@react-navigation/native', () => {
       params: mockRouteParams,
     }),
     useFocusEffect: (cb: () => void) => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      // FIX: Removed eslint-disable comment
       ReactLib.useEffect(cb, []);
     },
   };
@@ -103,7 +103,11 @@ jest.mock('@/features/observationalTools/data', () => ({
 jest.mock('@/features/tasks/selectors', () => ({
   selectTaskById: (id: string) => () => {
     if (id === 'task-123') {
-      return {id, companionId: 'comp-1', details: {toolType: 'test-tool'}};
+      return {
+        id,
+        companionId: 'comp-1',
+        details: {toolType: 'test-tool'},
+      };
     }
     if (id === 'task-cat') {
       return {id, companionId: 'comp-1', details: {toolType: 'cat-tool'}};
@@ -368,7 +372,9 @@ describe('ObservationalToolScreen', () => {
       index: 0,
       routes: [{name: 'TasksMain'}],
     });
-    expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {screen: 'Home'});
+    expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {
+      screen: 'Home',
+    });
   });
 
   it('handles safe exit when having history', () => {
@@ -406,8 +412,18 @@ describe('ObservationalToolScreen', () => {
       ...mockState,
       businesses: {
         businesses: [
-          {id: 'b1', category: 'hospital', name: 'B1', description: 'Desc'},
-          {id: 'b2', category: 'hospital', name: 'B2', specialties: ['Spec1']},
+          {
+            id: 'b1',
+            category: 'hospital',
+            name: 'B1',
+            description: 'Desc',
+          },
+          {
+            id: 'b2',
+            category: 'hospital',
+            name: 'B2',
+            specialties: ['Spec1'],
+          },
           {id: 'b3', category: 'hospital', name: 'B3', openHours: '9-5'},
           {id: 'b4', category: 'hospital', name: 'B4', address: 'Addr'},
         ],
@@ -425,18 +441,6 @@ describe('ObservationalToolScreen', () => {
 
   it('handles provider pricing fallback logic', () => {
     // Scenario: More businesses than provider definitions to trigger fallback logic
-    // Data has 1 provider for test-tool.
-    // We mock 3 businesses.
-    // b1 matches biz-1 (exact match)
-    // b2 no match -> fallbackByIndex (index 1) -> none -> fallback to index 0
-    // b3 no match -> fallbackByIndex (index 2) -> none -> fallback to index 0
-
-    // We need to ensure the branch where fallbackByIndex exists is hit,
-    // and where it doesn't exist but [0] exists is hit.
-
-    // Let's manipulate the mock data for this specific test via the module mock
-    // But module mocks are hoisted. We rely on the existing 'test-tool' data which has 1 provider.
-
     const manyBizState = {
       ...mockState,
       businesses: {
@@ -454,9 +458,6 @@ describe('ObservationalToolScreen', () => {
   });
 
   it('handles fallback when no provider pricing exists (default zero)', () => {
-    // Force toolType to something with no providers configured in `observationalToolProviders`
-    // but we need it in `observationalToolDefinitions` to render.
-    // Let's use 'cat-tool' which has empty providers list in our mock.
     mockRouteParams = {taskId: 'task-cat'};
 
     const bizState = {
@@ -470,7 +471,6 @@ describe('ObservationalToolScreen', () => {
     render(<ObservationalToolScreen />);
 
     // Should render with $0.00 fees
-    // "ZeroFee" business is rendered, forcing the `{evaluationFee: 0...}` fallback branch
     expect(screen.getByText('ZeroFee')).toBeTruthy();
     const zeroFees = screen.getAllByText('$0.00');
     expect(zeroFees.length).toBeGreaterThan(0);

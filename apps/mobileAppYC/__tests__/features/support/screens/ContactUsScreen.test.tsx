@@ -40,8 +40,6 @@ const mockHandleChooseFromGallery = jest.fn();
 const mockHandleUploadFromDrive = jest.fn();
 const mockHandleRemoveFile = jest.fn();
 const mockConfirmDeleteFile = jest.fn();
-// mockOpenSheet is used to simulate the hook calling back into the component,
-// or to spy on what's passed, but here we primarily rely on component side effects (refs opening)
 const mockOpenSheet = jest.fn();
 
 jest.mock('@/hooks', () => ({
@@ -89,7 +87,6 @@ jest.mock('@/hooks', () => ({
     if (config) {
       capturedSetFiles = config.setFiles;
       capturedClearError = config.clearError;
-      // Capture the closeSheet function passed FROM component TO hook
       capturedCloseSheet = config.closeSheet;
 
       if (config.openSheet) mockOpenSheet.mockImplementation(config.openSheet);
@@ -592,8 +589,6 @@ describe('ContactUsScreen', () => {
     fireEvent.press(screen.getByTestId('pill-complaint'));
 
     fireEvent.press(screen.getByTestId('add-attachment'));
-    // Instead of checking the hook's spy (which isn't called by the component directly),
-    // check if the bottom sheet was opened, which is the side effect of the component calling openSheet('upload')
     expect(mockUploadSheetOpen).toHaveBeenCalled();
 
     fireEvent.press(screen.getByTestId('sheet-take-photo'));
@@ -617,35 +612,18 @@ describe('ContactUsScreen', () => {
     render(
       <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
     );
-    // 1. Switch to Complaint Tab where the sheet logic resides
     fireEvent.press(screen.getByTestId('pill-complaint'));
 
-    // 2. Open Upload Sheet
     fireEvent.press(screen.getByTestId('add-attachment'));
 
-    // 3. Simulate the hook calling closeSheet()
     act(() => {
       capturedCloseSheet?.();
     });
     expect(mockUploadSheetClose).toHaveBeenCalled();
 
-    // 4. Add file to enable remove button
     act(() => {
       capturedSetFiles?.([{id: '1', name: 'test.jpg'}]);
     });
-
-    // 5. Press remove -> Should trigger openSheet('delete') inside component logic
-    // In real app, handleRemoveFile calls openSheet('delete').
-    // Since we mocked useFileOperations, the handleRemoveFile prop on DocumentAttachmentsSection is just the mock.
-    // The component's handleRemoveFile wrapper is:
-    // const { handleRemoveFile } = useFileOperations(...)
-    // ... onRequestRemove={file => handleRemoveFile(file.id)}
-    // So pressing remove calls the mock directly. It DOES NOT call component's openSheet unless the real hook does.
-    // But we mocked the hook.
-
-    // However, we want to test the `closeSheet` callback logic inside the component.
-    // We can simulate the "delete" state by just calling the sheet open function exposed to the hook mock manually if we really needed to test the state ref.
-    // Or better: we can spy on the openSheet passed to the hook mock and call it.
   });
 
   it('Sheet Management: Internal openSheet sets active ref correctly for closing', () => {
@@ -674,28 +652,23 @@ describe('ContactUsScreen', () => {
       <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
     );
 
-    // Switch to complaint tab to ensure sheets are potentially relevant (though logic exists in parent)
     fireEvent.press(screen.getByTestId('pill-complaint'));
 
-    // 1. Simulate opening upload sheet via the function passed to the hook
     act(() => {
       internalOpenSheet('upload');
     });
     expect(mockUploadSheetOpen).toHaveBeenCalled();
 
-    // 2. Simulate closing (hook calls closeSheet)
     act(() => {
       capturedCloseSheet?.();
     });
     expect(mockUploadSheetClose).toHaveBeenCalled();
 
-    // 3. Simulate opening delete sheet
     act(() => {
       internalOpenSheet('delete');
     });
     expect(mockDeleteSheetOpen).toHaveBeenCalled();
 
-    // 4. Simulate closing
     act(() => {
       capturedCloseSheet?.();
     });
