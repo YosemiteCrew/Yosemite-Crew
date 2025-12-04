@@ -751,7 +751,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
         {hasMultipleInvoices ? (
           <View style={styles.detailsCard}>
-            <Text style={styles.sectionTitle}>Additional Invoices</Text>
+            <Text style={styles.sectionTitle}>Invoices</Text>
             {appointmentInvoices.length ? (
               appointmentInvoices.map(expense => (
                 <ExpenseCard
