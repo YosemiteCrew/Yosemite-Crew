@@ -31,10 +31,12 @@ jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
     const {View, Text, TouchableOpacity} = require('react-native');
-    const ReactModule = require('react');
+
+    // FIX: Alias to avoid shadowing top-level React
+    const ReactMock = require('react');
     return {
-      ConfirmActionBottomSheet: ReactModule.forwardRef(
-        ({title, children, primaryButton}: any) => (
+      ConfirmActionBottomSheet: ReactMock.forwardRef(
+        ({title, children, primaryButton}: any, _ref: any) => (
           <View testID="confirm-sheet">
             <Text testID="sheet-title">{title}</Text>
             {children}

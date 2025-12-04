@@ -132,8 +132,12 @@ describe('features/tasks/taskSlice', () => {
       expect(nextState.loading).toBe(false);
       expect(nextState.items).toHaveLength(2); // 1 kept + 1 new
       // Explicitly typed 't' as any to fix TS7006
-      expect(nextState.items.find((t: any) => t.id === 'old1')).toBeUndefined();
-      expect(nextState.items.find((t: any) => t.id === 'new1')).toBeDefined();
+      expect(
+        nextState.items.find((t: any) => t.id === 'old1')
+      ).toBeUndefined();
+      expect(
+        nextState.items.find((t: any) => t.id === 'new1')
+      ).toBeDefined();
       expect(nextState.hydratedCompanions.C1).toBe(true);
     });
 
