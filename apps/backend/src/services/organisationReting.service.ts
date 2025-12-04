@@ -57,6 +57,10 @@ export const OrganizationRatingService = {
       organizationId: organisationId,
       userId,
     });
-    return !!existingRating;
+    return {
+      isRated: existingRating ? true : false,
+      rating: existingRating ? existingRating.rating : null,
+      review: existingRating ? existingRating.review : null,
+    }
   },
 };

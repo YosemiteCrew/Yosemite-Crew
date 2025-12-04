@@ -184,7 +184,7 @@ export const ChatService = {
     // IMPORTANT: include created_by_id (or created_by)
     const channel = streamServer.channel("messaging", channelId, {
       ...data,
-      created_by_id: SYSTEM_USER_ID,
+      created_by_id: parentId,
     });
 
     await channel.create(); // no extra args needed here

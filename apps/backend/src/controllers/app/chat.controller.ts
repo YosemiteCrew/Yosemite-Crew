@@ -4,6 +4,7 @@ import { ChatService, ChatServiceError } from "src/services/chat.service";
 import ChatSessionModel from "src/models/chatSession";
 import { AuthenticatedRequest } from "src/middlewares/auth"; // adjust path as needed
 import logger from "src/utils/logger";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
@@ -21,7 +22,7 @@ export const ChatController = {
    * Generate Stream chat token for current user
    * POST /chat/token
    */
-  generateToken(this: void, req: Request, res: Response) {
+  generateToken: async (req: Request, res: Response) => {
     try {
       const userId = resolveUserIdFromRequest(req);
 
@@ -29,9 +30,16 @@ export const ChatController = {
         return res
           .status(401)
           .json({ message: "Not authenticated: userId is missing." });
+      } 
+
+      const authUser = await AuthUserMobileService.getByProviderUserId(userId);
+      if (!authUser) {
+        return res
+          .status(404)
+          .json({ message: "User not found for provided userId." });
       }
 
-      const tokenInfo = ChatService.generateToken(userId);
+      const tokenInfo = ChatService.generateToken(authUser.parentId?.toString()!);
       return res.status(200).json(tokenInfo);
     } catch (err) {
       if (err instanceof ChatServiceError) {
