@@ -88,7 +88,7 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   galleryIcon: require('./icons/galleryIcon.png'),
   driveIcon: require('./icons/driveIcon.png'),
   currencyIcon: require('./icons/currencyIcon.png'),
-
+  tickGreen: require('./icons/tickGreen.png'),
   emptyExpenseIllustration: require('./expense/emptyExpenseIllustration.png'),
 
   leftArrowIcon: require('./tasks/leftArrow.png'), // Placeholder - use left arrow from Figma

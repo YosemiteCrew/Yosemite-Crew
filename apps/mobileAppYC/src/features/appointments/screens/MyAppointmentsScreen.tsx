@@ -157,6 +157,8 @@ export const MyAppointmentsScreen: React.FC = () => {
       case 'CONFIRMED':
       case 'SCHEDULED':
         return 'Scheduled';
+      case 'IN_PROGRESS':
+        return 'In progress';
       case 'RESCHEDULED':
         return 'Rescheduled';
       case 'COMPLETED':
@@ -276,6 +278,9 @@ export const MyAppointmentsScreen: React.FC = () => {
     isRequested,
     statusAllowsActions,
     isCheckedIn,
+    isInProgress,
+    checkInLabel,
+    checkInDisabled,
     isCheckingIn,
   }: {
     item: (typeof filteredUpcoming)[number];
@@ -294,8 +299,14 @@ export const MyAppointmentsScreen: React.FC = () => {
     isRequested: boolean;
     statusAllowsActions: boolean;
     isCheckedIn: boolean;
+    isInProgress: boolean;
+    checkInLabel: string;
+    checkInDisabled: boolean;
     isCheckingIn: boolean;
   }) => {
+    const resolvedCheckInDisabled = isCheckingIn || checkInDisabled;
+    const resolvedCheckInLabel =
+      checkInLabel ?? (isInProgress ? 'In progress' : isCheckedIn ? 'Checked in' : 'Check in');
     const paymentFooter = needsPayment ? (
       <View style={styles.upcomingFooter}>
         <LiquidGlassButton
@@ -361,10 +372,10 @@ export const MyAppointmentsScreen: React.FC = () => {
             })
           }
           onChatBlocked={() => showPermissionDeniedToast('chat with vet')}
-          checkInLabel={isCheckedIn ? 'Checked in' : 'Check in'}
-          checkInDisabled={isCheckedIn || isCheckingIn}
+          checkInLabel={resolvedCheckInLabel}
+          checkInDisabled={resolvedCheckInDisabled}
           onCheckIn={() => {
-            if (!isCheckingIn && !isCheckedIn) {
+            if (!resolvedCheckInDisabled) {
               handleCheckIn(item);
             }
           }}
@@ -478,6 +489,9 @@ export const MyAppointmentsScreen: React.FC = () => {
       isRequested,
       statusAllowsActions,
       isCheckedIn,
+      isInProgress,
+      checkInLabel,
+      checkInDisabled,
     } = cardData;
 
     return section.key === 'upcoming'
@@ -498,6 +512,9 @@ export const MyAppointmentsScreen: React.FC = () => {
           isRequested,
           statusAllowsActions,
           isCheckedIn,
+          isInProgress,
+          checkInLabel,
+          checkInDisabled,
           isCheckingIn,
         })
       : renderPastCard({

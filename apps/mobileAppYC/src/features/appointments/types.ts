@@ -75,6 +75,7 @@ export type AppointmentStatus =
   | 'PAID'
   | 'UPCOMING'
   | 'CHECKED_IN'
+  | 'IN_PROGRESS'
   | 'CONFIRMED'
   | 'COMPLETED'
   | 'CANCELLED'

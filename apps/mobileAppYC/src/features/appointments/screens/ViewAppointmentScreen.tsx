@@ -130,6 +130,8 @@ const useStatusDisplay = (theme: any) => {
         return {text: 'Upcoming', textColor: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
       case 'CHECKED_IN':
         return {text: 'Checked in', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+      case 'IN_PROGRESS':
+        return {text: 'In progress', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
       case 'REQUESTED':
         return {text: 'Requested', textColor: theme.colors.primary, backgroundColor: theme.colors.primaryTint};
       case 'NO_PAYMENT':
@@ -159,14 +161,16 @@ const useStatusFlags = (status: string) => {
   return useMemo(() => {
     const isPaymentPending = status === 'NO_PAYMENT' || status === 'AWAITING_PAYMENT' || status === 'PAYMENT_FAILED';
     const isRequested = status === 'REQUESTED';
-    const isUpcoming = status === 'UPCOMING';
     const isCheckedIn = status === 'CHECKED_IN';
+    const isInProgress = status === 'IN_PROGRESS';
+    const isUpcoming = status === 'UPCOMING' || isCheckedIn || isInProgress;
     const isTerminal = status === 'COMPLETED' || status === 'CANCELLED';
     return {
       isPaymentPending,
       isRequested,
       isUpcoming,
       isCheckedIn,
+      isInProgress,
       isTerminal,
       showPayNow: isPaymentPending && !isRequested,
       showInvoice: !isPaymentPending,
@@ -412,6 +416,7 @@ const ActionButtons = ({
   styles,
   showCheckInButton,
   isCheckedIn,
+  isInProgress,
   checkingIn,
   handleCheckIn,
   showPayNow,
@@ -427,6 +432,7 @@ const ActionButtons = ({
   styles: any;
   showCheckInButton: boolean;
   isCheckedIn: boolean;
+  isInProgress: boolean;
   checkingIn: boolean;
   handleCheckIn: () => void;
   showPayNow: boolean;
@@ -438,76 +444,80 @@ const ActionButtons = ({
   showCancel: boolean;
   handleCancel: () => void;
   theme: any;
-}) => (
-  <View style={styles.actionsContainer}>
-    {showCheckInButton && (
-      <LiquidGlassButton
-        title={isCheckedIn ? 'Checked in' : 'Check in'}
-        onPress={handleCheckIn}
-        height={56}
-        borderRadius={16}
-        tintColor={theme.colors.secondary}
-        shadowIntensity="medium"
-        textStyle={styles.confirmPrimaryButtonText}
-        disabled={checkingIn || isCheckedIn}
-      />
-    )}
+}) => {
+  const checkInTitle = isInProgress ? 'In progress' : isCheckedIn ? 'Checked in' : 'Check in';
+  const checkInDisabled = checkingIn || isCheckedIn || isInProgress;
+  return (
+    <View style={styles.actionsContainer}>
+      {showCheckInButton && (
+        <LiquidGlassButton
+          title={checkInTitle}
+          onPress={handleCheckIn}
+          height={56}
+          borderRadius={16}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.confirmPrimaryButtonText}
+          disabled={checkInDisabled}
+        />
+      )}
 
-    {showPayNow && (
-      <LiquidGlassButton
-        title="Pay Now"
-        onPress={handlePayNow}
-        height={56}
-        borderRadius={16}
-        tintColor={theme.colors.secondary}
-        shadowIntensity="medium"
-        textStyle={styles.confirmPrimaryButtonText}
-      />
-    )}
+      {showPayNow && (
+        <LiquidGlassButton
+          title="Pay Now"
+          onPress={handlePayNow}
+          height={56}
+          borderRadius={16}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.confirmPrimaryButtonText}
+        />
+      )}
 
-    {showInvoice && (
-      <LiquidGlassButton
-        title="View Invoice"
-        onPress={handleInvoice}
-        height={56}
-        borderRadius={16}
-        tintColor={theme.colors.secondary}
-        shadowIntensity="medium"
-        textStyle={styles.confirmPrimaryButtonText}
-      />
-    )}
+      {showInvoice && (
+        <LiquidGlassButton
+          title="View Invoice"
+          onPress={handleInvoice}
+          height={56}
+          borderRadius={16}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.confirmPrimaryButtonText}
+        />
+      )}
 
-    {showEdit && (
-      <LiquidGlassButton
-        title="Edit Appointment"
-        onPress={handleEdit}
-        height={56}
-        borderRadius={16}
-        glassEffect="clear"
-        tintColor={theme.colors.surface}
-        forceBorder
-        borderColor={theme.colors.secondary}
-        textStyle={styles.secondaryButtonText}
-        shadowIntensity="medium"
-        interactive
-      />
-    )}
+      {showEdit && (
+        <LiquidGlassButton
+          title="Edit Appointment"
+          onPress={handleEdit}
+          height={56}
+          borderRadius={16}
+          glassEffect="clear"
+          tintColor={theme.colors.surface}
+          forceBorder
+          borderColor={theme.colors.secondary}
+          textStyle={styles.secondaryButtonText}
+          shadowIntensity="medium"
+          interactive
+        />
+      )}
 
-    {showCancel && (
-      <LiquidGlassButton
-        title="Cancel Appointment"
-        onPress={handleCancel}
-        height={56}
-        borderRadius={16}
-        tintColor="#FEE2E2"
-        forceBorder
-        borderColor="#EF4444"
-        textStyle={styles.alertButtonText}
-        shadowIntensity="none"
-      />
-    )}
-  </View>
-);
+      {showCancel && (
+        <LiquidGlassButton
+          title="Cancel Appointment"
+          onPress={handleCancel}
+          height={56}
+          borderRadius={16}
+          tintColor="#FEE2E2"
+          forceBorder
+          borderColor="#EF4444"
+          textStyle={styles.alertButtonText}
+          shadowIntensity="none"
+        />
+      )}
+    </View>
+  );
+};
 
 export const ViewAppointmentScreen: React.FC = () => {
   const {theme} = useTheme();
@@ -597,8 +607,16 @@ export const ViewAppointmentScreen: React.FC = () => {
   const status = apt?.status ?? 'REQUESTED';
   const getStatusDisplay = useStatusDisplay(theme);
   const statusFlags = useStatusFlags(status);
-  const {isRequested, isUpcoming, isCheckedIn, isTerminal, showPayNow, showInvoice, showCancel} =
-    statusFlags;
+  const {
+    isRequested,
+    isUpcoming,
+    isCheckedIn,
+    isInProgress,
+    isTerminal,
+    showPayNow,
+    showInvoice,
+    showCancel,
+  } = statusFlags;
   const statusInfo = getStatusDisplay(status);
   const displayData = useAppointmentDisplayData({apt, business, service, employee, isDummyPhoto, businessPhoto, fallbackPhoto, isRequested});
   const {cancellationNote, businessName, businessAddress, resolvedPhoto, department, statusHelpText} = displayData;
@@ -655,7 +673,7 @@ export const ViewAppointmentScreen: React.FC = () => {
   // Show provider card only for upcoming appointments (hide for requested/pending/cancelled/etc.)
   const shouldShowEmployee =
     !statusFlags.isPaymentPending && statusFlags.isUpcoming;
-  const showCheckInButton = (isUpcoming || isCheckedIn) && !isTerminal;
+  const showCheckInButton = (isUpcoming || isCheckedIn || isInProgress) && !isTerminal;
   const normalizedStartTime =
     (apt.time?.length === 5 ? `${apt.time}:00` : apt.time ?? '00:00') ?? '00:00';
   const localStartDate = new Date(`${apt.date}T${normalizedStartTime}Z`);
@@ -801,6 +819,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           styles={styles}
           showCheckInButton={showCheckInButton}
           isCheckedIn={isCheckedIn}
+          isInProgress={isInProgress}
           checkingIn={checkingIn}
           handleCheckIn={handleCheckIn}
           showPayNow={!hasMultipleInvoices && showPayNow}

@@ -19,6 +19,9 @@ export interface AppointmentCardData {
   isRequested: boolean;
   statusAllowsActions: boolean;
   isCheckedIn: boolean;
+  isInProgress: boolean;
+  checkInLabel: string;
+  checkInDisabled: boolean;
   hasAssignedVet: boolean;
   servicePriceText: string | null;
 }
@@ -87,8 +90,11 @@ export const transformAppointmentCardData = (
     appointment.status === 'PAYMENT_FAILED';
   const isRequested = appointment.status === 'REQUESTED';
   const isCheckedIn = appointment.status === 'CHECKED_IN';
+  const isInProgress = appointment.status === 'IN_PROGRESS';
   const statusAllowsActions =
-    (appointment.status === 'UPCOMING' || isCheckedIn) && !needsPayment;
+    (appointment.status === 'UPCOMING' || isCheckedIn || isInProgress) && !needsPayment;
+  const checkInLabel = isInProgress ? 'In progress' : isCheckedIn ? 'Checked in' : 'Check in';
+  const checkInDisabled = isCheckedIn || isInProgress;
 
   return {
     cardTitle,
@@ -104,6 +110,9 @@ export const transformAppointmentCardData = (
     isRequested,
     statusAllowsActions,
     isCheckedIn,
+    isInProgress,
+    checkInLabel,
+    checkInDisabled,
     hasAssignedVet,
     servicePriceText,
   };

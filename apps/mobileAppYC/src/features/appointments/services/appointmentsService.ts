@@ -35,18 +35,20 @@ const buildUrl = (path: string, opts?: {usePms?: boolean}) => {
 
 const toStatus = (status?: string): AppointmentStatus => {
   const upper = (status ?? '').toUpperCase();
-  switch (upper) {
+  const normalized = upper.replace(/\s+/g, '_');
+  switch (normalized) {
     case 'AWAITING_PAYMENT':
     case 'NO_PAYMENT':
     case 'PAID':
     case 'UPCOMING':
     case 'CHECKED_IN':
+    case 'IN_PROGRESS':
     case 'CONFIRMED':
     case 'COMPLETED':
     case 'RESCHEDULED':
     case 'SCHEDULED':
     case 'PAYMENT_FAILED':
-      return upper as AppointmentStatus;
+      return normalized as AppointmentStatus;
     case 'ARRIVED':
       return 'CHECKED_IN';
     case 'CANCELLED':

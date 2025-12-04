@@ -468,6 +468,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
     const priority: Record<string, number> = {
       UPCOMING: 0,
+      IN_PROGRESS: 0.25,
       CHECKED_IN: 0.5,
       PAID: 1,
       CONFIRMED: 2,
@@ -610,7 +611,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       isRequested,
       statusAllowsActions,
       isCheckedIn,
+      isInProgress,
+      checkInLabel,
+      checkInDisabled,
     } = cardData;
+    const isCheckInDisabled = checkInDisabled || checkingIn[appointment.id];
     const footer = needsPayment ? (
       <View style={styles.upcomingFooter}>
         <LiquidGlassButton
@@ -663,12 +668,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         }}
         onChat={() => handleChatAppointment(appointment.id)}
         onCheckIn={() => {
-          if (!isCheckedIn) {
+          if (!isCheckInDisabled) {
             handleCheckInAppointment(appointment.id);
           }
         }}
-        checkInLabel={isCheckedIn ? 'Checked in' : 'Check in'}
-        checkInDisabled={isCheckedIn || checkingIn[appointment.id]}
+        checkInLabel={checkInLabel ?? (isInProgress ? 'In progress' : undefined)}
+        checkInDisabled={isCheckInDisabled}
         testIDs={{
           container: 'appointment-card-container',
           directions: 'appointment-directions',

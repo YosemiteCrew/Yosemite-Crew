@@ -8,6 +8,7 @@
 import {Alert} from 'react-native';
 import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/mockStreamBackend';
 import {getAppointmentTimeAsIso} from '@/shared/utils/timezoneUtils';
+import {AUTH_FEATURE_FLAGS} from '@/config/variables';
 
 export interface ChatActivationConfig {
   appointment: any;
@@ -26,6 +27,13 @@ export interface ChatActivationConfig {
  */
 export const handleChatActivation = (config: ChatActivationConfig): void => {
   const {appointment, onOpenChat} = config;
+
+  // Allow bypass in review builds
+  if (AUTH_FEATURE_FLAGS.enableReviewLogin) {
+    console.log('[Chat] Review mode enabled; skipping chat time constraint');
+    onOpenChat();
+    return;
+  }
 
   // Convert UTC date/time to ISO format with Z suffix
   const appointmentDateTime = getAppointmentTimeAsIso(
