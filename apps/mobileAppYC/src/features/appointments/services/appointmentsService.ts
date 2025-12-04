@@ -336,27 +336,28 @@ const mapInvoiceFromApi = (
     raw.paymentIntentId ??
     null;
 
-  const paymentIntent = raw.paymentIntent
-    ? {
-        paymentIntentId: raw.paymentIntent.paymentIntentId ?? raw.paymentIntent.id,
-        clientSecret: raw.paymentIntent.clientSecret,
-        amount: raw.paymentIntent.amount,
-        currency: raw.paymentIntent.currency ?? raw.currency ?? 'USD',
-        paymentLinkUrl: raw.paymentIntent.paymentLinkUrl ?? null,
-      }
-    : paymentIntentIdFromExt
-      ? {
-          paymentIntentId: paymentIntentIdFromExt,
-          clientSecret:
-            raw.paymentIntent?.clientSecret ??
-            raw.clientSecret ??
-            raw.paymentIntentClientSecret ??
-            '',
-          amount: raw.paymentIntent?.amount ?? total,
-          currency: raw.paymentIntent?.currency ?? raw.currency ?? 'USD',
-          paymentLinkUrl: raw.paymentIntent?.paymentLinkUrl ?? null,
-        }
-      : null;
+  let paymentIntent: PaymentIntentInfo | null = null;
+  if (raw.paymentIntent) {
+    paymentIntent = {
+      paymentIntentId: raw.paymentIntent.paymentIntentId ?? raw.paymentIntent.id,
+      clientSecret: raw.paymentIntent.clientSecret,
+      amount: raw.paymentIntent.amount,
+      currency: raw.paymentIntent.currency ?? raw.currency ?? 'USD',
+      paymentLinkUrl: raw.paymentIntent.paymentLinkUrl ?? null,
+    };
+  } else if (paymentIntentIdFromExt) {
+    paymentIntent = {
+      paymentIntentId: paymentIntentIdFromExt,
+      clientSecret:
+        raw.paymentIntent?.clientSecret ??
+        raw.clientSecret ??
+        raw.paymentIntentClientSecret ??
+        '',
+      amount: raw.paymentIntent?.amount ?? total,
+      currency: raw.paymentIntent?.currency ?? raw.currency ?? 'USD',
+      paymentLinkUrl: raw.paymentIntent?.paymentLinkUrl ?? null,
+    };
+  }
 
   const invoiceCreatedAt: string | undefined =
     raw.invoiceDate ?? raw.createdAt ?? raw.paymentIntent?.createdAt ?? raw.date;

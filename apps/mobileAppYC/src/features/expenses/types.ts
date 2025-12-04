@@ -40,6 +40,7 @@ export interface Expense {
   invoiceId?: string | null;
   note?: string | null;
   parentId?: string | null;
+  appointmentId?: string | null;
 }
 
 export interface ExpenseSummary {

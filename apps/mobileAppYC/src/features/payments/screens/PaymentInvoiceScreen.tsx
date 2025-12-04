@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useEffect, useRef} from 'react';
+import React, {useMemo, useState, useEffect, useRef, useCallback} from 'react';
 import {
   ScrollView,
   View,
@@ -350,7 +350,7 @@ const BreakdownCard = ({
         .map((pc: any, idx: number) => {
         const rawLabel =
           pc.code?.text ??
-          pc.type?.toString().replace(/_/g, ' ').replace(/-/g, ' ') ??
+          pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
           `Line ${idx + 1}`;
         const label =
           rawLabel.length > 0 ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel;
@@ -545,7 +545,6 @@ const useBusinessPhoto = ({
 const useEnsurePaymentData = ({
   appointmentId,
   aptStatus,
-  paymentIntent,
   dispatch,
   invoiceFromStore,
   routeInvoice,
@@ -555,7 +554,6 @@ const useEnsurePaymentData = ({
 }: {
   appointmentId: string;
   aptStatus?: string;
-  paymentIntent: PaymentIntentInfo | null;
   dispatch: AppDispatch;
   invoiceFromStore: Invoice | null;
   routeInvoice: Invoice | null | undefined;
@@ -564,9 +562,7 @@ const useEnsurePaymentData = ({
   isInvoiceIncomplete: boolean;
 }) => {
   useEffect(() => {
-    // If we have a route invoice (from expense context), we don't need to validate appointmentId
     const hasInvoiceFromRoute = Boolean(routeInvoice);
-
     if (!appointmentId && !hasInvoiceFromRoute) {
       Alert.alert(
         'Missing data',
@@ -576,13 +572,14 @@ const useEnsurePaymentData = ({
       return;
     }
 
-    // Only fetch appointment-specific data if we don't have a route invoice
     if (!hasInvoiceFromRoute && appointmentId) {
       const needsInvoice = !invoiceFromStore && !routeInvoice;
+      const isPaymentPending =
+        aptStatus === 'NO_PAYMENT' ||
+        aptStatus === 'AWAITING_PAYMENT' ||
+        aptStatus === 'PAYMENT_FAILED';
       const shouldFetchInvoice =
-        !(aptStatus === 'NO_PAYMENT' || aptStatus === 'AWAITING_PAYMENT' || aptStatus === 'PAYMENT_FAILED') &&
-        !invoiceRequestedRef.current &&
-        (needsInvoice || isInvoiceIncomplete);
+        !isPaymentPending && !invoiceRequestedRef.current && (needsInvoice || isInvoiceIncomplete);
 
       if (shouldFetchInvoice) {
         invoiceRequestedRef.current = true;
@@ -595,12 +592,169 @@ const useEnsurePaymentData = ({
     dispatch,
     invoiceFromStore,
     navigation,
-    paymentIntent?.clientSecret,
-    paymentIntent?.paymentIntentId,
     routeInvoice,
     invoiceRequestedRef,
     isInvoiceIncomplete,
   ]);
+};
+
+const getHeaderTitle = (isInvoiceBasedFlow: boolean, isPaymentPendingStatus: boolean) => {
+  if (isInvoiceBasedFlow) return 'Invoice payment';
+  if (isPaymentPendingStatus) return 'Book appointment';
+  return 'Invoice details';
+};
+
+const useInvoiceLoadingState = ({
+  effectiveInvoice,
+  isPaymentPendingStatus,
+  invoiceRequestedRef,
+  paymentIntentRequestedRef,
+  paymentIntent,
+}: {
+  effectiveInvoice: Invoice | null;
+  isPaymentPendingStatus: boolean;
+  invoiceRequestedRef: React.RefObject<boolean>;
+  paymentIntentRequestedRef: React.RefObject<boolean>;
+  paymentIntent: PaymentIntentInfo | null;
+}) => {
+  const invoiceRequested = invoiceRequestedRef.current;
+  const paymentIntentRequested = paymentIntentRequestedRef.current;
+
+  return useMemo(() => {
+    const isInvoiceLoaded = Boolean(effectiveInvoice);
+    const isPaymentIntentLoading =
+      paymentIntentRequested &&
+      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId);
+    const isInvoiceLoading =
+      (!isInvoiceLoaded && (isPaymentPendingStatus || invoiceRequested)) ||
+      (!isInvoiceLoaded && isPaymentIntentLoading);
+    const shouldShowLoadingNotice =
+      isInvoiceLoading || isPaymentIntentLoading || (!isInvoiceLoaded && isPaymentPendingStatus);
+
+    return {isInvoiceLoaded, isPaymentIntentLoading, shouldShowLoadingNotice};
+  }, [
+    effectiveInvoice,
+    invoiceRequested,
+    isPaymentPendingStatus,
+    paymentIntent?.clientSecret,
+    paymentIntent?.paymentIntentId,
+    paymentIntentRequested,
+  ]);
+};
+
+const buildInvoiceContent = ({
+  shouldShowLoadingNotice,
+  effectiveInvoice,
+  invoiceNumberDisplay,
+  apt,
+  styles,
+  hasRefund,
+  refundAmountDisplay,
+  theme,
+  isInvoiceBasedFlow,
+  companionAvatar,
+  companionInitial,
+  guardianAvatar,
+  guardianInitial,
+  guardianEmail,
+  guardianAddress,
+  companionName,
+  subtotal,
+  discountAmount,
+  taxAmount,
+  total,
+  formatMoney,
+  paymentIntent,
+  receiptUrl,
+  paymentDueLabel,
+  businessName,
+  businessAddress,
+  shouldShowPay,
+  presentingSheet,
+  clientSecret,
+  handlePayNow,
+}: any) => {
+  if (shouldShowLoadingNotice) {
+    return (
+      <View style={styles.loadingBox}>
+        <ActivityIndicator size="small" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Preparing payment details…</Text>
+      </View>
+    );
+  }
+
+  if (effectiveInvoice) {
+    return (
+      <>
+      <InvoiceDetailsCard
+        invoiceNumberDisplay={invoiceNumberDisplay}
+        effectiveInvoice={effectiveInvoice}
+        apt={apt}
+        styles={styles}
+      />
+
+      {hasRefund ? (
+        <View style={styles.metaCard}>
+          <RefundSection
+            effectiveInvoice={effectiveInvoice}
+            refundAmountDisplay={refundAmountDisplay}
+            theme={theme}
+            styles={styles}
+          />
+        </View>
+      ) : null}
+
+      {!isInvoiceBasedFlow && (
+        <InvoiceForCard
+          companionAvatar={companionAvatar}
+          companionInitial={companionInitial}
+          guardianAvatar={guardianAvatar}
+          guardianInitial={guardianInitial}
+          guardianEmail={guardianEmail}
+          guardianAddress={guardianAddress}
+          companionName={companionName}
+          styles={styles}
+        />
+      )}
+
+      <BreakdownCard
+        effectiveInvoice={effectiveInvoice}
+        subtotal={subtotal}
+        discountAmount={discountAmount}
+        taxAmount={taxAmount}
+        total={total}
+        formatMoney={formatMoney}
+        currency={effectiveInvoice?.currency ?? paymentIntent?.currency ?? 'USD'}
+        styles={styles}
+      />
+
+      <ReceiptCard receiptUrl={receiptUrl} theme={theme} styles={styles} />
+
+      <TermsCard
+        paymentDueLabel={paymentDueLabel}
+        businessName={businessName}
+        businessAddress={businessAddress}
+        styles={styles}
+      />
+
+      <PayButton
+        shouldShowPay={shouldShowPay}
+        presentingSheet={presentingSheet}
+        clientSecret={clientSecret}
+        theme={theme}
+        handlePayNow={handlePayNow}
+        styles={styles}
+      />
+      </>
+    );
+  }
+
+  return (
+    <Text style={styles.warningText}>
+      No invoice found for this booking. Please retry booking or contact
+      support.
+    </Text>
+  );
 };
 
 export const PaymentInvoiceScreen: React.FC = () => {
@@ -727,7 +881,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
   useEnsurePaymentData({
     appointmentId,
     aptStatus: apt?.status,
-    paymentIntent,
     dispatch,
     invoiceFromStore,
     routeInvoice,
@@ -757,19 +910,20 @@ export const PaymentInvoiceScreen: React.FC = () => {
   ]);
 
   const {clientSecret, currencySymbol, invoiceNumberDisplay, receiptUrl, hasRefund, refundAmountDisplay} = useInvoiceDisplayData(effectiveInvoice, paymentIntent);
-  const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
+  const formatMoney = useCallback(
+    (value: number) => `${currencySymbol}${value.toFixed(2)}`,
+    [currencySymbol],
+  );
   const {subtotal, discountAmount, taxAmount, total} = useInvoiceCalculations(effectiveInvoice);
   const shouldShowPay = isPaymentPendingStatus && !!clientSecret;
-  const headerTitle = isInvoiceBasedFlow ? 'Invoice payment' : isPaymentPendingStatus ? 'Book appointment' : 'Invoice details';
-  const isInvoiceLoaded = Boolean(effectiveInvoice);
-  const isPaymentIntentLoading =
-    paymentIntentRequestedRef.current &&
-    (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId);
-  const isInvoiceLoading =
-    (!isInvoiceLoaded && (isPaymentPendingStatus || invoiceRequestedRef.current)) ||
-    (!isInvoiceLoaded && isPaymentIntentLoading);
-  const shouldShowLoadingNotice =
-    isInvoiceLoading || isPaymentIntentLoading || (!isInvoiceLoaded && isPaymentPendingStatus);
+  const headerTitle = getHeaderTitle(isInvoiceBasedFlow, isPaymentPendingStatus);
+  const {shouldShowLoadingNotice} = useInvoiceLoadingState({
+    effectiveInvoice,
+    isPaymentPendingStatus,
+    invoiceRequestedRef,
+    paymentIntentRequestedRef,
+    paymentIntent,
+  });
   const paymentDueLabel = formatDateOnlyDisplay(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
   const {handlePayNow, presentingSheet} = usePaymentHandler({
@@ -784,6 +938,74 @@ export const PaymentInvoiceScreen: React.FC = () => {
     navigation,
   });
 
+  const content = useMemo(
+    () =>
+      buildInvoiceContent({
+        shouldShowLoadingNotice,
+        effectiveInvoice,
+        invoiceNumberDisplay,
+        apt,
+        styles,
+        hasRefund,
+        refundAmountDisplay,
+        theme,
+        isInvoiceBasedFlow,
+        companionAvatar,
+        companionInitial,
+        guardianAvatar,
+        guardianInitial,
+        guardianEmail,
+        guardianAddress,
+        companionName,
+        subtotal,
+        discountAmount,
+        taxAmount,
+        total,
+        formatMoney,
+        paymentIntent,
+        receiptUrl,
+        paymentDueLabel,
+        businessName,
+        businessAddress,
+        shouldShowPay,
+        presentingSheet,
+        clientSecret,
+        handlePayNow,
+      }),
+    [
+      shouldShowLoadingNotice,
+      effectiveInvoice,
+      invoiceNumberDisplay,
+      apt,
+      styles,
+      hasRefund,
+      refundAmountDisplay,
+      theme,
+      isInvoiceBasedFlow,
+      companionAvatar,
+      companionInitial,
+      guardianAvatar,
+      guardianInitial,
+      guardianEmail,
+      guardianAddress,
+      companionName,
+      subtotal,
+      discountAmount,
+      taxAmount,
+      total,
+      formatMoney,
+      paymentIntent,
+      receiptUrl,
+      paymentDueLabel,
+      businessName,
+      businessAddress,
+      shouldShowPay,
+      presentingSheet,
+      clientSecret,
+      handlePayNow,
+    ],
+  );
+
   return (
     <SafeArea>
       <Header
@@ -792,83 +1014,13 @@ export const PaymentInvoiceScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        {shouldShowLoadingNotice ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={styles.loadingText}>Preparing payment details…</Text>
-          </View>
-        ) : !effectiveInvoice ? (
-          <Text style={styles.warningText}>
-            No invoice found for this booking. Please retry booking or contact
-            support.
-          </Text>
-        ) : null}
         <SummaryCards
           businessSummary={summaryBusiness as any}
           service={service}
           serviceName={apt?.serviceName}
           cardStyle={styles.summaryCard}
         />
-
-        <InvoiceDetailsCard
-          invoiceNumberDisplay={invoiceNumberDisplay}
-          effectiveInvoice={effectiveInvoice}
-          apt={apt}
-          styles={styles}
-        />
-
-        {hasRefund ? (
-          <View style={styles.metaCard}>
-            <RefundSection
-              effectiveInvoice={effectiveInvoice}
-              refundAmountDisplay={refundAmountDisplay}
-              theme={theme}
-              styles={styles}
-            />
-          </View>
-        ) : null}
-
-        {!isInvoiceBasedFlow && (
-          <InvoiceForCard
-            companionAvatar={companionAvatar}
-            companionInitial={companionInitial}
-            guardianAvatar={guardianAvatar}
-            guardianInitial={guardianInitial}
-            guardianEmail={guardianEmail}
-            guardianAddress={guardianAddress}
-            companionName={companionName}
-            styles={styles}
-          />
-        )}
-
-        <BreakdownCard
-          effectiveInvoice={effectiveInvoice}
-          subtotal={subtotal}
-          discountAmount={discountAmount}
-          taxAmount={taxAmount}
-          total={total}
-          formatMoney={formatMoney}
-          currency={effectiveInvoice?.currency ?? paymentIntent?.currency ?? 'USD'}
-          styles={styles}
-        />
-
-        <ReceiptCard receiptUrl={receiptUrl} theme={theme} styles={styles} />
-
-        <TermsCard
-          paymentDueLabel={paymentDueLabel}
-          businessName={businessName}
-          businessAddress={businessAddress}
-          styles={styles}
-        />
-
-        <PayButton
-          shouldShowPay={shouldShowPay}
-          presentingSheet={presentingSheet}
-          clientSecret={clientSecret}
-          theme={theme}
-          handlePayNow={handlePayNow}
-          styles={styles}
-        />
+        {content}
       </ScrollView>
     </SafeArea>
   );

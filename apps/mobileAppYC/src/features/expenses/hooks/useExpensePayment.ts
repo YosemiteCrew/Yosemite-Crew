@@ -5,7 +5,12 @@ import {useNavigation} from '@react-navigation/native';
 import type {NavigationProp} from '@react-navigation/native';
 import type {AppDispatch} from '@/app/store';
 import type {Expense} from '@/features/expenses/types';
-import {fetchExpenseInvoice, fetchExpensePaymentIntent} from '@/features/expenses/thunks';
+import {
+  fetchExpenseInvoice,
+  fetchExpensePaymentIntent,
+  fetchExpensePaymentIntentByInvoice,
+} from '@/features/expenses/thunks';
+import {isExpensePaymentPending} from '@/features/expenses/utils/status';
 import type {TabParamList} from '@/navigation/types';
 import type {Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 
@@ -34,52 +39,103 @@ export const useExpensePayment = () => {
   const navigation = useNavigation();
   const [processingPayment, setProcessingPayment] = useState(false);
 
+  const validateExpenseForPayment = useCallback((expense: Expense): string | null => {
+    if (expense.source !== 'inApp') {
+      return 'Only in-app expenses can be paid here.';
+    }
+    if (!expense.invoiceId) {
+      return 'Invoice not found for this expense. Please try again later.';
+    }
+    return null;
+  }, []);
+
+  const fetchInvoiceAndIntent = useCallback(
+    async (
+      expense: Expense,
+      invoice: Invoice | null = null,
+      preloadedPaymentIntent: PaymentIntentInfo | null = null,
+    ): Promise<{invoice: Invoice | null; paymentIntent: PaymentIntentInfo | null}> => {
+      let resolvedInvoice = invoice;
+      let resolvedIntent = preloadedPaymentIntent;
+
+      if (!resolvedInvoice) {
+        const invoiceResult = await dispatch(
+          fetchExpenseInvoice({invoiceId: expense.invoiceId!}),
+        ).unwrap();
+        resolvedInvoice = invoiceResult.invoice;
+        resolvedIntent = invoiceResult.paymentIntent ?? null;
+      }
+
+      // Only fetch latest payment intent for unpaid invoices
+      if (isExpensePaymentPending(expense)) {
+        try {
+          resolvedIntent = await dispatch(
+            fetchExpensePaymentIntentByInvoice({invoiceId: expense.invoiceId!}),
+          ).unwrap();
+        } catch {
+          // ignore, fallback to older intent resolution below
+        }
+      }
+
+      if (!resolvedIntent?.clientSecret && resolvedInvoice) {
+        const intentId =
+          (resolvedInvoice as any)?.paymentIntent?.paymentIntentId ??
+          (resolvedInvoice as any)?.payment_intent_id ??
+          (resolvedInvoice as any)?.stripePaymentIntentId ??
+          null;
+        if (intentId) {
+          resolvedIntent = await dispatch(
+            fetchExpensePaymentIntent({paymentIntentId: intentId}),
+          ).unwrap();
+        }
+      }
+
+      return {invoice: resolvedInvoice, paymentIntent: resolvedIntent};
+    },
+    [dispatch],
+  );
+
+  const findTabNavigation = useCallback((): NavigationProp<TabParamList> | null => {
+    let tabNavigation =
+      navigation.getParent<NavigationProp<TabParamList>>() ??
+      navigation.getParent()?.getParent<NavigationProp<TabParamList>>() ??
+      navigation.getParent()?.getParent()?.getParent<NavigationProp<TabParamList>>();
+
+    if (tabNavigation || !(navigation as any)?.getParent) {
+      return tabNavigation ?? null;
+    }
+
+    let current: any = navigation;
+    let depth = 0;
+    while (current?.getParent && depth < 6) {
+      current = current.getParent();
+      depth += 1;
+      if (current?.getState?.()?.routeNames?.includes?.('Appointments')) {
+        return current as NavigationProp<TabParamList>;
+      }
+    }
+    return tabNavigation ?? null;
+  }, [navigation]);
+
   const openPaymentScreen = useCallback(
     async (expense: Expense, preloadedInvoice?: Invoice | null, preloadedPaymentIntent?: PaymentIntentInfo | null) => {
       if (processingPayment) {
         return;
       }
 
-      if (expense.source !== 'inApp') {
-        Alert.alert('Payment unavailable', 'Only in-app expenses can be paid here.');
-        return;
-      }
-
-      if (!expense.invoiceId) {
-        Alert.alert(
-          'Payment unavailable',
-          'Invoice not found for this expense. Please try again later.',
-        );
+      const validationError = validateExpenseForPayment(expense);
+      if (validationError) {
+        Alert.alert('Payment unavailable', validationError);
         return;
       }
 
       setProcessingPayment(true);
       try {
-        let invoice = preloadedInvoice;
-        let paymentIntent = preloadedPaymentIntent;
-        let paymentIntentId: string | null = null;
-
-        // Fetch invoice if not preloaded
-        if (!invoice) {
-          const invoiceResult = await dispatch(
-            fetchExpenseInvoice({invoiceId: expense.invoiceId}),
-          ).unwrap();
-
-          invoice = invoiceResult.invoice;
-          paymentIntentId =
-            invoiceResult.paymentIntent?.paymentIntentId ?? invoiceResult.paymentIntentId;
-          paymentIntent = invoiceResult.paymentIntent ?? null;
-
-          // Fetch payment intent if we have the ID but not the full intent data
-          if (!paymentIntent?.clientSecret && paymentIntentId) {
-            paymentIntent = await dispatch(
-              fetchExpensePaymentIntent({paymentIntentId}),
-            ).unwrap();
-          }
-        } else {
-          // Invoice was preloaded, extract payment intent ID if available
-          paymentIntentId = (invoice as any)?.paymentIntentId || (paymentIntent as any)?.paymentIntentId;
-        }
+        const {invoice, paymentIntent} = await fetchInvoiceAndIntent(
+          expense,
+          preloadedInvoice,
+          preloadedPaymentIntent,
+        );
 
         if (!invoice) {
           Alert.alert(
@@ -90,7 +146,7 @@ export const useExpensePayment = () => {
         }
 
         // Extract appointmentId from invoice extensions
-        const appointmentId = extractAppointmentId(invoice);
+        const appointmentId = expense.appointmentId ?? extractAppointmentId(invoice);
 
         if (!appointmentId) {
           Alert.alert(
@@ -101,23 +157,7 @@ export const useExpensePayment = () => {
         }
 
         // Navigate to PaymentInvoice screen with extracted appointmentId
-        let tabNavigation =
-          navigation.getParent<NavigationProp<TabParamList>>() ??
-          navigation.getParent()?.getParent<NavigationProp<TabParamList>>() ??
-          navigation.getParent()?.getParent()?.getParent<NavigationProp<TabParamList>>();
-
-        if (!tabNavigation && (navigation as any)?.getParent) {
-          let current: any = navigation;
-          let depth = 0;
-          while (current?.getParent && depth < 6) {
-            current = current.getParent();
-            depth += 1;
-            if (current?.getState?.()?.routeNames?.includes?.('Appointments')) {
-              tabNavigation = current as NavigationProp<TabParamList>;
-              break;
-            }
-          }
-        }
+        const tabNavigation = findTabNavigation();
 
         (tabNavigation ?? (navigation as any))?.navigate(
           'Appointments' as any,
@@ -141,7 +181,7 @@ export const useExpensePayment = () => {
         setProcessingPayment(false);
       }
     },
-    [dispatch, navigation, processingPayment],
+    [fetchInvoiceAndIntent, findTabNavigation, navigation, processingPayment, validateExpenseForPayment],
   );
 
   return {openPaymentScreen, processingPayment};

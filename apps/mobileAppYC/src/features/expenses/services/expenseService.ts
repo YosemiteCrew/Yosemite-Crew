@@ -8,7 +8,7 @@ import type {Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 import {mapInvoiceFromResponse} from '@/features/appointments/services/appointmentsService';
 import {resolveCategoryLabel, resolveSubcategoryLabel, resolveVisitTypeLabel} from '@/features/expenses/utils/expenseLabels';
 
-type ExpenseSourceRaw = 'IN_APP' | 'EXTERNAL' | string;
+type ExpenseSourceRaw = 'IN_APP' | 'EXTERNAL';
 
 export interface ExpenseInputPayload {
   companionId: string;
@@ -34,8 +34,8 @@ const toSlug = (value?: string | null) =>
   (value ?? '')
     .toString()
     .trim()
-    .replace(/\s+/g, '-')
-    .replace(/_+/g, '-')
+    .replaceAll(/\s+/g, '-')
+    .replaceAll(/_+/g, '-')
     .toLowerCase();
 
 const normalizeCategory = (value?: string | null) => {
@@ -189,6 +189,12 @@ const mapExpenseFromApi = (raw: any, companionIdFallback?: string): Expense => {
     businessName: raw?.businessName ?? raw?.providerName ?? raw?.organization ?? raw?.organisation,
     description: raw?.description ?? raw?.note ?? '',
     invoiceId: raw?.invoiceId ?? raw?.invoice_id ?? raw?.invoice?.id ?? null,
+    appointmentId:
+      raw?.appointmentId ??
+      raw?.appointment_id ??
+      raw?.appointment?.id ??
+      raw?.invoice?.appointmentId ??
+      null,
     note: raw?.note ?? null,
     parentId: raw?.parentId ?? raw?.parent_id ?? null,
   };
@@ -318,7 +324,12 @@ export const expenseApi = {
       `/v1/expense/companion/${encodeURIComponent(companionId)}/list`,
       {headers: withAuthHeaders(accessToken)},
     );
-    const collection = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    let collection: any[] = [];
+    if (Array.isArray(data)) {
+      collection = data;
+    } else if (Array.isArray(data?.data)) {
+      collection = data.data;
+    }
     return collection.map((item: any) => mapExpenseFromApi(item, companionId));
   },
 
@@ -428,11 +439,12 @@ export const expenseApi = {
     );
 
     // Handle various response formats
-    const payload = Array.isArray(data?.data)
-      ? data.data[0]
-      : Array.isArray(data)
-        ? data[0]
-        : data?.data ?? data ?? null;
+    let payload = data?.data ?? data ?? null;
+    if (Array.isArray(data?.data)) {
+      payload = data.data[0] ?? null;
+    } else if (Array.isArray(data)) {
+      payload = data[0] ?? null;
+    }
 
     // Extract invoice data and organisation data from the response
     // The payload might be the wrapper object with {invoice, organistion} or just the invoice
@@ -465,6 +477,27 @@ export const expenseApi = {
     const payload = data?.paymentIntent ?? data?.data ?? data ?? {};
     return {
       paymentIntentId: payload.paymentIntentId ?? payload.id ?? paymentIntentId,
+      clientSecret: payload.clientSecret ?? payload.client_secret ?? '',
+      amount: payload.amount ?? payload.value ?? 0,
+      currency: payload.currency ?? payload.currencyCode ?? 'USD',
+      paymentLinkUrl: payload.paymentLinkUrl ?? null,
+    };
+  },
+
+  async fetchPaymentIntentByInvoice({
+    invoiceId,
+    accessToken,
+  }: {
+    invoiceId: string;
+    accessToken: string;
+  }): Promise<PaymentIntentInfo> {
+    const {data} = await apiClient.get(
+      `/v1/stripe/invoice/${encodeURIComponent(invoiceId)}/payment-intent`,
+      {headers: withAuthHeaders(accessToken)},
+    );
+    const payload = data?.paymentIntent ?? data?.data ?? data ?? {};
+    return {
+      paymentIntentId: payload.paymentIntentId ?? payload.id ?? payload.invoiceId ?? invoiceId,
       clientSecret: payload.clientSecret ?? payload.client_secret ?? '',
       amount: payload.amount ?? payload.value ?? 0,
       currency: payload.currency ?? payload.currencyCode ?? 'USD',

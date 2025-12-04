@@ -250,6 +250,21 @@ export const fetchExpensePaymentIntent = createAsyncThunk<
   }
 });
 
+export const fetchExpensePaymentIntentByInvoice = createAsyncThunk<
+  PaymentIntentInfo,
+  {invoiceId: string},
+  {rejectValue: string}
+>('expenses/fetchPaymentIntentByInvoice', async ({invoiceId}, {rejectWithValue}) => {
+  try {
+    const accessToken = await ensureAccessToken();
+    return await expenseApi.fetchPaymentIntentByInvoice({invoiceId, accessToken});
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to fetch payment intent',
+    );
+  }
+});
+
 export const fetchExpenseById = createAsyncThunk<
   Expense,
   {expenseId: string},
