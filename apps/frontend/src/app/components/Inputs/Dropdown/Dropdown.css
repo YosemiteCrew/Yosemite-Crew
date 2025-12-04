@@ -78,7 +78,7 @@
   position: absolute;
   top: 110%;
   border-radius: 16px;
-  border: 1px solid var(--notibg) !important;
+  border: 1px solid #eaeaea !important;
   background-color: var(--whitebg);
   outline: var(--black-text);
   z-index: 200;

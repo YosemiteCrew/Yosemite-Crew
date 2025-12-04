@@ -23,6 +23,7 @@ type WeekCalendarProps = {
   handleViewAppointment: any;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
+  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -31,17 +32,26 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   handleViewAppointment,
   weekStart,
   setWeekStart,
+  setCurrentDate,
 }) => {
   const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const height = PIXELS_PER_MINUTE * 60;
 
   const handlePrevWeek = () => {
-    setWeekStart((prev) => getPrevWeek(prev));
+    setWeekStart((prev) => {
+      const nextWeekStart = getPrevWeek(prev);
+      setCurrentDate(nextWeekStart);
+      return nextWeekStart;
+    });
   };
 
   const handleNextWeek = () => {
-    setWeekStart((prev) => getNextWeek(prev));
+    setWeekStart((prev) => {
+      const nextWeekStart = getNextWeek(prev);
+      setCurrentDate(nextWeekStart);
+      return nextWeekStart;
+    });
   };
 
   const nowPosition = useMemo(() => {
@@ -67,7 +77,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     const minutesInHour = minutesSinceMidnight % 60;
     const topPx =
       hourIndex * (height + EVENT_VERTICAL_GAP_PX) +
-      (minutesInHour / 60) * height + 8;
+      (minutesInHour / 60) * height +
+      8;
 
     return { topPx, todayIndex };
   }, [weekStart, days]);
