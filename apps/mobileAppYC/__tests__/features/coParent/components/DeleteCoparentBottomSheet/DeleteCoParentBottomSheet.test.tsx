@@ -13,14 +13,14 @@ const mockInternalClose = jest.fn();
 jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
-    const React = require('react');
+    // FIX: Use ReactMock to avoid shadowing top-level React
+    const ReactMock = require('react');
     const {View, Button, Text} = require('react-native');
 
-    // Mock implementation that mimics the real component's ref behavior
     return {
-      ConfirmActionBottomSheet: React.forwardRef(
+      ConfirmActionBottomSheet: ReactMock.forwardRef(
         ({title, message, primaryButton, secondaryButton}: any, ref: any) => {
-          React.useImperativeHandle(ref, () => ({
+          ReactMock.useImperativeHandle(ref, () => ({
             open: mockInternalOpen,
             close: mockInternalClose,
           }));
@@ -56,7 +56,6 @@ describe('DeleteCoParentBottomSheet', () => {
     const {getByText} = render(
       <DeleteCoParentBottomSheet coParentName="John Doe" />,
     );
-
     expect(getByText('Delete Co-Parent?')).toBeTruthy();
     expect(
       getByText('Are you sure you want to delete John Doe as co-parent?'),
@@ -83,9 +82,7 @@ describe('DeleteCoParentBottomSheet', () => {
     const {getByTestId} = render(
       <DeleteCoParentBottomSheet onDelete={onDelete} />,
     );
-
     fireEvent.press(getByTestId('primary-btn'));
-
     expect(mockInternalClose).toHaveBeenCalled();
     expect(onDelete).toHaveBeenCalled();
   });
@@ -95,23 +92,15 @@ describe('DeleteCoParentBottomSheet', () => {
     const {getByTestId} = render(
       <DeleteCoParentBottomSheet onCancel={onCancel} />,
     );
-
     fireEvent.press(getByTestId('secondary-btn'));
-
     expect(mockInternalClose).toHaveBeenCalled();
     expect(onCancel).toHaveBeenCalled();
   });
 
   it('handles undefined callbacks safely (Branch Coverage)', () => {
-    const {getByTestId} = render(
-      <DeleteCoParentBottomSheet />, // No callbacks provided
-    );
-
-    // Press Delete - shouldn't crash, just close
+    const {getByTestId} = render(<DeleteCoParentBottomSheet />);
     fireEvent.press(getByTestId('primary-btn'));
     expect(mockInternalClose).toHaveBeenCalledTimes(1);
-
-    // Press Cancel - shouldn't crash, just close
     fireEvent.press(getByTestId('secondary-btn'));
     expect(mockInternalClose).toHaveBeenCalledTimes(2);
   });

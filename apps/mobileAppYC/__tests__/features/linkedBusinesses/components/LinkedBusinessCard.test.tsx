@@ -107,7 +107,6 @@ const getDirectionsButton = () => {
         img.props.source && img.props.source.uri === 'direction-icon',
     );
   } catch (_error) {
-    // Return undefined to indicate element was not found (simulates queryBy)
     return undefined;
   }
 };
@@ -119,7 +118,6 @@ const getDeleteButton = () => {
       (img: any) => img.props.source && img.props.source.uri === 'delete-icon',
     );
   } catch (_error) {
-    // Return undefined to indicate element was not found (simulates queryBy)
     return undefined;
   }
 };
@@ -143,10 +141,8 @@ describe('LinkedBusinessCard', () => {
     (Linking.canOpenURL as jest.Mock).mockResolvedValue(true);
     (Linking.openURL as jest.Mock).mockResolvedValue(undefined);
 
-    // FIX: Ensure dispatch returns the action object so .unwrap() works in component
     mockDispatch.mockImplementation(action => action);
 
-    // FIX: Double cast (as unknown as jest.Mock) fixes the TypeScript conversion error
     (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
       unwrap: jest
         .fn()

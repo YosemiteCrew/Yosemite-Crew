@@ -1,8 +1,8 @@
 import React from 'react';
-import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
+import {render, fireEvent, act} from '@testing-library/react-native';
 import {AddCoParentScreen} from '../../../../../src/features/coParent/screens/AddCoParentScreen/AddCoParentScreen';
 import * as Redux from 'react-redux';
-import {Alert, Button, View} from 'react-native';
+import {Alert} from 'react-native';
 
 // --- Mocks ---
 
@@ -71,28 +71,33 @@ jest.mock('@/assets/images', () => ({
 // 5. Components
 jest.mock('@/shared/components/common/Header/Header', () => ({
   Header: ({title, onBack}: any) => {
-    const {View, Button, Text} = require('react-native');
+    // Fix shadowing: View, Button, Text are used here, so require them locally
+    const {
+      View: MockView,
+      Button: MockButton,
+      Text: MockText,
+    } = require('react-native');
     return (
-      <View testID="header">
-        <Text>{title}</Text>
-        <Button title="Back" onPress={onBack} testID="header-back-btn" />
-      </View>
+      <MockView testID="header">
+        <MockText>{title}</MockText>
+        <MockButton title="Back" onPress={onBack} testID="header-back-btn" />
+      </MockView>
     );
   },
 }));
 
 jest.mock('@/shared/components/common', () => ({
   Input: (props: any) => {
-    const {View, TextInput} = require('react-native');
+    const {View: MockView, TextInput: MockTextInput} = require('react-native');
     return (
-      <View>
-        <TextInput
+      <MockView>
+        <MockTextInput
           testID={`input-${props.label}`}
           onChangeText={props.onChangeText}
           value={props.value}
           {...props}
         />
-      </View>
+      </MockView>
     );
   },
 }));
@@ -101,9 +106,9 @@ jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => ({
     LiquidGlassButton: ({title, onPress, loading}: any) => {
-      const {Button} = require('react-native');
+      const {Button: MockButton} = require('react-native');
       return (
-        <Button
+        <MockButton
           title={loading ? 'Sending...' : title}
           onPress={onPress}
           testID="submit-btn"
@@ -122,7 +127,7 @@ jest.mock(
   '../../../../../src/features/coParent/components/AddCoParentBottomSheet/AddCoParentBottomSheet',
   () => {
     const {forwardRef, useImperativeHandle} = require('react');
-    const {View, Button} = require('react-native');
+    const {View: MockView, Button: MockButton} = require('react-native');
 
     return forwardRef(({onConfirm}: any, ref: any) => {
       useImperativeHandle(ref, () => ({
@@ -130,13 +135,13 @@ jest.mock(
         close: mockSheetClose,
       }));
       return (
-        <View testID="bottom-sheet">
-          <Button
+        <MockView testID="bottom-sheet">
+          <MockButton
             title="Close Sheet"
             onPress={onConfirm}
             testID="sheet-close-btn"
           />
-        </View>
+        </MockView>
       );
     });
   },

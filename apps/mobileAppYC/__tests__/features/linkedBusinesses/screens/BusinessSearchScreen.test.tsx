@@ -264,7 +264,7 @@ describe('BusinessSearchScreen', () => {
     });
 
     mockSelectLinkedBusinesses = jest.fn().mockReturnValue([]);
-    (Redux.useSelector as jest.Mock).mockImplementation(selector => {
+    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector => {
       if (selector === LinkedBusinessActions.selectLinkedBusinesses) {
         return mockSelectLinkedBusinesses();
       }
