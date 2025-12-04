@@ -69,7 +69,7 @@ app.use(`/v1/document`, docuemntRouter);
 app.use(`/fhir/v1/service`, serviceRouter);
 app.use(`/fhir/v1/appointment`, appointmentRouter);
 app.use(`/v1/stripe`, stripeRouter);
-app.use(`v1/oragnisation-rating`, ratingRouter);
+app.use(`/v1/organisation-rating`, ratingRouter);
 app.use(`/fhir/v1/invoice`, invoiceRouter);
 app.use(`/fhir/v1/form`, formRouter);
 app.use(`/v1/expense`, expenseRouter);

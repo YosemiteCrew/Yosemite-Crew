@@ -51,4 +51,12 @@ export const OrganizationRatingService = {
       });
     }
   },
+
+  async isUserRatedOrganisation(organisationId: string, userId: string) {
+    const existingRating = await OrganisationRatingModel.findOne({
+      organizationId: organisationId,
+      userId,
+    });
+    return !!existingRating;
+  },
 };

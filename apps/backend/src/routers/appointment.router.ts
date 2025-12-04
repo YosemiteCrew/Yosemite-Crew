@@ -49,7 +49,7 @@ router.patch(
 
 router.patch(
   "/mobile/:appointmentId/checkin",
-  //authorizeCognitoMobile,
+  authorizeCognitoMobile,
   AppointmentController.checkInAppointment,
 );
 
