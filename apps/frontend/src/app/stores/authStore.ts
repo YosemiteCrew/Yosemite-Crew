@@ -24,6 +24,7 @@ type Status = "idle" | "checking" | "authenticated" | "unauthenticated";
 
 type AuthStore = {
   user: CognitoUser | null;
+  attributes: Record<string, string> | null;
   status: Status;
   session: CognitoUserSession | null;
   loading: boolean;
@@ -59,10 +60,12 @@ type AuthStore = {
     code: string,
     password: string
   ) => Promise<string | null>;
+  loadUserAttributes: () => Promise<Record<string, string> | null>;
 };
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
+  attributes: null,
   status: "idle",
   session: null,
   loading: false,
@@ -145,19 +148,30 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     };
     const cognitoUser = new CognitoUser(userData);
 
+    const handleAuthSuccess = async (session: CognitoUserSession) => {
+      const idTokenPayload = session.getIdToken().decodePayload();
+      const role = idTokenPayload["custom:role"] || "";
+      let mapped: Record<string, string> | null = null;
+      try {
+        mapped = await get().loadUserAttributes();
+      } catch (e) {
+        console.error("Failed to load user attributes", e);
+      }
+      set({
+        user: cognitoUser,
+        session,
+        loading: false,
+        error: null,
+        role,
+        status: "authenticated",
+        attributes: mapped,
+      });
+    };
+
     return new Promise((resolve, reject) => {
       cognitoUser.authenticateUser(authenticationDetails, {
         onSuccess: (session) => {
-          const idTokenPayload = session.getIdToken().decodePayload();
-          const role = idTokenPayload["custom:role"] || "";
-          set({
-            user: cognitoUser,
-            session,
-            loading: false,
-            error: null,
-            role,
-            status: "authenticated",
-          });
+          void handleAuthSuccess(session);
           resolve(session);
         },
         onFailure: (err) => {
@@ -168,6 +182,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             session: null,
             role: null,
             status: "unauthenticated",
+            attributes: null,
           });
           reject(err instanceof Error ? err : new Error(String(err)));
         },
@@ -180,6 +195,27 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
     set({ loading: true, error: null, status: "checking" });
 
+    const handleSessionSuccess = async (
+      cognitoUser: CognitoUser,
+      session: CognitoUserSession,
+      role: string
+    ) => {
+      let mapped: Record<string, string> | null = null;
+      try {
+        mapped = await get().loadUserAttributes();
+      } catch (e) {
+        console.error("Failed to load user attributes", e);
+      }
+      set({
+        user: cognitoUser,
+        status: "authenticated",
+        session,
+        loading: false,
+        error: null,
+        role,
+        attributes: mapped,
+      });
+    };
     return new Promise((resolve, reject) => {
       const cognitoUser = userPool.getCurrentUser();
       if (!cognitoUser) {
@@ -188,6 +224,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           session: null,
           loading: false,
           status: "unauthenticated",
+          attributes: null,
         });
         return resolve(null);
       }
@@ -200,19 +237,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
               loading: false,
               error: err?.message || null,
               status: "unauthenticated",
+              attributes: null,
             });
             return resolve(null);
           }
           const idTokenPayload = session.getIdToken().decodePayload();
           const role = idTokenPayload["custom:role"] || "";
-          set({
-            user: cognitoUser,
-            status: "authenticated",
-            session,
-            loading: false,
-            error: null,
-            role,
-          });
+          void handleSessionSuccess(cognitoUser, session, role);
           resolve(session);
         }
       );
@@ -229,6 +260,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       session: null,
       role: null,
       error: null,
+      attributes: null,
     });
     if (!user) return;
     user.getSession((err: Error | null, session: CognitoUserSession | null) => {
@@ -242,6 +274,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             error: null,
             loading: false,
             status: "unauthenticated",
+            attributes: null,
           });
         },
         onFailure: (err: Error | null) => {
@@ -252,6 +285,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             error: null,
             loading: false,
             status: "unauthenticated",
+            attributes: null,
           });
         },
       });
@@ -291,6 +325,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         onSuccess: () => resolve("success"),
         onFailure: (err) =>
           reject(err instanceof Error ? err : new Error(String(err))),
+      });
+    });
+  },
+  loadUserAttributes: async () => {
+    const { user } = get();
+    if (!user) return null;
+    return new Promise((resolve, reject) => {
+      user.getUserAttributes((err, attrs) => {
+        if (err) return reject(err);
+        const mapped: Record<string, string> = {};
+        for (const a of attrs || []) {
+          mapped[a.getName()] = a.getValue();
+        }
+        set({ attributes: mapped });
+        resolve(mapped);
       });
     });
   },

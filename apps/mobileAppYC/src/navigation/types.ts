@@ -5,6 +5,7 @@ import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import type {AuthStackParamList} from './AuthNavigator';
 import type {TaskCategory} from '@/features/tasks/types';
 import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
+import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -65,6 +66,7 @@ export type LinkedBusinessStackParamList = {
     rating?: number;
     distance?: number;
     placeId: string;
+    organisationId?: string;
   };
   QRScanner: {
     companionId: string;
@@ -88,25 +90,32 @@ export type DocumentStackParamList = {
   EditDocument: { documentId: string };
   DocumentPreview: { documentId: string };
   CategoryDetail: { categoryId: string };
+  DocumentSearch: undefined;
 };
 
 // Appointment stack
 export type AppointmentStackParamList = {
   MyAppointmentsEmpty: undefined;
   MyAppointments: { resetKey?: number } | undefined;
-  BrowseBusinesses: undefined;
+  BrowseBusinesses: { serviceName?: string; autoFocusSearch?: boolean } | undefined;
   BusinessDetails: { businessId: string };
   BookingForm: {
     businessId: string;
     serviceId?: string;
     serviceName?: string;
     serviceSpecialty?: string;
+    serviceSpecialtyId?: string;
     employeeId?: string;
     appointmentType?: string;
     otContext?: ObservationalToolBookingContext;
   };
   ViewAppointment: { appointmentId: string };
-  PaymentInvoice: { appointmentId: string; companionId?: string };
+  PaymentInvoice: {
+    appointmentId: string;
+    companionId?: string;
+    invoice?: import('@/features/appointments/types').Invoice | null;
+    paymentIntent?: import('@/features/appointments/types').PaymentIntentInfo | null;
+  };
   PaymentSuccess: { appointmentId: string; companionId?: string };
   Review: { appointmentId: string };
   Chat: { appointmentId: string };
@@ -118,7 +127,12 @@ export type AppointmentStackParamList = {
     petName?: string;
   };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
-  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' };
+  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
+  OrganisationDocument: {
+    organisationId: string;
+    organisationName?: string | null;
+    category: OrganisationDocumentCategory;
+  };
 };
 
 export type ExpenseStackParamList = {

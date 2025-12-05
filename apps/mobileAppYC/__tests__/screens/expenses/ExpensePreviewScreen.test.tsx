@@ -86,6 +86,7 @@ jest.mock('@/features/expenses', () => ({
   markInAppExpenseStatus: jest.fn(
     payload => () => mockMarkInAppExpenseStatus(payload),
   ),
+  fetchExpenseById: jest.fn(() => () => Promise.resolve()),
 }));
 
 jest.mock('@/shared/utils/currency', () => ({
@@ -116,11 +117,11 @@ jest.mock('@/shared/components/common/Header/Header', () => {
     Header: (props: any) => <View testID="Header" {...props} />,
   };
 });
-jest.mock('@/shared/components/common/AttachmentPreview/AttachmentPreview', () => {
+jest.mock('@/features/documents/components/DocumentAttachmentViewer', () => {
   const {View} = require('react-native');
   return {
     __esModule: true,
-    default: (props: any) => <View testID="AttachmentPreview" {...props} />,
+    default: (props: any) => <View testID="DocumentAttachmentViewer" {...props} />,
   };
 });
 
@@ -275,15 +276,20 @@ describe('ExpensePreviewScreen', () => {
 
     expect(getByText('Annual Vet Visit')).toBeTruthy();
     expect(getByText('Category:cat-vet')).toBeTruthy();
-    expect(getByText(/Sub category:\s+Sub:subcat-checkup/)).toBeTruthy();
-    expect(getByText(/Visit type:\s+Visit:visit-annual/)).toBeTruthy();
+    expect(getByText('Sub category')).toBeTruthy();
+    expect(getByText('Sub:subcat-checkup')).toBeTruthy();
+    expect(getByText('Visit type')).toBeTruthy();
+    expect(getByText('Visit:visit-annual')).toBeTruthy();
     expect(
-      getByText(new Date(mockExternalExpense.date).toLocaleDateString()),
+      getByText(new Date(mockExternalExpense.date).toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })),
     ).toBeTruthy();
     expect(getByText('$125.50')).toBeTruthy();
-    expect(getByText('Buddy')).toBeTruthy();
 
-    const attachmentPreview = getByTestId('AttachmentPreview');
+    const attachmentPreview = getByTestId('DocumentAttachmentViewer');
     expect(attachmentPreview).toBeTruthy();
     expect(attachmentPreview.props.attachments).toEqual(
       mockExternalExpense.attachments,

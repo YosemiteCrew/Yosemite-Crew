@@ -49,6 +49,12 @@ interface ConfirmActionBottomSheetProps {
   messageStyle?: StyleProp<TextStyle>;
   buttonContainerStyle?: StyleProp<ViewStyle>;
   onSheetChange?: (index: number) => void;
+  zIndex?: number;
+  bottomInset?: number;
+  enablePanDown?: boolean;
+  enableHandlePanning?: boolean;
+  showCloseButton?: boolean;
+  backdropPressBehavior?: 'close' | 'none';
 }
 
 export const ConfirmActionBottomSheet = forwardRef<
@@ -69,6 +75,12 @@ export const ConfirmActionBottomSheet = forwardRef<
       messageStyle,
       buttonContainerStyle,
       onSheetChange,
+      zIndex,
+      bottomInset,
+      enablePanDown = true,
+      enableHandlePanning = true,
+      showCloseButton = true,
+      backdropPressBehavior = 'close',
     },
     ref,
   ) => {
@@ -138,26 +150,29 @@ export const ConfirmActionBottomSheet = forwardRef<
         ref={bottomSheetRef}
         snapPoints={snapPoints}
         initialIndex={initialIndex}
+        zIndex={zIndex ?? 100}
         onChange={index => {
           setIsSheetVisible(index !== -1);
           onSheetChange?.(index);
         }}
-        enablePanDownToClose
+        enablePanDownToClose={enablePanDown}
         enableBackdrop={isSheetVisible}
-        enableHandlePanningGesture
+        enableHandlePanningGesture={enableHandlePanning}
         enableContentPanningGesture={false}
         backdropOpacity={0.5}
         backdropAppearsOnIndex={0}
         backdropDisappearsOnIndex={-1}
-        backdropPressBehavior="close"
+        backdropPressBehavior={backdropPressBehavior}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}
+        bottomInset={bottomInset}
         contentType="view">
         <View style={[styles.container, containerStyle]}>
           <BottomSheetHeader
             title={title}
             onClose={handleClose}
             theme={theme}
+            showCloseButton={showCloseButton}
           />
           {message ? (
             <Text

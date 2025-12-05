@@ -35,10 +35,9 @@ const mockFirebaseAuth = {
 };
 jest.mock('@react-native-firebase/auth', () => mockFirebaseAuth);
 
-// Mock profile service with safe hoisted names
-const mockFetchProfileStatus = jest.fn();
-jest.mock('@/features/account/services/profileService', () => ({
-  fetchProfileStatus: mockFetchProfileStatus,
+const mockSyncAuthUser = jest.fn();
+jest.mock('@/features/auth/services/authUserService', () => ({
+  syncAuthUser: (...args: any[]) => mockSyncAuthUser(...args),
 }));
 
 jest.mock('react-native-fbsdk-next', () => ({
@@ -75,29 +74,61 @@ jest.mock('@invertase/react-native-apple-authentication', () => ({
   },
 }));
 
+const defaultPasswordlessConfig = {
+  profileServiceUrl: 'https://example.com/profile',
+  createAccountUrl: 'https://example.com/create',
+  profileBootstrapUrl: 'https://example.com/bootstrap',
+  googleWebClientId: 'test-google-client-id',
+  facebookAppId: 'test-facebook-app-id',
+  appleServiceId: 'com.test.app',
+  appleRedirectUri: 'https://test.firebaseapp.com/__/auth/handler',
+};
+const mockPasswordlessConfig = {...defaultPasswordlessConfig};
+const mockApiConfig = {baseUrl: 'http://localhost:4000', timeoutMs: 15000};
+
+jest.mock('@/config/variables', () => ({
+  PASSWORDLESS_AUTH_CONFIG: mockPasswordlessConfig,
+  API_CONFIG: mockApiConfig,
+  PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+  PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
+}));
+
+const mockConfigModule = (overrides?: Partial<typeof defaultPasswordlessConfig>) => {
+  Object.assign(mockPasswordlessConfig, defaultPasswordlessConfig, overrides);
+};
+
+const baseAuthSyncResponse = {
+  success: true,
+  authUser: {
+    _id: 'auth-user-id',
+    authProvider: 'firebase',
+    providerUserId: 'uid-123',
+    email: 'test@example.com',
+  },
+  parentLinked: false,
+  parentSummary: undefined,
+};
+
 describe('socialAuth', () => {
   const RN = require('react-native');
   const originalPlatform = RN.Platform.OS;
 
   beforeEach(() => {
+    mockConfigModule();
     jest.clearAllMocks();
+    mockSyncAuthUser.mockResolvedValue(baseAuthSyncResponse);
     RN.Platform.OS = originalPlatform;
   });
 
   it('configures social providers with configured IDs', () => {
     jest.isolateModules(() => {
       // Mock config with actual values
-      jest.doMock('@/config/variables', () => ({
-        PASSWORDLESS_AUTH_CONFIG: {
-          profileServiceUrl: 'https://example.com/profile',
-          createAccountUrl: 'https://example.com/create',
-          profileBootstrapUrl: 'https://example.com/bootstrap',
-          googleWebClientId: 'test-google-client-id',
-          facebookAppId: 'test-facebook-app-id',
-          appleServiceId: 'com.test.app',
-          appleRedirectUri: 'https://test.firebaseapp.com/__/auth/handler',
-        },
-      }));
+      mockConfigModule({
+        googleWebClientId: 'test-google-client-id',
+        facebookAppId: 'test-facebook-app-id',
+        appleServiceId: 'com.test.app',
+        appleRedirectUri: 'https://test.firebaseapp.com/__/auth/handler',
+      });
       jest.doMock('@react-native-google-signin/google-signin', () => ({
         GoogleSignin: mockGoogle,
         statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
@@ -116,6 +147,7 @@ describe('socialAuth', () => {
   it('signs in with Google and bootstraps profile when missing', async () => {
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
+      mockConfigModule();
       jest.doMock('@react-native-google-signin/google-signin', () => ({
         GoogleSignin: mockGoogle,
         statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
@@ -123,14 +155,6 @@ describe('socialAuth', () => {
       jest.unmock('@/features/auth/services/socialAuth');
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
-    // Profile does not exist yet
-    mockFetchProfileStatus.mockResolvedValueOnce({
-      exists: false,
-      isComplete: false,
-      profileToken: 'profile-token',
-      source: 'remote'
-    });
-
     const result = await signInWithSocialProvider('google');
 
     // Google path went through
@@ -149,14 +173,19 @@ describe('socialAuth', () => {
     expect(result.user.lastName).toBe('Lovelace');
     expect(result.user.email).toBe('test@example.com');
 
-    // Profile fetch path
-    expect(mockFetchProfileStatus).toHaveBeenCalled();
-    expect(result.profile.profileToken).toBe('profile-token');
+    // Auth sync path
+    expect(mockSyncAuthUser).toHaveBeenCalledWith({
+      authToken: 'id-jwt',
+      idToken: 'id-jwt',
+    });
+    expect(result.profile.exists).toBe(false);
+    expect(result.profile.profileToken).toBeUndefined();
   });
 
   it('signs in with Google and returns existing profile if present', async () => {
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
+      mockConfigModule();
       jest.doMock('@react-native-google-signin/google-signin', () => ({
         GoogleSignin: mockGoogle,
         statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
@@ -164,17 +193,25 @@ describe('socialAuth', () => {
       jest.unmock('@/features/auth/services/socialAuth');
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
-    mockFetchProfileStatus.mockResolvedValueOnce({
-      exists: true,
-      isComplete: true,
-      profileToken: 'existing-token',
-      source: 'remote',
+    mockSyncAuthUser.mockResolvedValueOnce({
+      ...baseAuthSyncResponse,
+      parentLinked: true,
+      parentSummary: {
+        id: 'parent-123',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        isComplete: true,
+        profileImageUrl: 'existing-token',
+      },
     });
 
     const result = await signInWithSocialProvider('google');
 
     // Profile already exists
     expect(result.profile.profileToken).toBe('existing-token');
+    expect(result.profile.exists).toBe(true);
+    expect(result.user.parentId).toBe('parent-123');
+    expect(result.parentLinked).toBe(true);
   });
 
   it('signs in with Facebook and bootstraps profile', async () => {
@@ -187,6 +224,7 @@ describe('socialAuth', () => {
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
+      mockConfigModule();
       jest.doMock('@react-native-google-signin/google-signin', () => ({
         GoogleSignin: mockGoogle,
         statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
@@ -195,16 +233,22 @@ describe('socialAuth', () => {
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
 
-    mockFetchProfileStatus.mockResolvedValueOnce({
-      exists: false,
-      isComplete: false,
-      profileToken: 'fb-profile-token',
-      source: 'remote'
+    mockSyncAuthUser.mockResolvedValueOnce({
+      ...baseAuthSyncResponse,
+      parentSummary: {
+        id: 'parent-fb',
+        firstName: 'John',
+        lastName: 'Doe',
+        profileImageUrl: 'fb-profile-token',
+        isComplete: false,
+      },
+      parentLinked: false,
     });
 
     const result = await signInWithSocialProvider('facebook');
     expect(result.tokens.idToken).toBe('id-jwt');
     expect(result.profile.profileToken).toBe('fb-profile-token');
+    expect(result.profile.exists).toBe(true);
     expect(LoginManager.logInWithPermissions).toHaveBeenCalledWith(
       ['public_profile', 'email'],
       'limited',
@@ -230,6 +274,7 @@ describe('socialAuth', () => {
 
     let signInWithSocialProvider: any;
     jest.isolateModules(() => {
+      mockConfigModule();
       jest.doMock('@react-native-google-signin/google-signin', () => ({
         GoogleSignin: mockGoogle,
         statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
@@ -238,7 +283,6 @@ describe('socialAuth', () => {
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
 
-    mockFetchProfileStatus.mockResolvedValueOnce({ exists: true, isComplete: true, profileToken: 'p', source: 'remote' });
     const result = await signInWithSocialProvider('apple');
     expect(result.user.firstName).toBe('Ada');
     expect(result.user.lastName).toBe('Lovelace');
@@ -420,7 +464,17 @@ describe('socialAuth', () => {
       ({signInWithSocialProvider} = require('@/features/auth/services/socialAuth'));
     });
 
-    mockFetchProfileStatus.mockResolvedValueOnce({ exists: true, isComplete: true, profileToken: 'androidP', source: 'remote' });
+    mockSyncAuthUser.mockResolvedValueOnce({
+      ...baseAuthSyncResponse,
+      parentSummary: {
+        id: 'parent-android',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        profileImageUrl: 'androidP',
+        isComplete: true,
+      },
+      parentLinked: true,
+    });
     const result = await signInWithSocialProvider('apple');
     expect(result.tokens.idToken).toBe('id-jwt');
     expect(result.user.firstName).toBe('Ada');

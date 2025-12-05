@@ -29,12 +29,13 @@ export const AddCoParentBottomSheet = forwardRef<
   return (
     <ConfirmActionBottomSheet
       ref={sheetRef}
-      title="Added co-parent"
+      title="Requested co-parent"
       snapPoints={['45%']}
       primaryButton={{
         label: 'Okay',
         onPress: handleConfirm,
       }}
+      zIndex={200}
       onSheetChange={onSheetChange}
       containerStyle={styles.container}>
       <View>

@@ -22,17 +22,16 @@ import {
   selectNotificationSortBy,
   selectUnreadCountByCategory,
 } from '../../selectors';
-import {markNotificationAsRead, archiveNotification} from '../../thunks';
+import {fetchNotificationsForCompanion, markNotificationAsRead, archiveNotification} from '../../thunks';
 import {
   setNotificationFilter,
   setSortBy,
-  injectMockNotifications,
 } from '../../notificationSlice';
 import {NotificationCard} from '../../components/NotificationCard/NotificationCard';
 import {NotificationFilterPills} from '../../components/NotificationFilterPills/NotificationFilterPills';
 // Removed Clear All button for minimal UI
-import {mockNotifications} from '../../data/mockNotifications';
 import type {Notification, NotificationCategory} from '../../types';
+import {useAuth} from '@/features/auth/context/AuthContext';
 
 const NAVIGATION_TARGETS = {
   task: {
@@ -65,6 +64,7 @@ export const NotificationsScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
+  const {isLoggedIn} = useAuth();
 
   // Redux selectors
   const notifications = useSelector(selectDisplayNotifications);
@@ -76,33 +76,38 @@ export const NotificationsScreen: React.FC = () => {
   // Unread counts per category (avoid hooks in nested functions)
   const unreadCounts = {
     all: unreadCount,
-    messages: useSelector(selectUnreadCountByCategory('messages')),
     appointments: useSelector(selectUnreadCountByCategory('appointments')),
+    payment: useSelector(selectUnreadCountByCategory('payment')),
+    health: useSelector(selectUnreadCountByCategory('health')),
+    messages: useSelector(selectUnreadCountByCategory('messages')),
     tasks: useSelector(selectUnreadCountByCategory('tasks')),
     documents: useSelector(selectUnreadCountByCategory('documents')),
-    health: useSelector(selectUnreadCountByCategory('health')),
-    dietary: useSelector(selectUnreadCountByCategory('dietary')),
-    hygiene: useSelector(selectUnreadCountByCategory('hygiene')),
-    payment: useSelector(selectUnreadCountByCategory('payment')),
   } as const;
 
   const [refreshing, setRefreshing] = React.useState(false);
 
-  // Initialize with mock data on mount
   useEffect(() => {
-    if (notifications.length === 0) {
-      dispatch(injectMockNotifications(mockNotifications));
+    if (!isLoggedIn) {
+      return;
     }
-  }, [dispatch, notifications.length]);
+    dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
+  }, [dispatch, isLoggedIn]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Simulate refresh delay
-    setTimeout(() => {
+    try {
+      if (isLoggedIn) {
+        await dispatch(
+          fetchNotificationsForCompanion({companionId: 'default-companion'}),
+        ).unwrap();
+      }
+    } catch (error) {
+      console.warn('[Notifications] Refresh failed', error);
+    } finally {
       setRefreshing(false);
-    }, 300);
-  }, []);
+    }
+  }, [dispatch, isLoggedIn]);
 
   // Handle filter change
   const handleFilterChange = useCallback(

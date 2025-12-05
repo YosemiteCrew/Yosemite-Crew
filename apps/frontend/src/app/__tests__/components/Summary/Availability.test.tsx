@@ -25,7 +25,7 @@ describe("Summary Availability widget", () => {
 
     expect(screen.getByText("See all")).toHaveAttribute(
       "href",
-      "/organisations"
+      "/organization"
     );
   });
 });

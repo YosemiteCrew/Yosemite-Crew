@@ -1,14 +1,13 @@
 .step-search {
   display: flex;
-  width: 450px;
-  height: 60px;
+  height: 48px;
   padding: 10px 24px 10px 56px;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
   align-self: stretch;
   border-radius: 16px;
-  border: 1px solid #747473;
+  border: 1px solid #eaeaea;
   position: relative;
 }
 .step-search-input {
@@ -29,14 +28,14 @@
 }
 .step-search-dropdown {
   position: absolute;
-  top: 62px;
+  top: 110%;
   left: 0px;
   width: 100%;
   max-height: 180px;
   overflow-y: scroll;
   z-index: 10;
   background: #fff;
-  border: 1px solid #747473;
+  border: 1px solid #eaeaea;
   border-radius: 16px;
 }
 .step-search-speciality {
@@ -79,7 +78,6 @@
 @media screen and (max-width: 768px) {
   .step-search{
     height: 48px;
-    width: 300px;
   }
 }
 @media screen and (max-width: 350px) {

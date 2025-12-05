@@ -12,6 +12,9 @@ import CustomBottomSheet, { type BottomSheetRef } from '@/shared/components/comm
 import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/app/store';
+import {
+  selectLinkedHospitalsForCompanion,
+} from '@/features/linkedBusinesses';
 
 export interface EmergencyBottomSheetRef {
   open: () => void;
@@ -28,24 +31,26 @@ interface EmergencyOption {
 }
 
 interface EmergencyBottomSheetProps {
-  onCallVet?: () => void;
-  onAdverseEvent?: () => void;
+  companionId?: string | null;
+  onCallVet?: () => void | Promise<void>;
+  onAdverseEvent?: () => void | Promise<void>;
 }
 
 export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, EmergencyBottomSheetProps>(
-  ({ onCallVet, onAdverseEvent }, ref) => {
+  ({ companionId, onCallVet, onAdverseEvent }, ref) => {
     const { theme } = useTheme();
     const bottomSheetRef = useRef<BottomSheetRef>(null);
     const [isSheetVisible, setIsSheetVisible] = React.useState(false);
 
-    const companions = useSelector((state: RootState) => state.companion.companions);
-    const linkedBusinesses = useSelector((state: RootState) => state.linkedBusinesses.linkedBusinesses);
-
     const styles = useMemo(() => createStyles(theme), [theme]);
 
-    const hasCompanion = companions && companions.length > 0;
-    const hasLinkedBusiness = linkedBusinesses && linkedBusinesses.length > 0;
-    const canShowOptions = hasCompanion && hasLinkedBusiness;
+    // Get linked hospitals for the selected companion
+    const linkedHospitals = useSelector((state: RootState) =>
+      selectLinkedHospitalsForCompanion(state, companionId ?? null),
+    );
+
+    const hasLinkedHospital = linkedHospitals && linkedHospitals.length > 0;
+    const canShowOptions = hasLinkedHospital;
 
     const emergencyOptions: EmergencyOption[] = [
       {
@@ -81,19 +86,20 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
       bottomSheetRef.current?.close();
     };
 
-    const handleOptionPress = (optionId: 'call-vet' | 'adverse-event') => {
-      if (optionId === 'call-vet' && onCallVet) {
-        onCallVet();
-      } else if (optionId === 'adverse-event' && onAdverseEvent) {
-        onAdverseEvent();
+    const handleOptionPress = async (optionId: 'call-vet' | 'adverse-event') => {
+      try {
+        if (optionId === 'call-vet' && onCallVet) {
+          await onCallVet();
+        } else if (optionId === 'adverse-event' && onAdverseEvent) {
+          await onAdverseEvent();
+        }
+      } finally {
+        bottomSheetRef.current?.close();
       }
-      bottomSheetRef.current?.close();
     };
 
     const renderEmptyState = () => {
-      const message = hasCompanion
-        ? 'Please add a linked hospital to use this feature.'
-        : 'Please add a companion to use this feature.';
+      const message = 'Please link a hospital to use this feature.';
 
       return (
         <View style={styles.emptyStateContainer}>

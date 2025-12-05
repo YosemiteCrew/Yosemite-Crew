@@ -57,12 +57,16 @@ import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImag
 // Types
 import type {User} from '@/features/auth/types';
 import {updateUserProfile} from '@/features/auth';
-import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {
   updateParentProfile,
   type ParentProfileUpsertPayload,
 } from '@/features/account/services/profileService';
 import {preparePhotoPayload} from '@/features/account/utils/profilePhoto';
+import {
+  requestParentProfileUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/shared/services/uploadService';
 
 // Props
 export type EditParentScreenProps = NativeStackScreenProps<
@@ -104,10 +108,14 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   useEffect(() => {
     let mounted = true;
-    loadStoredTokens()
+    getFreshStoredTokens()
       .then(tokens => {
         if (mounted) {
-          setAccessToken(tokens?.accessToken ?? null);
+          const nextToken =
+            tokens && !isTokenExpired(tokens.expiresAt ?? undefined)
+              ? tokens.accessToken ?? null
+              : null;
+          setAccessToken(nextToken);
         }
       })
       .catch(error => {
@@ -126,6 +134,11 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         return;
       }
 
+      if (!nextUser.parentId) {
+        console.warn('[EditParent] Missing parent identifier; skipping remote sync.');
+        return;
+      }
+
       if (
         !nextUser.firstName ||
         !nextUser.phone ||
@@ -141,16 +154,36 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       }
 
       try {
-        const {photo, existingPhotoUrl} = await preparePhotoPayload({
+        const photoPayload = await preparePhotoPayload({
           imageUri: nextUser.profilePicture ?? null,
           existingRemoteUrl: nextUser.profileToken ?? null,
         });
 
+        let profileImageKey: string | null = null;
+        let existingPhotoUrl = photoPayload.remoteUrl ?? null;
+
+        if (photoPayload.localFile) {
+          const presigned = await requestParentProfileUploadUrl({
+            accessToken,
+            mimeType: photoPayload.localFile.mimeType,
+          });
+
+          await uploadFileToPresignedUrl({
+            filePath: photoPayload.localFile.path,
+            mimeType: photoPayload.localFile.mimeType,
+            url: presigned.url,
+          });
+
+          profileImageKey = presigned.key;
+          existingPhotoUrl = null;
+        }
+
         const payload: ParentProfileUpsertPayload = {
-          userId: nextUser.id,
+          parentId: nextUser.parentId,
           firstName: nextUser.firstName.trim(),
           lastName: nextUser.lastName?.trim(),
           phoneNumber: nextUser.phone,
+          email: nextUser.email,
           dateOfBirth: nextUser.dateOfBirth,
           address: {
             addressLine: nextUser.address.addressLine ?? '',
@@ -160,8 +193,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             country: nextUser.address.country ?? '',
           },
           isProfileComplete: nextUser.profileCompleted ?? undefined,
-          photo,
-          existingPhotoUrl: existingPhotoUrl ?? null,
+          profileImageKey,
+          existingPhotoUrl,
         };
 
         const summary = await updateParentProfile(payload, accessToken);

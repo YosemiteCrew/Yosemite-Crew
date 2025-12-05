@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 
-import "./DataTable.css";
 import Image from "next/image";
-import Link from "next/link";
-import { FaCheckCircle } from "react-icons/fa";
-import { IoIosCloseCircle } from "react-icons/io";
+import { IoEye } from "react-icons/io5";
+import { AvailabilityProps } from "@/app/pages/Organization/types";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -14,66 +14,34 @@ type Column<T> = {
   render?: (item: T) => React.ReactNode;
 };
 
-type AvailabilityProps = {
-  name: string;
-  image: string;
-  role: string;
-  speciality: string;
-  todayAppointment: string;
-  weeklyWorkingHours: string;
-  status: string;
+export const getStatusStyle = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "available":
+      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+    case "in-surgery":
+      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
+    case "on-break":
+      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+    default:
+      return { color: "#6b7280", backgroundColor: "rgba(107,114,128,0.1)" };
+  }
 };
 
-const demoData: AvailabilityProps[] = [
-  {
-    name: "Dr. Emily Johnson",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    role: "Veterinarian",
-    speciality: "Surgery",
-    todayAppointment: "8",
-    weeklyWorkingHours: "40h",
-    status: "Available",
-  },
-  {
-    name: "Dr. Michael Brown",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    role: "Senior Vet",
-    speciality: "Dentistry",
-    todayAppointment: "5",
-    weeklyWorkingHours: "38h",
-    status: "On-Break",
-  },
-  {
-    name: "Sarah Wilson",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    role: "Vet Assistant",
-    speciality: "Animal Care",
-    todayAppointment: "10",
-    weeklyWorkingHours: "42h",
-    status: "Available",
-  },
-  {
-    name: "Dr. James Carter",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    role: "Veterinary Surgeon",
-    speciality: "Orthopedics",
-    todayAppointment: "6",
-    weeklyWorkingHours: "45h",
-    status: "In-Surgery",
-  },
-  {
-    name: "Rachel Green",
-    image: "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
-    role: "Consultant Vet",
-    speciality: "Dermatology",
-    todayAppointment: "7",
-    weeklyWorkingHours: "40h",
-    status: "Available",
-  },
-];
+type AvailabilityTableProps = {
+  filteredList: any;
+  setActive?: (team: any) => void;
+  setView?: (open: boolean) => void;
+};
 
-const AvailabilityTable = () => {
-  const [data] = useState<AvailabilityProps[]>(demoData);
+const AvailabilityTable = ({
+  filteredList,
+  setActive,
+  setView,
+}: AvailabilityTableProps) => {
+  const handleViewTeam = (team: any) => {
+    setActive?.(team);
+    setView?.(true);
+  };
 
   const columns: Column<AvailabilityProps>[] = [
     {
@@ -132,7 +100,9 @@ const AvailabilityTable = () => {
       key: "status",
       width: "15%",
       render: (item: AvailabilityProps) => (
-        <div className="appointment-status">{item.status}</div>
+        <div className="appointment-status" style={getStatusStyle(item.status)}>
+          {item.status}
+        </div>
       ),
     },
     {
@@ -141,24 +111,27 @@ const AvailabilityTable = () => {
       width: "10%",
       render: (item: AvailabilityProps) => (
         <div className="action-btn-col">
-          <Link
-            href={"#"}
-            className="action-btn"
-            style={{ background: "#E6F4EF" }}
+          <button
+            onClick={() => handleViewTeam(item)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
-            <FaCheckCircle size={22} color="#54B492" />
-          </Link>
-          <div className="action-btn" style={{ background: "#FDEBEA" }}>
-            <IoIosCloseCircle size={24} color="#EA3729" />
-          </div>
+            <IoEye size={18} color="#302F2E" />
+          </button>
         </div>
       ),
     },
   ];
+
   return (
     <div className="table-wrapper">
       <div className="table-list">
-        <GenericTable data={data} columns={columns} bordered={false} />
+        <GenericTable
+          data={filteredList}
+          columns={columns}
+          bordered={false}
+          pagination
+          pageSize={5}
+        />
       </div>
     </div>
   );

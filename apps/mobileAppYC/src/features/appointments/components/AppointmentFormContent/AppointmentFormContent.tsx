@@ -1,5 +1,5 @@
 import React, {useMemo, useCallback} from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import {View, Text, StyleSheet, type StyleProp, type TextStyle} from 'react-native';
 import {BookingSummaryCard} from '@/features/appointments/components/BookingSummaryCard/BookingSummaryCard';
 import {CompanionSelector, type CompanionBase} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
@@ -20,13 +20,17 @@ type SummaryCardConfig = {
   interactive?: boolean;
   showAvatar?: boolean;
   badgeText?: string | null;
+  maxTitleLines?: number;
+  maxSubtitleLines?: number;
+  avatarSize?: number;
 };
 
 export type AppointmentAgreement = {
   id: string;
   value: boolean;
-  label: string;
+  label: string | React.ReactNode;
   onChange?: (value: boolean) => void;
+  labelStyle?: StyleProp<TextStyle>;
 };
 
 export interface AppointmentFormContentProps {
@@ -44,6 +48,7 @@ export interface AppointmentFormContentProps {
   slots: string[];
   selectedSlot: string | null;
   onSelectSlot: (slot: string) => void;
+  resetKey?: string | number;
   emptySlotsMessage: string;
   appointmentType: string;
   allowTypeEdit: boolean;
@@ -54,11 +59,12 @@ export interface AppointmentFormContentProps {
   emergency: boolean;
   onEmergencyChange: (value: boolean) => void;
   emergencyMessage: string;
-  files: DocumentFile[];
-  onAddDocuments: () => void;
-  onRequestRemoveFile: (id: string) => void;
+  files?: DocumentFile[];
+  onAddDocuments?: () => void;
+  onRequestRemoveFile?: (id: string) => void;
   attachmentsEmptySubtitle?: string;
-  agreements: AppointmentAgreement[];
+  showAttachments?: boolean;
+  agreements?: AppointmentAgreement[];
   actions?: React.ReactNode;
 }
 
@@ -77,6 +83,7 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
   slots,
   selectedSlot,
   onSelectSlot,
+  resetKey,
   emptySlotsMessage,
   appointmentType,
   allowTypeEdit,
@@ -91,6 +98,7 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
   onAddDocuments,
   onRequestRemoveFile,
   attachmentsEmptySubtitle = 'Only DOC, PDF, PNG, JPEG formats with max size 5 MB',
+  showAttachments = true,
   agreements,
   actions,
 }) => {
@@ -120,6 +128,9 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
           interactive={businessCard.interactive}
           showAvatar={businessCard.showAvatar}
           badgeText={businessCard.badgeText ?? null}
+          maxTitleLines={businessCard.maxTitleLines}
+          maxSubtitleLines={businessCard.maxSubtitleLines}
+          avatarSize={businessCard.avatarSize}
           style={styles.summaryCard}
         />
       )}
@@ -157,6 +168,8 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
         selectedCompanionId={selectedCompanionId}
         onSelect={onSelectCompanion}
         showAddButton={showAddCompanion}
+        requiredPermission="appointments"
+        permissionLabel="appointments"
       />
 
       <CalendarMonthStrip
@@ -166,7 +179,7 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
       />
 
       <Text style={styles.sectionTitle}>Available slots</Text>
-      <TimeSlotPills slots={slots} selected={selectedSlot} onSelect={onSelectSlot} />
+      <TimeSlotPills slots={slots} selected={selectedSlot} onSelect={onSelectSlot} resetKey={resetKey} />
       {slots.length === 0 && (
         <Text style={styles.emptySlotsText}>{emptySlotsMessage}</Text>
       )}
@@ -197,21 +210,26 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Upload records</Text>
-      <DocumentAttachmentsSection
-        files={files}
-        onAddPress={onAddDocuments}
-        onRequestRemove={file => onRequestRemoveFile(file.id)}
-        emptyTitle="Upload documents"
-        emptySubtitle={attachmentsEmptySubtitle}
-      />
+      {showAttachments && (
+        <>
+          <Text style={styles.sectionTitle}>Upload records</Text>
+          <DocumentAttachmentsSection
+            files={files ?? []}
+            onAddPress={onAddDocuments ?? (() => {})}
+            onRequestRemove={file => onRequestRemoveFile?.(file.id)}
+            emptyTitle="Upload documents"
+            emptySubtitle={attachmentsEmptySubtitle}
+          />
+        </>
+      )}
 
-      {agreements.map(agreement => (
+      {agreements?.map(agreement => (
         <Checkbox
           key={agreement.id}
           value={agreement.value}
           onValueChange={agreement.onChange ?? (() => {})}
           label={agreement.label}
+          labelStyle={agreement.labelStyle}
         />
       ))}
 
@@ -256,7 +274,7 @@ const createStyles = (theme: any) =>
     emptySlotsText: {
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1.5],
+      paddingBottom: theme.spacing[6],
     },
     actionsContainer: {
       marginTop: theme.spacing[4],

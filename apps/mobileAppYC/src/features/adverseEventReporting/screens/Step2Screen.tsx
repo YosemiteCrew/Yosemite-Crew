@@ -35,7 +35,13 @@ export const Step2Screen: React.FC<Props> = ({ navigation }) => {
           {label: 'Currency', value: authUser?.currency ?? 'USD', onPress: handleEdit},
           {
             label: 'Date of birth',
-            value: authUser?.dateOfBirth ? new Date(authUser.dateOfBirth).toLocaleDateString() : '',
+            value: authUser?.dateOfBirth
+              ? new Date(authUser.dateOfBirth).toLocaleDateString('en-US', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '',
             onPress: handleEdit,
           },
           {label: 'Address', value: authUser?.address?.addressLine ?? '', onPress: handleEdit},

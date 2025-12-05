@@ -14,6 +14,7 @@ import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import type {Notification} from '../../types';
 import {fonts} from '@/theme/typography';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 interface NotificationCardProps {
   notification: Notification;
@@ -37,6 +38,10 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const companionAvatarUri = useMemo(
+    () => normalizeImageUri(companion?.profileImage ?? null),
+    [companion?.profileImage],
+  );
 
   const pan = React.useRef(new Animated.ValueXY()).current;
   const [isDragging, setIsDragging] = React.useState(false);
@@ -100,7 +105,11 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
 
-    return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    return date.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   }, []);
 
   const getIconFromImages = useCallback((iconKey: string) => {
@@ -157,8 +166,8 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
 
             {/* Avatar */}
             <View style={styles.avatarContainer}>
-              {notification.avatarUrl && companion?.profileImage ? (
-                <Image source={{uri: companion.profileImage}} style={styles.avatar} />
+              {notification.avatarUrl && companionAvatarUri ? (
+                <Image source={{uri: companionAvatarUri}} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, styles.avatarFallback]}>
                   <Text style={styles.avatarText}>{avatarInitial}</Text>

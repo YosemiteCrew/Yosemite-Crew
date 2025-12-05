@@ -57,7 +57,10 @@ const SignUp = ({
   useEffect(() => {
     if (user) {
       if (typeof globalThis !== "undefined") {
-        globalThis.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
+        globalThis.sessionStorage?.setItem(
+          "devAuth",
+          isDeveloper ? "true" : "false"
+        );
       }
       router.push(next || postAuthRedirect);
     }
@@ -73,7 +76,9 @@ const SignUp = ({
     if (!password) {
       return {
         pError: "Password is required",
-        ...(confirmPassword ? {} : { confirmPError: "Confirm Password is required" }),
+        ...(confirmPassword
+          ? {}
+          : { confirmPError: "Confirm Password is required" }),
       };
     }
 
@@ -201,7 +206,8 @@ const SignUp = ({
       style={
         isDeveloper
           ? {
-              backgroundImage: 'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
             }
           : undefined
       }
@@ -361,13 +367,7 @@ const SignUp = ({
                 )}
                 <Form.Check
                   type="checkbox"
-                  label={
-                    <>
-                      Sign me up for{" "}
-                      <span className="policylink">newsletter</span> and{" "}
-                      <span className="policylink">promotional emails</span>
-                    </>
-                  }
+                  label={<>Sign me up for newsletter and promotional emails</>}
                   onChange={(e) => setSubscribe(e.target.checked)}
                 />
                 {/* Show error for newsletter */}
@@ -388,8 +388,9 @@ const SignUp = ({
                 />
                 {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
                 <h6>
-              {" "}
-                  Already have an account? <Link href={signinHref}>Sign In</Link>
+                  {" "}
+                  Already have an account?{" "}
+                  <Link href={signinHref}>Sign In</Link>
                 </h6>
               </div>
             </Form>

@@ -15,7 +15,6 @@ import {
   selectExpenseSummaryByCompanion,
   selectInAppExpensesByCompanion,
   selectHasHydratedCompanion,
-  markInAppExpenseStatus,
   fetchExpensesForCompanion,
 } from '@/features/expenses';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -25,8 +24,10 @@ import {
   resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
-import type {Expense, ExpensePaymentStatus} from '@/features/expenses';
+import type {Expense} from '@/features/expenses';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
+import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
+import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesList'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensesList'>;
@@ -59,6 +60,7 @@ export const ExpensesListScreen: React.FC = () => {
   const externalExpenses = useSelector(
     selectExternalExpensesByCompanion(selectedCompanionId ?? null),
   );
+  const {openPaymentScreen, processingPayment} = useExpensePayment();
 
   const data = mode === 'inApp' ? inAppExpenses : externalExpenses;
 
@@ -92,10 +94,6 @@ export const ExpensesListScreen: React.FC = () => {
     }
   };
 
-  const handleUpdateInAppStatus = (expenseId: string, status: ExpensePaymentStatus) => {
-    dispatch(markInAppExpenseStatus({expenseId, status}));
-  };
-
   const renderSeparator = useCallback(
     () => <View style={styles.separator} />,
     [styles.separator],
@@ -110,29 +108,29 @@ export const ExpensesListScreen: React.FC = () => {
       visitTypeLabel={resolveVisitTypeLabel(item.visitType)}
       date={item.date}
       amount={item.amount}
-      currencyCode={userCurrencyCode}
+      currencyCode={item.currencyCode}
       onPressView={() => handleViewExpense(item.id)}
       onPressEdit={
         mode === 'external' ? () => handleEditExpense(item.id) : undefined
       }
       showEditAction={mode === 'external'}
-      showPayButton={mode === 'inApp' && item.status !== 'paid'}
-      isPaid={item.status === 'paid'}
+      showPayButton={mode === 'inApp' && isExpensePaymentPending(item) && hasInvoice(item)}
+      isPaid={isExpensePaid(item)}
       onPressPay={
-        mode === 'inApp' && item.status !== 'paid'
-          ? () => handleUpdateInAppStatus(item.id, 'paid')
-          : undefined
-      }
-      onTogglePaidStatus={
-        mode === 'inApp' && item.status === 'paid'
-          ? () => handleUpdateInAppStatus(item.id, 'unpaid')
+        mode === 'inApp' && isExpensePaymentPending(item) && hasInvoice(item)
+          ? () => {
+              if (!processingPayment) {
+                openPaymentScreen(item);
+              }
+            }
           : undefined
       }
     />
   );
 
   const yearlyTotal = summary?.total ?? 0;
-  const currencySymbol = resolveCurrencySymbol(userCurrencyCode, '$');
+  const summaryCurrency = summary?.currencyCode ?? userCurrencyCode;
+  const currencySymbol = resolveCurrencySymbol(summaryCurrency, '$');
   const listTitle = mode === 'inApp' ? 'In-app expenses' : 'External expenses';
 
   const renderHeader = () => (
@@ -143,10 +141,12 @@ export const ExpensesListScreen: React.FC = () => {
         onSelect={id => dispatch(setSelectedCompanion(id))}
         showAddButton={false}
         containerStyle={styles.selector}
+        requiredPermission="expenses"
+        permissionLabel="expenses"
       />
       <YearlySpendCard
         amount={yearlyTotal}
-        currencyCode={userCurrencyCode}
+        currencyCode={summaryCurrency}
         currencySymbol={currencySymbol}
         label="Yearly spend summary"
       />

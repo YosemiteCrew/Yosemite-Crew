@@ -1,149 +1,160 @@
-import validator from 'validator'
-import UserModel, { type UserDocument, type UserMongo } from '../models/user'
-import { User } from '@yosemite-crew/types'
+import validator from "validator";
+import UserModel, { type UserDocument, type UserMongo } from "../models/user";
+import { User } from "@yosemite-crew/types";
 
 export class UserServiceError extends Error {
-    constructor(message: string, public readonly statusCode: number) {
-        super(message)
-        this.name = 'UserServiceError'
-    }
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "UserServiceError";
+  }
 }
 
 const forbidQueryOperators = (input: string, field: string) => {
-    if (input.includes('$')) {
-        throw new UserServiceError(`Invalid character in ${field}.`, 400)
-    }
-}
+  if (input.includes("$")) {
+    throw new UserServiceError(`Invalid character in ${field}.`, 400);
+  }
+};
 
 const requireString = (value: unknown, field: string): string => {
-    if (value == null) {
-        throw new UserServiceError(`${field} is required.`, 400)
-    }
+  if (value == null) {
+    throw new UserServiceError(`${field} is required.`, 400);
+  }
 
-    if (typeof value !== 'string') {
-        throw new UserServiceError(`${field} must be a string.`, 400)
-    }
+  if (typeof value !== "string") {
+    throw new UserServiceError(`${field} must be a string.`, 400);
+  }
 
-    const trimmed = value.trim()
+  const trimmed = value.trim();
 
-    if (!trimmed) {
-        throw new UserServiceError(`${field} cannot be empty.`, 400)
-    }
+  if (!trimmed) {
+    throw new UserServiceError(`${field} cannot be empty.`, 400);
+  }
 
-    forbidQueryOperators(trimmed, field)
+  forbidQueryOperators(trimmed, field);
 
-    return trimmed
-}
+  return trimmed;
+};
 
 const requireSafeIdentifier = (value: unknown, field: string): string => {
-    const identifier = requireString(value, field)
+  const identifier = requireString(value, field);
 
-    if (!/^[A-Za-z0-9_.-]{1,64}$/.test(identifier)) {
-        throw new UserServiceError(`Invalid ${field} format.`, 400)
-    }
+  if (!/^[A-Za-z0-9_.-]{1,64}$/.test(identifier)) {
+    throw new UserServiceError(`Invalid ${field} format.`, 400);
+  }
 
-    return identifier
-}
+  return identifier;
+};
 
 const toBoolean = (value: unknown, field: string): boolean => {
-    if (value == null) {
-        return true
-    }
+  if (value == null) {
+    return true;
+  }
 
-    if (typeof value === 'boolean') {
-        return value
-    }
+  if (typeof value === "boolean") {
+    return value;
+  }
 
-    throw new UserServiceError(`${field} must be a boolean.`, 400)
-}
+  throw new UserServiceError(`${field} must be a boolean.`, 400);
+};
 
 const sanitizeUserAttributes = (payload: User): UserMongo => {
-    const userId = requireSafeIdentifier(payload.id, 'User id')
-    const email = requireString(payload.email, 'Email')
-    const firstName = requireString(payload.firstName, 'First name')
-    const lastName = requireString(payload.lastName, 'Last name')
+  const userId = requireSafeIdentifier(payload.id, "User id");
+  const email = requireString(payload.email, "Email");
+  const firstName = requireString(payload.firstName, "First name");
+  const lastName = requireString(payload.lastName, "Last name");
 
-    if (!validator.isEmail(email)) {
-        throw new UserServiceError('Invalid email address.', 400)
-    }
+  if (!validator.isEmail(email)) {
+    throw new UserServiceError("Invalid email address.", 400);
+  }
 
-    const isActive = toBoolean(payload.isActive, 'isActive')
+  const isActive = toBoolean(payload.isActive, "isActive");
 
-    return {
-        userId,
-        firstName,
-        lastName,
-        email: email.toLowerCase(),
-        isActive,
-    }
-}
+  return {
+    userId,
+    firstName,
+    lastName,
+    email: email.toLowerCase(),
+    isActive,
+  };
+};
 
 type UserDomain = {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    isActive: boolean
-}
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  isActive: boolean;
+};
 
 const toUserDomain = (document: UserDocument): UserDomain => {
-    const { userId, email, firstName, lastName, isActive } = document
+  const { userId, email, firstName, lastName, isActive } = document;
 
-    return {
-        id: userId,
-        firstName,
-        lastName,
-        email,
-        isActive,
-    }
-}
+  return {
+    id: userId,
+    firstName,
+    lastName,
+    email,
+    isActive,
+  };
+};
 
 export const UserService = {
-    async create(payload: User): Promise<UserDomain> {
-        const attributes = sanitizeUserAttributes(payload)
+  async create(payload: User): Promise<UserDomain> {
+    const attributes = sanitizeUserAttributes(payload);
 
-        const existingById = await UserModel.findOne(
-            { userId: attributes.userId },
-            null,
-            { sanitizeFilter: true }
-        )
+    const existingById = await UserModel.findOne(
+      { userId: attributes.userId },
+      null,
+      { sanitizeFilter: true },
+    );
 
-        if (existingById) {
-            throw new UserServiceError('User with the same id or email already exists.', 409)
-        }
+    if (existingById) {
+      throw new UserServiceError(
+        "User with the same id or email already exists.",
+        409,
+      );
+    }
 
-        const existingByEmail = await UserModel.findOne(
-            { email: attributes.email },
-            null,
-            { sanitizeFilter: true }
-        )
+    const existingByEmail = await UserModel.findOne(
+      { email: attributes.email },
+      null,
+      { sanitizeFilter: true },
+    );
 
-        if (existingByEmail) {
-            throw new UserServiceError('User with the same id or email already exists.', 409)
-        }
+    if (existingByEmail) {
+      throw new UserServiceError(
+        "User with the same id or email already exists.",
+        409,
+      );
+    }
 
-        const document = await UserModel.create({
-            userId: attributes.userId,
-            email: attributes.email,
-            firstName: payload.firstName,
-            lastName: payload.lastName,
-            isActive: attributes.isActive,
-        })
+    const document = await UserModel.create({
+      userId: attributes.userId,
+      email: attributes.email,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      isActive: attributes.isActive,
+    });
 
-        return toUserDomain(document)
-    },
+    return toUserDomain(document);
+  },
 
-    async getById(id: unknown): Promise<UserDomain | null> {
-        const userId = requireSafeIdentifier(id, 'User id')
+  async getById(id: unknown): Promise<UserDomain | null> {
+    const userId = requireSafeIdentifier(id, "User id");
 
-        const document = await UserModel.findOne({ userId }, null, { sanitizeFilter: true })
+    const document = await UserModel.findOne({ userId }, null, {
+      sanitizeFilter: true,
+    });
 
-        if (!document) {
-            return null
-        }
+    if (!document) {
+      return null;
+    }
 
-        return toUserDomain(document)
-    },
-}
+    return toUserDomain(document);
+  },
+};
 
-export type { UserDomain as User }
+export type { UserDomain as User };

@@ -1,34 +1,44 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Image, TouchableOpacity, Text } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useTheme } from '@/hooks';
-import { useSelector } from 'react-redux';
-import { Images } from '@/assets/images';
+import React, {useState, useMemo, useEffect} from 'react';
+import {View, StyleSheet, Image, TouchableOpacity, Text} from 'react-native';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useTheme} from '@/hooks';
+import {useDispatch, useSelector} from 'react-redux';
+import {Images} from '@/assets/images';
 import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
-import { CompanionSelector } from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import { Checkbox } from '@/shared/components/common/Checkbox/Checkbox';
-import type { RootState } from '@/app/store';
-import type { AdverseEventStackParamList } from '@/navigation/types';
+import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
+import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
+import type {RootState} from '@/app/store';
+import type {AdverseEventStackParamList} from '@/navigation/types';
+import {setSelectedCompanion} from '@/features/companion';
+import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
+import type {ReporterType} from '@/features/adverseEventReporting/types';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step1'>;
 
 export const Step1Screen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const dispatch = useDispatch();
+  const {draft, updateDraft, setReporterType: setReporterTypeInDraft} = useAdverseEventReport();
   const companions = useSelector((state: RootState) => state.companion.companions);
   const globalSelectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
 
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
-  const [reporterType, setReporterType] = useState<'parent' | 'guardian'>('parent');
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(draft.companionId ?? null);
+  const [reporterType, setReporterType] = useState<ReporterType>(draft.reporterType);
+  const [agreeToTerms, setAgreeToTerms] = useState(draft.agreeToTerms);
   const [termsError, setTermsError] = useState('');
 
   // Set the globally selected companion as default when component mounts
   useEffect(() => {
-    if (globalSelectedCompanionId && !selectedCompanionId) {
-      setSelectedCompanionId(globalSelectedCompanionId);
+    if (!selectedCompanionId) {
+      const fallbackCompanionId = draft.companionId ?? globalSelectedCompanionId;
+      if (fallbackCompanionId) {
+        setSelectedCompanionId(fallbackCompanionId);
+        updateDraft({companionId: fallbackCompanionId});
+        dispatch(setSelectedCompanion(fallbackCompanionId));
+      }
     }
-  }, [globalSelectedCompanionId, selectedCompanionId]);
+  }, [dispatch, draft.companionId, globalSelectedCompanionId, selectedCompanionId, updateDraft]);
 
   const handleNext = () => {
     if (!selectedCompanionId) {
@@ -39,18 +49,39 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
       setTermsError('Accept the terms to continue');
       return;
     }
+    updateDraft({
+      companionId: selectedCompanionId,
+      reporterType,
+      agreeToTerms,
+    });
     navigation.navigate('Step2');
   };
 
   const isCompanionSelected = !!selectedCompanionId;
+  const navigateToLegal = (target: 'TermsAndConditions' | 'PrivacyPolicy') => {
+    const parentNav = navigation.getParent?.();
+    parentNav?.navigate(target as any);
+  };
   const handleToggleTerms = () => {
     setAgreeToTerms(prev => {
       const nextValue = !prev;
+      updateDraft({agreeToTerms: nextValue});
       if (nextValue && termsError) {
         setTermsError('');
       }
       return nextValue;
     });
+  };
+  const handleReporterTypeSelect = (type: ReporterType) => {
+    setReporterType(type);
+    setReporterTypeInDraft(type);
+  };
+  const handleCompanionSelect = (id: string | null) => {
+    setSelectedCompanionId(id);
+    updateDraft({companionId: id});
+    if (id) {
+      dispatch(setSelectedCompanion(id));
+    }
   };
 
   return (
@@ -70,8 +101,10 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
-          onSelect={setSelectedCompanionId}
+          onSelect={handleCompanionSelect}
           showAddButton={false}
+          requiredPermission="emergencyBasedPermissions"
+          permissionLabel="emergency actions"
         />
       </View>
 
@@ -80,7 +113,7 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.radioOption}
-          onPress={() => setReporterType('parent')}
+          onPress={() => handleReporterTypeSelect('parent')}
         >
           <View style={styles.radioOuter}>
             {reporterType === 'parent' && <View style={styles.radioInner} />}
@@ -90,7 +123,7 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.radioOption}
-          onPress={() => setReporterType('guardian')}
+          onPress={() => handleReporterTypeSelect('guardian')}
         >
           <View style={styles.radioOuter}>
             {reporterType === 'guardian' && <View style={styles.radioInner} />}
@@ -115,7 +148,18 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
             }}
           />
           <Text style={styles.consentText}>
-            I agree to Yosemite Crew’s <Text style={styles.consentLink}>terms and conditions</Text> and <Text style={styles.consentLink}>privacy policy</Text>
+            I agree to Yosemite Crew’s{' '}
+            <Text
+              style={styles.consentLink}
+              onPress={() => navigateToLegal('TermsAndConditions')}>
+              terms and conditions
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.consentLink}
+              onPress={() => navigateToLegal('PrivacyPolicy')}>
+              privacy policy
+            </Text>
           </Text>
         </TouchableOpacity>
         {termsError ? <Text style={styles.errorText}>{termsError}</Text> : null}
@@ -220,6 +264,7 @@ const createStyles = (theme: any) =>
     consentLink: {
       ...theme.typography.paragraphBold,
       color: theme.colors.textTertiary,
+      textDecorationLine: 'underline',
     },
     errorText: {
       ...theme.typography.labelXsBold,

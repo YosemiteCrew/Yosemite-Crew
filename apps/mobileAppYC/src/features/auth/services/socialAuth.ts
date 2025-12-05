@@ -21,9 +21,10 @@ import {
 } from 'react-native-fbsdk-next';
 import {sha256} from 'js-sha256';
 import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
-import {fetchProfileStatus, type ProfileStatus} from '@/features/account/services/profileService';
+import type {ProfileStatus} from '@/features/account/services/profileService';
 import type {User, AuthTokens} from '@/features/auth/context/AuthContext';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
+import {syncAuthUser} from '@/features/auth/services/authUserService';
 
 export type SocialProvider = 'google' | 'facebook' | 'apple';
 
@@ -31,6 +32,7 @@ export interface SocialAuthResult {
   user: User;
   tokens: AuthTokens;
   profile: ProfileStatus;
+  parentLinked: boolean;
   initialAttributes: {
     firstName?: string;
     lastName?: string;
@@ -97,10 +99,16 @@ const performGoogleSignIn = async (): Promise<{
   userCredential: FirebaseAuthTypes.UserCredential;
 }> => {
   await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
+
+  try {
+    await GoogleSignin.signOut();
+  } catch (signOutError) {
+    console.warn('[GoogleAuth] Unable to clear previous Google session', signOutError);
+  }
+
   try {
     await GoogleSignin.signIn();
   } catch (err: any) {
-    // Normalize cancel into a consistent code for the UI layer
     if (err?.code === GoogleStatusCodes.SIGN_IN_CANCELLED) {
       const e = new Error('Google sign-in cancelled');
       (e as any).code = 'auth/cancelled';
@@ -108,8 +116,21 @@ const performGoogleSignIn = async (): Promise<{
     }
     throw err;
   }
-  const {idToken} = await GoogleSignin.getTokens();
-  
+  let idToken: string | undefined;
+  try {
+    const tokens = await GoogleSignin.getTokens();
+    idToken = tokens?.idToken ?? undefined;
+  } catch (err: any) {
+    await GoogleSignin.signOut().catch(() => undefined);
+    const e = new Error(
+      err?.code === GoogleStatusCodes.SIGN_IN_CANCELLED
+        ? 'Google sign-in cancelled'
+        : 'We couldn’t sign you in with Google. Kindly retry.',
+    );
+    (e as any).code = err?.code ?? 'auth/cancelled';
+    throw e;
+  }
+
   if (!idToken) {
     throw new Error('Google sign-in failed. Missing ID token.');
   }
@@ -273,6 +294,17 @@ const signInWithAppleAndroid = async (): Promise<{
   return {userCredential, firstName, lastName, email};
 };
 
+const signOutFirebaseIfNeeded = async () => {
+  try {
+    const auth = getAuth();
+    if (auth.currentUser) {
+      await auth.signOut();
+    }
+  } catch (error) {
+    console.warn('[SocialAuth] Failed to clear Firebase session after cancellation', error);
+  }
+};
+
 const mapAppleSignInError = (error: any): Error => {
   console.error('[AppleAuth] Error in performAppleSignIn:', {
     error,
@@ -373,14 +405,6 @@ const resolveCredential = async (
   }
 };
 
-const ensureProfile = async (
-  tokens: Pick<AuthTokens, 'accessToken' | 'userId'>,
-): Promise<ProfileStatus> =>
-  fetchProfileStatus({
-    accessToken: tokens.accessToken,
-    userId: tokens.userId ?? '',
-  });
-
 export const configureSocialProviders = () => {
   if (providersConfigured) {
     return;
@@ -410,6 +434,95 @@ export const configureSocialProviders = () => {
   }
 };
 
+type AuthSyncResult = Awaited<ReturnType<typeof syncAuthUser>>;
+
+const mapProfileFromAuthSync = (authSync?: AuthSyncResult): ProfileStatus =>
+  authSync?.parentSummary
+    ? {
+        exists: true,
+        isComplete: Boolean(authSync.parentSummary.isComplete),
+        profileToken: authSync.parentSummary.profileImageUrl,
+        source: 'remote',
+        parent: authSync.parentSummary,
+      }
+    : {
+        exists: false,
+        isComplete: false,
+        profileToken: undefined,
+        source: 'remote',
+      };
+
+const buildUserFromProfile = (params: {
+  firebaseUser: FirebaseAuthTypes.User;
+  profile: ProfileStatus;
+  resolvedDetails: ReturnType<typeof resolveDisplayInfo>;
+}): User => {
+  const {firebaseUser, profile, resolvedDetails} = params;
+  const baseUser: User = {
+    id: firebaseUser.uid,
+    parentId: profile.parent?.id ?? undefined,
+    email: resolvedDetails.email ?? '',
+    firstName: resolvedDetails.firstName ?? undefined,
+    lastName: resolvedDetails.lastName ?? undefined,
+    profilePicture: resolvedDetails.avatarUrl ?? undefined,
+    profileToken: profile.profileToken,
+  };
+  const userWithProfile = mergeUserWithParentProfile(baseUser, profile.parent);
+  return {
+    ...userWithProfile,
+    profileCompleted: profile.isComplete ?? userWithProfile.profileCompleted,
+  };
+};
+
+const logSocialLogin = (provider: SocialProvider, tokens: AuthTokens, user: User) => {
+  console.log('╔════════════════════════════════════════╗');
+  console.log(`║   FIREBASE - ${provider.toUpperCase()} LOGIN   ║`);
+  console.log('╚════════════════════════════════════════╝');
+  console.log('JWT (ID Token):', tokens.idToken);
+  console.log('Access Token:', tokens.accessToken);
+  console.log('User ID:', tokens.userId);
+  console.log('Email:', user.email);
+  console.log('Provider: firebase');
+  console.log('═══════════════════════════════════════');
+};
+
+const determineErrorCode = (error: any): string | undefined => {
+  if (typeof error?.code === 'string') {
+    return error.code;
+  }
+  const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+  return message.includes('cancel') ? 'auth/cancelled' : undefined;
+};
+
+const handleSocialSignInError = async (
+  provider: SocialProvider,
+  error: any,
+): Promise<never> => {
+  if (provider === 'google') {
+    try {
+      await GoogleSignin.signOut();
+    } catch (googleSignOutError) {
+      console.warn('[SocialAuth] Google sign-out after cancellation failed', googleSignOutError);
+    }
+  }
+  await signOutFirebaseIfNeeded();
+
+  const normalizedCode = determineErrorCode(error);
+  if (normalizedCode === 'auth/cancelled') {
+    console.log('[SocialAuth] Sign-in cancelled by user; suppressing error toast.');
+    const cancelledError = new Error('auth/cancelled');
+    (cancelledError as any).code = 'auth/cancelled';
+    throw cancelledError;
+  }
+
+  console.error(`[SocialAuth] Error in signInWithSocialProvider (${provider}):`, {
+    error,
+    message: error?.message,
+    code: error?.code,
+  });
+  throw (error instanceof Error ? error : new Error(String(error ?? 'Social sign-in failed')));
+};
+
 export const signInWithSocialProvider = async (
   provider: SocialProvider,
 ): Promise<SocialAuthResult> => {
@@ -428,45 +541,27 @@ export const signInWithSocialProvider = async (
     const tokens = await buildTokens(firebaseUser);
     const resolvedDetails = resolveDisplayInfo(firebaseUser, provider, metadata);
 
-    const profile = await ensureProfile({
-      accessToken: tokens.accessToken,
-      userId: tokens.userId,
-    });
+    let authSync: AuthSyncResult | undefined;
+    try {
+      authSync = await syncAuthUser({
+        authToken: tokens.accessToken,
+        idToken: tokens.idToken,
+      });
+    } catch (error) {
+      console.warn('[SocialAuth] Failed to sync auth user, proceeding with default profile', error);
+    }
 
-    const baseUser: User = {
-      id: firebaseUser.uid,
-      email: resolvedDetails.email ?? '',
-      firstName: resolvedDetails.firstName ?? undefined,
-      lastName: resolvedDetails.lastName ?? undefined,
-      profilePicture: resolvedDetails.avatarUrl ?? undefined,
-      profileToken: profile.profileToken,
-    };
-    const userWithProfile = mergeUserWithParentProfile(baseUser, profile.parent);
-    const user: User = {
-      ...userWithProfile,
-      profileCompleted: profile.isComplete ?? userWithProfile.profileCompleted,
-    };
+    const profile = mapProfileFromAuthSync(authSync);
+    const user = buildUserFromProfile({firebaseUser, profile, resolvedDetails});
+    const completeTokens: AuthTokens = {...tokens, provider: 'firebase'};
 
-    const completeTokens: AuthTokens = {
-      ...tokens,
-      provider: 'firebase',
-    };
-
-    // Console logs for Firebase social authentication
-    console.log('╔════════════════════════════════════════╗');
-    console.log(`║   FIREBASE - ${provider.toUpperCase()} LOGIN   ║`);
-    console.log('╚════════════════════════════════════════╝');
-    console.log('JWT (ID Token):', completeTokens.idToken);
-    console.log('Access Token:', completeTokens.accessToken);
-    console.log('User ID:', completeTokens.userId);
-    console.log('Email:', user.email);
-    console.log('Provider: firebase');
-    console.log('═══════════════════════════════════════');
+    logSocialLogin(provider, completeTokens, user);
 
     return {
       user,
       tokens: completeTokens,
       profile,
+      parentLinked: authSync?.parentLinked ?? false,
       initialAttributes: {
         firstName: user.firstName,
         lastName: user.lastName,
@@ -476,11 +571,6 @@ export const signInWithSocialProvider = async (
       },
     };
   } catch (error: any) {
-    console.error(`[SocialAuth] Error in signInWithSocialProvider (${provider}):`, {
-      error,
-      message: error?.message,
-      code: error?.code,
-    });
-    throw error;
+    return handleSocialSignInError(provider, error);
   }
 };

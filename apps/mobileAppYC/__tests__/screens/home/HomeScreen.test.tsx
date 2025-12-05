@@ -17,6 +17,19 @@ import {View as MockView} from 'react-native';
 
 jest.useFakeTimers();
 
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useNavigation: jest.fn(() => ({
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+    })),
+    useRoute: jest.fn(() => ({params: {}})),
+    useFocusEffect: jest.fn(),
+  };
+});
+
 // Mock EmergencyContext to avoid requiring the provider in tests
 jest.mock('@/features/home/context/EmergencyContext', () => ({
   __esModule: true,
@@ -105,7 +118,7 @@ const mockTheme = {
   },
 };
 
-const mockUser = {id: 'user-123', firstName: 'John'};
+const mockUser = {id: 'user-123', parentId: 'parent-123', firstName: 'John'};
 const mockAuthUser = {
   ...mockUser,
   profilePicture: '',
@@ -113,9 +126,19 @@ const mockAuthUser = {
   lastName: 'Doe',
 };
 const mockCompanions = [
-  {id: 'comp-1', name: 'Buddy', profilePicture: ''},
-  {id: 'comp-2', name: 'Lucy', profilePicture: ''},
+  {id: 'comp-1', name: 'Buddy', profilePicture: '', taskCount: 1},
+  {id: 'comp-2', name: 'Lucy', profilePicture: '', taskCount: 2},
 ];
+const mockAppointment = {
+  id: 'appt-1',
+  companionId: 'comp-1',
+  businessId: 'biz-1',
+  serviceId: 'svc-1',
+  employeeId: 'emp-1',
+  status: 'paid',
+  date: '2025-08-20',
+  time: '10:00',
+};
 
 const mockFetchTasksForCompanion = jest.fn();
 const mockMarkTaskStatusThunk = jest.fn();
@@ -123,8 +146,10 @@ let mockNextUpcomingTask: any = null;
 let mockTasksHydrated = false;
 
 const mockFetchExpensesForCompanion = jest.fn();
+const mockFetchExpenseSummary = jest.fn();
 let mockExpenseSummary: any = {total: 0};
 let mockExpenseHydrated = false;
+let mockUpcomingAppointments: any[] = [];
 
 jest.mock('@/features/tasks', () => ({
   __esModule: true,
@@ -137,8 +162,16 @@ jest.mock('@/features/tasks', () => ({
 jest.mock('@/features/expenses', () => ({
   __esModule: true,
   fetchExpensesForCompanion: (...args: any[]) => mockFetchExpensesForCompanion(...args),
+  fetchExpenseSummary: (...args: any[]) => mockFetchExpenseSummary(...args),
   selectExpenseSummaryByCompanion: (..._args: any[]) => () => mockExpenseSummary,
   selectHasHydratedCompanion: (..._args: any[]) => () => mockExpenseHydrated,
+}));
+
+jest.mock('@/features/notifications/selectors', () => ({
+  selectUnreadCount: jest.fn(() => 0),
+  selectNotificationsHydrated: jest.fn(() => () => false),
+  selectHasHydratedCompanion: jest.fn(() => () => false),
+  selectLastFetchTimestamp: jest.fn(() => 0),
 }));
 
 jest.mock('@/assets/images', () => ({
@@ -183,6 +216,17 @@ jest.mock('@/features/companion', () => ({
   selectSelectedCompanionId: jest.fn(),
 }));
 jest.mock('@/features/auth/selectors', () => ({selectAuthUser: jest.fn()}));
+jest.mock('@/features/appointments/selectors', () => {
+  const actual = jest.requireActual('@/features/appointments/selectors');
+  return {
+    ...actual,
+    createSelectUpcomingAppointments: jest
+      .fn()
+      .mockImplementation(
+        () => (_state: any, _companionId: string | null) => mockUpcomingAppointments,
+      ),
+  };
+});
 
 jest.mock('@/features/tasks/components/TaskCard/TaskCard', () => {
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
@@ -234,15 +278,23 @@ jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () =
       getBadgeText,
     }: any) => (
       <View testID="companion-selector">
-        {companions.map((companion: any) => (
-          <TouchableOpacity
-            key={companion.id}
-            testID={`select-${companion.id}`}
-            onPress={() => onSelect(companion.id)}>
-            <Text>{companion.name}</Text>
-            {getBadgeText && <Text>{getBadgeText(companion)}</Text>}
-          </TouchableOpacity>
-        ))}
+        {companions.map((companion: any) => {
+          let badgeText: string | undefined;
+          if (getBadgeText) {
+            badgeText = getBadgeText(companion);
+          } else if (companion.taskCount !== undefined) {
+            badgeText = `${companion.taskCount} Tasks`;
+          }
+          return (
+            <TouchableOpacity
+              key={companion.id}
+              testID={`select-${companion.id}`}
+              onPress={() => onSelect(companion.id)}>
+              <Text>{companion.name}</Text>
+              {badgeText && <Text>{badgeText}</Text>}
+            </TouchableOpacity>
+          );
+        })}
         <TouchableOpacity
           testID="add-companion-button"
           onPress={onAddCompanion}>
@@ -315,6 +367,7 @@ const setupMocks = ({
   tasksHydrated = false,
   expenseSummary = {total: 0},
   expenseHydrated = false,
+  upcomingAppointments = [],
 }: {
   user?: any;
   authUser?: any;
@@ -324,6 +377,7 @@ const setupMocks = ({
   tasksHydrated?: boolean;
   expenseSummary?: any;
   expenseHydrated?: boolean;
+  upcomingAppointments?: any[];
 }) => {
   mockedUseAuth.mockReturnValue({user});
   mockedUseDispatch.mockReturnValue(mockDispatch);
@@ -331,11 +385,44 @@ const setupMocks = ({
   mockTasksHydrated = tasksHydrated;
   mockExpenseSummary = expenseSummary;
   mockExpenseHydrated = expenseHydrated;
+  mockUpcomingAppointments = upcomingAppointments;
   mockedUseSelector.mockImplementation(selector => {
     if (selector === selectAuthUser) return authUser;
     if (selector === selectCompanions) return companions;
     if (selector === selectSelectedCompanionId) return selectedCompanionId;
-    return typeof selector === 'function' ? selector({} as any) : undefined;
+    if (typeof selector === 'function') {
+      // Mock state for selectors that need it
+      const mockState = {
+        coParent: {
+          accessByCompanionId: {},
+          defaultAccess: {
+            role: 'PRIMARY',
+            permissions: {
+              tasks: true,
+              appointments: true,
+              expenses: true,
+              chatWithVet: true,
+              emergencyBasedPermissions: true,
+              companionProfile: true,
+            },
+          },
+          lastFetchedRole: 'PRIMARY',
+          lastFetchedPermissions: {
+            tasks: true,
+            appointments: true,
+            expenses: true,
+            chatWithVet: true,
+            emergencyBasedPermissions: true,
+            companionProfile: true,
+          },
+        },
+        appointments: {hydratedCompanions: {}},
+        businesses: {businesses: [], employees: [], services: []},
+        notifications: {unreadCount: 0, hydratedCompanions: {}},
+      } as any;
+      return selector(mockState);
+    }
+    return undefined;
   });
 };
 
@@ -392,23 +479,24 @@ describe('HomeScreen Component', () => {
   });
 
   it('renders correctly and shows empty companion state', async () => {
-    const {getByText, queryByTestId, getByTestId} = renderHomeScreen();
+    const {getByText, getAllByText, queryByTestId, queryByText} =
+      renderHomeScreen();
     expect(getByText('Hello, John')).toBeTruthy();
     expect(getByText('J')).toBeTruthy();
     expect(getByText('Add your first companion')).toBeTruthy();
     expect(queryByTestId('companion-selector')).toBeNull();
     expect(queryByTestId('task-card')).toBeNull();
-    expect(getByText('No upcoming tasks')).toBeTruthy();
-    expect(getByTestId('appointment-card-container')).toBeTruthy();
-    expect(getByTestId('yearly-spend-card')).toBeTruthy();
+    expect(getAllByText('No companions yet').length).toBeGreaterThanOrEqual(2);
+    expect(queryByTestId('appointment-card-container')).toBeNull();
+    expect(queryByTestId('yearly-spend-card')).toBeNull();
     expect(getByText('Manage health')).toBeTruthy();
-    expect(queryByTestId('View more')).toBeNull();
+    expect(queryByText('View more')).toBeNull();
   });
 
   it('fetches companions on mount if user exists', async () => {
     renderHomeScreen();
     await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith(fetchCompanions(mockUser.id));
+      expect(mockDispatch).toHaveBeenCalledWith(fetchCompanions(mockUser.parentId));
     });
   });
 
@@ -510,35 +598,35 @@ describe('HomeScreen Component', () => {
       nextUpcomingTask: upcomingTask,
       tasksHydrated: true,
     });
-    const {getByTestId, queryByText} = renderHomeScreen();
-    expect(getByTestId('task-card')).toBeTruthy();
-    expect(queryByText('No upcoming tasks')).toBeNull();
+    const {queryByText, queryByTestId} = renderHomeScreen();
+    expect(queryByTestId('task-card')).toBeNull();
+    expect(queryByText('Feature coming soon')).toBeTruthy();
+  });
 
-    fireEvent.press(getByTestId('task-card'));
-
-    await waitFor(() => {
-      expect(mockMarkTaskStatusThunk).toHaveBeenCalledWith({
-        taskId: upcomingTask.id,
-        status: 'completed',
-      });
+  it('shows appointment empty state tile and navigates to browse when pressed', async () => {
+    setupMocks({
+      user: mockUser,
+      authUser: mockAuthUser,
+      companions: mockCompanions,
+      selectedCompanionId: 'comp-1',
+      upcomingAppointments: [],
+    });
+    const {getByText, getByTestId} = renderHomeScreen();
+    expect(getByText('No upcoming appointments')).toBeTruthy();
+    fireEvent.press(getByTestId('appointments-empty-tile'));
+    expect(mockParentNavigation.navigate).toHaveBeenCalledWith('Appointments', {
+      screen: 'BrowseBusinesses',
     });
   });
 
-  it('toggles upcoming appointments card to empty state and back', async () => {
-    const {getByTestId, findByText, queryByTestId, queryByText} =
-      renderHomeScreen();
-    expect(getByTestId('appointment-checkin')).toBeTruthy();
-    fireEvent.press(getByTestId('appointment-checkin'));
-    const emptyTile = await findByText('No upcoming appointments');
-    expect(emptyTile).toBeTruthy();
-    expect(queryByTestId('appointment-card-container')).toBeNull();
-    fireEvent.press(emptyTile);
-    const apptCard = await findByText('Check In');
-    expect(apptCard).toBeTruthy();
-    expect(queryByText('No upcoming appointments')).toBeNull();
-  });
-
   it('handles AppointmentCard onGetDirections press', () => {
+    setupMocks({
+      user: mockUser,
+      authUser: mockAuthUser,
+      companions: mockCompanions,
+      selectedCompanionId: 'comp-1',
+      upcomingAppointments: [mockAppointment],
+    });
     const {getByTestId} = renderHomeScreen();
     expect(getByTestId('appointment-directions')).toBeTruthy();
     fireEvent.press(getByTestId('appointment-directions'));
@@ -546,6 +634,13 @@ describe('HomeScreen Component', () => {
   });
 
   it('handles AppointmentCard onChat press', () => {
+    setupMocks({
+      user: mockUser,
+      authUser: mockAuthUser,
+      companions: mockCompanions,
+      selectedCompanionId: 'comp-1',
+      upcomingAppointments: [mockAppointment],
+    });
     const {getByTestId} = renderHomeScreen();
     expect(getByTestId('appointment-chat')).toBeTruthy();
     fireEvent.press(getByTestId('appointment-chat'));
@@ -578,10 +673,10 @@ describe('HomeScreen Component', () => {
     });
     const {getByText} = renderHomeScreen();
     fireEvent.press(getByText('View more'));
-    expect(mockNavigation.navigate).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      'No companion selected to view profile.',
-    );
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('ProfileOverview', {
+      companionId: 'comp-1',
+    });
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
     consoleWarnSpy.mockRestore();
   });
 

@@ -5,6 +5,7 @@ import classNames from "classnames";
 import Link from "next/link";
 
 import "./Summary.css";
+import { DemoTeam } from "@/app/pages/Organization/demo";
 
 const AvailabilityLabels = [
   {
@@ -36,6 +37,7 @@ const AvailabilityLabels = [
 
 const Availability = () => {
   const [selectedLabel, setSelectedLabel] = useState("all");
+  const [team] = useState(DemoTeam);
 
   return (
     <div className="summary-container">
@@ -60,9 +62,9 @@ const Availability = () => {
           </button>
         ))}
       </div>
-      <AvailabilityTable />
+      <AvailabilityTable filteredList={team} />
       <div className="see-all-button">
-        <Link className="see-all-button-link" href={"/organisations"}>
+        <Link className="see-all-button-link" href={"/organization"}>
           See all
         </Link>
       </div>

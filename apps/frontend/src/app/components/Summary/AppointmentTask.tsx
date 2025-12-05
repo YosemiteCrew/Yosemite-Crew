@@ -6,6 +6,10 @@ import classNames from "classnames";
 import Link from "next/link";
 
 import "./Summary.css";
+import { AppointmentsProps } from "@/app/types/appointments";
+import { demoAppointments } from "@/app/pages/Appointments/demo";
+import { TasksProps } from "@/app/types/tasks";
+import { demoTasks } from "@/app/pages/Tasks/demo";
 
 const AppointmentLabels = [
   {
@@ -61,6 +65,8 @@ const TasksLabels = [
 ];
 
 const AppointmentTask = () => {
+  const [list] = useState<AppointmentsProps[]>(demoAppointments);
+  const [taskList] = useState<TasksProps[]>(demoTasks);
   const [activeTable, setActiveTable] = useState("Appointments");
   const activeLabels = useMemo(() => {
     return activeTable === "Appointments" ? AppointmentLabels : TasksLabels;
@@ -102,7 +108,11 @@ const AppointmentTask = () => {
           ))}
         </div>
       </div>
-      {activeTable === "Appointments" ? <Appointments /> : <Tasks />}
+      {activeTable === "Appointments" ? (
+        <Appointments filteredList={list} />
+      ) : (
+        <Tasks filteredList={taskList} />
+      )}
       <div className="see-all-button">
         <Link
           className="see-all-button-link"

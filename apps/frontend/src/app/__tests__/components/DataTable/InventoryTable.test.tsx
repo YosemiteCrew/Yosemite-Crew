@@ -1,88 +1,95 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import "../../../jest.mocks/testMocks";
-
-const genericTableMock = jest.fn(
-  ({ columns, data }: { columns: any[]; data: any[] }) => (
-    <div data-testid="inventory-generic">
-      {columns.map((col) => (
-        <div key={col.key}>{col.render ? col.render(data[0]) : null}</div>
-      ))}
-    </div>
-  )
-);
-
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
-  __esModule: true,
-  default: (props: any) => genericTableMock(props),
-}));
-
-const inventoryCardMock = jest.fn(
-  ({ item }: { item: any }) => <div data-testid="inventory-card">{item.name}</div>
-);
-
-jest.mock("@/app/components/Cards/InventoryCard", () => ({
-  __esModule: true,
-  default: (props: any) => inventoryCardMock(props),
-}));
 
 import InventoryTable, {
   getStatusStyle,
 } from "@/app/components/DataTable/InventoryTable";
 
-type InventoryStatus = "Low stock" | "Expired" | "Hidden" | "This week";
-type InventoryCategory = "Medicine" | "Consumable" | "Equipment";
-interface InventoryItem {
-  name: string;
-  category: InventoryCategory;
-  onHand: number;
-  unitCost: number;
-  sellingPrice: number;
-  totalValue: number;
-  expiry: string;
-  location: string;
-  status: InventoryStatus;
-}
-
-const items: InventoryItem[] = [
-  {
-    name: "Gauze Pads",
-    category: "Consumable",
-    onHand: 10,
-    unitCost: 2,
-    sellingPrice: 4,
-    totalValue: 20,
-    expiry: "2026-01-01",
-    location: "Shelf A",
+const createInventoryItem = () =>
+  ({
+    basicInfo: {
+      name: "Apoquel",
+      category: "Medicine",
+      subCategory: "",
+      department: "",
+      description: "Itchy dogs",
+      status: "Low stock",
+    },
+    classification: {
+      form: "",
+      unitofMeasure: "",
+      species: "",
+      administration: "",
+    },
+    pricing: {
+      purchaseCost: "10",
+      selling: "15",
+      maxDiscount: "",
+      tax: "",
+    },
+    vendor: {
+      supplierName: "",
+      brand: "",
+      vendor: "",
+      license: "",
+      paymentTerms: "",
+      leadTime: "",
+    },
+    stock: {
+      current: "2",
+      allocated: "",
+      available: "",
+      reorderLevel: "",
+      reorderQuantity: "",
+      stockLocation: "Fridge",
+      stockType: "",
+      minStockAlert: "",
+    },
+    batch: {
+      batch: "",
+      manufactureDate: "",
+      expiryDate: "2025-01-01",
+      serial: "",
+      tracking: "",
+      litterId: "",
+      nextRefillDate: "",
+    },
     status: "Low stock",
-  },
-];
+  } as any);
 
 describe("<InventoryTable />", () => {
-  beforeEach(() => {
-    genericTableMock.mockClear();
-    inventoryCardMock.mockClear();
+  test("renders table rows and card view", () => {
+    const item = createInventoryItem();
+    const setActiveInventory = jest.fn();
+    const setViewInventory = jest.fn();
+
+    render(
+      <InventoryTable
+        filteredList={[item]}
+        setActiveInventory={setActiveInventory}
+        setViewInventory={setViewInventory}
+      />,
+    );
+
+    expect(screen.getAllByText("Apoquel")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Medicine").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$ 15").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByText("View"));
+    expect(setActiveInventory).toHaveBeenCalledWith(item);
+    expect(setViewInventory).toHaveBeenCalledWith(true);
   });
 
-  test("renders generic table and cards for each item", () => {
-    render(<InventoryTable filteredList={items} />);
-    expect(genericTableMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: items })
-    );
-    expect(inventoryCardMock).toHaveBeenCalledWith(
-      expect.objectContaining({ item: items[0] })
-    );
-  });
-});
-
-describe("getStatusStyle (inventory)", () => {
-  test("returns expected colors", () => {
-    expect(getStatusStyle("Low stock")).toEqual(
-      expect.objectContaining({ color: "#F68523" })
-    );
-    expect(getStatusStyle("Unknown")).toEqual(
-      expect.objectContaining({ color: "#6b7280" })
-    );
+  test("maps status styles correctly", () => {
+    expect(getStatusStyle("this week")).toEqual({
+      color: "#54B492",
+      backgroundColor: "#E6F4EF",
+    });
+    expect(getStatusStyle("expired")).toEqual({
+      color: "#EA3729",
+      backgroundColor: "#FDEBEA",
+    });
+    expect(getStatusStyle("unknown").color).toBeTruthy();
   });
 });

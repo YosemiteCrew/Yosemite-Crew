@@ -524,6 +524,7 @@
   gap: 20px;
 }
 .PetAppBtn a {
+  background: var(--black-bg);
   border: 1px solid var(--black-bg);
   min-width: 215px;
   height: 73px;
@@ -532,14 +533,15 @@
   justify-content: center;
   border-radius: 16px;
   padding: 16px 28px;
-  background: transparent;
   gap: 10px;
+  transition: all 0.3s ease;
 }
 .PetAppBtn a:hover {
   background: var(--black-bg);
+  box-shadow: 0 0 32px 0 rgba(0, 0, 0, 0.32);
 }
 .PetAppBtn a svg {
-  color: var(--black-bg);
+  color: var(--whitebg);
 }
 .PetAppBtn a:hover svg {
   color: var(--whitebg);
@@ -549,24 +551,20 @@
   flex-direction: column;
 }
 .PetAppBtn a div p {
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
+  font-family: var(--font-grotesk);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 120%;
   margin: 0;
+  color: var(--white-text);
 }
 .PetAppBtn a div h6 {
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
+  color: var(--white-text);
+  font-family: var(--font-grotesk);
   font-size: 23px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 120%;
   margin: 0;
-}
-.PetAppBtn a:hover div p,
-.PetAppBtn a:hover div h6 {
-  color: var(--white-text);
 }
 
 @media screen and (max-width: 1280px) {

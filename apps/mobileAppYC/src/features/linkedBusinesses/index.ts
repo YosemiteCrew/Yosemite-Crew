@@ -6,10 +6,16 @@ export {
   clearError,
 } from './linkedBusinessesSlice';
 export {
+  fetchLinkedBusinesses,
   addLinkedBusiness,
+  linkBusiness,
+  inviteBusiness,
   deleteLinkedBusiness,
   searchBusinessesByLocation,
   searchBusinessByQRCode,
+  checkOrganisation,
+  fetchPlaceCoordinates,
+  fetchGooglePlacesImage,
   acceptBusinessInvite,
   declineBusinessInvite,
   fetchBusinessDetails,
@@ -21,6 +27,7 @@ export {
   selectLinkedBusinessesLoading,
   selectLinkedBusinessesError,
   selectSelectedCategory,
+  selectLinkedHospitalsForCompanion,
 } from './selectors';
 export {DeleteBusinessBottomSheet, type DeleteBusinessBottomSheetRef} from './components/DeleteBusinessBottomSheet';
 export * from './types';

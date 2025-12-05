@@ -12,19 +12,19 @@ import "./Step.css";
 const businessTypes = [
   {
     name: "Hospital",
-    key: "Hospital",
+    key: "HOSPITAL",
   },
   {
     name: "Breeder",
-    key: "Breeder",
+    key: "BREEDER",
   },
   {
     name: "Boarder",
-    key: "Boarder",
+    key: "BOARDER",
   },
   {
     name: "Groomer",
-    key: "Groomer",
+    key: "GROOMER",
   },
 ];
 

@@ -168,7 +168,7 @@ export const CompanionOverviewScreen: React.FC<
 
         await dispatch(
           updateCompanionProfile({
-            userId: safeCompanion.userId,
+            parentId: safeCompanion.userId,
             updatedCompanion: updated,
           }),
         ).unwrap();

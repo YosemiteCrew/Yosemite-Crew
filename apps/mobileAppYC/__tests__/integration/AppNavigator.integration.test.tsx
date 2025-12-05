@@ -191,6 +191,7 @@ describe('AppNavigator integration', () => {
         isLoggedIn: true,
         user: {
           id: 'user-1',
+          parentId: 'parent-1',
           email: 'user@example.com',
           firstName: 'Test',
           lastName: 'User',

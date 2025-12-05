@@ -1,16 +1,21 @@
 import React, {useEffect, useMemo} from 'react';
-import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator} from 'react-native';
+import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useFocusEffect} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
 import {CoParentCard} from '../../components/CoParentCard/CoParentCard';
 import {selectCoParents, selectCoParentLoading, fetchCoParents} from '../../index';
-import {selectAuthUser} from '@/features/auth/selectors';
 import type {HomeStackParamList} from '@/navigation/types';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+  setSelectedCompanion,
+} from '@/features/companion';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CoParents'>;
 
@@ -21,13 +26,47 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
 
   const coParents = useSelector(selectCoParents);
   const loading = useSelector(selectCoParentLoading);
-  const authUser = useSelector(selectAuthUser);
+  const companions = useSelector(selectCompanions);
+  const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const companionAccess = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? {},
+  );
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const selectedCompanion = useMemo(
+    () =>
+      companions.find(c => c.id === selectedCompanionId) ??
+      companions[0] ??
+      null,
+    [companions, selectedCompanionId],
+  );
+  const currentAccess =
+    selectedCompanion?.id && companionAccess[selectedCompanion.id]
+      ? companionAccess[selectedCompanion.id]
+      : defaultAccess;
+  const canAddCoParent = (currentAccess?.role ?? '').toUpperCase().includes('PRIMARY');
 
   useEffect(() => {
-    if (authUser?.id) {
-      dispatch(fetchCoParents(authUser.id));
+    if (!selectedCompanionId && companions[0]?.id) {
+      dispatch(setSelectedCompanion(companions[0].id));
     }
-  }, [authUser?.id, dispatch]);
+  }, [companions, dispatch, selectedCompanionId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!selectedCompanion?.id) {
+        return;
+      }
+      dispatch(
+        fetchCoParents({
+          companionId: selectedCompanion.id,
+          companionName: selectedCompanion.name,
+          companionImage: selectedCompanion.profileImage ?? undefined,
+        }),
+      );
+    }, [dispatch, selectedCompanion?.id, selectedCompanion?.name, selectedCompanion?.profileImage]),
+  );
+
+  const visibleCoParents = useMemo(() => coParents, [coParents]);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -36,6 +75,10 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const handleAdd = () => {
+    if (!selectedCompanion?.id) {
+      Alert.alert('Select companion', 'Please select a companion before adding a co-parent.');
+      return;
+    }
     navigation.navigate('AddCoParent');
   };
 
@@ -48,15 +91,15 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   };
 
   // Show empty state when no co-parents
-  if (!loading && coParents.length === 0) {
+  if (!loading && visibleCoParents.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <Header
           title="Co-Parents"
           showBackButton
           onBack={handleBack}
-          rightIcon={Images.addIconDark}
-          onRightPress={handleAdd}
+          rightIcon={canAddCoParent ? Images.addIconDark : undefined}
+          onRightPress={canAddCoParent ? handleAdd : undefined}
         />
         <View style={styles.emptyContainer}>
           <Image source={Images.coparentEmpty} style={styles.illustration} />
@@ -77,8 +120,8 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
         title="Co-Parents"
         showBackButton
         onBack={handleBack}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAdd}
+        rightIcon={canAddCoParent ? Images.addIconDark : undefined}
+        onRightPress={canAddCoParent ? handleAdd : undefined}
       />
 
       {loading ? (
@@ -89,15 +132,21 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-          {coParents.map((coParent, index) => (
-            <CoParentCard
-              key={coParent.id}
-              coParent={coParent}
-              onPressView={() => handleViewCoParent(coParent.id)}
-              onPressEdit={() => handleEditCoParent(coParent.id)}
-              divider={index < coParents.length - 1}
-            />
-          ))}
+          {visibleCoParents.map((coParent, index) => {
+            const isPrimaryEntry = (coParent.role ?? '').toUpperCase().includes('PRIMARY');
+            const targetId = coParent.parentId || coParent.id;
+            return (
+              <CoParentCard
+                key={targetId}
+                coParent={coParent}
+                onPressView={isPrimaryEntry ? undefined : () => handleViewCoParent(targetId)}
+                onPressEdit={isPrimaryEntry ? undefined : () => handleEditCoParent(targetId)}
+                hideSwipeActions={isPrimaryEntry}
+                showEditAction={!isPrimaryEntry}
+                divider={index < visibleCoParents.length - 1}
+              />
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -114,6 +163,9 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing[4],
       paddingVertical: theme.spacing[6],
       paddingBottom: theme.spacing[10],
+    },
+    selectorContainer: {
+      paddingBottom: theme.spacing[4],
     },
     emptyContainer: {
       flex: 1,

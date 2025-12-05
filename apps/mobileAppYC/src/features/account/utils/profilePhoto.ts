@@ -42,12 +42,12 @@ const resolveLocalImagePath = async (uri: string): Promise<string> => {
 };
 
 export interface PreparedPhotoPayload {
-  photo?: {
-    contentType: string;
-    title?: string;
-    data: string;
-  };
-  existingPhotoUrl?: string | null;
+  localFile?: {
+    path: string;
+    mimeType: string;
+    fileName: string;
+  } | null;
+  remoteUrl?: string | null;
 }
 
 export const preparePhotoPayload = async ({
@@ -60,26 +60,26 @@ export const preparePhotoPayload = async ({
   fallbackTitle?: string;
 }): Promise<PreparedPhotoPayload> => {
   if (!imageUri) {
-    return {existingPhotoUrl: existingRemoteUrl ?? null};
+    return {remoteUrl: existingRemoteUrl ?? null, localFile: null};
   }
 
   if (isRemoteUri(imageUri)) {
-    return {existingPhotoUrl: imageUri};
+    return {remoteUrl: imageUri, localFile: null};
   }
 
   try {
     const resolvedPath = await resolveLocalImagePath(imageUri);
-    const base64Data = await RNFS.readFile(resolvedPath, 'base64');
 
     return {
-      photo: {
-        contentType: inferContentType(resolvedPath),
-        title: extractFileTitle(resolvedPath, fallbackTitle),
-        data: base64Data,
+      localFile: {
+        path: resolvedPath,
+        mimeType: inferContentType(resolvedPath),
+        fileName: extractFileTitle(resolvedPath, fallbackTitle),
       },
+      remoteUrl: null,
     };
   } catch (error) {
     console.warn('[ProfilePhoto] Failed to prepare photo payload', error);
-    return {existingPhotoUrl: existingRemoteUrl ?? null};
+    return {remoteUrl: existingRemoteUrl ?? null, localFile: null};
   }
 };

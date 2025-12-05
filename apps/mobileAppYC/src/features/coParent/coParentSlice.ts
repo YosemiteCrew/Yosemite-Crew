@@ -5,12 +5,22 @@ import {
   addCoParent,
   updateCoParentPermissions,
   deleteCoParent,
-  searchCoParentsByEmail,
+  fetchPendingInvites,
+  acceptCoParentInvite,
+  declineCoParentInvite,
+  fetchParentAccess,
 } from './thunks';
 
 const initialState: CoParentState = {
   coParents: [],
+  pendingInvites: [],
+  accessByCompanionId: {},
+  defaultAccess: null,
+  lastFetchedRole: null,
+  lastFetchedPermissions: null,
   loading: false,
+  invitesLoading: false,
+  accessLoading: false,
   error: null,
   selectedCoParentId: null,
 };
@@ -25,6 +35,7 @@ export const coParentSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
+    resetCoParentState: () => initialState,
   },
   extraReducers: builder => {
     // Fetch CoParents
@@ -50,7 +61,12 @@ export const coParentSlice = createSlice({
       })
       .addCase(addCoParent.fulfilled, (state, action) => {
         state.loading = false;
-        state.coParents.push(action.payload);
+        const existingIndex = state.coParents.findIndex(cp => cp.id === action.payload.id);
+        if (existingIndex >= 0) {
+          state.coParents[existingIndex] = action.payload;
+        } else {
+          state.coParents.push(action.payload);
+        }
       })
       .addCase(addCoParent.rejected, (state, action) => {
         state.loading = false;
@@ -83,20 +99,78 @@ export const coParentSlice = createSlice({
       })
       .addCase(deleteCoParent.fulfilled, (state, action) => {
         state.loading = false;
-        state.coParents = state.coParents.filter(c => c.id !== action.payload);
+        state.coParents = state.coParents.filter(c => c.id !== action.payload.coParentId);
       })
       .addCase(deleteCoParent.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
 
-    // Search CoParents
-    builder.addCase(searchCoParentsByEmail.fulfilled, () => {
-      // This is just for returning search results, doesn't modify state
-    });
+    // Pending invites
+    builder
+      .addCase(fetchPendingInvites.pending, state => {
+        state.invitesLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchPendingInvites.fulfilled, (state, action) => {
+        state.invitesLoading = false;
+        state.pendingInvites = action.payload;
+      })
+      .addCase(fetchPendingInvites.rejected, (state, action) => {
+        state.invitesLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(acceptCoParentInvite.fulfilled, (state, action) => {
+        state.pendingInvites = state.pendingInvites.filter(
+          invite => invite.token !== action.payload,
+        );
+        state.invitesLoading = false;
+      })
+      .addCase(acceptCoParentInvite.rejected, (state, action) => {
+        state.invitesLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(declineCoParentInvite.fulfilled, (state, action) => {
+        state.pendingInvites = state.pendingInvites.filter(
+          invite => invite.token !== action.payload,
+        );
+        state.invitesLoading = false;
+      })
+      .addCase(declineCoParentInvite.rejected, (state, action) => {
+        state.invitesLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Parent access / permissions
+    builder
+      .addCase(fetchParentAccess.pending, state => {
+        state.accessLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchParentAccess.fulfilled, (state, action) => {
+        state.accessLoading = false;
+        const updates = action.payload;
+        updates.forEach(access => {
+          const companionId = access.companionId;
+          if (companionId) {
+            state.accessByCompanionId[companionId] = access;
+            return;
+          }
+          state.defaultAccess ??= access;
+        });
+        if (updates.length > 0) {
+          const first = updates.find(u => Boolean(u.role)) ?? updates[0];
+          state.lastFetchedRole = first.role ?? null;
+          state.lastFetchedPermissions = first.permissions ?? null;
+        }
+      })
+      .addCase(fetchParentAccess.rejected, (state, action) => {
+        state.accessLoading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const {setSelectedCoParent, clearError} = coParentSlice.actions;
+export const {setSelectedCoParent, clearError, resetCoParentState} = coParentSlice.actions;
 
 export default coParentSlice.reducer;

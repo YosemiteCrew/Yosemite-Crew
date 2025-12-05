@@ -12,13 +12,14 @@ export interface Organisation {
     type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
     phoneNo: string
     website?: string
-    address: Address
-    isVerified: boolean
-    isActive: boolean
+    address?: Address
+    isVerified?: boolean
+    isActive?: boolean
     taxId: string
     healthAndSafetyCertNo?: string
     animalWelfareComplianceCertNo?: string
     fireAndEmergencyCertNo?: string
+    googlePlacesId?: string
 }
 
 export type Organization = Organisation
@@ -42,6 +43,7 @@ const ANIMAL_WELFARE_CERT_EXTENSION_URL =
 const FIRE_EMERGENCY_CERT_EXTENSION_URL =
     'http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
 const TYPE_SYSTEM = 'http://example.org/fhir/CodeSystem/organisation-type'
+const GOOGLE_PLACE_ID_EXTENSION_URL = 'http://example.com/fhir/StructureDefinition/google-place-id'
 
 const ORGANISATION_TYPE_CODING_MAP: Record<Organisation['type'], { code: string; display: string }> = {
     HOSPITAL: { code: 'hospital', display: 'Hospital' },
@@ -125,9 +127,10 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
         })
     }
 
+    const isVerifiedValue = organisation.isVerified ?? false
     extensions.push({
         url: IS_VERIFIED_EXTENSION_URL,
-        valueBoolean: organisation.isVerified,
+        valueBoolean: isVerifiedValue,
     })
 
     if (organisation.imageURL) {
@@ -155,6 +158,13 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
         extensions.push({
             url: FIRE_EMERGENCY_CERT_EXTENSION_URL,
             valueString: organisation.fireAndEmergencyCertNo,
+        })
+    }
+
+    if (organisation.googlePlacesId) {
+        extensions.push({
+            url: GOOGLE_PLACE_ID_EXTENSION_URL,
+            valueString: organisation.googlePlacesId
         })
     }
 
@@ -206,12 +216,12 @@ export const toFHIROrganisation = (
 ): FHIROrganization => ({
     resourceType: 'Organization',
     id: toStringId(organisation._id),
-    active: organisation.isActive,
+    active: organisation.isActive ?? false,
     name: organisation.name,
     identifier: buildIdentifiers(organisation),
     telecom: buildTelecom(organisation),
     type: buildType(organisation, options),
-    address: [toFHIRAddress(organisation.address)],
+    address: organisation.address ? [toFHIRAddress(organisation.address)] : undefined,
     extension: buildExtensions(organisation),
 })
 
@@ -259,12 +269,13 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
         type: extractType(resource),
         phoneNo: getTelecomValue(resource.telecom, 'phone') ?? '',
         website: getTelecomValue(resource.telecom, 'url'),
-        address: fromFHIRAddress(resource.address?.[0]),
+        address: resource.address?.[0] ? fromFHIRAddress(resource.address?.[0]) : undefined,
         isVerified: extractIsVerified(extensions),
         isActive: resource.active ?? false,
         healthAndSafetyCertNo: extractStringExtension(extensions, HEALTH_SAFETY_CERT_EXTENSION_URL),
         animalWelfareComplianceCertNo: extractStringExtension(extensions, ANIMAL_WELFARE_CERT_EXTENSION_URL),
         fireAndEmergencyCertNo: extractStringExtension(extensions, FIRE_EMERGENCY_CERT_EXTENSION_URL),
+        googlePlacesId: extractStringExtension(extensions, GOOGLE_PLACE_ID_EXTENSION_URL),
     }
 }
 
