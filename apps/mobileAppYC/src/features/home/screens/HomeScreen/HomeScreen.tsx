@@ -15,7 +15,7 @@ import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
-import {HomeStackParamList, TabParamList, type TaskStackParamList} from '@/navigation/types';
+import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/shared/components/common';
@@ -32,7 +32,6 @@ import {
 } from '@/features/companion';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
-import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
   fetchExpenseSummary,
@@ -40,16 +39,9 @@ import {
   selectHasHydratedCompanion as selectExpensesHydrated,
 } from '@/features/expenses';
 import {
-  fetchTasksForCompanion,
-  selectNextUpcomingTask,
-  selectHasHydratedCompanion as selectHasHydratedTasksCompanion,
-  markTaskStatus,
-} from '@/features/tasks';
-import {
   fetchAppointmentsForCompanion,
 } from '@/features/appointments/appointmentsSlice';
 import {createSelectUpcomingAppointments} from '@/features/appointments/selectors';
-import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
 import {selectUnreadCount} from '@/features/notifications/selectors';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
@@ -81,11 +73,10 @@ const QUICK_ACTIONS: Array<{
   id: 'health' | 'hygiene' | 'diet';
   label: string;
   icon: ImageSourcePropType;
-  category: TaskStackParamList['TasksList']['category'];
 }> = [
-  {id: 'health', label: 'Manage health', icon: Images.healthIcon, category: 'health'},
-  {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon, category: 'hygiene'},
-  {id: 'diet', label: 'Dietary plans', icon: Images.dietryIcon, category: 'dietary'},
+  {id: 'health', label: 'Manage health', icon: Images.healthIcon},
+  {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon},
+  {id: 'diet', label: 'Dietary plans', icon: Images.dietryIcon},
 ];
 
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
@@ -124,12 +115,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ? accessMap[selectedCompanionIdRedux] ?? null
     : null;
   const hasCompanions = companions.length > 0;
-  const hasTasksHydrated = useSelector(
-    selectHasHydratedTasksCompanion(selectedCompanionIdRedux ?? null),
-  );
-  const nextUpcomingTask = useSelector(
-    selectNextUpcomingTask(selectedCompanionIdRedux ?? null),
-  );
   const unreadNotifications = useSelector(selectUnreadCount);
   const userCurrencyCode = authUser?.currency ?? 'USD';
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
@@ -302,13 +287,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [companions, selectedCompanionIdRedux, dispatch]);
 
-  // Fetch tasks for selected companion
-  React.useEffect(() => {
-    if (selectedCompanionIdRedux && !hasTasksHydrated) {
-      dispatch(fetchTasksForCompanion({companionId: selectedCompanionIdRedux}));
-    }
-  }, [dispatch, hasTasksHydrated, selectedCompanionIdRedux]);
-
   // Always refresh appointments when companion changes or initial load finishes
   React.useEffect(() => {
     const targetId =
@@ -387,10 +365,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     dispatch(setSelectedCompanion(id));
   };
 
-  const selectedCompanion = React.useMemo(() => {
-    return companions.find(c => c.id === selectedCompanionIdRedux);
-  }, [companions, selectedCompanionIdRedux]);
-
   const renderEmptyStateTile = (
     title: string,
     subtitle: string,
@@ -418,65 +392,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const handleCompleteTask = React.useCallback(
-    async (taskId: string) => {
-      if (!guardFeature('tasks', 'tasks')) {
-        return;
-      }
-      try {
-        await dispatch(
-          markTaskStatus({
-            taskId,
-            status: 'completed',
-          }),
-        ).unwrap();
-      } catch (error) {
-        console.error('Failed to complete task:', error);
-      }
-    },
-    [dispatch, guardFeature],
-  );
-
-  const handleStartObservationalTool = React.useCallback(() => {
-    if (!guardFeature('tasks', 'tasks')) {
-      return;
+  const showTasksComingSoon = React.useCallback(() => {
+    const message = 'Tasks feature coming soon.';
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Coming soon', message);
     }
-    if (!nextUpcomingTask) {
-      return;
-    }
-    navigation
-      .getParent<NavigationProp<TabParamList>>()
-      ?.navigate('Tasks', {screen: 'ObservationalTool', params: {taskId: nextUpcomingTask.id}});
-  }, [guardFeature, navigation, nextUpcomingTask]);
-
-  const navigateToTasksCategory = React.useCallback(
-    (category: TaskStackParamList['TasksList']['category']) => {
-      if (!guardFeature('tasks', 'tasks')) {
-        return;
-      }
-      if (!selectedCompanionIdRedux && companions.length > 0) {
-        dispatch(setSelectedCompanion(companions[0].id));
-      }
-      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
-        screen: 'TasksList',
-        params: {category},
-      });
-    },
-    [companions, dispatch, guardFeature, navigation, selectedCompanionIdRedux],
-  );
-
-  const navigateToTaskView = React.useCallback(
-    (taskId: string) => {
-      if (!guardFeature('tasks', 'tasks')) {
-        return;
-      }
-      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
-        screen: 'TaskView',
-        params: {taskId, source: 'home'},
-      });
-    },
-    [guardFeature, navigation],
-  );
+  }, []);
 
   const handleEmergencyPress = React.useCallback(() => {
     if (!guardFeature('emergencyBasedPermissions', 'emergency actions')) {
@@ -484,13 +407,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
     openEmergencySheet();
   }, [guardFeature, openEmergencySheet]);
-
-
-  const handleViewTask = React.useCallback(() => {
-    if (nextUpcomingTask && selectedCompanionIdRedux) {
-      navigateToTaskView(nextUpcomingTask.id);
-    }
-  }, [navigateToTaskView, nextUpcomingTask, selectedCompanionIdRedux]);
 
   const getCoordinatesForAppointment = React.useCallback(
     (appointmentId: string) => {
@@ -778,62 +694,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const renderUpcomingTasks = () => {
-    if (!hasCompanions) {
-      return renderEmptyStateTile(
-        'No companions yet',
-        'Add a companion to start managing upcoming tasks.',
-        'tasks',
-      );
-    }
-    if (!canAccessFeature('tasks')) {
-      return renderEmptyStateTile(
-        'Tasks restricted',
-        'Ask the primary parent to enable tasks access for you.',
-        'tasks',
-      );
-    }
-    if (nextUpcomingTask && selectedCompanion) {
-      // Get assigned user's profile image and name
-      const assignedToData = nextUpcomingTask?.assignedTo === authUser?.id ? {
-        avatar: authUser?.profilePicture,
-        name: authUser?.firstName || 'User',
-      } : undefined;
-      return (
-        <TaskCard
-          key={nextUpcomingTask.id}
-          title={nextUpcomingTask.title}
-          categoryLabel={nextUpcomingTask.category}
-          subcategoryLabel={nextUpcomingTask.subcategory && nextUpcomingTask.subcategory !== 'none' ? nextUpcomingTask.subcategory : undefined}
-          date={nextUpcomingTask.date}
-          time={nextUpcomingTask.time}
-          companionName={selectedCompanion.name}
-          companionAvatar={
-            normalizeImageUri(selectedCompanion.profileImage ?? undefined) ?? undefined
-          }
-          assignedToName={assignedToData?.name}
-          assignedToAvatar={assignedToData?.avatar}
-          status={nextUpcomingTask.status}
-          category={nextUpcomingTask.category}
-          details={nextUpcomingTask.details}
-          showCompleteButton={true}
-          completeButtonVariant="liquid-glass"
-          completeButtonLabel="Complete"
-          showEditAction={false}
-          hideSwipeActions={false}
-          onPressView={handleViewTask}
-          onPressComplete={() => handleCompleteTask(nextUpcomingTask.id)}
-          onPressTakeObservationalTool={
-            nextUpcomingTask.category === 'health' &&
-            isObservationalToolDetails(nextUpcomingTask.details)
-              ? handleStartObservationalTool
-              : undefined
-          }
-        />
-      );
-    }
-    return renderEmptyStateTile('No upcoming tasks', 'You are all caught up for now.', 'tasks');
-  };
+  const renderUpcomingTasks = () =>
+    renderEmptyStateTile(
+      'Feature coming soon',
+      'Task management will be available shortly.',
+      'tasks-coming-soon',
+      showTasksComingSoon,
+    );
 
   const renderUpcomingAppointments = () => {
     if (!hasCompanions) {
@@ -1052,7 +919,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                   key={action.id}
                   style={styles.quickAction}
                   activeOpacity={0.88}
-                  onPress={() => navigateToTasksCategory(action.category)}>
+                  onPress={showTasksComingSoon}>
                   <View style={styles.quickActionIconWrapper}>
                     <Image
                       source={action.icon}
@@ -1298,12 +1165,3 @@ const createStyles = (theme: any) =>
     color: theme.colors.primary,
   },
   });
-
-const isObservationalToolDetails = (
-  details: unknown,
-): details is ObservationalToolTaskDetails => {
-  if (details && typeof details === 'object' && 'taskType' in details) {
-    return (details as {taskType?: string}).taskType === 'take-observational-tool';
-  }
-  return false;
-};
