@@ -21,6 +21,7 @@ import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
 import SpecialityModel from "src/models/speciality";
 import ServiceModel from "src/models/service";
+import logger from "src/utils/logger";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -737,17 +738,19 @@ export const OrganizationService = {
       .limit(limit);
 
 
-    if (!docs) {
+    if (docs.length == 0) {
+      logger.warn("No nearby organisations found, returning all organisations");
       docs = await OrganizationModel.find(
+        {},
         {
-        _id: 1,
-        name: 1,
-        imageURL: 1,
-        phoneNo: 1,
-        type: 1,
-        address: 1,
-        googlePlacesId: 1,
-      },
+          _id: 1,
+          name: 1,
+          imageURL: 1,
+          phoneNo: 1,
+          type: 1,
+          address: 1,
+          googlePlacesId: 1,
+        },
       ).skip(skip).limit(limit);
     }
 
