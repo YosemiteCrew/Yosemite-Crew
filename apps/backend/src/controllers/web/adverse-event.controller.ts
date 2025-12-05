@@ -1,5 +1,6 @@
 // src/controllers/app/adverseEvent.controller.ts
 import { Request, Response } from "express";
+import type { AdverseEventReport, AdverseEventStatus } from "@yosemite-crew/types";
 import {
   AdverseEventService,
   AdverseEventServiceError,
@@ -8,45 +9,60 @@ import logger from "src/utils/logger";
 import { RegulatoryAuthorityModel } from "src/models/regulatory-authority";
 
 export const AdverseEventController = {
-  createFromMobile: async (req: Request, res: Response) => {
+  createFromMobile: async (
+    req: Request<unknown, unknown, AdverseEventReport>,
+    res: Response,
+  ) => {
     try {
-      // body should already be shaped like AdverseEventReport
       const report = await AdverseEventService.createFromMobile(req.body);
       res.status(201).json(report);
     } catch (err) {
       if (err instanceof AdverseEventServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
       }
-      console.error("Error creating adverse event", err);
+      logger.error("Error creating adverse event", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
-  getById: async (req: Request, res: Response) => {
+  getById: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const report = await AdverseEventService.getById(req.params.id);
       if (!report) return res.status(404).json({ message: "Not found" });
       res.json(report);
     } catch (err) {
+      logger.error("Error fetching adverse event by id", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
-  listForOrg: async (req: Request, res: Response) => {
+  listForOrg: async (
+    req: Request<
+      { organisationId: string },
+      unknown,
+      unknown,
+      { status?: AdverseEventStatus }
+    >,
+    res: Response,
+  ) => {
     try {
       const { organisationId } = req.params;
       const { status } = req.query;
       const reports = await AdverseEventService.listForOrganisation(
         organisationId,
-        { status: status as string | undefined },
+        { status },
       );
       res.json(reports);
     } catch (err) {
+      logger.error("Error listing adverse events for org", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
-  updateStatus: async (req: Request, res: Response) => {
+  updateStatus: async (
+    req: Request<{ id: string }, unknown, { status: AdverseEventStatus }>,
+    res: Response,
+  ) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -56,19 +72,31 @@ export const AdverseEventController = {
       if (err instanceof AdverseEventServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
       }
+      logger.error("Error updating adverse event status", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
 
-  getRegulatoryAuthorityInof: async (req: Request, res: Response) => {
+  getRegulatoryAuthorityInof: async (
+    req: Request<unknown, unknown, unknown, { country?: string; iso2?: string }>,
+    res: Response,
+  ) => {
     try {
-      const { country, iso2 } = req.query;
+      const iso2 = typeof req.query.iso2 === "string" ? req.query.iso2 : undefined;
+      const country =
+        typeof req.query.country === "string" ? req.query.country : undefined;
+
+      const filters = [];
+
+      if (iso2) filters.push({ iso2: iso2.toUpperCase() });
+      if (country) filters.push({ country: new RegExp(`^${country}$`, "i") });
+
+      if (filters.length === 0) {
+        return res.status(400).json({ message: "country or iso2 is required" });
+      }
 
       const record = await RegulatoryAuthorityModel.findOne({
-        $or: [
-          { iso2: iso2?.toString().toUpperCase() },
-          { country: new RegExp(`^${country}$`, "i") }
-        ]
+        $or: filters,
       });
 
       if (!record) {
@@ -77,8 +105,8 @@ export const AdverseEventController = {
 
       res.json(record);
     } catch (err) {
-      logger.error("Got error while retiving regulatory authority info")
+      logger.error("Got error while retiving regulatory authority info", err);
       res.status(500).json({ message: "Internal Server Error" });
-    } 
-  }
+    }
+  },
 };

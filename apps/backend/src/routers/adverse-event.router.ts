@@ -1,4 +1,3 @@
-// src/routes/adverseEvent.routes.ts
 import { Router } from "express";
 import { AdverseEventController } from "../controllers/web/adverse-event.controller";
 import { authorizeCognitoMobile } from "src/middlewares/auth";
@@ -6,9 +5,14 @@ import { authorizeCognitoMobile } from "src/middlewares/auth";
 const router = Router();
 
 // Mobile app: submit report
-router.post("/", authorizeCognitoMobile, AdverseEventController.createFromMobile);
+router.post("/", 
+  //authorizeCognitoMobile, 
+  AdverseEventController.createFromMobile);
 
-router.get("/regulatory-authority/", authorizeCognitoMobile, )
+router.get("/regulatory-authority/", 
+  //authorizeCognitoMobile, 
+  AdverseEventController.getRegulatoryAuthorityInof  
+)
 
 // PMS: list reports for org
 router.get(

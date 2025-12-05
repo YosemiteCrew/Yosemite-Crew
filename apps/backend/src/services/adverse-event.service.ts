@@ -2,6 +2,7 @@
 import AdverseEventReportModel, {
   AdverseEventReportDocument,
 } from "../models/adverse-event";
+import { FilterQuery } from "mongoose";
 import { AdverseEventReport, AdverseEventStatus } from "@yosemite-crew/types";
 
 export class AdverseEventServiceError extends Error {
@@ -11,22 +12,19 @@ export class AdverseEventServiceError extends Error {
   }
 }
 
-const toDomain = (doc: AdverseEventReportDocument): AdverseEventReport => {
-  const obj = doc.toObject();
-  return {
-    id: doc._id.toString(),
-    organisationId: obj.organisationId,
-    appointmentId: obj.appointmentId ?? null,
-    reporter: obj.reporter,
-    companion: obj.companion,
-    product: obj.product,
-    destinations: obj.destinations,
-    consent: obj.consent,
-    status: obj.status,
-    createdAt: doc.createdAt!,
-    updatedAt: doc.updatedAt!,
-  };
-};
+const toDomain = (doc: AdverseEventReportDocument): AdverseEventReport => ({
+  id: doc._id.toString(),
+  organisationId: doc.organisationId,
+  appointmentId: doc.appointmentId ?? null,
+  reporter: doc.reporter,
+  companion: doc.companion,
+  product: doc.product,
+  destinations: doc.destinations,
+  consent: doc.consent,
+  status: doc.status,
+  createdAt: doc.createdAt!,
+  updatedAt: doc.updatedAt!,
+});
 
 export const AdverseEventService = {
   async createFromMobile(input: AdverseEventReport): Promise<AdverseEventReport> {
@@ -65,8 +63,13 @@ export const AdverseEventService = {
     return doc ? toDomain(doc) : null;
   },
 
-  async listForOrganisation(orgId: string, options?: { status?: string }) {
-    const query: any = { organisationId: orgId };
+  async listForOrganisation(
+    orgId: string,
+    options?: { status?: AdverseEventStatus },
+  ) {
+    const query: FilterQuery<AdverseEventReportDocument> = {
+      organisationId: orgId,
+    };
     if (options?.status) query.status = options.status;
 
     const docs = await AdverseEventReportModel.find(query)

@@ -1,4 +1,12 @@
 import { Schema, model, HydratedDocument } from "mongoose";
+import type {
+  AdverseEventCompanionInfo,
+  AdverseEventConsent,
+  AdverseEventDestinations,
+  AdverseEventProductInfo,
+  AdverseEventReporterInfo,
+  AdverseEventStatus,
+} from "@yosemite-crew/types";
 
 const ReporterSchema = new Schema(
   {
@@ -84,12 +92,12 @@ const ConsentSchema = new Schema(
 export interface AdverseEventReportMongo {
   organisationId?: string;
   appointmentId?: string | null;
-  reporter: typeof ReporterSchema extends Schema<infer T> ? T : never;
-  companion: typeof CompanionSchema extends Schema<infer T> ? T : never;
-  product: typeof ProductSchema extends Schema<infer T> ? T : never;
-  destinations: typeof DestinationsSchema extends Schema<infer T> ? T : never;
-  consent: typeof ConsentSchema extends Schema<infer T> ? T : never;
-  status: "DRAFT" | "SUBMITTED" | "REVIEWING" | "FORWARDED" | "CLOSED";
+  reporter: AdverseEventReporterInfo;
+  companion: AdverseEventCompanionInfo;
+  product: AdverseEventProductInfo;
+  destinations: AdverseEventDestinations;
+  consent: AdverseEventConsent;
+  status: AdverseEventStatus;
   createdAt?: Date;
   updatedAt?: Date;
 }
