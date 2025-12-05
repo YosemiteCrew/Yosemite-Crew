@@ -19,7 +19,7 @@ apps/dev-docs/.docusaurus
 # auth keys file for firebase and oAuth config
 apps/mobileAppYC/ios/mobileAppYC/Info.plist
 apps/mobileAppYC/android/app/src/main/res/values/strings.xml
-
+apps/mobileAppYC/android/gradle.properties
 
 # Google-Services File
 #
