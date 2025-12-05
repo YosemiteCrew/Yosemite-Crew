@@ -15,6 +15,7 @@ import { IoIosCloseCircleOutline } from "react-icons/io";
 import { CompanionData, CompanionDataOptions } from "../../demo";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Slotpicker from "@/app/components/Inputs/Slotpicker";
+import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -31,6 +32,7 @@ type FormDataType = {
   specie: string;
   parent: string;
   breed: string;
+  emergency: boolean;
 };
 
 const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
@@ -44,6 +46,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
     specie: "",
     parent: "",
     breed: "",
+    emergency: false,
   });
   const [formDataErrors] = useState<{
     speciality?: string;
@@ -54,7 +57,8 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
     parent?: string;
     breed?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTime, setSelectedTime] = useState("");
 
   const handleCompanionSelect = (id: string) => {
     const selected = CompanionData.find((item) => item.id === id);
@@ -193,11 +197,29 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
               showEditIcon={false}
               isEditing={true}
             >
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <Slotpicker
-                  currentDate={currentDate}
-                  setCurrentDate={setCurrentDate}
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  selectedTime={selectedTime}
+                  setSelectedTime={setSelectedTime}
                 />
+                <div className="grid grid-cols-2 gap-3">
+                  <FormInput
+                    intype="text"
+                    inname="date"
+                    value={getFormattedDate(selectedDate)}
+                    inlabel="Date"
+                    className="min-h-12!"
+                  />
+                  <FormInput
+                    intype="text"
+                    inname="time"
+                    value={selectedTime}
+                    inlabel="Time"
+                    className="min-h-12!"
+                  />
+                </div>
               </div>
             </Accordion>
             <Accordion
@@ -233,6 +255,21 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
             >
               <div className="flex flex-col gap-3"></div>
             </Accordion>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.emergency}
+                onChange={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    emergency: !prev.emergency,
+                  }))
+                }
+              />
+              <div className="font-satoshi text-black-text text-[16px] font-semibold">
+                I confirm this is an emergency.
+              </div>
+            </div>
           </div>
           <Primary href="#" text="Book appointment" classname="h-13!" />
         </div>

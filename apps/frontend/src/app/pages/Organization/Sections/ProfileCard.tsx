@@ -17,6 +17,7 @@ type ProfileCardProps = {
   fields: FieldConfig[];
   org: Record<string, any>;
   showProfile?: boolean;
+  showProfileUser?: boolean;
 };
 
 const getStatusStyle = (status: string) => {
@@ -30,7 +31,13 @@ const getStatusStyle = (status: string) => {
   }
 };
 
-const ProfileCard = ({ title, fields, org, showProfile }: ProfileCardProps) => {
+const ProfileCard = ({
+  title,
+  fields,
+  org,
+  showProfile,
+  showProfileUser,
+}: ProfileCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>(() =>
     fields.reduce(
@@ -112,6 +119,20 @@ const ProfileCard = ({ title, fields, org, showProfile }: ProfileCardProps) => {
         )}
       </div>
       <div className={`px-3! py-2! flex flex-col`}>
+        {showProfileUser && (
+          <div className="px-6! py-3! flex gap-3 items-center">
+            <Image
+              src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+              alt="Logo"
+              height={60}
+              width={60}
+              className="rounded-full"
+            />
+            <div className="font-grotesk font-medium text-black-text text-[28px]">
+              Anna Clark
+            </div>
+          </div>
+        )}
         {showProfile && (
           <div className="px-6! py-3! flex flex-col gap-3">
             <div className="flex items-center justify-between">

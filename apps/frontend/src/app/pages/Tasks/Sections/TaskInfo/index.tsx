@@ -1,3 +1,4 @@
+import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import Modal from "@/app/components/Modal";
 import { TasksProps } from "@/app/types/tasks";
 import React from "react";
@@ -6,8 +7,23 @@ import { IoIosCloseCircleOutline } from "react-icons/io";
 type TaskInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeTask: TasksProps | null;
+  activeTask: TasksProps;
 };
+
+const TaskFields = [
+  { label: "Task", key: "task", type: "text" },
+  {
+    label: "Category",
+    key: "category",
+    type: "select",
+    options: ["Custom", "Template", "Library"],
+  },
+  { label: "Description", key: "description", type: "text" },
+  { label: "From", key: "from", type: "text" },
+  { label: "To", key: "to", type: "text" },
+  { label: "Due", key: "due", type: "date" },
+  { label: "Status", key: "status", type: "text" },
+];
 
 const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
   return (
@@ -27,6 +43,15 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
             color="#302f2e"
             onClick={() => setShowModal(false)}
             className="cursor-pointer"
+          />
+        </div>
+        <div className="flex overflow-y-auto flex-1">
+          <EditableAccordion
+            key={"task-key"}
+            title={"Task details"}
+            fields={TaskFields}
+            data={activeTask}
+            defaultOpen={true}
           />
         </div>
       </div>

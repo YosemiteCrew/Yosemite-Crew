@@ -1,4 +1,5 @@
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import { AppointmentsProps } from "@/app/types/appointments";
 import React from "react";
 
 const AppointmentFields = [
@@ -18,11 +19,11 @@ const StaffFields = [
 
 const BillingFields = [{ label: "Service", key: "service", type: "text" }];
 
-type AppointmentProps = {
-  activeAppointment: AppointmentProps;
+type AppointmentInfoProps = {
+  activeAppointment: AppointmentsProps;
 };
 
-const Appointment = ({ activeAppointment }: AppointmentProps) => {
+const Appointment = ({ activeAppointment }: AppointmentInfoProps) => {
   return (
     <div className="flex flex-col gap-6 w-full">
       <EditableAccordion

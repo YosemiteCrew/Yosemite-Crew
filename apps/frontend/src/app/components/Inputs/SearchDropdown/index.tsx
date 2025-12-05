@@ -61,18 +61,18 @@ const SearchDropdown = ({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          className="outline-none border-0 text-[15px]! w-full"
+          className="outline-none border-0 text-[18px]! w-full"
           placeholder={placeholder}
         />
         <IoSearch size={22} color="#302F2E" className="cursor-pointer" />
       </div>
-      {open && (
-        <div className="absolute left-0 mt-1 border border-grey-noti bg-white z-10 rounded-xl max-h-[150px] w-full overflow-auto flex flex-col p-1 scrollbar-hidden">
-          {filtered.map((option) => (
+      {open && filtered.length > 0 && (
+        <div className="absolute left-0 mt-1 border border-grey-noti bg-white z-10 rounded-xl max-h-[150px] w-full overflow-auto flex flex-col py-1 px-2 scrollbar-hidden">
+          {filtered.map((option, i) => (
             <button
               key={option.key}
               onClick={() => onSelectOption(option.key)}
-              className="py-1 outline-none bg-white text-[13px] font-satoshi font-semibold text-black-text text-start px-2"
+              className={`${i != filtered.length-1 && "border-b border-grey-light"} py-2 px-2 outline-none bg-white text-[13px] font-satoshi font-semibold text-black-text text-start`}
             >
               {option.value}
             </button>

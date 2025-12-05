@@ -1,4 +1,4 @@
-import { Speciality } from "@/app/types/org";
+import { Service, Speciality } from "@/app/types/org";
 import { AvailabilityProps, Document, Room } from "./types";
 
 export const demoSpecialities: Speciality[] = [
@@ -281,10 +281,34 @@ export const demoSpecialities: Speciality[] = [
 ];
 
 export const getAllServiceNames = (specialities: Speciality[]): string[] => {
-  return specialities.flatMap(s => (s.services || []).map(service => service.name));
+  return specialities.flatMap((s) =>
+    (s.services || []).map((service) => service.name)
+  );
 };
 
-export const flatServices = getAllServiceNames(demoSpecialities)
+export const getAllServices = (specialities: Speciality[]): Service[] => {
+  const result: Service[] = [];
+  for (const s of specialities) {
+    for (const service of (s.services || [])) {
+      result.push(service);
+    }
+  }
+  return result;
+};
+
+export const getAllServiceOptions = (specialities: Speciality[]) => {
+  return specialities.flatMap((s) =>
+    (s.services || []).map((service) => {
+      return { value: service.name, key: service.name };
+    })
+  );
+};
+
+export const flatServices = getAllServiceNames(demoSpecialities);
+
+export const serviceOptions = getAllServiceOptions(demoSpecialities);
+
+export const allServices = getAllServices(demoSpecialities);
 
 export const DemoTeam: AvailabilityProps[] = [
   {

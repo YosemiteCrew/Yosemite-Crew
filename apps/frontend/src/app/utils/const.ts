@@ -13,6 +13,5 @@ export const publicRoutes = new Set([
   "/pms",
   "/pricing",
   "/privacy-policy",
-  "/terms-and-conditions",
-  "/settings",
+  "/terms-and-conditions"
 ]);

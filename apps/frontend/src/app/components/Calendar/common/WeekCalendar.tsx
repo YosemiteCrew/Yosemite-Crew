@@ -10,10 +10,12 @@ import {
 import DayLabels from "./DayLabels";
 import {
   EVENT_VERTICAL_GAP_PX,
+  isAllDayForDate,
   MINUTES_PER_STEP,
   PIXELS_PER_STEP,
 } from "../helpers";
 import Slot from "./Slot";
+import { getStatusStyle } from "../../DataTable/Appointments";
 
 const PIXELS_PER_MINUTE = PIXELS_PER_STEP / MINUTES_PER_STEP;
 
@@ -37,6 +39,25 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const height = PIXELS_PER_MINUTE * 60;
+
+  const { allDayByDay, timedEvents } = useMemo(() => {
+    const byDay: AppointmentsProps[][] = days.map(() => []);
+    const timed: AppointmentsProps[] = [];
+    for (const ev of events) {
+      let isAllDaySomeDay = false;
+      for (let idx = 0; idx < days.length; idx++) {
+        const day = days[idx];
+        if (isAllDayForDate(ev, day)) {
+          byDay[idx].push(ev);
+          isAllDaySomeDay = true;
+        }
+      }
+      if (!isAllDaySomeDay) {
+        timed.push(ev);
+      }
+    }
+    return { allDayByDay: byDay, timedEvents: timed };
+  }, [events, days]);
 
   const handlePrevWeek = () => {
     setWeekStart((prev) => {
@@ -90,6 +111,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     container.scrollTop = Math.max(0, target);
   }, [nowPosition]);
 
+  const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
+
   return (
     <div className="h-full flex flex-col">
       <DayLabels
@@ -97,6 +120,43 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         onPrevWeek={handlePrevWeek}
         onNextWeek={handleNextWeek}
       />
+      {hasAnyAllDay && (
+        <div className="px-2 border-b border-grey-light bg-slate-50">
+          <div className="grid grid-cols-[80px_minmax(0,1fr)_80px] py-2">
+            <div className="text-xs font-satoshi text-[#747473] flex items-start">
+              All-day
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+              {days.map((day, idx) => {
+                const dayAllEvents = allDayByDay[idx];
+                return (
+                  <div key={day.toISOString()} className="flex flex-col gap-1">
+                    {dayAllEvents.map((ev) => (
+                      <button
+                        key={`${ev.name}-${ev.start.toISOString()}`}
+                        type="button"
+                        onClick={() => handleViewAppointment(ev)}
+                        className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
+                        style={{
+                          ...({
+                            ...getStatusStyle(ev.status),
+                            padding: undefined,
+                          } as React.CSSProperties),
+                        }}
+                      >
+                        <div className="font-medium truncate">
+                          {ev.name} • {ev.reason}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <div />
+          </div>
+        </div>
+      )}
       <div
         className="overflow-y-auto overflow-x-hidden flex-1 px-2 max-h-[800px] relative"
         ref={scrollRef}
@@ -119,7 +179,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 )}
                 <div className="grid grid-cols-7 h-full">
                   {days.map((day, dayIndex) => {
-                    const slotEvents = eventsForDayHour(events, day, hour);
+                    const slotEvents = eventsForDayHour(timedEvents, day, hour);
                     return (
                       <Slot
                         key={day.getDate() + dayIndex}

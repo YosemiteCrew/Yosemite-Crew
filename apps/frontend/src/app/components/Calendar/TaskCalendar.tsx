@@ -2,6 +2,8 @@ import { TasksProps } from "@/app/types/tasks";
 import React, { useMemo } from "react";
 import { isSameDay } from "./helpers";
 import Header from "./common/Header";
+import DayCalendar from "./Task/DayCalendar";
+import WeekCalendar from "./Task/WeekCalendar";
 
 type TaskCalendarProps = {
   filteredList: TasksProps[];
@@ -29,22 +31,22 @@ const TaskCalendar = ({
     setViewPopup?.(true);
   };
 
-//   const dayEvents = useMemo(
-//     () =>
-//       filteredList.filter((event) =>
-//         isSameDay(new Date(event.start), currentDate)
-//       ),
-//     [filteredList, currentDate]
-//   );
+  const dayEvents = useMemo(
+    () =>
+      filteredList.filter((event) =>
+        isSameDay(new Date(event.due), currentDate)
+      ),
+    [filteredList, currentDate]
+  );
 
   return (
     <div className="border border-grey-light rounded-2xl w-full flex flex-col mb-10!">
       <Header currentDate={currentDate} setCurrentDate={setCurrentDate} />
-      {/* {activeCalendar === "day" && (
+      {activeCalendar === "day" && (
         <DayCalendar
           events={dayEvents}
           date={currentDate}
-          handleViewAppointment={handleViewTask}
+          handleViewTask={handleViewTask}
           setCurrentDate={setCurrentDate}
         />
       )}
@@ -52,12 +54,12 @@ const TaskCalendar = ({
         <WeekCalendar
           events={filteredList}
           date={currentDate}
-          handleViewAppointment={handleViewTask}
+          handleViewTask={handleViewTask}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
         />
-      )} */}
+      )}
     </div>
   );
 };

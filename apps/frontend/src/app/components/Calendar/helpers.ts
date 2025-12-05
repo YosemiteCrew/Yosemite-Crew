@@ -1,5 +1,6 @@
 import { AppointmentsProps } from "@/app/types/appointments";
 import { LaidOutEvent } from "@/app/types/calendar";
+import { TasksProps } from "@/app/types/tasks";
 
 export function isSameDay(a: Date, b: Date) {
   return (
@@ -121,4 +122,23 @@ export function getNowTopPxForDay(day: Date): number | null {
   if (mins < DAY_START_MINUTES || mins > DAY_END_MINUTES) return null;
   const stepsFromStart = (mins - DAY_START_MINUTES) / MINUTES_PER_STEP;
   return stepsFromStart * PIXELS_PER_STEP;
+}
+
+export function isAllDayForDate(ev: AppointmentsProps, day: Date): boolean {
+  const startOfDay = new Date(day);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(day);
+  endOfDay.setHours(23, 59, 59, 999);
+  return ev.start <= startOfDay && ev.end >= endOfDay;
+}
+
+export function eventsForDay(events: TasksProps[], day: Date): TasksProps[] {
+  const y = day.getFullYear();
+  const m = day.getMonth();
+  const d = day.getDate();
+
+  return events.filter((event) => {
+    const s = event.due;
+    return s.getFullYear() === y && s.getMonth() === m && s.getDate() === d;
+  });
 }

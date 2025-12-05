@@ -113,9 +113,19 @@ const statuses: Status[] = [
   "Completed",
 ];
 
-const randomFrom = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+const secureRandom = (): number => {
+  if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    return buf[0] / 2 ** 32;
+  }
+  return Math.random(); // NOSONAR
+};
 
-const randomBool = (chance = 0.2) => Math.random() < chance;
+const randomFrom = <T>(arr: T[]) =>
+  arr[Math.floor(secureRandom() * arr.length)];
+
+const randomBool = (chance = 0.2) => secureRandom() < chance;
 
 // Random date in "YYYY-MM-DD" format (fixed day or random)
 const formatDate = (date: Date) => date.toISOString().split("T")[0];
@@ -146,31 +156,49 @@ export function generateAppointments(
     const room = randomFrom(rooms);
     const vet = randomFrom(vets);
     const status = randomFrom(statuses);
-    const startHour = Math.floor(Math.random() * 24); // 0–23
-    const startMinute = Math.floor(Math.random() * 12) * 5; // nearest 5 min
 
-    const start = new Date(
-      `${forDate}T${String(startHour).padStart(2, "0")}:${String(
-        startMinute
-      ).padStart(2, "0")}:00`
-    );
+    // Decide if this is an all-day event (about 10–15%)
+    const isAllDay = randomBool(0.1);
 
-    // --- Duration & clamping to same day ---
-    const startTotalMinutes = startHour * 60 + startMinute;
-    const minDuration = 20;
-    const maxDuration = 50;
-    const maxSameDayMinutes = 24 * 60 - 5 - startTotalMinutes; // ensure we don't go past 23:55
+    let start: Date;
+    let end: Date;
+    let time: string;
 
-    let duration =
-      minDuration + Math.floor(Math.random() * (maxDuration - minDuration + 1));
+    if (isAllDay) {
+      // ---- All-day event for this specific date ----
+      start = new Date(`${forDate}T00:00:00.000`);
+      end = new Date(`${forDate}T23:59:59.999`);
+      // Nice label for list/table views; day/week all-day UI won’t use this anyway
+      time = "All day";
+    } else {
+      // ---- Normal timed event within the same day ----
+      const startHour = Math.floor(secureRandom() * 24); // 0–23
+      const startMinute = Math.floor(secureRandom() * 12) * 5; // nearest 5 min
 
-    if (duration > maxSameDayMinutes) {
-      duration = Math.max(5, maxSameDayMinutes); // at least 5 mins if near end of day
+      start = new Date(
+        `${forDate}T${String(startHour).padStart(2, "0")}:${String(
+          startMinute
+        ).padStart(2, "0")}:00`
+      );
+
+      // --- Duration & clamping to same day ---
+      const startTotalMinutes = startHour * 60 + startMinute;
+      const minDuration = 20;
+      const maxDuration = 50;
+      const maxSameDayMinutes = 24 * 60 - 5 - startTotalMinutes; // ensure we don't go past 23:55
+
+      let duration =
+        minDuration +
+        Math.floor(secureRandom() * (maxDuration - minDuration + 1));
+
+      if (duration > maxSameDayMinutes) {
+        duration = Math.max(5, maxSameDayMinutes); // at least 5 mins if near end of day
+      }
+
+      end = new Date(start.getTime() + duration * 60_000);
+      time = formatTime(start);
     }
 
-    const end = new Date(start.getTime() + duration * 60_000);
-
-    const time = formatTime(start);
     result.push({
       name,
       parentName,
@@ -191,6 +219,7 @@ export function generateAppointments(
       end,
     });
   }
+
   return result;
 }
 

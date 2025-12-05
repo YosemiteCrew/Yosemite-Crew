@@ -42,7 +42,7 @@ const Accordion: React.FC<AccordionProps> = ({
               open ? "rotate-0" : "-rotate-90"
             }`}
           />
-          <div className="font-grotesk text-black-text text-[19px] font-medium">
+          <div className="font-grotesk text-black-text text-[19px] font-medium text-left">
             {title}
           </div>
         </button>

@@ -4,6 +4,8 @@ import FormInput from "../Inputs/FormInput/FormInput";
 import { Primary, Secondary } from "../Buttons";
 import Dropdown from "../Inputs/Dropdown/Dropdown";
 import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
+import Datepicker from "../Inputs/Datepicker";
+import { getFormattedDate } from "../Calendar/weekHelpers";
 
 type FieldConfig = {
   label: string;
@@ -71,6 +73,9 @@ const FieldComponents: Record<
       type="country"
     />
   ),
+  date: ({ field, value, onChange }) => (
+    <Datepicker currentDate={value} setCurrentDate={onChange} type="input" />
+  ),
 };
 
 const RenderField = (
@@ -86,7 +91,102 @@ const RenderField = (
   );
 };
 
-type FormValues = Record<string, string | string[]>;
+const FieldValueComponents: Record<
+  string,
+  React.FC<{
+    field: any;
+    index: number;
+    fields: any;
+    formValues: FormValues;
+  }>
+> = {
+  text: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {formValues[field.key] || "-"}
+      </div>
+    </div>
+  ),
+  select: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {formValues[field.key] || "-"}
+      </div>
+    </div>
+  ),
+  multiSelect: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {(() => {
+          const value = formValues[field.key];
+          if (Array.isArray(value)) {
+            return value.length ? value.join(", ") : "-";
+          }
+          return value || "-";
+        })()}
+      </div>
+    </div>
+  ),
+  country: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {formValues[field.key] || "-"}
+      </div>
+    </div>
+  ),
+  date: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {getFormattedDate(formValues[field.key])}
+      </div>
+    </div>
+  ),
+};
+
+const RenderValue = (
+  field: any,
+  index: number,
+  fields: any,
+  formValues: FormValues
+) => {
+  const type = field.type || "text";
+  const Component = FieldValueComponents[type] || FieldComponents["text"];
+  return (
+    <Component
+      field={field}
+      index={index}
+      fields={fields}
+      formValues={formValues}
+    />
+  );
+};
+
+type FormValues = Record<string, any>;
 
 const EditableAccordion: React.FC<EditableAccordionProps> = ({
   title,
@@ -221,21 +321,8 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
                   )}
                 </div>
               ) : (
-                <div
-                  className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
-                >
-                  <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-                    {field.label + ":"}
-                  </div>
-                  <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-                    {(() => {
-                      const value = formValues[field.key];
-                      if (Array.isArray(value)) {
-                        return value.length ? value.join(", ") : "-";
-                      }
-                      return value || "-";
-                    })()}
-                  </div>
+                <div className="flex-1">
+                  {RenderValue(field, index, fields, formValues)}
                 </div>
               )}
             </div>

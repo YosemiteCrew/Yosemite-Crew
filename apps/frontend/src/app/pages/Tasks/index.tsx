@@ -19,7 +19,7 @@ const Tasks = () => {
   const [activeTask, setActiveTask] = useState<TasksProps | null>(
     demoTasks[0] ?? null
   );
-  const [activeCalendar, setActiveCalendar] = useState("day");
+  const [activeCalendar, setActiveCalendar] = useState("week");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
 

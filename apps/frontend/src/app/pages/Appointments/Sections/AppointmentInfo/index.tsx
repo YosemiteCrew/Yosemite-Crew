@@ -18,16 +18,46 @@ import Assessment from "./Prescription/Assessment";
 import Chat from "./Tasks/Chat";
 import ParentTask from "./Tasks/ParentTask";
 import Details from "./Finance/Details";
-import PaymentHistory from "./Finance/PaymentHistory";
 import Documents from "./Prescription/Documents";
 import Discharge from "./Prescription/Discharge";
 import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
+import { Service } from "@/app/types/org";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeAppointment: AppointmentsProps | null;
+};
+
+export type ServiceEdit = Service & {
+  discount: string;
+};
+
+export type formDataProps = {
+  desc: string;
+  general: string;
+  musculoskeletal: string;
+  neuro: string;
+  pain: string;
+  temp: string;
+  pulse: string;
+  respiration: string;
+  mucousColor: string;
+  bloodPressure: string;
+  weight: string;
+  hydration: string;
+  generalBehaviour: string;
+  tentatve: string;
+  differential: string;
+  prognosis: string;
+  subtotal: string;
+  tax: string;
+  total: string;
+  notes: string;
+  services: ServiceEdit[];
+  suggestions: ServiceEdit[];
+  followUp: boolean;
 };
 
 type LabelKey = (typeof labels)[number]["key"];
@@ -78,8 +108,7 @@ const labels = [
     iconSize: 24,
     labels: [
       { key: "summary", name: "Summary" },
-      { key: "payment-details", name: "Payment details" },
-      { key: "payment-history", name: "Payment history" },
+      { key: "payment-details", name: "Payment details" }
     ],
   },
 ];
@@ -106,8 +135,7 @@ const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   },
   finance: {
     summary: Summary,
-    "payment-details": Details,
-    "payment-history": PaymentHistory,
+    "payment-details": Details
   },
 };
 
@@ -121,6 +149,31 @@ const AppoitmentInfo = ({
     labels[0].labels[0].key
   );
   const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
+  const [formData, setFormData] = useState<formDataProps>({
+    desc: "",
+    general: "",
+    musculoskeletal: "",
+    neuro: "",
+    pain: "",
+    temp: "",
+    pulse: "",
+    respiration: "",
+    mucousColor: "",
+    bloodPressure: "",
+    weight: "",
+    hydration: "",
+    generalBehaviour: "",
+    tentatve: "",
+    differential: "",
+    prognosis: "",
+    subtotal: "",
+    tax: "",
+    total: "",
+    notes: "",
+    services: [],
+    suggestions: [],
+    followUp: false
+  });
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);
@@ -172,7 +225,13 @@ const AppoitmentInfo = ({
         />
 
         <div className="flex overflow-y-auto flex-1">
-          {Content ? <Content activeAppointment={activeAppointment} /> : null}
+          {Content ? (
+            <Content
+              activeAppointment={activeAppointment}
+              formData={formData}
+              setFormData={setFormData}
+            />
+          ) : null}
         </div>
       </div>
     </Modal>
