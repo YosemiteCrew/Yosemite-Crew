@@ -6,6 +6,8 @@ import ContactUsScreen from '../../../../src/features/support/screens/ContactUsS
 
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
+const mockDispatch = jest.fn();
+const mockUseSelector = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
@@ -13,6 +15,11 @@ jest.mock('@react-navigation/native', () => ({
     navigate: mockNavigate,
   }),
   useRoute: jest.fn(),
+}));
+
+jest.mock('react-redux', () => ({
+  useDispatch: () => mockDispatch,
+  useSelector: (selector: any) => mockUseSelector(selector),
 }));
 
 jest.mock('@/assets/images', () => ({
@@ -342,6 +349,20 @@ jest.mock('../../../../src/features/support/data/contactData', () => ({
 describe('ContactUsScreen', () => {
   const mockNavigationProp: any = {goBack: mockGoBack, navigate: mockNavigate};
   const mockRoute: any = {params: {}};
+  const mockState = {
+    auth: {
+      user: {
+        email: 'user@test.com',
+        phone: '+1234567890',
+        firstName: 'Test',
+        lastName: 'User',
+      },
+    },
+    companion: {
+      companions: [{id: 'comp-1', name: 'Buddy'}],
+      selectedCompanionId: 'comp-1',
+    },
+  };
 
   const originalURL = globalThis.URL;
 
@@ -350,6 +371,8 @@ describe('ContactUsScreen', () => {
     capturedSetFiles = undefined;
     capturedClearError = undefined;
     capturedCloseSheet = undefined;
+
+    mockUseSelector.mockImplementation((selector: any) => selector(mockState));
   });
 
   afterEach(() => {

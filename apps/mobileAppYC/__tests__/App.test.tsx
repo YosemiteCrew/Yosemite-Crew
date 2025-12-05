@@ -18,6 +18,12 @@ jest.mock('@/shared/services/firebaseNotifications', () => ({
   areNotificationsInitialized: jest.fn(() => true),
 }));
 
+jest.mock('react-native-device-info', () => ({
+  getBundleId: jest.fn(() => 'com.yosemite.app'),
+  getVersion: jest.fn(() => '1.0.0'),
+  getBuildNumber: jest.fn(() => '1'),
+}));
+
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
   return {

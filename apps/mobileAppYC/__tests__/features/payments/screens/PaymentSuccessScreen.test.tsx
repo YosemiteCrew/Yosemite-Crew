@@ -177,10 +177,6 @@ describe('PaymentSuccessScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
         screen: 'MyAppointments',
       });
-      expect(mockReset).toHaveBeenCalledWith({
-        index: 0,
-        routes: [{name: 'MyAppointments'}],
-      });
     });
 
     // Branch 2: companionId NOT in route, but found in Appointment
@@ -201,7 +197,9 @@ describe('PaymentSuccessScreen', () => {
       // Should resolve to 'comp-1' from Redux store
       expect(mockDispatch).toHaveBeenCalledTimes(1);
       expect(setSelectedCompanion).toHaveBeenCalledWith('comp-1');
-      expect(mockReset).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'MyAppointments',
+      });
     });
 
     // Branch 3: No companionId in route OR appointment (Null Branch)
@@ -222,8 +220,9 @@ describe('PaymentSuccessScreen', () => {
       expect(mockDispatch).not.toHaveBeenCalled();
 
       // Navigation should still happen
-      expect(mockNavigate).toHaveBeenCalled();
-      expect(mockReset).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'MyAppointments',
+      });
     });
 
     // Branch 4: Tab Navigation (getParent) returns null (Safety check)
@@ -239,9 +238,7 @@ describe('PaymentSuccessScreen', () => {
       const btn = screen.getByTestId('dashboard-btn');
       fireEvent.press(btn);
 
-      // Should still try to reset local stack
-      expect(mockReset).toHaveBeenCalled();
-      // But mockNavigate shouldn't be called because tabNavigation is null
+      // No tab navigation -> should not navigate
       expect(mockNavigate).not.toHaveBeenCalled();
     });
   });

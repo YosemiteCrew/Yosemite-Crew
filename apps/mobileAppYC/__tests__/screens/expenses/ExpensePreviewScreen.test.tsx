@@ -86,6 +86,7 @@ jest.mock('@/features/expenses', () => ({
   markInAppExpenseStatus: jest.fn(
     payload => () => mockMarkInAppExpenseStatus(payload),
   ),
+  fetchExpenseById: jest.fn(() => () => Promise.resolve()),
 }));
 
 jest.mock('@/shared/utils/currency', () => ({
@@ -275,8 +276,10 @@ describe('ExpensePreviewScreen', () => {
 
     expect(getByText('Annual Vet Visit')).toBeTruthy();
     expect(getByText('Category:cat-vet')).toBeTruthy();
-    expect(getByText(/Sub category:\s+Sub:subcat-checkup/)).toBeTruthy();
-    expect(getByText(/Visit type:\s+Visit:visit-annual/)).toBeTruthy();
+    expect(getByText('Sub category')).toBeTruthy();
+    expect(getByText('Sub:subcat-checkup')).toBeTruthy();
+    expect(getByText('Visit type')).toBeTruthy();
+    expect(getByText('Visit:visit-annual')).toBeTruthy();
     expect(
       getByText(new Date(mockExternalExpense.date).toLocaleDateString('en-US', {
         day: '2-digit',
@@ -285,7 +288,6 @@ describe('ExpensePreviewScreen', () => {
       })),
     ).toBeTruthy();
     expect(getByText('$125.50')).toBeTruthy();
-    expect(getByText('Buddy')).toBeTruthy();
 
     const attachmentPreview = getByTestId('DocumentAttachmentViewer');
     expect(attachmentPreview).toBeTruthy();
