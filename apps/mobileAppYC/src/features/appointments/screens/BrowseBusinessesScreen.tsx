@@ -290,30 +290,40 @@ export const BrowseBusinessesScreen: React.FC = () => {
         />
 
         <View style={styles.resultsWrapper}>
-          {filteredBusinesses.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateTitle}>No businesses found</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                Try adjusting your filters or search to find nearby providers.
-              </Text>
-            </View>
-          ) : category ? (
-            <CategoryBusinesses
-              businesses={filteredBusinesses}
-              navigation={navigation}
-              resolveDescription={resolveDescription}
-              fallbacks={fallbacks}
-            />
-          ) : (
-            <AllCategoriesView
-              allCategories={allCategories}
-              businesses={filteredBusinesses}
-              resolveDescription={resolveDescription}
-              navigation={navigation}
-              styles={styles}
-              fallbacks={fallbacks}
-            />
-          )}
+          {(() => {
+            if (filteredBusinesses.length === 0) {
+              return (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateTitle}>No businesses found</Text>
+                  <Text style={styles.emptyStateSubtitle}>
+                    Try adjusting your filters or search to find nearby providers.
+                  </Text>
+                </View>
+              );
+            }
+
+            if (category) {
+              return (
+                <CategoryBusinesses
+                  businesses={filteredBusinesses}
+                  navigation={navigation}
+                  resolveDescription={resolveDescription}
+                  fallbacks={fallbacks}
+                />
+              );
+            }
+
+            return (
+              <AllCategoriesView
+                allCategories={allCategories}
+                businesses={filteredBusinesses}
+                resolveDescription={resolveDescription}
+                navigation={navigation}
+                styles={styles}
+                fallbacks={fallbacks}
+              />
+            );
+          })()}
         </View>
       </ScrollView>
     </SafeArea>

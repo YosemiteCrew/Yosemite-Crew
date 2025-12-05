@@ -43,6 +43,84 @@ import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
+const useAppointmentInvoicesData = ({
+  appointmentId,
+  expensesForCompanion,
+  aptInvoiceId,
+}: {
+  appointmentId: string;
+  expensesForCompanion: any[];
+  aptInvoiceId?: string | null;
+}) => {
+  const appointmentInvoices = useMemo(() => {
+    const related = expensesForCompanion.filter(
+      expense => expense.appointmentId === appointmentId || (!!aptInvoiceId && expense.invoiceId === aptInvoiceId),
+    );
+    const deduped: typeof related = [];
+    const seen = new Set<string>();
+    related.forEach(exp => {
+      const key = exp.invoiceId ?? exp.id;
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(exp);
+    });
+    return deduped;
+  }, [aptInvoiceId, appointmentId, expensesForCompanion]);
+  const hasMultipleInvoices = (appointmentInvoices.length || (aptInvoiceId ? 1 : 0)) > 1;
+  return {appointmentInvoices, hasMultipleInvoices};
+};
+
+const buildEmployeeDisplay = ({
+  employee,
+  apt,
+  department,
+  statusFlags,
+}: {
+  employee: any;
+  apt: any;
+  department: string | null;
+  statusFlags: any;
+}) => {
+  const employeeFallback =
+    !employee && (apt.employeeName || apt.employeeTitle)
+      ? {
+          id: apt.employeeId ?? 'provider',
+          businessId: apt.businessId,
+          name: apt.employeeName ?? 'Assigned provider',
+          title: apt.employeeTitle ?? '',
+          specialization: apt.employeeTitle ?? department ?? '',
+          avatar: apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined,
+        }
+      : null;
+  const employeeWithAvatar = employee
+    ? {
+        ...employee,
+        avatar: employee.avatar ?? (apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined),
+      }
+    : null;
+  const shouldShowEmployee = !statusFlags.isPaymentPending && statusFlags.isUpcoming;
+  return shouldShowEmployee ? employeeWithAvatar ?? employeeFallback ?? null : null;
+};
+
+const formatAppointmentDateTime = (apt: any) => {
+  const normalizedStartTime =
+    (apt.time?.length === 5 ? `${apt.time}:00` : apt.time ?? '00:00') ?? '00:00';
+  const localStartDate = new Date(`${apt.date}T${normalizedStartTime}Z`);
+  const dateLabel = Number.isNaN(localStartDate.getTime())
+    ? apt.date
+    : localStartDate.toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+  const timeLabel =
+    apt.time && !Number.isNaN(localStartDate.getTime())
+      ? localStartDate.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'})
+      : apt.time ?? '';
+  const dateTimeLabel = timeLabel ? `${dateLabel} • ${timeLabel}` : dateLabel;
+  return {dateTimeLabel};
+};
+
 const useAppointmentRelations = (
   appointmentId: string,
   tabNavigation?: NavigationProp<TabParamList>,
@@ -445,7 +523,12 @@ const ActionButtons = ({
   handleCancel: () => void;
   theme: any;
 }) => {
-  const checkInTitle = isInProgress ? 'In progress' : isCheckedIn ? 'Checked in' : 'Check in';
+  let checkInTitle = 'Check in';
+  if (isInProgress) {
+    checkInTitle = 'In progress';
+  } else if (isCheckedIn) {
+    checkInTitle = 'Checked in';
+  }
   const checkInDisabled = checkingIn || isCheckedIn || isInProgress;
   return (
     <View style={styles.actionsContainer}>
@@ -540,23 +623,11 @@ export const ViewAppointmentScreen: React.FC = () => {
   const companionId = apt?.companionId ?? null;
   const hasHydratedExpenses = useSelector(selectHasHydratedCompanion(companionId));
   const expensesForCompanion = useSelector(selectExpensesByCompanion(companionId));
-  const appointmentInvoices = useMemo(() => {
-    const related = expensesForCompanion.filter(
-      expense =>
-        expense.appointmentId === appointmentId ||
-        (!!apt?.invoiceId && expense.invoiceId === apt.invoiceId),
-    );
-    const deduped: typeof related = [];
-    const seen = new Set<string>();
-    related.forEach(exp => {
-      const key = exp.invoiceId ?? exp.id;
-      if (seen.has(key)) return;
-      seen.add(key);
-      deduped.push(exp);
-    });
-    return deduped;
-  }, [apt?.invoiceId, appointmentId, expensesForCompanion]);
-  const hasMultipleInvoices = (appointmentInvoices.length || (apt?.invoiceId ? 1 : 0)) > 1;
+  const {appointmentInvoices, hasMultipleInvoices} = useAppointmentInvoicesData({
+    appointmentId,
+    expensesForCompanion,
+    aptInvoiceId: apt?.invoiceId,
+  });
   const cancelSheetRef = React.useRef<CancelAppointmentBottomSheetRef>(null);
   const rescheduledRef = React.useRef<any>(null);
   const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
@@ -653,42 +724,9 @@ export const ViewAppointmentScreen: React.FC = () => {
     description: business?.description ?? undefined,
     photo: resolvedPhoto ?? undefined,
   };
-  const employeeFallback =
-    !employee && (apt.employeeName || apt.employeeTitle)
-      ? {
-          id: apt.employeeId ?? 'provider',
-          businessId: apt.businessId,
-          name: apt.employeeName ?? 'Assigned provider',
-          title: apt.employeeTitle ?? '',
-          specialization: apt.employeeTitle ?? department ?? '',
-          avatar: apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined,
-        }
-      : null;
-  const employeeWithAvatar = employee
-    ? {
-        ...employee,
-        avatar: employee.avatar ?? (apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined),
-      }
-    : null;
-  // Show provider card only for upcoming appointments (hide for requested/pending/cancelled/etc.)
-  const shouldShowEmployee =
-    !statusFlags.isPaymentPending && statusFlags.isUpcoming;
+  const employeeToShow = buildEmployeeDisplay({employee, apt, department, statusFlags});
   const showCheckInButton = (isUpcoming || isCheckedIn || isInProgress) && !isTerminal;
-  const normalizedStartTime =
-    (apt.time?.length === 5 ? `${apt.time}:00` : apt.time ?? '00:00') ?? '00:00';
-  const localStartDate = new Date(`${apt.date}T${normalizedStartTime}Z`);
-  const dateLabel = Number.isNaN(localStartDate.getTime())
-    ? apt.date
-    : localStartDate.toLocaleDateString('en-US', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
-  const timeLabel =
-    apt.time && !Number.isNaN(localStartDate.getTime())
-      ? localStartDate.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'})
-      : apt.time ?? '';
-  const dateTimeLabel = timeLabel ? `${dateLabel} • ${timeLabel}` : dateLabel;
+  const {dateTimeLabel} = formatAppointmentDateTime(apt);
 
   return (
     <SafeArea>
@@ -707,9 +745,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           businessSummary={businessSummary}
           service={service}
           serviceName={apt.serviceName}
-          employee={
-            shouldShowEmployee ? employeeWithAvatar ?? employeeFallback ?? null : null
-          }
+          employee={employeeToShow}
           employeeDepartment={department}
           cardStyle={styles.summaryCard}
         />

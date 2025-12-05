@@ -18,9 +18,9 @@ const normalizeUrlForPlatform = (url: string): string => {
     return url;
   }
   return url
-    .replace('://localhost', '://10.0.2.2')
-    .replace('://127.0.0.1', '://10.0.2.2')
-    .replace('://0.0.0.0', '://10.0.2.2');
+    .replaceAll('://localhost', '://10.0.2.2')
+    .replaceAll('://127.0.0.1', '://10.0.2.2')
+    .replaceAll('://0.0.0.0', '://10.0.2.2');
 };
 
 const baseUrl = normalizeUrlForPlatform(API_CONFIG.baseUrl ?? '');
@@ -28,14 +28,14 @@ const pmsBaseUrl = normalizeUrlForPlatform(API_CONFIG.pmsBaseUrl ?? API_CONFIG.b
 
 const buildUrl = (path: string, opts?: {usePms?: boolean}) => {
   const base = opts?.usePms ? pmsBaseUrl : baseUrl;
-  const sanitizedBase = base.replace(/\/$/, '');
-  const sanitizedPath = path.replace(/^\//, '');
+  const sanitizedBase = base.replaceAll(/\/$/, '');
+  const sanitizedPath = path.replaceAll(/^\//, '');
   return `${sanitizedBase}/${sanitizedPath}`;
 };
 
 const toStatus = (status?: string): AppointmentStatus => {
   const upper = (status ?? '').toUpperCase();
-  const normalized = upper.replace(/\s+/g, '_');
+  const normalized = upper.replaceAll(/\s+/g, '_');
   switch (normalized) {
     case 'AWAITING_PAYMENT':
     case 'NO_PAYMENT':
@@ -196,10 +196,7 @@ const extractArrayFromResponse = (data: any): any[] => {
   return [];
 };
 
-const mapAppointmentResource = (incoming: any): Appointment => {
-  const resource = incoming?.appointment ?? incoming;
-  const org = incoming?.organisation ?? incoming?.organization;
-  const participants = Array.isArray(resource?.participant) ? resource.participant : [];
+const parseParticipantDetails = (participants: any[]) => {
   const patient = parseParticipant(participants, 'Patient/');
   const practitionerEntry = participants?.find?.((p: any) =>
     (p?.actor?.reference ?? '').toString().startsWith('Practitioner/'),
@@ -210,32 +207,38 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     practitionerEntry?.type?.[0]?.text ??
     null;
   const organisation = parseParticipant(participants, 'Organization/');
+  return {patient, practitioner, practitionerRole, organisation};
+};
 
+const extractServiceDetails = (resource: any) => {
   const serviceType = Array.isArray(resource?.serviceType) ? resource.serviceType[0] : null;
   const serviceCoding = Array.isArray(serviceType?.coding) ? serviceType?.coding[0] : null;
   const speciality = Array.isArray(resource?.speciality) ? resource.speciality[0] : null;
   const specialityCoding = Array.isArray(speciality?.coding) ? speciality?.coding[0] : null;
+  return {serviceType, serviceCoding, speciality, specialityCoding};
+};
 
-  const {date, time} = parseDateParts(resource?.start);
-  const endTime = resource?.end ? new Date(resource.end).toISOString().slice(11, 16) : null;
-
+const extractExtensionDetails = (extensions: any[] | undefined) => {
   const emergencyExt = extractExtensionValue(
-    resource?.extension,
+    extensions,
     (ext: any) =>
       ext?.url ===
       'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency',
   );
   const speciesExt = extractExtensionValue(
-    resource?.extension,
+    extensions,
     (ext: any) =>
       ext?.id === 'species' || ext?.url === 'https://hl7.org/fhir/animal-species',
   );
   const breedExt = extractExtensionValue(
-    resource?.extension,
+    extensions,
     (ext: any) => ext?.id === 'breed' || ext?.url === 'https://hl7.org/fhir/animal-breed',
   );
+  const uploadedFiles = parseAttachments(extensions);
+  return {emergencyExt, speciesExt, breedExt, uploadedFiles};
+};
 
-  const locationAddressObj = resource?.location?.address;
+const resolveOrganisationAddress = (org: any, locationAddressObj: any) => {
   const locationAddress = buildAddressString(locationAddressObj ?? {});
   const orgAddress = buildAddressString(org?.address);
   const organisationAddress = locationAddress?.trim?.().length ? locationAddress : orgAddress;
@@ -243,6 +246,44 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     (Array.isArray(org?.address) ? org.address.at(0) : org?.address) ??
     locationAddressObj ??
     {};
+  return {organisationAddress, addressObj};
+};
+
+const extractEndTime = (end?: string | null) =>
+  end ? new Date(end).toISOString().slice(11, 16) : null;
+
+const resolveBusinessCoordinates = (addressObj: any) => ({
+  businessLat: addressObj?.latitude ?? addressObj?.location?.coordinates?.[1] ?? null,
+  businessLng: addressObj?.longitude ?? addressObj?.location?.coordinates?.[0] ?? null,
+});
+
+const resolveAuditTimestamps = (resource: any) => {
+  const createdAt =
+    resource?.createdAt ??
+    resource?.meta?.lastUpdated ??
+    resource?.start ??
+    new Date().toISOString();
+  const updatedAt =
+    resource?.updatedAt ??
+    resource?.meta?.lastUpdated ??
+    resource?.start ??
+    new Date().toISOString();
+  return {createdAt, updatedAt};
+};
+
+const mapAppointmentResource = (incoming: any): Appointment => {
+  const resource = incoming?.appointment ?? incoming;
+  const org = incoming?.organisation ?? incoming?.organization;
+  const participants = Array.isArray(resource?.participant) ? resource.participant : [];
+  const {patient, practitioner, practitionerRole, organisation} = parseParticipantDetails(participants);
+  const {serviceType, serviceCoding, speciality, specialityCoding} = extractServiceDetails(resource);
+
+  const {date, time} = parseDateParts(resource?.start);
+  const endTime = extractEndTime(resource?.end);
+  const {emergencyExt, speciesExt, breedExt, uploadedFiles} = extractExtensionDetails(resource?.extension);
+  const {organisationAddress, addressObj} = resolveOrganisationAddress(org, resource?.location?.address);
+  const {businessLat, businessLng} = resolveBusinessCoordinates(addressObj);
+  const {createdAt, updatedAt} = resolveAuditTimestamps(resource);
 
   return {
     id: resource?.id ?? resource?._id ?? '',
@@ -266,25 +307,17 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     emergency: emergencyExt?.valueBoolean ?? false,
     species: speciesExt?.valueString ?? null,
     breed: breedExt?.valueString ?? null,
-    uploadedFiles: parseAttachments(resource?.extension),
+    uploadedFiles,
     status: toStatus(resource?.status),
     invoiceId: resource?.invoiceId ?? null,
     organisationName: organisation.display ?? org?.name ?? null,
     organisationAddress,
-    businessLat: addressObj?.latitude ?? addressObj?.location?.coordinates?.[1] ?? null,
-    businessLng: addressObj?.longitude ?? addressObj?.location?.coordinates?.[0] ?? null,
+    businessLat,
+    businessLng,
     businessPhoto: org?.imageURL ?? org?.imageUrl ?? org?.logoUrl ?? null,
     businessGooglePlacesId: org?.googlePlacesId ?? org?.placeId ?? null,
-    createdAt:
-      resource?.createdAt ??
-      resource?.meta?.lastUpdated ??
-      resource?.start ??
-      new Date().toISOString(),
-    updatedAt:
-      resource?.updatedAt ??
-      resource?.meta?.lastUpdated ??
-      resource?.start ??
-      new Date().toISOString(),
+    createdAt,
+    updatedAt,
   };
 };
 

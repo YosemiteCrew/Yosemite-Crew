@@ -11,7 +11,7 @@ const CURRENCY_STORAGE_KEY = 'app_currency_preference';
  * Defaults to USD if not set
  */
 export const useCurrencyPreference = () => {
-  const [currency, setCurrencyState] = useState<CurrencyCode>('USD');
+  const [currency, setCurrency] = useState<CurrencyCode>('USD');
   const [isLoading, setIsLoading] = useState(true);
 
   // Load currency from localStorage on mount
@@ -20,7 +20,7 @@ export const useCurrencyPreference = () => {
       try {
         const stored = await AsyncStorage.getItem(CURRENCY_STORAGE_KEY);
         if (stored && (stored === 'EUR' || stored === 'USD')) {
-          setCurrencyState(stored as CurrencyCode);
+          setCurrency(stored as CurrencyCode);
         }
       } catch (error) {
         console.warn('Failed to load currency preference:', error);
@@ -33,7 +33,7 @@ export const useCurrencyPreference = () => {
   }, []);
 
   // Save currency to localStorage when it changes
-  const setCurrency = async (newCurrency: CurrencyCode) => {
+  const persistCurrency = async (newCurrency: CurrencyCode) => {
     if (!SUPPORTED_CURRENCIES.includes(newCurrency)) {
       console.warn(`Unsupported currency: ${newCurrency}. Supported: EUR, USD`);
       return;
@@ -41,7 +41,7 @@ export const useCurrencyPreference = () => {
 
     try {
       await AsyncStorage.setItem(CURRENCY_STORAGE_KEY, newCurrency);
-      setCurrencyState(newCurrency);
+      setCurrency(newCurrency);
     } catch (error) {
       console.warn('Failed to save currency preference:', error);
     }
@@ -49,7 +49,7 @@ export const useCurrencyPreference = () => {
 
   return {
     currency,
-    setCurrency,
+    setCurrency: persistCurrency,
     isLoading,
     supportedCurrencies: SUPPORTED_CURRENCIES,
   };

@@ -348,8 +348,16 @@ export const MyAppointmentsScreen: React.FC = () => {
     isCheckingIn: boolean;
   }) => {
     const resolvedCheckInDisabled = isCheckingIn || checkInDisabled;
-    const resolvedCheckInLabel =
-      checkInLabel ?? (isInProgress ? 'In progress' : isCheckedIn ? 'Checked in' : 'Check in');
+    let resolvedCheckInLabel = checkInLabel;
+    if (!resolvedCheckInLabel) {
+      if (isInProgress) {
+        resolvedCheckInLabel = 'In progress';
+      } else if (isCheckedIn) {
+        resolvedCheckInLabel = 'Checked in';
+      } else {
+        resolvedCheckInLabel = 'Check in';
+      }
+    }
     const paymentFooter = needsPayment ? (
       <View style={styles.upcomingFooter}>
         <LiquidGlassButton

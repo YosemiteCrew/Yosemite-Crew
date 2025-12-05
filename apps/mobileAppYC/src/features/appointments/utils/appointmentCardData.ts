@@ -93,7 +93,12 @@ export const transformAppointmentCardData = (
   const isInProgress = appointment.status === 'IN_PROGRESS';
   const statusAllowsActions =
     (appointment.status === 'UPCOMING' || isCheckedIn || isInProgress) && !needsPayment;
-  const checkInLabel = isInProgress ? 'In progress' : isCheckedIn ? 'Checked in' : 'Check in';
+  let checkInLabel = 'Check in';
+  if (isInProgress) {
+    checkInLabel = 'In progress';
+  } else if (isCheckedIn) {
+    checkInLabel = 'Checked in';
+  }
   const checkInDisabled = isCheckedIn || isInProgress;
 
   return {

@@ -43,7 +43,6 @@ import {
 } from '@/features/appointments/appointmentsSlice';
 import {createSelectUpcomingAppointments} from '@/features/appointments/selectors';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
-import {selectUnreadCount} from '@/features/notifications/selectors';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {
   fetchParentAccess,
@@ -63,7 +62,10 @@ import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhot
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {appointmentApi} from '@/features/appointments/services/appointmentsService';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
-import {selectHasHydratedCompanion as selectNotificationsHydrated} from '@/features/notifications/selectors';
+import {
+  selectHasHydratedCompanion as selectNotificationsHydrated,
+  selectUnreadCount,
+} from '@/features/notifications/selectors';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 

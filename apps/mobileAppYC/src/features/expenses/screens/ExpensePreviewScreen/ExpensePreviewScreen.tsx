@@ -348,6 +348,31 @@ export const ExpensePreviewScreen: React.FC = () => {
     );
   }
 
+  const isInAppExpense = expense.source === 'inApp';
+  const isPendingPayment = isExpensePaymentPending(expense);
+  const shouldShowPaymentActions = isInAppExpense && (isPendingPayment || hasInvoice(expense));
+
+  const renderStatusBadge = () => {
+    if (!isInAppExpense) {
+      return (
+        <View style={[styles.statusBadge, styles.externalBadge]}>
+          <Text style={styles.externalText}>External expense</Text>
+        </View>
+      );
+    }
+
+    const badgeStyle = isPendingPayment ? [styles.statusBadge, styles.pendingBadge] : [styles.statusBadge, styles.paidBadge];
+    const badgeTextStyle = isPendingPayment ? styles.pendingText : styles.paidText;
+    const badgeLabel = isPendingPayment ? 'Awaiting Payment' : 'Paid';
+    return (
+      <View style={[styles.statusBadgeContainer, {marginTop: theme.spacing[2]}]}>
+        <View style={badgeStyle}>
+          <Text style={badgeTextStyle}>{badgeLabel}</Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeArea>
       <Header
@@ -357,52 +382,33 @@ export const ExpensePreviewScreen: React.FC = () => {
         rightIcon={canEdit ? Images.blackEdit : undefined}
         onRightPress={canEdit ? handleEdit : undefined}
       />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        {/* Business Info Card using SummaryCards */}
-        {expense.source === 'inApp' && invoiceData && (
-          <SummaryCards businessSummary={businessSummary as any} />
-        )}
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}>
+          {/* Business Info Card using SummaryCards */}
+          {isInAppExpense && invoiceData && (
+            <SummaryCards businessSummary={businessSummary as any} />
+          )}
 
-        <ExpenseDetailsCard
-          expense={expense}
-          formattedAmount={formattedAmount}
-          businessName={businessNameFromOrg ?? expense.businessName ?? '—'}
-          onStatusRender={
-            <View style={[styles.statusBadgeContainer, {marginTop: theme.spacing[2]}]}>
-              {expense.source === 'inApp' ? (
-                <View
-                  style={
-                    isExpensePaymentPending(expense)
-                      ? [styles.statusBadge, styles.pendingBadge]
-                      : [styles.statusBadge, styles.paidBadge]
-                  }>
-                  <Text style={isExpensePaymentPending(expense) ? styles.pendingText : styles.paidText}>
-                    {isExpensePaymentPending(expense) ? 'Awaiting Payment' : 'Paid'}
-                  </Text>
-                </View>
-              ) : (
-                <View style={[styles.statusBadge, styles.externalBadge]}>
-                  <Text style={styles.externalText}>External expense</Text>
-                </View>
-              )}
-            </View>
-          }
-          styles={styles}
-        />
+          <ExpenseDetailsCard
+            expense={expense}
+            formattedAmount={formattedAmount}
+            businessName={businessNameFromOrg ?? expense.businessName ?? '—'}
+            onStatusRender={renderStatusBadge()}
+            styles={styles}
+          />
 
-        <PaymentActions
-          shouldShow={expense.source === 'inApp' && (isExpensePaymentPending(expense) || hasInvoice(expense))}
-          loadingPayment={loadingPayment}
-          processingPayment={processingPayment}
-          formattedAmount={formattedAmount}
-          isPending={isExpensePaymentPending(expense)}
-          onOpenInvoice={handleOpenInvoice}
-          styles={styles}
-          theme={theme}
-        />
+          <PaymentActions
+            shouldShow={shouldShowPaymentActions}
+            loadingPayment={loadingPayment}
+            processingPayment={processingPayment}
+            formattedAmount={formattedAmount}
+            isPending={isPendingPayment}
+            onOpenInvoice={handleOpenInvoice}
+            styles={styles}
+            theme={theme}
+          />
 
         <View style={styles.previewContainer}>
           {expense.attachments && expense.attachments.length > 0 ? (

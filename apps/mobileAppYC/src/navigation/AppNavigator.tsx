@@ -331,7 +331,7 @@ const AppNavigatorEmergencySheet: React.FC = () => {
       );
       return;
     }
-    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    const normalizedPhone = phone.replaceAll(/[^\d+]/g, '');
     if (!normalizedPhone) {
       Alert.alert(
         'Contact unavailable',

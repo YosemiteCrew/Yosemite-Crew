@@ -67,7 +67,7 @@ export const ReviewScreen: React.FC = () => {
         if (res.photoUrl) setFallbackPhoto(res.photoUrl);
       })
       .catch(() => {
-        dispatch(fetchGooglePlacesImage(googlePlacesId as string))
+        dispatch(fetchGooglePlacesImage(googlePlacesId))
           .unwrap()
           .then(img => {
             if (img.photoUrl) setFallbackPhoto(img.photoUrl);
