@@ -16,6 +16,10 @@ import ServiceModel from "src/models/service";
 import { InvoiceService } from "./invoice.service";
 import { StripeService } from "./stripe.service";
 import { OccupancyModel } from "src/models/occupancy";
+import OrganizationModel from "src/models/organization";
+import UserProfileModel from "src/models/user-profile";
+import { NotificationTemplates } from "src/utils/notificationTemplates";
+import { NotificationService } from "./notification.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -58,6 +62,7 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
+    attachments: obj.attachments,
   };
 };
 
@@ -89,6 +94,7 @@ const toDomainLean = (
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
+    attachments: obj.attachments,
   };
 };
 
@@ -107,6 +113,7 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   status: appointment.status,
   isEmergency: appointment.isEmergency ?? false,
   concern: appointment.concern ?? undefined,
+  attachments: appointment.attachments ?? undefined,
 });
 
 type DateRangeQuery = {
@@ -200,6 +207,7 @@ export const AppointmentService = {
       lead: undefined,
       supportStaff: [],
       room: undefined,
+      attachments: input.attachments,
 
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -208,32 +216,12 @@ export const AppointmentService = {
     const persistable = toPersistable(appointment);
     const savedAppointment = await AppointmentModel.create(persistable);
 
-    // Create Invoice (awaiting payment)
-    const invoice = await InvoiceService.createDraftForAppointment({
-      appointmentId: savedAppointment._id.toString(),
-      parentId: savedAppointment.companion.parent.id,
-      organisationId: savedAppointment.organisationId,
-      companionId: savedAppointment.companion.id,
-      currency: "USD",
-      items: [
-        {
-          description: service.name,
-          quantity: 1,
-          unitPrice: service.cost,
-          discountPercent: service.maxDiscount ?? undefined,
-        },
-      ],
-      notes: input.concern,
-    });
-
-    // Create Stripe checkout session or payment intent
-    const paymentIntent = await StripeService.createPaymentIntentForInvoice(
-      invoice._id.toString(),
+    const paymentIntent = await StripeService.createPaymentIntentForAppointment(
+      savedAppointment._id.toString(),
     );
 
     return {
       appointment: toAppointmentResponseDTO(toDomain(savedAppointment)),
-      invoice,
       paymentIntent,
     };
   },
@@ -321,7 +309,7 @@ export const AppointmentService = {
       lead: input.lead,
       supportStaff: input.supportStaff ?? [],
       room: input.room ?? undefined,
-
+      attachments: input.attachments,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -393,6 +381,18 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      const notificationPayload = NotificationTemplates.Appointment.APPROVED(
+        appointment.companion.name,
+        appointment.startTime.toDateString(),
+      )
+
+      // Send notification to parent
+      const parentId = appointment.companion.parent.id;
+      await NotificationService.sendToUser(
+        parentId,
+        notificationPayload
+      )
+
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),
         invoice,
@@ -412,7 +412,7 @@ export const AppointmentService = {
     appointmentId: string,
     dto: AppointmentRequestDTO,
   ) {
-    if (appointmentId) {
+    if (!appointmentId) {
       throw new AppointmentServiceError("Appointment ID missing", 400);
     }
 
@@ -474,10 +474,16 @@ export const AppointmentService = {
         { session },
       );
 
+      const lead = await UserProfileModel.findOne(
+        { userId: extracted.leadVetId, },
+        { personalDetails: 1 }
+      )
+
       // Apply changes from PMS
       appointment.lead = {
         id: extracted.leadVetId,
         name: extracted.leadVetName ?? "Vet",
+        profileUrl: lead?.personalDetails?.profilePictureUrl ?? `https://ui-avatars.com/api/?name=${extracted.leadVetName}`,
       };
 
       appointment.supportStaff = extracted.supportStaff ?? [];
@@ -489,6 +495,18 @@ export const AppointmentService = {
       await appointment.save({ session });
       await session.commitTransaction();
       await session.endSession();
+
+      const notificationPayload = NotificationTemplates.Appointment.APPROVED(
+        appointment.companion.name,
+        appointment.startTime.toDateString(),
+      )
+
+      // Send notification to parent
+      const parentId = appointment.companion.parent.id;
+      await NotificationService.sendToUser(
+        parentId,
+        notificationPayload
+      )
 
       // Convert final domain → FHIR appointment
       return toAppointmentResponseDTO(toDomain(appointment));
@@ -541,6 +559,14 @@ export const AppointmentService = {
 
       await session.commitTransaction();
       await session.endSession();
+
+      const notificationPayload = NotificationTemplates.Appointment.CANCELLED(appointment.companion.name);
+      // Send notification to parent
+      const parentId = appointment.companion.parent.id;
+      await NotificationService.sendToUser(
+        parentId,
+        notificationPayload
+      )
     } catch (err) {
       await session.abortTransaction();
       await session.endSession();
@@ -622,6 +648,18 @@ export const AppointmentService = {
     appointment.updatedAt = new Date();
 
     await appointment.save();
+
+    const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
+      appointment.companion.name,
+    )
+
+    // Send notification to parent
+    const parentId = appointment.companion.parent.id;
+    await NotificationService.sendToUser(
+      parentId,
+      notificationPayload
+    )
+
     return toAppointmentResponseDTO(toDomain(appointment));
   },
 
@@ -719,6 +757,32 @@ export const AppointmentService = {
       await session.endSession();
       throw err;
     }
+  },
+
+  async checkInAppointmentParent(appointmentId: string, parentId: string) {
+    const appointment = await AppointmentModel.findById(appointmentId);
+    if (!appointment) {
+      throw new AppointmentServiceError("Appointment not found", 404);
+    }
+
+    // Verify parent is owner of companion
+    if (appointment.companion.parent.id !== parentId) {
+      throw new AppointmentServiceError("Not your appointment", 403);
+    }
+
+    // Only UPCOMING appointments can be checked in
+    if (appointment.status !== "UPCOMING") {
+      throw new AppointmentServiceError(
+        "Only upcoming appointments can be checked in",
+        400,
+      );
+    }
+
+    appointment.status = "CHECKED_IN";
+    appointment.updatedAt = new Date();
+    await appointment.save();
+
+    return toAppointmentResponseDTO(toDomain(appointment));
   },
 
   async rescheduleFromParent(
@@ -838,9 +902,7 @@ export const AppointmentService = {
     }
   },
 
-  async getAppointmentsForCompanion(
-    companionId: string,
-  ): Promise<AppointmentResponseDTO[]> {
+  async getAppointmentsForCompanion(companionId: string) {
     if (!companionId) {
       throw new AppointmentServiceError("companionId is required", 400);
     }
@@ -851,7 +913,36 @@ export const AppointmentService = {
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
 
-    return docs.map((doc) => toAppointmentResponseDTO(toDomainLean(doc)));
+    if (docs.length === 0) return [];
+
+    // 2. Extract unique organisationIds
+    const orgIds = [
+      ...new Set(docs.map((d) => d.organisationId?.toString())),
+    ].filter(Boolean);
+
+    // 3. Fetch organisations in one query
+    const organisations = await OrganizationModel.find(
+      { _id: { $in: orgIds } },
+      { name: 1, imageURL: 1, address: 1, phoneNo: 1, googlePlacesId: 1 },
+    ).lean();
+
+    // Convert array → map for O(1) lookup
+    const orgMap = new Map(
+      organisations.map((org) => [org._id.toString(), org]),
+    );
+
+    return docs.map((doc) => {
+      const domainObj = toDomainLean(doc);
+      const dto = toAppointmentResponseDTO(domainObj);
+
+      // Attach organisation data
+      const org = orgMap.get(doc.organisationId?.toString()) || null;
+
+      return {
+        appointment: dto,
+        organisation: org,
+      };
+    });
   },
 
   async getById(appointmentId: string): Promise<AppointmentResponseDTO> {

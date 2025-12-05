@@ -58,7 +58,9 @@ describe("InvoiceService", () => {
 
     const result = (await InvoiceService.getByAppointmentId("apt-1")) as any;
 
-    expect(mockedInvoiceModel.find).toHaveBeenCalledWith({ appId: "apt-1" });
+    expect(mockedInvoiceModel.find).toHaveBeenCalledWith({
+      appointmentId: "apt-1",
+    });
     expect(result[0].appointmentId).toBe("apt-1");
   });
 

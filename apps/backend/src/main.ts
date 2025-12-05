@@ -23,7 +23,17 @@ import serviceRouter from "./routers/service.router";
 import appointmentRouter from "./routers/appointment.router";
 import stripeRouter from "./routers/stripe.router";
 import { StripeController } from "./controllers/web/stripe.controller";
-import ratingRouter from "./routers/organisationRating.router"
+import ratingRouter from "./routers/organisationRating.router";
+import invoiceRouter from "./routers/invoice.router";
+import formRouter from "./routers/form.router";
+import expenseRouter from "./routers/expense.router";
+import deviceTokenRouter from "./routers/deviceToken.router";
+import chatRouter from "./routers/chat.router";
+import notificationRouter from "./routers/notification.router";
+import contactRouter from "./routers/contact-us.router";
+import accountWithdrawalRouter from "./routers/account-withdrawal.router";
+import organisationDocumentRouter from "./routers/organisation-document.router"
+import adverseEventRouter from "./routers/adverse-event.router"
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +44,8 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 app.set("trust proxy", 1);
+app.use(limiter);
+app.use(fileUpload());
 
 app.post(
   "/v1/stripe/webhook",
@@ -42,8 +54,6 @@ app.post(
 );
 
 app.use(express.json());
-app.use(fileUpload());
-app.use(limiter);
 
 app.use(`/fhir/v1/organization`, organizationRounter);
 app.use(`/fhir/v1/companion`, companionRouter);
@@ -63,7 +73,22 @@ app.use(`/v1/document`, docuemntRouter);
 app.use(`/fhir/v1/service`, serviceRouter);
 app.use(`/fhir/v1/appointment`, appointmentRouter);
 app.use(`/v1/stripe`, stripeRouter);
-app.use(`v1/oragnisation-rating`, ratingRouter)
+app.use(`/v1/organisation-rating`, ratingRouter);
+app.use(`/fhir/v1/invoice`, invoiceRouter);
+app.use(`/fhir/v1/form`, formRouter);
+app.use(`/v1/expense`, expenseRouter);
+app.use(`/v1/device-token`, deviceTokenRouter);
+app.use(`/v1/chat`, chatRouter);
+app.use(`/v1/notification`, notificationRouter);
+app.use(`/v1/contact-us`, contactRouter);
+app.use(`/v1/account-withdrawal`, accountWithdrawalRouter);
+app.use(`/v1/organisation-document`, organisationDocumentRouter)
+app.use(`/v1/adverse-event`, adverseEventRouter)
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 let mongoUri: string;
 

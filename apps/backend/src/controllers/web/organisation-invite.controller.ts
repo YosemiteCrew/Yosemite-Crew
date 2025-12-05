@@ -44,7 +44,7 @@ const resolveUserEmailFromRequest = (req: Request): string | undefined => {
 
   const authRequest = req as AuthenticatedRequest;
   const authEmail = authRequest.auth?.email;
-  logger.info("email", authEmail);
+
   return typeof authEmail === "string" ? authEmail : undefined;
 };
 
@@ -126,8 +126,6 @@ export const OrganisationInviteController = {
         res.status(400).json({ message: "Invite token is required." });
         return;
       }
-      logger.info("Id: ", userId);
-      logger.info("Email: ", userEmail);
       if (!userId || !userEmail) {
         res
           .status(401)

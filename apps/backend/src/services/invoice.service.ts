@@ -7,9 +7,11 @@ import {
   InvoiceStatus,
   toInvoiceResponseDTO,
 } from "@yosemite-crew/types";
-import logger from "../utils/logger";
 import { Currency } from "@yosemite-crew/fhirtypes";
 import { StripeService } from "./stripe.service";
+import OrganizationModel from "src/models/organization";
+import { NotificationTemplates } from "src/utils/notificationTemplates";
+import { NotificationService } from "./notification.service";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -75,10 +77,14 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
     totalAmount: o.totalAmount,
     taxPercent: o.taxPercent,
     currency: o.currency as Currency,
+    taxTotal: o.taxTotal,
+    discountTotal: o.discountTotal,
     stripePaymentIntentId: o.stripePaymentIntentId ?? undefined,
     stripePaymentLinkId: o.stripePaymentLinkId ?? undefined,
     stripeInvoiceId: o.stripeInvoiceId ?? undefined,
     stripeCustomerId: o.stripeCustomerId ?? undefined,
+    stripeChargeId: o.stripeChargeId ?? undefined,
+    stripeReceiptUrl: o.stripeReceiptUrl ?? undefined,
     status: o.status as InvoiceStatus,
     metadata,
     createdAt: o.createdAt,
@@ -149,6 +155,14 @@ export const InvoiceService = {
       notes: input.notes,
     });
 
+    const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
+      totalPayable,
+    )
+    await NotificationService.sendToUser(
+      input.parentId,
+      notificationPayload
+    )
+
     return invoice;
   },
 
@@ -177,8 +191,6 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
-    logger.info("Invoice marked as FAILED:", { invoiceId });
-
     return doc;
   },
 
@@ -192,8 +204,6 @@ export const InvoiceService = {
     );
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
-
-    logger.info("Invoice marked as FAILED:", { invoiceId });
 
     return doc;
   },
@@ -209,8 +219,6 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
-    logger.info("Invoice marked REFUNDED:", { invoiceId });
-
     return toDomain(doc);
   },
 
@@ -225,7 +233,7 @@ export const InvoiceService = {
 
   async getByAppointmentId(appId: string) {
     const docs = await InvoiceModel.find({
-      appId,
+      appointmentId: appId,
     }).sort({ createdAt: -1 });
 
     return docs.map((d) => toInvoiceResponseDTO(toDomain(d)));
@@ -235,8 +243,19 @@ export const InvoiceService = {
     const _id = ensureObjectId(id, "invoiceId");
 
     const doc = await InvoiceModel.findById(_id);
+    const org = await OrganizationModel.findById(doc?.organisationId);
 
-    return toInvoiceResponseDTO(toDomain(doc!));
+    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404); 
+
+    return {
+      organistion :{
+        name: org?.name || '',
+        placesId: org?.googlePlacesId || '',
+        address: org?.address || '',
+        image: org?.imageURL || ''
+      },
+      invoice: toInvoiceResponseDTO(toDomain(doc))
+    };
   },
 
   async listForOrganisation(organisationId: string) {
@@ -352,5 +371,17 @@ export const InvoiceService = {
 
     // Fallback — unknown (should not happen)
     return { action: "NO_ACTION", status: invoice.status };
+  },
+
+  async getByPaymentIntentId(paymentIntentId: string) {
+    const doc = await InvoiceModel.findOne({
+      stripePaymentIntentId: paymentIntentId,
+    });
+
+    if (!doc) {
+      return null;
+    }
+
+    return toInvoiceResponseDTO(toDomain(doc));
   },
 };

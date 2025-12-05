@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { AppointmentStatus } from "src/models/appointment";
+import { generatePresignedUrl } from "src/middlewares/upload";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -14,6 +15,8 @@ type RescheduleRequestBody = {
 };
 
 type CancelBody = { reason?: string };
+
+type UploadUrlBody = { companionId?: string; mimeType?: string };
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -148,13 +151,12 @@ export const AppointmentController = {
     }
   },
 
-  acceptRequested: async (
-    req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
-    res: Response,
-  ) => {
+  acceptRequested: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const dto = req.body; // partial FHIR update fields
+      logger.info("Request Path: ", req.params);
+      logger.info("Accepting appointment with ID:", appointmentId);
+      const dto = req.body as AppointmentRequestDTO; // partial FHIR update fields
 
       const result = await AppointmentService.approveRequestedFromPms(
         appointmentId,
@@ -201,6 +203,44 @@ export const AppointmentController = {
     }
   },
 
+  checkInAppointment: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const { appointmentId } = req.params;
+      const authUserId = resolveUserIdFromRequest(req);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      if (!authUser?.parentId) {
+        return res
+          .status(400)
+          .json({ message: "Parent information missing for user" });
+      }
+
+      const result = await AppointmentService.checkInAppointmentParent(
+        appointmentId,
+        authUser.parentId.toString(),
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Appointment checked in", data: result });
+    } catch (err: unknown) {
+      logger.error("Appiontement check-in error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to check-in appointment",
+      );
+      return res.status(status).json({
+        message,
+      });
+    }
+  },
+
   updateFromPms: async (
     req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
     res: Response,
@@ -234,11 +274,24 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      if (!authUser?.parentId) {
+        return res
+          .status(400)
+          .json({ message: "Parent information missing for user" });
+      }
+
       const { appointmentId } = req.params;
       const { reason } = req.body;
-      const result = await AppointmentService.cancelAppointment(
+      const result = await AppointmentService.cancelAppointmentFromParent(
         appointmentId,
-        reason,
+        authUser.parentId.toString(),
+        reason!,
       );
 
       return res.status(200).json({
@@ -396,6 +449,34 @@ export const AppointmentController = {
         "Failed to fetch lead appointments",
       );
       return res.status(status).json({ message });
+    }
+  },
+
+  getDocumentUplaodURL: async (
+    req: Request<unknown, unknown, UploadUrlBody>,
+    res: Response,
+  ) => {
+    try {
+      const { companionId, mimeType } = req.body;
+
+      if (!companionId || !mimeType) {
+        return res
+          .status(400)
+          .json({ message: "companionId and mimeType are required." });
+      }
+
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "companion",
+        companionId,
+      );
+
+      return res.status(200).json({ url, key });
+    } catch (error) {
+      logger.error("Failed to generate upload URL", error);
+      return res
+        .status(500)
+        .json({ message: "Failed to generate upload URL." });
     }
   },
 };

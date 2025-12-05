@@ -9,6 +9,9 @@ import {
 import { AuthenticatedRequest } from "../../middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { stringify } from "querystring";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { ParentModel } from "src/models/parent";
+import helpers from "src/utils/helper";
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -174,7 +177,6 @@ export const OrganizationController = {
         return;
       }
       if (orgId) {
-        logger.info("");
         const { url, key } = await generatePresignedUrl(
           mimeType,
           "org",
@@ -208,24 +210,74 @@ export const OrganizationController = {
 
   async getNearbyPaginated(req: Request, res: Response) {
     try {
-      const { lat, lng, radius, page = 1, limit = 10 } = req.query;
+      const latString = req.query.lat as string | undefined;
+      const lngString = req.query.lng as string | undefined;
+      const radius = req.query.radius ? Number(req.query.radius) : 5000;
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 10;
 
-      if (!lat || !lng) {
-        return res.status(400).json({ message: "lat & lng required" });
+      let lat: number | null = null;
+      let lng: number | null = null;
+
+      // --- 1. Use user-provided lat/lng if available ---
+      if (latString && lngString) {
+        lat = Number(latString);
+        lng = Number(lngString);
+
+        if (Number.isNaN(lat) || Number.isNaN(lng)) {
+          return res.status(400).json({
+            message: "lat & lng must be valid numbers",
+          });
+        }
       }
 
-      const result = await OrganizationService.listNearbyForAppointmentsPaginated(
-        Number(lat),
-        Number(lng),
-        radius ? Number(radius) : 5000,
-        Number(page),
-        Number(limit),
-      );
+      // --- 2. Fallback: use user's saved city+pincode ---
+      if (!lat || !lng) {
+        const authUserId = resolveUserIdFromRequest(req);
+        const authUser = await AuthUserMobileService.getByProviderUserId(
+          authUserId!,
+        );
+
+        const parent = await ParentModel.findById(authUser?.parentId);
+
+        if (!parent?.address?.city || !parent?.address?.postalCode) {
+          return res.status(400).json({
+            message: "Location missing and user has no saved city/pincode.",
+          });
+        }
+
+        const query = `${parent.address.city} ${parent.address.postalCode}`;
+
+        // Geocode city+pincode → lat/lng
+        const geo = (await helpers.getGeoLocation(query)) as {
+          lat: number;
+          lng: number;
+        };
+
+        lat = geo.lat;
+        lng = geo.lng;
+
+        if (!lat || !lng) {
+          return res.status(400).json({
+            message: "Unable to resolve location from user's saved address.",
+          });
+        }
+      }
+
+      // --- 3. Now fetch nearby organisations ---
+      const result =
+        await OrganizationService.listNearbyForAppointmentsPaginated(
+          lat,
+          lng,
+          radius,
+          page,
+          limit,
+        );
 
       res.json(result);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Server error";
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Server error";
+      logger.error("Error while fetching nearby organisations: ", error);
       res.status(500).json({ message });
     }
   },

@@ -19,15 +19,9 @@ export interface AppointmentMongo {
     parent: { id: string; name: string };
   };
 
-  lead?: {
-    id: string;
-    name: string;
-  };
+  lead?: { id: string; name: string, profileUrl?: string };
 
-  supportStaff?: {
-    id: string;
-    name: string;
-  }[];
+  supportStaff?: { id: string; name: string }[];
 
   room?: { id: string; name: string };
 
@@ -52,6 +46,12 @@ export interface AppointmentMongo {
   isEmergency?: boolean;
   concern?: string;
 
+  attachments?: {
+    key?: string;
+    name?: string;
+    contentType?: string;
+  }[];
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -72,6 +72,7 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
     lead: {
       id: { type: String },
       name: { type: String },
+      profileUrl: { type: String },
     },
 
     supportStaff: [
@@ -122,14 +123,24 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
     isEmergency: { type: Boolean, default: false },
 
     concern: { type: String },
+
+    attachments: [
+      {
+        key: { type: String, required: true },
+        name: { type: String },
+        contentType: { type: String },
+      },
+    ],
   },
   { timestamps: true },
 );
 
+// Indices
 AppointmentSchema.index({ organisationId: 1, appointmentDate: 1 });
 AppointmentSchema.index({ "companion.id": 1, appointmentDate: -1 });
 AppointmentSchema.index({ "supportStaff.id": 1 });
 AppointmentSchema.index({ status: 1 });
+
 AppointmentSchema.index(
   {
     organisationId: 1,
