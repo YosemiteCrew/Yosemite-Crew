@@ -6,11 +6,11 @@ const router = Router();
 
 // Mobile app: submit report
 router.post("/", 
-  //authorizeCognitoMobile, 
+  authorizeCognitoMobile, 
   AdverseEventController.createFromMobile);
 
 router.get("/regulatory-authority/", 
-  //authorizeCognitoMobile, 
+  authorizeCognitoMobile, 
   AdverseEventController.getRegulatoryAuthorityInof  
 )
 
