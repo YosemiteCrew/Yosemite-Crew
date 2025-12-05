@@ -215,8 +215,23 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     },
     [canAccessFeature, hasCompanions, showPermissionToast],
   );
+  const ensureCompanionForSearch = React.useCallback(() => {
+    if (hasCompanions) {
+      return true;
+    }
+    const message = 'Add a companion to search services.';
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Add a companion', message);
+    }
+    return false;
+  }, [hasCompanions]);
   const handleServiceSearch = React.useCallback(
     (termOverride?: string) => {
+      if (!ensureCompanionForSearch()) {
+        return;
+      }
       const term = (termOverride ?? businessSearch).trim();
       navigation
         .getParent<NavigationProp<TabParamList>>()
@@ -225,7 +240,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           params: {serviceName: term || undefined, autoFocusSearch: true},
         });
     },
-    [businessSearch, navigation],
+    [businessSearch, ensureCompanionForSearch, navigation],
   );
 
   React.useEffect(() => {
@@ -797,6 +812,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           mode="input"
           value={businessSearch}
           onChangeText={text => {
+            if (!ensureCompanionForSearch()) {
+              return;
+            }
             setBusinessSearch(text);
             if (text && text.trim().length > 0) {
               handleServiceSearch(text);

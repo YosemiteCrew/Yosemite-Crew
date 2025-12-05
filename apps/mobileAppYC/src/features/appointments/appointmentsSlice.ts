@@ -348,6 +348,7 @@ const appointmentsSlice = createSlice({
   name: 'appointments',
   initialState,
   reducers: {
+    resetAppointmentsState: () => initialState,
     upsertInvoice: (state, action: PayloadAction<Invoice>) => {
       const idx = state.invoices.findIndex(inv => inv.id === action.payload.id);
       if (idx >= 0) {
@@ -503,5 +504,5 @@ const appointmentsSlice = createSlice({
   },
 });
 
-export const {upsertInvoice} = appointmentsSlice.actions;
+export const {upsertInvoice, resetAppointmentsState} = appointmentsSlice.actions;
 export default appointmentsSlice.reducer;

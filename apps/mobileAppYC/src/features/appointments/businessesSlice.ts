@@ -167,7 +167,9 @@ const normalizeSlotsToLocal = (windows: SlotWindow[] | undefined, date: string):
 const businessesSlice = createSlice({
   name: 'businesses',
   initialState,
-  reducers: {},
+  reducers: {
+    resetBusinessesState: () => initialState,
+  },
   extraReducers: builder => {
     builder
       .addCase(fetchBusinesses.pending, state => {
@@ -234,4 +236,5 @@ const businessesSlice = createSlice({
   },
 });
 
+export const {resetBusinessesState} = businessesSlice.actions;
 export default businessesSlice.reducer;

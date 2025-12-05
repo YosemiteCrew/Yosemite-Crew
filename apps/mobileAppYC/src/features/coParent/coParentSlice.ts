@@ -35,6 +35,7 @@ export const coParentSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
+    resetCoParentState: () => initialState,
   },
   extraReducers: builder => {
     // Fetch CoParents
@@ -170,6 +171,6 @@ export const coParentSlice = createSlice({
   },
 });
 
-export const {setSelectedCoParent, clearError} = coParentSlice.actions;
+export const {setSelectedCoParent, clearError, resetCoParentState} = coParentSlice.actions;
 
 export default coParentSlice.reducer;

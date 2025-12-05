@@ -22,6 +22,7 @@ const tasksSlice = createSlice({
     clearTaskError: state => {
       state.error = null;
     },
+    resetTasksState: () => initialState,
     injectMockTasks: (
       state,
       action: PayloadAction<{companionId: string; tasks: Task[]}>,
@@ -133,6 +134,6 @@ const tasksSlice = createSlice({
   },
 });
 
-export const {clearTaskError, injectMockTasks} = tasksSlice.actions;
+export const {clearTaskError, injectMockTasks, resetTasksState} = tasksSlice.actions;
 
 export default tasksSlice.reducer;

@@ -6,7 +6,6 @@ import {
 } from '@/features/home/screens/HomeScreen/HomeScreen';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {useDispatch, useSelector} from 'react-redux';
-import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
 import {
   fetchCompanions,
   selectCompanions,

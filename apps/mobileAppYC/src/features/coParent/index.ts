@@ -1,5 +1,5 @@
 export {default as coParentReducer} from './coParentSlice';
-export {setSelectedCoParent, clearError} from './coParentSlice';
+export {setSelectedCoParent, clearError, resetCoParentState} from './coParentSlice';
 export {
   fetchCoParents,
   addCoParent,

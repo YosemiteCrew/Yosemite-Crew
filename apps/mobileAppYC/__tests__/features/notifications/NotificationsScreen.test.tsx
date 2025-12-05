@@ -10,7 +10,6 @@ import {
 import {
   setNotificationFilter,
   setSortBy,
-  injectMockNotifications,
 } from '../../../src/features/notifications/notificationSlice';
 import {
   selectDisplayNotifications,
