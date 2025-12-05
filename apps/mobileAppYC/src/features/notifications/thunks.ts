@@ -1,5 +1,9 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 import type {Notification, CreateNotificationPayload} from './types';
+import {
+  fetchMobileNotifications,
+  markMobileNotificationSeen,
+} from '@/features/notifications/services/notificationService';
 
 // Simulate network delay
 const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -9,20 +13,17 @@ const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms)
  */
 export const fetchNotificationsForCompanion = createAsyncThunk<
   {companionId: string; notifications: Notification[]},
-  {companionId: string},
+  {companionId?: string},
   {rejectValue: string}
 >(
   'notifications/fetchForCompanion',
   async ({companionId}, {rejectWithValue}) => {
     try {
-      await mockDelay(300);
-      // NOTE: Replace with actual API call when backend is ready
-      // const response = await notificationService.fetchForCompanion(companionId);
-      // return {companionId, notifications: response};
-
+      const notifications = await fetchMobileNotifications();
+      const resolvedCompanionId = companionId || 'default-companion';
       return {
-        companionId,
-        notifications: [],
+        companionId: resolvedCompanionId,
+        notifications,
       };
     } catch (error) {
       return rejectWithValue(
@@ -85,9 +86,7 @@ export const markNotificationAsRead = createAsyncThunk<
   'notifications/markAsRead',
   async ({notificationId}, {rejectWithValue}) => {
     try {
-      await mockDelay(200);
-      // NOTE: Replace with actual API call when backend is ready
-      // await notificationService.markAsRead(notificationId);
+      await markMobileNotificationSeen(notificationId);
       return {notificationId};
     } catch (error) {
       return rejectWithValue(

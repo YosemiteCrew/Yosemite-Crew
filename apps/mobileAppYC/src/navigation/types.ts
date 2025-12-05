@@ -96,7 +96,7 @@ export type DocumentStackParamList = {
 export type AppointmentStackParamList = {
   MyAppointmentsEmpty: undefined;
   MyAppointments: { resetKey?: number } | undefined;
-  BrowseBusinesses: undefined;
+  BrowseBusinesses: { serviceName?: string; autoFocusSearch?: boolean } | undefined;
   BusinessDetails: { businessId: string };
   BookingForm: {
     businessId: string;

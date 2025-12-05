@@ -16,11 +16,13 @@ import {Images} from '@/assets/images';
 
 type SearchBarMode = 'readonly' | 'input';
 
-export interface SearchBarProps extends Pick<TextInputProps, 'value' | 'onChangeText' | 'onSubmitEditing' | 'autoFocus'> {
+export interface SearchBarProps
+  extends Pick<TextInputProps, 'value' | 'onChangeText' | 'onSubmitEditing' | 'autoFocus'> {
   placeholder?: string;
   mode?: SearchBarMode;
   containerStyle?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  onIconPress?: () => void;
   rightElement?: React.ReactNode;
 }
 
@@ -29,6 +31,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   mode = 'readonly',
   containerStyle,
   onPress,
+  onIconPress,
   rightElement,
   value,
   onChangeText,
@@ -50,7 +53,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           ellipsizeMode="tail">
           {placeholder}
         </Text>
-        <Image source={Images.searchIcon} style={styles.icon} />
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={onIconPress ?? onPress}
+          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+          <Image source={Images.searchIcon} style={styles.icon} />
+        </TouchableOpacity>
       </View>
       {rightElement}
     </TouchableOpacity>
@@ -68,7 +76,18 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         onSubmitEditing={onSubmitEditing}
         returnKeyType="search"
       />
-      <Image source={Images.searchIcon} style={styles.icon} />
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => {
+          if (onIconPress) {
+            onIconPress();
+          } else if (onSubmitEditing) {
+            onSubmitEditing({nativeEvent: {text: value ?? ''}} as any);
+          }
+        }}
+        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+        <Image source={Images.searchIcon} style={styles.icon} />
+      </TouchableOpacity>
       {rightElement}
     </View>
   );

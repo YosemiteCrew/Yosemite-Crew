@@ -17,7 +17,6 @@ import {
   requestPasswordlessEmailCode,
   formatAuthError,
   DEMO_LOGIN_EMAIL,
-  DEMO_LOGIN_PASSWORD,
 } from '@/features/auth/services/passwordlessAuth';
 import {AUTH_FEATURE_FLAGS} from '@/config/variables';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -194,24 +193,6 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}>
-            {allowReviewLogin ? (
-              <View style={styles.demoBox}>
-                <Text style={styles.demoHeader}>App Review test login</Text>
-                <Text style={styles.demoText}>
-                  Use {DEMO_LOGIN_EMAIL} with password {DEMO_LOGIN_PASSWORD} to generate a
-                  JWT without waiting for email codes.
-                </Text>
-                <LiquidGlassButton
-                  title="Fill review login email"
-                  onPress={() => handleEmailChange(DEMO_LOGIN_EMAIL)}
-                  style={styles.demoButton}
-                  textStyle={styles.demoButtonText}
-                  tintColor={theme.colors.cardBackground}
-                  height={48}
-                  borderRadius="lg"
-                />
-              </View>
-            ) : null}
         <View style={styles.content}>
           <Image
             source={Images.authIllustration}

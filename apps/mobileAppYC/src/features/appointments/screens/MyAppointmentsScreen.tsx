@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Image,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
@@ -22,6 +23,7 @@ import {
 } from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
 import {createSelectUpcomingAppointments, createSelectPastAppointments} from '@/features/appointments/selectors';
+import type {Appointment} from '@/features/appointments/types';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
@@ -37,9 +39,12 @@ import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {appointmentApi} from '@/features/appointments/services/appointmentsService';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
+type OrgRatingState = {isRated: boolean; rating?: number | null; review?: string | null; loading?: boolean};
 
 export const MyAppointmentsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -59,6 +64,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
+  const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
   const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
   useAutoSelectCompanion(companions, selectedCompanionId);
@@ -194,7 +200,7 @@ export const MyAppointmentsScreen: React.FC = () => {
 
         navigation.navigate('ChatChannel', {
           appointmentId: appointment.id,
-          vetId: employee?.id || 'vet-1',
+          vetId: employee?.id ?? appointment.employeeId ?? 'unknown-vet',
           appointmentTime: appointmentDateTime,
           doctorName,
           petName,
@@ -227,6 +233,43 @@ export const MyAppointmentsScreen: React.FC = () => {
     },
     [handleCheckInUtil, canUseAppointments, getCoordinatesFromUtility],
   );
+
+  const fetchOrgRatingIfNeeded = React.useCallback(
+    async (organisationId?: string | null) => {
+      if (
+        !organisationId ||
+        orgRatings[organisationId]?.loading ||
+        typeof orgRatings[organisationId]?.isRated === 'boolean'
+      ) {
+        return;
+      }
+      try {
+        setOrgRatings(prev => ({...prev, [organisationId]: {...prev[organisationId], loading: true}}));
+        const tokens = await getFreshStoredTokens();
+        const accessToken = tokens?.accessToken;
+        if (!accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
+          setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
+          return;
+        }
+        const res = await appointmentApi.getOrganisationRatingStatus({
+          organisationId,
+          accessToken,
+        });
+        setOrgRatings(prev => ({...prev, [organisationId]: {...res, loading: false}}));
+      } catch (error) {
+        console.warn('[Appointments] Failed to fetch rating status', error);
+        setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
+      }
+    },
+    [orgRatings],
+  );
+
+  React.useEffect(() => {
+    const targets = filteredPast.filter(apt => apt.status === 'COMPLETED');
+    targets.forEach(apt => {
+      fetchOrgRatingIfNeeded(apt.businessId);
+    });
+  }, [fetchOrgRatingIfNeeded, filteredPast]);
 
   const renderEmptyCard = (title: string, subtitle: string) => (
     <LiquidGlassCard
@@ -385,76 +428,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     );
   };
 
-  const renderPastCard = ({
-    item,
-    cardTitle,
-    cardSubtitle,
-    businessName,
-    dateTimeLabel,
-    avatarSource,
-    fallbackPhoto,
-    googlePlacesId,
-  }: {
-    item: (typeof filteredUpcoming)[number];
-    cardTitle: string;
-    cardSubtitle: string;
-    businessName: string;
-    dateTimeLabel: string;
-    avatarSource: any;
-    fallbackPhoto: string | null;
-    googlePlacesId: string | null;
-  }) => (
-    <View style={styles.cardWrapper}>
-      <AppointmentCard
-        doctorName={cardTitle}
-        specialization={cardSubtitle}
-        hospital={businessName}
-        dateTime={dateTimeLabel}
-        avatar={avatarSource || Images.cat}
-        fallbackAvatar={fallbackPhoto ?? undefined}
-        onAvatarError={() => handleAvatarError(googlePlacesId, item.businessId)}
-        showActions={false}
-        onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-        onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-        footer={
-          <View style={styles.pastFooter}>
-            <View style={styles.pastStatusWrapper}>
-              <View
-                style={[
-                  styles.pastStatusBadge,
-                  item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
-                  item.status === 'REQUESTED' && styles.pastStatusBadgeRequested,
-                  item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
-                ]}>
-                <Text
-                  style={[
-                    styles.pastStatusBadgeText,
-                    item.status === 'CANCELLED' && styles.pastStatusBadgeTextCanceled,
-                    item.status === 'REQUESTED' && styles.pastStatusBadgeTextRequested,
-                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeTextFailed,
-                  ]}>
-                  {formatStatus(item.status)}
-                </Text>
-              </View>
-            </View>
-            {item.status === 'COMPLETED' && (
-              <LiquidGlassButton
-                title="Review"
-                onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
-                height={48}
-                borderRadius={12}
-                tintColor={theme.colors.secondary}
-                shadowIntensity="medium"
-                textStyle={styles.reviewButtonText}
-                style={styles.reviewButtonCard}
-              />
-            )}
-          </View>
-        }
-      />
-    </View>
-  );
-
   const renderItem = ({item, section}: {item: (typeof filteredUpcoming)[number]; section: {key: string}}) => {
     if (!item || !canUseAppointments) {
       return null;
@@ -517,16 +490,24 @@ export const MyAppointmentsScreen: React.FC = () => {
           checkInDisabled,
           isCheckingIn,
         })
-      : renderPastCard({
-          item,
-          cardTitle,
-          cardSubtitle,
-          businessName,
-          dateTimeLabel,
-          avatarSource,
-          fallbackPhoto,
-          googlePlacesId,
-        });
+      : (
+          <PastAppointmentCard
+            item={item}
+            cardTitle={cardTitle}
+            cardSubtitle={cardSubtitle}
+            businessName={businessName}
+            dateTimeLabel={dateTimeLabel}
+            avatarSource={avatarSource}
+            fallbackPhoto={fallbackPhoto}
+            googlePlacesId={googlePlacesId}
+            onAvatarError={handleAvatarError}
+            navigation={navigation}
+            styles={styles}
+            orgRating={orgRatings[item.businessId]}
+            formatStatus={formatStatus}
+            secondaryColor={theme.colors.secondary}
+          />
+        );
   };
 
   const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
@@ -573,6 +554,111 @@ export const MyAppointmentsScreen: React.FC = () => {
   );
 };
 
+type PastAppointmentCardProps = {
+  item: Appointment;
+  cardTitle: string;
+  cardSubtitle: string;
+  businessName: string;
+  dateTimeLabel: string;
+  avatarSource: any;
+  fallbackPhoto: string | null;
+  googlePlacesId: string | null;
+  onAvatarError: (googlePlacesId: string | null, businessId: string) => void;
+  navigation: Nav;
+  styles: ReturnType<typeof createStyles>;
+  orgRating?: OrgRatingState;
+  formatStatus: (status: string) => string;
+  secondaryColor: string;
+};
+
+const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
+  item,
+  cardTitle,
+  cardSubtitle,
+  businessName,
+  dateTimeLabel,
+  avatarSource,
+  fallbackPhoto,
+  googlePlacesId,
+  onAvatarError,
+  navigation,
+  styles,
+  orgRating,
+  formatStatus,
+  secondaryColor,
+}) => {
+  let ratingContent: React.ReactNode = null;
+
+  if (item.status === 'COMPLETED') {
+    if (!orgRating || orgRating.loading) {
+      ratingContent = <Text style={styles.ratingLoadingText}>Checking review status...</Text>;
+    } else if (orgRating.isRated) {
+      ratingContent = (
+        <View style={styles.ratingRow}>
+          <Image source={Images.starSolid} style={styles.ratingIcon} />
+          <Text style={styles.ratingValueText}>
+            {orgRating.rating ?? '-'}
+            /5
+          </Text>
+        </View>
+      );
+    } else {
+      ratingContent = (
+        <LiquidGlassButton
+          title="Review"
+          onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
+          height={48}
+          borderRadius={12}
+          tintColor={secondaryColor}
+          shadowIntensity="medium"
+          textStyle={styles.reviewButtonText}
+        />
+      );
+    }
+  }
+
+  return (
+    <View style={styles.cardWrapper}>
+      <AppointmentCard
+        doctorName={cardTitle}
+        specialization={cardSubtitle}
+        hospital={businessName}
+        dateTime={dateTimeLabel}
+        avatar={avatarSource || Images.cat}
+        fallbackAvatar={fallbackPhoto ?? undefined}
+        onAvatarError={() => onAvatarError(googlePlacesId, item.businessId)}
+        showActions={false}
+        onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        footer={
+          <View style={styles.pastFooter}>
+            <View style={styles.pastStatusWrapper}>
+              <View
+                style={[
+                  styles.pastStatusBadge,
+                  item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
+                  item.status === 'REQUESTED' && styles.pastStatusBadgeRequested,
+                  item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
+                ]}>
+                <Text
+                  style={[
+                    styles.pastStatusBadgeText,
+                    item.status === 'CANCELLED' && styles.pastStatusBadgeTextCanceled,
+                    item.status === 'REQUESTED' && styles.pastStatusBadgeTextRequested,
+                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeTextFailed,
+                  ]}>
+                  {formatStatus(item.status)}
+                </Text>
+              </View>
+            </View>
+            {ratingContent}
+          </View>
+        }
+      />
+    </View>
+  );
+};
+
 const SectionListHorizontalPills = ({
   filter,
   setFilter,
@@ -588,7 +674,6 @@ const SectionListHorizontalPills = ({
     {id: 'hospital', label: 'Hospital'},
     {id: 'groomer', label: 'Groomer'},
     {id: 'breeder', label: 'Breeder'},
-    {id: 'pet_center', label: 'Pet Center'},
     {id: 'boarder', label: 'Boarder'},
   ];
 
@@ -665,6 +750,24 @@ const createStyles = (theme: any) =>
     pastFooter: {
       gap: theme.spacing[3],
       marginTop: theme.spacing[1],
+    },
+    ratingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing[1.5],
+    },
+    ratingIcon: {
+      width: 18,
+      height: 18,
+      marginRight: 8,
+    },
+    ratingValueText: {
+      ...theme.typography.body14,
+      color: theme.colors.secondary,
+    },
+    ratingLoadingText: {
+      ...theme.typography.body12,
+      color: theme.colors.textSecondary,
     },
     pastStatusWrapper: {
       flexDirection: 'row',

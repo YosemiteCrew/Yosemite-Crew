@@ -154,15 +154,9 @@ const toBusinessCategory = (raw?: string | null): VetBusiness['category'] => {
       return 'groomer';
     case 'BREEDER':
       return 'breeder';
-    case 'PET_CENTER':
-    case 'PET CENTRE':
-    case 'PET CENTERS':
-      return 'pet_center';
     case 'BOARDER':
     case 'BOARDING':
       return 'boarder';
-    case 'CLINIC':
-      return 'clinic';
     case 'HOSPITAL':
     default:
       return 'hospital';
@@ -829,6 +823,24 @@ export const appointmentApi = {
       {headers: withAuthHeaders(accessToken)},
     );
     return data;
+  },
+
+  async getOrganisationRatingStatus({
+    organisationId,
+    accessToken,
+  }: {
+    organisationId: string;
+    accessToken: string;
+  }): Promise<{isRated: boolean; rating?: number | null; review?: string | null}> {
+    const url = buildUrl(`/v1/organisation-rating/${encodeURIComponent(organisationId)}/is-rated`);
+    const {data} = await apiClient.get(url, {headers: withAuthHeaders(accessToken)});
+    const payload = data?.data ?? data ?? {};
+    const base = payload?.hasRated ?? payload ?? {};
+    return {
+      isRated: Boolean(base.isRated),
+      rating: base.rating ?? null,
+      review: base.review ?? null,
+    };
   },
 };
 

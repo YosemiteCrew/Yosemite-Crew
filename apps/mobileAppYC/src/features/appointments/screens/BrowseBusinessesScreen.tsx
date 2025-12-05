@@ -9,20 +9,19 @@ import type {AppDispatch, RootState} from '@/app/store';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import type {BusinessCategory, VetBusiness} from '@/features/appointments/types';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import type {RouteProp} from '@react-navigation/native';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
   {label: 'Hospital', id: 'hospital'},
   {label: 'Groomer', id: 'groomer'},
   {label: 'Breeder', id: 'breeder'},
-  {label: 'Pet Center', id: 'pet_center'},
-  {label: 'Boarder', id: 'boarder'},
-  {label: 'Clinic', id: 'clinic'},
+  {label: 'Boarder', id: 'boarder'}
 ];
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
@@ -97,17 +96,16 @@ const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navi
 interface AllCategoriesViewProps {
   allCategories: readonly string[];
   businesses: VetBusiness[];
-  query: string;
   resolveDescription: (b: VetBusiness) => string;
   navigation: Nav;
   styles: any;
   fallbacks: Record<string, {photo?: string | null}>;
 }
 
-const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, query, resolveDescription, navigation, styles, fallbacks}) => (
+const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, resolveDescription, navigation, styles, fallbacks}) => (
   <>
     {allCategories.map(cat => {
-      const items = businesses.filter(x => x.category === cat && x.name.toLowerCase().includes(query.toLowerCase()));
+      const items = businesses.filter(x => x.category === cat);
       if (items.length === 0) return null;
       return (
         <View key={cat} style={styles.sectionWrapper}>
@@ -156,17 +154,44 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
   const [fallbacks, setFallbacks] = useState<Record<string, {photo?: string | null; phone?: string; website?: string}>>({});
   const requestedDetailsRef = React.useRef<Set<string>>(new Set());
+  const lastSearchRef = React.useRef<number>(0);
+  const lastTermRef = React.useRef<string>('');
+  const MIN_SEARCH_INTERVAL_MS = 1000;
 
   const [category, setCategory] = useState<BusinessCategory | undefined>(undefined);
-  const [query, setQuery] = useState('');
+  const initialQuery = route.params?.serviceName ?? '';
+  const [query, setQuery] = useState(initialQuery);
   const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
   const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
+  const filteredBusinesses = useMemo(
+    () => businesses.filter(b => (category ? b.category === category : true)),
+    [businesses, category],
+  );
+
+  const performSearch = React.useCallback(
+    (term?: string) => {
+      const trimmed = (term ?? query).trim();
+      const now = Date.now();
+      if (trimmed === lastTermRef.current && now - lastSearchRef.current < MIN_SEARCH_INTERVAL_MS) {
+        return;
+      }
+      lastTermRef.current = trimmed;
+      lastSearchRef.current = now;
+      dispatch(fetchBusinesses(trimmed ? {serviceName: trimmed} : undefined));
+    },
+    [dispatch, query],
+  );
 
   useEffect(() => {
-    dispatch(fetchBusinesses(undefined));
-  }, [dispatch]);
+    performSearch(initialQuery);
+  }, [performSearch, initialQuery]);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
   const requestBusinessDetails = React.useCallback(
     async (biz: VetBusiness) => {
@@ -217,7 +242,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
     });
   }, [businesses, dispatch, requestBusinessDetails]);
 
-  const allCategories = ['hospital','groomer','breeder','pet_center','boarder','clinic'] as const;
+  const allCategories = ['hospital','groomer','breeder','pet_center','boarder'] as const;
 
   const resolveDescription = React.useCallback((biz: VetBusiness) => {
     if (biz.address && biz.address.trim().length > 0) {
@@ -254,12 +279,27 @@ export const BrowseBusinessesScreen: React.FC = () => {
           ))}
         </ScrollView>
 
-        <SearchBar placeholder="Search for services" mode="input" value={query} onChangeText={setQuery} />
+        <SearchBar
+          placeholder="Search for services"
+          mode="input"
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={() => performSearch()}
+          onIconPress={() => performSearch()}
+          autoFocus={route.params?.autoFocusSearch}
+        />
 
         <View style={styles.resultsWrapper}>
-          {category ? (
+          {filteredBusinesses.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateTitle}>No businesses found</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                Try adjusting your filters or search to find nearby providers.
+              </Text>
+            </View>
+          ) : category ? (
             <CategoryBusinesses
-              businesses={businesses.filter(b => b.name.toLowerCase().includes(query.toLowerCase()))}
+              businesses={filteredBusinesses}
               navigation={navigation}
               resolveDescription={resolveDescription}
               fallbacks={fallbacks}
@@ -267,8 +307,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
           ) : (
             <AllCategoriesView
               allCategories={allCategories}
-              businesses={businesses}
-              query={query}
+              businesses={filteredBusinesses}
               resolveDescription={resolveDescription}
               navigation={navigation}
               styles={styles}
@@ -306,6 +345,16 @@ const createStyles = (theme: any) => StyleSheet.create({
   sectionWrapper: {gap: 12},
   singleCardWrapper: {alignItems: 'center', width: '100%'},
   horizontalList: {gap: 12, paddingRight: 16, paddingVertical: 10},
+  emptyState: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.cardBackground,
+    gap: 6,
+  },
+  emptyStateTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
+  emptyStateSubtitle: {...theme.typography.bodySmallTight, color: theme.colors.textSecondary},
 });
 
 export default BrowseBusinessesScreen;

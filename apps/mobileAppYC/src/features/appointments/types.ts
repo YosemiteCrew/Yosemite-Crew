@@ -3,8 +3,7 @@ export type BusinessCategory =
   | 'groomer'
   | 'breeder'
   | 'pet_center'
-  | 'boarder'
-  | 'clinic';
+  | 'boarder';
 
 export interface VetBusiness {
   id: string;

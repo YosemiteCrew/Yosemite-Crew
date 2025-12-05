@@ -6,7 +6,7 @@
  */
 
 import {Alert} from 'react-native';
-import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/mockStreamBackend';
+import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/chatTiming';
 import {getAppointmentTimeAsIso} from '@/shared/utils/timezoneUtils';
 import {AUTH_FEATURE_FLAGS} from '@/config/variables';
 

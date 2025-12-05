@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -27,6 +28,8 @@ import {
 import {useTheme, useFileOperations} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
 import {
   CONTACT_TABS,
   type ContactTabId,
@@ -39,6 +42,12 @@ import DataSubjectLawBottomSheet, {
   type DataSubjectLawBottomSheetRef,
 } from '../components/DataSubjectLawBottomSheet';
 import type {DocumentFile} from '@/features/documents/types';
+import {
+  contactService,
+  uploadContactAttachments,
+  CONTACT_SOURCE,
+  type ContactAttachmentPayload,
+} from '../services/contactService';
 
 type ContactUsScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -52,6 +61,23 @@ const buildInitialConfirmationState = (): ConfirmationState =>
     acc[option.id] = false;
     return acc;
   }, {});
+
+const buildInitialDsarFormState = () => ({
+  submitterId: null as string | null,
+  lawId: null as string | null,
+  otherLawNotes: '',
+  requestId: null as string | null,
+  otherRequestNotes: '',
+  message: '',
+  confirmations: buildInitialConfirmationState(),
+});
+
+const buildInitialComplaintFormState = () => ({
+  submitterId: null as string | null,
+  description: '',
+  referenceLink: '',
+  confirmations: buildInitialConfirmationState(),
+});
 
 const useSimpleFormState = () => {
   const [forms, setForms] = React.useState<
@@ -75,7 +101,14 @@ const useSimpleFormState = () => {
     [],
   );
 
-  return {forms, updateForm};
+  const resetForm = React.useCallback((tabId: 'general' | 'feature') => {
+    setForms(prev => ({
+      ...prev,
+      [tabId]: {subject: '', message: ''},
+    }));
+  }, []);
+
+  return {forms, updateForm, resetForm};
 };
 
 // Small presentational helpers lifted to module scope to avoid deep nesting
@@ -102,6 +135,47 @@ type DsarFormErrors = Partial<
 type ComplaintFormErrors = Partial<
   Record<'submitterId' | 'description' | 'referenceLink' | 'confirmations', string>
 >;
+
+type SubmissionState = Record<'general' | 'feature' | 'dsar' | 'complaint', boolean>;
+
+const SUBMITTER_TYPE_MAP: Record<string, string> = {
+  self: 'SELF',
+  agent: 'AGENT',
+};
+
+const DSAR_LAW_BASIS_MAP: Record<string, string> = {
+  'eu-gdpr': 'EU_GDPR',
+  'uk-gdpr': 'UK_GDPR',
+  ccpa: 'CCPA_CPRA',
+  lgpd: 'LGPD',
+  pipeda: 'PIPEDA',
+  popia: 'POPIA',
+  pdpa: 'PDPA',
+  pipl: 'PIPL',
+  'privacy-act-au': 'PRIVACY_ACT_AU',
+  other: 'OTHER',
+};
+
+const DSAR_REQUEST_RIGHTS_MAP: Record<string, string> = {
+  'know-collection': 'KNOW_INFORMATION_COLLECTED',
+  'delete-info': 'DELETE_DATA',
+  'opt-out-sale': 'OPT_OUT_SELLING_SHARING',
+  'access-info': 'ACCESS_PERSONAL_INFORMATION',
+  'fix-inaccurate': 'RECTIFY_INACCURATE_INFORMATION',
+  'receive-copy': 'PORTABILITY_COPY',
+  'opt-out-cross-context': 'RESTRICT_PROCESSING',
+  'limit-sensitive': 'LIMIT_SENSITIVE_PROCESSING',
+  'other-request': 'OTHER',
+};
+
+const mapSubmitterType = (id: string | null): string =>
+  id ? SUBMITTER_TYPE_MAP[id] ?? id.toString().toUpperCase() : '';
+
+const mapLawBasis = (id: string | null): string =>
+  id ? DSAR_LAW_BASIS_MAP[id] ?? id.toString().toUpperCase() : '';
+
+const mapRequestRights = (id: string | null): string[] =>
+  id ? [DSAR_REQUEST_RIGHTS_MAP[id] ?? id.toString().toUpperCase()] : [];
 
 const isValidUrl = (value: string): boolean => {
   if (!value) {
@@ -180,9 +254,19 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const {user} = useSelector((state: RootState) => state.auth);
+  const {companions, selectedCompanionId} = useSelector(
+    (state: RootState) => state.companion,
+  );
   const [activeTab, setActiveTab] = React.useState<ContactTabId>('general');
+  const [submitting, setSubmitting] = React.useState<SubmissionState>({
+    general: false,
+    feature: false,
+    dsar: false,
+    complaint: false,
+  });
 
-  const {forms: simpleForms, updateForm: updateSimpleForm} =
+  const {forms: simpleForms, updateForm: updateSimpleForm, resetForm: resetSimpleForm} =
     useSimpleFormState();
 
   const [simpleErrors, setSimpleErrors] = React.useState<SimpleFormErrors>({
@@ -192,23 +276,26 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   const [dsarErrors, setDsarErrors] = React.useState<DsarFormErrors>({});
   const [complaintErrors, setComplaintErrors] =
     React.useState<ComplaintFormErrors>({});
+  const resolvedParentId = user?.parentId ?? user?.id ?? null;
+  const resolvedCompanionId = React.useMemo(
+    () => selectedCompanionId ?? companions[0]?.id ?? null,
+    [companions, selectedCompanionId],
+  );
+  const setSubmittingFor = React.useCallback(
+    (key: keyof SubmissionState, value: boolean) => {
+      setSubmitting(prev => ({
+        ...prev,
+        [key]: value,
+      }));
+    },
+    [],
+  );
 
-  const [dsarForm, setDsarForm] = React.useState({
-    submitterId: null as string | null,
-    lawId: null as string | null,
-    otherLawNotes: '',
-    requestId: null as string | null,
-    otherRequestNotes: '',
-    message: '',
-    confirmations: buildInitialConfirmationState(),
-  });
+  const [dsarForm, setDsarForm] = React.useState(buildInitialDsarFormState());
 
-  const [complaintForm, setComplaintForm] = React.useState({
-    submitterId: null as string | null,
-    description: '',
-    referenceLink: '',
-    confirmations: buildInitialConfirmationState(),
-  });
+  const [complaintForm, setComplaintForm] = React.useState(
+    buildInitialComplaintFormState(),
+  );
 
   const validateSimpleForm = React.useCallback(
     (tabId: 'general' | 'feature') => {
@@ -234,14 +321,49 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   );
 
   const handleSimpleFormSubmit = React.useCallback(
-    (tabId: 'general' | 'feature') => {
+    async (tabId: 'general' | 'feature') => {
       const isValid = validateSimpleForm(tabId);
-      if (isValid) {
-        // Submission handling to be integrated here.
+      if (!isValid) {
+        return false;
       }
-      return isValid;
+
+      const form = simpleForms[tabId];
+      setSubmittingFor(tabId, true);
+      try {
+        await contactService.submitContact({
+          type: tabId === 'feature' ? 'FEATURE_REQUEST' : 'GENERAL_ENQUIRY',
+          subject: form.subject.trim(),
+          message: form.message.trim(),
+          parentId: resolvedParentId ?? undefined,
+          companionId: resolvedCompanionId ?? undefined,
+          source: CONTACT_SOURCE,
+        });
+        resetSimpleForm(tabId);
+        setSimpleErrors(prev => ({...prev, [tabId]: {}}));
+        Alert.alert(
+          'Message sent',
+          'Thanks for reaching out. Our team will get back to you shortly.',
+        );
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to submit your request. Please try again.';
+        Alert.alert('Unable to submit', message);
+        return false;
+      } finally {
+        setSubmittingFor(tabId, false);
+      }
     },
-    [validateSimpleForm],
+    [
+      resetSimpleForm,
+      resolvedCompanionId,
+      resolvedParentId,
+      setSubmittingFor,
+      simpleForms,
+      validateSimpleForm,
+    ],
   );
 
   const validateDsarForm = React.useCallback(() => {
@@ -282,13 +404,80 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
     return Object.keys(errors).length === 0;
   }, [dsarForm]);
 
-  const handleDsarSubmit = React.useCallback(() => {
+  const handleDsarSubmit = React.useCallback(async () => {
     const isValid = validateDsarForm();
-    if (isValid) {
-      // Submission handling to be integrated here.
+    if (!isValid) {
+      return false;
     }
-    return isValid;
-  }, [validateDsarForm]);
+
+    const requestLabel = DSAR_REQUEST_TYPES.find(
+      option => option.id === dsarForm.requestId,
+    )?.label;
+
+    const messageParts = [
+      dsarForm.message.trim(),
+      dsarForm.lawId === 'other' && dsarForm.otherLawNotes.trim()
+        ? `Regulation: ${dsarForm.otherLawNotes.trim()}`
+        : null,
+      dsarForm.requestId === 'other-request' &&
+      dsarForm.otherRequestNotes.trim()
+        ? `Request details: ${dsarForm.otherRequestNotes.trim()}`
+        : null,
+    ].filter(Boolean) as string[];
+
+    const message = messageParts.join('\n\n');
+
+    const dsarDetails = {
+      requesterType: mapSubmitterType(dsarForm.submitterId),
+      lawBasis: mapLawBasis(dsarForm.lawId),
+      rightsRequested: mapRequestRights(dsarForm.requestId),
+      declarationAccepted: true,
+      ...(dsarForm.lawId === 'other' && dsarForm.otherLawNotes.trim()
+        ? {otherLawNotes: dsarForm.otherLawNotes.trim()}
+        : {}),
+      ...(dsarForm.requestId === 'other-request' &&
+      dsarForm.otherRequestNotes.trim()
+        ? {otherRequestNotes: dsarForm.otherRequestNotes.trim()}
+        : {}),
+    };
+
+    setSubmittingFor('dsar', true);
+    try {
+      await contactService.submitContact({
+        type: 'DSAR',
+        subject: requestLabel
+          ? `Data subject request: ${requestLabel}`
+          : 'Data subject request',
+        message,
+        parentId: resolvedParentId ?? undefined,
+        companionId: resolvedCompanionId ?? undefined,
+        source: CONTACT_SOURCE,
+        dsarDetails,
+      });
+      setDsarErrors({});
+      setDsarForm(buildInitialDsarFormState());
+      Alert.alert(
+        'Request sent',
+        'We have received your data request and will follow up shortly.',
+      );
+      return true;
+    } catch (error) {
+      const messageText =
+        error instanceof Error
+          ? error.message
+          : 'Failed to submit your request. Please try again.';
+      Alert.alert('Unable to submit', messageText);
+      return false;
+    } finally {
+      setSubmittingFor('dsar', false);
+    }
+  }, [
+    dsarForm,
+    resolvedCompanionId,
+    resolvedParentId,
+    setSubmittingFor,
+    validateDsarForm,
+  ]);
 
   const validateComplaintForm = React.useCallback(() => {
     const errors: ComplaintFormErrors = {};
@@ -314,13 +503,89 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
     return Object.keys(errors).length === 0;
   }, [complaintForm]);
 
-  const handleComplaintSubmit = React.useCallback(() => {
+  const handleComplaintSubmit = React.useCallback(async () => {
     const isValid = validateComplaintForm();
-    if (isValid) {
-      // Submission handling to be integrated here.
+    if (!isValid) {
+      return false;
     }
-    return isValid;
-  }, [validateComplaintForm]);
+
+    if (complaintAttachments.length && !resolvedCompanionId) {
+      const errorText =
+        'Please add a pet profile before uploading complaint images.';
+      setAttachmentError(errorText);
+      Alert.alert('Add a pet profile', errorText);
+      return false;
+    }
+
+    setSubmittingFor('complaint', true);
+    try {
+      let attachmentsPayload: ContactAttachmentPayload[] = [];
+
+      if (complaintAttachments.length && resolvedCompanionId) {
+        const {attachments, uploaded} = await uploadContactAttachments({
+          files: complaintAttachments,
+          companionId: resolvedCompanionId,
+        });
+        attachmentsPayload = attachments;
+        setComplaintAttachments(uploaded);
+        setAttachmentError(undefined);
+      }
+
+      const submitterLabel = DSAR_SUBMITTER_OPTIONS.find(
+        option => option.id === complaintForm.submitterId,
+      )?.label;
+
+      const messageParts = [
+        submitterLabel ? `Submitting as: ${submitterLabel}` : null,
+        complaintForm.description.trim(),
+        complaintForm.referenceLink.trim()
+          ? `Reference link: ${complaintForm.referenceLink.trim()}`
+          : null,
+      ].filter(Boolean) as string[];
+
+      await contactService.submitContact({
+        type: 'COMPLAINT',
+        subject: 'Complaint',
+        message: messageParts.join('\n\n'),
+        parentId: resolvedParentId ?? undefined,
+        companionId: resolvedCompanionId ?? undefined,
+        source: CONTACT_SOURCE,
+        attachments: attachmentsPayload,
+      });
+
+      setComplaintErrors({});
+      setComplaintAttachments([]);
+      setComplaintForm(buildInitialComplaintFormState());
+      setAttachmentError(undefined);
+      Alert.alert(
+        'Complaint submitted',
+        'Thanks for sharing the details. We will review and respond soon.',
+      );
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to submit your request. Please try again.';
+      if (complaintAttachments.length) {
+        setAttachmentError(
+          error instanceof Error ? error.message : undefined,
+        );
+      }
+      Alert.alert('Unable to submit', message);
+      return false;
+    } finally {
+      setSubmittingFor('complaint', false);
+    }
+  }, [
+    complaintAttachments,
+    complaintForm,
+    resolvedCompanionId,
+    resolvedParentId,
+    setSubmittingFor,
+    uploadContactAttachments,
+    validateComplaintForm,
+  ]);
 
   const lawSheetRef = React.useRef<DataSubjectLawBottomSheetRef>(null);
   const uploadSheetRef = React.useRef<UploadDocumentBottomSheetRef>(null);
@@ -491,7 +756,9 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         </View>
         <LiquidGlassButton
           title={tabId === 'feature' ? 'Send' : 'Submit'}
-          onPress={() => handleSimpleFormSubmit(tabId)}
+          onPress={() => {
+            void handleSimpleFormSubmit(tabId);
+          }}
           glassEffect="regular"
           interactive
           tintColor={theme.colors.secondary}
@@ -500,6 +767,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           textStyle={styles.buttonText}
           height={56}
           borderRadius={16}
+          loading={submitting[tabId]}
+          disabled={submitting[tabId]}
         />
       </View>
     );
@@ -644,7 +913,9 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         />
         <LiquidGlassButton
           title="Submit"
-          onPress={handleDsarSubmit}
+          onPress={() => {
+            void handleDsarSubmit();
+          }}
           glassEffect="regular"
           interactive
           tintColor={theme.colors.secondary}
@@ -653,6 +924,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           textStyle={styles.buttonText}
           height={56}
           borderRadius={16}
+          loading={submitting.dsar}
+          disabled={submitting.dsar}
         />
       </View>
     </View>
@@ -759,13 +1032,17 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         />
         <LiquidGlassButton
           title="Submit"
-          onPress={handleComplaintSubmit}
+          onPress={() => {
+            void handleComplaintSubmit();
+          }}
           glassEffect="regular"
           interactive
           style={styles.button}
           textStyle={styles.buttonText}
           height={56}
           borderRadius={16}
+          loading={submitting.complaint}
+          disabled={submitting.complaint}
         />
       </View>
     </View>

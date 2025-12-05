@@ -7,27 +7,6 @@ import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBus
 const toErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
 
-const SAMPLE_ORG: VetBusiness = {
-  id: '6929bdac95f3c615e6198371',
-  name: 'Happy Paws Veterinary Center',
-  category: 'hospital',
-  address: '742 Evergreen Terrace, Springfield, IL, 62704, USA',
-  distanceMeters: 2792,
-  rating: 0,
-  photo: 'https://cdn.example.com/orgs/happypaws/logo.png',
-  phone: '+1-555-010-7788',
-  openHours: undefined,
-};
-
-const SAMPLE_SERVICE: VetService = {
-  id: '6929c3ce96b79db0be005c15',
-  businessId: SAMPLE_ORG.id,
-  specialty: 'Cardiology',
-  specialityId: '6929bf2d95f3c615e6198379',
-  name: 'General Health Checkup',
-  basePrice: 49.99,
-};
-
 const ensureAccessTokenOptional = async (): Promise<string | null> => {
   try {
     const tokens = await getFreshStoredTokens();
@@ -65,10 +44,8 @@ export const fetchBusinesses = createAsyncThunk<
   try {
     const accessToken = await ensureAccessTokenOptional();
     const nearby = await appointmentApi.fetchNearbyBusinesses({
-      // lat: params?.lat ?? DEFAULT_NEARBY.lat,
-      // lng: params?.lng ?? DEFAULT_NEARBY.lng,
-       lat: 35.9054685,
-  lng: -86.38299789999999,
+      lat: params?.lat ?? DEFAULT_NEARBY.lat,
+      lng: params?.lng ?? DEFAULT_NEARBY.lng,
       page: params?.page ?? DEFAULT_NEARBY.page,
       accessToken: accessToken ?? undefined,
     });
@@ -87,8 +64,8 @@ export const fetchBusinesses = createAsyncThunk<
     const mergedServices = [...nearby.services, ...search.services];
 
     return {
-      businesses: mergedBusinesses.length ? mergedBusinesses : [SAMPLE_ORG],
-      services: mergedServices.length ? mergedServices : [SAMPLE_SERVICE],
+      businesses: mergedBusinesses,
+      services: mergedServices,
       meta: nearby.meta,
     };
   } catch (error) {
@@ -199,15 +176,9 @@ const businessesSlice = createSlice({
       })
       .addCase(fetchBusinesses.fulfilled, (state, action) => {
         state.loading = false;
-        const incomingBusinesses = action.payload.businesses.length
-          ? action.payload.businesses
-          : [SAMPLE_ORG];
-        const incomingServices = action.payload.services.length
-          ? action.payload.services
-          : [SAMPLE_SERVICE];
-        // Replace (not append) to avoid stale or duplicate mock data
-        state.businesses = dedupeById(incomingBusinesses);
-        state.services = dedupeById(incomingServices);
+        // Replace (not append) to avoid stale data and preserve empty responses
+        state.businesses = dedupeById(action.payload.businesses);
+        state.services = dedupeById(action.payload.services);
       })
       .addCase(fetchBusinesses.rejected, (state, action) => {
         state.loading = false;

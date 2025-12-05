@@ -87,14 +87,14 @@ export const connectStreamUser = async (
     };
 
     let userToken = token;
-    if (!userToken) {
-      try {
-        userToken = await fetchChatToken(userId);
-      } catch (backendError) {
-        console.warn(
-          '[Stream] Failed to fetch chat token from backend. Falling back to development token.',
-          backendError,
-        );
+  if (!userToken) {
+    try {
+      userToken = await fetchChatToken();
+    } catch (backendError) {
+      console.warn(
+        '[Stream] Failed to fetch chat token from backend. Falling back to development token.',
+        backendError,
+      );
         userToken = client.devToken(userId);
       }
     }
@@ -166,6 +166,13 @@ export const getAppointmentChannel = async (
   };
 
   try {
+    console.log('[Stream][Session] Requesting chat session from backend', {
+      sessionId: appointmentId,
+      userId: client.userID,
+      vetId,
+      appointmentTime: appointmentData?.dateTime,
+    });
+
     const session = await createOrFetchChatSession({
       sessionId: appointmentId,
       userId: client.userID,
@@ -182,6 +189,16 @@ export const getAppointmentChannel = async (
     if (session?.channelType) {
       channelType = session.channelType;
     }
+
+    console.log('[Stream][Session] Backend session resolved', {
+      sessionId: appointmentId,
+      channelId,
+      channelType,
+      members: session?.members,
+      status: session?.status,
+      allowedFrom: session?.allowedFrom,
+      allowedUntil: session?.allowedUntil,
+    });
   } catch (error) {
     console.warn(
       '[Stream] Chat session lookup failed; using local channel fallback.',
@@ -197,7 +214,20 @@ export const getAppointmentChannel = async (
       : undefined,
   );
 
+  console.log('[Stream][Session] Watching channel', {channelType, channelId});
   await channel.watch();
+  const memberIds =
+    channel.state?.members && typeof channel.state.members === 'object'
+      ? Object.values(channel.state.members)
+          .map(m => m?.user?.id ?? (m as any)?.user_id ?? (m as any)?.id ?? null)
+          .filter(Boolean)
+      : undefined;
+
+  console.log('[Stream][Session] Channel watch established', {
+    channelType,
+    channelId,
+    members: memberIds,
+  });
 
   console.log('[Stream] Channel ready:', channelId);
 

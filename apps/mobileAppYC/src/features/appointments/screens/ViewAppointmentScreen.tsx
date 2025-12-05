@@ -748,7 +748,7 @@ export const ViewAppointmentScreen: React.FC = () => {
         ) : null}
 
         <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Clinic documents</Text>
+          <Text style={styles.sectionTitle}>Additional documents</Text>
           {appointmentDocuments.length ? (
             appointmentDocuments.map(doc => (
               <DocumentCard

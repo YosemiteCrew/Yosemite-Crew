@@ -3,11 +3,11 @@ import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 
 const CHAT_BASE_PATH = '/v1/chat/mobile';
 
-const buildHeaders = async (userId: string) => {
+const buildHeaders = async () => {
   const tokens = await getFreshStoredTokens();
 
   if (tokens?.accessToken) {
-    return withAuthHeaders(tokens.accessToken, {'x-user-id': userId});
+    return withAuthHeaders(tokens.accessToken);
   }
 
   console.warn(
@@ -16,7 +16,6 @@ const buildHeaders = async (userId: string) => {
 
   return {
     'Content-Type': 'application/json',
-    'x-user-id': userId,
   };
 };
 
@@ -35,9 +34,9 @@ const extractChatToken = (data: any): string | null => {
   );
 };
 
-export const fetchChatToken = async (userId: string): Promise<string> => {
+export const fetchChatToken = async (): Promise<string> => {
   try {
-    const headers = await buildHeaders(userId);
+    const headers = await buildHeaders();
     const response = await apiClient.post(`${CHAT_BASE_PATH}/token`, undefined, {
       headers,
     });
@@ -66,7 +65,7 @@ export const fetchChatToken = async (userId: string): Promise<string> => {
 
 type ChatSessionParams = {
   sessionId: string;
-  userId: string;
+  userId?: string;
   vetId?: string;
   appointmentTime?: string;
   petOwnerId?: string;
@@ -78,6 +77,14 @@ export type ChatSessionDetails = {
   channelId: string;
   channelType: string;
   members?: string[];
+  status?: string;
+  allowedFrom?: string | null;
+  allowedUntil?: string | null;
+  companionId?: string;
+  parentId?: string;
+  vetId?: string;
+  appointmentId?: string;
+  organisationId?: string;
   raw?: any;
 };
 
@@ -138,28 +145,16 @@ export const createOrFetchChatSession = async (
 ): Promise<ChatSessionDetails> => {
   const {
     sessionId,
-    userId,
-    vetId,
-    appointmentTime,
-    petOwnerId,
-    activationMinutes = 5,
-    petName,
+    // The current backend infers user/vet/appointment context from the token + path.
+    // Keep optional params for future compatibility, but they are not sent.
   } = params;
 
   try {
-    const headers = await buildHeaders(userId);
-    const payload = {
-      appointmentId: sessionId,
-      vetId,
-      petOwnerId: petOwnerId ?? userId,
-      appointmentTime,
-      activationMinutes,
-      petName,
-    };
+    const headers = await buildHeaders();
 
     const response = await apiClient.post(
       `${CHAT_BASE_PATH}/sessions/${sessionId}`,
-      payload,
+      undefined,
       {headers},
     );
 
@@ -174,6 +169,14 @@ export const createOrFetchChatSession = async (
       channelId,
       channelType: extractChannelType(data),
       members: extractMembers(data),
+      status: data?.status,
+      allowedFrom: data?.allowedFrom ?? null,
+      allowedUntil: data?.allowedUntil ?? null,
+      companionId: data?.companionId,
+      parentId: data?.parentId,
+      vetId: data?.vetId,
+      appointmentId: data?.appointmentId,
+      organisationId: data?.organisationId,
       raw: data,
     };
   } catch (error: any) {

@@ -68,6 +68,10 @@ import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/a
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {appointmentApi} from '@/features/appointments/services/appointmentsService';
+import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
+import {selectHasHydratedCompanion as selectNotificationsHydrated} from '@/features/notifications/selectors';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
@@ -134,6 +138,18 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     upcomingAppointmentsSelector(state, selectedCompanionIdRedux ?? null),
   );
   const hasUnreadNotifications = unreadNotifications > 0;
+  const [orgRatings, setOrgRatings] = React.useState<
+    Record<string, {isRated: boolean; rating?: number | null; review?: string | null; loading?: boolean}>
+  >({});
+  const [businessSearch, setBusinessSearch] = React.useState('');
+  const hasNotificationsHydrated = useSelector(
+    selectNotificationsHydrated('default-companion'),
+  );
+  useFocusEffect(
+    React.useCallback(() => {
+      setBusinessSearch('');
+    }, []),
+  );
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
@@ -213,6 +229,18 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return true;
     },
     [canAccessFeature, hasCompanions, showPermissionToast],
+  );
+  const handleServiceSearch = React.useCallback(
+    (termOverride?: string) => {
+      const term = (termOverride ?? businessSearch).trim();
+      navigation
+        .getParent<NavigationProp<TabParamList>>()
+        ?.navigate('Appointments', {
+          screen: 'BrowseBusinesses',
+          params: {serviceName: term || undefined, autoFocusSearch: true},
+        });
+    },
+    [businessSearch, navigation],
   );
 
   React.useEffect(() => {
@@ -305,6 +333,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       );
     }
   }, [dispatch, selectedCompanionIdRedux]);
+
+  // Hydrate notifications after login to drive red dot state
+  React.useEffect(() => {
+    if (user && !hasNotificationsHydrated) {
+      dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
+    }
+  }, [dispatch, hasNotificationsHydrated, user]);
+
+  // Refresh notifications when returning to Home
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) {
+        dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
+      }
+    }, [dispatch, user]),
+  );
 
   const previousCurrencyRef = React.useRef(userCurrencyCode);
 
@@ -462,6 +506,36 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   // Fetch business photo fallbacks when primary photos are missing or dummy
   useFetchPhotoFallbacks(upcomingAppointments, businessMap, requestBusinessPhoto);
 
+  const fetchOrgRatingIfNeeded = React.useCallback(
+    async (organisationId?: string | null) => {
+      if (
+        !organisationId ||
+        orgRatings[organisationId]?.loading ||
+        typeof orgRatings[organisationId]?.isRated === 'boolean'
+      ) {
+        return;
+      }
+      try {
+        setOrgRatings(prev => ({...prev, [organisationId]: {...prev[organisationId], loading: true}}));
+        const tokens = await getFreshStoredTokens();
+        const accessToken = tokens?.accessToken;
+        if (!accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
+          setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
+          return;
+        }
+        const res = await appointmentApi.getOrganisationRatingStatus({
+          organisationId,
+          accessToken,
+        });
+        setOrgRatings(prev => ({...prev, [organisationId]: {...res, loading: false}}));
+      } catch (error) {
+        console.warn('[Home] Failed to fetch rating status', error);
+        setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
+      }
+    },
+    [orgRatings],
+  );
+
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
       return null;
@@ -488,6 +562,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     });
     return sorted[0] ?? null;
   }, [upcomingAppointments]);
+
+  useEffect(() => {
+    if (nextUpcomingAppointment?.businessId && nextUpcomingAppointment.status === 'COMPLETED') {
+      fetchOrgRatingIfNeeded(nextUpcomingAppointment.businessId);
+    }
+  }, [fetchOrgRatingIfNeeded, nextUpcomingAppointment]);
 
   const handleViewAppointment = React.useCallback(
     (appointmentId: string) => {
@@ -521,8 +601,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       const emp = appointment.employeeId ? employeeMap.get(appointment.employeeId) : undefined;
       const service = appointment.serviceId ? serviceMap.get(appointment.serviceId) : undefined;
       const doctorName =
-        emp?.name ?? service?.name ?? appointment.serviceName ?? 'Assigned vet';
+        emp?.name ??
+        appointment.employeeName ??
+        service?.name ??
+        appointment.serviceName ??
+        'Assigned vet';
       const petName = companions.find(c => c.id === appointment.companionId)?.name;
+      const vetId = emp?.id ?? appointment.employeeId ?? 'unknown-vet';
 
       const openChat = () => {
         const timeComponent = appointment.time ?? '00:00';
@@ -533,7 +618,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           screen: 'ChatChannel',
           params: {
             appointmentId: appointment.id,
-            vetId: emp?.id ?? 'vet-1',
+            vetId,
             appointmentTime: appointmentDateTime,
             doctorName,
             petName,
@@ -610,7 +695,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       needsPayment,
       isRequested,
       statusAllowsActions,
-      isCheckedIn,
       isInProgress,
       checkInLabel,
       checkInDisabled,
@@ -873,8 +957,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <SearchBar
-          placeholder="Search hospitals, groomers, boarders..."
-          onPress={() => {}}
+          placeholder="Search services"
+          mode="input"
+          value={businessSearch}
+          onChangeText={text => {
+            setBusinessSearch(text);
+            if (text && text.trim().length > 0) {
+              handleServiceSearch(text);
+            }
+          }}
+          onSubmitEditing={e => handleServiceSearch(e.nativeEvent.text)}
+          onIconPress={() => handleServiceSearch()}
         />
 
         {companions.length === 0 ? (

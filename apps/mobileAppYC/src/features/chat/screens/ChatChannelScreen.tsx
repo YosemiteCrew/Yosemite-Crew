@@ -23,6 +23,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import type {Channel as StreamChannel} from 'stream-chat';
 import {useRoute, useNavigation} from '@react-navigation/native';
+import type {NavigationProp} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {
   getChatClient,
@@ -33,6 +34,7 @@ import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {CustomAttachment} from '../components/CustomAttachment';
+import type {TabParamList} from '@/navigation/types';
 
 type RouteParams = {
   appointmentId: string;
@@ -79,13 +81,14 @@ export const ChatChannelScreen: React.FC = () => {
         authUser.email ||
         'Pet Owner';
       const avatar = authUser.profilePicture ?? undefined;
+      const chatUserId = authUser.parentId ?? authUser.id;
 
-      console.log('[Chat] Connecting as user:', authUser.id);
+      console.log('[Chat] Connecting as user:', chatUserId);
 
       // 2. Connect to Stream
       const chatClient = getChatClient();
       await connectStreamUser(
-        authUser.id,
+        chatUserId,
         displayName,
         avatar,
       );
@@ -207,7 +210,15 @@ export const ChatChannelScreen: React.FC = () => {
       <Header
         title={doctorName}
         showBackButton
-        onBack={() => navigation.goBack()}
+        onBack={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation
+              .getParent<NavigationProp<TabParamList> | undefined>()
+              ?.navigate?.('Appointments', {screen: 'MyAppointments'});
+          }
+        }}
       />
       <View style={styles.chatWrapper}>
         <OverlayProvider>
@@ -223,7 +234,8 @@ export const ChatChannelScreen: React.FC = () => {
                   }
                 }}
               />
-              <MessageInput />
+              <MessageInput
+              />
             </Channel>
           </Chat>
         </OverlayProvider>

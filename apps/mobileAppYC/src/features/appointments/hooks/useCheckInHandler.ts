@@ -59,7 +59,7 @@ export const useCheckInHandler = () => {
 
       const {lat, lng} = businessCoordinates;
       if (!lat || !lng) {
-        Alert.alert('Location unavailable', 'Clinic location is missing. Please try again later.');
+        Alert.alert('Location unavailable', 'Business location is missing. Please try again later.');
         return;
       }
 
@@ -83,7 +83,7 @@ export const useCheckInHandler = () => {
       if (distance > CHECKIN_RADIUS_METERS) {
         Alert.alert(
           'Too far to check in',
-          `Move closer to the clinic to check in. You are ~${Math.round(distance)}m away.`,
+          `Move closer to the business to check in. You are ~${Math.round(distance)}m away.`,
         );
         return;
       }
