@@ -45,6 +45,14 @@ LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
 ]);
 
+
+  const noop = () => {};
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.trace = noop;
+
+
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
