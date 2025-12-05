@@ -43,6 +43,10 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
   };
 
   const isCompanionSelected = !!selectedCompanionId;
+  const navigateToLegal = (target: 'TermsAndConditions' | 'PrivacyPolicy') => {
+    const parentNav = navigation.getParent?.();
+    parentNav?.navigate(target as any);
+  };
   const handleToggleTerms = () => {
     setAgreeToTerms(prev => {
       const nextValue = !prev;
@@ -117,7 +121,18 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
             }}
           />
           <Text style={styles.consentText}>
-            I agree to Yosemite Crew’s <Text style={styles.consentLink}>terms and conditions</Text> and <Text style={styles.consentLink}>privacy policy</Text>
+            I agree to Yosemite Crew’s{' '}
+            <Text
+              style={styles.consentLink}
+              onPress={() => navigateToLegal('TermsAndConditions')}>
+              terms and conditions
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.consentLink}
+              onPress={() => navigateToLegal('PrivacyPolicy')}>
+              privacy policy
+            </Text>
           </Text>
         </TouchableOpacity>
         {termsError ? <Text style={styles.errorText}>{termsError}</Text> : null}
@@ -222,6 +237,7 @@ const createStyles = (theme: any) =>
     consentLink: {
       ...theme.typography.paragraphBold,
       color: theme.colors.textTertiary,
+      textDecorationLine: 'underline',
     },
     errorText: {
       ...theme.typography.labelXsBold,

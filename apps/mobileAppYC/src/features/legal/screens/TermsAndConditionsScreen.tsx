@@ -49,22 +49,20 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    if (!user) {
-      return;
+    if (user) {
+      setWithdrawalForm(prev => {
+        const fullNameFromUser = [user.firstName, user.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+
+        return {
+          ...prev,
+          email: prev.email || user.email || '',
+          fullName: prev.fullName || fullNameFromUser,
+        };
+      });
     }
-
-    setWithdrawalForm(prev => {
-      const fullNameFromUser = [user.firstName, user.lastName]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-
-      return {
-        ...prev,
-        email: prev.email || user.email || '',
-        fullName: prev.fullName || fullNameFromUser,
-      };
-    });
   }, [user]);
 
   const clearFieldError = React.useCallback((field: keyof WithdrawalErrors) => {
@@ -80,6 +78,44 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
     });
   }, []);
 
+  const validateEmail = React.useCallback(
+    (trimmedEmail: string): string | undefined => {
+      if (!trimmedEmail) {
+        return 'Email is required.';
+      }
+
+      // Limit email length to prevent ReDoS attacks
+      if (trimmedEmail.length > 320) {
+        return 'Email is too long.';
+      }
+
+      const atIndex = trimmedEmail.indexOf('@');
+      const lastDotIndex = trimmedEmail.lastIndexOf('.');
+
+      // Simple validation: contains @ and . in correct positions, no whitespace
+      const isValidFormat =
+        atIndex > 0 &&
+        lastDotIndex > atIndex + 1 &&
+        lastDotIndex < trimmedEmail.length - 1 &&
+        !trimmedEmail.includes(' ');
+
+      if (!isValidFormat) {
+        return 'Enter a valid email address.';
+      }
+
+      if (user?.email?.trim()) {
+        const normalizedInput = trimmedEmail.toLowerCase();
+        const normalizedAuthEmail = user.email.trim().toLowerCase();
+        if (normalizedInput !== normalizedAuthEmail) {
+          return `Email must match your account (${user.email}).`;
+        }
+      }
+
+      return undefined;
+    },
+    [user?.email]
+  );
+
   const validateForm = React.useCallback((): WithdrawalErrors => {
     const errors: WithdrawalErrors = {};
     const trimmedName = withdrawalForm.fullName.trim();
@@ -91,19 +127,9 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
       errors.fullName = 'Full name is required.';
     }
 
-    if (!trimmedEmail) {
-      errors.email = 'Email is required.';
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(trimmedEmail)) {
-        errors.email = 'Enter a valid email address.';
-      } else if (user?.email?.trim()) {
-        const normalizedInput = trimmedEmail.toLowerCase();
-        const normalizedAuthEmail = user.email.trim().toLowerCase();
-        if (normalizedInput !== normalizedAuthEmail) {
-          errors.email = `Email must match your account (${user.email}).`;
-        }
-      }
+    const emailError = validateEmail(trimmedEmail);
+    if (emailError) {
+      errors.email = emailError;
     }
 
     if (!trimmedAddress) {
@@ -119,7 +145,13 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
     }
 
     return errors;
-  }, [user?.email, withdrawalForm]);
+  }, [validateEmail, withdrawalForm]);
+
+  const handleLogoutAfterSubmission = React.useCallback(() => {
+    logout().catch(logoutError => {
+      console.warn('[Withdrawal] Logout after submission failed', logoutError);
+    });
+  }, [logout]);
 
   const handleSubmit = React.useCallback(async () => {
     if (isSubmitting) {
@@ -160,13 +192,7 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
         [
           {
             text: 'OK',
-            onPress: async () => {
-              try {
-                await logout();
-              } catch (logoutError) {
-                console.warn('[Withdrawal] Logout after submission failed', logoutError);
-              }
-            },
+            onPress: handleLogoutAfterSubmission,
           },
         ],
       );
@@ -180,7 +206,7 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, logout, user?.id, validateForm, withdrawalForm]);
+  }, [handleLogoutAfterSubmission, isSubmitting, user?.id, validateForm, withdrawalForm]);
 
   const extraContent = (
     <LiquidGlassCard
