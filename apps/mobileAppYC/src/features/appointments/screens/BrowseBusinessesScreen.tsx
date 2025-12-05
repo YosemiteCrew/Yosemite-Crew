@@ -15,6 +15,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import type {RouteProp} from '@react-navigation/native';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -231,10 +232,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   useEffect(() => {
     businesses.forEach(biz => {
-      const isDummyPhoto =
-        typeof biz.photo === 'string' &&
-        (biz.photo.includes('example.com') || biz.photo.includes('placeholder'));
-      const needsPhoto = (!biz.photo || isDummyPhoto) && biz.googlePlacesId;
+      const needsPhoto = (!biz.photo || isDummyPhoto(biz.photo)) && biz.googlePlacesId;
       const needsContact = (!biz.phone || !biz.website) && biz.googlePlacesId;
       if ((needsPhoto || needsContact) && biz.googlePlacesId) {
         requestBusinessDetails(biz);

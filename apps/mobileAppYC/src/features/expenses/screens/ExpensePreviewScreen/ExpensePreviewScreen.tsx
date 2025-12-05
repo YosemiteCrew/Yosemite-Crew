@@ -30,6 +30,7 @@ import {hasInvoice, isExpensePaymentPending} from '@/features/expenses/utils/sta
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {fetchBusinessDetails} from '@/features/linkedBusinesses';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
@@ -308,9 +309,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   const placesId = organisationData?.placesId ?? null;
 
   // Check if the image is a dummy/placeholder URL
-  const isDummyImage =
-    typeof businessImage === 'string' &&
-    (businessImage.includes('example.com') || businessImage.includes('placeholder'));
+  const isDummyImage = isDummyPhoto(businessImage);
 
   const fullBusinessAddress = [businessAddress, businessCity, businessState, businessPostalCode]
     .filter(Boolean)

@@ -36,6 +36,7 @@ import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBus
 import {usePaymentHandler} from '@/features/payments/hooks/usePaymentHandler';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {resolveCurrencyForBusiness, normalizeCurrencyCode} from '@/shared/utils/currencyResolver';
+import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -873,12 +874,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     business?.googlePlacesId ??
     apt?.businessGooglePlacesId ??
     null;
-  const isDummyPhoto = React.useCallback(
-    (photo?: string | null) =>
-      typeof photo === 'string' &&
-      (photo.includes('example.com') || photo.includes('placeholder')),
-    [],
-  );
+  const isDummyPhoto = React.useCallback((photo?: string | null) => isDummyPhotoUrl(photo), []);
   const businessPhoto = invoiceBusinessImage ?? business?.photo ?? apt?.businessPhoto ?? null;
   const resolvedBusinessPhoto = fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto);
   const summaryBusiness = {

@@ -5,6 +5,7 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
+import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
 
 export interface BusinessCardProps {
   photo?: ImageSourcePropType | number;
@@ -42,10 +43,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
     [sourceOverride, photo, fallbackPhoto],
   );
 
-  const isDummyPhoto = React.useCallback((src?: any) => {
-    if (typeof src !== 'string') return false;
-    return src.includes('example.com') || src.includes('placeholder');
-  }, []);
+  const isDummyPhoto = React.useCallback((src?: any) => isDummyPhotoUrl(src), []);
 
   const handleError = React.useCallback(() => {
     setLoadFailed(true);

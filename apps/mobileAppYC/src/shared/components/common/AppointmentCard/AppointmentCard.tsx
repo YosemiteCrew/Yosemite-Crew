@@ -5,6 +5,7 @@ import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
+import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
 
 export const AppointmentCard = ({
   doctorName,
@@ -56,10 +57,7 @@ export const AppointmentCard = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const isDummyPhoto = React.useCallback((src?: any) => {
-    if (typeof src !== 'string') return false;
-    return src.includes('example.com') || src.includes('placeholder');
-  }, []);
+  const isDummyPhoto = React.useCallback((src?: any) => isDummyPhotoUrl(src), []);
   const [avatarSource, setAvatarSource] = React.useState<any>(avatar);
   const resolvedAvatar = useMemo(
     () => resolveImageSource(avatarSource ?? avatar ?? fallbackAvatar ?? Images.cat),

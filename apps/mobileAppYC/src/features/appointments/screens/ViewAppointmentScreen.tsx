@@ -40,6 +40,7 @@ import {
 } from '@/features/expenses/utils/expenseLabels';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
+import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -651,12 +652,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
-  const isDummyPhoto = React.useCallback(
-    (photo?: string | null) =>
-      typeof photo === 'string' &&
-      (photo.includes('example.com') || photo.includes('placeholder')),
-    [],
-  );
+  const isDummyPhoto = React.useCallback((photo?: string | null) => isDummyPhotoUrl(photo), []);
 
   useBusinessPhotoEffect({
     googlePlacesId,

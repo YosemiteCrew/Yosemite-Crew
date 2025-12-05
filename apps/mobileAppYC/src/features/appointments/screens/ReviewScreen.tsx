@@ -16,6 +16,7 @@ import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManag
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {Images} from '@/assets/images';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -56,9 +57,7 @@ export const ReviewScreen: React.FC = () => {
 
   useEffect(() => {
     if (!googlePlacesId) return;
-    const isDummy =
-      typeof businessPhoto === 'string' &&
-      (businessPhoto.includes('example.com') || businessPhoto.includes('placeholder'));
+    const isDummy = isDummyPhoto(businessPhoto);
     if (businessPhoto && !isDummy) return;
 
     dispatch(fetchBusinessDetails(googlePlacesId))

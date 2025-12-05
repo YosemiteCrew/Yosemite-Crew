@@ -3,6 +3,7 @@ import type {BusinessesState, VetBusiness, VetService, SlotWindow} from './types
 import {appointmentApi} from './services/appointmentsService';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 const toErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -114,10 +115,6 @@ const dedupeById = <T extends {id: string}>(items: T[]): T[] => {
   });
   return Array.from(map.values());
 };
-
-const isDummyPhoto = (photo?: string | null) =>
-  typeof photo === 'string' &&
-  (photo.includes('example.com') || photo.includes('placeholder'));
 
 const toDateFromTime = (time: string | null | undefined, date: string): Date | null => {
   if (!time) return null;

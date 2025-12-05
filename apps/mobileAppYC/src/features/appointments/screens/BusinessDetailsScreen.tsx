@@ -16,6 +16,7 @@ import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -43,9 +44,7 @@ export const BusinessDetailsScreen: React.FC = () => {
 
   React.useEffect(() => {
     if (!business?.googlePlacesId) return;
-    const isDummy =
-      typeof business.photo === 'string' &&
-      (business.photo.includes('example.com') || business.photo.includes('placeholder'));
+    const isDummy = isDummyPhoto(business.photo);
     if (!business.photo || isDummy) {
       dispatch(fetchBusinessDetails(business.googlePlacesId))
         .unwrap()
