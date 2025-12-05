@@ -110,6 +110,9 @@ importers:
       socket.io:
         specifier: 4.8.1
         version: 4.8.1
+      stripe:
+        specifier: ^20.0.0
+        version: 20.0.0(@types/node@22.18.1)
       uuid:
         specifier: 9.0.1
         version: 9.0.1
@@ -241,6 +244,12 @@ importers:
       '@calcom/embed-react':
         specifier: ^1.5.3
         version: 1.5.3(react-dom@19.1.1)(react@19.1.1)
+      '@stripe/connect-js':
+        specifier: ^3.3.31
+        version: 3.3.31
+      '@stripe/react-connect-js':
+        specifier: ^3.3.31
+        version: 3.3.31(@stripe/connect-js@3.3.31)(react-dom@19.1.1)(react@19.1.1)
       '@testing-library/user-event':
         specifier: ^14.6.1
         version: 14.6.1(@testing-library/dom@10.4.1)
@@ -16662,6 +16671,22 @@ packages:
     dev: false
     optional: true
 
+  /@stripe/connect-js@3.3.31:
+    resolution: {integrity: sha512-vjsZbatveSMoceOKZHt4eImmlBQla112OV9+enxcZUC1dGziTl2J2E3iH3n01yx9nu9ziesMJnSh/Y2d62TA/Q==}
+    dev: false
+
+  /@stripe/react-connect-js@3.3.31(@stripe/connect-js@3.3.31)(react-dom@19.1.1)(react@19.1.1):
+    resolution: {integrity: sha512-lzJbFdnlUxyILuEjdE9CqYhGq10XPvz89m/Phe/9aqXhLi02eIbaNHZOL+WQo1NMOGWeLjASnMCUagCZwoOsiA==}
+    peerDependencies:
+      '@stripe/connect-js': '>=3.3.29'
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+    dependencies:
+      '@stripe/connect-js': 3.3.31
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
+    dev: false
+
   /@stripe/stripe-react-native@0.57.0(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-l68At+JKyd32TzyB7e3yklHsMqF3X+38KE2+NwByxAEIbxs/K7GKjQTABv3DIGmcZ/yGTpDSlKJqrYxtKH4j2g==}
     peerDependencies:
@@ -32330,6 +32355,19 @@ packages:
   /strip-json-comments@3.1.1:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
+
+  /stripe@20.0.0(@types/node@22.18.1):
+    resolution: {integrity: sha512-EaZeWpbJOCcDytdjKSwdrL5BxzbDGNueiCfHjHXlPdBQvLqoxl6AAivC35SPzTmVXJb5duXQlXFGS45H0+e6Gg==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@types/node': '>=16'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+    dependencies:
+      '@types/node': 22.18.1
+      qs: 6.13.0
+    dev: false
 
   /strnum@1.1.2:
     resolution: {integrity: sha512-vrN+B7DBIoTTZjnPNewwhx6cBA/H+IS7rfW68n7XxC1y7uoiGQBxaKzqucGUgavX15dJgiGztLJ8vxuEzwqBdA==}

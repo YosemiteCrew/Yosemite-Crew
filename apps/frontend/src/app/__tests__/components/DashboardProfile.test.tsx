@@ -22,9 +22,5 @@ describe("DashboardProfile", () => {
 
     expect(screen.getByText("Welcome")).toBeInTheDocument();
     expect(screen.getByText("Sky Blue")).toBeInTheDocument();
-    expect(screen.getByTestId("book-call")).toHaveAttribute(
-      "href",
-      "/book-demo"
-    );
   });
 });

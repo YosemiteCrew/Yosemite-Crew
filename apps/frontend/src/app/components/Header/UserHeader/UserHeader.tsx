@@ -11,14 +11,14 @@ import "./UserHeader.css";
 
 const appRoutes = [
   { name: "Dashboard", href: "/dashboard" },
-  { name: "Organisation", href: "/organizations" },
-  { name: "Appointments", href: "#" },
-  { name: "Tasks", href: "#" },
+  { name: "Organization", href: "/organization" },
+  { name: "Appointments", href: "/appointments" },
+  { name: "Tasks", href: "/tasks" },
   { name: "Chat", href: "/chat" },
   { name: "Finance", href: "#" },
   { name: "Companions", href: "/companions" },
   { name: "Inventory", href: "/inventory" },
-  { name: "Forms", href: "#" },
+  { name: "Forms", href: "/forms" },
   { name: "Settings", href: "/settings" },
   { name: "Sign out", href: "#" },
 ];

@@ -19,6 +19,9 @@ import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
+import SpecialityModel from "src/models/speciality";
+import ServiceModel from "src/models/service";
+import logger from "src/utils/logger";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -694,6 +697,113 @@ export const OrganizationService = {
 
     return {
       isPmsOrganisation: false,
+    };
+  },
+
+  // List nearby organisation
+  async listNearbyForAppointmentsPaginated(
+    lat: number,
+    lng: number,
+    radius = 50000,
+    page = 1,
+    limit = 10,
+  ) {
+    if (!lat || !lng) throw new Error("lat/lng are required");
+
+    const skip = (page - 1) * limit;
+
+    let docs = await OrganizationModel.find(
+      {
+        "address.location": {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: [lng, lat],
+            },
+            $maxDistance: radius,
+          },
+        },
+      },
+      {
+        _id: 1,
+        name: 1,
+        imageURL: 1,
+        phoneNo: 1,
+        type: 1,
+        address: 1,
+        googlePlacesId: 1,
+      },
+    )
+      .skip(skip)
+      .limit(limit);
+
+
+    if (docs.length == 0) {
+      logger.warn("No nearby organisations found, returning all organisations");
+      docs = await OrganizationModel.find(
+        {},
+        {
+          _id: 1,
+          name: 1,
+          imageURL: 1,
+          phoneNo: 1,
+          type: 1,
+          address: 1,
+          googlePlacesId: 1,
+        },
+      ).skip(skip).limit(limit);
+    }
+
+    const total = docs.length;
+    const results = [];
+
+    for (const org of docs) {
+      const specialities = await SpecialityModel.find(
+        { organisationId: org._id },
+        { name: 1 },
+      );
+
+      // fetch services of org
+      const services = await ServiceModel.find(
+        { organisationId: org._id },
+        { name: 1, cost: 1, specialityId: 1 },
+      );
+
+      // group services inside each speciality
+      const specialitiesWithServices = specialities.map((spec) => {
+        const specServices = services.filter(
+          (srv) => srv.specialityId?.toString() === spec._id.toString(),
+        );
+
+        return {
+          ...spec.toObject(),
+          services: specServices,
+        };
+      });
+
+      results.push({
+        org,
+        distanceInMeters: org.address?.location
+          ? Math.round(
+              Math.sqrt(
+                Math.pow(lat - org.address.location.coordinates[1], 2) +
+                  Math.pow(lng - org.address.location.coordinates[0], 2),
+              ) * 111000,
+            )
+          : null,
+        rating: org.averageRating,
+        specialitiesWithServices,
+      });
+    }
+
+    return {
+      data: results,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   },
 };

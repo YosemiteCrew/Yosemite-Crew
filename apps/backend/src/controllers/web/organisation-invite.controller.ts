@@ -31,7 +31,7 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
     return authRequest.userId;
   }
 
-  const authUserId = authRequest.auth?.sub;
+  const authUserId = authRequest.userId;
   return typeof authUserId === "string" ? authUserId : undefined;
 };
 
@@ -44,6 +44,7 @@ const resolveUserEmailFromRequest = (req: Request): string | undefined => {
 
   const authRequest = req as AuthenticatedRequest;
   const authEmail = authRequest.auth?.email;
+
   return typeof authEmail === "string" ? authEmail : undefined;
 };
 
@@ -125,7 +126,6 @@ export const OrganisationInviteController = {
         res.status(400).json({ message: "Invite token is required." });
         return;
       }
-
       if (!userId || !userEmail) {
         res
           .status(401)

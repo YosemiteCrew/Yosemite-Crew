@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import {
   FaCloudUploadAlt,
   FaFilePdf,
@@ -35,6 +35,7 @@ type ExistingFile = {
 };
 
 type Props = {
+  placeholder: string;
   onChange?: (files: File[]) => void;
   value?: File[];
   existingFiles?: ExistingFile[];
@@ -44,18 +45,11 @@ const UploadImage = ({
   onChange,
   value = [],
   existingFiles = [],
+  placeholder,
 }: Readonly<Props>) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>(value);
   const [apiFiles, setApiFiles] = useState<ExistingFile[]>(existingFiles);
-
-  useEffect(() => {
-    setFiles(value);
-  }, [value]);
-
-  useEffect(() => {
-    setApiFiles(existingFiles);
-  }, [existingFiles]);
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return;
@@ -96,7 +90,7 @@ const UploadImage = ({
       >
         <div className="upldCont">
           <FaCloudUploadAlt className="upload-cloud" />
-          <h6>Upload Certifications/ Degrees</h6>
+          <h6>{placeholder}</h6>
           <p>
             Only DOC, PDF, PNG, JPEG formats with
             <br />

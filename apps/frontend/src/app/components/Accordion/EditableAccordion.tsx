@@ -107,12 +107,6 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setFormValuesErrors({});
   }, [data, fields]);
 
-  const hasData = fields.some((field) => {
-    const raw = formValues[field.key];
-    if (raw === null || raw === undefined) return false;
-    return String(raw).trim().length > 0;
-  });
-
   const handleChange = (key: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
     setFormValuesErrors((prev) => ({ ...prev, [key]: undefined }));
@@ -121,7 +115,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const validate = () => {
     const errors: Record<string, string> = {};
     for (const field of fields) {
-      if (field.required === false) continue;
+      if (!field.required) continue;
       const value = (formValues[field.key] || "").trim();
       if (!value) {
         errors[field.key] = `${field.label} is required`;
@@ -157,35 +151,34 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         defaultOpen={defaultOpen}
         onEditClick={() => setIsEditing((prev) => !prev)}
         isEditing={isEditing}
-        hasData={hasData}
       >
-        {!isEditing && !hasData ? null : (
-          <div className={`flex flex-col ${isEditing ? "gap-3" : "gap-0"}`}>
-            {fields.map((field) => (
-              <div key={field.key}>
-                {isEditing ? (
-                  <div className="flex-1">
-                    {RenderField(
-                      field,
-                      formValues[field.key],
-                      formValuesErrors[field.key],
-                      (value) => handleChange(field.key, value)
-                    )}
+        <div className={`flex flex-col ${isEditing ? "gap-3" : "gap-0"}`}>
+          {fields.map((field, index) => (
+            <div key={field.key}>
+              {isEditing ? (
+                <div className="flex-1">
+                  {RenderField(
+                    field,
+                    formValues[field.key],
+                    formValuesErrors[field.key],
+                    (value) => handleChange(field.key, value)
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+                >
+                  <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+                    {field.label + ":"}
                   </div>
-                ) : (
-                  <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light">
-                    <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-                      {field.label + " :"}
-                    </div>
-                    <div className="font-satoshi font-semibold text-black-text text-[16px]">
-                      {formValues[field.key] || "-"}
-                    </div>
+                  <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+                    {formValues[field.key] || "-"}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </Accordion>
 
       {isEditing && (

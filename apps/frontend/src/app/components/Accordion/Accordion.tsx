@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { RiEdit2Fill } from "react-icons/ri";
-import { IoIosAdd, IoIosArrowDown } from "react-icons/io";
+import { IoIosArrowDown } from "react-icons/io";
+import { MdDeleteForever } from "react-icons/md";
 
 interface AccordionProps {
   title: string;
@@ -9,7 +10,8 @@ interface AccordionProps {
   showEditIcon?: boolean;
   onEditClick?: () => void;
   isEditing?: boolean;
-  hasData?: boolean;
+  showDeleteIcon?: boolean;
+  onDeleteClick?: () => void;
 }
 
 const Accordion: React.FC<AccordionProps> = ({
@@ -19,7 +21,8 @@ const Accordion: React.FC<AccordionProps> = ({
   showEditIcon = true,
   onEditClick,
   isEditing,
-  hasData = true,
+  showDeleteIcon = false,
+  onDeleteClick,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -43,7 +46,7 @@ const Accordion: React.FC<AccordionProps> = ({
             {title}
           </div>
         </button>
-        {showEditIcon && hasData && !isEditing && (
+        {showEditIcon && !isEditing && (
           <RiEdit2Fill
             size={20}
             color="#302f2e"
@@ -54,14 +57,14 @@ const Accordion: React.FC<AccordionProps> = ({
             }}
           />
         )}
-        {!hasData && (
-          <IoIosAdd
-            size={28}
-            color="#302f2e"
+        {showDeleteIcon && (
+          <MdDeleteForever
+            size={20}
+            color="#EA3729"
             className="cursor-pointer"
             onClick={() => {
               setOpen(true);
-              onEditClick?.();
+              onDeleteClick?.();
             }}
           />
         )}

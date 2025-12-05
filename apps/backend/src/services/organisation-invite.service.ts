@@ -244,7 +244,7 @@ const ensureUserOrganizationMembership = async (
       (error as { code?: number }).code === 11000;
 
     if (duplicateKey) {
-      logger.info(
+      logger.warn(
         "User already associated with organisation role; skipping duplicate creation.",
         {
           organisationId,

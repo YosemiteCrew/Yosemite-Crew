@@ -41,7 +41,7 @@ const CardHeader = ({ title, options }: any) => {
           <FaAngleDown color="#302F2E" size={14} />
         </button>
         {open && (
-          <div className="card-header-dropdown">
+          <div className="card-header-dropdown z-10">
             {options.map((option: string) => (
               <button
                 className="card-header-dropdown-item"

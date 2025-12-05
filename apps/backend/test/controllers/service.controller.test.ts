@@ -83,7 +83,7 @@ describe("ServiceController", () => {
     await ServiceController.createService(req, res as any);
 
     expect(mockedLogger.error).toHaveBeenCalledWith(
-      "Failed to create service",
+      "Unable to create service.",
       error,
     );
     expect(res.status).toHaveBeenCalledWith(500);
@@ -120,7 +120,7 @@ describe("ServiceController", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      message: "Query paramter serviceName is reqired.",
+      message: "Query parameter serviceName is required.",
     });
     expect(
       mockedService.listOrganisationsProvidingService,

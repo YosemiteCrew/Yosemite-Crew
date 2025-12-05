@@ -3,7 +3,8 @@ import ServiceModel, {
   type ServiceMongo,
   type ServiceDocument,
 } from "../models/service";
-
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import {
   toServiceResponseDTO,
   fromServiceRequestDTO,
@@ -12,6 +13,12 @@ import {
 } from "@yosemite-crew/types";
 import OrganizationModel from "src/models/organization";
 import escapeStringRegexp from "escape-string-regexp";
+import SpecialityModel from "src/models/speciality";
+import { AvailabilitySlotMongo } from "src/models/base-availability";
+import { AvailabilityService } from "./availability.service";
+import helpers from "src/utils/helper";
+
+dayjs.extend(utc);
 
 export class ServiceServiceError extends Error {
   constructor(
@@ -189,7 +196,7 @@ export const ServiceService = {
     // 3. Fetch organisations
     const organisations = await OrganizationModel.find({
       _id: { $in: orgIds },
-      isActive: true,
+      //isActive: true,
     })
       .lean()
       .exec();
@@ -202,5 +209,169 @@ export const ServiceService = {
       type: org.type,
       address: org.address,
     }));
+  },
+
+  async getBookableSlotsService(
+    serviceId: string,
+    organisationId: string,
+    referenceDate: Date,
+  ) {
+    const id = ensureObjectId(serviceId, "serviceId");
+
+    const service = await ServiceModel.findOne({ _id: id });
+    if (!service) throw new Error("Service not found");
+
+    const { specialityId, durationMinutes } = service;
+
+    const speciality = await SpecialityModel.findById(specialityId);
+    if (!speciality) throw new Error("Speciality not found");
+
+    const vetIds = speciality.memberUserIds || [];
+
+    if (vetIds.length === 0) {
+      return {
+        date: referenceDate,
+        windows: [],
+      };
+    }
+
+    const allWindows: AvailabilitySlotMongo[] = [];
+
+    for (const vetId of vetIds) {
+      const result = await AvailabilityService.getBookableSlotsForDate(
+        organisationId,
+        vetId,
+        durationMinutes,
+        referenceDate,
+      );
+
+      if (result?.windows?.length) {
+        allWindows.push(...result.windows);
+      }
+    }
+
+    const uniqueSlotsMap = new Map<string, AvailabilitySlotMongo>();
+
+    for (const w of allWindows) {
+      const key = `${w.startTime}-${w.endTime}`;
+      uniqueSlotsMap.set(key, w);
+    }
+
+    let finalWindows: AvailabilitySlotMongo[] = Array.from(
+      uniqueSlotsMap.values(),
+    );
+
+    // Remove past slots if referenceDate == today
+    const todayStr = dayjs().utc().format("YYYY-MM-DD");
+    const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
+
+    if (refStr === todayStr) {
+      const now = dayjs().utc();
+
+      finalWindows = finalWindows.filter((slot) => {
+        const slotTime = dayjs(`${refStr} ${slot.startTime}`).utc();
+        return slotTime.isAfter(now);
+      });
+    }
+
+    // Sort ascending by time
+    finalWindows.sort((a, b) => {
+      const t1 = dayjs(`2000-01-01 ${a.startTime}`);
+      const t2 = dayjs(`2000-01-01 ${b.startTime}`);
+      return t1.valueOf() - t2.valueOf();
+    });
+
+    return {
+      date: refStr,
+      dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
+      windows: finalWindows,
+    };
+  },
+
+  async listOrganisationsProvidingServiceNearby(
+    serviceName: string,
+    lat: number,
+    lng: number,
+    query?: string,
+    radius = 5000,
+  ) {
+    const safe = escapeStringRegexp(serviceName.trim());
+    const searchRegex = new RegExp(safe, "i");
+
+    // 1. Find services matching the name
+    const matchedServices = await ServiceModel.find({
+      name: searchRegex,
+    }).lean();
+    if (!matchedServices.length) return [];
+
+    // 2. Extract unique organization IDs
+    const orgIds = [...new Set(matchedServices.map((s) => s.organisationId))];
+
+    // 3. If lat/lng missing, geocode
+    if (!lat && !lng) {
+      const result = (await helpers.getGeoLocation(query!)) as {
+        lat: number;
+        lng: number;
+      };
+      lat = result.lat;
+      lng = result.lng;
+    }
+
+    // 4. Fetch only nearby organisations
+    const organisations = await OrganizationModel.find({
+      _id: { $in: orgIds },
+      "address.location": {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [lng, lat],
+          },
+          $maxDistance: radius,
+        },
+      },
+    }).lean();
+
+    // 5. Fetch specialities + all services for these organisations
+    const allSpecialities = await SpecialityModel.find(
+      { organisationId: { $in: orgIds } },
+      { _id: 1, name: 1, organisationId: 1 },
+    ).lean();
+
+    const allServicesForOrgs = await ServiceModel.find(
+      { organisationId: { $in: orgIds } },
+      { _id: 1, name: 1, cost: 1, specialityId: 1, organisationId: 1 },
+    ).lean();
+
+    // 6. Group specialities + services for each org
+    return organisations.map((org) => {
+      const orgSpecialities = allSpecialities.filter(
+        (s) => s.organisationId.toString() === org._id.toString(),
+      );
+
+      const orgServices = allServicesForOrgs.filter(
+        (s) => s.organisationId.toString() === org._id.toString(),
+      );
+
+      const specialitiesWithServices = orgSpecialities.map((spec) => {
+        const specServices = orgServices.filter(
+          (srv) => srv.specialityId?.toString() === spec._id.toString(),
+        );
+
+        return {
+          ...spec,
+          services: specServices,
+        };
+      });
+
+      return {
+        id: org._id.toString(),
+        name: org.name,
+        imageURL: org.imageURL,
+        phoneNo: org.phoneNo,
+        type: org.type,
+        address: org.address,
+        specialities: specialitiesWithServices,
+      };
+    });
   },
 };

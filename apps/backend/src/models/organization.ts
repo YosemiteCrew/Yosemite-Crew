@@ -55,6 +55,9 @@ export interface OrganizationMongo {
   animalWelfareComplianceCertNo?: string;
   fireAndEmergencyCertNo?: string;
   googlePlacesId?: string;
+  stripeAccountId?: string;
+  averageRating?: number;
+  ratingCount?: number;
 }
 
 const OrganizationSchema = new Schema<OrganizationMongo>(
@@ -83,6 +86,9 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
       display: { type: String },
     },
     googlePlacesId: { type: String },
+    stripeAccountId: { type: String },
+    averageRating: { type: Number, default: 0 },
+    ratingCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,

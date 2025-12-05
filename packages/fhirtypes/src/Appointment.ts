@@ -23,7 +23,7 @@ export interface Appointment {
   extension?: Extension[];
   modifierExtension?: Extension[];
   identifier?: Identifier[];
-  status: string;
+  status?: string;
   cancelationReason?: CodeableConcept;
   serviceCategory?: CodeableConcept[];
   serviceType?: CodeableConcept[];
@@ -53,7 +53,7 @@ export interface AppointmentParticipant extends BackboneElement {
   type?: CodeableConcept[];
   actor?: Reference;
   required?: string;
-  status: string;
+  status?: string;
   period?: Period;
   extension?: Extension[];
 }

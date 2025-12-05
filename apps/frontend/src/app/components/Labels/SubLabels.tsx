@@ -8,7 +8,7 @@ type SubLabelItem = {
 type SubLabelsProps = {
   labels: SubLabelItem[];
   activeLabel: string;
-  setActiveLabel: (key: string) => void;
+  setActiveLabel: (key: any) => void;
 };
 
 const SubLabels = ({ labels, activeLabel, setActiveLabel }: SubLabelsProps) => {

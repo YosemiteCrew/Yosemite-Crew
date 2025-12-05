@@ -9,7 +9,7 @@ import CreateOrgProgress from "@/app/components/Steps/Progress/Progress";
 import OrgStep from "@/app/components/Steps/CreateOrg/OrgStep";
 import AddressStep from "@/app/components/Steps/CreateOrg/AddressStep";
 import SpecialityStep from "@/app/components/Steps/CreateOrg/SpecialityStep";
-import Specialities from "@/app/utils/specialities.json";
+import { specialties } from "@/app/utils/specialities";
 
 import "./CreateOrg.css";
 
@@ -30,13 +30,13 @@ const OrgSteps = [
 
 const CreateOrg = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const [specialities, setSpecialities] = useState(Specialities);
+  const [specialities, setSpecialities] = useState(specialties);
   const [formData, setFormData] = useState({
     logoURL: "",
     name: "",
     latitude: null,
     longitude: null,
-    businessType: "Hospital",
+    businessType: "HOSPITAL",
     country: "",
     duns: "",
     number: "",

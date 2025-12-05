@@ -157,3 +157,50 @@ export type {
 export type { OrganisationInvite, InviteStatus } from "./organisationInvite";
 export type { Service } from "./service"
 export { type ServiceRequestDTO, type ServiceResponseDTO, toServiceResponseDTO, fromServiceRequestDTO } from "./dto/service.dto"
+export { type AppointmentRequestDTO, type AppointmentResponseDTO, toAppointmentResponseDTO, fromAppointmentRequestDTO} from "./dto/appointment.dto"
+export type { Invoice, InvoiceItem, InvoiceStatus } from "./invoice"
+export type { Appointment } from "./appointment"
+export { toFHIRInvoice, fromFHIRInvoice } from "./invoice"
+export { type InvoiceRequestDTO, type InvoiceResponseDTO, toInvoiceResponseDTO, fromInvoiceRequestDTO} from "./dto/invoice.dto"
+export {
+  type FormRequestDTO,
+  type FormResponseDTO,
+  type FormSubmissionRequestDTO,
+  type FormSubmissionResponseDTO,
+  fromFormRequestDTO,
+  toFormResponseDTO,
+  fromFormSubmissionRequestDTO,
+  toFormSubmissionResponseDTO,
+} from "./dto/form.dto"
+export type {
+  FieldType,
+  FieldOption,
+  BaseField,
+  InputField,
+  ChoiceField,
+  BooleanField,
+  DateField,
+  SignatureField,
+  GroupField,
+  FormField,
+  FormSchema,
+  Form,
+  FormVersion,
+  FormSubmission,
+} from "./form"
+export {
+  toFHIRQuestionnaire,
+  fromFHIRQuestionnaire,
+  toFHIRQuestionnaireResponse,
+  fromFHIRQuestionnaireResponse,
+} from "./form"
+export type {
+  AdverseEventReporterType, 
+  AdverseEventCompanionInfo, 
+  AdverseEventConsent, 
+  AdverseEventDestinations,
+  AdverseEventProductInfo, 
+  AdverseEventReport,
+  AdverseEventReporterInfo,
+  AdverseEventStatus 
+} from "./adverse-event"
