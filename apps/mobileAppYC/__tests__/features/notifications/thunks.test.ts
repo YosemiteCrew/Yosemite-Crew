@@ -9,6 +9,19 @@ import {
   archiveNotification,
   clearAllNotifications
 } from '@/features/notifications/thunks';
+import {
+  fetchMobileNotifications,
+  markMobileNotificationSeen,
+} from '@/features/notifications/services/notificationService';
+
+jest.mock('@/features/notifications/services/notificationService');
+
+const mockedFetchMobileNotifications = fetchMobileNotifications as jest.MockedFunction<
+  typeof fetchMobileNotifications
+>;
+const mockedMarkMobileNotificationSeen = markMobileNotificationSeen as jest.MockedFunction<
+  typeof markMobileNotificationSeen
+>;
 
 describe('Notification Thunks', () => {
   let store: any;
@@ -16,6 +29,8 @@ describe('Notification Thunks', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockedFetchMobileNotifications.mockResolvedValue([]);
+    mockedMarkMobileNotificationSeen.mockResolvedValue();
     store = configureStore({
       reducer: { notifications: notificationReducer },
     });
@@ -92,6 +107,8 @@ describe('Notification Thunks', () => {
       jest.spyOn(globalThis, 'setTimeout').mockImplementation(() => {
         throw new Error('Network Error');
       });
+      mockedFetchMobileNotifications.mockRejectedValue(new Error('Network Error'));
+      mockedMarkMobileNotificationSeen.mockRejectedValue(new Error('Network Error'));
     });
 
     it('fetchNotificationsForCompanion catches Error object', async () => {
@@ -133,6 +150,8 @@ describe('Notification Thunks', () => {
       jest.spyOn(globalThis, 'setTimeout').mockImplementation(() => {
         throw 'Something weird happened';
       });
+      mockedFetchMobileNotifications.mockRejectedValue('Something weird happened' as any);
+      mockedMarkMobileNotificationSeen.mockRejectedValue('Something weird happened' as any);
     });
 
     it('fetchNotificationsForCompanion uses fallback message', async () => {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   View,
   ScrollView,
@@ -6,31 +6,85 @@ import {
   Text,
   Image,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useTheme } from '@/hooks';
-import { Images } from '@/assets/images';
-import { SafeArea } from '@/shared/components/common';
-import { Header } from '@/shared/components/common/Header/Header';
-import { Checkbox } from '@/shared/components/common/Checkbox/Checkbox';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
+import {SafeArea} from '@/shared/components/common';
+import {Header} from '@/shared/components/common/Header/Header';
+import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import type { AdverseEventStackParamList } from '@/navigation/types';
+import type {AdverseEventStackParamList} from '@/navigation/types';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
+import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
+import {adverseEventService} from '@/features/adverseEventReporting/services/adverseEventService';
+import {showErrorAlert, showSuccessAlert} from '@/shared/utils/commonHelpers';
+import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReporting/content/supportedCountries';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'ThankYou'>;
 
 export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [agreeToBeContacted, setAgreeToBeContacted] = useState(false);
+  const {draft, setConsentToContact, setProductInfo, resetDraft} = useAdverseEventReport();
+  const companions = useSelector((state: RootState) => state.companion.companions);
+  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
+  const linkedBusinesses = useSelector((state: RootState) => state.linkedBusinesses.linkedBusinesses);
+  const authUser = useSelector((state: RootState) => state.auth.user);
+
+  const [agreeToBeContacted, setAgreeToBeContacted] = useState(draft.consentToContact);
   const [contactError, setContactError] = useState('');
+  const [submitLoading, setSubmitLoading] = useState<'manufacturer' | 'hospital' | null>(null);
+  const [regulatoryLoading, setRegulatoryLoading] = useState(false);
+  const [regulatoryContact, setRegulatoryContact] = useState<{
+    authorityName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    website?: string | null;
+  } | null>(null);
+
+  const resolvedCompanion = useMemo(() => {
+    const targetId = draft.companionId ?? selectedCompanionId;
+    if (!targetId) {
+      return null;
+    }
+    return companions.find(c => c.id === targetId) ?? null;
+  }, [companions, draft.companionId, selectedCompanionId]);
+
+  const resolvedOrganisationId = useMemo(() => {
+    if (!draft.linkedBusinessId) {
+      return null;
+    }
+    const linked = linkedBusinesses.find(b => b.id === draft.linkedBusinessId);
+    return linked?.businessId ?? linked?.id ?? null;
+  }, [draft.linkedBusinessId, linkedBusinesses]);
+
+  const resolveCountryMeta = () => {
+    const countryName = authUser?.address?.country ?? '';
+    if (!countryName) {
+      return {country: '', iso2: null, iso3: null, authorityName: null};
+    }
+    const match = SUPPORTED_ADVERSE_EVENT_COUNTRIES.find(
+      c => c.name.toLowerCase() === countryName.toLowerCase(),
+    );
+    if (!match) {
+      return {country: '', iso2: null, iso3: null, authorityName: null};
+    }
+    return {
+      country: match.name,
+      iso2: match.code,
+      iso3: match.iso3,
+      authorityName: match.authorityName,
+    };
+  };
 
   const handleBack = () => {
-    // Reset the AdverseEvent stack and navigate back to Home
-    // This pops all screens from the AdverseEvent stack and goes back to Home
     navigation.navigate('Home' as never);
   };
 
-  const requireContactConsent = (action: () => void) => {
+  const requireContactConsent = async (action: () => void | Promise<void>) => {
     if (!agreeToBeContacted) {
       setContactError('Select the checkbox to continue');
       return;
@@ -38,27 +92,115 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
     if (contactError) {
       setContactError('');
     }
-    action();
+    setConsentToContact(true);
+    await action();
   };
 
-  const handleSendToManufacturer = () => {
-    requireContactConsent(() => {
-      console.log('[ThankYou] Send to manufacturer');
-      handleBack();
+  const ensureSubmissionInputs = () => {
+    if (!authUser) {
+      throw new Error('Please sign in again to submit this report.');
+    }
+    if (!resolvedCompanion) {
+      throw new Error('Select a companion to continue.');
+    }
+    if (!resolvedOrganisationId) {
+      throw new Error('Select a linked hospital to continue.');
+    }
+    if (!draft.productInfo) {
+      throw new Error('Add product details before submitting.');
+    }
+  };
+
+  const handleSubmitReport = async (target: 'manufacturer' | 'hospital') => {
+    await requireContactConsent(async () => {
+      try {
+        ensureSubmissionInputs();
+        if (!authUser || !resolvedCompanion || !draft.productInfo || !resolvedOrganisationId) {
+          return;
+        }
+
+        setSubmitLoading(target);
+        const {productFiles} = await adverseEventService.submitReport({
+          organisationId: resolvedOrganisationId,
+          reporterType: draft.reporterType,
+          reporter: authUser,
+          companion: resolvedCompanion,
+          product: draft.productInfo,
+          destinations: {
+            sendToManufacturer: target === 'manufacturer',
+            sendToHospital: target === 'hospital',
+            sendToAuthority: false,
+          },
+          consentToContact: agreeToBeContacted,
+        });
+
+        if (productFiles?.length) {
+          setProductInfo({
+            ...(draft.productInfo ?? {files: []}),
+            files: productFiles,
+          });
+        }
+        showSuccessAlert(
+          'Report submitted',
+          target === 'manufacturer'
+            ? 'We sent your report to the manufacturer.'
+            : 'We sent your report to the hospital.',
+        );
+        resetDraft();
+        handleBack();
+      } catch (error: any) {
+        const message =
+          error?.message ?? 'Failed to submit adverse event report.';
+        showErrorAlert('Unable to submit', message);
+      } finally {
+        setSubmitLoading(null);
+      }
     });
   };
 
-  const handleSendToHospital = () => {
-    requireContactConsent(() => {
-      console.log('[ThankYou] Send to hospital');
-      handleBack();
-    });
-  };
+  const handleSendToManufacturer = () => handleSubmitReport('manufacturer');
+  const handleSendToHospital = () => handleSubmitReport('hospital');
 
-  const handleCallAuthority = () => {
-    requireContactConsent(() => {
-      console.log('[ThankYou] Call authority');
-      handleBack();
+  const handleCallAuthority = async () => {
+    await requireContactConsent(async () => {
+      try {
+        setRegulatoryLoading(true);
+        const {country, iso2, iso3, authorityName} = resolveCountryMeta();
+        if (!country || !iso2) {
+          throw new Error(
+            'Regulatory authority dialing is available only in supported countries. Please update your profile country to a supported region.',
+          );
+        }
+        const data = await adverseEventService.fetchRegulatoryAuthority({
+          country,
+          iso2,
+          iso3,
+        });
+        setRegulatoryContact({
+          ...data,
+          authorityName: data?.authorityName ?? authorityName,
+        });
+        const phone = data?.phone ?? null;
+        if (phone) {
+          const normalizedPhone = (phone as string).replaceAll(/[^\d+]/g, '');
+          const telUrl = `tel:${normalizedPhone}`;
+          const opened = await Linking.openURL(telUrl).catch(() => false);
+          if (!opened) {
+            showErrorAlert('Dialer unavailable', `Please call this number manually: ${normalizedPhone}`);
+          }
+        } else {
+          showErrorAlert(
+            'Contact unavailable',
+            'No phone number available for the regulatory authority.',
+          );
+        }
+      } catch (error: any) {
+        const message =
+          error?.message ?? 'Failed to fetch regulatory authority contact.';
+        showErrorAlert('Unable to call authority', message);
+      } finally {
+        setRegulatoryLoading(false);
+      }
     });
   };
 
@@ -86,6 +228,7 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             value={agreeToBeContacted}
             onValueChange={value => {
               setAgreeToBeContacted(value);
+              setConsentToContact(value);
               if (value && contactError) {
                 setContactError('');
               }
@@ -110,6 +253,8 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             textStyle={styles.buttonText}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
+            loading={submitLoading === 'manufacturer'}
+            disabled={submitLoading !== null}
           />
 
           <LiquidGlassButton
@@ -125,15 +270,35 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             textStyle={styles.lightButtonText}
             tintColor={theme.colors.white}
             shadowIntensity="light"
+            loading={submitLoading === 'hospital'}
+            disabled={submitLoading !== null}
           />
 
           <TouchableOpacity
             style={styles.phoneAction}
-            onPress={handleCallAuthority}
+            onPress={regulatoryLoading ? undefined : handleCallAuthority}
+            disabled={regulatoryLoading}
           >
             <Image source={Images.phone} style={styles.phoneIcon} />
-            <Text style={styles.phoneText}>Call regulatory authority</Text>
+            <Text style={styles.phoneText}>
+              {regulatoryLoading ? 'Fetching authority contact...' : 'Call regulatory authority'}
+            </Text>
           </TouchableOpacity>
+
+          {regulatoryContact?.authorityName ? (
+            <View style={styles.authorityDetails}>
+              <Text style={styles.authorityName}>{regulatoryContact.authorityName}</Text>
+              {regulatoryContact.phone ? (
+                <Text style={styles.authorityMeta}>Phone: {regulatoryContact.phone}</Text>
+              ) : null}
+              {regulatoryContact.email ? (
+                <Text style={styles.authorityMeta}>Email: {regulatoryContact.email}</Text>
+              ) : null}
+              {regulatoryContact.website ? (
+                <Text style={styles.authorityMeta}>Website: {regulatoryContact.website}</Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </SafeArea>
@@ -244,5 +409,18 @@ const createStyles = (theme: any) =>
       lineHeight: 18,
       letterSpacing: -0.18,
       textAlign: 'center',
+    },
+    authorityDetails: {
+      marginTop: theme.spacing[2],
+      alignItems: 'center',
+      gap: theme.spacing[1],
+    },
+    authorityName: {
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.secondary,
+    },
+    authorityMeta: {
+      ...theme.typography.paragraph,
+      color: theme.colors.textSecondary,
     },
   });

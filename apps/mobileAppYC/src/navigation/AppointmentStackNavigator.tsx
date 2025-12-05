@@ -15,6 +15,7 @@ import {ChatScreen} from '@/features/appointments/screens/ChatScreen';
 import {ChatChannelScreen} from '@/features/chat/screens/ChatChannelScreen';
 import {EditAppointmentScreen} from '@/features/appointments/screens/EditAppointmentScreen';
 import {BusinessesListScreen} from '@/features/appointments/screens/BusinessesListScreen';
+import {OrganisationDocumentScreen} from '@/features/legal/screens/OrganisationDocumentScreen';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -63,6 +64,7 @@ export const AppointmentStackNavigator: React.FC = () => {
       <Stack.Screen name="ChatChannel" component={ChatChannelScreen} />
       <Stack.Screen name="EditAppointment" component={EditAppointmentScreen} />
       <Stack.Screen name="BusinessesList" component={BusinessesListScreen} />
+      <Stack.Screen name="OrganisationDocument" component={OrganisationDocumentScreen} />
     </Stack.Navigator>
   );
 };

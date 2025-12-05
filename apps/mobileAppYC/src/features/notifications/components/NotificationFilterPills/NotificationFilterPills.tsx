@@ -17,14 +17,12 @@ interface NotificationFilterPillsProps {
 
 const FILTER_OPTIONS: Array<{id: NotificationCategory; label: string}> = [
   {id: 'all', label: 'All'},
-  {id: 'messages', label: 'Messages'},
   {id: 'appointments', label: 'Appointments'},
+  {id: 'payment', label: 'Payments'},
+  {id: 'health', label: 'Care & Health'},
+  {id: 'messages', label: 'Messages / OTP'},
   {id: 'tasks', label: 'Tasks'},
   {id: 'documents', label: 'Documents'},
-  {id: 'health', label: 'Health'},
-  {id: 'dietary', label: 'Dietary'},
-  {id: 'hygiene', label: 'Hygiene'},
-  {id: 'payment', label: 'Payment'},
 ];
 
 export const NotificationFilterPills: React.FC<NotificationFilterPillsProps> = ({

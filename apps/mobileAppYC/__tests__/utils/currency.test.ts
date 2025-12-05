@@ -1,19 +1,4 @@
-import {
-  resolveCurrencySymbol,
-  formatCurrency,
-} from '@/shared/utils/currency';
-
-// Mock the JSON import
-jest.mock(
-  '@/shared/utils/currencyList.json',
-  () => [
-    { code: 'USD', symbol: '$', name: 'US Dollar' },
-    { code: 'EUR', symbol: '€', name: 'Euro' },
-    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-    { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  ],
-  { virtual: true },
-);
+import {resolveCurrencySymbol, formatCurrency} from '@/shared/utils/currency';
 
 describe('currency', () => {
   // Store original Intl.NumberFormat
@@ -43,16 +28,12 @@ describe('currency', () => {
       expect(resolveCurrencySymbol('USD')).toBe('$');
     });
 
-    it('should return the correct symbol for another valid code (INR)', () => {
-      expect(resolveCurrencySymbol('INR')).toBe('₹');
-    });
-
     it('should be case-insensitive (eur -> €)', () => {
       expect(resolveCurrencySymbol('eur')).toBe('€');
     });
 
-    it('should return the fallback for an unknown code', () => {
-      expect(resolveCurrencySymbol('XYZ')).toBe('$');
+    it('should return the fallback for an unsupported code', () => {
+      expect(resolveCurrencySymbol('INR')).toBe('$');
     });
 
     it('should return a custom fallback if provided', () => {
@@ -75,15 +56,6 @@ describe('currency', () => {
       expect(formatCurrency(1234.56, options)).toBe('1.234,56 €');
     });
 
-    it('should format with specified options (INR, en-IN, 0 digits)', () => {
-      const options = {
-        currencyCode: 'INR',
-        locale: 'en-IN',
-        minimumFractionDigits: 0,
-      };
-      expect(formatCurrency(50000, options)).toBe('₹50,000');
-    });
-
     it('should use the fallback formatter if Intl.NumberFormat fails', () => {
       // FIX: Force Intl.NumberFormat to throw an error
       globalThis.Intl.NumberFormat = jest.fn().mockImplementation(() => {
@@ -91,12 +63,12 @@ describe('currency', () => {
       }) as any; // FIX: Cast to 'any' to bypass static property check
 
       const options = {
-        currencyCode: 'INR',
+        currencyCode: 'USD',
         locale: 'invalid-locale',
         minimumFractionDigits: 2,
       };
 
-      expect(formatCurrency(100, options)).toBe('₹100.00');
+      expect(formatCurrency(100, options)).toBe('$100.00');
     });
 
     it('should use the fallback symbol if Intl fails and currency is unknown', () => {

@@ -13,11 +13,19 @@ import {
 import {AuthError} from 'aws-amplify/auth';
 import type {ProfileStatus} from '@/features/account/services/profileService';
 import {syncAuthUser} from '@/features/auth/services/authUserService';
+import {AUTH_FEATURE_FLAGS, DEMO_LOGIN_CONFIG} from '@/config/variables';
+
+export const DEMO_LOGIN_EMAIL = (DEMO_LOGIN_CONFIG.email ?? '').trim().toLowerCase();
+export const DEMO_LOGIN_PASSWORD = DEMO_LOGIN_CONFIG.password ?? '';
+const DEFAULT_OTP_LENGTH = 4;
 
 export type PasswordlessSignInRequestResult = {
   destination: string;
   isNewUser: boolean;
   nextStep: SignInOutput['nextStep'];
+  challengeType: 'otp' | 'demoPassword';
+  challengeLength: number;
+  isDemoLogin: boolean;
 };
 
 export type PasswordlessSignInCompletion = {
@@ -74,9 +82,11 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const ensureUserRegistration = async (username: string): Promise<boolean> => {
   try {
     console.log('[Auth] ensureUserRegistration signUp attempt', { username });
+    const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
+    const isDemoLogin = allowReviewLogin && DEMO_LOGIN_EMAIL.length > 0 && username === DEMO_LOGIN_EMAIL;
     await signUp({
       username,
-      password: randomPassword(),
+      password: isDemoLogin && DEMO_LOGIN_PASSWORD ? DEMO_LOGIN_PASSWORD : randomPassword(),
       options: {
         userAttributes: {
           email: username,
@@ -170,6 +180,9 @@ export const requestPasswordlessEmailCode = async (
   const username = normalizeEmail(email);
   console.log('[Auth] requestPasswordlessEmailCode normalized email', { email, username });
   let isNewUser = false;
+  const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
+  const isDemoLogin =
+    allowReviewLogin && DEMO_LOGIN_EMAIL.length > 0 && username === DEMO_LOGIN_EMAIL;
 
   // First, ensure we sign out any existing session
   try {
@@ -195,13 +208,18 @@ export const requestPasswordlessEmailCode = async (
   }
 
   try {
+    const clientMetadata: Record<string, string> = {
+      loginEmail: username,
+    };
+    if (isDemoLogin) {
+      clientMetadata.demoLogin = 'true';
+    }
+
     const signInInput = {
       username,
       options: {
         authFlowType: 'CUSTOM_WITHOUT_SRP' as const,
-        clientMetadata: {
-          loginEmail: username,
-        },
+        clientMetadata,
       },
     };
     console.log('[Auth] signIn input', signInInput);
@@ -211,6 +229,9 @@ export const requestPasswordlessEmailCode = async (
       destination: username,
       isNewUser,
       nextStep: signInOutput.nextStep,
+      challengeType: isDemoLogin ? 'demoPassword' : 'otp',
+      challengeLength: isDemoLogin ? DEMO_LOGIN_PASSWORD.length : DEFAULT_OTP_LENGTH,
+      isDemoLogin,
     };
   } catch (error) {
     console.error('[Auth] signIn after ensureUserRegistration failed', { username, error });

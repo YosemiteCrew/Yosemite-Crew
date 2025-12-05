@@ -16,13 +16,19 @@ export const createSelectAppointmentsByCompanion = () =>
 export const createSelectUpcomingAppointments = () => {
   const base = createSelectAppointmentsByCompanion();
   return createSelector(base, appointments =>
-    appointments.filter(a => a.status !== 'completed' && a.status !== 'canceled'),
+    appointments.filter(
+      a => a.status !== 'COMPLETED' && a.status !== 'CANCELLED',
+    ),
   );
 };
 
 export const createSelectPastAppointments = () => {
   const base = createSelectAppointmentsByCompanion();
-  return createSelector(base, appointments => appointments.filter(a => a.status === 'completed' || a.status === 'canceled'));
+  return createSelector(base, appointments =>
+    appointments.filter(
+      a => a.status === 'COMPLETED' || a.status === 'CANCELLED',
+    ),
+  );
 };
 
 export const createSelectBusinessesByCategory = () =>

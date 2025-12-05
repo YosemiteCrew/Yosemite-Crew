@@ -32,8 +32,8 @@ interface EmergencyOption {
 
 interface EmergencyBottomSheetProps {
   companionId?: string | null;
-  onCallVet?: () => void;
-  onAdverseEvent?: () => void;
+  onCallVet?: () => void | Promise<void>;
+  onAdverseEvent?: () => void | Promise<void>;
 }
 
 export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, EmergencyBottomSheetProps>(
@@ -86,13 +86,16 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
       bottomSheetRef.current?.close();
     };
 
-    const handleOptionPress = (optionId: 'call-vet' | 'adverse-event') => {
-      if (optionId === 'call-vet' && onCallVet) {
-        onCallVet();
-      } else if (optionId === 'adverse-event' && onAdverseEvent) {
-        onAdverseEvent();
+    const handleOptionPress = async (optionId: 'call-vet' | 'adverse-event') => {
+      try {
+        if (optionId === 'call-vet' && onCallVet) {
+          await onCallVet();
+        } else if (optionId === 'adverse-event' && onAdverseEvent) {
+          await onAdverseEvent();
+        }
+      } finally {
+        bottomSheetRef.current?.close();
       }
-      bottomSheetRef.current?.close();
     };
 
     const renderEmptyState = () => {

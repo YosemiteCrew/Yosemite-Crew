@@ -17,6 +17,8 @@ export type AuthStackParamList = {
   OTPVerification: {
     email: string;
     isNewUser: boolean;
+    challengeType?: 'otp' | 'demoPassword';
+    challengeLength?: number;
   };
   CreateAccount: {
     email: string;

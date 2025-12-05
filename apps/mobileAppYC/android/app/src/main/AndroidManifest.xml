@@ -102,6 +102,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="yc" android:host="app" />
+                <data android:scheme="yosemitecrew" />
             </intent-filter>
         </activity>
     </application>

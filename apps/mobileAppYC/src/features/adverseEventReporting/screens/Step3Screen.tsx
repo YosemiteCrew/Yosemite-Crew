@@ -7,18 +7,20 @@ import type {RootState} from '@/app/store';
 import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
 import {LinkedBusinessCard} from '@/features/linkedBusinesses/components/LinkedBusinessCard';
 import type {AdverseEventStackParamList} from '@/navigation/types';
+import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step3'>;
 
 export const Step3Screen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const {draft, updateDraft} = useAdverseEventReport();
   const linkedBusinesses = useSelector(
     (state: RootState) => state.linkedBusinesses.linkedBusinesses,
   );
 
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(
-    null,
+    draft.linkedBusinessId,
   );
   const [error, setError] = useState('');
 
@@ -33,6 +35,7 @@ export const Step3Screen: React.FC<Props> = ({navigation}) => {
 
   const handleBusinessSelect = (id: string) => {
     setSelectedBusinessId(id);
+    updateDraft({linkedBusinessId: id});
     if (error) {
       setError('');
     }

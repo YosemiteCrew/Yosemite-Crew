@@ -14,35 +14,55 @@ export const selectExpensesError = createSelector(
   expenses => expenses.error,
 );
 
+const selectorCache = new Map<string, any>();
+
+const getCachedSelector = <T,>(
+  key: string,
+  factory: () => T,
+): T => {
+  if (!selectorCache.has(key)) {
+    selectorCache.set(key, factory());
+  }
+  return selectorCache.get(key) as T;
+};
+
 export const selectHasHydratedCompanion = (companionId: string | null) =>
-  createSelector(selectExpensesState, expenses => {
-    if (!companionId) {
-      return false;
-    }
-    return Boolean(expenses.hydratedCompanions[companionId]);
-  });
+  getCachedSelector(`hasHydrated_${companionId}`, () =>
+    createSelector(selectExpensesState, expenses => {
+      if (!companionId) {
+        return false;
+      }
+      return Boolean(expenses.hydratedCompanions[companionId]);
+    }),
+  );
 
 export const selectExpensesByCompanion = (companionId: string | null) =>
-  createSelector(selectExpensesState, expenses => {
-    if (!companionId) {
-      return [];
-    }
-    return expenses.items
-      .filter(item => item.companionId === companionId)
-      .sort(
-        (a, b) =>
-          new Date(b.date).getTime() - new Date(a.date).getTime(),
-      );
-  });
+  getCachedSelector(`expensesByCompanion_${companionId}`, () =>
+    createSelector(selectExpensesState, expenses => {
+      if (!companionId) {
+        return [];
+      }
+      return expenses.items
+        .filter(item => item.companionId === companionId)
+        .sort(
+          (a, b) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime(),
+        );
+    }),
+  );
 
 export const selectInAppExpensesByCompanion = (companionId: string | null) =>
-  createSelector(selectExpensesByCompanion(companionId), items =>
-    items.filter(item => item.source === 'inApp'),
+  getCachedSelector(`inAppExpenses_${companionId}`, () =>
+    createSelector(selectExpensesByCompanion(companionId), items =>
+      items.filter(item => item.source === 'inApp'),
+    ),
   );
 
 export const selectExternalExpensesByCompanion = (companionId: string | null) =>
-  createSelector(selectExpensesByCompanion(companionId), items =>
-    items.filter(item => item.source === 'external'),
+  getCachedSelector(`externalExpenses_${companionId}`, () =>
+    createSelector(selectExpensesByCompanion(companionId), items =>
+      items.filter(item => item.source === 'external'),
+    ),
   );
 
 const pickRecent = (list: Expense[], limit: number) =>
@@ -52,32 +72,42 @@ export const selectRecentInAppExpenses = (
   companionId: string | null,
   limit = 2,
 ) =>
-  createSelector(selectInAppExpensesByCompanion(companionId), list =>
-    pickRecent(list, limit),
+  getCachedSelector(`recentInApp_${companionId}_${limit}`, () =>
+    createSelector(selectInAppExpensesByCompanion(companionId), list =>
+      pickRecent(list, limit),
+    ),
   );
 
 export const selectRecentExternalExpenses = (
   companionId: string | null,
   limit = 2,
 ) =>
-  createSelector(selectExternalExpensesByCompanion(companionId), list =>
-    pickRecent(list, limit),
+  getCachedSelector(`recentExternal_${companionId}_${limit}`, () =>
+    createSelector(selectExternalExpensesByCompanion(companionId), list =>
+      pickRecent(list, limit),
+    ),
   );
 
 export const selectExpenseById = (expenseId: string | null) =>
-  createSelector(selectExpensesState, expenses =>
-    expenses.items.find(item => item.id === expenseId) ?? null,
+  getCachedSelector(`expenseById_${expenseId}`, () =>
+    createSelector(selectExpensesState, expenses =>
+      expenses.items.find(item => item.id === expenseId) ?? null,
+    ),
   );
 
 export const selectExpenseSummaryByCompanion = (companionId: string | null) =>
-  createSelector(selectExpensesState, expenses => {
-    if (!companionId) {
-      return null;
-    }
-    return expenses.summaries[companionId] ?? null;
-  });
+  getCachedSelector(`summary_${companionId}`, () =>
+    createSelector(selectExpensesState, expenses => {
+      if (!companionId) {
+        return null;
+      }
+      return expenses.summaries[companionId] ?? null;
+    }),
+  );
 
 export const selectTotalSpentForCompanion = (companionId: string | null) =>
-  createSelector(selectExpenseSummaryByCompanion(companionId), summary =>
-    summary?.total ?? 0,
+  getCachedSelector(`totalSpent_${companionId}`, () =>
+    createSelector(selectExpenseSummaryByCompanion(companionId), summary =>
+      summary?.total ?? 0,
+    ),
   );

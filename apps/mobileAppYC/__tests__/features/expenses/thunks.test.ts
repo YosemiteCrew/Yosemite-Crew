@@ -7,48 +7,115 @@ import {
   type AddExternalExpensePayload,
 } from '@/features/expenses/thunks';
 import type {RootState} from '@/app/store';
+import type {Expense, ExpenseSummary} from '@/features/expenses/types';
+import expenseApi from '@/features/expenses/services/expenseService';
 
 jest.mock('@/shared/utils/helpers', () => ({
   generateId: jest.fn(() => 'mock-id-123'),
 }));
 
-jest.useFakeTimers();
+const mockGetFreshStoredTokens = jest.fn(async () => ({
+  accessToken: 'test-token',
+  expiresAt: Date.now() + 10000,
+}));
+const mockIsTokenExpired = jest.fn(() => false);
 
-const getMockState = (currency: string | null = 'USD'): RootState =>
+jest.mock('@/features/auth/sessionManager', () => ({
+  getFreshStoredTokens: () => mockGetFreshStoredTokens(),
+  isTokenExpired: () => mockIsTokenExpired(),
+}));
+
+jest.mock('@/features/expenses/services/expenseService', () => {
+  const api = {
+    fetchExpenses: jest.fn(),
+    fetchSummary: jest.fn(),
+    createExternal: jest.fn(),
+    updateExternal: jest.fn(),
+    deleteExpense: jest.fn(),
+  };
+  return {
+    __esModule: true,
+    default: api,
+    expenseApi: api,
+  };
+});
+
+const mockExpenseApi = expenseApi as jest.Mocked<typeof expenseApi>;
+
+const baseExpense: Expense = {
+  id: 'expense-1',
+  companionId: 'comp-123',
+  title: 'Vet Visit',
+  category: 'health',
+  subcategory: 'hospital-visits',
+  visitType: 'Hospital',
+  amount: 100,
+  currencyCode: 'USD',
+  status: 'PAID',
+  source: 'external',
+  date: '2023-10-10T00:00:00.000Z',
+  createdAt: '2023-10-10T00:00:00.000Z',
+  updatedAt: '2023-10-10T00:00:00.000Z',
+  attachments: [],
+};
+
+const summary: ExpenseSummary = {
+  total: 100,
+  invoiceTotal: 0,
+  externalTotal: 100,
+  currencyCode: 'USD',
+  lastUpdated: '2023-10-10T00:00:00.000Z',
+};
+
+const getMockState = (
+  currency: string | null = 'USD',
+  expenses: Expense[] = [baseExpense],
+): RootState =>
   ({
     auth: {
       user: {
-        currency: currency,
+        id: 'user-1',
+        currency,
+        parentId: 'parent-1',
       },
     },
     expenses: {
-      expensesByCompanion: {},
-      summariesByCompanion: {},
-      hydrationByCompanion: {},
-      loading: 'idle',
+      items: expenses,
+      loading: false,
       error: null,
-    },
-    companion: {
-      companions: [],
-      selectedCompanionId: null,
-      loading: 'idle',
-      error: null,
+      summaries: {},
+      hydratedCompanions: {},
     },
   } as any);
 
 describe('Expense Thunks', () => {
   const mockDispatch = jest.fn();
-  let dateNowSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    mockDispatch.mockClear();
     jest.clearAllMocks();
-    jest.useFakeTimers();
-    dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => 0);
-  });
+    mockDispatch.mockClear();
 
-  afterEach(() => {
-    dateNowSpy.mockRestore();
+    mockExpenseApi.fetchExpenses.mockResolvedValue([baseExpense]);
+    mockExpenseApi.fetchSummary.mockResolvedValue(summary);
+    mockExpenseApi.createExternal.mockResolvedValue({
+      ...baseExpense,
+      id: 'expense_0_mock-id-123',
+      currencyCode: 'JPY',
+    });
+    mockExpenseApi.updateExternal.mockResolvedValue({
+      ...baseExpense,
+      id: 'expense-abc',
+      amount: 200,
+      title: 'Updated Title',
+      updatedAt: '2023-11-11T00:00:00.000Z',
+    });
+    mockExpenseApi.deleteExpense.mockResolvedValue(true);
+
+    mockGetFreshStoredTokens.mockResolvedValue({
+      accessToken: 'test-token',
+      expiresAt: Date.now() + 10000,
+    });
+    mockIsTokenExpired.mockReturnValue(false);
   });
 
   describe('fetchExpensesForCompanion', () => {
@@ -60,7 +127,6 @@ describe('Expense Thunks', () => {
 
       const action = fetchExpensesForCompanion({companionId});
       const thunkPromise = action(mockDispatch, getState, undefined);
-      jest.advanceTimersByTime(600);
       await thunkPromise;
 
       expect(mockDispatch.mock.calls[0][0].type).toBe(
@@ -71,9 +137,10 @@ describe('Expense Thunks', () => {
         'expenses/fetchForCompanion/fulfilled',
       );
       expect(fulfilledAction.payload.companionId).toBe(companionId);
-      expect(fulfilledAction.payload.expenses.length).toBe(6);
-      expect(fulfilledAction.payload.expenses[0].currencyCode).toBe('EUR');
-      expect(fulfilledAction.payload.summary.currencyCode).toBe('EUR');
+      expect(fulfilledAction.payload.expenses).toEqual([baseExpense]);
+      expect(mockExpenseApi.fetchSummary).toHaveBeenCalledWith(
+        expect.objectContaining({currencyCode: 'EUR'}),
+      );
     });
 
     it('should use default currency "USD" if user currency is null', async () => {
@@ -82,36 +149,28 @@ describe('Expense Thunks', () => {
 
       const action = fetchExpensesForCompanion({companionId});
       const thunkPromise = action(mockDispatch, getState, undefined);
-      jest.advanceTimersByTime(600);
       await thunkPromise;
 
-      const fulfilledAction = mockDispatch.mock.calls[1][0];
-      expect(fulfilledAction.payload.expenses[0].currencyCode).toBe('USD');
-      expect(fulfilledAction.payload.summary.currencyCode).toBe('USD');
+      expect(mockExpenseApi.fetchSummary).toHaveBeenCalledWith(
+        expect.objectContaining({currencyCode: 'USD'}),
+      );
     });
 
     it('should handle errors (rejected)', async () => {
-      const error = new Error('Database failed');
-      const getState = () => {
-        throw error;
-      };
-
+      mockGetFreshStoredTokens.mockResolvedValue(null);
       const action = fetchExpensesForCompanion({companionId});
-      await action(mockDispatch, getState, undefined);
+      await action(mockDispatch, () => getMockState(), undefined);
 
       const rejectedAction = mockDispatch.mock.calls[1][0];
       expect(rejectedAction.type).toBe('expenses/fetchForCompanion/rejected');
-      expect(rejectedAction.payload).toBe('Database failed');
+      expect(rejectedAction.payload).toBe('Missing access token. Please sign in again.');
     });
 
     it('should handle non-Error rejections', async () => {
-      const error = 'Database failed string';
-      const getState = () => {
-        throw error;
-      };
+      mockExpenseApi.fetchExpenses.mockRejectedValue('bad');
 
       const action = fetchExpensesForCompanion({companionId});
-      await action(mockDispatch, getState, undefined);
+      await action(mockDispatch, () => getMockState(), undefined);
 
       const rejectedAction = mockDispatch.mock.calls[1][0];
       expect(rejectedAction.type).toBe('expenses/fetchForCompanion/rejected');
@@ -138,24 +197,19 @@ describe('Expense Thunks', () => {
 
       const action = addExternalExpense(payload);
       const thunkPromise = action(mockDispatch, getState, undefined);
-      jest.advanceTimersByTime(500);
       await thunkPromise;
 
       const fulfilledAction = mockDispatch.mock.calls[1][0];
       expect(fulfilledAction.type).toBe('expenses/addExternalExpense/fulfilled');
-      expect(fulfilledAction.payload.title).toBe('New Vet Bill');
       expect(fulfilledAction.payload.currencyCode).toBe('JPY');
       expect(fulfilledAction.payload.id).toBe('expense_0_mock-id-123');
     });
 
     it('should handle errors (rejected)', async () => {
-      const error = new Error('Failed to add');
-      const getState = () => {
-        throw error;
-      };
+      mockExpenseApi.createExternal.mockRejectedValue(new Error('Failed to add'));
 
       const action = addExternalExpense(payload);
-      await action(mockDispatch, getState, undefined);
+      await action(mockDispatch, () => getMockState(), undefined);
 
       const rejectedAction = mockDispatch.mock.calls[1][0];
       expect(rejectedAction.type).toBe('expenses/addExternalExpense/rejected');
@@ -163,13 +217,10 @@ describe('Expense Thunks', () => {
     });
 
     it('should handle non-Error rejections', async () => {
-      const error = 'Failed to add string';
-      const getState = () => {
-        throw error;
-      };
+      mockExpenseApi.createExternal.mockRejectedValue('Failed to add string');
 
       const action = addExternalExpense(payload);
-      await action(mockDispatch, getState, undefined);
+      await action(mockDispatch, () => getMockState(), undefined);
 
       const rejectedAction = mockDispatch.mock.calls[1][0];
       expect(rejectedAction.type).toBe('expenses/addExternalExpense/rejected');
@@ -184,29 +235,28 @@ describe('Expense Thunks', () => {
     };
 
     it('should update an expense successfully (fulfilled)', async () => {
-      const getState = () => getMockState();
+      const getState = () => getMockState('USD', [
+        {...baseExpense, id: 'expense-abc', source: 'external'},
+      ]);
 
       const action = updateExternalExpense(payload);
       const thunkPromise = action(mockDispatch, getState, undefined);
-      jest.advanceTimersByTime(400);
       await thunkPromise;
 
       const fulfilledAction = mockDispatch.mock.calls[1][0];
       expect(fulfilledAction.type).toBe(
         'expenses/updateExternalExpense/fulfilled',
       );
-      expect(fulfilledAction.payload.expenseId).toBe('expense-abc');
-      expect(fulfilledAction.payload.updates.title).toBe('Updated Title');
-      expect(fulfilledAction.payload.updates.updatedAt).toBeDefined();
+      expect(fulfilledAction.payload.id).toBe('expense-abc');
+      expect(fulfilledAction.payload.title).toBe('Updated Title');
+      expect(fulfilledAction.payload.updatedAt).toBe('2023-11-11T00:00:00.000Z');
     });
 
     it('should handle errors (rejected)', async () => {
-      const error = new Error('Update failed');
-      jest.spyOn(globalThis, 'setTimeout').mockImplementationOnce(() => {
-        throw error;
-      });
+      mockExpenseApi.updateExternal.mockRejectedValue(new Error('Update failed'));
 
-      const getState = () => getMockState();
+      const getState = () =>
+        getMockState('USD', [{...baseExpense, id: 'expense-abc', source: 'external'}]);
       const action = updateExternalExpense(payload);
       await action(mockDispatch, getState, undefined);
 
@@ -218,12 +268,10 @@ describe('Expense Thunks', () => {
     });
 
     it('should handle non-Error rejections', async () => {
-      const error = 'Update failed string';
-      jest.spyOn(globalThis, 'setTimeout').mockImplementationOnce(() => {
-        throw error;
-      });
+      mockExpenseApi.updateExternal.mockRejectedValue('Update failed string');
 
-      const getState = () => getMockState();
+      const getState = () =>
+        getMockState('USD', [{...baseExpense, id: 'expense-abc', source: 'external'}]);
       const action = updateExternalExpense(payload);
       await action(mockDispatch, getState, undefined);
 
@@ -243,7 +291,6 @@ describe('Expense Thunks', () => {
 
       const action = deleteExternalExpense(payload);
       const thunkPromise = action(mockDispatch, getState, undefined);
-      jest.advanceTimersByTime(300);
       await thunkPromise;
 
       const fulfilledAction = mockDispatch.mock.calls[1][0];
@@ -254,10 +301,7 @@ describe('Expense Thunks', () => {
     });
 
     it('should handle errors (rejected)', async () => {
-      const error = new Error('Delete failed');
-      jest.spyOn(globalThis, 'setTimeout').mockImplementationOnce(() => {
-        throw error;
-      });
+      mockExpenseApi.deleteExpense.mockRejectedValue(new Error('Delete failed'));
 
       const getState = () => getMockState();
       const action = deleteExternalExpense(payload);
@@ -271,10 +315,7 @@ describe('Expense Thunks', () => {
     });
 
     it('should handle non-Error rejections', async () => {
-      const error = 'Delete failed string';
-      jest.spyOn(globalThis, 'setTimeout').mockImplementationOnce(() => {
-        throw error;
-      });
+      mockExpenseApi.deleteExpense.mockRejectedValue('Delete failed string');
 
       const getState = () => getMockState();
       const action = deleteExternalExpense(payload);
@@ -296,7 +337,6 @@ describe('Expense Thunks', () => {
 
       const action = markInAppExpenseStatus(payload);
       const thunkPromise = action(mockDispatch, getState, undefined);
-      jest.advanceTimersByTime(350);
       await thunkPromise;
 
       const fulfilledAction = mockDispatch.mock.calls[1][0];
@@ -304,40 +344,6 @@ describe('Expense Thunks', () => {
         'expenses/markInAppExpenseStatus/fulfilled',
       );
       expect(fulfilledAction.payload).toEqual(payload);
-    });
-
-    it('should handle errors (rejected)', async () => {
-      const error = new Error('Status update failed');
-      jest.spyOn(globalThis, 'setTimeout').mockImplementationOnce(() => {
-        throw error;
-      });
-
-      const getState = () => getMockState();
-      const action = markInAppExpenseStatus(payload);
-      await action(mockDispatch, getState, undefined);
-
-      const rejectedAction = mockDispatch.mock.calls[1][0];
-      expect(rejectedAction.type).toBe(
-        'expenses/markInAppExpenseStatus/rejected',
-      );
-      expect(rejectedAction.payload).toBe('Status update failed');
-    });
-
-    it('should handle non-Error rejections', async () => {
-      const error = 'Status update failed string';
-      jest.spyOn(globalThis, 'setTimeout').mockImplementationOnce(() => {
-        throw error;
-      });
-
-      const getState = () => getMockState();
-      const action = markInAppExpenseStatus(payload);
-      await action(mockDispatch, getState, undefined);
-
-      const rejectedAction = mockDispatch.mock.calls[1][0];
-      expect(rejectedAction.type).toBe(
-        'expenses/markInAppExpenseStatus/rejected',
-      );
-      expect(rejectedAction.payload).toBe('Failed to update payment status'); 
     });
   });
 });

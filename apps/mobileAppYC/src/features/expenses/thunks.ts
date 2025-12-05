@@ -1,170 +1,37 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
-import {generateId} from '@/shared/utils/helpers';
 import type {RootState} from '@/app/store';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import expenseApi, {type ExpenseInputPayload} from './services/expenseService';
 import type {
   Expense,
-  ExpenseSummary,
   ExpenseAttachment,
   ExpensePaymentStatus,
+  ExpenseSummary,
 } from './types';
+import type {Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 
-const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const ensureAccessToken = async (): Promise<string> => {
+  const tokens = await getFreshStoredTokens();
+  const accessToken = tokens?.accessToken;
 
-const resolveCurrencyCode = (state: RootState): string => {
-  const code = state.auth.user?.currency;
-  return code && code.length > 0 ? code : 'USD';
+  if (!accessToken) {
+    throw new Error('Missing access token. Please sign in again.');
+  }
+
+  if (isTokenExpired(tokens?.expiresAt ?? undefined)) {
+    throw new Error('Your session expired. Please sign in again.');
+  }
+
+  return accessToken;
 };
 
-const formatDate = (offsetDays: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() - offsetDays);
-  return date.toISOString();
-};
+const resolveCurrencyCode = (state: RootState): string =>
+  state.auth.user?.currency && state.auth.user.currency.length > 0
+    ? state.auth.user.currency
+    : 'USD';
 
-const buildMockAttachments = (): ExpenseAttachment[] => [
-  {
-    id: `attachment_${generateId()}`,
-    name: 'invoice.pdf',
-    type: 'application/pdf',
-    size: 150_000,
-    uri: 'https://yes-s3-public-assets.s3.amazonaws.com/mock/medical-billing-invoice.pdf',
-    s3Url: 'https://yes-s3-public-assets.s3.amazonaws.com/mock/medical-billing-invoice.pdf',
-  },
-];
-
-const createMockExpensesForCompanion = (
-  companionId: string,
-  currencyCode: string,
-): Expense[] => {
-  const baseAmount = Math.round(
-  (Array.from(companionId).reduce((acc, char) => acc + (char.codePointAt(0) ?? 0), 0) %
-      250) +
-      120,
-  );
-
-  const vaccinationExpense: Expense = {
-    id: `expense_${companionId}_vaccination`,
-    companionId,
-    title: 'Vaccination',
-    category: 'health',
-    subcategory: 'vaccination-parasite',
-    visitType: 'Hospital',
-    amount: baseAmount,
-    currencyCode,
-    status: 'unpaid',
-    source: 'inApp',
-    date: formatDate(14),
-    createdAt: formatDate(14),
-    updatedAt: formatDate(14),
-    attachments: buildMockAttachments(),
-    providerName: 'Concordia Hill Hospital',
-  };
-
-  const groomingExpense: Expense = {
-    id: `expense_${companionId}_grooming`,
-    companionId,
-    title: 'Grooming Session',
-    category: 'hygiene-maintenance',
-    subcategory: 'grooming-visits',
-    visitType: 'Groomer',
-    amount: baseAmount - 25,
-    currencyCode,
-    status: 'paid',
-    source: 'inApp',
-    date: formatDate(38),
-    createdAt: formatDate(38),
-    updatedAt: formatDate(38),
-    attachments: buildMockAttachments(),
-    providerName: 'Happy Paws Grooming',
-  };
-
-  const wellnessExpense: Expense = {
-    id: `expense_${companionId}_wellness`,
-    companionId,
-    title: 'Wellness Check-up',
-    category: 'health',
-    subcategory: 'hospital-visits',
-    visitType: 'Hospital',
-    amount: baseAmount + 32,
-    currencyCode,
-    status: 'unpaid',
-    source: 'inApp',
-    date: formatDate(7),
-    createdAt: formatDate(7),
-    updatedAt: formatDate(7),
-    attachments: buildMockAttachments(),
-    providerName: 'Skyline Veterinary Clinic',
-  };
-
-  const therapyExpense: Expense = {
-    id: `expense_${companionId}_therapy`,
-    companionId,
-    title: 'Hydrotherapy Session',
-    category: 'hygiene-maintenance',
-    subcategory: 'grooming-visits',
-    visitType: 'Groomer',
-    amount: baseAmount - 15,
-    currencyCode,
-    status: 'paid',
-    source: 'inApp',
-    date: formatDate(20),
-    createdAt: formatDate(20),
-    updatedAt: formatDate(20),
-    attachments: buildMockAttachments(),
-    providerName: 'Aqua Paws Rehab',
-  };
-
-  const boardingExpense: Expense = {
-    id: `expense_${companionId}_boarding`,
-    companionId,
-    title: 'Boarding for 3 Days',
-    category: 'hygiene-maintenance',
-    subcategory: 'boarding-records',
-    visitType: 'Boarder',
-    amount: baseAmount + 42,
-    currencyCode,
-    status: 'paid',
-    source: 'external',
-    date: formatDate(62),
-    createdAt: formatDate(62),
-    updatedAt: formatDate(62),
-    attachments: buildMockAttachments(),
-    providerName: 'Cozy Pets Boarding',
-  };
-
-  const trainingExpense: Expense = {
-    id: `expense_${companionId}_training`,
-    companionId,
-    title: 'Training Refresh Session',
-    category: 'hygiene-maintenance',
-    subcategory: 'training-behaviour',
-    visitType: 'Other',
-    amount: baseAmount - 10,
-    currencyCode,
-    status: 'paid',
-    source: 'external',
-    date: formatDate(90),
-    createdAt: formatDate(90),
-    updatedAt: formatDate(90),
-    attachments: buildMockAttachments(),
-    providerName: 'Peak Performance Trainers',
-  };
-
-  return [
-    vaccinationExpense,
-    groomingExpense,
-    wellnessExpense,
-    therapyExpense,
-    boardingExpense,
-    trainingExpense,
-  ];
-};
-
-const calculateSummary = (expenses: Expense[], currencyCode: string): ExpenseSummary => ({
-  total: expenses.reduce((acc, expense) => acc + expense.amount, 0),
-  currencyCode,
-  lastUpdated: new Date().toISOString(),
-});
+const resolveParentId = (state: RootState): string =>
+  (state.auth.user as any)?.parentId ?? state.auth.user?.id ?? '';
 
 export const fetchExpensesForCompanion = createAsyncThunk<
   {companionId: string; expenses: Expense[]; summary: ExpenseSummary},
@@ -172,22 +39,43 @@ export const fetchExpensesForCompanion = createAsyncThunk<
   {rejectValue: string; state: RootState}
 >('expenses/fetchForCompanion', async ({companionId}, {getState, rejectWithValue}) => {
   try {
+    if (!companionId) {
+      throw new Error('Please select a companion to view expenses.');
+    }
+    const accessToken = await ensureAccessToken();
     const state = getState();
     const currencyCode = resolveCurrencyCode(state);
 
-    await mockDelay(600);
+    const [expenses, summary] = await Promise.all([
+      expenseApi.fetchExpenses({companionId, accessToken}),
+      expenseApi.fetchSummary({companionId, accessToken, currencyCode}),
+    ]);
 
-    const generated = createMockExpensesForCompanion(companionId, currencyCode);
-    const summary = calculateSummary(generated, currencyCode);
-
-    return {
-      companionId,
-      expenses: generated,
-      summary,
-    };
+    return {companionId, expenses, summary};
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to fetch expenses',
+    );
+  }
+});
+
+export const fetchExpenseSummary = createAsyncThunk<
+  {companionId: string; summary: ExpenseSummary},
+  {companionId: string},
+  {rejectValue: string; state: RootState}
+>('expenses/fetchSummary', async ({companionId}, {getState, rejectWithValue}) => {
+  try {
+    if (!companionId) {
+      throw new Error('Please select a companion to view expenses.');
+    }
+    const accessToken = await ensureAccessToken();
+    const state = getState();
+    const currencyCode = resolveCurrencyCode(state);
+    const summary = await expenseApi.fetchSummary({companionId, accessToken, currencyCode});
+    return {companionId, summary};
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to fetch expense summary',
     );
   }
 });
@@ -202,7 +90,26 @@ export interface AddExternalExpensePayload {
   date: string;
   attachments: ExpenseAttachment[];
   providerName?: string;
+  note?: string;
 }
+
+const buildExpenseInput = (
+  state: RootState,
+  payload: AddExternalExpensePayload,
+): ExpenseInputPayload => ({
+  companionId: payload.companionId,
+  parentId: resolveParentId(state),
+  category: payload.category,
+  subcategory: payload.subcategory,
+  visitType: payload.visitType,
+  expenseName: payload.title,
+  businessName: payload.providerName ?? '',
+  date: payload.date,
+  amount: payload.amount,
+  currency: resolveCurrencyCode(state),
+  attachments: payload.attachments,
+  note: payload.note ?? '',
+});
 
 export const addExternalExpense = createAsyncThunk<
   Expense,
@@ -211,29 +118,9 @@ export const addExternalExpense = createAsyncThunk<
 >('expenses/addExternalExpense', async (payload, {getState, rejectWithValue}) => {
   try {
     const state = getState();
-    const currencyCode = resolveCurrencyCode(state);
-
-    await mockDelay(500);
-
-    const now = new Date().toISOString();
-
-    return {
-      id: `expense_${Date.now()}_${generateId()}`,
-      companionId: payload.companionId,
-      title: payload.title,
-      category: payload.category,
-      subcategory: payload.subcategory,
-      visitType: payload.visitType,
-      amount: payload.amount,
-      currencyCode,
-      status: 'paid',
-      source: 'external',
-      date: payload.date,
-      createdAt: now,
-      updatedAt: now,
-      attachments: payload.attachments,
-      providerName: payload.providerName,
-    };
+    const accessToken = await ensureAccessToken();
+    const input = buildExpenseInput(state, payload);
+    return await expenseApi.createExternal({input, accessToken});
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to add expense',
@@ -254,25 +141,47 @@ export interface UpdateExternalExpensePayload {
       | 'date'
       | 'attachments'
       | 'providerName'
+      | 'note'
     >
   >;
 }
 
 export const updateExternalExpense = createAsyncThunk<
-  {expenseId: string; updates: UpdateExternalExpensePayload['updates']},
+  Expense,
   UpdateExternalExpensePayload,
-  {rejectValue: string}
->('expenses/updateExternalExpense', async ({expenseId, updates}, {rejectWithValue}) => {
+  {rejectValue: string; state: RootState}
+>('expenses/updateExternalExpense', async ({expenseId, updates}, {rejectWithValue, getState}) => {
   try {
-    await mockDelay(400);
+    const state = getState();
+    const existing = state.expenses.items.find(item => item.id === expenseId);
+    if (!existing) {
+      throw new Error('Expense not found.');
+    }
+    if (existing.source !== 'external') {
+      throw new Error('Only external expenses can be edited.');
+    }
 
-    return {
-      expenseId,
-      updates: {
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      },
+    const accessToken = await ensureAccessToken();
+    const input: ExpenseInputPayload = {
+      companionId: existing.companionId,
+      parentId: resolveParentId(state),
+      category: updates.category ?? existing.category,
+      subcategory: updates.subcategory ?? existing.subcategory,
+      visitType: updates.visitType ?? existing.visitType,
+      expenseName: updates.title ?? existing.title,
+      businessName:
+        updates.providerName ??
+        existing.providerName ??
+        existing.businessName ??
+        '',
+      date: updates.date ?? existing.date,
+      amount: updates.amount ?? existing.amount,
+      currency: resolveCurrencyCode(state),
+      attachments: updates.attachments ?? existing.attachments,
+      note: updates.note ?? existing.note ?? existing.description ?? '',
     };
+
+    return await expenseApi.updateExternal({expenseId, input, accessToken});
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to update expense',
@@ -286,7 +195,8 @@ export const deleteExternalExpense = createAsyncThunk<
   {rejectValue: string}
 >('expenses/deleteExternalExpense', async ({expenseId, companionId}, {rejectWithValue}) => {
   try {
-    await mockDelay(300);
+    const accessToken = await ensureAccessToken();
+    await expenseApi.deleteExpense({expenseId, accessToken});
     return {expenseId, companionId};
   } catch (error) {
     return rejectWithValue(
@@ -301,11 +211,71 @@ export const markInAppExpenseStatus = createAsyncThunk<
   {rejectValue: string}
 >('expenses/markInAppExpenseStatus', async ({expenseId, status}, {rejectWithValue}) => {
   try {
-    await mockDelay(350);
+    // Backend status updates are handled via payment flows; this thunk keeps local UI responsive.
     return {expenseId, status};
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to update payment status',
+    );
+  }
+});
+
+export const fetchExpenseInvoice = createAsyncThunk<
+  {invoice: Invoice | null; paymentIntent: PaymentIntentInfo | null; paymentIntentId: string | null; organistion?: any; organisation?: any},
+  {invoiceId: string},
+  {rejectValue: string}
+>('expenses/fetchInvoice', async ({invoiceId}, {rejectWithValue}) => {
+  try {
+    const accessToken = await ensureAccessToken();
+    return await expenseApi.fetchInvoice({invoiceId, accessToken});
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to fetch invoice',
+    );
+  }
+});
+
+export const fetchExpensePaymentIntent = createAsyncThunk<
+  PaymentIntentInfo,
+  {paymentIntentId: string},
+  {rejectValue: string}
+>('expenses/fetchPaymentIntent', async ({paymentIntentId}, {rejectWithValue}) => {
+  try {
+    const accessToken = await ensureAccessToken();
+    return await expenseApi.fetchPaymentIntent({paymentIntentId, accessToken});
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to fetch payment intent',
+    );
+  }
+});
+
+export const fetchExpensePaymentIntentByInvoice = createAsyncThunk<
+  PaymentIntentInfo,
+  {invoiceId: string},
+  {rejectValue: string}
+>('expenses/fetchPaymentIntentByInvoice', async ({invoiceId}, {rejectWithValue}) => {
+  try {
+    const accessToken = await ensureAccessToken();
+    return await expenseApi.fetchPaymentIntentByInvoice({invoiceId, accessToken});
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to fetch payment intent',
+    );
+  }
+});
+
+export const fetchExpenseById = createAsyncThunk<
+  Expense,
+  {expenseId: string},
+  {rejectValue: string}
+>('expenses/fetchExpenseById', async ({expenseId}, {rejectWithValue}) => {
+  try {
+    const accessToken = await ensureAccessToken();
+    return await expenseApi.fetchExpenseById({expenseId, accessToken});
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : 'Failed to load expense details',
     );
   }
 });

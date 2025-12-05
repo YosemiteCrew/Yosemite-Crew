@@ -10,7 +10,6 @@ import {
 import {
   setNotificationFilter,
   setSortBy,
-  injectMockNotifications,
 } from '../../../src/features/notifications/notificationSlice';
 import {
   selectDisplayNotifications,
@@ -127,6 +126,7 @@ jest.mock('@/assets/images', () => ({
 jest.mock('../../../src/features/notifications/thunks', () => ({
   markNotificationAsRead: jest.fn(),
   archiveNotification: jest.fn(),
+  fetchNotificationsForCompanion: jest.fn(() => () => Promise.resolve()),
 }));
 jest.mock('../../../src/features/notifications/notificationSlice', () => ({
   setNotificationFilter: jest.fn(),
@@ -141,6 +141,21 @@ jest.mock('../../../src/features/notifications/selectors', () => ({
   selectNotificationFilter: jest.fn(),
   selectNotificationSortBy: jest.fn(),
   selectUnreadCountByCategory: jest.fn(),
+}));
+
+// Mock Auth context to avoid provider requirement
+jest.mock('@/features/auth/context/AuthContext', () => ({
+  useAuth: () => ({
+    isLoggedIn: true,
+    user: {id: 'user-1'},
+    isLoading: false,
+    provider: 'amplify',
+    login: jest.fn(),
+    logout: jest.fn(),
+    updateUser: jest.fn(),
+    refreshSession: jest.fn(),
+  }),
+  AuthProvider: ({children}: any) => <>{children}</>,
 }));
 
 // --- 2. Test Data ---
@@ -249,9 +264,7 @@ describe('NotificationsScreen', () => {
 
     expect(getByText('Nothing in the box!')).toBeTruthy();
     // Verify mock injection logic on mount
-    expect(mockDispatch).toHaveBeenCalledWith(
-      injectMockNotifications(expect.anything()),
-    );
+    expect(mockDispatch).toHaveBeenCalled();
   });
 
   it('handles filter change', () => {

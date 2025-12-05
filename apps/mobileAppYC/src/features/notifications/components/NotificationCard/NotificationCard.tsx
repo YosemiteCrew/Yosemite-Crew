@@ -105,7 +105,11 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
 
-    return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    return date.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   }, []);
 
   const getIconFromImages = useCallback((iconKey: string) => {

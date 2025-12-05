@@ -293,6 +293,13 @@ export const typography = {
     lineHeight: 14 * 1.2,
     fontWeight: fontWeights.bold,
   },
+  clashBody13: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: 13,
+    lineHeight: 13 * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.13,
+  },
   buttonH6Clash19: {
     fontFamily: fonts.CLASH_GRO_MEDIUM,
     fontSize: 19,
