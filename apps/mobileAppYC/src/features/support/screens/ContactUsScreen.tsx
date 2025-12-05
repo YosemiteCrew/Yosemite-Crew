@@ -296,6 +296,12 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   const [complaintForm, setComplaintForm] = React.useState(
     buildInitialComplaintFormState(),
   );
+  const [complaintAttachments, setComplaintAttachments] = React.useState<
+    DocumentFile[]
+  >([]);
+  const [attachmentError, setAttachmentError] = React.useState<
+    string | undefined
+  >(undefined);
 
   const validateSimpleForm = React.useCallback(
     (tabId: 'general' | 'feature') => {
@@ -583,7 +589,6 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
     resolvedCompanionId,
     resolvedParentId,
     setSubmittingFor,
-    uploadContactAttachments,
     validateComplaintForm,
   ]);
 
@@ -591,12 +596,6 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   const uploadSheetRef = React.useRef<UploadDocumentBottomSheetRef>(null);
   const deleteSheetRef = React.useRef<DeleteDocumentBottomSheetRef>(null);
   const activeSheetRef = React.useRef<'upload' | 'delete' | null>(null);
-  const [complaintAttachments, setComplaintAttachments] = React.useState<
-    DocumentFile[]
-  >([]);
-  const [attachmentError, setAttachmentError] = React.useState<
-    string | undefined
-  >(undefined);
 
   const openSheet = React.useCallback((sheet: string) => {
     if (sheet === 'upload') {
@@ -757,7 +756,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <LiquidGlassButton
           title={tabId === 'feature' ? 'Send' : 'Submit'}
           onPress={() => {
-            void handleSimpleFormSubmit(tabId);
+            handleSimpleFormSubmit(tabId);
           }}
           glassEffect="regular"
           interactive
@@ -914,7 +913,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <LiquidGlassButton
           title="Submit"
           onPress={() => {
-            void handleDsarSubmit();
+            handleDsarSubmit();
           }}
           glassEffect="regular"
           interactive
@@ -1033,7 +1032,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <LiquidGlassButton
           title="Submit"
           onPress={() => {
-            void handleComplaintSubmit();
+            handleComplaintSubmit();
           }}
           glassEffect="regular"
           interactive

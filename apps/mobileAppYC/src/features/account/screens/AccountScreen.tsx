@@ -357,7 +357,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         title="Account"
         showBackButton
         onBack={handleBackPress}
-        rightIcon={Images.notificationIcon}
         onRightPress={() => {}}
       />
       <View style={styles.contentWrapper}>
