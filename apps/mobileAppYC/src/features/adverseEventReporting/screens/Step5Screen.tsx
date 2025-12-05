@@ -22,40 +22,30 @@ import {
 import UploadDeleteSheets from '@/shared/components/common/UploadDeleteSheets/UploadDeleteSheets';
 import {useFileOperations} from '@/shared/hooks/useFileOperations';
 import {CountryBottomSheet, type CountryBottomSheetRef} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
-import COUNTRIES from '@/shared/utils/countryList.json';
 import {AdministrationMethodBottomSheet, type AdministrationMethodBottomSheetRef} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
 import type {DocumentFile} from '@/features/documents/types';
 import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
+import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
+import type {
+  AdverseEventProductInfo,
+} from '@/features/adverseEventReporting/types';
+import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReporting/content/supportedCountries';
 
-type Step5FormData = {
-  productName: string;
-  brandName: string;
-  manufacturingCountry: null | {
-    name: string;
-    code: string;
-    flag: string;
-    dial_code: string;
-  };
-  batchNumber: string;
-  frequencyUsed: string;
-  quantityUsed: string;
-  quantityUnit: 'tablet' | 'liquid';
-  administrationMethod:
-    | null
-    | 'none'
-    | 'by mouth'
-    | 'on the skin'
-    | 'subcutaneous injection'
-    | 'intramuscular injection'
-    | 'into the ear'
-    | 'into the eye'
-    | 'other';
-  reasonToUseProduct: string;
-  petConditionBefore: string;
-  petConditionAfter: string;
-  eventDate: Date;
-  files: DocumentFile[];
-};
+const createInitialFormData = (): AdverseEventProductInfo => ({
+  productName: '',
+  brandName: '',
+  manufacturingCountry: null,
+  batchNumber: '',
+  frequencyUsed: '',
+  quantityUsed: '',
+  quantityUnit: 'tablet',
+  administrationMethod: null,
+  reasonToUseProduct: '',
+  petConditionBefore: '',
+  petConditionAfter: '',
+  eventDate: new Date(),
+  files: [],
+});
 
 type Step5FormErrors = {
   productName: string;
@@ -87,25 +77,45 @@ const createInitialErrors = (): Step5FormErrors => ({
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step5'>;
 
+const findSupportedCountry = (
+  country?: {code?: string | null; name?: string | null} | null,
+) => {
+  if (!country) {
+    return null;
+  }
+  const name = country.name?.toLowerCase();
+  const code = country.code;
+  return (
+    SUPPORTED_ADVERSE_EVENT_COUNTRIES.find(
+      c =>
+        (code && c.code === code) ||
+        (name && c.name.toLowerCase() === name),
+    ) ?? null
+  );
+};
+
 export const Step5Screen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const common = useMemo(() => createCommonFormStyles(theme), [theme]);
+  const {draft, setProductInfo} = useAdverseEventReport();
 
-  const [formData, setFormData] = useState<Step5FormData>({
-    productName: '',
-    brandName: '',
-    manufacturingCountry: null,
-    batchNumber: '',
-    frequencyUsed: '',
-    quantityUsed: '',
-    quantityUnit: 'tablet',
-    administrationMethod: null,
-    reasonToUseProduct: '',
-    petConditionBefore: '',
-    petConditionAfter: '',
-    eventDate: new Date(),
-    files: [],
+  const [formData, setFormData] = useState<AdverseEventProductInfo>(() => {
+    const productInfo = draft.productInfo;
+    if (productInfo) {
+      const matchedCountry = findSupportedCountry(
+        productInfo.manufacturingCountry,
+      );
+      return {
+        ...productInfo,
+        manufacturingCountry: matchedCountry,
+        eventDate: productInfo.eventDate
+          ? new Date(productInfo.eventDate)
+          : new Date(),
+        files: productInfo.files ?? [],
+      };
+    }
+    return createInitialFormData();
   });
   const [formErrors, setFormErrors] = useState<Step5FormErrors>(() =>
     createInitialErrors(),
@@ -126,6 +136,23 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
     registerSheet('country', countrySheetRef as any);
     registerSheet('admin', adminSheetRef as any);
   }, [registerSheet]);
+
+  React.useEffect(() => {
+    const productInfo = draft.productInfo;
+    if (productInfo) {
+      const matchedCountry = findSupportedCountry(
+        productInfo.manufacturingCountry,
+      );
+      setFormData({
+        ...productInfo,
+        manufacturingCountry: matchedCountry,
+        eventDate: productInfo.eventDate
+          ? new Date(productInfo.eventDate)
+          : new Date(),
+        files: productInfo.files ?? [],
+      });
+    }
+  }, [draft.productInfo]);
 
   // File operations (reuse same handlers as Documents flow)
   const clearFieldError = (field: keyof Step5FormErrors) => {
@@ -247,6 +274,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
     if (!validateForm()) {
       return;
     }
+    setProductInfo(formData);
     navigation.navigate('ThankYou');
   };
 
@@ -439,7 +467,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
 
       <CountryBottomSheet
         ref={countrySheetRef}
-        countries={COUNTRIES as any}
+        countries={SUPPORTED_ADVERSE_EVENT_COUNTRIES}
         selectedCountry={formData.manufacturingCountry as any}
         onSave={country => {
           setFormData(prev => ({...prev, manufacturingCountry: country}));
