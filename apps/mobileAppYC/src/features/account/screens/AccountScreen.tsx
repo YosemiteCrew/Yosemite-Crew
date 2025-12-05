@@ -28,6 +28,7 @@ import {HomeStackParamList} from '@/navigation/types';
 import {selectCompanions, setSelectedCompanion} from '@/features/companion';
 import type {Companion} from '@/features/companion/types';
 import type {ParentCompanionAccess} from '@/features/coParent';
+import DeviceInfo from 'react-native-device-info';
 import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from '@/features/account/components/DeleteAccountBottomSheet';
@@ -74,6 +75,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [failedProfileImages, setFailedProfileImages] = useState<Record<string, boolean>>({});
+  const [appVersion, setAppVersion] = useState<string>('');
   const handleProfileImageError = React.useCallback((id: string) => {
     setFailedProfileImages(prev => {
       if (prev[id]) {
@@ -224,6 +226,11 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
     return () => backHandler.remove();
   }, [isDeleteSheetOpen]);
+
+  useEffect(() => {
+    const version = `${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`;
+    setAppVersion(version);
+  }, []);
 
   const handleDeletePress = React.useCallback(() => {
     setIsDeleteSheetOpen(true);
@@ -454,6 +461,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
               <Image source={Images.logoutIcon} style={styles.logoutIcon} />
             }
           />
+          {!!appVersion && (
+            <Text style={styles.versionText}>Version {appVersion}</Text>
+          )}
         </ScrollView>
       </View>
 
@@ -567,6 +577,12 @@ const createStyles = (theme: any) =>
     logoutText: {
       ...theme.typography.button,
       color: theme.colors.secondary,
+    },
+    versionText: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginTop: theme.spacing['2'],
     },
     logoutIcon: {
       width: 18,

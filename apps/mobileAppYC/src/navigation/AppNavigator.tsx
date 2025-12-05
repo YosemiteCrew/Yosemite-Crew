@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {createNativeStackNavigator, NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useNavigation} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {DeviceEventEmitter, Alert} from 'react-native';
+import {DeviceEventEmitter, Alert, Linking} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {RootStackParamList} from './types';
 import {AuthNavigator} from './AuthNavigator';
@@ -30,6 +30,10 @@ import {
 import {fetchCompanions, selectSelectedCompanionId} from '@/features/companion';
 import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  fetchBusinessDetails,
+  selectLinkedHospitalsForCompanion,
+} from '@/features/linkedBusinesses';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
@@ -242,11 +246,27 @@ const checkOnboardingStatus = async () => {
 
 const AppNavigatorEmergencySheet: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const dispatch = useDispatch<AppDispatch>();
   const emergencySheetRef = React.useRef<any>(null);
   const {setEmergencySheetRef} = useEmergency();
 
   // Get selected companion ID from Redux
   const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const linkedHospitals = useSelector((state: RootState) =>
+    selectLinkedHospitalsForCompanion(state, selectedCompanionId ?? null),
+  );
+
+  const [hospitalPhone, setHospitalPhone] = React.useState<string | null>(null);
+  const primaryHospital = React.useMemo(() => {
+    if (!linkedHospitals?.length) {
+      return null;
+    }
+    return [...linkedHospitals].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return bTime - aTime;
+    })[0];
+  }, [linkedHospitals]);
 
   React.useEffect(() => {
     if (emergencySheetRef.current) {
@@ -254,9 +274,81 @@ const AppNavigatorEmergencySheet: React.FC = () => {
     }
   }, [setEmergencySheetRef]);
 
-  const handleCallVet = React.useCallback(() => {
-    console.log('[AppNavigator] Call vet clicked');
+  const fetchHospitalPhone = React.useCallback(async () => {
+    if (!primaryHospital) {
+      setHospitalPhone(null);
+      return null;
+    }
+    if (primaryHospital.phone?.trim()) {
+      const trimmed = primaryHospital.phone.trim();
+      setHospitalPhone(trimmed);
+      return trimmed;
+    }
+    const placeId =
+      primaryHospital.placeId ??
+      (primaryHospital as any)?.googlePlacesId ??
+      (primaryHospital as any)?.organisation?.googlePlacesId;
+    if (!placeId) {
+      setHospitalPhone(null);
+      return null;
+    }
+    try {
+      const details = await dispatch(fetchBusinessDetails(placeId)).unwrap();
+      const phoneNumber = details?.phoneNumber?.trim() ?? null;
+      setHospitalPhone(phoneNumber);
+      return phoneNumber;
+    } catch (error) {
+      console.warn('[AppNavigator] Failed to fetch hospital phone', error);
+      setHospitalPhone(null);
+      return null;
+    }
+  }, [dispatch, primaryHospital]);
+
+  React.useEffect(() => {
+    fetchHospitalPhone();
+  }, [fetchHospitalPhone]);
+
+  const tryOpenDialer = React.useCallback(async (url: string) => {
+    try {
+      await Linking.openURL(url);
+      return true;
+    } catch (error) {
+      console.warn('[AppNavigator] Dialer open failed', {url, error});
+      return false;
+    }
   }, []);
+
+  const handleCallVet = React.useCallback(async () => {
+    if (!primaryHospital) {
+      Alert.alert('Hospital not linked', 'Link a hospital to quickly call your vet.');
+      return;
+    }
+    const phone = hospitalPhone ?? (await fetchHospitalPhone());
+    if (!phone) {
+      Alert.alert(
+        'Contact unavailable',
+        'We could not find a phone number for your linked hospital.',
+      );
+      return;
+    }
+    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    if (!normalizedPhone) {
+      Alert.alert(
+        'Contact unavailable',
+        'The hospital phone number seems invalid. Please update it and try again.',
+      );
+      return;
+    }
+    const telUrl = `tel:${normalizedPhone}`;
+    const telPromptUrl = `telprompt:${normalizedPhone}`;
+    const opened = (await tryOpenDialer(telUrl)) || (await tryOpenDialer(telPromptUrl));
+    if (!opened) {
+      Alert.alert(
+        'Dialer unavailable',
+        `Please call this number manually: ${normalizedPhone}`,
+      );
+    }
+  }, [fetchHospitalPhone, hospitalPhone, primaryHospital, tryOpenDialer]);
 
   const handleAdverseEvent = React.useCallback(() => {
     console.log('[AppNavigator] Adverse event clicked - navigating to AdverseEvent');
