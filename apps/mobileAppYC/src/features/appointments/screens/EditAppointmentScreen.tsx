@@ -303,6 +303,7 @@ export const EditAppointmentScreen: React.FC = () => {
               height={56}
               borderRadius={16}
               disabled={isReschedule && (!time || appointmentsLoading || saving)}
+              loading={appointmentsLoading || saving}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
