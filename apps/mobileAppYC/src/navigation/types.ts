@@ -5,6 +5,7 @@ import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import type {AuthStackParamList} from './AuthNavigator';
 import type {TaskCategory} from '@/features/tasks/types';
 import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
+import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -127,6 +128,11 @@ export type AppointmentStackParamList = {
   };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
   BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
+  OrganisationDocument: {
+    organisationId: string;
+    organisationName?: string | null;
+    category: OrganisationDocumentCategory;
+  };
 };
 
 export type ExpenseStackParamList = {

@@ -26,6 +26,7 @@ import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
+import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
@@ -37,7 +38,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const {appointmentId} = route.params as {appointmentId: string};
-  const {handleOpenTerms, handleOpenPrivacy} = useNavigateToLegalPages();
+  const {handleOpenTerms: handleOpenAppTerms, handleOpenPrivacy: handleOpenAppPrivacy} = useNavigateToLegalPages();
   const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
   const service = useSelector(selectServiceById(apt?.serviceId ?? null));
   const availabilitySelector = React.useMemo(
@@ -53,6 +54,14 @@ export const EditAppointmentScreen: React.FC = () => {
   const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === apt?.employeeId));
   const companions = useSelector((s: RootState) => s.companion.companions);
   const appointmentsLoading = useSelector((s: RootState) => s.appointments.loading);
+  const {
+    openTerms: openBusinessTerms,
+    openPrivacy: openBusinessPrivacy,
+    openCancellation: openBusinessCancellation,
+  } = useOrganisationDocumentNavigation({
+    organisationId: apt?.businessId ?? business?.id,
+    organisationName: business?.name ?? apt?.organisationName ?? undefined,
+  });
 
   const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const firstAvailableDate = useMemo(
@@ -78,6 +87,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
+  const businessDisplayName = business?.name ?? apt?.organisationName ?? 'this clinic';
   const linkStyle = {
     ...theme.typography.paragraphBold,
     color: theme.colors.primary,
@@ -253,16 +263,19 @@ export const EditAppointmentScreen: React.FC = () => {
               value: true,
               label: (
                 <Text>
-                  I agree to {(business?.name ?? apt?.organisationName ?? 'this clinic')}'s{' '}
-                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                  I agree to {businessDisplayName}'s{' '}
+                  <Text style={linkStyle} onPress={openBusinessTerms}>
                     terms and conditions
                   </Text>
-                  , and{' '}
-                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                  ,{' '}
+                  <Text style={linkStyle} onPress={openBusinessPrivacy}>
                     privacy policy
                   </Text>
-                  . I consent to the sharing of my companion's health information with{' '}
-                  {business?.name ?? apt?.organisationName ?? 'this clinic'} for the purpose of assessment.
+                  , and{' '}
+                  <Text style={linkStyle} onPress={openBusinessCancellation}>
+                    cancellation policy
+                  </Text>
+                  . I consent to the sharing of my companion's health information with {businessDisplayName} for the purpose of assessment.
                 </Text>
               ),
             },
@@ -272,11 +285,11 @@ export const EditAppointmentScreen: React.FC = () => {
               label: (
                 <Text>
                   I agree to Yosemite Crew's{' '}
-                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                  <Text style={linkStyle} onPress={handleOpenAppTerms}>
                     terms and conditions
                   </Text>{' '}
                   and{' '}
-                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                  <Text style={linkStyle} onPress={handleOpenAppPrivacy}>
                     privacy policy
                   </Text>
                 </Text>

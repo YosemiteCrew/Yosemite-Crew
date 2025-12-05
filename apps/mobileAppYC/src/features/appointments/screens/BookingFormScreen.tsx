@@ -35,6 +35,7 @@ import {uploadDocumentFiles} from '@/features/documents/documentSlice';
 import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
+import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -86,7 +87,15 @@ export const BookingFormScreen: React.FC = () => {
     ...theme.typography.paragraphBold,
     color: theme.colors.primary,
   };
-  const {handleOpenTerms, handleOpenPrivacy} = useNavigateToLegalPages();
+  const {handleOpenTerms: handleOpenAppTerms, handleOpenPrivacy: handleOpenAppPrivacy} = useNavigateToLegalPages();
+  const {
+    openTerms: openBusinessTerms,
+    openPrivacy: openBusinessPrivacy,
+    openCancellation: openBusinessCancellation,
+  } = useOrganisationDocumentNavigation({
+    organisationId: business?.id ?? businessId,
+    organisationName: business?.name ?? businessDisplayName,
+  });
   useAutoSelectCompanion(companions, selectedCompanionId);
 
   const todayISO = useMemo(() => formatDateToISODate(new Date()), []);
@@ -374,12 +383,16 @@ export const BookingFormScreen: React.FC = () => {
               label: (
                 <Text>
                   I agree to {businessDisplayName}'s{' '}
-                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                  <Text style={linkStyle} onPress={openBusinessTerms}>
                     terms and conditions
                   </Text>
-                  , and{' '}
-                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                  ,{' '}
+                  <Text style={linkStyle} onPress={openBusinessPrivacy}>
                     privacy policy
+                  </Text>
+                  , and{' '}
+                  <Text style={linkStyle} onPress={openBusinessCancellation}>
+                    cancellation policy
                   </Text>
                   .
                 </Text>
@@ -392,11 +405,11 @@ export const BookingFormScreen: React.FC = () => {
               label: (
                 <Text>
                   I agree to Yosemite Crew's{' '}
-                  <Text style={linkStyle} onPress={handleOpenTerms}>
+                  <Text style={linkStyle} onPress={handleOpenAppTerms}>
                     terms and conditions
                   </Text>{' '}
                   and{' '}
-                  <Text style={linkStyle} onPress={handleOpenPrivacy}>
+                  <Text style={linkStyle} onPress={handleOpenAppPrivacy}>
                     privacy policy
                   </Text>
                 </Text>
