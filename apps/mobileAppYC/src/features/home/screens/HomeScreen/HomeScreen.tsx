@@ -59,8 +59,8 @@ import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/a
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
-import {appointmentApi} from '@/features/appointments/services/appointmentsService';
+import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
+import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
 import {
   selectHasHydratedCompanion as selectNotificationsHydrated,
@@ -125,9 +125,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     upcomingAppointmentsSelector(state, selectedCompanionIdRedux ?? null),
   );
   const hasUnreadNotifications = unreadNotifications > 0;
-  const [orgRatings, setOrgRatings] = React.useState<
-    Record<string, {isRated: boolean; rating?: number | null; review?: string | null; loading?: boolean}>
-  >({});
+  const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
   const [businessSearch, setBusinessSearch] = React.useState('');
   const hasNotificationsHydrated = useSelector(
     selectNotificationsHydrated('default-companion'),
@@ -424,35 +422,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   // Fetch business photo fallbacks when primary photos are missing or dummy
   useFetchPhotoFallbacks(upcomingAppointments, businessMap, requestBusinessPhoto);
 
-  const fetchOrgRatingIfNeeded = React.useCallback(
-    async (organisationId?: string | null) => {
-      if (
-        !organisationId ||
-        orgRatings[organisationId]?.loading ||
-        typeof orgRatings[organisationId]?.isRated === 'boolean'
-      ) {
-        return;
-      }
-      try {
-        setOrgRatings(prev => ({...prev, [organisationId]: {...prev[organisationId], loading: true}}));
-        const tokens = await getFreshStoredTokens();
-        const accessToken = tokens?.accessToken;
-        if (!accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
-          setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
-          return;
-        }
-        const res = await appointmentApi.getOrganisationRatingStatus({
-          organisationId,
-          accessToken,
-        });
-        setOrgRatings(prev => ({...prev, [organisationId]: {...res, loading: false}}));
-      } catch (error) {
-        console.warn('[Home] Failed to fetch rating status', error);
-        setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
-      }
-    },
-    [orgRatings],
-  );
+  const fetchOrgRatingIfNeeded = useFetchOrgRatingIfNeeded({
+    orgRatings,
+    setOrgRatings,
+    logTag: 'Home',
+  });
 
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
@@ -601,22 +575,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       Images,
     );
 
-    const {
-      cardTitle,
-      cardSubtitle,
-      businessName,
-      businessAddress,
-      avatarSource,
-      fallbackPhoto,
-      googlePlacesId,
-      assignmentNote,
-      needsPayment,
-      isRequested,
-      statusAllowsActions,
-      isInProgress,
-      checkInLabel,
-      checkInDisabled,
-    } = cardData;
+    const {cardTitle, cardSubtitle} = cardData;
+    const businessName = cardData.businessName;
+    const businessAddress = cardData.businessAddress;
+    const avatarSource = cardData.avatarSource;
+    const fallbackPhoto = cardData.fallbackPhoto;
+    const googlePlacesId = cardData.googlePlacesId;
+    const assignmentNote = cardData.assignmentNote;
+    const {needsPayment, isRequested, statusAllowsActions, isInProgress, checkInLabel, checkInDisabled} =
+      cardData;
     const isCheckInDisabled = checkInDisabled || checkingIn[appointment.id];
     const footer = needsPayment ? (
       <View style={styles.upcomingFooter}>
@@ -1073,31 +1040,16 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     infoTile: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      ...baseTileContainer(theme),
       padding: theme.spacing[5],
       gap: theme.spacing[2],
       ...theme.shadows.md,
       shadowColor: theme.colors.neutralShadow,
       overflow: 'hidden',
     },
-    tileFallback: {
-      borderRadius: theme.borderRadius.lg,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
-    },
-    tileTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    tileSubtitle: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
+    tileFallback: sharedTileStyles(theme).tileFallback,
+    tileTitle: sharedTileStyles(theme).tileTitle,
+    tileSubtitle: sharedTileStyles(theme).tileSubtitle,
     quickActionsCard: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,

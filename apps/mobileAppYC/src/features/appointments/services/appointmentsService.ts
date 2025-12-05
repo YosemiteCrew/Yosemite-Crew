@@ -26,10 +26,26 @@ const normalizeUrlForPlatform = (url: string): string => {
 const baseUrl = normalizeUrlForPlatform(API_CONFIG.baseUrl ?? '');
 const pmsBaseUrl = normalizeUrlForPlatform(API_CONFIG.pmsBaseUrl ?? API_CONFIG.baseUrl ?? '');
 
+const stripTrailingSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') {
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
+};
+
+const stripLeadingSlashes = (value: string) => {
+  let start = 0;
+  while (start < value.length && value[start] === '/') {
+    start += 1;
+  }
+  return start === 0 ? value : value.slice(start);
+};
+
 const buildUrl = (path: string, opts?: {usePms?: boolean}) => {
   const base = opts?.usePms ? pmsBaseUrl : baseUrl;
-  const sanitizedBase = base.replaceAll(/\/$/, '');
-  const sanitizedPath = path.replaceAll(/^\//, '');
+  const sanitizedBase = stripTrailingSlashes(base);
+  const sanitizedPath = stripLeadingSlashes(path);
   return `${sanitizedBase}/${sanitizedPath}`;
 };
 

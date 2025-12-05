@@ -36,15 +36,14 @@ import {handleChatActivation} from '@/features/appointments/utils/chatActivation
 import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/appointments/utils/businessCoordinates';
 import {usePermissions} from '@/shared/hooks/usePermissions';
 import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
+import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
-import {appointmentApi} from '@/features/appointments/services/appointmentsService';
+import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
-type OrgRatingState = {isRated: boolean; rating?: number | null; review?: string | null; loading?: boolean};
 
 export const MyAppointmentsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -234,35 +233,11 @@ export const MyAppointmentsScreen: React.FC = () => {
     [handleCheckInUtil, canUseAppointments, getCoordinatesFromUtility],
   );
 
-  const fetchOrgRatingIfNeeded = React.useCallback(
-    async (organisationId?: string | null) => {
-      if (
-        !organisationId ||
-        orgRatings[organisationId]?.loading ||
-        typeof orgRatings[organisationId]?.isRated === 'boolean'
-      ) {
-        return;
-      }
-      try {
-        setOrgRatings(prev => ({...prev, [organisationId]: {...prev[organisationId], loading: true}}));
-        const tokens = await getFreshStoredTokens();
-        const accessToken = tokens?.accessToken;
-        if (!accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
-          setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
-          return;
-        }
-        const res = await appointmentApi.getOrganisationRatingStatus({
-          organisationId,
-          accessToken,
-        });
-        setOrgRatings(prev => ({...prev, [organisationId]: {...res, loading: false}}));
-      } catch (error) {
-        console.warn('[Appointments] Failed to fetch rating status', error);
-        setOrgRatings(prev => ({...prev, [organisationId]: {isRated: false, loading: false}}));
-      }
-    },
-    [orgRatings],
-  );
+  const fetchOrgRatingIfNeeded = useFetchOrgRatingIfNeeded({
+    orgRatings,
+    setOrgRatings,
+    logTag: 'Appointments',
+  });
 
   React.useEffect(() => {
     const targets = filteredPast.filter(apt => apt.status === 'COMPLETED');
@@ -466,6 +441,8 @@ export const MyAppointmentsScreen: React.FC = () => {
       fallbackPhoto,
       googlePlacesId,
       assignmentNote,
+    } = cardData;
+    const {
       needsPayment,
       isRequested,
       statusAllowsActions,
@@ -814,29 +791,14 @@ const createStyles = (theme: any) =>
       color: '#92400E',
     },
     infoTile: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      ...baseTileContainer(theme),
       padding: theme.spacing[5],
       gap: theme.spacing[2],
       overflow: 'hidden',
     },
-    tileFallback: {
-      borderRadius: theme.borderRadius.lg,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
-    },
-    tileTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    tileSubtitle: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
+    tileFallback: sharedTileStyles(theme).tileFallback,
+    tileTitle: sharedTileStyles(theme).tileTitle,
+    tileSubtitle: sharedTileStyles(theme).tileSubtitle,
     bottomSpacer: {height: theme.spacing[16]},
   });
 
