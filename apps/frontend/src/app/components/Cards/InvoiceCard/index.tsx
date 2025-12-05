@@ -1,70 +1,91 @@
+import Image from "next/image";
 import React from "react";
-import { getStatusStyle } from "../../DataTable/Tasks";
-import { TasksProps } from "@/app/types/tasks";
-import { getFormattedDate } from "../../Calendar/weekHelpers";
+import { InvoiceProps } from "@/app/types/invoice";
+import { getStatusStyle } from "../../DataTable/InvoiceTable";
 
-type TaskCardProps = {
-  item: TasksProps;
-  handleViewTask: any;
+type InvoiceCardProps = {
+  invoice: InvoiceProps;
+  handleViewInvoice: any;
 };
 
-const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
+const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
-      <div className="flex gap-1">
-        <div className="text-[23px] font-satoshi font-bold text-black-text">
-          {item.task}
+      <div className="flex gap-2 items-center">
+        <Image
+          alt={invoice.metadata.pet}
+          src={invoice.metadata.petImage}
+          height={40}
+          width={40}
+          style={{ borderRadius: "50%" }}
+          className="h-10 w-10 rounded-full"
+        />
+        <div className="flex flex-col gap-0">
+          <div className="text-[13px] font-satoshi font-bold text-black-text">
+            {invoice.metadata.pet}
+          </div>
+          <div className="text-[13px] font-satoshi font-bold text-grey-noti">
+            {invoice.metadata.parent}
+          </div>
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Description:
+          Appointment ID:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.description}
+          {invoice.metadata.appointmentId}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Category:
+          Service:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.category}
+          {invoice.metadata.service}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          From:
+          Date / Time:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.from}
+          {invoice.date + " / " + invoice.time}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          To:
+          Sub-total:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.to}
+          {"$ " + invoice.subtotal}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Due date:
+          Tax:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {getFormattedDate(item.due)}
+          {"$ " + invoice.tax}
+        </div>
+      </div>
+      <div className="flex gap-1">
+        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
+          Total:
+        </div>
+        <div className="text-[13px] font-satoshi font-bold text-black-text">
+          {invoice.total}
         </div>
       </div>
       <div
-        style={getStatusStyle(item.status)}
+        style={getStatusStyle(invoice.status)}
         className="w-full rounded-lg h-9 flex items-center justify-center text-[15px] font-satoshi font-bold"
       >
-        {item.status}
+        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
       </div>
       <div className="flex gap-3 w-full">
         <button
-          onClick={() => handleViewTask(item)}
+          onClick={() => handleViewInvoice(invoice)}
           className="w-full border border-black-text! rounded-2xl! h-12 flex items-center justify-center cursor-pointer"
         >
           View
@@ -74,4 +95,4 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
   );
 };
 
-export default TaskCard;
+export default InvoiceCard;

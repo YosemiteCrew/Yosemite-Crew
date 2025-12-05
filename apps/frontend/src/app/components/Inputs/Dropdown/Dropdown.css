@@ -26,6 +26,7 @@
   font-weight: 400;
   line-height: 120%;
   font-family: var(--satoshi-font);
+  text-align: left;
 }
 .select-floating-label {
   position: absolute;

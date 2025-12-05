@@ -4,6 +4,7 @@ import { isSameDay, isSameMonth } from "../../Calendar/helpers";
 import { GrNext, GrPrevious } from "react-icons/gr";
 import Year from "./Year";
 import Month from "./Month";
+import { getFormattedDate } from "../../Calendar/weekHelpers";
 
 const monthNames = [
   "January",
@@ -27,6 +28,7 @@ type DatepickerProps = {
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   minYear?: number;
   maxYear?: number;
+  type?: string;
 };
 
 const Datepicker = ({
@@ -34,6 +36,7 @@ const Datepicker = ({
   setCurrentDate,
   minYear = 1970,
   maxYear = 2100,
+  type = "icon",
 }: DatepickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
@@ -105,12 +108,33 @@ const Datepicker = ({
 
   return (
     <div className="relative" ref={containerRef}>
-      <button
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="rounded-2xl! border! border-grey-light! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out"
-      >
-        <IoCalendarClear size={30} color="#302f2e" />
-      </button>
+      {type === "input" ? (
+        <div className={`SignInput floating-input focused relative`}>
+          <input
+            type={"text"}
+            name={"date-input"}
+            id={"date-input"}
+            value={getFormattedDate(currentDate)}
+            autoComplete="off"
+            disabled
+            className={`min-h-12!`}
+          />
+          <label htmlFor={"date-input"}>Due date</label>
+          <IoCalendarClear
+            size={20}
+            color="#302f2e"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+          />
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="rounded-2xl! border! border-grey-light! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out"
+        >
+          <IoCalendarClear size={30} color="#302f2e" />
+        </button>
+      )}
 
       {isOpen && (
         <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-grey-light bg-white px-2 py-3 shadow-xl flex flex-col gap-3">

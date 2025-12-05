@@ -5,11 +5,19 @@ type DayLabels = {
   days: Date[];
   onPrevWeek: () => void;
   onNextWeek: () => void;
+  taskView?: boolean;
 };
 
-const DayLabels = ({ days, onNextWeek, onPrevWeek }: DayLabels) => {
+const DayLabels = ({
+  days,
+  onNextWeek,
+  onPrevWeek,
+  taskView = false,
+}: DayLabels) => {
   return (
-    <div className="grid grid-cols-[80px_minmax(0,1fr)_80px] border-b border-grey-light py-3">
+    <div
+      className={`grid border-b border-grey-light py-3 ${taskView ? "grid-cols-[40px_minmax(0,1fr)_40px]" : "grid-cols-[80px_minmax(0,1fr)_80px]"}`}
+    >
       <div className="flex items-center justify-center">
         <GrPrevious
           size={20}

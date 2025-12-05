@@ -48,3 +48,19 @@ export function getStartOfWeek(date: Date, weekStartsOn: 0 | 1 = 1): Date {
   d.setDate(d.getDate() - diff); // go BACK to the start of the week
   return d;
 }
+
+export function getShortWeekday(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short" });
+}
+
+export function getDateNumberPadded(date: Date): string {
+  return String(date.getDate()).padStart(2, "0");
+}
+
+export function getFormattedDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}

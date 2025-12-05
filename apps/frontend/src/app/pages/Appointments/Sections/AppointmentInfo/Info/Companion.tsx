@@ -6,9 +6,21 @@ type CompanionProps = {
   activeAppointment: AppointmentsProps;
 };
 
-const CompanionFields = [{ label: "Service", key: "service", type: "text" }];
+const CompanionFields = [
+  { label: "Date of birth", key: "dob", type: "text" },
+  { label: "Gender", key: "gender", type: "text" },
+  { label: "Weight", key: "weight", type: "text" },
+  { label: "Blood group", key: "bloodGroup", type: "text" },
+  { label: "Neutered status", key: "neuteured", type: "text" },
+  { label: "Allergies", key: "allergies", type: "text" },
+  { label: "Insurance number", key: "insuranceNumber", type: "text" },
+];
 
-const ParentFields = [{ label: "Service", key: "service", type: "text" }];
+const ParentFields = [
+  { label: "Parent", key: "parent", type: "text" },
+  { label: "Email", key: "email", type: "text" },
+  { label: "Number", key: "number", type: "text" },
+];
 
 const Companion = ({ activeAppointment }: CompanionProps) => {
   return (

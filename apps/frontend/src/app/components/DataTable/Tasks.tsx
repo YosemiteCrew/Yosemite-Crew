@@ -5,6 +5,7 @@ import { IoEye } from "react-icons/io5";
 import TaskCard from "../Cards/TaskCard";
 
 import "./DataTable.css";
+import { getFormattedDate } from "../Calendar/weekHelpers";
 
 type Column<T> = {
   label: string;
@@ -88,10 +89,11 @@ const Tasks = ({
       key: "due",
       width: "10%",
       render: (item: TasksProps) => (
-        <div className="appointment-profile-title">{item.due}</div>
+        <div className="appointment-profile-title">
+          {getFormattedDate(item.due)}
+        </div>
       ),
     },
-
     {
       label: "Status",
       key: "status",
@@ -124,9 +126,9 @@ const Tasks = ({
         <GenericTable data={filteredList} columns={columns} bordered={false} />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((item: TasksProps) => (
+        {filteredList.map((item: TasksProps, i) => (
           <TaskCard
-            key={item.task}
+            key={item.task+i}
             item={item}
             handleViewTask={handleViewTask}
           />

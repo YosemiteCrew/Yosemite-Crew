@@ -49,8 +49,8 @@ const DashboardProfile = () => {
       </div>
       {isVerified ? (
         <div className="dashboard-profile-note">
-          <span>Note : </span>Stripe is needed to receive payments from your users.
-          
+          <span>Note : </span>Stripe is needed to receive payments from your
+          users.
         </div>
       ) : (
         <div className="dashboard-profile-note">
