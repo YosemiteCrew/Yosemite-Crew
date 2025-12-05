@@ -31,6 +31,7 @@ import deviceTokenRouter from "./routers/deviceToken.router";
 import chatRouter from "./routers/chat.router";
 import notificationRouter from "./routers/notification.router";
 import contactRouter from "./routers/contact-us.router";
+import accountWithdrawalRouter from "./routers/account-withdrawal.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -78,6 +79,7 @@ app.use(`/v1/device-token`, deviceTokenRouter);
 app.use(`/v1/chat`, chatRouter);
 app.use(`/v1/notification`, notificationRouter);
 app.use(`/v1/contact-us`, contactRouter);
+app.use(`/v1/account-withdrawal`, accountWithdrawalRouter);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
