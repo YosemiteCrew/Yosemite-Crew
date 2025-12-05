@@ -6,8 +6,20 @@ import {
 } from "src/services/account-withdrawal.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 
+type AccountWithdrawalBody = {
+  fullName: string;
+  email: string;
+  address?: string;
+  signatureText?: string;
+  message?: string;
+  checkboxConfirmed: boolean;
+};
+
 export const AccountWithdrawalController = {
-  create: async (req: Request, res: Response) => {
+  create: async (
+    req: Request<unknown, unknown, AccountWithdrawalBody>,
+    res: Response,
+  ) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.userId; // optional if you have auth
