@@ -194,3 +194,13 @@ export {
   toFHIRQuestionnaireResponse,
   fromFHIRQuestionnaireResponse,
 } from "./form"
+export type {
+  AdverseEventReporterType, 
+  AdverseEventCompanionInfo, 
+  AdverseEventConsent, 
+  AdverseEventDestinations,
+  AdverseEventProductInfo, 
+  AdverseEventReport,
+  AdverseEventReporterInfo,
+  AdverseEventStatus 
+} from "./adverse-event"

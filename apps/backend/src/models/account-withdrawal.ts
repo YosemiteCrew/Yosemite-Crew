@@ -1,4 +1,3 @@
-// models/accountWithdrawal.ts
 import { Schema, model, HydratedDocument } from "mongoose";
 
 export type WithdrawalStatus =
