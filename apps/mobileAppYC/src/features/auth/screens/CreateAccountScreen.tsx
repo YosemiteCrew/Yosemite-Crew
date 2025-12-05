@@ -388,6 +388,14 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     setShowDatePicker(false);
   }, []);
 
+  const handleOpenTerms = useCallback(() => {
+    navigation.navigate('TermsAndConditions');
+  }, [navigation]);
+
+  const handleOpenPrivacy = useCallback(() => {
+    navigation.navigate('PrivacyPolicy');
+  }, [navigation]);
+
   const getMaximumDate = useCallback(() => {
     const today = new Date();
     return new Date(
@@ -935,11 +943,11 @@ const handleGoBack = useCallback(async () => {
             />
             <View style={styles.termsTextContainer}>
               <Text style={styles.checkboxText}>I agree to the </Text>
-              <TouchableOpacity onPress={() => console.log('Open terms')}>
+              <TouchableOpacity onPress={handleOpenTerms}>
                 <Text style={styles.linkText}>terms and conditions</Text>
               </TouchableOpacity>
               <Text style={styles.checkboxText}> and </Text>
-              <TouchableOpacity onPress={() => console.log('Open privacy')}>
+              <TouchableOpacity onPress={handleOpenPrivacy}>
                 <Text style={styles.linkText}>privacy policy.</Text>
               </TouchableOpacity>
             </View>
