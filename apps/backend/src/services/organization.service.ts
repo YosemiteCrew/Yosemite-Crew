@@ -711,7 +711,7 @@ export const OrganizationService = {
 
     const skip = (page - 1) * limit;
 
-    const docs = await OrganizationModel.find(
+    let docs = await OrganizationModel.find(
       {
         "address.location": {
           $near: {
@@ -735,6 +735,21 @@ export const OrganizationService = {
     )
       .skip(skip)
       .limit(limit);
+
+
+    if (!docs) {
+      docs = await OrganizationModel.find(
+        {
+        _id: 1,
+        name: 1,
+        imageURL: 1,
+        phoneNo: 1,
+        type: 1,
+        address: 1,
+        googlePlacesId: 1,
+      },
+      ).skip(skip).limit(limit);
+    }
 
     const total = docs.length;
     const results = [];

@@ -30,7 +30,7 @@ export const ChatController = {
         return res
           .status(401)
           .json({ message: "Not authenticated: userId is missing." });
-      } 
+      }
 
       const authUser = await AuthUserMobileService.getByProviderUserId(userId);
       if (!authUser) {
@@ -39,7 +39,14 @@ export const ChatController = {
           .json({ message: "User not found for provided userId." });
       }
 
-      const tokenInfo = ChatService.generateToken(authUser.parentId?.toString()!);
+      const parentId = authUser.parentId?.toString();
+      if (!parentId) {
+        return res
+          .status(404)
+          .json({ message: "User is not linked to a parent account." });
+      }
+
+      const tokenInfo = ChatService.generateToken(parentId);
       return res.status(200).json(tokenInfo);
     } catch (err) {
       if (err instanceof ChatServiceError) {
