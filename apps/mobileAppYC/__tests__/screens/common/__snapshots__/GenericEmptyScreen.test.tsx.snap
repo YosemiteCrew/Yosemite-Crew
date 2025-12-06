@@ -1,0 +1,64 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GenericEmptyScreen renders correctly and matches snapshot 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#ffffff",
+      "flex": 1,
+    }
+  }
+>
+  <View
+    style={
+      {
+        "alignItems": "center",
+        "flex": 1,
+        "justifyContent": "center",
+        "paddingHorizontal": 24,
+      }
+    }
+  >
+    <Image
+      source={
+        {
+          "uri": "https://example.com/empty.png",
+        }
+      }
+      style={
+        {
+          "height": 200,
+          "marginBottom": 24,
+          "resizeMode": "contain",
+          "width": 200,
+        }
+      }
+    />
+    <Text
+      style={
+        {
+          "color": "#111111",
+          "fontSize": 24,
+          "fontWeight": "bold",
+          "marginBottom": 12,
+          "textAlign": "center",
+        }
+      }
+    >
+      Nothing Here
+    </Text>
+    <Text
+      style={
+        {
+          "color": "#666666",
+          "fontSize": 14,
+          "lineHeight": 22,
+          "textAlign": "center",
+        }
+      }
+    >
+      This screen is empty.
+    </Text>
+  </View>
+</View>
+`;
