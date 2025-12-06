@@ -2,16 +2,20 @@ import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {render, waitFor, fireEvent} from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {AppNavigator} from '@/navigation/AppNavigator';
-import {useAuth} from '@/features/auth/context/AuthContext';
-import {useEmergency} from '@/features/home/context/EmergencyContext';
-import * as CoParentActions from '@/features/coParent';
-import * as SessionManager from '@/features/auth/sessionManager';
+import {AppNavigator} from '../../src/navigation/AppNavigator';
+import {useAuth} from '../../src/features/auth/context/AuthContext';
+import {useEmergency} from '../../src/features/home/context/EmergencyContext';
+import * as CoParentActions from '../../src/features/coParent';
+import * as SessionManager from '../../src/features/auth/sessionManager';
 
-// --- 1. Mock Config Constants ---
-jest.mock('@/config/variables', () => ({
+// --- 1. Mock Config Constants (MUST BE FIRST) ---
+jest.mock('../../src/config/variables', () => ({
   PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
   PENDING_PROFILE_UPDATED_EVENT: 'PENDING_PROFILE_UPDATED',
+  API_CONFIG: {
+    baseUrl: 'http://localhost:3000',
+    timeoutMs: 10000,
+  },
 }));
 
 // --- 2. Redux Mock ---
@@ -25,22 +29,22 @@ jest.mock('react-redux', () => ({
     // Handle the specific companion ID selector
     if (
       selector?.name === 'selectSelectedCompanionId' ||
-      selector === require('@/features/companion').selectSelectedCompanionId
+      selector ===
+        require('../../src/features/companion').selectSelectedCompanionId
     ) {
       return 'comp-123';
     }
-    // Handle the pending invites selector (usually an anonymous function or specific selector in AppNavigator)
-    // We fallback to returning our dynamic mock variable
+    // Handle the pending invites selector
     return mockPendingInvites;
   },
 }));
 
 // --- 3. Context Mocks ---
-jest.mock('@/features/auth/context/AuthContext', () => ({
+jest.mock('../../src/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
-jest.mock('@/features/home/context/EmergencyContext', () => ({
+jest.mock('../../src/features/home/context/EmergencyContext', () => ({
   useEmergency: jest.fn(),
   EmergencyProvider: ({children}: {children: React.ReactNode}) => (
     <>{children}</>
@@ -50,7 +54,6 @@ jest.mock('@/features/home/context/EmergencyContext', () => ({
 // --- 4. Navigation Mocks ---
 
 // Mock Native Stack to simply render the active screen configuration
-// This bypasses complex native behavior and ensures 'getByTestId' works immediately
 jest.mock('@react-navigation/native-stack', () => ({
   createNativeStackNavigator: () => ({
     Navigator: ({children}: any) => <>{children}</>,
@@ -81,9 +84,9 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-// --- 5. Component & Screen Mocks (using require inside to avoid hoisting ReferenceErrors) ---
+// --- 5. Component & Screen Mocks ---
 
-jest.mock('@/navigation/AuthNavigator', () => ({
+jest.mock('../../src/navigation/AuthNavigator', () => ({
   AuthNavigator: () => {
     const {View, Text} = require('react-native');
     return (
@@ -94,7 +97,7 @@ jest.mock('@/navigation/AuthNavigator', () => ({
   },
 }));
 
-jest.mock('@/navigation/TabNavigator', () => ({
+jest.mock('../../src/navigation/TabNavigator', () => ({
   TabNavigator: () => {
     const {View, Text} = require('react-native');
     return (
@@ -105,7 +108,7 @@ jest.mock('@/navigation/TabNavigator', () => ({
   },
 }));
 
-jest.mock('@/features/onboarding/screens/OnboardingScreen', () => ({
+jest.mock('../../src/features/onboarding/screens/OnboardingScreen', () => ({
   OnboardingScreen: ({onComplete}: any) => {
     const {View, Text} = require('react-native');
     return (
@@ -116,7 +119,7 @@ jest.mock('@/features/onboarding/screens/OnboardingScreen', () => ({
   },
 }));
 
-jest.mock('@/shared/components/common', () => ({
+jest.mock('../../src/shared/components/common', () => ({
   Loading: () => {
     const {View, Text} = require('react-native');
     return (
@@ -128,7 +131,7 @@ jest.mock('@/shared/components/common', () => ({
 }));
 
 // Mock Bottom Sheets with imperative handles
-jest.mock('@/features/home/components/EmergencyBottomSheet', () => {
+jest.mock('../../src/features/home/components/EmergencyBottomSheet', () => {
   const React = require('react');
   const {View, Text} = require('react-native');
   return {
@@ -148,7 +151,7 @@ jest.mock('@/features/home/components/EmergencyBottomSheet', () => {
 });
 
 jest.mock(
-  '@/features/coParent/components/CoParentInviteBottomSheet/CoParentInviteBottomSheet',
+  '../../src/features/coParent/components/CoParentInviteBottomSheet/CoParentInviteBottomSheet',
   () => {
     const React = require('react');
     const {View, Text} = require('react-native');
@@ -170,19 +173,19 @@ jest.mock(
 );
 
 // --- 6. Action Mocks ---
-jest.mock('@/features/coParent', () => ({
+jest.mock('../../src/features/coParent', () => ({
   acceptCoParentInvite: jest.fn(),
   declineCoParentInvite: jest.fn(),
   fetchParentAccess: jest.fn(),
   fetchPendingInvites: jest.fn(),
 }));
 
-jest.mock('@/features/companion', () => ({
+jest.mock('../../src/features/companion', () => ({
   fetchCompanions: jest.fn(),
   selectSelectedCompanionId: jest.fn(),
 }));
 
-jest.mock('@/features/auth/sessionManager', () => ({
+jest.mock('../../src/features/auth/sessionManager', () => ({
   getFreshStoredTokens: jest.fn(),
   isTokenExpired: jest.fn(),
 }));
@@ -336,8 +339,6 @@ describe('AppNavigator', () => {
       });
 
       // Even if logged in and complete, pending profile might force auth screen logic
-      // (though AppNavigator logic prioritizes loggedIn && complete -> Main)
-      // Let's test the case where we are logged out or incomplete to see pending profile take effect
       (useAuth as jest.Mock).mockReturnValue({isLoggedIn: false});
 
       const {getByTestId} = renderNavigator();
