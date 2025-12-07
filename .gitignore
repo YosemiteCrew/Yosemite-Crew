@@ -143,6 +143,6 @@ yarn-error.log*
 
 
 apps/mobileAppYC/amplify_outputs.json
-
+apps/mobileAppYC/prodamplify_outputs.json
 
 apps/backend/serviceAccount.json
