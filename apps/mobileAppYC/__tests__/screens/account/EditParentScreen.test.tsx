@@ -110,10 +110,17 @@ jest.mock('@/features/auth/selectors', () => ({
   selectAuthIsLoading: jest.fn(),
 }));
 jest.mock('@/features/auth', () => ({
-  ...jest.requireActual('@/features/auth'),
+  __esModule: true,
   updateUserProfile: jest.fn(
     (patch: Partial<User>) => () => mockUpdateUserProfileImpl(patch),
   ),
+  // Provide stubs for other exports referenced via the barrel
+  selectAuthState: jest.fn(),
+  establishSession: jest.fn(() => () => Promise.resolve()),
+  initializeAuth: jest.fn(() => () => Promise.resolve()),
+  logout: jest.fn(() => () => Promise.resolve()),
+  refreshSession: jest.fn(() => () => Promise.resolve()),
+  authReducer: jest.fn(),
 }));
 
 // --- Component Mocks ---

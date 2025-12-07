@@ -91,7 +91,7 @@ describe('features/tasks/taskSlice', () => {
       expect(nextState.items.find((t: any) => t.id === '1')).toBeUndefined(); // Old C1 task removed
       expect(nextState.items.find((t: any) => t.id === '2')).toBeDefined(); // C2 task kept
       expect(nextState.items.find((t: any) => t.id === '3')).toBeDefined(); // New C1 task added
-      expect(nextState.hydratedCompanions['C1']).toBe(true);
+      expect(nextState.hydratedCompanions.C1).toBe(true);
     });
   });
 
@@ -130,7 +130,7 @@ describe('features/tasks/taskSlice', () => {
       // Explicitly typed 't' as any to fix TS7006
       expect(nextState.items.find((t: any) => t.id === 'old1')).toBeUndefined();
       expect(nextState.items.find((t: any) => t.id === 'new1')).toBeDefined();
-      expect(nextState.hydratedCompanions['C1']).toBe(true);
+      expect(nextState.hydratedCompanions.C1).toBe(true);
     });
 
     it('should set error payload on rejected', () => {

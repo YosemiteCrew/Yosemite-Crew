@@ -154,11 +154,11 @@ jest.mock(
   () => ({
     // Use IIFE to require React inside factory
     AddBusinessBottomSheet: (function () {
-      const React = require('react');
+      const ReactModule = require('react');
       const {View, Text, TouchableOpacity} = require('react-native');
 
-      return React.forwardRef((props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
+      return ReactModule.forwardRef((props: any, ref: any) => {
+        ReactModule.useImperativeHandle(ref, () => ({
           open: mockAddSheetOpen,
           close: mockAddSheetClose,
         }));
@@ -182,11 +182,11 @@ jest.mock(
   () => ({
     // Use IIFE to require React inside factory
     NotifyBusinessBottomSheet: (function () {
-      const React = require('react');
+      const ReactModule = require('react');
       const {View, Text, TouchableOpacity} = require('react-native');
 
-      return React.forwardRef((props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
+      return ReactModule.forwardRef((props: any, ref: any) => {
+        ReactModule.useImperativeHandle(ref, () => ({
           open: mockNotifySheetOpen,
           close: mockNotifySheetClose,
         }));

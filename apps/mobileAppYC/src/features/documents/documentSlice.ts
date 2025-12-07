@@ -241,6 +241,7 @@ const documentSlice = createSlice({
   name: 'documents',
   initialState,
   reducers: {
+    resetDocumentState: () => initialState,
     setUploadProgress: (state, action: PayloadAction<number>) => {
       state.uploadProgress = action.payload;
     },
@@ -374,5 +375,6 @@ const documentSlice = createSlice({
   },
 });
 
-export const {setUploadProgress, clearError, clearSearchResults} = documentSlice.actions;
+export const {resetDocumentState, setUploadProgress, clearError, clearSearchResults} =
+  documentSlice.actions;
 export default documentSlice.reducer;

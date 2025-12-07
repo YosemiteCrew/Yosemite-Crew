@@ -6,6 +6,7 @@ interface BottomSheetHeaderProps {
   title: string;
   onClose: () => void;
   theme: any;
+  showCloseButton?: boolean;
 }
 
 /**
@@ -16,6 +17,7 @@ export const BottomSheetHeader: React.FC<BottomSheetHeaderProps> = ({
   title,
   onClose,
   theme,
+  showCloseButton = true,
 }) => {
   const styles = createStyles(theme);
   const closeIconSource = Images?.crossIcon ?? null;
@@ -25,7 +27,7 @@ export const BottomSheetHeader: React.FC<BottomSheetHeaderProps> = ({
       <View style={styles.titleContainer}>
         <Text style={styles.title}>{title}</Text>
       </View>
-      {closeIconSource && (
+      {showCloseButton && closeIconSource && (
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <Image
             source={closeIconSource}

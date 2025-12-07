@@ -16,7 +16,9 @@ import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/Liqu
 import {
   requestPasswordlessEmailCode,
   formatAuthError,
+  DEMO_LOGIN_EMAIL,
 } from '@/features/auth/services/passwordlessAuth';
+import {AUTH_FEATURE_FLAGS} from '@/config/variables';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import {useAuth} from '@/features/auth/context/AuthContext';
@@ -48,6 +50,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
   const {theme} = useTheme();
   const styles = createStyles(theme);
   const {login} = useAuth();
+  const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
 
   const [emailValue, setEmailValue] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -119,13 +122,23 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     setIsSubmitting(true);
     try {
       const normalizedEmail = emailValue.trim();
+      const lowerCasedEmail = normalizedEmail.toLowerCase();
+      const isDemoLogin = allowReviewLogin && lowerCasedEmail === DEMO_LOGIN_EMAIL;
       console.log('[Auth] Sending OTP request', { normalizedEmail });
       const result = await requestPasswordlessEmailCode(normalizedEmail);
       console.log('[Auth] OTP request succeeded', result);
-      setStatusMessage(`We sent a login code to ${result.destination}`);
+      if (isDemoLogin) {
+        setStatusMessage(
+          'App Review login: use the provided password to continue. No email is sent.',
+        );
+      } else {
+        setStatusMessage(`We sent a login code to ${result.destination}`);
+      }
       navigation.navigate('OTPVerification', {
         email: result.destination,
         isNewUser: result.isNewUser,
+        challengeType: isDemoLogin ? 'demoPassword' : 'otp',
+        challengeLength: isDemoLogin ? result.challengeLength : undefined,
       });
     } catch (error) {
       console.error('[Auth] Failed requesting passwordless code', error);
@@ -180,43 +193,43 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
-            <Image
-              source={Images.authIllustration}
-              style={styles.illustration}
-              resizeMode="contain"
+        <View style={styles.content}>
+          <Image
+            source={Images.authIllustration}
+            style={styles.illustration}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.title}>Tail-wagging welcome!</Text>
+
+          <View style={styles.formContainer}>
+            <View style={styles.inputContainer}>
+              <Input
+                label="Email address"
+                value={emailValue}
+                onChangeText={handleEmailChange}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                inputStyle={styles.input}
+                error={emailError}
+              />
+            </View>
+
+            <LiquidGlassButton
+              title="Send OTP"
+              onPress={handleSendOTP}
+              style={styles.sendButton}
+              textStyle={styles.sendButtonText}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+              tintColor={theme.colors.secondary}
+              height={56}
+              borderRadius="lg"
             />
 
-            <Text style={styles.title}>Tail-wagging welcome!</Text>
-
-            <View style={styles.formContainer}>
-              <View style={styles.inputContainer}>
-                <Input
-                  label="Email address"
-                  value={emailValue}
-                  onChangeText={handleEmailChange}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  inputStyle={styles.input}
-                  error={emailError}
-                />
-              </View>
-
-              <LiquidGlassButton
-                title="Send OTP"
-                onPress={handleSendOTP}
-                style={styles.sendButton}
-                textStyle={styles.sendButtonText}
-                loading={isSubmitting}
-                disabled={isSubmitting}
-                tintColor={theme.colors.secondary}
-                height={56}
-                borderRadius="lg"
-              />
-
-              {statusMessage ? (
-                <Text style={styles.statusMessage}>{statusMessage}</Text>
-              ) : null}
+            {statusMessage ? (
+              <Text style={styles.statusMessage}>{statusMessage}</Text>
+            ) : null}
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>Not a member? </Text>
@@ -327,7 +340,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.h3,
       color: theme.colors.secondary,
       marginBottom: 24,
-      marginTop: -10,
       textAlign: 'center',
     },
     formContainer: {
@@ -354,6 +366,29 @@ const createStyles = (theme: any) =>
       color: theme.colors.success,
       textAlign: 'center',
       marginBottom: 16,
+    },
+    demoBox: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    demoHeader: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.secondary,
+    },
+    demoText: {
+      ...theme.typography.paragraph,
+      color: theme.colors.textSecondary,
+    },
+    demoButton: {
+      marginTop: 4,
+      backgroundColor: theme.colors.white,
+    },
+    demoButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.primary,
     },
     footerContainer: {
       flexDirection: 'row',

@@ -2,13 +2,15 @@ import type { DefineAuthChallengeTriggerHandler } from 'aws-lambda';
 
 const MAX_CHALLENGE_ATTEMPTS = 3;
 const OTP_METADATA_PREFIX = 'PASSWORDLESS_OTP';
+const DEMO_PASSWORD_METADATA_PREFIX = 'DEMO_PASSWORD';
 
 export const handler: DefineAuthChallengeTriggerHandler = async (event) => {
   const session = event.request.session ?? [];
   const previousChallenge = session[session.length - 1];
   const successfulChallenge =
-    previousChallenge?.challengeMetadata?.startsWith(OTP_METADATA_PREFIX) &&
-    previousChallenge.challengeResult === true;
+    previousChallenge?.challengeResult === true &&
+    (previousChallenge?.challengeMetadata?.startsWith(OTP_METADATA_PREFIX) ||
+      previousChallenge?.challengeMetadata?.startsWith(DEMO_PASSWORD_METADATA_PREFIX));
 
   if (successfulChallenge) {
     event.response.issueTokens = true;

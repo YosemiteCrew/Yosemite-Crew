@@ -98,7 +98,7 @@ export const EditExpenseScreen: React.FC = () => {
     if (!formData || !expense) {
       return;
     }
-    if (!validate()) {
+    if (!validate(expense.companionId || selectedCompanionId)) {
       return;
     }
 
@@ -177,14 +177,14 @@ export const EditExpenseScreen: React.FC = () => {
     }
   };
 
-  if (!formData) {
+  if (!expense || !formData) {
     return null;
   }
 
   return (
     <SafeArea>
       <Header
-        title="Edit"
+        title="Edit Expense"
         showBackButton
         onBack={handleGoBack}
         rightIcon={Images.deleteIconRed}
@@ -192,7 +192,7 @@ export const EditExpenseScreen: React.FC = () => {
       />
       <ExpenseForm
         companions={companions}
-        selectedCompanionId={selectedCompanionId}
+        selectedCompanionId={expense.companionId || selectedCompanionId}
         onCompanionSelect={id => {
           dispatch(setSelectedCompanion(id));
           setHasUnsavedChanges(true);

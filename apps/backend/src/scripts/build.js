@@ -8,7 +8,11 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 const pkg = require("../../package.json");
 
-const externals = Object.keys(pkg.dependencies || {});
+const externals = [
+  ...Object.keys(pkg.dependencies || {}),
+  "stream-chat",
+  "axios"
+];
 
 const entry = path.resolve(__dirname, "../main.ts");
 const outfile = path.resolve(__dirname, "../../dist/index.js");

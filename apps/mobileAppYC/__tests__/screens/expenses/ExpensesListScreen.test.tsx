@@ -416,9 +416,9 @@ describe('ExpensesListScreen', () => {
       expect(unpaidCard.props.amount).toBe(75);
       expect(unpaidCard.props.showEditAction).toBe(false);
       expect(unpaidCard.props.onPressEdit).toBeUndefined();
-      expect(unpaidCard.props.showPayButton).toBe(true);
+      expect(unpaidCard.props.showPayButton).toBe(false);
       expect(unpaidCard.props.isPaid).toBe(false);
-      expect(unpaidCard.props.onPressPay).toBeDefined();
+      expect(unpaidCard.props.onPressPay).toBeUndefined();
       expect(unpaidCard.props.onTogglePaidStatus).toBeUndefined();
     });
 
@@ -440,73 +440,7 @@ describe('ExpensesListScreen', () => {
       expect(paidCard.props.showPayButton).toBe(false);
       expect(paidCard.props.isPaid).toBe(true);
       expect(paidCard.props.onPressPay).toBeUndefined();
-      expect(paidCard.props.onTogglePaidStatus).toBeDefined();
-    });
-
-    it('dispatches markInAppExpenseStatus as "paid" when pay is pressed', () => {
-      const {getAllByTestId} = renderComponent('inApp', baseState);
-      const inAppCards = getAllByTestId('mock-ExpenseCard').filter(
-        card => card.props.showEditAction === false,
-      );
-      const unpaidCard = inAppCards.find(
-        card => card.props.title === 'In-App Booking',
-      );
-      expect(unpaidCard).toBeDefined();
-      if (!unpaidCard) return;
-
-      act(() => {
-        if (typeof unpaidCard.props.onPressPay === 'function') {
-          unpaidCard.props.onPressPay();
-        } else {
-          throw new TypeError(
-            'onPressPay prop is not a function or is undefined',
-          );
-        }
-      });
-
-      const expectedPayload = {
-        expenseId: 'inapp-1',
-        status: 'paid' as ExpensePaymentStatus,
-      };
-      expect(store.dispatch).toHaveBeenCalledWith(
-        markStatusAction(expectedPayload),
-      );
-      expect(expensesSlice.markInAppExpenseStatus).toHaveBeenCalledWith(
-        expectedPayload,
-      );
-    });
-
-    it('dispatches markInAppExpenseStatus as "unpaid" when toggle is pressed', () => {
-      const {getAllByTestId} = renderComponent('inApp', baseState);
-      const inAppCards = getAllByTestId('mock-ExpenseCard').filter(
-        card => card.props.showEditAction === false,
-      );
-      const paidCard = inAppCards.find(
-        card => card.props.title === 'Paid Booking',
-      );
-      expect(paidCard).toBeDefined();
-      if (!paidCard) return;
-
-      act(() => {
-        if (typeof paidCard.props.onTogglePaidStatus === 'function') {
-          paidCard.props.onTogglePaidStatus();
-        } else {
-          throw new TypeError(
-            'onTogglePaidStatus prop is not a function or is undefined',
-          );
-        }
-      });
-
-      const expectedPayload = {
-        expenseId: 'inapp-2',
-        status: 'unpaid' as ExpensePaymentStatus,
-      };
-      expect(store.dispatch).toHaveBeenCalledWith(
-        markStatusAction(expectedPayload),
-      );
-      expect(expensesSlice.markInAppExpenseStatus).toHaveBeenCalledWith(
-        expectedPayload,
-      );
+      expect(paidCard.props.onTogglePaidStatus).toBeUndefined();
     });
   });
 

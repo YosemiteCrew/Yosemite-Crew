@@ -5,9 +5,23 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 
+jest.mock('@stripe/stripe-react-native', () => ({
+  StripeProvider: ({children}: {children: React.ReactNode}) => <>{children}</>,
+  useStripe: () => ({
+    initPaymentSheet: jest.fn(),
+    presentPaymentSheet: jest.fn(),
+  }),
+}));
+
 jest.mock('@/shared/services/firebaseNotifications', () => ({
   initializeNotifications: jest.fn().mockResolvedValue(undefined),
   areNotificationsInitialized: jest.fn(() => true),
+}));
+
+jest.mock('react-native-device-info', () => ({
+  getBundleId: jest.fn(() => 'com.yosemite.app'),
+  getVersion: jest.fn(() => '1.0.0'),
+  getBuildNumber: jest.fn(() => '1'),
 }));
 
 jest.mock('@react-navigation/native', () => {

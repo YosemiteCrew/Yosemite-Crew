@@ -59,7 +59,7 @@ export const formatDateShort = (date: string | Date): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return dateObj.toLocaleDateString('en-US', {
     month: 'short',
-    day: 'numeric',
+    day: '2-digit',
     year: 'numeric',
   });
 };

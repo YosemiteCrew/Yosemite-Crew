@@ -23,7 +23,7 @@ const OrgRatingSchema = new Schema(
       default: "",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Prevent duplicate reviews (same user/org)
@@ -31,5 +31,5 @@ OrgRatingSchema.index({ organizationId: 1, userId: 1 }, { unique: true });
 
 export const OrganisationRatingModel = model(
   "OrganisationRating",
-  OrgRatingSchema
+  OrgRatingSchema,
 );

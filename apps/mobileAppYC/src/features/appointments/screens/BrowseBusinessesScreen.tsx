@@ -6,64 +6,253 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
-import {fetchBusinesses, fetchAvailability} from '@/features/appointments/businessesSlice';
+import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import type {BusinessCategory, VetBusiness} from '@/features/appointments/types';
-import {useNavigation} from '@react-navigation/native';
-import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import type {RouteProp} from '@react-navigation/native';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
   {label: 'Hospital', id: 'hospital'},
   {label: 'Groomer', id: 'groomer'},
   {label: 'Breeder', id: 'breeder'},
-  {label: 'Pet Center', id: 'pet_center'},
-  {label: 'Boarder', id: 'boarder'},
+  {label: 'Boarder', id: 'boarder'}
 ];
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
+
+const getDistanceText = (business: VetBusiness): string | undefined => {
+  if (business.distanceMi != null) {
+    return `${business.distanceMi.toFixed(1)}mi`;
+  }
+  if (business.distanceMeters != null) {
+    return `${(business.distanceMeters / 1609.344).toFixed(1)}mi`;
+  }
+  return undefined;
+};
+
+const getRatingText = (business: VetBusiness): string | undefined => {
+  if (business.rating != null) {
+    return `${business.rating}`;
+  }
+  return undefined;
+};
+
+interface BusinessCardProps {
+  business: VetBusiness;
+  navigation: Nav;
+  resolveDescription: (b: VetBusiness) => string;
+  compact?: boolean;
+  fallbackPhoto?: string | null;
+}
+
+const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
+  business,
+  navigation,
+  resolveDescription,
+  compact,
+  fallbackPhoto,
+}) => (
+  <BusinessCard
+    key={business.id}
+    name={business.name}
+    openText={business.openHours}
+    description={resolveDescription(business)}
+    distanceText={getDistanceText(business)}
+    ratingText={getRatingText(business)}
+    photo={business.photo ?? undefined}
+    fallbackPhoto={fallbackPhoto ?? undefined}
+    onBook={() => navigation.navigate('BusinessDetails', {businessId: business.id})}
+    compact={compact}
+  />
+);
+
+interface CategoryBusinessesProps {
+  businesses: VetBusiness[];
+  navigation: Nav;
+  resolveDescription: (b: VetBusiness) => string;
+  fallbacks: Record<string, {photo?: string | null}>;
+}
+
+const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navigation, resolveDescription, fallbacks}) => (
+  <>
+    {businesses.map(b => (
+      <BusinessCardRenderer
+        key={b.id}
+        business={b}
+        navigation={navigation}
+        resolveDescription={resolveDescription}
+        fallbackPhoto={fallbacks[b.id]?.photo ?? null}
+      />
+    ))}
+  </>
+);
+
+interface AllCategoriesViewProps {
+  allCategories: readonly string[];
+  businesses: VetBusiness[];
+  resolveDescription: (b: VetBusiness) => string;
+  navigation: Nav;
+  styles: any;
+  fallbacks: Record<string, {photo?: string | null}>;
+}
+
+const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, resolveDescription, navigation, styles, fallbacks}) => (
+  <>
+    {allCategories.map(cat => {
+      const items = businesses.filter(x => x.category === cat);
+      if (items.length === 0) return null;
+      return (
+        <View key={cat} style={styles.sectionWrapper}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeader}>{CATEGORIES.find(c => c.id === cat)?.label}</Text>
+            <View style={styles.sectionHeaderRight}>
+              <Text style={styles.sectionCount}>{items.length} Near You</Text>
+              {items.length > 1 && (
+                <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('BusinessesList', {category: cat as BusinessCategory})}>
+                  <Text style={styles.viewMore}>View more</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          {items.length === 1 ? (
+            <View style={styles.singleCardWrapper}>
+              <BusinessCardRenderer
+                business={items[0]}
+                navigation={navigation}
+                resolveDescription={resolveDescription}
+                fallbackPhoto={fallbacks[items[0].id]?.photo ?? null}
+              />
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {items.map(b => (
+                <BusinessCardRenderer
+                  key={b.id}
+                  business={b}
+                  navigation={navigation}
+                  resolveDescription={resolveDescription}
+                  fallbackPhoto={fallbacks[b.id]?.photo ?? null}
+                  compact
+                />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      );
+    })}
+  </>
+);
 
 export const BrowseBusinessesScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
+  const [fallbacks, setFallbacks] = useState<Record<string, {photo?: string | null; phone?: string; website?: string}>>({});
+  const requestedDetailsRef = React.useRef<Set<string>>(new Set());
+  const lastSearchRef = React.useRef<number>(0);
+  const lastTermRef = React.useRef<string>('');
+  const MIN_SEARCH_INTERVAL_MS = 1000;
 
   const [category, setCategory] = useState<BusinessCategory | undefined>(undefined);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [query, setQuery] = useState('');
+  const initialQuery = route.params?.serviceName ?? '';
+  const [query, setQuery] = useState(initialQuery);
   const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
   const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
-  const availability = useSelector((s: RootState) => s.businesses.availability);
+  const filteredBusinesses = useMemo(
+    () => businesses.filter(b => (category ? b.category === category : true)),
+    [businesses, category],
+  );
+
+  const performSearch = React.useCallback(
+    (term?: string) => {
+      const trimmed = (term ?? query).trim();
+      const now = Date.now();
+      if (trimmed === lastTermRef.current && now - lastSearchRef.current < MIN_SEARCH_INTERVAL_MS) {
+        return;
+      }
+      lastTermRef.current = trimmed;
+      lastSearchRef.current = now;
+      dispatch(fetchBusinesses(trimmed ? {serviceName: trimmed} : undefined));
+    },
+    [dispatch, query],
+  );
 
   useEffect(() => {
-    const needsRefresh =
-      businesses.length === 0 ||
-      businesses.some(
-        b =>
-          !b.description ||
-          b.description.trim().length === 0 ||
-          !b.photo,
-      );
-    if (needsRefresh) {
-      dispatch(fetchBusinesses());
-      dispatch(fetchAvailability());
-    }
-  }, [dispatch, businesses]);
+    performSearch(initialQuery);
+  }, [performSearch, initialQuery]);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
+
+  const requestBusinessDetails = React.useCallback(
+    async (biz: VetBusiness) => {
+      const googlePlacesId = biz.googlePlacesId;
+      if (!googlePlacesId || requestedDetailsRef.current.has(googlePlacesId)) {
+        return;
+      }
+      requestedDetailsRef.current.add(googlePlacesId);
+      try {
+        const result = await dispatch(fetchBusinessDetails(googlePlacesId)).unwrap();
+        setFallbacks(prev => ({
+          ...prev,
+          [biz.id]: {
+            photo: result.photoUrl ?? prev[biz.id]?.photo ?? null,
+            phone: result.phoneNumber ?? prev[biz.id]?.phone,
+            website: result.website ?? prev[biz.id]?.website,
+          },
+        }));
+        return;
+      } catch {
+        // Ignore and try photo-only fallback below
+      }
+      try {
+        const img = await dispatch(fetchGooglePlacesImage(googlePlacesId)).unwrap();
+        if (img.photoUrl) {
+          setFallbacks(prev => ({
+            ...prev,
+            [biz.id]: {...prev[biz.id], photo: img.photoUrl},
+          }));
+        }
+      } catch {
+        // Swallow errors; UI will use defaults
+      }
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    businesses.forEach(biz => {
+      const needsPhoto = (!biz.photo || isDummyPhoto(biz.photo)) && biz.googlePlacesId;
+      const needsContact = (!biz.phone || !biz.website) && biz.googlePlacesId;
+      if ((needsPhoto || needsContact) && biz.googlePlacesId) {
+        requestBusinessDetails(biz);
+      }
+    });
+  }, [businesses, dispatch, requestBusinessDetails]);
 
   const allCategories = ['hospital','groomer','breeder','pet_center','boarder'] as const;
 
   const resolveDescription = React.useCallback((biz: VetBusiness) => {
+    if (biz.address && biz.address.trim().length > 0) {
+      return biz.address.trim();
+    }
     if (biz.description && biz.description.trim().length > 0) {
       return biz.description.trim();
     }
     if (biz.specialties && biz.specialties.length > 0) {
       return biz.specialties.slice(0, 3).join(', ');
     }
-    return `${biz.name} located at ${biz.address}`;
+    return `${biz.name}`;
   }, []);
 
 
@@ -88,88 +277,51 @@ export const BrowseBusinessesScreen: React.FC = () => {
           ))}
         </ScrollView>
 
-        <CalendarMonthStrip
-          selectedDate={selectedDate}
-          onChange={setSelectedDate}
-          datesWithMarkers={useMemo(() => {
-            const set = new Set<string>();
-            const allowedBiz = new Set(businesses.map(b => b.id));
-            for (const av of availability) {
-              if (!allowedBiz.has(av.businessId)) continue;
-              for (const key of Object.keys(av.slotsByDate)) set.add(key);
-            }
-            return set;
-          }, [availability, businesses])}
+        <SearchBar
+          placeholder="Search for services"
+          mode="input"
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={() => performSearch()}
+          onIconPress={() => performSearch()}
+          autoFocus={route.params?.autoFocusSearch}
         />
 
-        <SearchBar placeholder="Search for services" mode="input" value={query} onChangeText={setQuery} />
-
         <View style={styles.resultsWrapper}>
-          {category ? (
-            businesses
-              .filter(b => b.name.toLowerCase().includes(query.toLowerCase()))
-              .map(b => (
-              <BusinessCard
-                key={b.id}
-                name={b.name}
-                openText={b.openHours}
-                description={resolveDescription(b)}
-                distanceText={`${b.distanceMi}mi`}
-                ratingText={`${b.rating}`}
-                photo={b.photo}
-                onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
-              />
-            ))
-          ) : (
-            allCategories.map(cat => {
-              const items = businesses.filter(x => x.category === cat && x.name.toLowerCase().includes(query.toLowerCase()));
-              if (!items.length) return null;
+          {(() => {
+            if (filteredBusinesses.length === 0) {
               return (
-                <View key={cat} style={styles.sectionWrapper}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionHeader}>{CATEGORIES.find(c => c.id === cat)?.label}</Text>
-                    <View style={styles.sectionHeaderRight}>
-                      <Text style={styles.sectionCount}>{items.length} Near You</Text>
-                      {items.length > 1 && (
-                        <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('BusinessesList', {category: cat})}>
-                          <Text style={styles.viewMore}>View more</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                  {items.length === 1 ? (
-                    <View style={styles.singleCardWrapper}>
-                      <BusinessCard
-                        name={items[0].name}
-                        openText={items[0].openHours}
-                        description={resolveDescription(items[0])}
-                        distanceText={`${items[0].distanceMi}mi`}
-                        ratingText={`${items[0].rating}`}
-                        photo={items[0].photo}
-                        onBook={() => navigation.navigate('BusinessDetails', {businessId: items[0].id})}
-                      />
-                    </View>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-                      {items.map(b => (
-                        <BusinessCard
-                          key={b.id}
-                          name={b.name}
-                          openText={b.openHours}
-                          description={resolveDescription(b)}
-                          distanceText={`${b.distanceMi}mi`}
-                          ratingText={`${b.rating}`}
-                          photo={b.photo}
-                          onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
-                          compact
-                        />
-                      ))}
-                    </ScrollView>
-                  )}
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateTitle}>No businesses found</Text>
+                  <Text style={styles.emptyStateSubtitle}>
+                    Try adjusting your filters or search to find nearby providers.
+                  </Text>
                 </View>
               );
-            })
-          )}
+            }
+
+            if (category) {
+              return (
+                <CategoryBusinesses
+                  businesses={filteredBusinesses}
+                  navigation={navigation}
+                  resolveDescription={resolveDescription}
+                  fallbacks={fallbacks}
+                />
+              );
+            }
+
+            return (
+              <AllCategoriesView
+                allCategories={allCategories}
+                businesses={filteredBusinesses}
+                resolveDescription={resolveDescription}
+                navigation={navigation}
+                styles={styles}
+                fallbacks={fallbacks}
+              />
+            );
+          })()}
         </View>
       </ScrollView>
     </SafeArea>
@@ -201,6 +353,16 @@ const createStyles = (theme: any) => StyleSheet.create({
   sectionWrapper: {gap: 12},
   singleCardWrapper: {alignItems: 'center', width: '100%'},
   horizontalList: {gap: 12, paddingRight: 16, paddingVertical: 10},
+  emptyState: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.cardBackground,
+    gap: 6,
+  },
+  emptyStateTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
+  emptyStateSubtitle: {...theme.typography.bodySmallTight, color: theme.colors.textSecondary},
 });
 
 export default BrowseBusinessesScreen;

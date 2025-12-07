@@ -5,9 +5,11 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
+import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
 
 export interface BusinessCardProps {
   photo?: ImageSourcePropType | number;
+  fallbackPhoto?: ImageSourcePropType | number | string | null;
   name: string;
   openText?: string;
   description?: string;
@@ -20,6 +22,7 @@ export interface BusinessCardProps {
 
 export const BusinessCard: React.FC<BusinessCardProps> = ({
   photo,
+  fallbackPhoto,
   name,
   openText,
   description,
@@ -33,11 +36,57 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const descriptionText = description && description.trim().length > 0 ? description.trim() : null;
 
-  const imageSource = useMemo(() => resolveImageSource(photo), [photo]);
+  const [loadFailed, setLoadFailed] = React.useState(false);
+  const [sourceOverride, setSourceOverride] = React.useState<ImageSourcePropType | number | undefined>(photo ?? undefined);
+  const resolvedSource = useMemo(
+    () => resolveImageSource(sourceOverride ?? photo ?? (fallbackPhoto ?? undefined)),
+    [sourceOverride, photo, fallbackPhoto],
+  );
+
+  const isDummyPhoto = React.useCallback((src?: any) => isDummyPhotoUrl(src), []);
+
+  const handleError = React.useCallback(() => {
+    setLoadFailed(true);
+    if (fallbackPhoto && sourceOverride !== fallbackPhoto) {
+      setSourceOverride(fallbackPhoto as any);
+    }
+  }, [fallbackPhoto, sourceOverride]);
+
+  React.useEffect(() => {
+    // Reset error state when a new photo is supplied
+    setLoadFailed(false);
+  }, [photo]);
+
+  React.useEffect(() => {
+    // If a fallback arrives later and there is no primary photo, prefer the fallback
+    if (fallbackPhoto && !photo && sourceOverride !== fallbackPhoto) {
+      setSourceOverride(fallbackPhoto as any);
+    }
+  }, [fallbackPhoto, photo, sourceOverride]);
+
+  React.useEffect(() => {
+    // If the provided photo is a known dummy placeholder and we have a fallback, prefer the fallback immediately
+    if (fallbackPhoto && isDummyPhoto(photo)) {
+      setSourceOverride(fallbackPhoto as any);
+    }
+  }, [fallbackPhoto, isDummyPhoto, photo]);
+
+  React.useEffect(() => {
+    // When a real photo arrives asynchronously, switch to it without waiting for a remount
+    if (photo && !loadFailed && sourceOverride !== photo && !(fallbackPhoto && isDummyPhoto(photo))) {
+      setSourceOverride(photo as any);
+    }
+  }, [fallbackPhoto, isDummyPhoto, loadFailed, photo, sourceOverride]);
 
   return (
     <LiquidGlassCard style={[styles.card, compact && styles.compact, style]} padding="0" shadow="none">
-      <Image source={imageSource} style={styles.photo} resizeMode="cover" defaultSource={Images.hospitalIcon} />
+      <Image
+        source={resolvedSource}
+        style={styles.photo}
+        resizeMode="cover"
+        defaultSource={Images.hospitalIcon}
+        onError={handleError}
+      />
       <View style={styles.body}>
         <Text numberOfLines={1} style={styles.title}>{name}</Text>
         {!!openText && <Text style={styles.openText}>{openText}</Text>}

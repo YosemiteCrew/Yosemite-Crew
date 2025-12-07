@@ -6,7 +6,13 @@ const router = Router();
 router.post(
   "/:organisationId",
   authorizeCognitoMobile,
-  OrganisationRatingController.rateOrganisation
-)
+  OrganisationRatingController.rateOrganisation,
+);
+
+router.get(
+  "/:organisationId/is-rated",
+  authorizeCognitoMobile,
+  OrganisationRatingController.isUserRatedOrganisation,
+);  
 
 export default router;

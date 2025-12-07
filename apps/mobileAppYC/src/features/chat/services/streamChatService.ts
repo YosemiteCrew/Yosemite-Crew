@@ -7,6 +7,10 @@
 
 import {StreamChat, OwnUserResponse} from 'stream-chat';
 import {STREAM_CHAT_CONFIG} from '@/config/variables';
+import {
+  createOrFetchChatSession,
+  fetchChatToken,
+} from './chatBackendService';
 
 let chatClient: StreamChat | null = null;
 
@@ -82,9 +86,18 @@ export const connectStreamUser = async (
       ...(userImage && {image: userImage}),
     };
 
-    // Use provided token or generate development token
-    // IMPORTANT: In production, always use backend-generated tokens!
-    const userToken = token || client.devToken(userId);
+    let userToken = token;
+  if (!userToken) {
+    try {
+      userToken = await fetchChatToken();
+    } catch (backendError) {
+      console.warn(
+        '[Stream] Failed to fetch chat token from backend. Falling back to development token.',
+        backendError,
+      );
+        userToken = client.devToken(userId);
+      }
+    }
 
     await client.connectUser(userData, userToken);
 
@@ -137,14 +150,14 @@ export const getAppointmentChannel = async (
     throw new Error('User must be connected before accessing channels');
   }
 
-  const channelId = `appointment-${appointmentId}`;
+  let channelId = `appointment-${appointmentId}`;
+  let channelType: string = 'messaging';
 
   console.log('[Stream] Getting/creating channel:', channelId);
 
   const channelData: Record<string, unknown> = {
     name: appointmentData?.doctorName || 'Appointment Chat',
     members: [client.userID, vetId],
-    // Custom metadata
     appointmentId,
     appointmentTime: appointmentData?.dateTime,
     petName: appointmentData?.petName,
@@ -152,11 +165,69 @@ export const getAppointmentChannel = async (
     status: 'active',
   };
 
-  // Create or get existing channel
-  const channel = client.channel('messaging', channelId, channelData);
+  try {
+    console.log('[Stream][Session] Requesting chat session from backend', {
+      sessionId: appointmentId,
+      userId: client.userID,
+      vetId,
+      appointmentTime: appointmentData?.dateTime,
+    });
 
-  // Watch the channel to receive real-time updates
+    const session = await createOrFetchChatSession({
+      sessionId: appointmentId,
+      userId: client.userID,
+      vetId,
+      appointmentTime: appointmentData?.dateTime,
+      petOwnerId: client.userID,
+      activationMinutes: 5,
+      petName: appointmentData?.petName,
+    });
+
+    if (session?.channelId) {
+      channelId = session.channelId;
+    }
+    if (session?.channelType) {
+      channelType = session.channelType;
+    }
+
+    console.log('[Stream][Session] Backend session resolved', {
+      sessionId: appointmentId,
+      channelId,
+      channelType,
+      members: session?.members,
+      status: session?.status,
+      allowedFrom: session?.allowedFrom,
+      allowedUntil: session?.allowedUntil,
+    });
+  } catch (error) {
+    console.warn(
+      '[Stream] Chat session lookup failed; using local channel fallback.',
+      error,
+    );
+  }
+
+  const channel = client.channel(
+    channelType,
+    channelId,
+    channelType === 'messaging' && channelId === `appointment-${appointmentId}`
+      ? channelData
+      : undefined,
+  );
+
+  console.log('[Stream][Session] Watching channel', {channelType, channelId});
   await channel.watch();
+  const memberIds =
+    channel.state?.members && typeof channel.state.members === 'object'
+      ? Object.values(channel.state.members)
+          .map(m => m?.user?.id ?? (m as any)?.user_id ?? (m as any)?.id ?? null)
+          .filter(Boolean)
+      : undefined;
+
+  console.log('[Stream][Session] Channel watch established', {
+    channelType,
+    channelId,
+    members: memberIds,
+  });
 
   console.log('[Stream] Channel ready:', channelId);
 
@@ -171,7 +242,7 @@ export const getAppointmentChannel = async (
 export const markChannelAsRead = async (channelId: string): Promise<void> => {
   try {
     const client = getChatClient();
-  const channel = client.channel('messaging', channelId);
+    const channel = client.channel('messaging', channelId);
     await channel.markRead();
     console.log('[Stream] Channel marked as read:', channelId);
   } catch (error) {

@@ -373,10 +373,11 @@ describe('SignInScreen', () => {
 
     await waitFor(() => {
       expect(mockedRequestCode).toHaveBeenCalledWith('test@example.com');
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('OTPVerification', {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('OTPVerification', expect.objectContaining({
         email: 'test@example.com',
         isNewUser: false,
-      });
+        challengeType: 'otp',
+      }));
       expect(
         getByText('We sent a login code to test@example.com'),
       ).toBeTruthy();

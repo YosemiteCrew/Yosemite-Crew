@@ -10,7 +10,7 @@ export type InvoiceStatusMongo =
 
 export type InvoiceItemMongo = {
   id?: string;
-  name: string;
+  name: string; // REQUIRED for line item
   description?: string | null;
   quantity: number;
   unitPrice: number;
@@ -21,7 +21,7 @@ export type InvoiceItemMongo = {
 const InvoiceItemSchema = new Schema(
   {
     id: { type: String },
-    name: { type: String, required: true },
+    name: { type: String, required: true }, // ← required
     description: { type: String, default: null },
     quantity: { type: Number, required: true },
     unitPrice: { type: Number, required: true },
@@ -40,15 +40,20 @@ export interface InvoiceMongo {
   items: InvoiceItemMongo[];
 
   subtotal: number;
+  discountTotal?: number;
+  taxTotal?: number;
   taxPercent?: number;
   totalAmount: number;
 
-  currency: string; // FHIR Currency type = code ("USD", "INR", etc.)
+  currency: string;
 
+  // Stripe metadata
   stripePaymentIntentId?: string;
   stripePaymentLinkId?: string;
   stripeInvoiceId?: string;
   stripeCustomerId?: string;
+  stripeChargeId?: string;
+  stripeReceiptUrl?: string;
 
   status: InvoiceStatusMongo;
 
@@ -75,15 +80,21 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
     },
 
     subtotal: { type: Number, required: true },
-    taxPercent: { type: Number, default: null },
+    discountTotal: { type: Number, default: 0 }, // ← added
+    taxTotal: { type: Number, default: 0 }, // ← added
+    taxPercent: { type: Number, default: 0 },
+
     totalAmount: { type: Number, required: true },
 
     currency: { type: String, required: true },
 
+    // Stripe fields
     stripePaymentIntentId: { type: String, default: null },
     stripePaymentLinkId: { type: String, default: null },
     stripeInvoiceId: { type: String, default: null },
     stripeCustomerId: { type: String, default: null },
+    stripeChargeId: { type: String, default: null }, // ← added
+    stripeReceiptUrl: { type: String, default: null }, // ← added
 
     status: {
       type: String,
@@ -103,7 +114,7 @@ const InvoiceSchema = new Schema<InvoiceMongo>(
   { timestamps: true },
 );
 
-// Useful indexes
+// Indexes
 InvoiceSchema.index({ parentId: 1 });
 InvoiceSchema.index({ organisationId: 1 });
 InvoiceSchema.index({ appointmentId: 1 });

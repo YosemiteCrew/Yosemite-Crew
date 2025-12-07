@@ -53,7 +53,13 @@ export const Step4Screen: React.FC<Props> = ({ navigation }) => {
           {label: 'Breed', value: selectedCompanion.breed?.breedName ?? '', onPress: handleEdit},
           {
             label: 'Date of birth',
-            value: selectedCompanion.dateOfBirth ? new Date(selectedCompanion.dateOfBirth).toLocaleDateString() : '',
+            value: selectedCompanion.dateOfBirth
+              ? new Date(selectedCompanion.dateOfBirth).toLocaleDateString('en-US', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '',
             onPress: handleEdit,
           },
           {label: 'Gender', value: capitalize(selectedCompanion.gender ?? ''), onPress: handleEdit},

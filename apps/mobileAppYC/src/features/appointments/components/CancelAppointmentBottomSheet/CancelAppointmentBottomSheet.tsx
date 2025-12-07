@@ -25,8 +25,8 @@ export const CancelAppointmentBottomSheet = forwardRef<CancelAppointmentBottomSh
       onCancel,
       title = 'Cancel appointment',
       message = 'Are you sure you want to cancel this appointment?',
-      confirmLabel = 'Cancel appointment',
-      cancelLabel = 'Keep appointment',
+      confirmLabel = 'Cancel',
+      cancelLabel = 'Keep',
     },
     ref,
   ) => {

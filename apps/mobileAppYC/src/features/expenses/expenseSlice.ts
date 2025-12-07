@@ -1,9 +1,11 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import type {ExpensesState, Expense} from './types';
+import type {ExpensesState, Expense, ExpenseSummary} from './types';
 import {
   addExternalExpense,
   deleteExternalExpense,
   fetchExpensesForCompanion,
+  fetchExpenseById,
+  fetchExpenseSummary,
   markInAppExpenseStatus,
   updateExternalExpense,
 } from './thunks';
@@ -16,22 +18,49 @@ const initialState: ExpensesState = {
   hydratedCompanions: {},
 };
 
-const recalculateSummary = (state: ExpensesState, companionId: string) => {
+const buildSummary = (expenses: Expense[], override?: ExpenseSummary): ExpenseSummary => {
+  const totals = expenses.reduce(
+    (acc, expense) => {
+      acc.total += expense.amount;
+      if (expense.source === 'inApp') {
+        acc.invoiceTotal += expense.amount;
+      } else {
+        acc.externalTotal += expense.amount;
+      }
+      return acc;
+    },
+    {total: 0, invoiceTotal: 0, externalTotal: 0},
+  );
+
+  return {
+    total: override?.total ?? totals.total,
+    invoiceTotal: override?.invoiceTotal ?? totals.invoiceTotal,
+    externalTotal: override?.externalTotal ?? totals.externalTotal,
+    currencyCode: override?.currencyCode ?? expenses[0]?.currencyCode ?? 'USD',
+    lastUpdated: new Date().toISOString(),
+  };
+};
+
+const recalculateSummary = (
+  state: ExpensesState,
+  companionId: string,
+  summaryOverride?: ExpenseSummary | null,
+) => {
   const expenses = state.items.filter(item => item.companionId === companionId);
 
   if (expenses.length === 0) {
-    delete state.summaries[companionId];
+    if (summaryOverride) {
+      state.summaries[companionId] = {
+        ...summaryOverride,
+        lastUpdated: new Date().toISOString(),
+      };
+    } else {
+      delete state.summaries[companionId];
+    }
     return;
   }
 
-  const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const currencyCode = expenses[0].currencyCode;
-
-  state.summaries[companionId] = {
-    total,
-    currencyCode,
-    lastUpdated: new Date().toISOString(),
-  };
+  state.summaries[companionId] = buildSummary(expenses, summaryOverride ?? undefined);
 };
 
 const expensesSlice = createSlice({
@@ -58,34 +87,11 @@ const expensesSlice = createSlice({
       })
       .addCase(fetchExpensesForCompanion.fulfilled, (state, action) => {
         state.loading = false;
-  const {companionId, expenses} = action.payload;
+        const {companionId, expenses, summary} = action.payload;
 
-        // Keep any existing items for this companion that are external and
-        // were added locally (e.g., via addExternalExpense) but are not
-        // present in the fetched mock data. We'll merge fetched items and
-        // preserve any external items with ids that don't collide.
-        const existingForCompanion = state.items.filter(
-          item => item.companionId === companionId,
-        );
-
-        // Build a map of fetched expense ids for quick lookup
-        const fetchedIds = new Set(expenses.map(e => e.id));
-
-        // Preserve existing external expenses that are not present in fetched
-        const preserved = existingForCompanion.filter(
-          item => item.source === 'external' && !fetchedIds.has(item.id),
-        );
-
-        // Remove all items for this companion and replace with fetched + preserved
         state.items = state.items.filter(item => item.companionId !== companionId);
         state.items.push(...expenses);
-        if (preserved.length > 0) {
-          state.items.push(...preserved);
-        }
-
-  // Recalculate summary from the merged items so any preserved local
-  // external expenses are included in totals.
-  recalculateSummary(state, companionId);
+        recalculateSummary(state, companionId, summary);
         state.hydratedCompanions[companionId] = true;
       })
       .addCase(fetchExpensesForCompanion.rejected, (state, action) => {
@@ -111,17 +117,12 @@ const expensesSlice = createSlice({
       })
       .addCase(updateExternalExpense.fulfilled, (state, action) => {
         state.loading = false;
-        const {expenseId, updates} = action.payload;
-        const index = state.items.findIndex(item => item.id === expenseId);
+        const updatedExpense = action.payload;
+        const index = state.items.findIndex(item => item.id === updatedExpense.id);
         if (index !== -1) {
-          const existing = state.items[index];
-          const updated: Expense = {
-            ...existing,
-            ...updates,
-          };
-          state.items[index] = updated;
-          recalculateSummary(state, updated.companionId);
+          state.items[index] = updatedExpense;
         }
+        recalculateSummary(state, updatedExpense.companionId);
       })
       .addCase(updateExternalExpense.rejected, (state, action) => {
         state.loading = false;
@@ -158,6 +159,24 @@ const expensesSlice = createSlice({
       .addCase(markInAppExpenseStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? 'Unable to update payment status';
+      })
+      .addCase(fetchExpenseById.fulfilled, (state, action) => {
+        const expense = action.payload;
+        const index = state.items.findIndex(item => item.id === expense.id);
+        if (index >= 0) {
+          state.items[index] = expense;
+        } else {
+          state.items.push(expense);
+        }
+        recalculateSummary(state, expense.companionId);
+      })
+      .addCase(fetchExpenseSummary.fulfilled, (state, action) => {
+        const {companionId, summary} = action.payload;
+        state.summaries[companionId] = {
+          ...summary,
+          lastUpdated: new Date().toISOString(),
+        };
+        state.hydratedCompanions[companionId] = true;
       });
   },
 });

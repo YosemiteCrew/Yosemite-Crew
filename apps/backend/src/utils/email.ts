@@ -133,10 +133,6 @@ export const sendEmail = async (options: SendEmailOptions) => {
 
   try {
     const result = await getClient().send(command);
-    logger.info("Email sent via SES.", {
-      messageId: result.MessageId,
-      to: toAddresses,
-    });
     return result;
   } catch (error) {
     logger.error("Failed to send email via SES.", error);

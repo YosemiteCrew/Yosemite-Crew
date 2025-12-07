@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,16 +10,17 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {NavigationProp} from '@react-navigation/native';
+import {NavigationProp, useFocusEffect} from '@react-navigation/native';
 import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
-import {HomeStackParamList, TabParamList, type TaskStackParamList} from '@/navigation/types';
+import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -29,41 +30,42 @@ import {
   setSelectedCompanion,
   fetchCompanions,
 } from '@/features/companion';
-import {initializeMockData, fetchLinkedBusinesses} from '@/features/linkedBusinesses';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
-import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
-  fetchExpensesForCompanion,
+  fetchExpenseSummary,
   selectExpenseSummaryByCompanion,
-  selectHasHydratedCompanion,
+  selectHasHydratedCompanion as selectExpensesHydrated,
 } from '@/features/expenses';
 import {
-  fetchTasksForCompanion,
-  selectNextUpcomingTask,
-  selectHasHydratedCompanion as selectHasHydratedTasksCompanion,
-  markTaskStatus,
-} from '@/features/tasks';
-import {
   fetchAppointmentsForCompanion,
-  updateAppointmentStatus,
 } from '@/features/appointments/appointmentsSlice';
 import {createSelectUpcomingAppointments} from '@/features/appointments/selectors';
-import {
-  isChatActive,
-  getTimeUntilChatActivation,
-  formatAppointmentTime,
-} from '@/shared/services/mockStreamBackend';
-import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
-import {selectUnreadCount} from '@/features/notifications/selectors';
-import {openMapsToAddress} from '@/shared/utils/openMaps';
+import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {
   fetchParentAccess,
   type CoParentPermissions,
   type ParentCompanionAccess,
 } from '@/features/coParent';
+import {initializeMockData, fetchLinkedBusinesses} from '@/features/linkedBusinesses';
+import {formatDateTime} from '@/features/appointments/utils/timeFormatting';
+import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
+import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
+import {transformAppointmentCardData} from '@/features/appointments/utils/appointmentCardData';
+import {handleChatActivation} from '@/features/appointments/utils/chatActivation';
+import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/appointments/utils/businessCoordinates';
+import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
+import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
+import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
+import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
+import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
+import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
+import {
+  selectHasHydratedCompanion as selectNotificationsHydrated,
+  selectUnreadCount,
+} from '@/features/notifications/selectors';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
@@ -73,11 +75,10 @@ const QUICK_ACTIONS: Array<{
   id: 'health' | 'hygiene' | 'diet';
   label: string;
   icon: ImageSourcePropType;
-  category: TaskStackParamList['TasksList']['category'];
 }> = [
-  {id: 'health', label: 'Manage health', icon: Images.healthIcon, category: 'health'},
-  {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon, category: 'hygiene'},
-  {id: 'diet', label: 'Dietary plans', icon: Images.dietryIcon, category: 'dietary'},
+  {id: 'health', label: 'Manage health', icon: Images.healthIcon},
+  {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon},
+  {id: 'diet', label: 'Dietary plans', icon: Images.dietryIcon},
 ];
 
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
@@ -98,9 +99,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
-  const expenseSummary = useSelector(
-    selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
+  const expenseSummarySelector = React.useMemo(
+    () => selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
+    [selectedCompanionIdRedux],
   );
+  const expenseSummary = useSelector(expenseSummarySelector);
+  const hasExpenseHydrated = useSelector(selectExpensesHydrated(selectedCompanionIdRedux ?? null));
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
   );
@@ -113,37 +117,46 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ? accessMap[selectedCompanionIdRedux] ?? null
     : null;
   const hasCompanions = companions.length > 0;
-  const hasExpenseHydrated = useSelector(
-    selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
-  );
-  const hasTasksHydrated = useSelector(
-    selectHasHydratedTasksCompanion(selectedCompanionIdRedux ?? null),
-  );
-  const nextUpcomingTask = useSelector(
-    selectNextUpcomingTask(selectedCompanionIdRedux ?? null),
-  );
   const unreadNotifications = useSelector(selectUnreadCount);
   const userCurrencyCode = authUser?.currency ?? 'USD';
-
-  const hasAppointmentsHydrated = useSelector((s: RootState) => {
-    if (!selectedCompanionIdRedux) return false;
-    return s.appointments?.hydratedCompanions?.[selectedCompanionIdRedux] ?? false;
-  });
-  const businesses = useSelector((s: RootState) => s.businesses?.businesses ?? []);
-  const employees = useSelector((s: RootState) => s.businesses?.employees ?? []);
-  const services = useSelector((s: RootState) => s.businesses?.services ?? []);
-  const businessMap = React.useMemo(() => new Map(businesses.map(b => [b.id, b])), [businesses]);
-  const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
-  const serviceMap = React.useMemo(() => new Map(services.map(s => [s.id, s])), [services]);
+  const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const upcomingAppointmentsSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
   const upcomingAppointments = useSelector((state: RootState) =>
     upcomingAppointmentsSelector(state, selectedCompanionIdRedux ?? null),
   );
   const hasUnreadNotifications = unreadNotifications > 0;
+  const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
+  const [businessSearch, setBusinessSearch] = React.useState('');
+  const hasNotificationsHydrated = useSelector(
+    selectNotificationsHydrated('default-companion'),
+  );
+  useFocusEffect(
+    React.useCallback(() => {
+      setBusinessSearch('');
+    }, []),
+  );
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
   );
+  // Hydrate expenses summary when companion changes and not yet loaded or missing
+  useEffect(() => {
+    if (
+      selectedCompanionIdRedux &&
+      hasCompanions &&
+      (!hasExpenseHydrated || !expenseSummary)
+    ) {
+      dispatch(
+        fetchExpenseSummary({
+          companionId: selectedCompanionIdRedux,
+        }),
+      );
+    }
+  }, [dispatch, selectedCompanionIdRedux, hasCompanions, hasExpenseHydrated, expenseSummary]);
+  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
+  const {businessFallbacks, handleAvatarError, requestBusinessPhoto} = useBusinessPhotoFallback();
+  const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
+  useAutoSelectCompanion(companions, selectedCompanionIdRedux);
   const [headerAvatarError, setHeaderAvatarError] = React.useState(false);
   const headerAvatarUri = React.useMemo(
     () => normalizeImageUri(authUser?.profilePicture ?? authUser?.profileToken ?? null),
@@ -201,6 +214,33 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return true;
     },
     [canAccessFeature, hasCompanions, showPermissionToast],
+  );
+  const ensureCompanionForSearch = React.useCallback(() => {
+    if (hasCompanions) {
+      return true;
+    }
+    const message = 'Add a companion to search services.';
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Add a companion', message);
+    }
+    return false;
+  }, [hasCompanions]);
+  const handleServiceSearch = React.useCallback(
+    (termOverride?: string) => {
+      if (!ensureCompanionForSearch()) {
+        return;
+      }
+      const term = (termOverride ?? businessSearch).trim();
+      navigation
+        .getParent<NavigationProp<TabParamList>>()
+        ?.navigate('Appointments', {
+          screen: 'BrowseBusinesses',
+          params: {serviceName: term || undefined, autoFocusSearch: true},
+        });
+    },
+    [businessSearch, ensureCompanionForSearch, navigation],
   );
 
   React.useEffect(() => {
@@ -262,26 +302,21 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [companions, selectedCompanionIdRedux, dispatch]);
 
+  // Always refresh appointments when companion changes or initial load finishes
   React.useEffect(() => {
-    if (selectedCompanionIdRedux && !hasExpenseHydrated) {
-      dispatch(
-        fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}),
-      );
+    const targetId =
+      selectedCompanionIdRedux ??
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.identifier?.[0]?.value;
+    if (!targetId) {
+      return;
     }
-  }, [dispatch, hasExpenseHydrated, selectedCompanionIdRedux]);
-
-  // Fetch tasks for selected companion
-  React.useEffect(() => {
-    if (selectedCompanionIdRedux && !hasTasksHydrated) {
-      dispatch(fetchTasksForCompanion({companionId: selectedCompanionIdRedux}));
+    if (!selectedCompanionIdRedux) {
+      dispatch(setSelectedCompanion(targetId));
     }
-  }, [dispatch, hasTasksHydrated, selectedCompanionIdRedux]);
-
-  React.useEffect(() => {
-    if (selectedCompanionIdRedux && !hasAppointmentsHydrated) {
-      dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionIdRedux}));
-    }
-  }, [dispatch, hasAppointmentsHydrated, selectedCompanionIdRedux]);
+    dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
+  }, [dispatch, selectedCompanionIdRedux, companions]);
 
   // Fetch linked hospitals for emergency feature
   React.useEffect(() => {
@@ -291,6 +326,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       );
     }
   }, [dispatch, selectedCompanionIdRedux]);
+
+  // Hydrate notifications after login to drive red dot state
+  React.useEffect(() => {
+    if (user && !hasNotificationsHydrated) {
+      dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
+    }
+  }, [dispatch, hasNotificationsHydrated, user]);
+
+  // Refresh notifications when returning to Home
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) {
+        dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
+      }
+    }, [dispatch, user]),
+  );
 
   const previousCurrencyRef = React.useRef(userCurrencyCode);
 
@@ -302,7 +353,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ) {
       previousCurrencyRef.current = userCurrencyCode;
       dispatch(
-        fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}),
+        fetchExpenseSummary({companionId: selectedCompanionIdRedux}),
       );
     }
   }, [
@@ -312,6 +363,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     hasExpenseHydrated,
   ]);
 
+  // Always refresh expense summary when returning to Home
+  useFocusEffect(
+    React.useCallback(() => {
+      if (selectedCompanionIdRedux) {
+        dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
+      }
+    }, [dispatch, selectedCompanionIdRedux]),
+  );
+
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
   };
@@ -319,10 +379,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const handleSelectCompanion = (id: string) => {
     dispatch(setSelectedCompanion(id));
   };
-
-  const selectedCompanion = React.useMemo(() => {
-    return companions.find(c => c.id === selectedCompanionIdRedux);
-  }, [companions, selectedCompanionIdRedux]);
 
   const renderEmptyStateTile = (
     title: string,
@@ -351,65 +407,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const handleCompleteTask = React.useCallback(
-    async (taskId: string) => {
-      if (!guardFeature('tasks', 'tasks')) {
-        return;
-      }
-      try {
-        await dispatch(
-          markTaskStatus({
-            taskId,
-            status: 'completed',
-          }),
-        ).unwrap();
-      } catch (error) {
-        console.error('Failed to complete task:', error);
-      }
-    },
-    [dispatch, guardFeature],
-  );
-
-  const handleStartObservationalTool = React.useCallback(() => {
-    if (!guardFeature('tasks', 'tasks')) {
-      return;
+  const showTasksComingSoon = React.useCallback(() => {
+    const message = 'Tasks feature coming soon.';
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Coming soon', message);
     }
-    if (!nextUpcomingTask) {
-      return;
-    }
-    navigation
-      .getParent<NavigationProp<TabParamList>>()
-      ?.navigate('Tasks', {screen: 'ObservationalTool', params: {taskId: nextUpcomingTask.id}});
-  }, [guardFeature, navigation, nextUpcomingTask]);
-
-  const navigateToTasksCategory = React.useCallback(
-    (category: TaskStackParamList['TasksList']['category']) => {
-      if (!guardFeature('tasks', 'tasks')) {
-        return;
-      }
-      if (!selectedCompanionIdRedux && companions.length > 0) {
-        dispatch(setSelectedCompanion(companions[0].id));
-      }
-      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
-        screen: 'TasksList',
-        params: {category},
-      });
-    },
-    [companions, dispatch, guardFeature, navigation, selectedCompanionIdRedux],
-  );
-
-  const navigateToTaskView = React.useCallback(
-    (taskId: string) => {
-      if (!guardFeature('tasks', 'tasks')) {
-        return;
-      }
-      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
-        screen: 'TaskView',
-        params: {taskId, source: 'home'},
-      });
-    },
-    [guardFeature, navigation],
-  );
+  }, []);
 
   const handleEmergencyPress = React.useCallback(() => {
     if (!guardFeature('emergencyBasedPermissions', 'emergency actions')) {
@@ -418,40 +423,58 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     openEmergencySheet();
   }, [guardFeature, openEmergencySheet]);
 
+  const getCoordinatesForAppointment = React.useCallback(
+    (appointmentId: string) => {
+      const apt = upcomingAppointments.find(a => a.id === appointmentId);
+      if (!apt) {
+        return {lat: null, lng: null};
+      }
+      return getBusinessCoordinatesUtil(apt, businessMap);
+    },
+    [businessMap, upcomingAppointments],
+  );
 
-  const handleViewTask = React.useCallback(() => {
-    if (nextUpcomingTask && selectedCompanionIdRedux) {
-      navigateToTaskView(nextUpcomingTask.id);
-    }
-  }, [navigateToTaskView, nextUpcomingTask, selectedCompanionIdRedux]);
+  // Fetch business photo fallbacks when primary photos are missing or dummy
+  useFetchPhotoFallbacks(upcomingAppointments, businessMap, requestBusinessPhoto);
 
-  const formatAppointmentDateTime = React.useCallback((dateStr: string, timeStr?: string | null) => {
-    const timeComponent = timeStr ?? '00:00';
-    const date = new Date(`${dateStr}T${timeComponent}`);
-    if (Number.isNaN(date.getTime())) {
-      return timeStr ? `${dateStr} • ${timeStr}` : dateStr;
-    }
-    const formattedDate = date.toLocaleDateString('en-US', {day: 'numeric', month: 'short'});
-    const formattedTime = timeStr
-      ? new Date(`1970-01-01T${timeComponent}`).toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-        })
-      : null;
-    return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
-  }, []);
+  const fetchOrgRatingIfNeeded = useFetchOrgRatingIfNeeded({
+    orgRatings,
+    setOrgRatings,
+    logTag: 'Home',
+  });
 
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
       return null;
     }
+    const priority: Record<string, number> = {
+      UPCOMING: 0,
+      IN_PROGRESS: 0.25,
+      CHECKED_IN: 0.5,
+      PAID: 1,
+      CONFIRMED: 2,
+      SCHEDULED: 2,
+      RESCHEDULED: 2.5,
+      REQUESTED: 3,
+    };
     const sorted = [...upcomingAppointments].sort((a, b) => {
-      const dateA = new Date(`${a.date}T${a.time ?? '00:00'}`).getTime();
-      const dateB = new Date(`${b.date}T${b.time ?? '00:00'}`).getTime();
+      const priorityA = priority[a.status] ?? 5;
+      const priorityB = priority[b.status] ?? 5;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      const dateA = new Date(`${a.date}T${a.time ?? '00:00'}Z`).getTime();
+      const dateB = new Date(`${b.date}T${b.time ?? '00:00'}Z`).getTime();
       return dateA - dateB;
     });
     return sorted[0] ?? null;
   }, [upcomingAppointments]);
+
+  useEffect(() => {
+    if (nextUpcomingAppointment?.businessId && nextUpcomingAppointment.status === 'COMPLETED') {
+      fetchOrgRatingIfNeeded(nextUpcomingAppointment.businessId);
+    }
+  }, [fetchOrgRatingIfNeeded, nextUpcomingAppointment]);
 
   const handleViewAppointment = React.useCallback(
     (appointmentId: string) => {
@@ -482,75 +505,72 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         return;
       }
 
-      const timeComponent = appointment.time ?? '00:00';
-      const normalizedTime = timeComponent.length === 5 ? `${timeComponent}:00` : timeComponent;
-      const appointmentDateTime = `${appointment.date}T${normalizedTime}`;
-      const activationMinutes = 5;
       const emp = appointment.employeeId ? employeeMap.get(appointment.employeeId) : undefined;
       const service = appointment.serviceId ? serviceMap.get(appointment.serviceId) : undefined;
       const doctorName =
-        emp?.name ?? service?.name ?? appointment.serviceName ?? 'Assigned vet';
+        emp?.name ??
+        appointment.employeeName ??
+        service?.name ??
+        appointment.serviceName ??
+        'Assigned vet';
+      const petName = companions.find(c => c.id === appointment.companionId)?.name;
+      const vetId = emp?.id ?? appointment.employeeId ?? 'unknown-vet';
 
-      const navigateToChat = () => {
+      const openChat = () => {
+        const timeComponent = appointment.time ?? '00:00';
+        const normalizedTime = timeComponent.length === 5 ? `${timeComponent}:00` : timeComponent;
+        const appointmentDateTime = `${appointment.date}T${normalizedTime}`;
+
         navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
           screen: 'ChatChannel',
           params: {
             appointmentId: appointment.id,
-            vetId: emp?.id ?? 'vet-1',
+            vetId,
             appointmentTime: appointmentDateTime,
             doctorName,
-            petName: companions.find(c => c.id === appointment.companionId)?.name,
+            petName,
           },
         });
       };
 
-      if (!isChatActive(appointmentDateTime, activationMinutes)) {
-        const timeRemaining = getTimeUntilChatActivation(appointmentDateTime, activationMinutes);
-
-        if (timeRemaining) {
-          const formattedTime = formatAppointmentTime(appointmentDateTime);
-          Alert.alert(
-            'Chat Locked 🔒',
-            `Chat will be available ${activationMinutes} minutes before your appointment.\n\n` +
-              `Appointment: ${formattedTime}\n` +
-              `Unlocks in: ${timeRemaining.minutes}m ${timeRemaining.seconds}s\n\n` +
-              `(This restriction comes from your clinic's settings)`,
-            [
-              {text: 'Cancel', style: 'cancel'},
-              {
-                text: 'Mock Chat (Testing)',
-                style: 'default',
-                onPress: () => {
-                  console.log('[MOCK] Bypassing chat time restriction for testing');
-                  navigateToChat();
-                },
-              },
-            ],
-            {cancelable: true},
-          );
-        } else {
-          Alert.alert(
-            'Chat Unavailable',
-            'This appointment has ended and chat is no longer available.',
-            [{text: 'OK'}],
-          );
-        }
-        return;
-      }
-
-      navigateToChat();
+      handleChatActivation({
+        appointment,
+        employee: emp,
+        companions,
+        doctorName,
+        petName,
+        onOpenChat: openChat,
+      });
     },
     [companions, employeeMap, guardFeature, navigation, serviceMap, upcomingAppointments],
   );
 
   const handleCheckInAppointment = React.useCallback(
-    (appointmentId: string) => {
+    async (appointmentId: string) => {
       if (!guardFeature('appointments', 'appointments')) {
         return;
       }
-      dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}));
+      const target = upcomingAppointments.find(a => a.id === appointmentId);
+      if (!target) {
+        Alert.alert('Appointment not found', 'Please refresh and try again.');
+        return;
+      }
+
+      await handleCheckInUtil({
+        appointment: target,
+        businessCoordinates: getCoordinatesForAppointment(appointmentId),
+        onCheckingInChange: (id, checking) => {
+          setCheckingIn(prev => ({...prev, [id]: checking}));
+        },
+        hasPermission: true, // Already guarded above
+      });
     },
-    [dispatch, guardFeature],
+    [
+      getCoordinatesForAppointment,
+      guardFeature,
+      upcomingAppointments,
+      handleCheckInUtil,
+    ],
   );
 
   const renderAppointmentCard = (
@@ -560,122 +580,111 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return null;
     }
 
-    const biz = businessMap.get(appointment.businessId);
-    const service = serviceMap.get(appointment.serviceId ?? '');
-    const emp = employeeMap.get(appointment.employeeId ?? '');
-    const hasAssignedVet = Boolean(emp);
-    const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
-    const cardTitle = hasAssignedVet
-      ? emp?.name ?? 'Assigned vet'
-      : service?.name ?? appointment.serviceName ?? 'Service request';
-    const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
-    const serviceSubtitle = [
-      service?.specialty ?? appointment.type ?? 'Awaiting vet assignment',
-      servicePriceText,
-    ]
-      .filter(Boolean)
-      .join(' • ');
-    const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+    const cardData = transformAppointmentCardData(
+      appointment,
+      businessMap,
+      employeeMap,
+      serviceMap,
+      companions,
+      businessFallbacks,
+      Images,
+    );
 
-    let assignmentNote: string | undefined;
-    if (!hasAssignedVet) {
-      assignmentNote = 'A vet will be assigned once the clinic approves your request.';
-    } else if (appointment.status === 'paid') {
-      assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
-    }
+    const {cardTitle, cardSubtitle} = cardData;
+    const businessName = cardData.businessName;
+    const businessAddress = cardData.businessAddress;
+    const avatarSource = cardData.avatarSource;
+    const fallbackPhoto = cardData.fallbackPhoto;
+    const googlePlacesId = cardData.googlePlacesId;
+    const assignmentNote = cardData.assignmentNote;
+    const {needsPayment, isRequested, statusAllowsActions, isInProgress, checkInLabel, checkInDisabled} =
+      cardData;
+    const isCheckInDisabled = checkInDisabled || checkingIn[appointment.id];
+    const footer = needsPayment ? (
+      <View style={styles.upcomingFooter}>
+        <LiquidGlassButton
+          title="Pay now"
+          onPress={() =>
+            navigation
+              .getParent<NavigationProp<TabParamList>>()
+              ?.navigate('Appointments', {
+                screen: 'PaymentInvoice',
+                params: {appointmentId: appointment.id, companionId: appointment.companionId},
+              })
+          }
+          height={48}
+          borderRadius={12}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.reviewButtonText}
+          style={styles.reviewButtonCard}
+        />
+      </View>
+    ) : undefined;
 
-    const formattedDate = formatAppointmentDateTime(appointment.date, appointment.time);
-    const canCheckIn = appointment.status === 'paid' && hasAssignedVet;
+    const formattedDate = formatDateTime(appointment.date, appointment.time);
+    const statusBadge = isRequested ? (
+      <View style={styles.requestedBadge}>
+        <Text style={styles.requestedBadgeText}>Requested</Text>
+      </View>
+    ) : null;
 
     return (
       <AppointmentCard
         key={appointment.id}
         doctorName={cardTitle}
         specialization={cardSubtitle}
-        hospital={biz?.name || ''}
+        hospital={businessName}
         dateTime={formattedDate}
         note={assignmentNote}
         avatar={avatarSource}
-        showActions={canCheckIn}
+        fallbackAvatar={fallbackPhoto ?? undefined}
+        onAvatarError={() => handleAvatarError(googlePlacesId, appointment.businessId)}
+        showActions={statusAllowsActions}
         onPress={() => handleViewAppointment(appointment.id)}
         onViewDetails={() => handleViewAppointment(appointment.id)}
         onGetDirections={() => {
-          if (biz?.address) {
-            openMapsToAddress(biz.address);
+          if (googlePlacesId) {
+            openMapsToPlaceId(googlePlacesId, businessAddress);
+          } else if (businessAddress) {
+            openMapsToAddress(businessAddress);
           }
         }}
         onChat={() => handleChatAppointment(appointment.id)}
         onCheckIn={() => {
-          if (canCheckIn) {
+          if (!isCheckInDisabled) {
             handleCheckInAppointment(appointment.id);
           }
         }}
+        checkInLabel={checkInLabel ?? (isInProgress ? 'In progress' : undefined)}
+        checkInDisabled={isCheckInDisabled}
         testIDs={{
           container: 'appointment-card-container',
           directions: 'appointment-directions',
           chat: 'appointment-chat',
           checkIn: 'appointment-checkin',
         }}
+        footer={
+          statusBadge ? (
+            <View style={styles.upcomingFooter}>
+              {statusBadge}
+              {footer}
+            </View>
+          ) : (
+            footer
+          )
+        }
       />
     );
   };
 
-  const renderUpcomingTasks = () => {
-    if (!hasCompanions) {
-      return renderEmptyStateTile(
-        'No companions yet',
-        'Add a companion to start managing upcoming tasks.',
-        'tasks',
-      );
-    }
-    if (!canAccessFeature('tasks')) {
-      return renderEmptyStateTile(
-        'Tasks restricted',
-        'Ask the primary parent to enable tasks access for you.',
-        'tasks',
-      );
-    }
-    if (nextUpcomingTask && selectedCompanion) {
-      // Get assigned user's profile image and name
-      const assignedToData = nextUpcomingTask?.assignedTo === authUser?.id ? {
-        avatar: authUser?.profilePicture,
-        name: authUser?.firstName || 'User',
-      } : undefined;
-      return (
-        <TaskCard
-          key={nextUpcomingTask.id}
-          title={nextUpcomingTask.title}
-          categoryLabel={nextUpcomingTask.category}
-          subcategoryLabel={nextUpcomingTask.subcategory && nextUpcomingTask.subcategory !== 'none' ? nextUpcomingTask.subcategory : undefined}
-          date={nextUpcomingTask.date}
-          time={nextUpcomingTask.time}
-          companionName={selectedCompanion.name}
-          companionAvatar={
-            normalizeImageUri(selectedCompanion.profileImage ?? undefined) ?? undefined
-          }
-          assignedToName={assignedToData?.name}
-          assignedToAvatar={assignedToData?.avatar}
-          status={nextUpcomingTask.status}
-          category={nextUpcomingTask.category}
-          details={nextUpcomingTask.details}
-          showCompleteButton={true}
-          completeButtonVariant="liquid-glass"
-          completeButtonLabel="Complete"
-          showEditAction={false}
-          hideSwipeActions={false}
-          onPressView={handleViewTask}
-          onPressComplete={() => handleCompleteTask(nextUpcomingTask.id)}
-          onPressTakeObservationalTool={
-            nextUpcomingTask.category === 'health' &&
-            isObservationalToolDetails(nextUpcomingTask.details)
-              ? handleStartObservationalTool
-              : undefined
-          }
-        />
-      );
-    }
-    return renderEmptyStateTile('No upcoming tasks', 'You are all caught up for now.', 'tasks');
-  };
+  const renderUpcomingTasks = () =>
+    renderEmptyStateTile(
+      'Feature coming soon',
+      'Task management will be available shortly.',
+      'tasks-coming-soon',
+      showTasksComingSoon,
+    );
 
   const renderUpcomingAppointments = () => {
     if (!hasCompanions) {
@@ -732,8 +741,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return (
       <YearlySpendCard
         amount={expenseSummary?.total ?? 0}
-        currencyCode={userCurrencyCode}
-        currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
+        currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
+        currencySymbol={resolveCurrencySymbol(
+          expenseSummary?.currencyCode ?? userCurrencyCode,
+          '$',
+        )}
         onPressView={() =>
           navigation.navigate('ExpensesStack', {
             screen: 'ExpensesMain',
@@ -796,8 +808,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <SearchBar
-          placeholder="Search hospitals, groomers, boarders..."
-          onPress={() => {}}
+          placeholder="Search services"
+          mode="input"
+          value={businessSearch}
+          onChangeText={text => {
+            if (!ensureCompanionForSearch()) {
+              return;
+            }
+            setBusinessSearch(text);
+            if (text && text.trim().length > 0) {
+              handleServiceSearch(text);
+            }
+          }}
+          onSubmitEditing={e => handleServiceSearch(e.nativeEvent.text)}
+          onIconPress={() => handleServiceSearch()}
         />
 
         {companions.length === 0 ? (
@@ -882,7 +906,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                   key={action.id}
                   style={styles.quickAction}
                   activeOpacity={0.88}
-                  onPress={() => navigateToTasksCategory(action.category)}>
+                  onPress={showTasksComingSoon}>
                   <View style={styles.quickActionIconWrapper}>
                     <Image
                       source={action.icon}
@@ -1034,31 +1058,16 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     infoTile: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      ...baseTileContainer(theme),
       padding: theme.spacing[5],
       gap: theme.spacing[2],
       ...theme.shadows.md,
       shadowColor: theme.colors.neutralShadow,
       overflow: 'hidden',
     },
-    tileFallback: {
-      borderRadius: theme.borderRadius.lg,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
-    },
-    tileTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    tileSubtitle: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
+    tileFallback: sharedTileStyles(theme).tileFallback,
+    tileTitle: sharedTileStyles(theme).tileTitle,
+    tileSubtitle: sharedTileStyles(theme).tileSubtitle,
     quickActionsCard: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
@@ -1111,12 +1120,20 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
       textAlign: 'center',
     },
+    reviewButtonCard: {marginTop: theme.spacing[1]},
+    reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
+  upcomingFooter: {
+    gap: theme.spacing[2],
+  },
+  requestedBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing[2.5],
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: theme.colors.primaryTint,
+  },
+  requestedBadgeText: {
+    ...theme.typography.title,
+    color: theme.colors.primary,
+  },
   });
-const isObservationalToolDetails = (
-  details: unknown,
-): details is ObservationalToolTaskDetails => {
-  if (details && typeof details === 'object' && 'taskType' in details) {
-    return (details as {taskType?: string}).taskType === 'take-observational-tool';
-  }
-  return false;
-};

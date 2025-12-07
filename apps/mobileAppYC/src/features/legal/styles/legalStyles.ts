@@ -58,6 +58,12 @@ export const createLegalStyles = (theme: any) =>
     textArea: {
       minHeight: 96,
     },
+    formErrorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['1'],
+    },
     formFooter: {
       ...theme.typography.caption,
       color: theme.colors.textSecondary,

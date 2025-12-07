@@ -65,6 +65,22 @@ export const StripeController = {
 
   async createPaymentIntent(req: Request, res: Response) {
     try {
+      const { appointmentId } = req.params;
+
+      const paymentIntent =
+        await StripeService.createPaymentIntentForAppointment(appointmentId);
+
+      return res.status(200).json(paymentIntent);
+    } catch (err) {
+      logger.error("Error createPaymentIntent:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
+  async createPaymentIntentForInvoice(req: Request, res: Response) {
+    try {
       const { invoiceId } = req.params;
 
       const paymentIntent =
@@ -72,7 +88,23 @@ export const StripeController = {
 
       return res.status(200).json(paymentIntent);
     } catch (err) {
-      logger.error("Error createPaymentIntent:", err);
+      logger.error("Error createPaymentIntentForInvoice:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
+  async retrievePaymentIntent(req: Request, res: Response) {
+    try {
+      const { paymentIntentId } = req.params;
+
+      const paymentIntent =
+        await StripeService.retrievePaymentIntent(paymentIntentId);
+
+      return res.status(200).json(paymentIntent);
+    } catch (err) {
+      logger.error("Error retrievePaymentIntent:", err);
       return res.status(400).json({
         error: err instanceof Error ? err.message : "Unknown error",
       });
