@@ -6,21 +6,22 @@ import {
   type CreateUserProfilePayload,
   type UpdateUserProfilePayload,
 } from "../../services/user-profile.service";
+import { AuthenticatedRequest } from "src/middlewares/auth";
 
-type CreateUserProfileRequest = Request<
-  Record<string, never>,
-  unknown,
-  unknown
->;
-type UpdateUserProfileRequest = Request<
-  { organizationId: string; userId: string },
-  unknown,
-  unknown
->;
-type GetUserProfileRequest = Request<{
-  organizationId: string;
-  userId: string;
-}>;
+// type CreateUserProfileRequest = Request<
+//   Record<string, never>,
+//   unknown,
+//   unknown
+// >;
+// type UpdateUserProfileRequest = Request<
+//   { organizationId: string; userId: string },
+//   unknown,
+//   unknown
+// >;
+// type GetUserProfileRequest = Request<{
+//   organizationId: string;
+//   userId: string;
+// }>;
 
 function ensurePlainObjectBody(
   body: unknown,
@@ -30,20 +31,34 @@ function ensurePlainObjectBody(
   }
 }
 
-export const UserProfileController = {
-  create: async (req: CreateUserProfileRequest, res: Response) => {
-    try {
-      const requestBody: unknown = req.body;
-      ensurePlainObjectBody(requestBody);
+const resolveUserIdFromRequest = (req: Request): string | undefined => {
+  const authRequest = req as AuthenticatedRequest;
+  const headerUserId = req.headers["x-user-id"];
+  if (headerUserId && typeof headerUserId === "string") {
+    return headerUserId;
+  }
+  return authRequest.userId;
+};
 
-      const profile = await UserProfileService.create(
-        requestBody as CreateUserProfilePayload,
-      );
+
+export const UserProfileController = {
+  create: async (req: Request, res: Response) => {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const organizationId = req.params.organizationId;
+
+      ensurePlainObjectBody(req.body);
+
+      const profile = await UserProfileService.create({
+        ...(req.body as CreateUserProfilePayload),
+        userId,
+        organizationId,
+      });
+
       res.status(201).json(profile);
     } catch (error: unknown) {
       if (error instanceof UserProfileServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
+        return res.status(error.statusCode).json({ message: error.message });
       }
 
       logger.error("Failed to create user profile", error);
@@ -51,27 +66,27 @@ export const UserProfileController = {
     }
   },
 
-  update: async (req: UpdateUserProfileRequest, res: Response) => {
+  update: async (req: Request, res: Response) => {
     try {
-      const requestBody: unknown = req.body;
-      ensurePlainObjectBody(requestBody);
+      const userId = resolveUserIdFromRequest(req);
+      const organizationId = req.params.organizationId;
+
+      ensurePlainObjectBody(req.body);
 
       const profile = await UserProfileService.update(
-        req.params.userId,
-        req.params.organizationId,
-        requestBody as UpdateUserProfilePayload,
+        userId,
+        organizationId,
+        req.body as UpdateUserProfilePayload,
       );
 
       if (!profile) {
-        res.status(404).json({ message: "User profile not found." });
-        return;
+        return res.status(404).json({ message: "User profile not found." });
       }
 
       res.status(200).json(profile);
     } catch (error: unknown) {
       if (error instanceof UserProfileServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
+        return res.status(error.statusCode).json({ message: error.message });
       }
 
       logger.error("Failed to update user profile", error);
@@ -79,23 +94,24 @@ export const UserProfileController = {
     }
   },
 
-  getByUserId: async (req: GetUserProfileRequest, res: Response) => {
+  getByUserId: async (req: Request, res: Response) => {
     try {
+      const userId = resolveUserIdFromRequest(req);
+      const organizationId = req.params.organizationId;
+
       const profile = await UserProfileService.getByUserId(
-        req.params.userId,
-        req.params.organizationId,
+        userId,
+        organizationId,
       );
 
       if (!profile) {
-        res.status(404).json({ message: "User profile not found." });
-        return;
+        return res.status(404).json({ message: "User profile not found." });
       }
 
       res.status(200).json(profile);
     } catch (error: unknown) {
       if (error instanceof UserProfileServiceError) {
-        res.status(error.statusCode).json({ message: error.message });
-        return;
+        return res.status(error.statusCode).json({ message: error.message });
       }
 
       logger.error("Failed to retrieve user profile", error);
