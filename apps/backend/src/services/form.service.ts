@@ -298,9 +298,9 @@ export const FormService = {
   },
 
   async listFormsForOrganisation(orgId: string) {
-    const oid = ensureObjectId(orgId,"orgId");
+    const oid = ensureObjectId(orgId, "orgId");
     const docs = await FormModel.find({ orgId: oid });
 
     return docs.map((doc) => toFormResponseDTO(doc));
-  }
+  },
 };

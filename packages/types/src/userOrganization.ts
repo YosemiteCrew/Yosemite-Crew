@@ -11,6 +11,7 @@ export interface UserOrganization {
     roleCode: string
     roleDisplay?: string
     active?: boolean
+    extraPermissions?: string[];
 }
 
 export type ToFHIRUserOrganizationOptions = {

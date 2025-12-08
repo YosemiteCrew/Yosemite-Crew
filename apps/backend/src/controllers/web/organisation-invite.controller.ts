@@ -137,7 +137,10 @@ export const OrganisationInviteController = {
         return;
       }
 
-      logger.error("Failed to list pending organisation invites for user.", error);
+      logger.error(
+        "Failed to list pending organisation invites for user.",
+        error,
+      );
       res
         .status(500)
         .json({ message: "Unable to list pending organisation invites." });
@@ -180,6 +183,4 @@ export const OrganisationInviteController = {
         .json({ message: "Unable to accept organisation invite." });
     }
   },
-
-  
 };

@@ -40,7 +40,6 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   return authRequest.userId;
 };
 
-
 export const UserProfileController = {
   create: async (req: Request, res: Response) => {
     try {

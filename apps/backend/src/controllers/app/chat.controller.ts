@@ -94,7 +94,9 @@ export const ChatController = {
         return res.status(err.statusCode).json({ message: err.message });
       }
       logger.error("Error ensuring chat session", err);
-      return res.status(500).json({ message: "Failed to ensure chat session." });
+      return res
+        .status(500)
+        .json({ message: "Failed to ensure chat session." });
     }
   },
 
