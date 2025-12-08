@@ -1,7 +1,7 @@
 import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import { IoEye } from "react-icons/io5";
-import { Service, Speciality } from "@/app/types/org";
+import { ServiceWeb, Speciality } from "@/app/types/org";
 
 import "./DataTable.css";
 
@@ -18,7 +18,7 @@ type SpecialitiesTableProps = {
   setView: (open: boolean) => void;
 };
 
-export const getServiceNames = (services: Service[] = []): string => {
+export const getServiceNames = (services: ServiceWeb[] = []): string => {
   return services.map((s) => s.name).join(", ");
 };
 

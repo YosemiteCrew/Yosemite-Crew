@@ -1,24 +1,36 @@
 import React from "react";
+import { getStatusStyle } from "../../DataTable/OrganizationList";
+import { OrgWithMembership } from "@/app/types/org";
 
 import "./OrgCard.css";
 
-const OrgCard = ({ org }: any) => {
+type OrgCardProps = {
+  org: OrgWithMembership;
+  handleOrgClick: (orgId: string) => void;
+};
+
+const OrgCard = ({ org, handleOrgClick }: OrgCardProps) => {
   return (
     <div className="org-card">
-      <div className="org-card-title">{org.name}</div>
+      <button
+        onClick={() => handleOrgClick(org.org._id?.toString() || org.org.name)}
+        className="org-card-title"
+      >
+        {org.org.name}
+      </button>
       <div className="org-card-item">
         <div className="org-card-item-label">Type :</div>
-        <div className="org-card-item-value">{org.type}</div>
+        <div className="org-card-item-value">{org.org.type}</div>
       </div>
       <div className="org-card-item">
         <div className="org-card-item-label">Role :</div>
-        <div className="org-card-item-value">{org.role}</div>
+        <div className="org-card-item-value">{org.membership?.roleDisplay}</div>
       </div>
       <div
         className="org-card-status"
-        style={{ color: org.color, background: org.bgcolor }}
+        style={getStatusStyle(org.org.isVerified ? "Active" : "Pending")}
       >
-        {org.status}
+        {org.org.isVerified ? "Active" : "Pending"}
       </div>
     </div>
   );

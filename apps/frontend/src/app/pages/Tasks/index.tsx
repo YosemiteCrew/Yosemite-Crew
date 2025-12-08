@@ -8,6 +8,8 @@ import TaskInfo from "./Sections/TaskInfo";
 import { TasksProps } from "@/app/types/tasks";
 import TaskFilters from "@/app/components/Filters/TasksFilters";
 import TitleCalendar from "@/app/components/TitleCalendar";
+import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
+import TaskCalendar from "@/app/components/Calendar/TaskCalendar";
 
 const Tasks = () => {
   const [list] = useState<TasksProps[]>(demoTasks);
@@ -17,7 +19,13 @@ const Tasks = () => {
   const [activeTask, setActiveTask] = useState<TasksProps | null>(
     demoTasks[0] ?? null
   );
-  const [activeCalendar, setActiveCalendar] = useState(2);
+  const [activeCalendar, setActiveCalendar] = useState("week");
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
+
+  useEffect(() => {
+    setWeekStart(getStartOfWeek(currentDate));
+  }, [currentDate, activeCalendar]);
 
   useEffect(() => {
     if (filteredList.length > 0) {
@@ -34,10 +42,22 @@ const Tasks = () => {
         title="Tasks"
         setActiveCalendar={setActiveCalendar}
         setAddPopup={setAddPopup}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
       />
 
       <div className="w-full flex flex-col gap-6">
         <TaskFilters list={list} setFilteredList={setFilteredList} />
+        <TaskCalendar
+          filteredList={list}
+          setActiveTask={setActiveTask}
+          setViewPopup={setViewPopup}
+          activeCalendar={activeCalendar}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+        />
         <TasksTable
           filteredList={filteredList}
           setActiveTask={setActiveTask}

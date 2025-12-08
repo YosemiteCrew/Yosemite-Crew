@@ -1,6 +1,7 @@
 import React from "react";
 import { getStatusStyle } from "../../DataTable/Tasks";
 import { TasksProps } from "@/app/types/tasks";
+import { getFormattedDate } from "../../Calendar/weekHelpers";
 
 type TaskCardProps = {
   item: TasksProps;
@@ -52,7 +53,7 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
           Due date:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.due}
+          {getFormattedDate(item.due)}
         </div>
       </div>
       <div

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoSearch } from "react-icons/io5";
-import { Service, Speciality } from "@/app/types/org";
+import { ServiceWeb, Speciality } from "@/app/types/org";
 import { specialtiesByKey } from "@/app/utils/specialities";
 
 import "./ServiceSearch.css";
@@ -13,7 +13,7 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
 
   const selectedNames = useMemo(
     () =>
-      new Set(speciality.services.map((s: Service) => s.name.toLowerCase())),
+      new Set(speciality.services.map((s: ServiceWeb) => s.name.toLowerCase())),
     [speciality]
   );
 
@@ -58,7 +58,7 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
               maxDiscount: 10,
               charge: 10,
               duration: 15,
-            } as Service,
+            } as ServiceWeb,
           ],
         };
       })
@@ -85,7 +85,7 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
               maxDiscount: 10,
               charge: 15,
               duration: 15,
-            } as Service,
+            } as ServiceWeb,
           ],
         };
       })
@@ -94,9 +94,9 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
     setOpen(false);
   };
 
-  const checkIfAlready = (services: Service[], name: string) => {
+  const checkIfAlready = (services: ServiceWeb[], name: string) => {
     return services?.some(
-      (s: Service) => s.name.toLowerCase() === name.toLowerCase()
+      (s: ServiceWeb) => s.name.toLowerCase() === name.toLowerCase()
     );
   };
 

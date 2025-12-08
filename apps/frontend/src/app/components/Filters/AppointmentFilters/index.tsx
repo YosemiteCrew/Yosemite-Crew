@@ -65,7 +65,7 @@ const AppointmentFilters = ({
         item.status.toLowerCase() === activeStatus.toLowerCase();
       const matchesType =
         activeType === "all" ||
-        item.emergency ? "emergencies" : "all";
+        (activeType === "emergencies" && item.emergency);
       const matchesSearch = item.name
         .toLowerCase()
         .includes(search.toLowerCase());

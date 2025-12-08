@@ -16,7 +16,6 @@ type GetSignedUrlResponse = { uploadUrl: string; fileUrl: string };
 const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [url, setUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,17 +25,17 @@ const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
     };
   }, [preview]);
 
-  const getSignedUrl = async (file: File): Promise<GetSignedUrlResponse> => {
+  const getSignedUrl = async (): Promise<GetSignedUrlResponse> => {
     const res = await postData<GetSignedUrlResponse>(apiUrl, {
-      filename: file.name,
-      contentType: file.type,
+      filename: image?.name,
+      contentType: image?.type,
     });
     return res.data;
   };
 
-  const uploadToS3 = async (uploadUrl: string, file: File) => {
-    await axios.put(uploadUrl, file, {
-      headers: { "Content-Type": file.type },
+  const uploadToS3 = async (uploadUrl: string) => {
+    await axios.put(uploadUrl, image, {
+      headers: { "Content-Type": image?.type },
       withCredentials: false,
     });
   };
@@ -51,11 +50,9 @@ const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
     setPreview(localUrl);
     setImage(file);
     try {
-      const signed = await getSignedUrl(file);
-      await uploadToS3(signed.uploadUrl, file);
-      setUrl(signed.fileUrl);
-      setFormData((e: any) => ({ ...e, logoURL: url }));
-      console.log(url, image);
+      const signed = await getSignedUrl();
+      await uploadToS3(signed.uploadUrl);
+      setFormData((e: any) => ({ ...e, logoURL: signed.fileUrl }));
     } catch (err: any) {
       setError(err?.message || "Upload failed");
       handleRemoveImage();
@@ -68,7 +65,6 @@ const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
     if (preview) URL.revokeObjectURL(preview);
     setImage(null);
     setPreview(null);
-    setUrl(null);
     setError(null);
   };
 

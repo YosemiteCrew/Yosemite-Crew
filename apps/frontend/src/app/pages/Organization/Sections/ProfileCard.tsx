@@ -1,5 +1,6 @@
 import { Primary, Secondary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import { useAuthStore } from "@/app/stores/authStore";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { RiEdit2Fill } from "react-icons/ri";
@@ -17,6 +18,8 @@ type ProfileCardProps = {
   fields: FieldConfig[];
   org: Record<string, any>;
   showProfile?: boolean;
+  showProfileUser?: boolean;
+  editable?: boolean;
 };
 
 const getStatusStyle = (status: string) => {
@@ -30,7 +33,15 @@ const getStatusStyle = (status: string) => {
   }
 };
 
-const ProfileCard = ({ title, fields, org, showProfile }: ProfileCardProps) => {
+const ProfileCard = ({
+  title,
+  fields,
+  org,
+  showProfile,
+  showProfileUser,
+  editable = true
+}: ProfileCardProps) => {
+  const attributes = useAuthStore((s) => s.attributes);
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>(() =>
     fields.reduce(
@@ -102,7 +113,7 @@ const ProfileCard = ({ title, fields, org, showProfile }: ProfileCardProps) => {
         <div className="font-grotesk font-medium text-black-text text-[19px]">
           {title}
         </div>
-        {!isEditing && (
+        {editable && !isEditing && (
           <RiEdit2Fill
             size={20}
             color="#302f2e"
@@ -112,6 +123,22 @@ const ProfileCard = ({ title, fields, org, showProfile }: ProfileCardProps) => {
         )}
       </div>
       <div className={`px-3! py-2! flex flex-col`}>
+        {showProfileUser && (
+          <div className="px-6! py-3! flex gap-3 items-center">
+            <Image
+              src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+              alt="Logo"
+              height={60}
+              width={60}
+              className="rounded-full"
+            />
+            <div className="font-grotesk font-medium text-black-text text-[28px]">
+              {(attributes?.given_name || "") +
+                " " +
+                (attributes?.family_name || "")}
+            </div>
+          </div>
+        )}
         {showProfile && (
           <div className="px-6! py-3! flex flex-col gap-3">
             <div className="flex items-center justify-between">

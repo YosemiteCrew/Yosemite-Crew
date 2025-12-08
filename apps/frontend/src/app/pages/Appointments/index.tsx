@@ -8,6 +8,8 @@ import AppointmentFilters from "@/app/components/Filters/AppointmentFilters";
 import AddAppointment from "./Sections/AddAppointment";
 import AppoitmentInfo from "./Sections/AppointmentInfo";
 import TitleCalendar from "@/app/components/TitleCalendar";
+import AppointmentCalendar from "@/app/components/Calendar/AppointmentCalendar";
+import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
 
 const Appointments = () => {
   const [list] = useState<AppointmentsProps[]>(demoAppointments);
@@ -17,7 +19,13 @@ const Appointments = () => {
   const [viewPopup, setViewPopup] = useState(false);
   const [activeAppointment, setActiveAppointment] =
     useState<AppointmentsProps | null>(demoAppointments[0] ?? null);
-  const [activeCalendar, setActiveCalendar] = useState(2);
+  const [activeCalendar, setActiveCalendar] = useState("day");
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
+
+  useEffect(() => {
+    setWeekStart(getStartOfWeek(currentDate));
+  }, [currentDate, activeCalendar]);
 
   useEffect(() => {
     if (filteredList.length > 0) {
@@ -34,10 +42,22 @@ const Appointments = () => {
         title="Appointments"
         setActiveCalendar={setActiveCalendar}
         setAddPopup={setAddPopup}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
       />
 
       <div className="w-full flex flex-col gap-6">
         <AppointmentFilters list={list} setFilteredList={setFilteredList} />
+        <AppointmentCalendar
+          filteredList={list}
+          setActiveAppointment={setActiveAppointment}
+          setViewPopup={setViewPopup}
+          activeCalendar={activeCalendar}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+        />
         <AppointmentsTable
           filteredList={filteredList}
           setActiveAppointment={setActiveAppointment}

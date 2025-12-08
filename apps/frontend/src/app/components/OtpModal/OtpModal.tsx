@@ -5,8 +5,10 @@ import Link from "next/link";
 
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { useAuthStore } from "@/app/stores/authStore";
+import { postData } from "@/app/services/axios";
 
 import "./OtpModal.css";
+import { useRouter } from "next/navigation";
 
 const OtpModal = ({
   email,
@@ -15,7 +17,8 @@ const OtpModal = ({
   showVerifyModal,
   setShowVerifyModal,
 }: any) => {
-  const { confirmSignUp, resendCode, signIn } = useAuthStore();
+  const { confirmSignUp, resendCode, signIn, signout } = useAuthStore();
+  const router = useRouter()
   const [code, setCode] = useState(new Array(6).fill(""));
   const [activeInput, setActiveInput] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -65,6 +68,15 @@ const OtpModal = ({
     }
   };
 
+  const afterAuthSuccess = async () => {
+    try {
+      await postData("/fhir/v1/user");
+    } catch (error) {
+      await signout();
+      throw error;
+    }
+  };
+
   const handleVerify = async (): Promise<void> => {
     if (code.includes("")) {
       showErrorTost({
@@ -90,6 +102,8 @@ const OtpModal = ({
         setShowVerifyModal(false);
         try {
           await signIn(email, password);
+          await afterAuthSuccess()
+          router.push("/organizations");
         } catch (error) {
           console.log(error);
           showErrorTost({
