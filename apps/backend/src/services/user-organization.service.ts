@@ -10,7 +10,6 @@ import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
   type UserOrganizationRequestDTO,
-  type UserOrganizationDTOAttributes,
   type UserOrganizationResponseDTO,
   type UserOrganization,
 } from "@yosemite-crew/types";
@@ -258,7 +257,7 @@ const ensureRoleSupportedForOrganization = async (
 };
 
 const sanitizeUserOrganizationAttributes = (
-  dto: UserOrganizationDTOAttributes,
+  dto: UserOrganization,
 ): UserOrganizationMongo => {
   const practitionerReference = requireSafeString(
     dto.practitionerReference,

@@ -152,4 +152,6 @@ export const OrganisationInviteController = {
         .json({ message: "Unable to accept organisation invite." });
     }
   },
+
+  
 };

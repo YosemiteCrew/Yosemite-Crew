@@ -1,50 +1,21 @@
 import type { PractitionerRole } from "@yosemite-crew/fhirtypes"
 import type { UserOrganization } from '../userOrganization'
-import { toFHIRUserOrganization } from '../userOrganization'
+import { fromFHIRUserOrganization, toFHIRUserOrganization } from '../userOrganization'
 
 export type UserOrganizationRequestDTO = PractitionerRole
 
 export type UserOrganizationResponseDTO = PractitionerRole
 
-export interface UserOrganizationDTOAttributes {
-    id?: string
-    practitionerReference?: string
-    organizationReference?: string
-    roleCode?: string
-    roleDisplay?: string
-    active?: boolean
-}
-
-const getPrimaryRoleCoding = (dto: PractitionerRole['code']): {
-    code?: string
-    display?: string
-    text?: string
-} => {
-    const primary = dto?.[0]
-    const coding = primary?.coding?.[0]
-
-    return {
-        code: coding?.code ?? primary?.text,
-        display: coding?.display,
-        text: primary?.text,
-    }
-}
 
 export const fromUserOrganizationRequestDTO = (
     dto: UserOrganizationRequestDTO
-): UserOrganizationDTOAttributes => {
-    const practitionerReference = dto.practitioner?.reference
-    const organizationReference = dto.organization?.reference
-    const coding = getPrimaryRoleCoding(dto.code)
+): UserOrganization => {
 
-    return {
-        id: dto.id,
-        practitionerReference,
-        organizationReference,
-        roleCode: coding.code,
-        roleDisplay: coding.display ?? coding.text,
-        active: dto.active,
+    if (!dto || dto.resourceType !== "PractitionerRole") {
+        throw new Error("Invalid payload. Expected FHIR PractitionerRole resource.");
     }
+    
+    return fromFHIRUserOrganization(dto)
 }
 
 export const toUserOrganizationResponseDTO = (
