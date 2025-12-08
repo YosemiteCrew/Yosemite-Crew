@@ -29,12 +29,16 @@ export const deleteFirebaseAccount = async (): Promise<void> => {
     console.log('[Auth] Firebase account deleted successfully');
   } catch (error) {
     const code = (error as any)?.code;
-    const message =
-      code === 'auth/requires-recent-login'
-        ? 'Please log in again before deleting your account.'
-        : error instanceof Error
-          ? error.message
-          : 'Unable to delete Firebase account.';
+    let message: string;
+
+    if (code === 'auth/requires-recent-login') {
+      message = 'Please log in again before deleting your account.';
+    } else if (error instanceof Error) {
+      message = error.message;
+    } else {
+      message = 'Unable to delete Firebase account.';
+    }
+
     console.warn('[Auth] Firebase account deletion failed', message);
     throw new Error(message);
   }

@@ -233,10 +233,10 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
     if (currentProvider === 'firebase') {
       try {
         const auth = getAuth();
-        if (!auth.currentUser) {
-          console.warn('[Auth] Firebase sign out skipped: no current user');
-        } else {
+        if (auth.currentUser) {
           await signOut(auth);
+        } else {
+          console.warn('[Auth] Firebase sign out skipped: no current user');
         }
       } catch (error) {
         const code = (error as any)?.code;
