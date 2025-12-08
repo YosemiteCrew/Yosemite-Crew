@@ -111,7 +111,7 @@ jest.mock('../../../../src/assets/images', () => ({
 jest.mock('../../../../src/shared/components/common/Header/Header', () => ({
   Header: ({title, onBack}: any) => {
     const {View, Text, TouchableOpacity} = require('react-native');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     return (
       <View>
@@ -129,7 +129,7 @@ jest.mock(
   () => ({
     LiquidGlassCard: ({children, style}: any) => {
       const {View} = require('react-native');
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       const React = require('react');
       return <View style={style}>{children}</View>;
     },
@@ -140,7 +140,7 @@ jest.mock(
   '../../../../src/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => {
     const {TouchableOpacity, Text} = require('react-native');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     return ({title, onPress}: any) => (
       <TouchableOpacity onPress={onPress} testID="logout-btn">
@@ -155,7 +155,7 @@ jest.mock(
   () => ({
     AccountMenuList: ({items, onItemPress}: any) => {
       const {View, TouchableOpacity, Text} = require('react-native');
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       const React = require('react');
       return (
         <View>
@@ -178,7 +178,7 @@ jest.mock(
   () => {
     const {forwardRef, useImperativeHandle} = require('react');
     const {View, Button} = require('react-native');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
 
     return forwardRef(({onDelete}: any, ref: any) => {

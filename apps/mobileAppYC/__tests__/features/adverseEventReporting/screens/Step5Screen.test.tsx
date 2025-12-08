@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, TextInput, TouchableOpacity} from 'react-native';
+// FIX: Removed unused imports {View, Text, TextInput, TouchableOpacity} to resolve unused vars and shadowing errors
 import {fireEvent, render, act} from '@testing-library/react-native';
 import {Step5Screen} from '../../../../src/features/adverseEventReporting/screens/Step5Screen';
 import {useAdverseEventReport} from '../../../../src/features/adverseEventReporting/state/AdverseEventReportContext';
@@ -68,6 +68,7 @@ jest.mock(
 jest.mock(
   '../../../../src/shared/components/common/CountryBottomSheet/CountryBottomSheet',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {TouchableOpacity, Text} = require('react-native');
     return {
@@ -91,6 +92,7 @@ jest.mock(
 jest.mock(
   '../../../../src/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {TouchableOpacity, Text} = require('react-native');
     return {

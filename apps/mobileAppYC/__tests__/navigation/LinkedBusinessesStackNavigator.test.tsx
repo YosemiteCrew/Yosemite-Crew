@@ -1,7 +1,6 @@
 import React from 'react';
 import {render} from '@testing-library/react-native';
 import {LinkedBusinessesStackNavigator} from '../../src/navigation/LinkedBusinessesStackNavigator';
-import {View} from 'react-native';
 
 // --- Mocks ---
 

@@ -9,7 +9,6 @@ import {
   ToastAndroid,
   Platform,
   ActivityIndicator,
-  View,
 } from 'react-native';
 
 // --- Imports to be mocked ---
@@ -129,6 +128,7 @@ jest.mock('@/features/companion/components/CompanionProfileHeader', () => {
 jest.mock(
   '@/shared/components/common/DeleteProfileBottomSheet/DeleteProfileBottomSheet',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const RN = require('react-native');
 
@@ -560,10 +560,9 @@ describe('ProfileOverviewScreen', () => {
 
   // --- 7. BackHandler (Android) ---
   it('handles hardware back press logic verification', () => {
-    let capturedCb: any;
     const addSpy = jest
       .spyOn(BackHandler, 'addEventListener')
-      .mockImplementation((_) => {
+      .mockImplementation(_ => {
         return {remove: jest.fn()} as any;
       });
 
