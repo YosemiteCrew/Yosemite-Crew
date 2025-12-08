@@ -132,6 +132,7 @@ jest.mock('../../src/shared/components/common', () => ({
 
 // Mock Bottom Sheets with imperative handles
 jest.mock('../../src/features/home/components/EmergencyBottomSheet', () => {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   const React = require('react');
   const {View, Text} = require('react-native');
   return {
@@ -153,6 +154,7 @@ jest.mock('../../src/features/home/components/EmergencyBottomSheet', () => {
 jest.mock(
   '../../src/features/coParent/components/CoParentInviteBottomSheet/CoParentInviteBottomSheet',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View, Text} = require('react-native');
     return React.forwardRef((props: any, ref: any) => {

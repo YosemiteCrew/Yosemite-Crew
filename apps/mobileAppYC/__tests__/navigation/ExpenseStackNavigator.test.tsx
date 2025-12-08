@@ -1,7 +1,6 @@
 import React from 'react';
 import {render} from '@testing-library/react-native';
 import {ExpenseStackNavigator} from '../../src/navigation/ExpenseStackNavigator';
-import {View} from 'react-native';
 
 // --- Mocks ---
 // We inline the React components inside the factory functions because
