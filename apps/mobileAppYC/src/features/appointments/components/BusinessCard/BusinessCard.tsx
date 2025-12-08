@@ -79,7 +79,12 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
   }, [fallbackPhoto, isDummyPhoto, loadFailed, photo, sourceOverride]);
 
   return (
-    <LiquidGlassCard style={[styles.card, compact && styles.compact, style]} padding="0" shadow="none">
+    <LiquidGlassCard
+      style={[styles.card, compact && styles.compact, style]}
+      padding="0"
+      shadow="none"
+      glassEffect="clear"
+      fallbackStyle={styles.cardFallback}>
       <Image
         source={resolvedSource}
         style={styles.photo}
@@ -134,6 +139,12 @@ const createStyles = (theme: any) =>
       padding: 0,
       overflow: 'hidden',
       marginVertical: 6,
+    },
+    cardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderColor: theme.colors.borderMuted,
+      borderWidth: 1,
+      borderRadius: theme.borderRadius.lg,
     },
     compact: {
       width: 280,

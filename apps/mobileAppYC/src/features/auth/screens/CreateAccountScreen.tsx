@@ -225,38 +225,54 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
   useEffect(() => {
     register('address', {
-      required: 'Address is required',
-      minLength: {
-        value: 5,
-        message: 'Address must be at least 5 characters',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        if (value.length < 5) {
+          return 'Address must be at least 5 characters';
+        }
+        return true;
       },
     });
     register('stateProvince', {
-      required: 'State/Province is required',
-      pattern: {
-        value: /^[A-Za-z\s]+$/,
-        message: 'State/Province can only contain letters and spaces',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z\s]+$/.test(value)
+          ? true
+          : 'State/Province can only contain letters and spaces';
       },
     });
     register('city', {
-      required: 'City is required',
-      pattern: {
-        value: /^[A-Za-z\s]+$/,
-        message: 'City can only contain letters and spaces',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z\s]+$/.test(value)
+          ? true
+          : 'City can only contain letters and spaces';
       },
     });
     register('postalCode', {
-      required: 'Postal code is required',
-      pattern: {
-        value: /^[A-Za-z0-9\s-]{4,10}$/,
-        message: 'Please enter a valid postal code',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z0-9\s-]{4,10}$/.test(value)
+          ? true
+          : 'Please enter a valid postal code';
       },
     });
     register('country', {
-      required: 'Country is required',
-      pattern: {
-        value: /^[A-Za-z\s]+$/,
-        message: 'Country can only contain letters and spaces',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z\s]+$/.test(value)
+          ? true
+          : 'Country can only contain letters and spaces';
       },
     });
   }, [register]);
@@ -519,25 +535,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     ] as const;
     const isValid = await trigger(fieldsToValidate);
 
-    if (!step1Data.dateOfBirth) {
-      setError('dateOfBirth', {
-        type: 'manual',
-        message: 'Date of birth is required',
-      });
-      return;
-    }
-
-    const birthDate = new Date(step1Data.dateOfBirth);
-    const maxDate = getMaximumDate();
-
-    if (birthDate > maxDate) {
-      setError('dateOfBirth', {
-        type: 'manual',
-        message: 'You must be at least 18 years old',
-      });
-      return;
-    }
-
     if (isValid) {
       clearErrors('dateOfBirth');
       setCurrentStep(2);
@@ -642,21 +639,17 @@ const handleGoBack = useCallback(async () => {
       return;
     }
 
-    if (!combinedData.dateOfBirth) {
-      setError('dateOfBirth', {
-        type: 'manual',
-        message: 'Date of birth is required',
-      });
-      return;
-    }
-
     try {
       setIsSubmitting(true);
 
-      const birthDateIso = combinedData.dateOfBirth?.toISOString().split('T')[0];
-      if (!birthDateIso) {
-        throw new Error('Date of birth is required.');
-      }
+      const birthDateIso = combinedData.dateOfBirth?.toISOString().split('T')[0] ?? null;
+      const hasAddressDetails = [
+        combinedData.address,
+        combinedData.stateProvince,
+        combinedData.city,
+        combinedData.postalCode,
+        combinedData.country,
+      ].some(value => Boolean(value?.trim()));
 
       let profileImageKey: string | null = null;
       let existingPhotoUrl = combinedData.profileImage ?? profileToken ?? existingParentProfile?.profileImageUrl ?? null;
@@ -690,6 +683,18 @@ const handleGoBack = useCallback(async () => {
         }
       }
 
+      const addressPayload = hasAddressDetails
+        ? {
+            addressLine: combinedData.address?.trim(),
+            stateProvince: combinedData.stateProvince?.trim(),
+            city: combinedData.city?.trim(),
+            postalCode: combinedData.postalCode?.trim(),
+            country: combinedData.country?.trim(),
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          }
+        : undefined;
+
       const parentPayload: ParentProfileUpsertPayload = {
         parentId: existingParentProfile?.id ?? null,
         firstName: combinedData.firstName.trim(),
@@ -697,16 +702,7 @@ const handleGoBack = useCallback(async () => {
         phoneNumber: combinedData.fullMobileNumber,
         email,
         dateOfBirth: birthDateIso,
-        address: {
-          addressLine: combinedData.address,
-          stateProvince: combinedData.stateProvince,
-          city: combinedData.city,
-          postalCode: combinedData.postalCode,
-          country: combinedData.country,
-          latitude: location?.latitude,
-          longitude: location?.longitude,
-        },
-        isProfileComplete: true,
+        address: addressPayload,
         profileImageKey,
         existingPhotoUrl,
       };
@@ -716,13 +712,6 @@ const handleGoBack = useCallback(async () => {
       await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
-      if (!parentSummary.isComplete) {
-        setSubmissionError(
-          'Please add all required profile details (date of birth, phone, full address, and a profile photo) to continue.',
-        );
-        return;
-      }
-
       const userPayload: User = mergeUserWithParentProfile(
         {
           id: userId,
@@ -731,16 +720,18 @@ const handleGoBack = useCallback(async () => {
           firstName: combinedData.firstName,
           lastName: combinedData.lastName,
           phone: combinedData.fullMobileNumber,
-          dateOfBirth: birthDateIso,
+          dateOfBirth: birthDateIso ?? undefined,
           profilePicture: combinedData.profileImage ?? undefined,
           profileToken: parentSummary.profileImageUrl ?? profileToken,
-          address: {
-            addressLine: combinedData.address,
-            stateProvince: combinedData.stateProvince,
-            city: combinedData.city,
-            postalCode: combinedData.postalCode,
-            country: combinedData.country,
-          },
+          address: addressPayload
+            ? {
+                addressLine: addressPayload.addressLine ?? undefined,
+                stateProvince: addressPayload.stateProvince ?? undefined,
+                city: addressPayload.city ?? undefined,
+                postalCode: addressPayload.postalCode ?? undefined,
+                country: addressPayload.country ?? undefined,
+              }
+            : undefined,
         },
         parentSummary,
       );
@@ -863,16 +854,31 @@ const handleGoBack = useCallback(async () => {
         <Controller
           control={control}
           name="dateOfBirth"
-          rules={{required: 'Date of birth is required'}}
+          rules={{
+            validate: value => {
+              if (!value) {
+                return true;
+              }
+              const birthDate = new Date(value);
+              if (Number.isNaN(birthDate.getTime())) {
+                return 'Please select a valid date';
+              }
+              const maxDate = getMaximumDate();
+              if (birthDate > maxDate) {
+                return 'You must be at least 18 years old';
+              }
+              return true;
+            },
+          }}
           render={() => (
             <TouchableInput
-              label="Date of birth"
+              label="Date of birth (optional)"
               value={
                 step1Data.dateOfBirth
                   ? formatDateForDisplay(step1Data.dateOfBirth)
                   : ''
               }
-              placeholder="Select date of birth"
+              placeholder="Select date of birth (Optional)"
               onPress={handleDatePickerPress}
               error={errors.dateOfBirth?.message}
               rightComponent={
@@ -922,6 +928,13 @@ const handleGoBack = useCallback(async () => {
           error={addressLookupError}
           onSelectSuggestion={handleAddressSuggestionPress}
           fieldErrors={addressFieldErrors}
+          labels={{
+            addressLine: 'Address (optional)',
+            stateProvince: Platform.select({ios: 'State (optional)', default: 'State/Province (optional)'}) ?? 'State/Province (optional)',
+            city: 'City (optional)',
+            postalCode: 'Postal code (optional)',
+            country: 'Country (optional)',
+          }}
         />
 
         <View style={styles.checkboxWrapper}>

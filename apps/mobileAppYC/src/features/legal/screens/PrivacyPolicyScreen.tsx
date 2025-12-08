@@ -1,5 +1,4 @@
 import React from 'react';
-import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {LegalScreen} from '../components/LegalScreen';
 import {PRIVACY_POLICY_SECTIONS} from '../data/privacyPolicyData';
 
@@ -12,11 +11,10 @@ if (__DEV__) {
     const _err = err;
   }
 }
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '@/navigation/types';
-import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 
-type LegalStackParamList = HomeStackParamList & AuthStackParamList;
-type PrivacyScreenProps = NativeStackScreenProps<LegalStackParamList, 'PrivacyPolicy'>;
+type PrivacyScreenProps = NativeStackScreenProps<HomeStackParamList, 'PrivacyPolicy'>;
 
 export const PrivacyPolicyScreen: React.FC<PrivacyScreenProps> = (props) => (
   <LegalScreen

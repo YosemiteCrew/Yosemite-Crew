@@ -24,10 +24,8 @@ if (__DEV__) {
   }
 }
 import type {HomeStackParamList} from '@/navigation/types';
-import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 
-type LegalStackParamList = HomeStackParamList & AuthStackParamList;
-type TermsScreenProps = NativeStackScreenProps<LegalStackParamList, 'TermsAndConditions'>;
+type TermsScreenProps = NativeStackScreenProps<HomeStackParamList, 'TermsAndConditions'>;
 type WithdrawalErrors = Partial<
   Record<'fullName' | 'email' | 'address' | 'signature' | 'consent' | 'general', string>
 >;

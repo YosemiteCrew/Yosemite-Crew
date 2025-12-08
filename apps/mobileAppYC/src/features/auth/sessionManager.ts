@@ -229,13 +229,12 @@ const resolveProfileTokenForUser = async (
   },
   sourceLabel: 'Amplify' | 'Firebase',
 ): Promise<
-  | {
-      status: 'resolved';
-      token?: string | null;
-      parent?: ParentProfileSummary;
-      isComplete?: boolean;
-    }
-  | PendingProfileResult
+  {
+    status: 'resolved';
+    token?: string | null;
+    parent?: ParentProfileSummary;
+    isComplete?: boolean;
+  }
 > => {
   try {
     const profileStatus = await fetchProfileStatus({
@@ -243,10 +242,6 @@ const resolveProfileTokenForUser = async (
       userId: params.userId,
       parentId: params.parentId ?? undefined,
     });
-
-    if (!profileStatus.isComplete && profileStatus.source === 'remote') {
-      return {kind: 'pendingProfile'};
-    }
 
     return {
       status: 'resolved',
@@ -315,10 +310,6 @@ const attemptAmplifyRecovery = async (
       },
       'Amplify',
     );
-
-    if ('kind' in profileTokenResult) {
-      return profileTokenResult;
-    }
 
     const baseUser = buildAmplifyUser(
       authUser,
@@ -391,10 +382,6 @@ const attemptFirebaseRecovery = async (
       },
       'Firebase',
     );
-
-    if ('kind' in profileTokenResult) {
-      return profileTokenResult;
-    }
 
     const tokenResult = await getIdTokenResult(firebaseUser);
     const expiresAt = tokenResult?.expirationTime
