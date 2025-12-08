@@ -41,10 +41,10 @@ const AddSpeciality = ({ showModal, setShowModal }: AddSpecialityProps) => {
 
         <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between">
           <div className="flex flex-col gap-3">
-            <SpecialitySearch
+            {/* <SpecialitySearch
               specialities={formData}
               setSpecialities={setFormData}
-            />
+            /> */}
             {formData.map((speciality, i) => (
               <Accordion
                 key={speciality.name}

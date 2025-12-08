@@ -1,4 +1,18 @@
+import {
+  Organisation,
+  Service,
+  SpecialityRequestDTO,
+  UserOrganization,
+} from "@yosemite-crew/types";
+
 export type BusinessType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+
+export const BusinessTypes: BusinessType[] = [
+  "HOSPITAL",
+  "BREEDER",
+  "BOARDER",
+  "GROOMER",
+];
 
 export const RolesByBusinessType: string[] = [
   "Owner",
@@ -8,36 +22,35 @@ export const RolesByBusinessType: string[] = [
   "Supervisor",
   "Assistant",
   "Receptionist",
-  "Groomer"
+  "Groomer",
 ];
 
-export type Org = {
+export type OrgWithMembership = {
+  org: Organisation;
+  membership: UserOrganization | null;
+};
+
+export type SpecialityWithServices = {
+  speciality: SpecialityRequestDTO;
+  services: Service[];
+};
+
+export type InviteProps = {
   id: string;
   name: string;
-  type: BusinessType;
-  isActive: boolean;
-  isVerified: boolean;
-  specialities?: Speciality[];
-};
-
-export type Membership = {
-  orgId: string;
+  type: string;
   role: string;
-  permissions?: string[];
-};
-
-export type OrgWithMembership = Org & {
-  membership: Membership;
+  employmentType: string;
 };
 
 export type Speciality = {
   name: string;
   head?: string;
   staff?: string[];
-  services?: Service[];
+  services?: ServiceWeb[];
 };
 
-export type Service = {
+export type ServiceWeb = {
   name: string;
   description?: string;
   duration?: number;

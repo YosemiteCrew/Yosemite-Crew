@@ -22,7 +22,7 @@ import Documents from "./Prescription/Documents";
 import Discharge from "./Prescription/Discharge";
 import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
-import { Service } from "@/app/types/org";
+import { ServiceWeb } from "@/app/types/org";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
@@ -30,7 +30,7 @@ type AppoitmentInfoProps = {
   activeAppointment: AppointmentsProps | null;
 };
 
-export type ServiceEdit = Service & {
+export type ServiceEdit = ServiceWeb & {
   discount: string;
 };
 

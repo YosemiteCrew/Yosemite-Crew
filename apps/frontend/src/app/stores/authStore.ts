@@ -8,6 +8,7 @@ import {
   ISignUpResult,
   AuthenticationDetails,
 } from "amazon-cognito-identity-js";
+import { useOrgStore } from "@/app/stores/orgStore";
 
 const poolData: ICognitoUserPoolData = {
   UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USERPOOLID || "",
@@ -20,7 +21,12 @@ if (poolData.UserPoolId && poolData.ClientId) {
   userPool = new CognitoUserPool(poolData);
 }
 
-type Status = "idle" | "checking" | "authenticated" | "unauthenticated";
+type Status =
+  | "idle"
+  | "checking"
+  | "authenticated"
+  | "unauthenticated"
+  | "signin-authenticated";
 
 type AuthStore = {
   user: CognitoUser | null;
@@ -47,7 +53,8 @@ type AuthStore = {
     password: string
   ) => Promise<CognitoUserSession | null>;
   checkSession: () => Promise<CognitoUserSession | null>;
-  signout: () => void;
+  refreshSession: () => Promise<CognitoUserSession | null>;
+  signout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{
     CodeDeliveryDetails: {
       AttributeName: string;
@@ -151,21 +158,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const handleAuthSuccess = async (session: CognitoUserSession) => {
       const idTokenPayload = session.getIdToken().decodePayload();
       const role = idTokenPayload["custom:role"] || "";
-      let mapped: Record<string, string> | null = null;
-      try {
-        mapped = await get().loadUserAttributes();
-      } catch (e) {
-        console.error("Failed to load user attributes", e);
-      }
       set({
         user: cognitoUser,
         session,
         loading: false,
         error: null,
         role,
-        status: "authenticated",
-        attributes: mapped,
+        status: "signin-authenticated",
       });
+      try {
+        await get().loadUserAttributes();
+      } catch (e) {
+        console.error("Failed to load user attributes", e);
+      }
     };
 
     return new Promise((resolve, reject) => {
@@ -200,12 +205,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       session: CognitoUserSession,
       role: string
     ) => {
-      let mapped: Record<string, string> | null = null;
-      try {
-        mapped = await get().loadUserAttributes();
-      } catch (e) {
-        console.error("Failed to load user attributes", e);
-      }
       set({
         user: cognitoUser,
         status: "authenticated",
@@ -213,8 +212,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         loading: false,
         error: null,
         role,
-        attributes: mapped,
       });
+      try {
+        await get().loadUserAttributes();
+      } catch (e) {
+        console.error("Failed to load user attributes", e);
+      }
     };
     return new Promise((resolve, reject) => {
       const cognitoUser = userPool.getCurrentUser();
@@ -249,46 +252,101 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       );
     });
   },
-  signout: () => {
+  refreshSession: async () => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
+    const handleSessionSuccess = async (
+      cognitoUser: CognitoUser,
+      session: CognitoUserSession,
+      role: string
+    ) => {
+      set({
+        user: cognitoUser,
+        session,
+        role,
+      });
+      try {
+        await get().loadUserAttributes();
+      } catch (e) {
+        console.error("Failed to load user attributes", e);
+      }
+    };
+
+    return new Promise((resolve) => {
+      const cognitoUser = userPool.getCurrentUser();
+      if (!cognitoUser) {
+        // Don't touch status here – let caller decide what to do
+        resolve(null);
+        return;
+      }
+
+      cognitoUser.getSession(
+        (err: Error | null, session: CognitoUserSession | null) => {
+          if (err || !session?.isValid()) {
+            console.warn("refreshSession failed or session invalid:", err);
+            resolve(null);
+            return;
+          }
+
+          const idTokenPayload = session.getIdToken().decodePayload();
+          const role = idTokenPayload["custom:role"] || "";
+          void handleSessionSuccess(cognitoUser, session, role);
+          resolve(session);
+        }
+      );
+    });
+  },
+  signout: async () => {
     if (typeof globalThis !== "undefined") {
       globalThis.sessionStorage?.removeItem("devAuth");
     }
-    const user = get().user;
-    set({
-      status: "unauthenticated",
-      user: null,
-      session: null,
-      role: null,
-      error: null,
-      attributes: null,
-    });
-    if (!user) return;
-    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
-      if (err || !session?.isValid()) return;
-      user.globalSignOut({
-        onSuccess: () => {
-          set({
-            user: null,
-            session: null,
-            role: null,
-            error: null,
-            loading: false,
-            status: "unauthenticated",
-            attributes: null,
-          });
-        },
-        onFailure: (err: Error | null) => {
-          set({
-            user: null,
-            session: null,
-            role: null,
-            error: null,
-            loading: false,
-            status: "unauthenticated",
-            attributes: null,
-          });
-        },
+    const { user } = get();
+    const resetState = () => {
+      set({
+        status: "unauthenticated",
+        user: null,
+        session: null,
+        role: null,
+        error: null,
+        attributes: null,
+        loading: false,
       });
+      try {
+        useOrgStore.getState().clearOrgs();
+      } catch (err) {
+        console.warn("Failed to clear org store on signout", err);
+      }
+    };
+    resetState();
+    if (!user) return;
+    if (typeof globalThis === "undefined") {
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      user.getSession(
+        (err: Error | null, session: CognitoUserSession | null) => {
+          if (err || !session?.isValid()) {
+            if (err) {
+              console.warn("getSession failed during signout:", err);
+            } else {
+              console.warn("Invalid session during signout");
+            }
+            return resolve();
+          }
+          user.globalSignOut({
+            onSuccess: () => {
+              resetState();
+              resolve();
+            },
+            onFailure: (err: Error | null) => {
+              console.error("globalSignOut failed:", err);
+              resetState();
+              resolve();
+            },
+          });
+        }
+      );
     });
   },
   forgotPassword: async (email: string) => {

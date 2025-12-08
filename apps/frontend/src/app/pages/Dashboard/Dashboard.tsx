@@ -9,6 +9,7 @@ import AppointmentLeadersStat from "@/app/components/Stats/AppointmentLeadersSta
 import RevenueLeadersStat from "@/app/components/Stats/RevenueLeadersStat";
 import AppointmentTask from "@/app/components/Summary/AppointmentTask";
 import Availability from "@/app/components/Summary/Availability";
+import OrgGuard from "@/app/components/OrgGuard";
 
 import "./Dashboard.css";
 
@@ -35,7 +36,9 @@ const Dashboard = () => {
 const ProtectedDashboard = () => {
   return (
     <ProtectedRoute>
-      <Dashboard />
+      <OrgGuard>
+        <Dashboard />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

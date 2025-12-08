@@ -1,16 +1,18 @@
 export type FormsCategory =
   | "Consent form"
-  | "Medical note"
-  | "Vaccination"
-  | "Discharge"
-  | "Procedure";
+  | "SOAP-Subjective"
+  | "SOAP-Objective"
+  | "SOAP-Assessment"
+  | "SOAP-Plan"
+  | "Discharge";
 
 export const FormsCategoryOptions: FormsCategory[] = [
   "Consent form",
-  "Medical note",
-  "Vaccination",
-  "Discharge",
-  "Procedure",
+  "SOAP-Subjective",
+  "SOAP-Objective",
+  "SOAP-Assessment",
+  "SOAP-Plan",
+  "Discharge"
 ];
 
 export type FormsUsage = "Internal" | "External" | "Internal & External";

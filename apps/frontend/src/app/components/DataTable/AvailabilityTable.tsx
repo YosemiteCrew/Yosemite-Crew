@@ -31,12 +31,14 @@ type AvailabilityTableProps = {
   filteredList: any;
   setActive?: (team: any) => void;
   setView?: (open: boolean) => void;
+  hideActions?: boolean;
 };
 
 const AvailabilityTable = ({
   filteredList,
   setActive,
   setView,
+  hideActions = false,
 }: AvailabilityTableProps) => {
   const handleViewTeam = (team: any) => {
     setActive?.(team);
@@ -105,29 +107,31 @@ const AvailabilityTable = ({
         </div>
       ),
     },
-    {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
-      render: (item: AvailabilityProps) => (
-        <div className="action-btn-col">
-          <button
-            onClick={() => handleViewTeam(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <IoEye size={18} color="#302F2E" />
-          </button>
-        </div>
-      ),
-    },
   ];
+  const actionColoumn = {
+    label: "Actions",
+    key: "actions",
+    width: "10%",
+    render: (item: AvailabilityProps) => (
+      <div className="action-btn-col">
+        <button
+          onClick={() => handleViewTeam(item)}
+          className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+        >
+          <IoEye size={18} color="#302F2E" />
+        </button>
+      </div>
+    ),
+  };
+
+  const finalColoumns = hideActions ? columns : [...columns, actionColoumn];
 
   return (
     <div className="table-wrapper">
       <div className="table-list">
         <GenericTable
           data={filteredList}
-          columns={columns}
+          columns={finalColoumns}
           bordered={false}
           pagination
           pageSize={5}

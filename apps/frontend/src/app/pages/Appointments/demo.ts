@@ -224,13 +224,13 @@ export function generateAppointments(
 }
 
 export const demoAppointments = [
-  ...generateAppointments(20, "2025-12-01"),
-  ...generateAppointments(20, "2025-12-02"),
-  ...generateAppointments(20, "2025-12-03"),
-  ...generateAppointments(20, "2025-12-04"),
-  ...generateAppointments(20, "2025-12-05"),
-  ...generateAppointments(20, "2025-12-06"),
-  ...generateAppointments(20, "2025-12-07"),
+  ...generateAppointments(20, "2025-12-08"),
+  ...generateAppointments(20, "2025-12-09"),
+  ...generateAppointments(20, "2025-12-10"),
+  ...generateAppointments(20, "2025-12-11"),
+  ...generateAppointments(20, "2025-12-12"),
+  ...generateAppointments(20, "2025-12-13"),
+  ...generateAppointments(20, "2025-12-14"),
 ];
 
 export type CompanionDataProps = {
