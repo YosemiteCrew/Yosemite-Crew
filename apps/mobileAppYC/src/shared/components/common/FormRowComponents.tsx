@@ -16,6 +16,8 @@ export const RowButton: React.FC<{
 }> = ({label, value, onPress}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayValue =
+    value && value.trim().length > 0 ? value : '—';
   return (
     <TouchableOpacity
       style={styles.rowButtonTouchable}
@@ -26,7 +28,7 @@ export const RowButton: React.FC<{
         style={styles.rowButtonValue}
         numberOfLines={1}
         ellipsizeMode="tail">
-        {value || ' '}
+        {displayValue}
       </Text>
       <Image source={Images.rightArrow} style={styles.rowButtonArrow} />
     </TouchableOpacity>
@@ -39,6 +41,8 @@ export const ReadOnlyRow: React.FC<{
 }> = ({label, value}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayValue =
+    value && value.trim().length > 0 ? value : '—';
   return (
     <View style={styles.readOnlyRowContainer}>
       <Text style={styles.rowButtonLabel}>{label}</Text>
@@ -46,7 +50,7 @@ export const ReadOnlyRow: React.FC<{
         style={styles.rowButtonValue}
         numberOfLines={1}
         ellipsizeMode="tail">
-        {value || ' '}
+        {displayValue}
       </Text>
     </View>
   );

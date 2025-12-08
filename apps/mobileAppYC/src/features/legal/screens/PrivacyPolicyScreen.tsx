@@ -1,5 +1,4 @@
 import React from 'react';
-import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {LegalScreen} from '../components/LegalScreen';
 import {PRIVACY_POLICY_SECTIONS} from '../data/privacyPolicyData';
 
@@ -12,6 +11,7 @@ if (__DEV__) {
     const _err = err;
   }
 }
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '@/navigation/types';
 
 type PrivacyScreenProps = NativeStackScreenProps<HomeStackParamList, 'PrivacyPolicy'>;

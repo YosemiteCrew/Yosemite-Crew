@@ -1,5 +1,5 @@
 import {deleteUser as amplifyDeleteUser} from 'aws-amplify/auth';
-import {getAuth} from '@react-native-firebase/auth';
+import {deleteUser, getAuth} from '@react-native-firebase/auth';
 
 export const deleteAmplifyAccount = async (): Promise<void> => {
   try {
@@ -25,13 +25,20 @@ export const deleteFirebaseAccount = async (): Promise<void> => {
       return;
     }
 
-    await currentUser.delete();
+    await deleteUser(currentUser);
     console.log('[Auth] Firebase account deleted successfully');
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Unable to delete Firebase account.';
+    const code = (error as any)?.code;
+    let message: string;
+
+    if (code === 'auth/requires-recent-login') {
+      message = 'Please log in again before deleting your account.';
+    } else if (error instanceof Error) {
+      message = error.message;
+    } else {
+      message = 'Unable to delete Firebase account.';
+    }
+
     console.warn('[Auth] Firebase account deletion failed', message);
     throw new Error(message);
   }
