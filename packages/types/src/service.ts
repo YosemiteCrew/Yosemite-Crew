@@ -9,8 +9,6 @@ export type Service = {
   cost: number;              
   maxDiscount?: number | null;
   specialityId?: string | null;
-  headOfServiceId?: string | null;
-  teamMemberIds?: string[];
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -19,8 +17,6 @@ export type Service = {
 export const EXT_DURATION = "https://yosemitecrew.com/fhir/StructureDefinition/service-duration-minutes";
 export const EXT_COST = "https://yosemitecrew.com/fhir/StructureDefinition/service-cost";
 export const EXT_MAX_DISCOUNT = "https://yosemitecrew.com/fhir/StructureDefinition/service-max-discount";
-export const EXT_HEAD = "https://yosemitecrew.com/fhir/StructureDefinition/service-head-of-service";
-export const EXT_TEAM = "https://yosemitecrew.com/fhir/StructureDefinition/service-team-member";
 
 export function toFHIRHealthcareService(service: Service) : HealthcareService {
   const extensions : Extension[] = [];
@@ -49,23 +45,6 @@ export function toFHIRHealthcareService(service: Service) : HealthcareService {
     });
   }
 
-  // Head of service
-  if (service.headOfServiceId) {
-    extensions.push({
-      url: EXT_HEAD,
-      valueString: service.headOfServiceId,
-    });
-  }
-
-  // Team members
-  if (service.teamMemberIds?.length) {
-    service.teamMemberIds.forEach((id) =>
-      extensions.push({
-        url: EXT_TEAM,
-        valueString: id
-      }),
-    );
-  }
 
   const FHIRService : HealthcareService = {
     resourceType: "HealthcareService",
@@ -112,8 +91,6 @@ export function fromFHIRHealthCareService(FHIRHealthcareService : HealthcareServ
     durationMinutes: 0,
     cost: 0,
     maxDiscount: undefined,
-    headOfServiceId: undefined,
-    teamMemberIds: [],
   }
 
   // Parse extensions
@@ -130,18 +107,6 @@ export function fromFHIRHealthCareService(FHIRHealthcareService : HealthcareServ
 
         case EXT_MAX_DISCOUNT:
           service.maxDiscount = ext.valueDecimal ?? undefined;
-          break;
-
-        case EXT_HEAD:
-          service.headOfServiceId = ext.valueString
-          break;
-
-        case EXT_TEAM:
-          if (ext.valueString) {
-            service.teamMemberIds!.push(
-              ext.valueString
-            );
-          }
           break;
       }
     }

@@ -50,8 +50,6 @@ const mapDocToDomain = (doc: ServiceDocument): Service => {
     cost: o.cost,
     maxDiscount: o.maxDiscount ?? null,
     specialityId: o.specialityId?.toString() ?? null,
-    headOfServiceId: o.headOfServiceId ?? null,
-    teamMemberIds: o.teamMemberIds ?? [],
     isActive: o.isActive,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
@@ -73,8 +71,6 @@ export const ServiceService = {
       specialityId: service.specialityId
         ? ensureObjectId(service.specialityId, "specialityId")
         : null,
-      headOfServiceId: service.headOfServiceId ?? null,
-      teamMemberIds: service.teamMemberIds ?? [],
       isActive: service.isActive,
     };
 
@@ -127,12 +123,6 @@ export const ServiceService = {
         serviceUpdates.specialityId,
         "specialityId",
       );
-
-    if (serviceUpdates.headOfServiceId != null)
-      doc.headOfServiceId = serviceUpdates.headOfServiceId;
-
-    if (Array.isArray(serviceUpdates.teamMemberIds))
-      doc.teamMemberIds = serviceUpdates.teamMemberIds;
 
     if (serviceUpdates.isActive != null) doc.isActive = serviceUpdates.isActive;
 
