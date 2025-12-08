@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Linking,
 } from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -14,6 +13,7 @@ import {useDispatch} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {fetchGooglePlacesImage} from '../thunks';
 import type {LinkedBusiness} from '../types';
+import {openMapsToAddress} from '@/shared/utils/openMaps';
 
 interface LinkedBusinessCardProps {
   business: LinkedBusiness;
@@ -71,22 +71,7 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
       Alert.alert('No Address', 'Address not available for this business.');
       return;
     }
-    // Open maps with the business address
-    const encodedAddress = encodeURIComponent(business.address);
-    const mapsUrl = `maps://maps.google.com/?q=${encodedAddress}`;
-    const appleMapsUrl = `maps://?address=${encodedAddress}`;
-
-    Linking.canOpenURL(mapsUrl)
-      .then(supported => {
-        if (supported) {
-          return Linking.openURL(mapsUrl);
-        }
-        return Linking.openURL(appleMapsUrl);
-      })
-      .catch(() => {
-        // Fallback to web version
-        Linking.openURL(`https://maps.google.com/?q=${encodedAddress}`);
-      });
+    openMapsToAddress(business.address);
   }, [business.address]);
 
   return (

@@ -67,12 +67,28 @@ describe('openMapsToAddress', () => {
 
     const address = '1 Apple Park Way, Cupertino';
     const expectedQuery = encodeURIComponent(address);
-    const expectedUrl = `http://maps.apple.com/?q=${expectedQuery}`;
+    const expectedUrl = `maps://?q=${expectedQuery}`;
 
     await openMapsToAddress(address);
 
     expect(mockLinking.canOpenURL).toHaveBeenCalledWith(expectedUrl);
     expect(mockLinking.openURL).toHaveBeenCalledWith(expectedUrl);
+  });
+
+  it('should fall back to Apple Maps web URL if native scheme is unavailable on iOS', async () => {
+    mockPlatform.OS = 'ios';
+    mockLinking.canOpenURL.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    const address = '1 Apple Park Way, Cupertino';
+    const expectedQuery = encodeURIComponent(address);
+    const nativeUrl = `maps://?q=${expectedQuery}`;
+    const webUrl = `http://maps.apple.com/?q=${expectedQuery}`;
+
+    await openMapsToAddress(address);
+
+    expect(mockLinking.canOpenURL).toHaveBeenNthCalledWith(1, nativeUrl);
+    expect(mockLinking.canOpenURL).toHaveBeenNthCalledWith(2, webUrl);
+    expect(mockLinking.openURL).toHaveBeenCalledWith(webUrl);
   });
 
   it('should open the correct Google Maps URL on Android (after bug fix)', async () => {
@@ -99,17 +115,6 @@ describe('openMapsToAddress', () => {
     await openMapsToAddress('Some Address');
 
     expect(mockLinking.canOpenURL).toHaveBeenCalled();
-    expect(mockLinking.openURL).not.toHaveBeenCalled();
-  });
-
-  it('should not call Linking if Platform.select returns undefined', async () => {
-    // Force Platform.select to return undefined for this test
-    mockPlatform.select.mockReturnValue(undefined);
-
-    await openMapsToAddress('Some Address');
-
-    // It should not call Linking at all
-    expect(mockLinking.canOpenURL).not.toHaveBeenCalled();
     expect(mockLinking.openURL).not.toHaveBeenCalled();
   });
 });
