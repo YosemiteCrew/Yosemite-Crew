@@ -20,6 +20,14 @@ jest.mock('@/features/auth/screens/CreateAccountScreen', () => ({
   CreateAccountScreen: () => null,
 }));
 
+jest.mock('@/features/legal/screens/TermsAndConditionsScreen', () => ({
+  TermsAndConditionsScreen: () => null,
+}));
+
+jest.mock('@/features/legal/screens/PrivacyPolicyScreen', () => ({
+  PrivacyPolicyScreen: () => null,
+}));
+
 describe('AuthNavigator', () => {
   it('should render without crashing', () => {
     let tree: any;

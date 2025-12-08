@@ -58,7 +58,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -73,6 +73,10 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def resolveReleaseProp(String name, Object defaultValue = null) {
+    return System.getenv(name) ?: project.findProperty(name) ?: defaultValue
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -83,9 +87,8 @@ android {
         applicationId "com.mobileappyc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
-
+        versionCode 7
+        versionName "1.0.5"
     }
     signingConfigs {
         debug {
@@ -94,15 +97,32 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            def storeFilePath = resolveReleaseProp('YC_RELEASE_STORE_FILE', 'my-release-key.keystore')
+            def storePass = resolveReleaseProp('YC_RELEASE_STORE_PASSWORD')
+            def keyAliasVal = resolveReleaseProp('YC_RELEASE_KEY_ALIAS')
+            def keyPass = resolveReleaseProp('YC_RELEASE_KEY_PASSWORD')
+
+            if (!storeFilePath || !storePass || !keyAliasVal || !keyPass) {
+                throw new GradleException(
+                    "Release signing properties missing. " +
+                    "Set YC_RELEASE_STORE_FILE, YC_RELEASE_STORE_PASSWORD, YC_RELEASE_KEY_ALIAS, YC_RELEASE_KEY_PASSWORD " +
+                    "in your environment or gradle.properties (e.g., ~/.gradle/gradle.properties)."
+                )
+            }
+
+            storeFile file(storeFilePath)
+            storePassword storePass
+            keyAlias keyAliasVal
+            keyPassword keyPass
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

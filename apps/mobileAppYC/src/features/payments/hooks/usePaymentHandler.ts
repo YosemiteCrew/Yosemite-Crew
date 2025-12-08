@@ -37,10 +37,13 @@ export const usePaymentHandler = ({
     gEmail: string,
   ) => {
     const {STRIPE_CONFIG} = require('@/config/variables');
-    const {Platform} = require('react-native');
+    const resolvedMerchantName =
+      STRIPE_CONFIG.merchantDisplayName?.trim?.() ||
+      bizName?.trim?.() ||
+      'Yosemite Crew';
     const opts: any = {
       paymentIntentClientSecret: secret,
-      merchantDisplayName: bizName || 'Yosemite Crew',
+      merchantDisplayName: resolvedMerchantName,
       defaultBillingDetails: {
         name: gName,
         email: gEmail === '—' ? undefined : gEmail,
@@ -49,11 +52,6 @@ export const usePaymentHandler = ({
     };
     if (STRIPE_CONFIG.urlScheme) {
       opts.returnURL = `${STRIPE_CONFIG.urlScheme}://stripe-redirect`;
-    }
-    if (Platform.OS === 'ios' && STRIPE_CONFIG.merchantIdentifier) {
-      opts.applePay = {
-        merchantCountryCode: 'US',
-      };
     }
     return opts;
   }, []);

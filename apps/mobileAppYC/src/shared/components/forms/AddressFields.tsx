@@ -31,6 +31,7 @@ interface AddressFieldsProps {
   onSelectSuggestion: (suggestion: PlaceSuggestion) => void;
   fieldErrors?: Partial<Record<keyof AddressFieldValues, string | undefined>>;
   containerStyle?: StyleProp<ViewStyle>;
+  labels?: Partial<Record<'addressLine' | 'city' | 'stateProvince' | 'postalCode' | 'country', string>>;
 }
 
 export const AddressFields: React.FC<AddressFieldsProps> = ({
@@ -42,9 +43,17 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
   onSelectSuggestion,
   fieldErrors,
   containerStyle,
+  labels,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const resolvedLabels = {
+    addressLine: labels?.addressLine ?? 'Address',
+    stateProvince: labels?.stateProvince ?? (Platform.select({ios: 'State', default: 'State/Province'}) ?? 'State/Province'),
+    city: labels?.city ?? 'City',
+    postalCode: labels?.postalCode ?? 'Postal code',
+    country: labels?.country ?? 'Country',
+  };
 
   const shouldShowSuggestionList =
     isFetchingSuggestions || addressSuggestions.length > 0 || !!error;
@@ -53,7 +62,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
     <View style={[styles.container, containerStyle]}>
       <View style={styles.inputGroup}>
         <Input
-          label="Address"
+          label={resolvedLabels.addressLine}
           value={values.addressLine ?? ''}
           onChangeText={value => onChange('addressLine', value)}
           error={fieldErrors?.addressLine ?? error ?? undefined}
@@ -113,7 +122,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
       </View>
 
       <Input
-        label={Platform.select({ios: 'State', default: 'State/Province'}) ?? 'State/Province'}
+        label={resolvedLabels.stateProvince}
         value={values.stateProvince ?? ''}
         onChangeText={value => onChange('stateProvince', value)}
         error={fieldErrors?.stateProvince}
@@ -122,14 +131,14 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
 
       <View style={styles.inlineRow}>
         <Input
-          label="City"
+          label={resolvedLabels.city}
           value={values.city ?? ''}
           onChangeText={value => onChange('city', value)}
           error={fieldErrors?.city}
           containerStyle={styles.inlineInput}
         />
         <Input
-          label="Postal code"
+          label={resolvedLabels.postalCode}
           value={values.postalCode ?? ''}
           onChangeText={value => onChange('postalCode', value)}
           error={fieldErrors?.postalCode}
@@ -138,7 +147,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
       </View>
 
       <Input
-        label="Country"
+        label={resolvedLabels.country}
         value={values.country ?? ''}
         onChangeText={value => onChange('country', value)}
         error={fieldErrors?.country}

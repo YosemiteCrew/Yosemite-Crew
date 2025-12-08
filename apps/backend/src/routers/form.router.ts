@@ -7,6 +7,12 @@ const router = Router();
 // PMS / ADMIN ROUTES
 router.post("/admin/:orgId", authorizeCognito, FormController.createForm);
 
+router.get(
+  "/admin/:orgId/forms",
+  authorizeCognito,
+  FormController.getFormListForOrganisation,
+);
+
 // Get form for admin
 router.get(
   "/admin/:orgId/:formId",

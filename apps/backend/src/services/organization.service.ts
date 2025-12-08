@@ -22,6 +22,7 @@ import escapeStringRegexp from "escape-string-regexp";
 import SpecialityModel from "src/models/speciality";
 import ServiceModel from "src/models/service";
 import logger from "src/utils/logger";
+import UserProfileModel from "src/models/user-profile";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -535,6 +536,22 @@ export const OrganizationService = {
           active: true,
         };
         await UserOrganizationModel.create(userOrg);
+
+        // Ensure the owner has a minimal draft profile
+        const existingProfile = await UserProfileModel.findOne({
+          userId,
+          organizationId: document._id.toString(),
+        });
+
+        if (!existingProfile) {
+          await UserProfileModel.create({
+            userId,
+            organizationId: document._id.toString(),
+            personalDetails: {},               // empty
+            professionalDetails: {},          // empty
+            status: "DRAFT",                  // auto-set
+          });
+        }
       }
 
       // Update Profile photo url
