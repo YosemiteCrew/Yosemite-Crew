@@ -116,6 +116,34 @@ export const OrganisationInviteController = {
     }
   },
 
+  listMyPendingInvites: async (req: Request, res: Response) => {
+    try {
+      const userEmail = resolveUserEmailFromRequest(req);
+
+      if (!userEmail) {
+        res
+          .status(401)
+          .json({ message: "Authenticated user email is required." });
+        return;
+      }
+
+      const invites =
+        await OrganisationInviteService.listPendingInvitesForEmail(userEmail);
+
+      res.status(200).json(invites);
+    } catch (error) {
+      if (error instanceof OrganisationInviteServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+
+      logger.error("Failed to list pending organisation invites for user.", error);
+      res
+        .status(500)
+        .json({ message: "Unable to list pending organisation invites." });
+    }
+  },
+
   acceptInvite: async (req: Request, res: Response) => {
     try {
       const { token } = req.params;

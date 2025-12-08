@@ -52,7 +52,7 @@ export interface AcceptInvitePayload {
   userEmail: string;
 }
 
-export type OrganisationInviteResponse = OrganisationInvite & {
+export type OrganisationInviteResponse = Partial<OrganisationInvite> & {
   _id: string;
 };
 
@@ -381,6 +381,20 @@ export const OrganisationInviteService = {
     const invites = await OrganisationInviteModel.find({ organisationId })
       .sort({ createdAt: -1 })
       .setOptions({ sanitizeFilter: true });
+
+    return invites.map((invite) => buildInviteResponse(invite));
+  },
+
+  async listPendingInvitesForEmail(email: string) {
+    const safeEmail = requireString(email, "Invitee email").toLowerCase();
+
+    const invites = await OrganisationInviteModel.find(
+      {
+        inviteeEmail: safeEmail,
+        status: "PENDING",
+        expiresAt: { $gt: new Date(Date.now()) },
+      },
+    ).sort({ createdAt: -1 });
 
     return invites.map((invite) => buildInviteResponse(invite));
   },
