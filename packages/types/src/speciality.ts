@@ -8,6 +8,7 @@ export type Speciality = {
   headUserId?: string; // FK → User._id (who leads this dept)
   headName?: string; // Optional denormalized name for display
   headProfilePicUrl?: string; // Optional denormalized profile pic URL
+  teamMemberIds?: string[];
   services?: string[]; // Embedded list of services under this dept
   createdAt?: Date;
   updatedAt?: Date;
@@ -23,11 +24,12 @@ const HEAD_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciali
 const SERVICES_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-services";
 const CREATED_AT_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-created-at";
 const UPDATED_AT_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-updated-at";
-
+const TEAM_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/speciality-team";
 const HEAD_USER_ID_CHILD_URL = "userId";
 const HEAD_NAME_CHILD_URL = "name";
 const HEAD_PROFILE_PICTURE_CHILD_URL = "profilePicture";
 const SERVICE_CHILD_URL = "service";
+const TEAM_MEMBER_CHILD_URL = "member";
 
 const ensureOrganizationReference = (organisationId: string): string => {
   if (!organisationId) {
@@ -121,6 +123,19 @@ const buildExtensions = (speciality: Speciality): Extension[] | undefined => {
         .map<Extension>((service) => ({
           url: SERVICE_CHILD_URL,
           valueString: service,
+        })),
+    });
+  }
+
+  // 🔹 NEW: team members on speciality
+  if (speciality.teamMemberIds?.length) {
+    extensions.push({
+      url: TEAM_EXTENSION_URL,
+      extension: speciality.teamMemberIds
+        .filter(Boolean)
+        .map<Extension>((memberId) => ({
+          url: TEAM_MEMBER_CHILD_URL,
+          valueString: memberId,
         })),
     });
   }
@@ -230,6 +245,27 @@ const parseHeadExtension = (
   };
 };
 
+const parseTeamExtension = (
+  extensions: Extension[] | undefined,
+): string[] | undefined => {
+  const teamExtension = extensions?.find(
+    (extension) => extension.url === TEAM_EXTENSION_URL,
+  );
+
+  if (!teamExtension?.extension?.length) {
+    return undefined;
+  }
+
+  const members = teamExtension.extension
+    .map((child) =>
+      child.url === TEAM_MEMBER_CHILD_URL ? child.valueString : undefined,
+    )
+    .filter((member): member is string => Boolean(member?.trim()))
+    .map((member) => member.trim());
+
+  return members.length ? members : undefined;
+};
+
 const parseServicesExtension = (extensions: Extension[] | undefined): string[] | undefined => {
   const servicesExtension = extensions?.find((extension) => extension.url === SERVICES_EXTENSION_URL);
 
@@ -264,6 +300,7 @@ export const fromFHIRSpeciality = (resource: FHIROrganization): Speciality => {
   const extensions = resource.extension;
 
   const headDetails = parseHeadExtension(extensions);
+  const teamMemberIds = parseTeamExtension(extensions);
   const services = parseServicesExtension(extensions);
   const createdAt = parseDateExtension(extensions, CREATED_AT_EXTENSION_URL);
   const updatedAtExtension = parseDateExtension(extensions, UPDATED_AT_EXTENSION_URL);
@@ -274,6 +311,7 @@ export const fromFHIRSpeciality = (resource: FHIROrganization): Speciality => {
     organisationId: resolveOrganisationId(resource) ?? "",
     departmentMasterId: findIdentifierValue(resource.identifier, DEPARTMENT_MASTER_IDENTIFIER_SYSTEM),
     name: resource.name ?? "",
+    teamMemberIds,
     services,
     createdAt,
     updatedAt: updatedAtExtension ?? updatedAtMeta ?? undefined,
