@@ -152,15 +152,14 @@ export const UserOrganizationController = {
 
   listMappingsForUser: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req) // this is the Cognito sub from the token
+      const userId = resolveUserIdFromRequest(req); // this is the Cognito sub from the token
 
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });
         return;
       }
 
-      const resources =
-        await UserOrganizationService.listByUserId(userId);
+      const resources = await UserOrganizationService.listByUserId(userId);
 
       res.status(200).json(resources);
     } catch (error) {
@@ -169,7 +168,10 @@ export const UserOrganizationController = {
         return;
       }
 
-      logger.error("Failed to list current user's organization mappings", error);
+      logger.error(
+        "Failed to list current user's organization mappings",
+        error,
+      );
       res.status(500).json({
         message: "Unable to list current user's organization mappings.",
       });

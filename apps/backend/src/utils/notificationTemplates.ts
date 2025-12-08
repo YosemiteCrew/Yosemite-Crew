@@ -37,7 +37,7 @@ export const NotificationTemplates = {
 
     RESCHEDULED: (
       companionName: string,
-      newTime: string
+      newTime: string,
     ): NotificationPayload => ({
       title: "Appointment Rescheduled 🔁",
       body: `${companionName}'s appointment has been moved to ${newTime}. Thanks for staying flexible!`,
@@ -84,7 +84,7 @@ export const NotificationTemplates = {
   Expense: {
     EXPENSE_ADDED: (
       companionName: string,
-      category: string
+      category: string,
     ): NotificationPayload => ({
       title: "New Expense Added 📘",
       body: `You added a new ${category.toLowerCase()} expense for ${companionName}.`,

@@ -10,16 +10,9 @@ export type ContactSource = "MOBILE_APP" | "PMS_WEB" | "MARKETING_SITE";
 
 export type ContactStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
-export type DsraRequesterType =
-  | "SELF"
-  | "PARENT_GUARDIAN"
-  | "AUTHORIZED_AGENT";
+export type DsraRequesterType = "SELF" | "PARENT_GUARDIAN" | "AUTHORIZED_AGENT";
 
-export type DsraLawBasis =
-  | "GDPR"
-  | "CCPA"
-  | "UK_GDPR"
-  | "OTHER";
+export type DsraLawBasis = "GDPR" | "CCPA" | "UK_GDPR" | "OTHER";
 
 export type DsraRight =
   | "KNOW_INFORMATION_COLLECTED"
@@ -33,8 +26,8 @@ export type DsraRight =
   | "OTHER";
 
 export interface ContactAttachment {
-  id?: string;           // internal file id if you have a file service
-  url: string;           // S3 / GCS URL
+  id?: string; // internal file id if you have a file service
+  url: string; // S3 / GCS URL
   name: string;
   contentType?: string;
   sizeBytes?: number;

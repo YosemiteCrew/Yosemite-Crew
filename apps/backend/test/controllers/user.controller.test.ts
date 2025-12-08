@@ -72,7 +72,7 @@ describe("UserController", () => {
         lastName: "User",
         isActive: true,
       };
-      
+
       mockedUserService.create.mockResolvedValueOnce(createdUser);
 
       await UserController.create(req, res as any);
@@ -85,7 +85,7 @@ describe("UserController", () => {
       });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(createdUser);
-    })
+    });
 
     it("handles service validation errors with proper response", async () => {
       const req = {

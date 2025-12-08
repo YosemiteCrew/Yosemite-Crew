@@ -65,7 +65,7 @@ export const ExpenseController = {
     } catch (error) {
       if (error instanceof ExternalExpenseServiceError)
         res.status(error.statusCode).json({ message: error.message });
-      
+
       logger.error("Error deleting expense:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }

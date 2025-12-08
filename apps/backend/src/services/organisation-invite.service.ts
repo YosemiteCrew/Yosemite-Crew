@@ -388,13 +388,11 @@ export const OrganisationInviteService = {
   async listPendingInvitesForEmail(email: string) {
     const safeEmail = requireString(email, "Invitee email").toLowerCase();
 
-    const invites = await OrganisationInviteModel.find(
-      {
-        inviteeEmail: safeEmail,
-        status: "PENDING",
-        expiresAt: { $gt: new Date(Date.now()) },
-      },
-    ).sort({ createdAt: -1 });
+    const invites = await OrganisationInviteModel.find({
+      inviteeEmail: safeEmail,
+      status: "PENDING",
+      expiresAt: { $gt: new Date(Date.now()) },
+    }).sort({ createdAt: -1 });
 
     return invites.map((invite) => buildInviteResponse(invite));
   },

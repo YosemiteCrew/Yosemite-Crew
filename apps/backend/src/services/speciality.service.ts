@@ -319,15 +319,17 @@ export const SpecialityService = {
       organisationId: orgId,
     }).exec();
 
-    const result = []
+    const result = [];
 
-    for(const speciality of documents) {
-      const specialityFHIR = buildFHIRResponse(speciality)
-      const services = await ServiceService.listBySpeciality(speciality._id.toString())
+    for (const speciality of documents) {
+      const specialityFHIR = buildFHIRResponse(speciality);
+      const services = await ServiceService.listBySpeciality(
+        speciality._id.toString(),
+      );
       result.push({
         speciality: specialityFHIR,
-        services: services
-      })
+        services: services,
+      });
     }
 
     return result;

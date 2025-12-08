@@ -33,7 +33,7 @@ const AttachmentSchema = new Schema<ExternalExpenseAttachment>(
   {
     key: { type: String, required: true },
     mimeType: { type: String },
-    name : { type: String },
+    name: { type: String },
   },
   { _id: false },
 );

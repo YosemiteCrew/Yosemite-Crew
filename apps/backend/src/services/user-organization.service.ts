@@ -576,14 +576,13 @@ export const UserOrganizationService = {
     }).exec();
   },
 
-  async listByUserId(id : string) {
-
-    const userId = requireSafeString(id,"User Id")
+  async listByUserId(id: string) {
+    const userId = requireSafeString(id, "User Id");
     const mappings = await UserOrganizationModel.find({
-      practitionerReference: userId
-    })
+      practitionerReference: userId,
+    });
 
-    if(!mappings.length) {
+    if (!mappings.length) {
       return [];
     }
 
@@ -601,8 +600,7 @@ export const UserOrganizationService = {
       // Lookup organization
       const organizationDoc = await OrganizationModel.findOne(orgQuery);
 
-      const organization =
-        organizationDoc?.toObject?.() ?? null; // convert mongoose doc to object
+      const organization = organizationDoc?.toObject?.() ?? null; // convert mongoose doc to object
 
       const mappingDomain = buildUserOrganizationDomain(mapping);
 
@@ -612,5 +610,5 @@ export const UserOrganizationService = {
       });
     }
     return results;
-  }
+  },
 };

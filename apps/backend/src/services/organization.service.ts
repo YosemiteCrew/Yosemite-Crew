@@ -547,9 +547,9 @@ export const OrganizationService = {
           await UserProfileModel.create({
             userId,
             organizationId: document._id.toString(),
-            personalDetails: {},               // empty
-            professionalDetails: {},          // empty
-            status: "DRAFT",                  // auto-set
+            personalDetails: {}, // empty
+            professionalDetails: {}, // empty
+            status: "DRAFT", // auto-set
           });
         }
       }
@@ -754,7 +754,6 @@ export const OrganizationService = {
       .skip(skip)
       .limit(limit);
 
-
     if (docs.length == 0) {
       logger.warn("No nearby organisations found, returning all organisations");
       docs = await OrganizationModel.find(
@@ -768,7 +767,9 @@ export const OrganizationService = {
           address: 1,
           googlePlacesId: 1,
         },
-      ).skip(skip).limit(limit);
+      )
+        .skip(skip)
+        .limit(limit);
     }
 
     const total = docs.length;
