@@ -1,5 +1,6 @@
 import { Primary, Secondary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import { useAuthStore } from "@/app/stores/authStore";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { RiEdit2Fill } from "react-icons/ri";
@@ -18,6 +19,7 @@ type ProfileCardProps = {
   org: Record<string, any>;
   showProfile?: boolean;
   showProfileUser?: boolean;
+  editable?: boolean;
 };
 
 const getStatusStyle = (status: string) => {
@@ -37,7 +39,9 @@ const ProfileCard = ({
   org,
   showProfile,
   showProfileUser,
+  editable = true
 }: ProfileCardProps) => {
+  const attributes = useAuthStore((s) => s.attributes);
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>(() =>
     fields.reduce(
@@ -109,7 +113,7 @@ const ProfileCard = ({
         <div className="font-grotesk font-medium text-black-text text-[19px]">
           {title}
         </div>
-        {!isEditing && (
+        {editable && !isEditing && (
           <RiEdit2Fill
             size={20}
             color="#302f2e"
@@ -129,7 +133,9 @@ const ProfileCard = ({
               className="rounded-full"
             />
             <div className="font-grotesk font-medium text-black-text text-[28px]">
-              Anna Clark
+              {(attributes?.given_name || "") +
+                " " +
+                (attributes?.family_name || "")}
             </div>
           </div>
         )}

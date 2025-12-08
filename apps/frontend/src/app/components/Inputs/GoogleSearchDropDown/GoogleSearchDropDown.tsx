@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import countries from "../../../utils/countryList.json";
+import { Organisation } from "@yosemite-crew/types";
 
 import "./GoogleSearchDropDown.css";
 
@@ -13,11 +14,12 @@ type GoogleSearchDropDownProps = {
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
-  setFormData?: any;
+  setFormData?: React.Dispatch<React.SetStateAction<Organisation>>;
   onlyAddress?: boolean;
 };
 
 type PlaceDetails = {
+  id: string;
   displayName?: { text?: string };
   formattedAddress?: string;
   websiteUri?: string;
@@ -201,16 +203,18 @@ const GoogleSearchDropDown = ({
     }, 0);
   };
 
+  const normalizePhoneNumber = (number: string) => {
+    if (!number) return "";
+    let cleaned = number.replaceAll(/\D+/g, "");
+    cleaned = cleaned.replace(/^0+/, "");
+    return cleaned;
+  };
+
   const getAddr = (
     comps: NonNullable<PlaceDetails["addressComponents"]>,
     type: string,
     pref: "longText" | "shortText" = "longText"
   ) => comps.find((c) => c.types?.includes(type))?.[pref] ?? "";
-
-  const pickArea = (comps: NonNullable<PlaceDetails["addressComponents"]>) =>
-    getAddr(comps, "sublocality") ||
-    getAddr(comps, "neighborhood") ||
-    getAddr(comps, "administrative_area_level_2");
 
   const autofillFromPlace = (details: PlaceDetails) => {
     const comps = details.addressComponents ?? [];
@@ -232,34 +236,37 @@ const GoogleSearchDropDown = ({
       getAddr(comps, "administrative_area_level_1", "shortText") ||
       getAddr(comps, "administrative_area_level_1");
     const postalCode = getAddr(comps, "postal_code");
-    const area = pickArea(comps);
     const latitude = details.location?.latitude ?? null;
     const longitude = details.location?.longitude ?? null;
     if (onlyAddress) {
-      setFormData((prev: any) => ({
+      setFormData?.((prev) => ({
         ...prev,
-        address,
-        area,
-        city,
-        state,
-        postalCode,
-        latitude,
-        longitude,
+        googlePlacesId: details.id,
+        address: {
+          addressLine: address,
+          city: city,
+          state: state,
+          postalCode: postalCode,
+          latitude: Number(latitude),
+          longitude: Number(longitude),
+        },
       }));
     } else {
-      setFormData((prev: any) => ({
+      setFormData?.((prev) => ({
         ...prev,
         name,
-        country: combinedCountry,
-        number: phone,
+        phoneNo: normalizePhoneNumber(phone),
         website,
-        address,
-        area,
-        city,
-        state,
-        postalCode,
-        latitude,
-        longitude,
+        googlePlacesId: details.id,
+        address: {
+          country: combinedCountry,
+          addressLine: address,
+          city: city,
+          state: state,
+          postalCode: postalCode,
+          latitude: Number(latitude),
+          longitude: Number(longitude),
+        },
       }));
     }
   };

@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Appointments from "../DataTable/Appointments";
 import Tasks from "../DataTable/Tasks";
 import classNames from "classnames";
@@ -14,53 +14,53 @@ import { demoTasks } from "@/app/pages/Tasks/demo";
 const AppointmentLabels = [
   {
     name: "Requested",
-    value: "requested",
-    background: "#eaeaea",
-    color: "#302f2e",
+    key: "requested",
+    bg: "#eaeaea",
+    text: "#302f2e",
   },
   {
     name: "Upcoming",
-    value: "upcoming",
-    background: "#247AED",
-    color: "#fff",
+    key: "upcoming",
+    bg: "#247AED",
+    text: "#fff",
   },
   {
     name: "Checked-in",
-    value: "checked",
-    background: "#FEF3E9",
-    color: "#F68523",
+    key: "checked-in",
+    bg: "#FEF3E9",
+    text: "#F68523",
   },
   {
     name: "In progress",
-    value: "progress",
-    background: "#E6F4EF",
-    color: "#008F5D",
+    key: "in-progress",
+    bg: "#E6F4EF",
+    text: "#54B492",
   },
   {
     name: "Completed",
-    value: "post",
-    background: "#008F5D",
-    color: "#fff",
+    key: "completed",
+    bg: "#008F5D",
+    text: "#fff",
   },
 ];
 const TasksLabels = [
   {
     name: "Upcoming",
-    value: "upcoming",
-    background: "#247AED",
-    color: "#fff",
+    key: "upcoming",
+    bg: "#247AED",
+    text: "#fff",
   },
   {
     name: "In progress",
-    value: "progress",
-    background: "#E6F4EF",
-    color: "#008F5D",
+    key: "in-progress",
+    bg: "#E6F4EF",
+    text: "#54B492",
   },
   {
     name: "Completed",
-    value: "completed",
-    background: "#008F5D",
-    color: "#fff",
+    key: "completed",
+    bg: "#008F5D",
+    text: "#fff",
   },
 ];
 
@@ -71,11 +71,49 @@ const AppointmentTask = () => {
   const activeLabels = useMemo(() => {
     return activeTable === "Appointments" ? AppointmentLabels : TasksLabels;
   }, [activeTable]);
+  const [activeSubLabel, setActiveSubLabel] = useState(
+    activeTable === "Appointments"
+      ? AppointmentLabels[0].key
+      : TasksLabels[0].key
+  );
+
+  useEffect(() => {
+    if (activeTable === "Appointments") {
+      setActiveSubLabel(AppointmentLabels[0].key);
+    } else {
+      setActiveSubLabel(TasksLabels[0].key);
+    }
+  }, [activeTable]);
+
+  const filteredList = useMemo(() => {
+    if (activeTable === "Appointments") {
+      return list.filter((item) => {
+        const matchesStatus =
+          item.status.toLowerCase() === activeSubLabel.toLowerCase();
+        return matchesStatus;
+      });
+    }
+    return [];
+  }, [list, activeTable, activeSubLabel]);
+
+  const filteredTaskList = useMemo(() => {
+    if (activeTable === "Tasks") {
+      return taskList.filter((item) => {
+        const matchesStatus =
+          item.status.toLowerCase() === activeSubLabel.toLowerCase();
+        return matchesStatus;
+      });
+    }
+    return [];
+  }, [taskList, activeTable, activeSubLabel]);
 
   return (
     <div className="summary-container">
       <div className="summary-title">
-        Schedule&nbsp;<span>(50)</span>
+        Schedule{" "}
+        <span>
+          ({activeTable === "Appointments" ? list.length : taskList.length})
+        </span>
       </div>
       <div className="summary-labels">
         <div className="summary-labels-left">
@@ -99,9 +137,10 @@ const AppointmentTask = () => {
         <div className="summary-labels-right">
           {activeLabels?.map((label) => (
             <button
-              className="summary-label-right"
+              className={`summary-label-right hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${label.key === activeSubLabel ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
               key={label.name}
-              style={{ color: label.color, background: label.background }}
+              style={{ color: label.text, background: label.bg }}
+              onClick={() => setActiveSubLabel(label.key)}
             >
               {label.name}
             </button>
@@ -109,9 +148,9 @@ const AppointmentTask = () => {
         </div>
       </div>
       {activeTable === "Appointments" ? (
-        <Appointments filteredList={list} />
+        <Appointments filteredList={filteredList.slice(0, 5)} hideActions />
       ) : (
-        <Tasks filteredList={taskList} />
+        <Tasks filteredList={filteredTaskList.slice(0, 5)} hideActions />
       )}
       <div className="see-all-button">
         <Link

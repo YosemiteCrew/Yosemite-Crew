@@ -1,7 +1,7 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
-import { Service, Speciality } from "@/app/types/org";
+import { ServiceWeb, Speciality } from "@/app/types/org";
 import React from "react";
 
 type SpecialityCardProps = {
@@ -19,8 +19,8 @@ const SpecialityCard = ({
     serviceIndex: number,
     key: string,
     value: string,
-    services: Service[] = []
-  ): Service[] => {
+    services: ServiceWeb[] = []
+  ): ServiceWeb[] => {
     return services.map((srv, srvIndex) =>
       srvIndex === serviceIndex ? { ...srv, [key]: value } : srv
     );
@@ -54,7 +54,7 @@ const SpecialityCard = ({
     );
   };
 
-  const filterService = (services: Service[], serviceIndex: number) => {
+  const filterService = (services: ServiceWeb[], serviceIndex: number) => {
     return services?.filter((_, i) => i !== serviceIndex);
   };
 

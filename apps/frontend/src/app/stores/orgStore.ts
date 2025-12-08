@@ -1,23 +1,40 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { Membership, Org, OrgWithMembership } from "@/app/types/org";
+import { Organisation, UserOrganization } from "@yosemite-crew/types";
+
+type OrgStatus = "idle" | "loading" | "loaded" | "error";
 
 type OrgState = {
-  orgsById: Record<string, Org>;
+  orgsById: Record<string, Organisation>;
   orgIds: string[];
-  membershipsByOrgId: Record<string, Membership>;
   primaryOrgId: string | null;
+  membershipsByOrgId: Record<string, UserOrganization>;
+
+  status: OrgStatus;
+  error: string | null;
+  lastFetchedAt: string | null;
 
   setOrgs: (
-    orgs: OrgWithMembership[],
+    orgs: Organisation[],
     opts?: { keepPrimaryIfPresent?: boolean }
   ) => void;
-  upsertOrg: (org: OrgWithMembership) => void;
-  updateOrg: (orgId: string, patch: Partial<Org>) => void;
-  getOrgById: (orgId: string) => Org | null;
-  getPrimaryOrg: () => Org | null;
+  upsertOrg: (org: Organisation) => void;
+  updateOrg: (orgId: string, patch: Partial<Organisation>) => void;
+  getOrgById: (orgId: string) => Organisation | null;
+  getPrimaryOrg: () => Organisation | null;
+  setPrimaryOrg: (orgId: string | null) => void;
   removeOrg: (orgId: string) => void;
   clearOrgs: () => void;
+  startLoading: () => void;
+  endLoading: () => void;
+  setError: (message: string) => void;
+
+  setUserOrgMappings: (mappings: UserOrganization[]) => void;
+  upsertUserOrgMapping: (mapping: UserOrganization) => void;
+  getUserOrgMappingsByOrgId: (orgId: string) => UserOrganization | null;
+  getCombinedUserOrgByOrgId: (
+    orgId: string
+  ) => { org: Organisation; membership: UserOrganization | null } | null;
 };
 
 export const useOrgStore = create<OrgState>()(
@@ -25,28 +42,36 @@ export const useOrgStore = create<OrgState>()(
     (set, get) => ({
       orgsById: {},
       orgIds: [],
-      membershipsByOrgId: {},
       primaryOrgId: null,
+      membershipsByOrgId: {},
+      status: "idle",
+      error: null,
+      lastFetchedAt: null,
 
       setOrgs: (orgs, opts) =>
         set((state) => {
-          const orgsById: Record<string, Org> = {};
-          const membershipsByOrgId: Record<string, Membership> = {};
+          const orgsById: Record<string, Organisation> = {};
           const orgIds: string[] = [];
           for (const o of orgs) {
-            orgsById[o.id] = {
-              id: o.id,
+            const id = o._id?.toString() || o.name;
+            orgsById[id] = {
+              _id: id,
               name: o.name,
+              DUNSNumber: o.DUNSNumber,
+              imageURL: o.imageURL,
               type: o.type,
-              isActive: o.isActive,
+              phoneNo: o.phoneNo,
+              website: o.website,
+              address: o.address,
               isVerified: o.isVerified,
+              isActive: o.isActive,
+              taxId: o.taxId,
+              healthAndSafetyCertNo: o.healthAndSafetyCertNo,
+              animalWelfareComplianceCertNo: o.animalWelfareComplianceCertNo,
+              fireAndEmergencyCertNo: o.fireAndEmergencyCertNo,
+              googlePlacesId: o.googlePlacesId,
             };
-            membershipsByOrgId[o.id] = {
-              orgId: o.id,
-              role: o.membership.role,
-              permissions: o.membership.permissions ?? [],
-            };
-            orgIds.push(o.id);
+            orgIds.push(id);
           }
           let primaryOrgId: string | null = null;
           if (opts?.keepPrimaryIfPresent && state.primaryOrgId) {
@@ -59,41 +84,46 @@ export const useOrgStore = create<OrgState>()(
           return {
             orgsById,
             orgIds,
-            membershipsByOrgId,
             primaryOrgId,
+            status: "loaded",
+            error: null,
+            lastFetchedAt: new Date().toISOString(),
           };
         }),
 
       upsertOrg: (org) =>
         set((state) => {
-          const exists = !!state.orgsById[org.id];
-          const orgsById: Record<string, Org> = {
+          const id = org._id?.toString() || org.name;
+          const exists = !!state.orgsById[id];
+          const orgsById: Record<string, Organisation> = {
             ...state.orgsById,
-            [org.id]: {
-              id: org.id,
+            [id]: {
+              _id: id,
               name: org.name,
+              DUNSNumber: org.DUNSNumber,
+              imageURL: org.imageURL,
               type: org.type,
-              isActive: org.isActive,
+              phoneNo: org.phoneNo,
+              website: org.website,
+              address: org.address,
               isVerified: org.isVerified,
+              isActive: org.isActive,
+              taxId: org.taxId,
+              healthAndSafetyCertNo: org.healthAndSafetyCertNo,
+              animalWelfareComplianceCertNo: org.animalWelfareComplianceCertNo,
+              fireAndEmergencyCertNo: org.fireAndEmergencyCertNo,
+              googlePlacesId: org.googlePlacesId,
             },
           };
-          const membershipsByOrgId: Record<string, Membership> = {
-            ...state.membershipsByOrgId,
-            [org.id]: {
-              orgId: org.id,
-              role: org.membership.role,
-              permissions: org.membership.permissions ?? [],
-            },
-          };
-          const orgIds = exists ? state.orgIds : [...state.orgIds, org.id];
-          return { orgsById, membershipsByOrgId, orgIds };
+          const orgIds = exists ? state.orgIds : [...state.orgIds, id];
+          return { orgsById, orgIds, status: "loaded" };
         }),
 
       updateOrg: (orgId, patch) =>
         set((state) => {
           const existing = state.orgsById[orgId];
           if (!existing) return state;
-          const updated: Org = {
+          const updated: Organisation = {
             ...existing,
             ...patch,
           };
@@ -102,6 +132,7 @@ export const useOrgStore = create<OrgState>()(
               ...state.orgsById,
               [orgId]: updated,
             },
+            status: "loaded",
           };
         }),
 
@@ -116,32 +147,97 @@ export const useOrgStore = create<OrgState>()(
         return orgsById[primaryOrgId] ?? null;
       },
 
+      setPrimaryOrg: (orgId) =>
+        set((state) => {
+          if (orgId && !state.orgsById[orgId]) {
+            return state;
+          }
+          return {
+            primaryOrgId: orgId,
+          };
+        }),
+
       removeOrg: (orgId) =>
         set((state) => {
           if (!state.orgsById[orgId]) return state;
-          const { [orgId]: _, ...nextOrgsById } = state.orgsById;
-          const { [orgId]: __, ...nextMembershipsByOrgId } =
-            state.membershipsByOrgId;
+          const { [orgId]: _removedOrg, ...nextOrgsById } = state.orgsById;
           const nextOrgIds = state.orgIds.filter((id) => id !== orgId);
           const nextPrimaryOrgId =
             state.primaryOrgId === orgId
               ? (nextOrgIds[0] ?? null)
               : state.primaryOrgId;
+          const { [orgId]: _removedMemberships, ...nextMemberships } =
+            state.membershipsByOrgId;
           return {
             orgsById: nextOrgsById,
-            membershipsByOrgId: nextMembershipsByOrgId,
             orgIds: nextOrgIds,
             primaryOrgId: nextPrimaryOrgId,
+            membershipsByOrgId: nextMemberships,
           };
         }),
 
       clearOrgs: () =>
         set(() => ({
           orgsById: {},
-          membershipsByOrgId: {},
           orgIds: [],
           primaryOrgId: null,
+          membershipsByOrgId: {},
+          status: "idle",
+          error: null,
+          lastFetchedAt: null,
         })),
+
+      startLoading: () =>
+        set(() => ({
+          status: "loading",
+          error: null,
+        })),
+
+      endLoading: () =>
+        set(() => ({
+          status: "loaded",
+          error: null,
+        })),
+
+      setError: (message: string) =>
+        set(() => ({
+          status: "error",
+          error: message,
+        })),
+
+      setUserOrgMappings: (mappings) =>
+        set(() => {
+          const membershipsByOrgId: Record<string, UserOrganization> = {};
+          for (const m of mappings) {
+            const orgId = m.organizationReference;
+            membershipsByOrgId[orgId] = m;
+          }
+          return { membershipsByOrgId };
+        }),
+
+      upsertUserOrgMapping: (mapping: UserOrganization) =>
+        set((state) => {
+          const orgId = mapping.organizationReference;
+          return {
+            membershipsByOrgId: {
+              ...state.membershipsByOrgId,
+              [orgId]: mapping,
+            },
+          };
+        }),
+
+      getUserOrgMappingsByOrgId: (orgId) => {
+        const { membershipsByOrgId } = get();
+        return membershipsByOrgId[orgId] ?? null;
+      },
+
+      getCombinedUserOrgByOrgId: (orgId) => {
+        const { orgsById, membershipsByOrgId } = get();
+        const org = orgsById[orgId];
+        if (!org) return null;
+        const membership = membershipsByOrgId[orgId] ?? null;
+        return { org, membership };
+      },
     }),
     {
       name: "org-store",
@@ -150,11 +246,11 @@ export const useOrgStore = create<OrgState>()(
       partialize: (state) => ({
         orgsById: state.orgsById,
         orgIds: state.orgIds,
-        membershipsByOrgId: state.membershipsByOrgId,
         primaryOrgId: state.primaryOrgId,
+        lastFetchedAt: state.lastFetchedAt,
       }),
-      migrate: (persisted: any, _version) => {
-        return persisted;
+      migrate: (persisted, _version) => {
+        return persisted as OrgState;
       },
     }
   )

@@ -274,6 +274,9 @@ importers:
       framer-motion:
         specifier: ^12.18.1
         version: 12.23.12(react-dom@19.1.1)(react@19.1.1)
+      libphonenumber-js:
+        specifier: ^1.12.31
+        version: 1.12.31
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -25197,7 +25200,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@22.18.1)(typescript@5.0.4)
+      ts-node: 10.9.2(@types/node@20.19.13)(typescript@5.8.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -26007,6 +26010,10 @@ packages:
 
   /libphonenumber-js@1.12.26:
     resolution: {integrity: sha512-MagMOuqEXB2Pa90cWE+BoCmcKJx+de5uBIicaUkQ+uiEslZ0OBMNOkSZT/36syXNHu68UeayTxPm3DYM2IHoLQ==}
+    dev: false
+
+  /libphonenumber-js@1.12.31:
+    resolution: {integrity: sha512-Z3IhgVgrqO1S5xPYM3K5XwbkDasU67/Vys4heW+lfSBALcUZjeIIzI8zCLifY+OCzSq+fpDdywMDa7z+4srJPQ==}
     dev: false
 
   /lighthouse-logger@1.4.2:

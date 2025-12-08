@@ -1,4 +1,4 @@
-import { Service, Speciality } from "@/app/types/org";
+import { ServiceWeb, Speciality } from "@/app/types/org";
 import { AvailabilityProps, Document, Room } from "./types";
 
 export const demoSpecialities: Speciality[] = [
@@ -286,8 +286,8 @@ export const getAllServiceNames = (specialities: Speciality[]): string[] => {
   );
 };
 
-export const getAllServices = (specialities: Speciality[]): Service[] => {
-  const result: Service[] = [];
+export const getAllServices = (specialities: Speciality[]): ServiceWeb[] => {
+  const result: ServiceWeb[] = [];
   for (const s of specialities) {
     for (const service of (s.services || [])) {
       result.push(service);

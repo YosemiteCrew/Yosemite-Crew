@@ -1,20 +1,21 @@
 import AccordionButton from "@/app/components/Accordion/AccordionButton";
-import React, { useState } from "react";
+import React from "react";
 import ProfileCard from "../../Organization/Sections/ProfileCard";
+import { useAuthStore } from "@/app/stores/authStore";
 
 const BasicFields = [
   {
     label: "First name",
-    key: "firstName",
+    key: "given_name",
     required: true,
-    editable: true,
+    editable: false,
     type: "text",
   },
   {
     label: "Last name",
-    key: "lastName",
+    key: "family_name",
     required: true,
-    editable: true,
+    editable: false,
     type: "text",
   },
   {
@@ -24,103 +25,23 @@ const BasicFields = [
     editable: false,
     type: "text",
   },
-  {
-    label: "Role",
-    key: "role",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-  {
-    label: "Department",
-    key: "department",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-  {
-    label: "Gender",
-    key: "gender",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Date of birth",
-    key: "dob",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Employment type",
-    key: "employmentType",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Phone number",
-    key: "phone",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Country",
-    key: "country",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-];
-
-const AddressFields = [
-  {
-    label: "Address line",
-    key: "addressLine",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Area",
-    key: "area",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "State / Province",
-    key: "state",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "City",
-    key: "city",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Postal code",
-    key: "postalCode",
-    required: true,
-    editable: true,
-    type: "text",
-  },
 ];
 
 const Personal = () => {
-  const [org] = useState({});
+  const attributes = useAuthStore((s) => s.attributes);
+
+  if(!attributes) return null;
 
   return (
     <AccordionButton title="Personal details" defaultOpen showButton={false}>
       <div className="flex flex-col gap-4">
-        <ProfileCard title="Info" fields={BasicFields} org={org} showProfileUser />
-        <ProfileCard title="Address" fields={AddressFields} org={org} />
+        <ProfileCard
+          title="Info"
+          fields={BasicFields}
+          org={attributes}
+          showProfileUser
+          editable={false}
+        />
       </div>
     </AccordionButton>
   );

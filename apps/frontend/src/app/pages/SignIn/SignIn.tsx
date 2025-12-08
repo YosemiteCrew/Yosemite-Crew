@@ -1,9 +1,8 @@
 "use client";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Form } from "react-bootstrap";
 import { Icon } from "@iconify/react/dist/iconify.js";
-import { useRouter, useSearchParams } from "next/navigation";
 
 import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
@@ -11,8 +10,10 @@ import { useErrorTost } from "@/app/components/Toast/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
 import OtpModal from "@/app/components/OtpModal/OtpModal";
 import { Primary } from "@/app/components/Buttons";
+import { useRouter } from "next/navigation";
 
 import "./SignIn.css";
+import { postData } from "@/app/services/axios";
 
 type SignInProps = {
   redirectPath?: string;
@@ -27,14 +28,9 @@ const SignIn = ({
   allowNext = true,
   isDeveloper = false,
 }: Readonly<SignInProps>) => {
-  const { signIn, resendCode } = useAuthStore();
-  const { showErrorTost, ErrorTostPopup } = useErrorTost();
-
+  const { signIn, resendCode, signout } = useAuthStore();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = allowNext ? searchParams.get("next") : null;
-  const { user, status, role } = useAuthStore();
-
+  const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inputErrors, setInputErrors] = useState<{
@@ -43,23 +39,6 @@ const SignIn = ({
   }>({});
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-
-  useEffect(() => {
-    if (status !== "authenticated" || !user) return;
-    const isDevRole = role === "developer";
-    const devFlag =
-      typeof globalThis !== "undefined" &&
-      globalThis.sessionStorage?.getItem("devAuth") === "true"; // Temporary fallback until custom:role is in place
-
-    let target = next || redirectPath;
-    if (isDeveloper) {
-      target = isDevRole || (!role && devFlag) ? next || redirectPath : "/signin";
-    } else if (isDevRole || (!role && devFlag)) {
-      target = "/developers/home";
-    }
-
-    router.replace(target);
-  }, [status, user, next, router, redirectPath, isDeveloper, role]);
 
   const handleCodeResendonError = async () => {
     try {
@@ -87,6 +66,15 @@ const SignIn = ({
     }
   };
 
+  const afterAuthSuccess = async () => {
+    try {
+      await postData("/fhir/v1/user");
+    } catch (error) {
+      await signout();
+      throw error;
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -100,9 +88,14 @@ const SignIn = ({
 
     try {
       await signIn(email, password);
+      // await afterAuthSuccess();
+      router.push("/organizations");
       if (typeof globalThis !== "undefined") {
         // Temporary fallback until custom:role attribute is available in the pool
-        globalThis.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
+        globalThis.sessionStorage?.setItem(
+          "devAuth",
+          isDeveloper ? "true" : "false"
+        );
       }
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
@@ -131,7 +124,8 @@ const SignIn = ({
       style={
         isDeveloper
           ? {
-              backgroundImage: 'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
             }
           : undefined
       }
@@ -141,7 +135,9 @@ const SignIn = ({
         <Form onSubmit={handleSignIn}>
           <div className="TopSignInner">
             <h2>
-              {isDeveloper ? "Sign in to your developer account" : "Sign in to your account"}
+              {isDeveloper
+                ? "Sign in to your developer account"
+                : "Sign in to your account"}
             </h2>
             <FormInput
               intype="email"

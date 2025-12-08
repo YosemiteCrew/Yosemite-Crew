@@ -7,13 +7,13 @@ import { useAuthStore } from "@/app/stores/authStore";
 
 function Page() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { status } = useAuthStore();
 
   useEffect(() => {
-    if (user) {
-      router.push("/create-org");
+    if (status === "authenticated") {
+      router.push("/organizations");
     }
-  }, [user, router]);
+  }, [status, router]);
 
   return (
     <Suspense fallback={null}>
