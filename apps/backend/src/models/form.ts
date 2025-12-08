@@ -19,13 +19,13 @@ const FormSchema = new Schema<Form>(
 
     serviceId: {
       type: [String],
-      default: [],
+      default: undefined,
       required: false,
     },
 
     speciesFilter: {
       type: [String],
-      default: [],
+      default: undefined,
     },
 
     status: {
