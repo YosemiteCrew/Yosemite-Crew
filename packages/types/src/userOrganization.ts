@@ -68,3 +68,20 @@ export function toFHIRUserOrganization(
 
     return resource
 }
+
+export function fromFHIRUserOrganization(dto: PractitionerRole): UserOrganization {
+  const practitionerReference = dto.practitioner?.reference ?? "";
+  const organizationReference = dto.organization?.reference ?? "";
+
+  const coding = dto.code?.[0]?.coding?.[0];
+  const text = dto.code?.[0]?.text!;
+
+  return {
+    id: dto.id,
+    practitionerReference,
+    organizationReference,
+    roleCode: coding?.code ?? text,
+    roleDisplay: coding?.display ?? text,
+    active: dto.active,
+  };
+}
