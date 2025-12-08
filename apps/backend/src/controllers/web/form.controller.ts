@@ -53,6 +53,21 @@ export const FormController = {
     }
   },
 
+  getFormListForOrganisation: async(req: Request, res: Response) => {
+    try {
+      const orgId = req.params.orgId;
+
+      const form = await FormService.listFormsForOrganisation(orgId)
+      return res.status(200).json(form);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      console.error("Unexpected error in getFormForAdmin:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
   getFormForClient: async (req: Request, res: Response) => {
     try {
       const formId = req.params.formId;
