@@ -576,4 +576,42 @@ export const UserOrganizationService = {
       organizationReference: orgId,
     }).exec();
   },
+
+  async listByUserId(id : string) {
+
+    const userId = requireSafeString(id,"User Id")
+    const mappings = await UserOrganizationModel.find({
+      practitionerReference: userId
+    })
+
+    if(!mappings.length) {
+      return [];
+    }
+
+    const results = [];
+
+    for (const mapping of mappings) {
+      const orgRef = mapping.organizationReference;
+
+      // Extract the ID portion from FHIR reference
+      const organizationId = extractOrganizationIdentifier(orgRef);
+
+      // Build query using your existing helper
+      const orgQuery = buildOrganizationLookupQuery(organizationId);
+
+      // Lookup organization
+      const organizationDoc = await OrganizationModel.findOne(orgQuery);
+
+      const organization =
+        organizationDoc?.toObject?.() ?? null; // convert mongoose doc to object
+
+      const mappingDomain = buildUserOrganizationDomain(mapping);
+
+      results.push({
+        mapping: toUserOrganizationResponseDTO(mappingDomain),
+        organization: organization,
+      });
+    }
+    return results;
+  }
 };
