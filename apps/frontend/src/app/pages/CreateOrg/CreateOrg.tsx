@@ -58,13 +58,13 @@ const EMPTY_ORG: Organisation = {
 };
 
 const CreateOrg = () => {
+  useLoadOrgAndInvites();
+  useLoadSpecialitiesForPrimaryOrg();
   const {
     org,
     step: computedStep,
     specialities: storeSpecialities,
   } = usePrimaryOrgOnboarding();
-  useLoadOrgAndInvites();
-  useLoadSpecialitiesForPrimaryOrg();
 
   const [activeStep, setActiveStep] = useState<number>(() => {
     if (computedStep >= 0 && computedStep <= 2) return computedStep;

@@ -81,7 +81,7 @@ const Sidebar = () => {
     }
   };
 
-  if (orgStatus !== "loaded") return null;
+  if (orgStatus !== "loaded") return <div className="sidebar"></div>;
 
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
