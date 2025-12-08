@@ -213,7 +213,15 @@ describe('sessionManager', () => {
       mockFetchUserAttributes.mockResolvedValue({
         email: 'test@example.com',
       });
-      mockAsyncStorage.getItem.mockResolvedValue(null);
+
+      // Mock AsyncStorage to return pending profile data
+      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === '@pending_profile_payload') {
+          return JSON.stringify({userId: 'amplify-user-123'});
+        }
+        return null;
+      });
+
       mockFetchProfileStatus.mockResolvedValue({
         exists: false,
         isComplete: false,

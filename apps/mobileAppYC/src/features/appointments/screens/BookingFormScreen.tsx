@@ -424,6 +424,7 @@ export const BookingFormScreen: React.FC = () => {
               height={56}
               borderRadius={16}
               disabled={appointmentsLoading || submitting}
+              loading={appointmentsLoading || submitting}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}

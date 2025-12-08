@@ -262,7 +262,7 @@ describe('LinkedBusinessCard', () => {
       expect(Linking.openURL).not.toHaveBeenCalled();
     });
 
-    it('opens Google Maps scheme if supported', async () => {
+    it('opens Apple Maps when supported', async () => {
       (Linking.canOpenURL as jest.Mock).mockResolvedValueOnce(true);
 
       render(<LinkedBusinessCard business={mockBusiness} />);
@@ -276,19 +276,19 @@ describe('LinkedBusinessCard', () => {
       await waitFor(() => {
         expect(Linking.canOpenURL).toHaveBeenCalledWith(
           expect.stringContaining(
-            'maps://maps.google.com/?q=123%20Health%20St%2C%20Mediville',
+            'maps://?q=123%20Health%20St%2C%20Mediville',
           ),
         );
         expect(Linking.openURL).toHaveBeenCalledWith(
           expect.stringContaining(
-            'maps://maps.google.com/?q=123%20Health%20St%2C%20Mediville',
+            'maps://?q=123%20Health%20St%2C%20Mediville',
           ),
         );
       });
     });
 
-    it('opens Apple Maps scheme if Google Maps not supported', async () => {
-      (Linking.canOpenURL as jest.Mock).mockResolvedValueOnce(false);
+    it('falls back to Apple Maps web if the native scheme is unavailable', async () => {
+      (Linking.canOpenURL as jest.Mock).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
       render(<LinkedBusinessCard business={mockBusiness} />);
 
@@ -300,15 +300,16 @@ describe('LinkedBusinessCard', () => {
 
       await waitFor(() => {
         expect(Linking.openURL).toHaveBeenCalledWith(
-          expect.stringContaining('maps://?address='),
+          expect.stringContaining('http://maps.apple.com/?q=123%20Health%20St%2C%20Mediville'),
         );
       });
     });
 
     it('falls back to Web URL if opening scheme fails', async () => {
-      (Linking.canOpenURL as jest.Mock).mockRejectedValueOnce(
-        new Error('Failed'),
-      );
+      (Linking.canOpenURL as jest.Mock)
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
 
       render(<LinkedBusinessCard business={mockBusiness} />);
 
@@ -321,7 +322,7 @@ describe('LinkedBusinessCard', () => {
       await waitFor(() => {
         expect(Linking.openURL).toHaveBeenCalledWith(
           expect.stringContaining(
-            'https://maps.google.com/?q=123%20Health%20St%2C%20Mediville',
+            'https://www.google.com/maps/search/?api=1&query=123%20Health%20St%2C%20Mediville',
           ),
         );
       });

@@ -52,13 +52,13 @@ export interface ParentProfileUpsertPayload {
   lastName?: string;
   phoneNumber: string;
   email: string;
-  dateOfBirth: string;
-  address: {
-    addressLine: string;
-    city: string;
-    stateProvince: string;
-    postalCode: string;
-    country: string;
+  dateOfBirth?: string | null;
+  address?: {
+    addressLine?: string;
+    city?: string;
+    stateProvince?: string;
+    postalCode?: string;
+    country?: string;
     latitude?: number;
     longitude?: number;
   };
@@ -303,7 +303,7 @@ const buildParentRequestBody = (payload: ParentProfileUpsertPayload): RelatedPer
     }),
     address: buildAddressPayload(payload.address),
     photo: buildPhotoPayload(payload),
-    birthDate: payload.dateOfBirth,
+    birthDate: payload.dateOfBirth ?? undefined,
     extension: extensions.length ? extensions : undefined,
   };
 };
