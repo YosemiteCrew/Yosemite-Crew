@@ -660,7 +660,7 @@ export const UserOrganizationService = {
       const result = {
         userOrganisation: toUserOrganizationResponseDTO(mapping),
         name: user?.firstName! + " " + user?.lastName!,
-        proileUrl: userProfile?.personalDetails?.profilePictureUrl,
+        profileUrl: userProfile?.personalDetails?.profilePictureUrl,
         speciality: speciality,
         currentStatus,
         weeklyHours,
