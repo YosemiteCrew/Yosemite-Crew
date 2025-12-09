@@ -8,6 +8,7 @@ export interface UserOrganizationMongo {
   roleDisplay?: string;
   active: boolean;
   extraPermissions?: string[];
+  effectivePermissions?: string[];
 }
 
 const UserOrganizationSchema = new Schema<UserOrganizationMongo>(
@@ -19,6 +20,10 @@ const UserOrganizationSchema = new Schema<UserOrganizationMongo>(
     roleDisplay: { type: String },
     active: { type: Boolean, default: true },
     extraPermissions: {
+      type: [String],
+      default: [],
+    },
+    effectivePermissions: {
       type: [String],
       default: [],
     },

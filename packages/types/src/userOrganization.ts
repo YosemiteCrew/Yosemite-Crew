@@ -12,6 +12,7 @@ export interface UserOrganization {
     roleDisplay?: string
     active?: boolean
     extraPermissions?: string[];
+    effectivePermissions?: string[];
 }
 
 export type ToFHIRUserOrganizationOptions = {
@@ -19,55 +20,88 @@ export type ToFHIRUserOrganizationOptions = {
     roleText?: string
 }
 
+const EXT_EXTRA_PERMISSIONS =
+  "https://yosemitecrew.com/fhir/StructureDefinition/extra-permissions";
+
+const EXT_EFFECTIVE_PERMISSIONS =
+  "https://yosemitecrew.com/fhir/StructureDefinition/effective-permissions";
+
 export function toFHIRUserOrganization(
-    mapping: UserOrganization,
-    options: ToFHIRUserOrganizationOptions = {}
+  mapping: UserOrganization & { effectivePermissions?: string[] },
+  options: ToFHIRUserOrganizationOptions = {}
 ): PractitionerRole {
-    const identifier = mapping.fhirId ?? mapping.id ?? mapping._id?.toString()
+  const identifier =
+    mapping.fhirId ?? mapping.id ?? mapping._id?.toString();
 
-    const practitioner = mapping.practitionerReference
-        ? {
-              reference: mapping.practitionerReference,
-          }
-        : undefined
+  const practitioner = mapping.practitionerReference
+    ? { reference: mapping.practitionerReference }
+    : undefined;
 
-    const organization = mapping.organizationReference
-        ? {
-              reference: mapping.organizationReference,
-          }
-        : undefined
+  const organization = mapping.organizationReference
+    ? { reference: mapping.organizationReference }
+    : undefined;
 
-    const roleText = mapping.roleDisplay ?? options.roleText ?? mapping.roleCode
-    const roleSystem = options.roleSystem ?? 'http://example.org/fhir/CodeSystem/user-organization-role'
+  const roleText =
+    mapping.roleDisplay ?? options.roleText ?? mapping.roleCode;
 
-    const code = mapping.roleCode
-        ? [
-              {
-                  coding: [
-                      {
-                          system: roleSystem,
-                          code: mapping.roleCode,
-                          display: roleText,
-                      },
-                  ],
-                  text: roleText,
-              },
-          ]
-        : undefined
+  const roleSystem =
+    options.roleSystem ??
+    "https://yosemitecrew.com/fhir/CodeSystem/user-organization-role";
 
-    const resource: PractitionerRole = {
-        resourceType: 'PractitionerRole',
-        practitioner,
-        organization,
-        active: typeof mapping.active === 'boolean' ? mapping.active : undefined,
-        code,
-    }
+  const code = mapping.roleCode
+    ? [
+        {
+          coding: [
+            {
+              system: roleSystem,
+              code: mapping.roleCode,
+              display: roleText,
+            },
+          ],
+          text: roleText,
+        },
+      ]
+    : undefined;
 
-    if (identifier) {
-        resource.id = identifier
-    }
+  const extensions: any[] = [];
 
-    return resource
+  // Add extra permissions extension
+  if (mapping.extraPermissions?.length) {
+    extensions.push({
+      url: EXT_EXTRA_PERMISSIONS,
+      extension: mapping.extraPermissions.map((perm) => ({
+        url: "permission",
+        valueString: perm,
+      })),
+    });
+  }
+
+  // Add effective permissions extension
+  if (mapping.effectivePermissions?.length) {
+    extensions.push({
+      url: EXT_EFFECTIVE_PERMISSIONS,
+      extension: mapping.effectivePermissions.map((perm) => ({
+        url: "permission",
+        valueString: perm,
+      })),
+    });
+  }
+
+  const resource: PractitionerRole = {
+    resourceType: "PractitionerRole",
+    practitioner,
+    organization,
+    active:
+      typeof mapping.active === "boolean" ? mapping.active : undefined,
+    code,
+    extension: extensions.length ? extensions : undefined,
+  };
+
+  if (identifier) {
+    resource.id = identifier;
+  }
+
+  return resource;
 }
 
 export function fromFHIRUserOrganization(dto: PractitionerRole): UserOrganization {
@@ -75,7 +109,23 @@ export function fromFHIRUserOrganization(dto: PractitionerRole): UserOrganizatio
   const organizationReference = dto.organization?.reference ?? "";
 
   const coding = dto.code?.[0]?.coding?.[0];
-  const text = dto.code?.[0]?.text!;
+  const text = dto.code?.[0]?.text ?? "";
+
+  // Parse permissions from extensions
+  let extraPermissions: string[] | undefined;
+  let effectivePermissions: string[] | undefined;
+
+  dto.extension?.forEach((ext) => {
+    if (ext.url === EXT_EXTRA_PERMISSIONS) {
+      extraPermissions =
+        ext.extension?.map((e) => e.valueString!) ?? [];
+    }
+
+    if (ext.url === EXT_EFFECTIVE_PERMISSIONS) {
+      effectivePermissions =
+        ext.extension?.map((e) => e.valueString!) ?? [];
+    }
+  });
 
   return {
     id: dto.id,
@@ -84,5 +134,7 @@ export function fromFHIRUserOrganization(dto: PractitionerRole): UserOrganizatio
     roleCode: coding?.code ?? text,
     roleDisplay: coding?.display ?? text,
     active: dto.active,
+    extraPermissions,
+    effectivePermissions, // optional but useful for debugging and syncing back
   };
 }

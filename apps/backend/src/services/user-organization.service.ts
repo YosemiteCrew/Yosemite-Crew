@@ -4,7 +4,6 @@ import UserOrganizationModel, {
   type UserOrganizationMongo,
 } from "../models/user-organization";
 import OrganizationModel, {
-  type OrganizationMongo,
 } from "../models/organization";
 import {
   fromUserOrganizationRequestDTO,
@@ -13,6 +12,7 @@ import {
   type UserOrganizationResponseDTO,
   type UserOrganization,
 } from "@yosemite-crew/types";
+import { ROLE_PERMISSIONS, RoleCode } from "src/models/role-permission";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -26,44 +26,35 @@ export class UserOrganizationServiceError extends Error {
   }
 }
 
-const ORGANIZATION_ROLE_MAP: Record<
-  OrganizationMongo["type"],
-  readonly string[]
-> = {
-  HOSPITAL: ["Owner", "Vet", "Vet Technician", "Vet Assistant", "Receptionist"],
-  BREEDER: [
-    "Owner",
-    "Breeding Supervisor",
-    "Breeding Assistant",
-    "Receptionist",
-  ],
-  GROOMER: ["Owner", "Grooming Supervisor", "Groomer", "Receptionist"],
-  BOARDER: [
-    "Owner",
-    "Boarding Supervisor",
-    "Boarding Attendant",
-    "Receptionist",
-  ],
-} as const;
+const VALID_ROLE_CODES: Set<RoleCode> = new Set([
+  "OWNER",
+  "ADMIN",
+  "SUPERVISOR",
+  "VETERINARIAN",
+  "TECHNICIAN",
+  "ASSISTANT",
+  "RECEPTIONIST",
+]);
 
-const normalizeRoleCode = (value: string): string => value.trim().toLowerCase();
-
-const ORGANIZATION_ROLE_LOOKUP = Object.entries(ORGANIZATION_ROLE_MAP).reduce<
-  Record<OrganizationMongo["type"], Set<string>>
->(
-  (acc, [type, roles]) => {
-    acc[type as OrganizationMongo["type"]] = new Set(
-      roles.map((role) => normalizeRoleCode(role)),
+function validateRoleCode(role: string): RoleCode {
+  const cleaned = role.trim().toUpperCase() as RoleCode;
+  if (!VALID_ROLE_CODES.has(cleaned)) {
+    throw new UserOrganizationServiceError(
+      `Invalid roleCode "${role}". Allowed: ${[...VALID_ROLE_CODES].join(", ")}`,
+      400
     );
-    return acc;
-  },
-  {
-    HOSPITAL: new Set(),
-    BREEDER: new Set(),
-    GROOMER: new Set(),
-    BOARDER: new Set(),
-  },
-);
+  }
+  return cleaned;
+}
+
+function computeEffectivePermissions(
+  role: RoleCode,
+  extra?: string[]
+): string[] {
+  const base = ROLE_PERMISSIONS[role] ?? [];
+  const extras = extra ?? [];
+  return [...new Set([...base, ...extras])];
+}
 
 const pruneUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) {
@@ -158,6 +149,33 @@ const optionalSafeString = (
   return trimmed;
 };
 
+const sanitizePermissionList = (
+  value: unknown,
+  fieldName: string,
+): string[] => {
+  if (value == null) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    throw new UserOrganizationServiceError(
+      `${fieldName} must be an array of strings.`,
+      400,
+    );
+  }
+
+  const seen = new Set<string>();
+
+  for (const entry of value) {
+    const safe = optionalSafeString(entry, fieldName);
+    if (safe) {
+      seen.add(safe);
+    }
+  }
+
+  return [...seen];
+};
+
 const ensureSafeIdentifier = (value: unknown): string | undefined => {
   const identifier = optionalSafeString(value, "Identifier");
 
@@ -228,34 +246,6 @@ const buildOrganizationLookupQuery = (reference: string) => {
   return queries.length === 1 ? queries[0] : { $or: queries };
 };
 
-const ensureRoleSupportedForOrganization = async (
-  organizationReference: string,
-  roleCode: string,
-) => {
-  const query = buildOrganizationLookupQuery(organizationReference);
-  const organization = await OrganizationModel.findOne(query).setOptions({
-    sanitizeFilter: true,
-  });
-
-  if (!organization) {
-    throw new UserOrganizationServiceError(
-      "Referenced organization not found.",
-      404,
-    );
-  }
-
-  const allowedRoles =
-    ORGANIZATION_ROLE_LOOKUP[organization.type] ?? new Set<string>();
-  const normalizedRoleCode = normalizeRoleCode(roleCode);
-
-  if (!allowedRoles.has(normalizedRoleCode)) {
-    throw new UserOrganizationServiceError(
-      `Role "${roleCode}" is not allowed for ${organization.type.toLowerCase()} organizations.`,
-      400,
-    );
-  }
-};
-
 const sanitizeUserOrganizationAttributes = (
   dto: UserOrganization,
 ): UserOrganizationMongo => {
@@ -269,7 +259,16 @@ const sanitizeUserOrganizationAttributes = (
   );
   const roleCode = requireSafeString(dto.roleCode, "Role code");
   const roleDisplay = optionalSafeString(dto.roleDisplay, "Role display");
+  const extraPermissions = sanitizePermissionList(
+    dto.extraPermissions,
+    "Extra permissions",
+  );
 
+  const effectivePermissions = computeEffectivePermissions(
+    roleCode as RoleCode,
+    extraPermissions,
+  );
+  
   return {
     fhirId: ensureSafeIdentifier(dto.id),
     practitionerReference,
@@ -277,6 +276,8 @@ const sanitizeUserOrganizationAttributes = (
     roleCode,
     roleDisplay,
     active: typeof dto.active === "boolean" ? dto.active : true,
+    extraPermissions,
+    effectivePermissions,
   };
 };
 
@@ -297,6 +298,11 @@ const buildUserOrganizationDomain = (
     roleCode: rest.roleCode,
     roleDisplay: rest.roleDisplay,
     active: rest.active,
+    extraPermissions: rest.extraPermissions ?? [],
+    effectivePermissions: computeEffectivePermissions(
+      rest.roleCode as RoleCode,
+      rest.extraPermissions,
+    ),
   };
 };
 
@@ -405,10 +411,7 @@ const buildReferenceLookups = (id: unknown): ReferenceLookup[] => {
 export const UserOrganizationService = {
   async upsert(payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
-    await ensureRoleSupportedForOrganization(
-      persistable.organizationReference,
-      persistable.roleCode,
-    );
+    validateRoleCode(persistable.roleCode)
 
     const id = ensureSafeIdentifier(payload.id ?? persistable.fhirId);
     let document: UserOrganizationDocument | null = null;
@@ -457,10 +460,7 @@ export const UserOrganizationService = {
 
   async create(payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
-    await ensureRoleSupportedForOrganization(
-      persistable.organizationReference,
-      persistable.roleCode,
-    );
+    validateRoleCode(persistable.roleCode)
 
     const document = await UserOrganizationModel.create(persistable);
     const mapping = buildUserOrganizationDomain(document);
@@ -539,10 +539,7 @@ export const UserOrganizationService = {
 
   async update(id: string, payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
-    await ensureRoleSupportedForOrganization(
-      persistable.organizationReference,
-      persistable.roleCode,
-    );
+    validateRoleCode(persistable.roleCode);
 
     const document = await UserOrganizationModel.findOneAndUpdate(
       resolveStrictIdQuery(id, "identifier"),
@@ -559,7 +556,10 @@ export const UserOrganizationService = {
   },
 
   async createUserOrganizationMapping(userOrganisation: UserOrganization) {
-    const document = await UserOrganizationModel.create(userOrganisation);
+    const persistable = pruneUndefined(
+      sanitizeUserOrganizationAttributes(userOrganisation),
+    );
+    const document = await UserOrganizationModel.create(persistable);
     if (!document) {
       throw new UserOrganizationServiceError(
         "Unable to create user-organization mapping.",

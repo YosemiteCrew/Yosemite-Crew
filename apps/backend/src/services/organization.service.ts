@@ -3,7 +3,6 @@ import OrganizationModel, {
   type OrganizationDocument,
   type OrganizationMongo,
 } from "../models/organization";
-import UserOrganizationModel from "../models/user-organization";
 import {
   fromOrganizationRequestDTO,
   toOrganizationResponseDTO,
@@ -532,10 +531,10 @@ export const OrganizationService = {
         const userOrg: UserOrganization = {
           practitionerReference: userId,
           organizationReference: document._id.toString(),
-          roleCode: "Owner",
+          roleCode: "OWNER",
           active: true,
         };
-        await UserOrganizationModel.create(userOrg);
+        await UserOrganizationService.createUserOrganizationMapping(userOrg);
 
         // Ensure the owner has a minimal draft profile
         const existingProfile = await UserProfileModel.findOne({
