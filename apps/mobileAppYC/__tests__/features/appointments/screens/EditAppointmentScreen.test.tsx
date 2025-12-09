@@ -3,7 +3,6 @@ import {render, fireEvent, act, waitFor} from '@testing-library/react-native';
 import {EditAppointmentScreen} from '@/features/appointments/screens/EditAppointmentScreen';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {View, Text, TouchableOpacity, Button} from 'react-native';
 
 // --- Mocks ---
 
@@ -92,6 +91,7 @@ jest.mock(
 jest.mock(
   '@/features/appointments/components/CancelAppointmentBottomSheet',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View, Button} = require('react-native');
     return {
