@@ -39,7 +39,7 @@ jest.mock('@/hooks', () => ({
         surface: 'white',
         borderMuted: 'lightgray',
       },
-      spacing: new Array(30).fill(8),
+      spacing: new Array(10).fill(8),
       borderRadius: {md: 4, lg: 8},
       typography: {
         h6Clash: {fontSize: 16},
@@ -50,7 +50,7 @@ jest.mock('@/hooks', () => ({
   }),
 }));
 
-// Mocking assets
+// Mocking assets - INLINED OBJECT to avoid hoisting issues
 jest.mock('@/assets/images', () => ({
   Images: {
     addIconDark: {uri: 'add'},
@@ -167,11 +167,11 @@ jest.mock('@/features/tasks/selectors', () => ({
   selectHasHydratedCompanion: () => (state: any) => state.mockHydrated,
   selectTasksByCompanion: () => (state: any) => state.mockAllTasks || [],
   selectRecentTasksByCategory:
-    (id: string, date: Date, category: string) => (state: any) => {
+    (_id: string, _date: Date, category: string) => (state: any) => {
       return state.mockRecentTasks?.[category] || [];
     },
   selectTaskCountByCategory:
-    (id: string, date: Date, category: string) => (state: any) => {
+    (_id: string, _date: Date, category: string) => (state: any) => {
       return state.mockTaskCounts?.[category] || 0;
     },
 }));
@@ -245,6 +245,7 @@ describe('TasksMainScreen', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 
