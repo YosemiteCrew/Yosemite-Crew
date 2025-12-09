@@ -159,6 +159,7 @@ jest.mock(
 jest.mock(
   '../../../../src/features/appointments/components/CancelAppointmentBottomSheet',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View, TouchableOpacity, Text} = require('react-native');
     return {
@@ -182,6 +183,7 @@ jest.mock(
 jest.mock(
   '../../../../src/features/appointments/components/InfoBottomSheet/RescheduledInfoSheet',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View} = require('react-native');
     // @ts-ignore

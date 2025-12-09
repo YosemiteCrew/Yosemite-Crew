@@ -1,5 +1,5 @@
 import React from 'react';
-import {Alert, View, Text, TouchableOpacity} from 'react-native';
+import {Alert} from 'react-native';
 import {
   fireEvent,
   render,
@@ -128,6 +128,7 @@ jest.mock('../../../../src/shared/components/common', () => {
 });
 
 jest.mock('../../../../src/shared/components/common/Header/Header', () => {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   const React = require('react');
   const {TouchableOpacity, Text} = require('react-native');
   return {
@@ -142,6 +143,7 @@ jest.mock('../../../../src/shared/components/common/Header/Header', () => {
 jest.mock(
   '../../../../src/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {TouchableOpacity, Text} = require('react-native');
     return {
@@ -160,6 +162,7 @@ jest.mock(
 jest.mock(
   '../../../../src/features/appointments/components/AppointmentFormContent',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View, TouchableOpacity, Text} = require('react-native');
     return {
@@ -234,6 +237,7 @@ jest.mock(
 jest.mock(
   '../../../../src/features/appointments/components/DocumentUploadSheets',
   () => {
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View, TouchableOpacity} = require('react-native');
     return {
