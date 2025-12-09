@@ -412,12 +412,12 @@ export const AvailabilityService = {
   async getWeeklyWorkingHours(
     organisationId: string,
     userId: string,
-    referenceDate: Date
+    referenceDate: Date,
   ): Promise<number> {
     const weekly = await this.getWeeklyFinalAvailability(
       organisationId,
       userId,
-      referenceDate
+      referenceDate,
     );
 
     let totalMinutes = 0;
@@ -432,5 +432,5 @@ export const AvailabilityService = {
     }
 
     return totalMinutes / 60; // hours
-  }
+  },
 };

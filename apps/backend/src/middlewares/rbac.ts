@@ -31,7 +31,9 @@ export function withOrgPermissions() {
     const orgId = extractOrgId(req);
 
     if (!userId || !orgId) {
-      return res.status(400).json({ message: "Missing userId or organisationId" });
+      return res
+        .status(400)
+        .json({ message: "Missing userId or organisationId" });
     }
 
     try {
@@ -52,7 +54,7 @@ export function withOrgPermissions() {
 
       const effectivePermissions = normalizePermissions(
         // field from your updated UserOrganizationSchema
-        (mapping as any).effectivePermissions
+        (mapping as any).effectivePermissions,
       );
 
       typedReq.userPermissions = effectivePermissions;
@@ -85,7 +87,9 @@ export function requirePermission(required: Permission | Permission[]) {
       : perms.includes(required);
 
     if (!ok) {
-      return res.status(403).json({ message: "Forbidden – insufficient permissions" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden – insufficient permissions" });
     }
 
     return next();

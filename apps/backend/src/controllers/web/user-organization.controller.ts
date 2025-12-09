@@ -178,16 +178,18 @@ export const UserOrganizationController = {
     }
   },
 
-  listByOrganisationId : async (req: Request, res: Response) => {
+  listByOrganisationId: async (req: Request, res: Response) => {
     try {
+      const { organisationId } = req.params;
 
-      const { organisationId } = req.params
-
-      if( !organisationId ) {
-        return res.status(400).json({message : "Organisation Id is required and type should be string."})
+      if (!organisationId) {
+        return res.status(400).json({
+          message: "Organisation Id is required and type should be string.",
+        });
       }
 
-      const result = await UserOrganizationService.listByOrganisationId(organisationId);
+      const result =
+        await UserOrganizationService.listByOrganisationId(organisationId);
       return res.status(200).json(result);
     } catch (error) {
       if (error instanceof UserOrganizationServiceError) {
@@ -195,13 +197,10 @@ export const UserOrganizationController = {
         return;
       }
 
-      logger.error(
-        "Failed to list current organization's mappings",
-        error,
-      );
+      logger.error("Failed to list current organization's mappings", error);
       res.status(500).json({
         message: "Unable to list current user's organization mappings.",
       });
     }
-  }
+  },
 };

@@ -10,7 +10,7 @@ import OrganizationModel, {
 } from "../models/organization";
 import SpecialityModel, { type SpecialityDocument } from "../models/speciality";
 import logger from "../utils/logger";
-import type { OrganisationInvite } from "@yosemite-crew/types";
+import type { InviteStatus, OrganisationInvite } from "@yosemite-crew/types";
 import { UserOrganizationService } from "./user-organization.service";
 import { renderOrganisationInviteTemplate } from "../utils/email-templates";
 import { sendEmail } from "../utils/email";
@@ -391,10 +391,35 @@ export const OrganisationInviteService = {
     const invites = await OrganisationInviteModel.find({
       inviteeEmail: safeEmail,
       status: "PENDING",
-      expiresAt: { $gt: new Date(Date.now()) },
+      expiresAt: { $gt: new Date() },
     }).sort({ createdAt: -1 });
 
-    return invites.map((invite) => buildInviteResponse(invite));
+    if (!invites.length) {
+      return [];
+    }
+
+    // Gather all relevant organisation IDs (they are stored as string identifiers)
+    const organisationIds = invites.map((i) => i.organisationId);
+
+    // Fetch organisations in one query
+    const organisations = await OrganizationModel.find({
+      _id: { $in: organisationIds.filter((id) => Types.ObjectId.isValid(id)) },
+    }).setOptions({ sanitizeFilter: true });
+
+    // Build lookup map for fast access
+    const orgMap = new Map(organisations.map((o) => [o._id.toString(), o]));
+
+    // Build final enriched response
+    return invites.map((invite) => {
+      const baseResponse = buildInviteResponse(invite);
+      const org = orgMap.get(invite.organisationId);
+
+      return {
+        ...baseResponse,
+        organisationName: org?.name ?? null,
+        organisationType: org?.type ?? null, // Adjust field name if your schema uses something else
+      };
+    });
   },
 
   async acceptInvite({
@@ -478,6 +503,70 @@ export const OrganisationInviteService = {
     await addUserToDepartment(department, safeUserId);
 
     logger.info("Organisation invite accepted.", {
+      inviteId: invite._id?.toString(),
+      organisationId: invite.organisationId,
+      userId: safeUserId,
+    });
+
+    return buildInviteResponse(invite);
+  },
+
+  async rejectInvite({
+    token,
+    userId,
+    userEmail,
+  }: AcceptInvitePayload): Promise<OrganisationInviteResponse> {
+    const safeToken = requireString(token, "Invite token");
+    const safeUserId = requireString(userId, "User identifier");
+    const safeEmail = normalizeEmail(userEmail);
+
+    const invite = await OrganisationInviteModel.findOne({
+      token: safeToken,
+    }).setOptions({
+      sanitizeFilter: true,
+    });
+
+    if (!invite) {
+      throw new OrganisationInviteServiceError("Invitation not found.", 404);
+    }
+
+    // Check that the invite is still rejectable
+    if (invite.status === "ACCEPTED") {
+      throw new OrganisationInviteServiceError(
+        "Invitation already accepted.",
+        409,
+      );
+    }
+
+    if (invite.status === "CANCELLED") {
+      throw new OrganisationInviteServiceError(
+        "Invitation has been cancelled.",
+        410,
+      );
+    }
+
+    if (invite.status === "EXPIRED" || invite.expiresAt <= new Date()) {
+      if (invite.status !== "EXPIRED") {
+        invite.status = "EXPIRED";
+        await invite.save();
+      }
+      throw new OrganisationInviteServiceError("Invitation has expired.", 410);
+    }
+
+    // Email must match
+    if (invite.inviteeEmail !== safeEmail) {
+      throw new OrganisationInviteServiceError(
+        "Invite email does not match authenticated user.",
+        403,
+      );
+    }
+
+    // Mark as rejected
+    invite.status = "REJECTED" as InviteStatus;
+    invite.acceptedAt = undefined;
+    await invite.save();
+
+    logger.info("Organisation invite rejected.", {
       inviteId: invite._id?.toString(),
       organisationId: invite.organisationId,
       userId: safeUserId,

@@ -69,7 +69,7 @@ router.post("/pms", authorizeCognito, AppointmentController.createFromPms);
 router.post(
   "/pms",
   authorizeCognito,
-  withOrgPermissions(),    
+  withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.createFromPms,
 );
@@ -126,7 +126,7 @@ router.get(
   withOrgPermissions(),
   requirePermission([
     "appointments:view:any",
-    "appointments:view:own",   // Vet with OWN-only can still access if assigned
+    "appointments:view:own", // Vet with OWN-only can still access if assigned
   ]),
   AppointmentController.getById,
 );
