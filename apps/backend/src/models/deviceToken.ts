@@ -1,7 +1,7 @@
 import { Schema, model } from "mongoose";
 
 export interface DeviceTokenMongo {
-  userId: string;                // parentId OR pmsUserId
+  userId: string; // parentId OR pmsUserId
   deviceToken: string;
   platform: "ios" | "android";
   isActive?: boolean;
@@ -16,10 +16,10 @@ const DeviceTokenSchema = new Schema<DeviceTokenMongo>(
     platform: { type: String, enum: ["ios", "android"], required: true },
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const DeviceTokenModel = model<DeviceTokenMongo>(
   "DeviceToken",
-  DeviceTokenSchema
+  DeviceTokenSchema,
 );

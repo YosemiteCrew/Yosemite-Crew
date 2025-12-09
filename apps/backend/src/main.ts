@@ -32,8 +32,8 @@ import chatRouter from "./routers/chat.router";
 import notificationRouter from "./routers/notification.router";
 import contactRouter from "./routers/contact-us.router";
 import accountWithdrawalRouter from "./routers/account-withdrawal.router";
-import organisationDocumentRouter from "./routers/organisation-document.router"
-import adverseEventRouter from "./routers/adverse-event.router"
+import organisationDocumentRouter from "./routers/organisation-document.router";
+import adverseEventRouter from "./routers/adverse-event.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -82,8 +82,8 @@ app.use(`/v1/chat`, chatRouter);
 app.use(`/v1/notification`, notificationRouter);
 app.use(`/v1/contact-us`, contactRouter);
 app.use(`/v1/account-withdrawal`, accountWithdrawalRouter);
-app.use(`/v1/organisation-document`, organisationDocumentRouter)
-app.use(`/v1/adverse-event`, adverseEventRouter)
+app.use(`/v1/organisation-document`, organisationDocumentRouter);
+app.use(`/v1/adverse-event`, adverseEventRouter);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

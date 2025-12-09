@@ -68,11 +68,10 @@ export const OrganisationRatingController = {
         return res.status(400).json({ message: "Parent not found for user." });
       }
 
-      const hasRated =
-        await OrganizationRatingService.isUserRatedOrganisation(
-          organisationId,
-          parentId,
-        );
+      const hasRated = await OrganizationRatingService.isUserRatedOrganisation(
+        organisationId,
+        parentId,
+      );
 
       return res.status(200).json({ hasRated });
     } catch (error) {

@@ -22,7 +22,7 @@ router.get(
   "/payment-intent/:paymentIntentId",
   authorizeCognitoMobile,
   (req, res) => StripeController.retrievePaymentIntent(req, res),
-);  
+);
 
 router.get(
   "/invoice/:invoiceId/payment-intent",

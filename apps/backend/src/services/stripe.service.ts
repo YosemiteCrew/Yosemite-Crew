@@ -191,9 +191,7 @@ export const StripeService = {
   async retrievePaymentIntent(paymentIntentId: string) {
     const stripe = getStripeClient();
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(
-      paymentIntentId,
-    );
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     return paymentIntent;
   },
@@ -308,7 +306,7 @@ export const StripeService = {
 
     const existingInvoice = await InvoiceModel.findOne({
       appointmentId,
-      status: "PAID"
+      status: "PAID",
     });
 
     if (existingInvoice) {
@@ -319,7 +317,9 @@ export const StripeService = {
     const chargeId = pi.latest_charge as string;
     const charge = await getStripeClient().charges.retrieve(chargeId);
 
-    const service = await ServiceModel.findById(appointment.appointmentType?.id);
+    const service = await ServiceModel.findById(
+      appointment.appointmentType?.id,
+    );
     if (!service) {
       logger.error("Service not found for appointment");
       return;
@@ -360,10 +360,12 @@ export const StripeService = {
         stripePaymentIntentId: pi.id,
         stripeChargeId: charge.id,
         updatedAt: new Date(),
-      }
+      },
     );
 
-    logger.info(`Appointment ${appointmentId} booking PAID. Invoice ${invoice.id} created`);
+    logger.info(
+      `Appointment ${appointmentId} booking PAID. Invoice ${invoice.id} created`,
+    );
   },
 
   async _handleInvoicePayment(pi: Stripe.PaymentIntent) {
@@ -438,10 +440,7 @@ export const StripeService = {
       charge.amount / 100,
     );
     const parentId = invoice.parentId;
-    await NotificationService.sendToUser(
-      parentId!,
-      notificationPayload,
-    );
+    await NotificationService.sendToUser(parentId!, notificationPayload);
 
     logger.warn(`Invoice ${invoice.id} marked REFUNDED`);
   },
