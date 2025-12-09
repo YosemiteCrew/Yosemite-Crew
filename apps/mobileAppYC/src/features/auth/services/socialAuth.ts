@@ -164,7 +164,7 @@ const cacheAppleProfile = async (
 const extractAdditionalAppleProfile = (
   userCredential: FirebaseAuthTypes.UserCredential,
 ): {firstName?: string | null; lastName?: string | null; email?: string | null} => {
-  const profile = (userCredential.additionalUserInfo?.profile ?? {}) as Record<string, any>;
+  const profile: Record<string, any> = userCredential.additionalUserInfo?.profile ?? {};
   console.log('[SocialAuth][Apple] additionalUserInfo.profile', profile);
   const nameFromProfile =
     profile.name ??
