@@ -2,12 +2,8 @@
 import { ChannelData, StreamChat } from "stream-chat";
 import dayjs from "dayjs";
 
-import ChatSessionModel, {
-  ChatSessionDocument,
-} from "../models/chatSession";
-import AppointmentModel, {
-  AppointmentDocument,
-} from "../models/appointment";
+import ChatSessionModel, { ChatSessionDocument } from "../models/chatSession";
+import AppointmentModel, { AppointmentDocument } from "../models/appointment";
 
 const STREAM_KEY = process.env.STREAM_API_KEY!;
 const STREAM_SECRET = process.env.STREAM_API_SECRET!;
@@ -20,7 +16,7 @@ if (!STREAM_KEY || !STREAM_SECRET) {
 const streamServer = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
 
 // How long before/after appointment chat is allowed
-const PRE_WINDOW_MINUTES = 60 * 24 * 1;   // 1 day before
+const PRE_WINDOW_MINUTES = 60 * 24 * 1; // 1 day before
 const POST_WINDOW_MINUTES = 120; // 2 hours after
 
 // Appointment statuses where chat is allowed
@@ -55,13 +51,9 @@ export class ChatServiceError extends Error {
 const getChatWindowFromAppointment = (appointment: AppointmentDocument) => {
   const start = dayjs(appointment.startTime);
 
-  const allowedFrom = start
-    .subtract(PRE_WINDOW_MINUTES, "minute")
-    .toDate();
+  const allowedFrom = start.subtract(PRE_WINDOW_MINUTES, "minute").toDate();
 
-  const allowedUntil = start
-    .add(POST_WINDOW_MINUTES, "minute")
-    .toDate();
+  const allowedUntil = start.add(POST_WINDOW_MINUTES, "minute").toDate();
 
   return { allowedFrom, allowedUntil };
 };
@@ -154,7 +146,7 @@ export const ChatService = {
       id: vetId!,
       name: appointment.lead?.name || "Vet",
       role: "user",
-    }); 
+    });
 
     const orgId = appointment.organisationId;
     const companionId = appointment.companion.id;
@@ -189,7 +181,8 @@ export const ChatService = {
 
     await channel.create(); // no extra args needed here
 
-    const { allowedFrom, allowedUntil } = getChatWindowFromAppointment(appointment);
+    const { allowedFrom, allowedUntil } =
+      getChatWindowFromAppointment(appointment);
 
     session = await ChatSessionModel.create({
       appointmentId,
@@ -238,10 +231,7 @@ export const ChatService = {
       session.status = "ACTIVE";
       await session.save();
 
-      const channel = streamServer.channel(
-        "messaging",
-        session.channelId,
-      );
+      const channel = streamServer.channel("messaging", session.channelId);
 
       await channel.updatePartial({
         set: { frozen: false },

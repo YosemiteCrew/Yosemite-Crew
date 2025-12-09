@@ -38,7 +38,7 @@ const isVisibilityFilter = (
 
 export const OrganizationDocumentController = {
   /** PMS: Create a document */
-  create : async (
+  create: async (
     req: Request<{ orgId: string }, unknown, CreateOrgDocumentBody>,
     res: Response,
   ) => {
@@ -61,8 +61,12 @@ export const OrganizationDocumentController = {
   },
 
   /** PMS: Update a document */
-  update : async (
-    req: Request<{ orgId: string; documentId: string }, unknown, UpdateOrgDocumentBody>,
+  update: async (
+    req: Request<
+      { orgId: string; documentId: string },
+      unknown,
+      UpdateOrgDocumentBody
+    >,
     res: Response,
   ) => {
     try {
@@ -84,7 +88,7 @@ export const OrganizationDocumentController = {
   },
 
   /** PMS: Delete document */
-  remove : async (req: Request<{ documentId: string }>, res: Response) => {
+  remove: async (req: Request<{ documentId: string }>, res: Response) => {
     try {
       const documentId = req.params.documentId;
 
@@ -100,7 +104,7 @@ export const OrganizationDocumentController = {
   },
 
   /** PMS: Get one document */
-  getById : async (req: Request<{ documentId: string }>, res: Response) => {
+  getById: async (req: Request<{ documentId: string }>, res: Response) => {
     try {
       const documentId = req.params.documentId;
 
@@ -116,7 +120,7 @@ export const OrganizationDocumentController = {
   },
 
   /** PMS: List all documents */
-  list : async (
+  list: async (
     req: Request<{ orgId: string }, unknown, unknown, DocumentQuery>,
     res: Response,
   ) => {
@@ -133,11 +137,12 @@ export const OrganizationDocumentController = {
           ? req.query.visibility
           : undefined;
 
-      const docs = await OrganizationDocumentService.listDocumentsForOrganisation({
-        organisationId,
-        category,
-        visibility,
-      });
+      const docs =
+        await OrganizationDocumentService.listDocumentsForOrganisation({
+          organisationId,
+          category,
+          visibility,
+        });
 
       res.status(200).json({ data: docs });
     } catch (err) {
@@ -149,7 +154,7 @@ export const OrganizationDocumentController = {
   },
 
   /** MOBILE: list only public documents */
-  listPublic : async (
+  listPublic: async (
     req: Request<{ orgId: string }, unknown, unknown, PublicDocumentQuery>,
     res: Response,
   ) => {
@@ -174,7 +179,7 @@ export const OrganizationDocumentController = {
 
       const docs =
         await OrganizationDocumentService.listPublicDocumentsForOrganisation(
-          filter
+          filter,
         );
 
       res.status(200).json({ data: docs });
@@ -187,7 +192,7 @@ export const OrganizationDocumentController = {
   },
 
   /** PMS: upsert (T&C, privacy policy, cancellation policy) */
-  upsertPolicy : async (
+  upsertPolicy: async (
     req: Request<{ orgId: string }, unknown, UpsertPolicyBody>,
     res: Response,
   ) => {
@@ -210,7 +215,7 @@ export const OrganizationDocumentController = {
     }
   },
 
-  uploadFile : async (req: Request, res: Response) => {
+  uploadFile: async (req: Request, res: Response) => {
     try {
       const rawBody: unknown = req.body;
       const orgId = req.params;
@@ -240,5 +245,5 @@ export const OrganizationDocumentController = {
       logger.error("Failed to generate logo upload URL", error);
       res.status(500).json({ message: "Unable to generate logo upload URL." });
     }
-  }
+  },
 };
