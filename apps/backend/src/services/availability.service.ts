@@ -408,4 +408,29 @@ export const AvailabilityService = {
       windows,
     };
   },
+
+  async getWeeklyWorkingHours(
+    organisationId: string,
+    userId: string,
+    referenceDate: Date
+  ): Promise<number> {
+    const weekly = await this.getWeeklyFinalAvailability(
+      organisationId,
+      userId,
+      referenceDate
+    );
+
+    let totalMinutes = 0;
+
+    for (const day of weekly) {
+      for (const slot of day.slots) {
+        const start = dayjs.utc(`${day.date}T${slot.startTime}:00`);
+        const end = dayjs.utc(`${day.date}T${slot.endTime}:00`);
+        const diff = end.diff(start, "minute");
+        if (diff > 0) totalMinutes += diff;
+      }
+    }
+
+    return totalMinutes / 60; // hours
+  }
 };

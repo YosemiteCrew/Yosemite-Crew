@@ -13,6 +13,10 @@ import {
   type UserOrganization,
 } from "@yosemite-crew/types";
 import { ROLE_PERMISSIONS, RoleCode } from "src/models/role-permission";
+import UserProfileModel from "src/models/user-profile";
+import SpecialityModel from "src/models/speciality";
+import { AvailabilityService } from "./availability.service";
+import UserModel from "src/models/user";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -611,4 +615,45 @@ export const UserOrganizationService = {
     }
     return results;
   },
+
+  async listByOrganisationId(id: string) {
+    const organisationId = requireSafeString(id, "User Id");
+    const mappings = await UserOrganizationModel.find({
+      organizationReference: organisationId,
+    });
+
+    if (!mappings.length) {
+      return [];
+    }
+
+    const results = [];
+    for (const mapping of mappings) {
+      const userRef = mapping.practitionerReference;
+      const user = await UserModel.findOne({userId: userRef})
+      const userProfile = await UserProfileModel.findOne({
+        userId: userRef
+      })
+
+      const specialities = await SpecialityModel.find({
+        organisationId,
+        memberUserIds: userRef, // matches any element in the array
+      });
+
+      const currentStatus = await AvailabilityService.getCurrentStatus(organisationId, userRef);
+      const weeklyHours = await AvailabilityService.getWeeklyWorkingHours(organisationId, userRef, new Date())
+
+
+      const result = {
+        name: user?.firstName! + " " + user?.lastName!,
+        proileUrl: userProfile?.personalDetails?.profilePictureUrl,
+        specialities: specialities,
+        currentStatus,
+        weeklyHours
+      }
+
+      results.push(result)
+    }
+
+    return results;
+  }
 };
