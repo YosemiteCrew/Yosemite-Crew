@@ -45,7 +45,7 @@ export type RoleCode =
   | "OWNER"
   | "ADMIN"
   | "SUPERVISOR"
-  | "VET"
+  | "VETERINARIAN"
   | "TECHNICIAN"
   | "ASSISTANT"
   | "RECEPTIONIST";
@@ -150,7 +150,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "audit:view:any",
   ],
 
-  VET: [
+  VETERINARIAN: [
     // own appointments
     "appointments:view:own",
     "appointments:edit:own",
