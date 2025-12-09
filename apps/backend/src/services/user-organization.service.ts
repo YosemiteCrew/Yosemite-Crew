@@ -17,6 +17,7 @@ import UserProfileModel from "src/models/user-profile";
 import SpecialityModel from "src/models/speciality";
 import { AvailabilityService } from "./availability.service";
 import UserModel from "src/models/user";
+import { OccupancyModel } from "src/models/occupancy";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -620,6 +621,8 @@ export const UserOrganizationService = {
     const organisationId = requireSafeString(id, "User Id");
     const mappings = await UserOrganizationModel.find({
       organizationReference: organisationId,
+    },{
+      practitionerReference:1, organizationReference:1, roleCode:1,
     });
 
     if (!mappings.length) {
@@ -641,15 +644,27 @@ export const UserOrganizationService = {
 
       const currentStatus = await AvailabilityService.getCurrentStatus(organisationId, userRef);
       const weeklyHours = await AvailabilityService.getWeeklyWorkingHours(organisationId, userRef, new Date())
+      
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const count = await OccupancyModel.countDocuments({
+        organisationId,            // required
+        sourceType: "APPOINTMENT", // filter appointment only
+        startTime: { $gte: startOfDay, $lte: endOfDay },
+      });
 
       const result = {
+        userOrganisation: toUserOrganizationResponseDTO(mapping),
         name: user?.firstName! + " " + user?.lastName!,
-        role: mapping.roleCode,
         proileUrl: userProfile?.personalDetails?.profilePictureUrl,
         speciality: speciality,
         currentStatus,
-        weeklyHours
+        weeklyHours,
+        count
       }
 
       results.push(result)
