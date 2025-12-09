@@ -391,35 +391,26 @@ export const OrganisationInviteService = {
     const invites = await OrganisationInviteModel.find({
       inviteeEmail: safeEmail,
       status: "PENDING",
-      expiresAt: { $gt: new Date() },
+      expiresAt: { $gt: new Date(Date.now()) },
     }).sort({ createdAt: -1 });
 
-    if (!invites.length) {
+    if(!invites.length)
       return [];
+    const results = [];
+    for(const invite of invites) {
+
+      const organisation = await OrganizationModel.findOne({
+        id : invite.organisationId
+      })
+
+      results.push({
+        invite: buildInviteResponse(invite),
+        organisationName: organisation?.name,
+        organisationType: organisation?.type
+      })
     }
 
-    // Gather all relevant organisation IDs (they are stored as string identifiers)
-    const organisationIds = invites.map((i) => i.organisationId);
-
-    // Fetch organisations in one query
-    const organisations = await OrganizationModel.find({
-      _id: { $in: organisationIds.filter((id) => Types.ObjectId.isValid(id)) },
-    }).setOptions({ sanitizeFilter: true });
-
-    // Build lookup map for fast access
-    const orgMap = new Map(organisations.map((o) => [o._id.toString(), o]));
-
-    // Build final enriched response
-    return invites.map((invite) => {
-      const baseResponse = buildInviteResponse(invite);
-      const org = orgMap.get(invite.organisationId);
-
-      return {
-        ...baseResponse,
-        organisationName: org?.name ?? null,
-        organisationType: org?.type ?? null, // Adjust field name if your schema uses something else
-      };
-    });
+    return results;
   },
 
   async acceptInvite({
