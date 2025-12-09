@@ -668,11 +668,9 @@ export const UserOrganizationService = {
         startTime: { $gte: startOfDay, $lte: endOfDay },
       });
 
-      let name : string = "";
-      if(user?.firstName)
-        name += user.firstName;
-      if(user?.lastName)
-        name += " " + user.lastName;
+      let name: string = "";
+      if (user?.firstName) name += user.firstName;
+      if (user?.lastName) name += " " + user.lastName;
       const result = {
         userOrganisation: toUserOrganizationResponseDTO(mapping),
         name,
