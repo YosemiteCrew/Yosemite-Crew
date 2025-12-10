@@ -2,18 +2,18 @@ import Accordion from "@/app/components/Accordion/Accordion";
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import Availability from "@/app/components/Availability/Availability";
 import Modal from "@/app/components/Modal";
+import { Team } from "@/app/types/team";
 import React from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 
 type TeamInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeTeam: any;
+  activeTeam: Team;
 };
 
 const Fields = [
-  { label: "First name", key: "name", type: "text" },
-  { label: "Last name", key: "lastName", type: "text" },
+  { label: "Name", key: "name", type: "text" },
   { label: "Email", key: "email", type: "text" },
   { label: "Role", key: "role", type: "text" },
   { label: "Department", key: "speciality", type: "text" },
@@ -69,7 +69,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
           <EditableAccordion
             title="Personal details"
             fields={Fields}
-            data={activeTeam}
+            data={{...activeTeam, speciality: activeTeam.speciality.name}}
             defaultOpen={true}
           />
           <EditableAccordion

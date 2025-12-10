@@ -1,12 +1,13 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
-import { ServiceWeb, Speciality } from "@/app/types/org";
+import { SpecialityWeb } from "@/app/types/speciality";
+import { Service } from "@yosemite-crew/types";
 import React from "react";
 
 type SpecialityCardProps = {
-  setFormData: React.Dispatch<React.SetStateAction<Speciality[]>>;
-  speciality: Speciality;
+  setFormData: React.Dispatch<React.SetStateAction<SpecialityWeb[]>>;
+  speciality: SpecialityWeb;
   index: number;
 };
 
@@ -19,8 +20,8 @@ const SpecialityCard = ({
     serviceIndex: number,
     key: string,
     value: string,
-    services: ServiceWeb[] = []
-  ): ServiceWeb[] => {
+    services: Service[] = []
+  ): Service[] => {
     return services.map((srv, srvIndex) =>
       srvIndex === serviceIndex ? { ...srv, [key]: value } : srv
     );
@@ -54,7 +55,7 @@ const SpecialityCard = ({
     );
   };
 
-  const filterService = (services: ServiceWeb[], serviceIndex: number) => {
+  const filterService = (services: Service[], serviceIndex: number) => {
     return services?.filter((_, i) => i !== serviceIndex);
   };
 
@@ -85,10 +86,10 @@ const SpecialityCard = ({
             <FormInput
               intype="number"
               inname="duration"
-              value={String(service.duration)}
+              value={String(service.durationMinutes)}
               inlabel="Duration (mins)"
               onChange={(e) =>
-                updateServiceField(i, "duration", e.target.value)
+                updateServiceField(i, "durationMinutes", e.target.value)
               }
               className="min-h-12!"
             />
@@ -96,10 +97,10 @@ const SpecialityCard = ({
               <FormInput
                 intype="number"
                 inname="charge"
-                value={String(service.charge)}
+                value={String(service.cost)}
                 inlabel="Service charge ($)"
                 onChange={(e) =>
-                  updateServiceField(i, "charge", e.target.value)
+                  updateServiceField(i, "cost", e.target.value)
                 }
                 className="min-h-12!"
               />

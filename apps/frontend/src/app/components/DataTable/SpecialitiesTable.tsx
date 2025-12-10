@@ -1,7 +1,8 @@
 import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import { IoEye } from "react-icons/io5";
-import { ServiceWeb, Speciality } from "@/app/types/org";
+import { SpecialityWeb } from "@/app/types/speciality";
+import { Service } from "@yosemite-crew/types";
 
 import "./DataTable.css";
 
@@ -13,12 +14,12 @@ type Column<T> = {
 };
 
 type SpecialitiesTableProps = {
-  filteredList: Speciality[];
+  filteredList: SpecialityWeb[];
   setActive: (speciality: any) => void;
   setView: (open: boolean) => void;
 };
 
-export const getServiceNames = (services: ServiceWeb[] = []): string => {
+export const getServiceNames = (services: Service[] = []): string => {
   return services.map((s) => s.name).join(", ");
 };
 
@@ -32,12 +33,12 @@ const SpecialitiesTable = ({
     setView(true);
   };
 
-  const columns: Column<Speciality>[] = [
+  const columns: Column<SpecialityWeb>[] = [
     {
       label: "Speciality",
       key: "Speciality",
-      width: "15%",
-      render: (item: Speciality) => (
+      width: "20%",
+      render: (item: SpecialityWeb) => (
         <div className="appointment-profile-title">{item.name}</div>
       ),
     },
@@ -45,25 +46,25 @@ const SpecialitiesTable = ({
       label: "Services",
       key: "Services",
       width: "35%",
-      render: (item: Speciality) => (
-        <div className="appointment-profile-title">{getServiceNames(item.services)}</div>
+      render: (item: SpecialityWeb) => (
+        <div className="appointment-profile-title">{getServiceNames(item.services) || "-"}</div>
       ),
     },
     {
       label: "Team members",
       key: "Team members",
       width: "15%",
-      render: (item: Speciality) => (
-        <div className="appointment-profile-title">{item.staff?.length}</div>
+      render: (item: SpecialityWeb) => (
+        <div className="appointment-profile-title">{item.teamMemberIds?.length || 0}</div>
       ),
     },
     {
       label: "Head",
       key: "Head",
-      width: "25%",
-      render: (item: Speciality) => (
+      width: "20%",
+      render: (item: SpecialityWeb) => (
         <div className="flex items-center gap-2">
-          <div className="appointment-profile-title">{item.head}</div>
+          <div className="appointment-profile-title">{item.headName || "-"}</div>
         </div>
       ),
     },
@@ -71,7 +72,7 @@ const SpecialitiesTable = ({
       label: "Actions",
       key: "actions",
       width: "10%",
-      render: (item: Speciality) => (
+      render: (item: SpecialityWeb) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewSpeciality(item)}

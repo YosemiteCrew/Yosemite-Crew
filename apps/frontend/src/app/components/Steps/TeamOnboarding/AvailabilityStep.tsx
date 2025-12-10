@@ -2,7 +2,11 @@ import React from "react";
 import { Primary, Secondary } from "../../Buttons";
 import Availability from "../../Availability/Availability";
 
-const AvailabilityStep = ({ prevStep }: any) => {
+type AvailabilityStepProps = {
+  prevStep: () => void;
+};
+
+const AvailabilityStep = ({ prevStep }: AvailabilityStepProps) => {
   return (
     <div className="team-container">
       <div className="team-title">Availability</div>

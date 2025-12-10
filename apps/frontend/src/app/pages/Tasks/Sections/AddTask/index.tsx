@@ -117,6 +117,7 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
               <Datepicker
                 currentDate={due}
                 setCurrentDate={setDue}
+                placeholder="Due date"
                 type="input"
               />
             </div>

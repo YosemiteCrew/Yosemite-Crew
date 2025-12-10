@@ -2,29 +2,63 @@ import Accordion from "@/app/components/Accordion/Accordion";
 import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
-import { RoleOptions, SpecialityOptions } from "../../types";
+import { EmploymentTypes, RoleOptions } from "../../types";
 import { Primary } from "@/app/components/Buttons";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
+import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { sendInvite } from "@/app/services/teamService";
+import { isValidEmail } from "@/app/utils/validators";
+import { TeamFormDataType } from "@/app/types/team";
 
 type AddTeamProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+const initialData = {
+  email: "",
+  speciality: {
+    name: "",
+    key: "",
+  },
+  role: "",
+  type: EmploymentTypes[0].key,
+};
+
 const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
-  const [formData, setFormData] = useState<any>({
-    email: "",
-    speciality: "",
-    role: "",
-    type: "Full time",
-  });
-  const [formDataErrors] = useState<{
+  const specialities = useSpecialitiesForPrimaryOrg();
+  const [formData, setFormData] = useState<TeamFormDataType>(initialData);
+  const [formDataErrors, setFormDataErrors] = useState<{
     email?: string;
     speciality?: string;
     role?: string;
   }>({});
+
+  const SpecialitiesOptions = useMemo(
+    () => specialities.map((s) => ({ name: s.name, key: s._id })),
+    [specialities]
+  );
+
+  const handleSave = async () => {
+    const errors: { email?: string; speciality?: string; role?: string } = {};
+    if (!formData.email) errors.email = "Email is required";
+    if (!formData.speciality.name) errors.speciality = "Speciality is required";
+    if (!formData.role) errors.role = "Role is required";
+    if (!isValidEmail(formData.email)) errors.email = "Enter a valid email"
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    try {
+      await sendInvite(formData);
+      setShowModal(false);
+      setFormData(initialData);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -67,12 +101,18 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
               />
               <Dropdown
                 placeholder="Speciality"
-                value={formData.speciality}
-                onChange={(e) => setFormData({ ...formData, speciality: e })}
+                value={formData.speciality.name}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    speciality: e,
+                  })
+                }
                 error={formDataErrors.speciality}
                 className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit"
-                options={SpecialityOptions}
+                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
+                options={SpecialitiesOptions}
+                type="general"
               />
               <Dropdown
                 placeholder="Role"
@@ -80,12 +120,12 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 onChange={(e) => setFormData({ ...formData, role: e })}
                 error={formDataErrors.role}
                 className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit"
+                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
                 options={RoleOptions}
               />
               <SelectLabel
                 title="Employee type"
-                options={["Full time", "Part time", "Contract"]}
+                options={EmploymentTypes}
                 activeOption={formData.type}
                 setOption={(value: string) =>
                   setFormData({ ...formData, type: value })
@@ -98,6 +138,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
             href="#"
             text="Save"
             classname="max-h-12! text-lg! tracking-wide!"
+            onClick={handleSave}
           />
         </div>
       </div>

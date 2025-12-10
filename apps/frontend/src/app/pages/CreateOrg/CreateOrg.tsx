@@ -10,11 +10,10 @@ import OrgStep from "@/app/components/Steps/CreateOrg/OrgStep";
 import AddressStep from "@/app/components/Steps/CreateOrg/AddressStep";
 import SpecialityStep from "@/app/components/Steps/CreateOrg/SpecialityStep";
 import { Organisation, Speciality } from "@yosemite-crew/types";
-import { usePrimaryOrgOnboarding } from "@/app/hooks/usePrimaryOrgOnboarding";
+import { useOrgOnboarding } from "@/app/hooks/useOrgOnboarding";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import "./CreateOrg.css";
-import { useLoadOrgAndInvites } from "@/app/hooks/useLoadOrgAndInvites";
-import { useLoadSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 
 const OrgSteps = [
   {
@@ -58,32 +57,35 @@ const EMPTY_ORG: Organisation = {
 };
 
 const CreateOrg = () => {
-  useLoadOrgAndInvites();
-  useLoadSpecialitiesForPrimaryOrg();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const orgIdFromQuery = searchParams.get("orgId");
+
   const {
     org,
     step: computedStep,
     specialities: storeSpecialities,
-  } = usePrimaryOrgOnboarding();
+  } = useOrgOnboarding(orgIdFromQuery);
 
-  const [activeStep, setActiveStep] = useState<number>(() => {
-    if (computedStep >= 0 && computedStep <= 2) return computedStep;
-    return 0;
-  });
-  const [initialized, setInitialized] = useState(false);
+  const [activeStep, setActiveStep] = useState<number>(computedStep);
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
   const [formData, setFormData] = useState<Organisation>(EMPTY_ORG);
 
   useEffect(() => {
-    if (initialized) return;
+    if (computedStep === 3) {
+      router.replace("/dashboard");
+      return;
+    }
+    if (computedStep >= 0 && computedStep <= 2) {
+      setActiveStep(computedStep);
+    }
     if (org) {
       setFormData(org);
     }
     if (storeSpecialities.length > 0) {
       setSpecialities(storeSpecialities);
     }
-    setInitialized(true);
-  }, [initialized, org, storeSpecialities]);
+  }, [org, storeSpecialities, computedStep]);
 
   const nextStep = () =>
     setActiveStep((s) => Math.min(s + 1, OrgSteps.length - 1));

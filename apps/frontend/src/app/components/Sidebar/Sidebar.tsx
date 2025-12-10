@@ -7,9 +7,10 @@ import { FaCaretDown } from "react-icons/fa6";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useOrgStore } from "@/app/stores/orgStore";
+import { useLoadOrg } from "@/app/hooks/useLoadOrg";
+import { useLoadProfiles } from "@/app/hooks/useProfiles";
 
 import "./Sidebar.css";
-import { useLoadOrgAndInvites } from "@/app/hooks/useLoadOrgAndInvites";
 
 type RouteItem = {
   name: string;
@@ -43,7 +44,8 @@ const devRoutes: RouteItem[] = [
 ];
 
 const Sidebar = () => {
-  useLoadOrgAndInvites()
+  useLoadOrg()
+  useLoadProfiles()
   const pathname = usePathname();
   const router = useRouter();
   const { signout } = useAuthStore();
@@ -81,7 +83,9 @@ const Sidebar = () => {
     }
   };
 
-  if (orgStatus !== "loaded") return <div className="sidebar"></div>;
+  const isInitialLoading = orgStatus !== "loaded" && orgs.length === 0;
+
+  if (isInitialLoading) return <div className="sidebar"></div>;
 
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
@@ -141,7 +145,7 @@ const Sidebar = () => {
         {routes.map((route) => {
           const needsVerifiedOrg = route.verify;
           const isDisabled =
-            route.name !== "Sign out" &&
+            route.name !== "Sign out" && route.name !== "Settings" &&
             (orgMissing || (needsVerifiedOrg && !orgVerified));
 
           const isActive = pathname === route.href;

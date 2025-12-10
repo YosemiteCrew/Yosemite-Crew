@@ -1,30 +1,36 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoSearch } from "react-icons/io5";
 import { specialties as SPECIALITIES } from "@/app/utils/specialities";
-
-import { Speciality } from "@yosemite-crew/types";
 import { useOrgStore } from "@/app/stores/orgStore";
+import { SpecialityWeb } from "@/app/types/speciality";
 
 import "./SpecialitySearch.css";
 
 type SpecialitySearchProps = {
-  specialities: Speciality[];
-  setSpecialities: React.Dispatch<React.SetStateAction<Speciality[]>>;
+  specialities: SpecialityWeb[];
+  setSpecialities: React.Dispatch<React.SetStateAction<SpecialityWeb[]>>;
   multiple?: boolean;
+  currentSpecialities: SpecialityWeb[];
 };
 
-const SpecialitySearch = ({
+const SpecialitySearchWeb = ({
   specialities,
   setSpecialities,
   multiple = true,
+  currentSpecialities
 }: SpecialitySearchProps) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
+  const currentNames = useMemo(
+    () => new Set(currentSpecialities.map((s: SpecialityWeb) => s.name.toLowerCase())),
+    [currentSpecialities]
+  );
+
   const selectedNames = useMemo(
-    () => new Set(specialities.map((s: Speciality) => s.name.toLowerCase())),
+    () => new Set(specialities.map((s: SpecialityWeb) => s.name.toLowerCase())),
     [specialities]
   );
 
@@ -33,6 +39,7 @@ const SpecialitySearch = ({
     return SPECIALITIES.filter((s: any) => {
       const name = s.name.toLowerCase();
       if (selectedNames.has(name)) return false;
+      if(currentNames.has(name)) return false;
       if (!q) return true;
       return name.includes(q);
     });
@@ -53,13 +60,14 @@ const SpecialitySearch = ({
     };
   }, []);
 
-  const handleSelectSpeciality = (speciality: Speciality) => {
+  const handleSelectSpeciality = (speciality: SpecialityWeb) => {
     if (!primaryOrgId) return;
     const newItem = {
       name: speciality.name,
-      organisationId: primaryOrgId,
+      organisationId: primaryOrgId, 
+
     };
-    setSpecialities((prev: Speciality[]) => {
+    setSpecialities((prev: SpecialityWeb[]) => {
       if (!multiple) {
         return [newItem];
       }
@@ -77,7 +85,7 @@ const SpecialitySearch = ({
     const name = query.trim();
     if (!name) return;
     if (!primaryOrgId) return;
-    const newItem: Speciality = {
+    const newItem: SpecialityWeb = {
       name: name.charAt(0).toUpperCase() + name.slice(1),
       organisationId: primaryOrgId,
     };
@@ -139,4 +147,4 @@ const SpecialitySearch = ({
   );
 };
 
-export default SpecialitySearch;
+export default SpecialitySearchWeb;

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import AccordionButton from "@/app/components/Accordion/AccordionButton";
 import ProfileCard from "./ProfileCard";
 import { Organisation } from "@yosemite-crew/types";
+import { updateOrg } from "@/app/services/orgService";
 
 const BasicFields = [
   {
@@ -35,7 +36,7 @@ const BasicFields = [
   {
     label: "DUNS number",
     key: "DUNSNumber",
-    required: true,
+    required: false,
     editable: true,
     type: "text",
   },
@@ -79,30 +80,45 @@ const AddressFields = [
   },
 ];
 
-const DemoOrg = {
-  status: "Verified",
-  firstName: "Suryansh",
-  lastName: "Sharma",
-  email: "suryansh@yosemitecrew.com",
-  orgType: "HOSPITAL",
-  orgName: "Dog Hospital",
-  taxId: "",
-  country: "India",
-  duns: "",
-  phone: "+91 9315566594",
-  addressLine: "",
-  area: "",
-  state: "",
-  city: "",
-  postalCode: "",
-};
-
 type ProfileProps = {
   primaryOrg: Organisation;
 };
 
 const Profile = ({ primaryOrg }: ProfileProps) => {
   const [formData, setFormData] = useState<Organisation>(primaryOrg);
+
+  const handleOrgSave = async (values: Record<string, string>) => {
+    const updated: Organisation = {
+      ...formData,
+      ...values,
+      address: {
+        ...formData.address,
+        ...(values.country ? { country: values.country } : {}),
+      },
+    };
+    try {
+      await updateOrg(formData);
+      setFormData(updated);
+    } catch (error: any) {
+      console.error("Error updating organization:", error);
+    }
+  };
+
+  const handleAddressSave = async (values: Record<string, string>) => {
+    const updated: Organisation = {
+      ...formData,
+      address: {
+        ...formData.address,
+        ...values,
+      },
+    };
+    setFormData(updated);
+    try {
+      await updateOrg(formData);
+    } catch (error: any) {
+      console.error("Error updating organization:", error);
+    }
+  };
 
   return (
     <AccordionButton
@@ -114,13 +130,15 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
         <ProfileCard
           title="Organization"
           fields={BasicFields}
-          org={{ ...primaryOrg, country: primaryOrg.address?.country }}
+          org={{ ...formData, country: formData.address?.country }}
           showProfile
+          onSave={handleOrgSave}
         />
         <ProfileCard
           title="Address"
           fields={AddressFields}
-          org={{ ...primaryOrg.address }}
+          org={{ ...formData.address }}
+          onSave={handleAddressSave}
         />
       </div>
     </AccordionButton>

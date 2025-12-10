@@ -7,8 +7,12 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { computeOrgOnboardingStep } from "@/app/utils/orgOnboarding";
 import type { Organisation, Speciality } from "@yosemite-crew/types";
-import { useLoadOrgAndInvites } from "../hooks/useLoadOrgAndInvites";
+import { useLoadOrg } from "../hooks/useLoadOrg";
 import { useLoadSpecialitiesForPrimaryOrg } from "../hooks/useSpecialities";
+import { useLoadTeam } from "../hooks/useTeam";
+import { useLoadProfiles } from "../hooks/useProfiles";
+import { useUserProfileStore } from "../stores/profileStore";
+import { computeTeamOnboardingStep } from "../utils/teamOnboarding";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -31,8 +35,10 @@ type OrgGuardProps = {
  *        - if on /complete-profile → /dashboard
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
-  useLoadOrgAndInvites();
+  useLoadOrg();
   useLoadSpecialitiesForPrimaryOrg();
+  useLoadTeam();
+  useLoadProfiles();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -52,6 +58,10 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     (s) => s.getSpecialitiesByOrgId
   );
 
+  const profile = useUserProfileStore((s) =>
+    primaryOrgId ? (s.profilesByOrgId[primaryOrgId] ?? null) : null
+  );
+
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -59,15 +69,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
-    if (!primaryOrgId || !primaryOrg) {
-      if (pathname !== "/organizations") {
-        router.replace("/organizations");
-      }
-      return;
-    }
-
-    // 2) Must have a membership for primary org
-    if (!membership) {
+    if (!primaryOrgId || !primaryOrg || !membership) {
       if (pathname !== "/organizations") {
         router.replace("/organizations");
       }
@@ -76,21 +78,16 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
 
     const specialities: Speciality[] = getSpecialitiesByOrgId(primaryOrgId);
     const step = computeOrgOnboardingStep(primaryOrg, specialities);
+    const profileStep = computeTeamOnboardingStep(profile, []);
     const isVerified = primaryOrg.isVerified;
     const role = membership.roleDisplay ?? membership.roleCode;
-    const isActive = membership.active;
     let redirectTo: string | null = null;
-
-    if (pathname === "/create-org") {
-      setChecked(true);
-      return;
-    }
 
     if (role.toLowerCase() === "owner") {
       if (!isVerified) {
         if (step < 3) {
           // onboarding step < 3 → force /create-org
-          redirectTo = "/create-org";
+          redirectTo = "/create-org?orgId=" + primaryOrgId;
         } else if (step === 3 && pathname !== "/dashboard") {
           // onboarding step === 3 → /dashboard
           redirectTo = "/dashboard";
@@ -98,9 +95,9 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       }
     } else {
       // NON-OWNER LOGIC
-      if (!isActive) {
-        if (pathname !== "/complete-profile") {
-          redirectTo = "/complete-profile";
+      if (profileStep < 3) {
+        if (pathname !== "/organizations") {
+          redirectTo = "/team-onboarding?orgId=" + primaryOrgId;
         }
       }
     }
@@ -111,7 +108,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     }
 
     setChecked(true);
-  }, [primaryOrgId, primaryOrg, getSpecialitiesByOrgId, pathname, router]);
+  }, [primaryOrgId, primaryOrg, getSpecialitiesByOrgId, pathname, router, profile, orgStatus]);
 
   if (!checked) return null;
 

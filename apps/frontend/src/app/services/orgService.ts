@@ -1,6 +1,5 @@
 import { getData, postData, putData } from "@/app/services/axios";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { demoOrgs } from "../demo/demo";
 import {
   OrganizationRequestDTO,
   Organisation,
@@ -18,10 +17,12 @@ type MappingResponse = {
   organization: Organisation;
 };
 
-export const loadOrgs = async () => {
+export const loadOrgs = async (opts?: { silent?: boolean }) => {
   const { startLoading, setOrgs, setError, setUserOrgMappings } =
     useOrgStore.getState();
-  startLoading();
+  if (!opts?.silent) {
+    startLoading();
+  }
   try {
     const res = await getData<MappingResponse[]>(
       "/fhir/v1/user-organization/user/mapping"
@@ -30,28 +31,29 @@ export const loadOrgs = async () => {
     const orgs: Organisation[] = [];
     for (const data of res.data) {
       const oM = fromUserOrganizationRequestDTO(data.mapping);
-      orgMappings.push(oM as UserOrganization);
+      orgMappings.push(oM);
       orgs.push(data.organization);
     }
     setOrgs(orgs, { keepPrimaryIfPresent: true });
     setUserOrgMappings(orgMappings);
   } catch (err: any) {
-    setOrgs(demoOrgs, { keepPrimaryIfPresent: true });
-    if (axios.isAxiosError(err)) {
-      const status = err.response?.status;
-      if (status === 403) {
-        setError("You don't have permission to fetch organizations.");
-      } else if (status === 404) {
-        setError("Organization service not found. Please contact support.");
+    if (!opts?.silent) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        if (status === 403) {
+          setError("You don't have permission to fetch organizations.");
+        } else if (status === 404) {
+          setError("Organization service not found. Please contact support.");
+        } else {
+          setError(
+            err.response?.data?.message ??
+              err.message ??
+              "Failed to load organizations"
+          );
+        }
       } else {
-        setError(
-          err.response?.data?.message ??
-            err.message ??
-            "Failed to load organizations"
-        );
+        setError("Unexpected error while fetching organization");
       }
-    } else {
-      setError("Unexpected error while fetching organization");
     }
     console.error("Failed to load orgs:", err);
     throw err;
@@ -112,22 +114,22 @@ export const createOrg = async (formData: Organisation) => {
 };
 
 export const updateOrg = async (formData: Organisation) => {
-  const { startLoading, setError, updateOrg, primaryOrgId } =
+  const { startLoading, setError, updateOrg } =
     useOrgStore.getState();
   startLoading();
   try {
-    if (!primaryOrgId) {
+    const _id = formData._id?.toString()
+    if (!_id) {
       setError("You don't have permission to update organizations.");
       return;
     }
     const fhirPayload = toOrganizationResponseDTO(formData);
     const res = await putData<OrganizationRequestDTO>(
-      "/fhir/v1/organization/" + primaryOrgId,
+      "/fhir/v1/organization/" + _id,
       fhirPayload
     );
     const newOrg = fromOrganizationRequestDTO(res.data);
-    updateOrg(primaryOrgId, newOrg);
-    console.log(newOrg);
+    updateOrg(_id, newOrg);
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;

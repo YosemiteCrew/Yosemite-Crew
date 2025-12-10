@@ -2,11 +2,13 @@
 import React from "react";
 import { FaCheckCircle } from "react-icons/fa";
 import { IoIosCloseCircle } from "react-icons/io";
-import Link from "next/link";
 
 import GenericTable from "@/app/components/GenericTable/GenericTable";
 import InviteCard from "../Cards/InviteCard/InviteCard";
-import { InviteProps } from "@/app/types/org";
+import { Invite } from "@/app/types/team";
+
+import { useRouter } from "next/navigation";
+import { acceptInvite } from "@/app/services/teamService";
 
 import "./DataTable.css";
 
@@ -18,32 +20,45 @@ type Column<T> = {
 };
 
 type OrgInvitesProps = {
-  invites: InviteProps[];
+  invites: Invite[];
 };
 
 const OrgInvites = ({ invites }: OrgInvitesProps) => {
-  const columns: Column<InviteProps>[] = [
+  const router = useRouter();
+
+  const handleAccept = async (invite: Invite) => {
+    try {
+      await acceptInvite(invite);
+      router.push("/team-onboarding?orgId=" + invite.organisationId);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleReject = (invite: Invite) => {};
+
+  const columns: Column<Invite>[] = [
     {
       label: "Name",
       key: "name",
       width: "25%",
-      render: (item: InviteProps) => (
-        <div className="InviteDetails">{item.name}</div>
+      render: (item: Invite) => (
+        <div className="InviteDetails">{item.organisationName}</div>
       ),
     },
     {
       label: "Type",
       key: "type",
       width: "20%",
-      render: (item: InviteProps) => (
-        <div className="InviteTime">{item.type}</div>
+      render: (item: Invite) => (
+        <div className="InviteTime">{item.organisationType}</div>
       ),
     },
     {
       label: "Role",
       key: "role",
       width: "20%",
-      render: (item: InviteProps) => (
+      render: (item: Invite) => (
         <div className="InviteExpires">{item.role}</div>
       ),
     },
@@ -51,26 +66,32 @@ const OrgInvites = ({ invites }: OrgInvitesProps) => {
       label: "Employee type",
       key: "employee-type",
       width: "20%",
-      render: (item: InviteProps) => (
-        <div className="InviteExpires">{item.employmentType}</div>
+      render: (item: Invite) => (
+        <div className="InviteExpires">
+          {item.employmentType.split("_").join(" ")}
+        </div>
       ),
     },
     {
       label: "Actions",
       key: "actions",
       width: "15%",
-      render: (item: InviteProps) => (
+      render: (item: Invite) => (
         <div className="action-btn-col">
-          <Link
-            href={"/team-onboarding"}
+          <button
+            onClick={() => handleAccept(item)}
             className="action-btn"
             style={{ background: "#E6F4EF" }}
           >
             <FaCheckCircle size={22} color="#54B492" />
-          </Link>
-          <div className="action-btn" style={{ background: "#FDEBEA" }}>
+          </button>
+          <button
+            onClick={() => handleReject(item)}
+            className="action-btn"
+            style={{ background: "#FDEBEA" }}
+          >
             <IoIosCloseCircle size={24} color="#EA3729" />
-          </div>
+          </button>
         </div>
       ),
     },
@@ -89,7 +110,12 @@ const OrgInvites = ({ invites }: OrgInvitesProps) => {
       </div>
       <div className="card-list">
         {invites.map((invite, index) => (
-          <InviteCard key={invite.name + index} invite={invite} />
+          <InviteCard
+            key={invite._id + index}
+            invite={invite}
+            handleAccept={handleAccept}
+            handleReject={handleReject}
+          />
         ))}
       </div>
     </div>

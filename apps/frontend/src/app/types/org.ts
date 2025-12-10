@@ -1,6 +1,6 @@
 import {
   Organisation,
-  Service,
+  ServiceRequestDTO,
   SpecialityRequestDTO,
   UserOrganization,
 } from "@yosemite-crew/types";
@@ -32,7 +32,7 @@ export type OrgWithMembership = {
 
 export type SpecialityWithServices = {
   speciality: SpecialityRequestDTO;
-  services: Service[];
+  services: ServiceRequestDTO[];
 };
 
 export type InviteProps = {
