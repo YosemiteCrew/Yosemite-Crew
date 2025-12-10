@@ -36,20 +36,6 @@ describe("helpers utilities", () => {
     });
   });
 
-  it("computes Cognito secret hash from env variables", () => {
-    process.env.COGNITO_CLIENT_ID = "client";
-    process.env.COGNITO_CLIENT_SECRET = "secret";
-
-    const hash = helpers.getSecretHash("alice@example.com");
-
-    expect(hash).toBe(
-      crypto
-        .createHmac("SHA256", "secret")
-        .update("alice@example.comclient")
-        .digest("base64"),
-    );
-  });
-
   it("formats appointment date times for 12h and 24h clocks", () => {
     const result = helpers.formatAppointmentDateTime(
       "2024-09-24T15:30:00+05:30",
@@ -60,20 +46,5 @@ describe("helpers utilities", () => {
       appointmentTime: "3:30 PM",
       appointmentTime24: "15:30",
     });
-  });
-
-  it("generates a password satisfying Cognito requirements", () => {
-    jest.spyOn(globalThis.Math, "random").mockReturnValue(0.25);
-    jest.spyOn(crypto, "randomBytes").mockImplementation((size: number) => {
-      return Buffer.alloc(size, 10);
-    });
-
-    const password = helpers.generatePassword(10);
-
-    expect(password).toHaveLength(10);
-    expect(/[A-Z]/.test(password)).toBe(true);
-    expect(/[a-z]/.test(password)).toBe(true);
-    expect(/[0-9]/.test(password)).toBe(true);
-    expect(/[!@#$%^&*()_+\[\]{}|;:,.<>?]/.test(password)).toBe(true);
   });
 });

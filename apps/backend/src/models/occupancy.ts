@@ -30,4 +30,7 @@ OccupancySchema.index({ userId: 1, organisationId: 1, startTime: 1 });
 
 export type OccupancyDocument = mongoose.HydratedDocument<OccupancyMongo>;
 
-export default mongoose.model<OccupancyMongo>("Occupancy", OccupancySchema);
+export const OccupancyModel = mongoose.model<OccupancyMongo>(
+  "Occupancy",
+  OccupancySchema,
+);

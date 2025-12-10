@@ -7,6 +7,7 @@ export const Images = {
   catLaptop: require('./auth/cat-laptop.png'),
 
   // Icons
+  offlineImage: require('./icons/offlineImage.png'),
   yosemiteLogo: require('./icons/yosemiteLogo.png'),
   backIcon: require('./icons/back.png'),
   emailIcon: require('./icons/emailIcon.png'),
@@ -87,7 +88,7 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   galleryIcon: require('./icons/galleryIcon.png'),
   driveIcon: require('./icons/driveIcon.png'),
   currencyIcon: require('./icons/currencyIcon.png'),
-
+  tickGreen: require('./icons/tickGreen.png'),
   emptyExpenseIllustration: require('./expense/emptyExpenseIllustration.png'),
 
   leftArrowIcon: require('./tasks/leftArrow.png'), // Placeholder - use left arrow from Figma
@@ -108,12 +109,6 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   sampleHospital1: require('./appointment/sampleHospital1.png'),
   sampleHospital2: require('./appointment/sampleHospital2.png'),
   sampleHospital3: require('./appointment/sampleHospital3.png'),
-  sampleHospital4: require('./appointment/sampleHospital4.png'),
-  sampleHospital5: require('./appointment/sampleHospital5.png'),
-  doc1: require('./appointment/doc1.png'),
-  doc2: require('./appointment/doc2.png'),
-  doc3: require('./appointment/doc3.png'),
-  sampleInvoice: require('./appointment/sampleInvoice.png'),
   starOutline: require('./appointment/starOutline.png'),
   starSolid: require('./appointment/starSolid.png'),
 

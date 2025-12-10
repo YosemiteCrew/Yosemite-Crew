@@ -31,7 +31,7 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
     return authRequest.userId;
   }
 
-  const authUserId = authRequest.auth?.sub;
+  const authUserId = authRequest.userId;
   return typeof authUserId === "string" ? authUserId : undefined;
 };
 
@@ -44,6 +44,7 @@ const resolveUserEmailFromRequest = (req: Request): string | undefined => {
 
   const authRequest = req as AuthenticatedRequest;
   const authEmail = authRequest.auth?.email;
+
   return typeof authEmail === "string" ? authEmail : undefined;
 };
 
@@ -115,6 +116,37 @@ export const OrganisationInviteController = {
     }
   },
 
+  listMyPendingInvites: async (req: Request, res: Response) => {
+    try {
+      const userEmail = resolveUserEmailFromRequest(req);
+
+      if (!userEmail) {
+        res
+          .status(401)
+          .json({ message: "Authenticated user email is required." });
+        return;
+      }
+
+      const invites =
+        await OrganisationInviteService.listPendingInvitesForEmail(userEmail);
+
+      res.status(200).json(invites);
+    } catch (error) {
+      if (error instanceof OrganisationInviteServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+
+      logger.error(
+        "Failed to list pending organisation invites for user.",
+        error,
+      );
+      res
+        .status(500)
+        .json({ message: "Unable to list pending organisation invites." });
+    }
+  },
+
   acceptInvite: async (req: Request, res: Response) => {
     try {
       const { token } = req.params;
@@ -125,7 +157,6 @@ export const OrganisationInviteController = {
         res.status(400).json({ message: "Invite token is required." });
         return;
       }
-
       if (!userId || !userEmail) {
         res
           .status(401)

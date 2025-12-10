@@ -8,7 +8,7 @@ type SubLabelItem = {
 type SubLabelsProps = {
   labels: SubLabelItem[];
   activeLabel: string;
-  setActiveLabel: (key: string) => void;
+  setActiveLabel: (key: any) => void;
 };
 
 const SubLabels = ({ labels, activeLabel, setActiveLabel }: SubLabelsProps) => {
@@ -29,7 +29,7 @@ const SubLabels = ({ labels, activeLabel, setActiveLabel }: SubLabelsProps) => {
   return (
     <div
       ref={containerRef}
-      className={`flex gap-2 overflow-x-auto overflow-y-hidden shrink-0 scrollbar-hidden ${isOverflowing ? "justify-start" : "justify-center"}`}
+      className={`flex gap-2 overflow-x-auto overflow-y-hidden shrink-0 ${isOverflowing ? "justify-start" : "justify-center"}`}
     >
       {labels.map((label) => (
         <button

@@ -53,7 +53,7 @@ describe('NotificationFilterPills', () => {
   it('renders all filter options correctly', () => {
     render(<NotificationFilterPills {...defaultProps} />);
     expect(screen.getByText('All')).toBeTruthy();
-    expect(screen.getByText('Messages')).toBeTruthy();
+    expect(screen.getByText('Messages / OTP')).toBeTruthy();
   });
 
   it('calls onFilterChange when a pill is pressed', () => {
@@ -141,7 +141,7 @@ describe('NotificationFilterPills', () => {
       });
 
       // 3. Layout the 'payment' pill (placed at x=400, width=100)
-      const paymentText = screen.getByText('Payment');
+      const paymentText = screen.getByText('Payments');
       // We find the node that has the onLayout prop
       const paymentButton = paymentText.parent?.props.onLayout
         ? paymentText.parent

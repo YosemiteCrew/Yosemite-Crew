@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {createGlassCardStyles, createCardContentStyles, createTextContainerStyles} from '@/shared/utils/cardStyles';
@@ -20,6 +21,7 @@ export interface YearlySpendCardProps {
   label?: string;
   companionAvatar?: ImageSourcePropType;
   onPressView?: () => void;
+  disableSwipe?: boolean;
 }
 
 export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
@@ -29,6 +31,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   label = 'Yearly spend summary',
   companionAvatar,
   onPressView,
+  disableSwipe = false,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -53,6 +56,46 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
     onPressView?.();
   };
 
+  const cardContent = (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={handleViewPress}
+      style={styles.content}
+    >
+      <View style={styles.iconCircle}>
+        <Image source={Images.walletIcon} style={styles.icon} />
+      </View>
+
+      <View style={styles.textContainer}>
+        <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
+          {label}
+        </Text>
+        <Text style={styles.amount} numberOfLines={1} ellipsizeMode="tail">
+          {formattedAmount.replaceAll('\u00A0', ' ')}
+        </Text>
+      </View>
+
+      {companionAvatar && (
+        <View style={styles.companionAvatarWrapper}>
+          <Image source={companionAvatar} style={styles.companionAvatar} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  if (disableSwipe) {
+    return (
+      <LiquidGlassCard
+        interactive
+        glassEffect="clear"
+        style={styles.card}
+        fallbackStyle={styles.fallback}
+      >
+        {cardContent}
+      </LiquidGlassCard>
+    );
+  }
+
   return (
     <SwipeableGlassCard
       actionIcon={Images.viewIconSlide}
@@ -68,30 +111,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
       }}
       springConfig={{useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8}}
     >
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={handleViewPress}
-        style={styles.content}
-      >
-        <View style={styles.iconCircle}>
-          <Image source={Images.walletIcon} style={styles.icon} />
-        </View>
-
-        <View style={styles.textContainer}>
-          <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
-            {label}
-          </Text>
-          <Text style={styles.amount} numberOfLines={1} ellipsizeMode="tail">
-            {formattedAmount.replaceAll('\u00A0', ' ')}
-          </Text>
-        </View>
-
-        {companionAvatar && (
-          <View style={styles.companionAvatarWrapper}>
-            <Image source={companionAvatar} style={styles.companionAvatar} />
-          </View>
-        )}
-      </TouchableOpacity>
+      {cardContent}
     </SwipeableGlassCard>
   );
 };

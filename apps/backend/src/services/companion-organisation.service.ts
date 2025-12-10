@@ -145,7 +145,7 @@ export const CompanionOrganisationService = {
       organisationId: null,
       organisationType,
       role: "ORGANISATION",
-      status: "INVITED",
+      status: "PENDING",
     });
   },
 

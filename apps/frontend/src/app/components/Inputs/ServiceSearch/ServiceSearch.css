@@ -7,7 +7,8 @@
   gap: 8px;
   flex-shrink: 0;
   align-self: stretch;
-  border-bottom: 1px solid #eaeaea;
+  border: 1px solid #eaeaea;
+  border-radius: 16px;
   position: relative;
 }
 .service-search-input {
@@ -28,15 +29,15 @@
 }
 .service-search-dropdown {
   position: absolute;
-  top: 48px;
+  top: 110%;
   left: 0px;
   width: 100%;
   max-height: 180px;
   overflow-y: scroll;
   z-index: 10;
   background: #fff;
-  border: 1px solid #747473;
-  border-radius: 0px 0px 16px 16px;
+  border: 1px solid #eaeaea;
+  border-radius: 16px;
 }
 .service-search-speciality {
   display: flex;
@@ -81,7 +82,7 @@
   justify-content: center;
   border-radius: 0px 0px 16px 16px;
   border: 1px solid #eaeaea;
-  height: 100px;
+  height: 120px;
   width: 100%;
   color: var(--black-text);
   font-family: var(--satoshi-font);
@@ -90,15 +91,6 @@
   font-weight: 400;
   line-height: 120%;
   letter-spacing: -0.36px;
-}
-@media screen and (max-width: 768px) {
-  .service-search {
-    height: 48px;
-    width: 300px;
-  }
-}
-@media screen and (max-width: 350px) {
-  .service-search {
-    width: 100%;
-  }
+  text-align: center;
+  padding: 0px 20px 0px 20px;
 }

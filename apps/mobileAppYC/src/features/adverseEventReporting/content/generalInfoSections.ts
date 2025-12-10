@@ -72,14 +72,6 @@ export const generalInfoSections: LegalSection[] = [
     ],
   },
   {
-    id: 'follow-up',
-    title: "You can also choose whether you'd like to be contacted for follow-up?",
-    align: 'left',
-    blocks: [
-      p('This allows us to collect additional information if needed for the regulatory submission.'),
-    ],
-  },
-  {
     id: 'privacy-safety',
     title: 'Your privacy & safety',
     align: 'left',

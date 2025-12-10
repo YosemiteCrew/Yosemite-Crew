@@ -24,6 +24,9 @@ type Props = {
   interactive?: boolean;
   showAvatar?: boolean;
   badgeText?: string | null;
+  maxTitleLines?: number;
+  maxSubtitleLines?: number;
+  avatarSize?: number;
 };
 
 export const BookingSummaryCard: React.FC<Props> = ({
@@ -37,6 +40,9 @@ export const BookingSummaryCard: React.FC<Props> = ({
   interactive = true,
   showAvatar = true,
   badgeText = null,
+  maxTitleLines = 2,
+  maxSubtitleLines = 2,
+  avatarSize = 96,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -56,10 +62,18 @@ export const BookingSummaryCard: React.FC<Props> = ({
       activeOpacity={onPress ? 0.85 : 1}
       onPress={onPress}
       style={styles.inner}>
-      {showAvatar ? <Image source={source} style={styles.avatar} /> : null}
+      {showAvatar ? (
+        <Image
+          source={source}
+          style={[
+            styles.avatar,
+            {width: avatarSize, height: avatarSize, borderRadius: avatarSize / 4},
+          ]}
+        />
+      ) : null}
       <View style={styles.textColumn}>
         <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={styles.title} numberOfLines={maxTitleLines} ellipsizeMode="tail">
             {title}
           </Text>
           {badgeText ? (
@@ -69,12 +83,12 @@ export const BookingSummaryCard: React.FC<Props> = ({
           ) : null}
         </View>
         {!!subtitlePrimary && (
-          <Text style={styles.subtitlePrimary} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={styles.subtitlePrimary} numberOfLines={maxSubtitleLines} ellipsizeMode="tail">
             {subtitlePrimary}
           </Text>
         )}
         {!!subtitleSecondary && (
-          <Text style={styles.subtitleSecondary} numberOfLines={2} ellipsizeMode="tail">
+          <Text style={styles.subtitleSecondary} numberOfLines={maxSubtitleLines} ellipsizeMode="tail">
             {subtitleSecondary}
           </Text>
         )}
@@ -127,9 +141,9 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[3],
     },
     avatar: {
-      width: 72,
-      height: 72,
-      borderRadius: 16,
+      width: 96,
+      height: 96,
+      borderRadius: 24,
       backgroundColor: theme.colors.border + '40',
     },
     textColumn: {
@@ -155,13 +169,13 @@ const createStyles = (theme: any) =>
     },
     badge: {
       marginLeft: 'auto',
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: theme.spacing[0.5],
+      paddingHorizontal: theme.spacing[2.5],
+      paddingVertical: theme.spacing[1],
       borderRadius: 999,
       backgroundColor: theme.colors.primaryTint,
     },
     badgeText: {
-      ...theme.typography.subtitleBold12,
+      ...theme.typography.subtitleBold14,
       color: theme.colors.primary,
     },
   });

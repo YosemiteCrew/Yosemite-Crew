@@ -44,6 +44,7 @@
     "multer": "2.0.2",
     "sanitize-filename": "^1.6.3",
     "socket.io": "4.8.1",
+    "stripe": "^20.0.0",
     "uuid": "9.0.1",
     "validator": "^13.15.15",
     "winston": "^3.17.0",

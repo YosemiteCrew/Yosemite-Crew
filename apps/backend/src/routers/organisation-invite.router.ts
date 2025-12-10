@@ -11,4 +11,10 @@ router.post(
   OrganisationInviteController.acceptInvite,
 );
 
+router.get(
+  "/me/pending",
+  authorizeCognito,
+  OrganisationInviteController.listMyPendingInvites,
+);
+
 export default router;

@@ -21,23 +21,37 @@ import {useTheme} from './src/hooks';
 import CustomSplashScreen from './src/shared/components/common/customSplashScreen/customSplash';
 import './src/localization';
 import outputs from './amplify_outputs.json';
+import {StripeProvider} from '@stripe/stripe-react-native';
 import {Amplify} from 'aws-amplify';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider } from '@/features/auth/context/AuthContext';
+import { AuthProvider, useAuth } from '@/features/auth/context/AuthContext';
 import {configureSocialProviders} from '@/features/auth/services/socialAuth';
 import { ErrorBoundary } from '@/shared/components/common/ErrorBoundary';
 import {
   initializeNotifications,
   type NotificationNavigationIntent,
 } from '@/shared/services/firebaseNotifications';
+import {
+  registerDeviceToken,
+  unregisterDeviceToken,
+} from '@/shared/services/deviceTokenRegistry';
 import {useAppDispatch} from '@/app/hooks';
 import type {RootStackParamList} from '@/navigation/types';
+import {STRIPE_CONFIG} from '@/config/variables';
 
 Amplify.configure(outputs);
 
 LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
 ]);
+
+
+  const noop = () => {};
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.trace = noop;
+
 
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
@@ -46,6 +60,14 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     configureSocialProviders();
+  }, []);
+
+  useEffect(() => {
+    if (!STRIPE_CONFIG.publishableKey) {
+      console.warn(
+        '[Stripe] Missing publishableKey. Add STRIPE_CONFIG in variables.local.ts to enable payments.',
+      );
+    }
   }, []);
 
   const handleSplashAnimationEnd = () => {
@@ -81,9 +103,14 @@ function App(): React.JSX.Element {
           <SafeAreaProvider>
             <AuthProvider>
               <NotificationBootstrap onNavigate={handleNotificationNavigation}>
-                <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-                  <AppContent />
-                </NavigationContainer>
+                <StripeProvider
+                  publishableKey={STRIPE_CONFIG.publishableKey}
+                  urlScheme={STRIPE_CONFIG.urlScheme}
+                >
+                  <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+                    <AppContent />
+                  </NavigationContainer>
+                </StripeProvider>
               </NotificationBootstrap>
             </AuthProvider>
           </SafeAreaProvider>
@@ -121,6 +148,36 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
   onNavigate,
 }) => {
   const dispatch = useAppDispatch();
+  const {isLoggedIn, user} = useAuth();
+  const latestTokenRef = useRef<string | null>(null);
+  const lastRegisteredRef = useRef<{userId: string; token: string} | null>(null);
+  const authStatusRef = useRef<{isLoggedIn: boolean; userId: string | null}>({
+    isLoggedIn,
+    userId: user?.parentId ?? user?.id ?? null,
+  });
+
+  const currentUserId = user?.parentId ?? user?.id ?? null;
+
+  const syncRegisterToken = useCallback(
+    async (token: string) => {
+      const userId = authStatusRef.current.userId;
+      if (!userId) {
+        return;
+      }
+      await registerDeviceToken({userId, token});
+      lastRegisteredRef.current = {userId, token};
+    },
+    [],
+  );
+
+  const syncUnregisterToken = useCallback(async () => {
+    const last = lastRegisteredRef.current;
+    if (!last) {
+      return;
+    }
+    await unregisterDeviceToken(last);
+    lastRegisteredRef.current = null;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -134,8 +191,12 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
               onNavigate(intent);
             }
           },
-          onTokenUpdate: token => {
+          onTokenUpdate: async token => {
             console.log('[Notifications] FCM token updated', token);
+            latestTokenRef.current = token;
+            if (authStatusRef.current.isLoggedIn) {
+              await syncRegisterToken(token);
+            }
           },
         });
       } catch (error) {
@@ -148,7 +209,18 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     return () => {
       mounted = false;
     };
-  }, [dispatch, onNavigate]);
+  }, [dispatch, onNavigate, syncRegisterToken]);
+
+  useEffect(() => {
+    authStatusRef.current = {isLoggedIn, userId: currentUserId};
+    if (isLoggedIn && latestTokenRef.current) {
+      syncRegisterToken(latestTokenRef.current);
+    }
+
+    if (!isLoggedIn) {
+      syncUnregisterToken();
+    }
+  }, [currentUserId, isLoggedIn, syncRegisterToken, syncUnregisterToken]);
 
   return <>{children}</>;
 };

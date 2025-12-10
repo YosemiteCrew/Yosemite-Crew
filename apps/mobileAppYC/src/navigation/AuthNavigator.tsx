@@ -4,6 +4,8 @@ import { SignInScreen } from '@/features/auth/screens/SignInScreen';
 import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
 import { OTPVerificationScreen } from '@/features/auth/screens/OTPVerificationScreen';
 import { CreateAccountScreen } from '@/features/auth/screens/CreateAccountScreen';
+import {TermsAndConditionsScreen} from '@/features/legal/screens/TermsAndConditionsScreen';
+import {PrivacyPolicyScreen} from '@/features/legal/screens/PrivacyPolicyScreen';
 import type {AuthTokens} from '@/features/auth/context/AuthContext';
 import type {ParentProfileSummary} from '@/features/account/services/profileService';
 
@@ -17,6 +19,8 @@ export type AuthStackParamList = {
   OTPVerification: {
     email: string;
     isNewUser: boolean;
+    challengeType?: 'otp' | 'demoPassword';
+    challengeLength?: number;
   };
   CreateAccount: {
     email: string;
@@ -41,6 +45,8 @@ export type AuthStackParamList = {
     existingParentProfile?: ParentProfileSummary | null;
     showOtpSuccess?: boolean;
   };
+  TermsAndConditions: undefined;
+  PrivacyPolicy: undefined;
 };
 
 interface AuthNavigatorProps {
@@ -75,6 +81,16 @@ export const AuthNavigator: React.FC<AuthNavigatorProps> = ({
         name="CreateAccount"
         component={CreateAccountScreen}
         initialParams={createAccountInitialParams}
+      />
+      <Stack.Screen
+        name="TermsAndConditions"
+        component={TermsAndConditionsScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{headerShown: false}}
       />
     </Stack.Navigator>
   );

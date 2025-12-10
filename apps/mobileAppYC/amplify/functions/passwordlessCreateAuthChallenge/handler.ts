@@ -3,6 +3,9 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 const OTP_LENGTH = 4;
 const OTP_METADATA_PREFIX = 'PASSWORDLESS_OTP';
+const DEMO_PASSWORD_METADATA_PREFIX = 'DEMO_PASSWORD';
+const DEMO_LOGIN_EMAIL = 'test@yosemitecrew.com';
+const DEMO_LOGIN_PASSWORD = 'Test@YosemiteCrew@1234';
 const DEBUG_LOG_OTP = process.env.PASSWORDLESS_DEBUG_LOG_OTP === 'true';
 
 const sesClient = new SESClient({});
@@ -313,8 +316,11 @@ export const handler: CreateAuthChallengeTriggerHandler = async (event) => {
   const previousMetadata = previousChallenge?.challengeMetadata;
   const previousResult = previousChallenge?.challengeResult;
 
-  let otp: string | null = null;
-  let shouldSendEmail = true;
+  const isDemoLogin = email === DEMO_LOGIN_EMAIL;
+
+  let challengeAnswer: string | null = null;
+  let challengeMetadataPrefix = OTP_METADATA_PREFIX;
+  let shouldSendEmail = !isDemoLogin;
 
   if (
     previousMetadata?.startsWith(`${OTP_METADATA_PREFIX}:`) &&
@@ -322,29 +328,44 @@ export const handler: CreateAuthChallengeTriggerHandler = async (event) => {
   ) {
     const parts = previousMetadata.split(':');
     if (parts.length >= 2 && parts[1]) {
-      otp = parts[1];
+      challengeAnswer = parts[1];
       shouldSendEmail = false;
     }
   }
 
-  if (!otp) {
-    otp = generateOtp(OTP_LENGTH);
+  if (previousMetadata?.startsWith(`${DEMO_PASSWORD_METADATA_PREFIX}:`)) {
+    challengeAnswer = DEMO_LOGIN_PASSWORD;
+    challengeMetadataPrefix = DEMO_PASSWORD_METADATA_PREFIX;
+    shouldSendEmail = false;
+  }
+
+  if (isDemoLogin) {
+    challengeAnswer = DEMO_LOGIN_PASSWORD;
+    challengeMetadataPrefix = DEMO_PASSWORD_METADATA_PREFIX;
+    shouldSendEmail = false;
+  }
+
+  if (!challengeAnswer) {
+    challengeAnswer = generateOtp(OTP_LENGTH);
+    challengeMetadataPrefix = OTP_METADATA_PREFIX;
     shouldSendEmail = true;
   }
 
   const recipientName = resolveRecipientName(event, email);
 
   if (shouldSendEmail) {
-    await sendOtpEmail(email, otp, recipientName);
+    await sendOtpEmail(email, challengeAnswer, recipientName);
   }
 
   event.response.publicChallengeParameters = {
-    deliveryMedium: 'EMAIL',
+    deliveryMedium: shouldSendEmail ? 'EMAIL' : 'DEMO_PASSWORD',
+    demoLogin: isDemoLogin ? 'true' : 'false',
   };
   event.response.privateChallengeParameters = {
-    answer: otp,
+    answer: challengeAnswer,
+    challengeType: challengeMetadataPrefix,
   };
-  event.response.challengeMetadata = `${OTP_METADATA_PREFIX}:${otp}:${Date.now()}`;
+  event.response.challengeMetadata = `${challengeMetadataPrefix}:${challengeAnswer}:${Date.now()}`;
 
   return event;
 };

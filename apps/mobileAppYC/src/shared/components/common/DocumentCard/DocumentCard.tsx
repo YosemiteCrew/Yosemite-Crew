@@ -19,7 +19,7 @@ const formatReadableDate = (date: string | Date): string => {
     return '—';
   }
 
-  return dateObj.toLocaleDateString('en-GB', {
+  return dateObj.toLocaleDateString('en-US', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

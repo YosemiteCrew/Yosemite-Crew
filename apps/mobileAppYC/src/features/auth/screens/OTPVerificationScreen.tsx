@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import {SafeArea, OTPInput, Header} from '@/shared/components/common';
+import {SafeArea, OTPInput, Header, Input} from '@/shared/components/common';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -21,7 +21,10 @@ import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import {
   completePasswordlessSignIn,
   formatAuthError,
-  requestPasswordlessEmailCode,signOutEverywhere,
+  requestPasswordlessEmailCode,
+  signOutEverywhere,
+  DEMO_LOGIN_PASSWORD,
+  DEMO_LOGIN_EMAIL,
 } from '@/features/auth/services/passwordlessAuth';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import {useAuth, type User} from '@/features/auth/context/AuthContext';
@@ -29,9 +32,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
+  AUTH_FEATURE_FLAGS,
 } from '@/config/variables';
 
-const OTP_LENGTH = 4;
+const DEFAULT_OTP_LENGTH = 4;
 const RESEND_SECONDS = 60;
 
 type OTPVerificationScreenProps = NativeStackScreenProps<
@@ -46,8 +50,15 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   const {theme} = useTheme();
   const {login} = useAuth();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
 
-  const {email, isNewUser} = route.params;
+  const {email, isNewUser, challengeType = 'otp', challengeLength} = route.params;
+  const isDemoLogin =
+    allowReviewLogin &&
+    (challengeType === 'demoPassword' || email === DEMO_LOGIN_EMAIL);
+  const expectedLength =
+    challengeLength ??
+    (isDemoLogin ? DEMO_LOGIN_PASSWORD.length : DEFAULT_OTP_LENGTH);
 
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -58,6 +69,10 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   const cancellationRef = useRef(false);
 
   useEffect(() => {
+    if (isDemoLogin) {
+      return () => undefined;
+    }
+
     if (!canResend && countdown > 0) {
       const timer = setInterval(() => {
         setCountdown(prev => {
@@ -74,17 +89,27 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     }
 
     return () => undefined;
-  }, [countdown, canResend]);
+  }, [countdown, canResend, isDemoLogin]);
 
   const handleOtpFilled = (value: string) => {
+    if (isDemoLogin) {
+      return;
+    }
     setOtpCode(value);
     if (otpError) {
       setOtpError('');
     }
 
     // Auto-verify when all digits are filled
-    if (value.length === OTP_LENGTH && !isVerifying) {
+    if (value.length === expectedLength && !isVerifying) {
       verifyOtpCode(value);
+    }
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setOtpCode(value);
+    if (otpError) {
+      setOtpError('');
     }
   };
 
@@ -107,19 +132,62 @@ const buildUserPayload = (
   return mergeUserWithParentProfile(baseUser, completion.profile.parent);
 };
 
-  const verifyOtpCode = async (code: string) => {
-    if (cancellationRef.current) {
-      return;
+  const validateCode = (code: string): boolean => {
+    const trimmed = code.trim();
+    if (isDemoLogin && trimmed.length === 0) {
+      setOtpError('Please enter the review password to continue.');
+      return false;
     }
-    if (code.length !== OTP_LENGTH) {
-      setOtpError(`Please enter the ${OTP_LENGTH}-digit code.`);
+    if (!isDemoLogin && trimmed.length !== expectedLength) {
+      setOtpError(`Please enter the ${expectedLength}-digit code.`);
+      return false;
+    }
+    return true;
+  };
+
+  const handleLinkedParent = async (completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>, userPayload: User, tokens: any) => {
+    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+    await login(userPayload, tokens);
+  };
+
+  const handleNewAccount = async (completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>, userPayload: User, tokens: any) => {
+    const createAccountPayload: AuthStackParamList['CreateAccount'] = {
+      email: userPayload.email,
+      userId: userPayload.id,
+      profileToken: completion.profile.profileToken,
+      tokens,
+      initialAttributes: {
+        firstName: userPayload.firstName,
+        lastName: userPayload.lastName,
+        phone: userPayload.phone,
+        dateOfBirth: userPayload.dateOfBirth,
+        profilePicture: userPayload.profilePicture,
+        address: userPayload.address,
+      },
+      hasRemoteProfile: completion.profile.exists,
+      existingParentProfile: completion.profile.parent ?? null,
+      showOtpSuccess: true,
+    };
+    await AsyncStorage.setItem(
+      PENDING_PROFILE_STORAGE_KEY,
+      JSON.stringify(createAccountPayload),
+    );
+    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+    navigation.reset({
+      index: 0,
+      routes: [{name: 'CreateAccount', params: createAccountPayload}],
+    });
+  };
+
+  const verifyOtpCode = async (code: string) => {
+    if (cancellationRef.current || !validateCode(code)) {
       return;
     }
 
     setIsVerifying(true);
-
     try {
-      const completion = await completePasswordlessSignIn(code);
+      const completion = await completePasswordlessSignIn(code.trim());
       if (cancellationRef.current) {
         return;
       }
@@ -128,44 +196,15 @@ const buildUserPayload = (
       const tokens = completion.tokens;
 
       if (completion.parentLinked && completion.profile.parent) {
-        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
-        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-        await login(userPayload, tokens);
+        await handleLinkedParent(completion, userPayload, tokens);
       } else {
-        const createAccountPayload: AuthStackParamList['CreateAccount'] = {
-          email: userPayload.email,
-          userId: userPayload.id,
-          profileToken: completion.profile.profileToken,
-          tokens,
-          initialAttributes: {
-            firstName: userPayload.firstName,
-            lastName: userPayload.lastName,
-            phone: userPayload.phone,
-            dateOfBirth: userPayload.dateOfBirth,
-            profilePicture: userPayload.profilePicture,
-            address: userPayload.address,
-          },
-          hasRemoteProfile: completion.profile.exists,
-          existingParentProfile: completion.profile.parent ?? null,
-          showOtpSuccess: true,
-        };
-        await AsyncStorage.setItem(
-          PENDING_PROFILE_STORAGE_KEY,
-          JSON.stringify(createAccountPayload),
-        );
-        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-        navigation.reset({
-          index: 0,
-          routes: [{name: 'CreateAccount', params: createAccountPayload}],
-        });
+        await handleNewAccount(completion, userPayload, tokens);
       }
     } catch (error) {
       const formatted = formatAuthError(error);
-      if (formatted === 'Unexpected authentication error. Please retry.') {
-        setOtpError('The code you entered is incorrect. Please try again.');
-      } else {
-        setOtpError(formatted);
-      }
+      setOtpError(formatted === 'Unexpected authentication error. Please retry.'
+        ? 'The code you entered is incorrect. Please try again.'
+        : formatted);
     } finally {
       if (!cancellationRef.current) {
         setIsVerifying(false);
@@ -180,7 +219,7 @@ const buildUserPayload = (
   };
 
   const handleResendOTP = async () => {
-    if (!canResend || isResending || cancellationRef.current) {
+    if (isDemoLogin || !canResend || isResending || cancellationRef.current) {
       return;
     }
 
@@ -197,6 +236,12 @@ const buildUserPayload = (
         setIsResending(false);
       }
     }
+  };
+
+  const getButtonTitle = (): string => {
+    if (isVerifying) return 'Verifying...';
+    if (isDemoLogin) return 'Sign in with password';
+    return 'Verify code';
   };
 
   const handleGoBack = useCallback(() => {
@@ -242,7 +287,8 @@ const buildUserPayload = (
     return () => subscription.remove();
   }, [handleGoBack]);
 
-  const isVerifyDisabled = isVerifying || otpCode.length !== OTP_LENGTH;
+  const isVerifyDisabled =
+    isVerifying || (isDemoLogin ? otpCode.trim().length === 0 : otpCode.length !== expectedLength);
 
   return (
     <SafeArea style={styles.container}>
@@ -264,26 +310,54 @@ const buildUserPayload = (
 
             <Text style={styles.subtitle}>Check your email</Text>
 
-            <Text style={styles.description}>
-              We've sent a {OTP_LENGTH}-digit login code to{' '}
-              <Text style={styles.emailText}>{email}</Text>.
-              {isNewUser
-                ? ' Enter the code to create your Yosemite Crew account.'
-                : ' Enter the code to continue.'}
-            </Text>
+            {isDemoLogin ? (
+              <>
+                <Text style={styles.description}>
+                  This is the App Review login. No email was sent—use the provided review
+                  password to sign in and continue to account creation.
+                </Text>
+                <Input
+                  label="Review password"
+                  value={otpCode}
+                  onChangeText={handlePasswordChange}
+                  autoCapitalize="none"
+                  secureTextEntry
+                  returnKeyType="done"
+                  onSubmitEditing={handleVerifyCode}
+                  autoFocus
+                  containerStyle={styles.demoInputContainer}
+                  error={otpError}
+                />
+                <TouchableOpacity
+                  onPress={() => setOtpCode(DEMO_LOGIN_PASSWORD)}
+                  style={styles.prefillButton}>
+                  <Text style={styles.prefillText}>Use provided password</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.description}>
+                  We've sent a {expectedLength}-digit login code to{' '}
+                  <Text style={styles.emailText}>{email}</Text>.
+                  {isNewUser
+                    ? ' Enter the code to create your Yosemite Crew account.'
+                    : ' Enter the code to continue.'}
+                </Text>
 
-            <OTPInput
-              length={OTP_LENGTH}
-              onComplete={handleOtpFilled}
-              error={otpError}
-              autoFocus
-            />
+                <OTPInput
+                  length={expectedLength}
+                  onComplete={handleOtpFilled}
+                  error={otpError}
+                  autoFocus
+                />
+              </>
+            )}
           </View>
         </ScrollView>
 
         <View style={styles.bottomSection}>
           <LiquidGlassButton
-            title={isVerifying ? 'Verifying...' : 'Verify code'}
+            title={getButtonTitle()}
             onPress={handleVerifyCode}
             style={styles.verifyButton}
             textStyle={styles.verifyButtonText}
@@ -294,25 +368,31 @@ const buildUserPayload = (
             disabled={isVerifyDisabled}
           />
 
-          <View style={styles.resendContainer}>
-            <Text style={styles.resendText}>Didn't receive the code? </Text>
-            {canResend ? (
-              <TouchableOpacity
-                onPress={handleResendOTP}
-                disabled={isResending}
-                style={styles.resendButton}>
-                {isResending ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                ) : (
-                  <Text style={styles.resendLink}>Resend</Text>
-                )}
-              </TouchableOpacity>
-            ) : (
-              <Text style={styles.countdownText}>
-                00:{countdown.toString().padStart(2, '0')} sec
-              </Text>
-            )}
-          </View>
+          {isDemoLogin ? (
+            <Text style={styles.resendText}>
+              Need credentials? Use {DEMO_LOGIN_PASSWORD} with the review email you entered.
+            </Text>
+          ) : (
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>Didn't receive the code? </Text>
+              {canResend ? (
+                <TouchableOpacity
+                  onPress={handleResendOTP}
+                  disabled={isResending}
+                  style={styles.resendButton}>
+                  {isResending ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  ) : (
+                    <Text style={styles.resendLink}>Resend</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.countdownText}>
+                  00:{countdown.toString().padStart(2, '0')} sec
+                </Text>
+              )}
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeArea>
@@ -358,6 +438,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       textAlign: 'center',
       lineHeight: 22.4,
+      marginBottom: 16,
     },
     emailText: {
       ...theme.typography.paragraphBold,
@@ -398,5 +479,18 @@ const createStyles = (theme: any) =>
     countdownText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.primary,
+    },
+    demoInputContainer: {
+      width: '100%',
+    },
+    prefillButton: {
+      marginTop: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+    },
+    prefillText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.primary,
+      textAlign: 'center',
     },
   });

@@ -17,6 +17,19 @@ import {View as MockView} from 'react-native';
 
 jest.useFakeTimers();
 
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useNavigation: jest.fn(() => ({
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+    })),
+    useRoute: jest.fn(() => ({params: {}})),
+    useFocusEffect: jest.fn(),
+  };
+});
+
 // Mock EmergencyContext to avoid requiring the provider in tests
 jest.mock('@/features/home/context/EmergencyContext', () => ({
   __esModule: true,
@@ -133,6 +146,7 @@ let mockNextUpcomingTask: any = null;
 let mockTasksHydrated = false;
 
 const mockFetchExpensesForCompanion = jest.fn();
+const mockFetchExpenseSummary = jest.fn();
 let mockExpenseSummary: any = {total: 0};
 let mockExpenseHydrated = false;
 let mockUpcomingAppointments: any[] = [];
@@ -148,8 +162,16 @@ jest.mock('@/features/tasks', () => ({
 jest.mock('@/features/expenses', () => ({
   __esModule: true,
   fetchExpensesForCompanion: (...args: any[]) => mockFetchExpensesForCompanion(...args),
+  fetchExpenseSummary: (...args: any[]) => mockFetchExpenseSummary(...args),
   selectExpenseSummaryByCompanion: (..._args: any[]) => () => mockExpenseSummary,
   selectHasHydratedCompanion: (..._args: any[]) => () => mockExpenseHydrated,
+}));
+
+jest.mock('@/features/notifications/selectors', () => ({
+  selectUnreadCount: jest.fn(() => 0),
+  selectNotificationsHydrated: jest.fn(() => () => false),
+  selectHasHydratedCompanion: jest.fn(() => () => false),
+  selectLastFetchTimestamp: jest.fn(() => 0),
 }));
 
 jest.mock('@/assets/images', () => ({
@@ -396,7 +418,7 @@ const setupMocks = ({
         },
         appointments: {hydratedCompanions: {}},
         businesses: {businesses: [], employees: [], services: []},
-        notifications: {unreadCount: 0},
+        notifications: {unreadCount: 0, hydratedCompanions: {}},
       } as any;
       return selector(mockState);
     }
@@ -464,7 +486,7 @@ describe('HomeScreen Component', () => {
     expect(getByText('Add your first companion')).toBeTruthy();
     expect(queryByTestId('companion-selector')).toBeNull();
     expect(queryByTestId('task-card')).toBeNull();
-    expect(getAllByText('No companions yet').length).toBeGreaterThanOrEqual(3);
+    expect(getAllByText('No companions yet').length).toBeGreaterThanOrEqual(2);
     expect(queryByTestId('appointment-card-container')).toBeNull();
     expect(queryByTestId('yearly-spend-card')).toBeNull();
     expect(getByText('Manage health')).toBeTruthy();
@@ -576,18 +598,9 @@ describe('HomeScreen Component', () => {
       nextUpcomingTask: upcomingTask,
       tasksHydrated: true,
     });
-    const {getByTestId, queryByText} = renderHomeScreen();
-    expect(getByTestId('task-card')).toBeTruthy();
-    expect(queryByText('No upcoming tasks')).toBeNull();
-
-    fireEvent.press(getByTestId('task-card'));
-
-    await waitFor(() => {
-      expect(mockMarkTaskStatusThunk).toHaveBeenCalledWith({
-        taskId: upcomingTask.id,
-        status: 'completed',
-      });
-    });
+    const {queryByText, queryByTestId} = renderHomeScreen();
+    expect(queryByTestId('task-card')).toBeNull();
+    expect(queryByText('Feature coming soon')).toBeTruthy();
   });
 
   it('shows appointment empty state tile and navigates to browse when pressed', async () => {

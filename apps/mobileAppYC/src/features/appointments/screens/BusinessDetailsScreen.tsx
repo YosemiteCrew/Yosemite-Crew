@@ -14,6 +14,9 @@ import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
+import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -28,12 +31,36 @@ export const BusinessDetailsScreen: React.FC = () => {
   const servicesSelector = React.useMemo(() => createSelectServicesForBusiness(), []);
   const services = useSelector((state: RootState) => servicesSelector(state, businessId));
   const totalServices = useSelector((state: RootState) => state.businesses.services.length);
+  const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    if (!business) {
+      dispatch(fetchBusinesses({serviceName: undefined}));
+    }
     if (totalServices === 0) {
       dispatch(fetchBusinesses());
     }
-  }, [dispatch, totalServices]);
+  }, [business, dispatch, totalServices]);
+
+  React.useEffect(() => {
+    if (!business?.googlePlacesId) return;
+    const isDummy = isDummyPhoto(business.photo);
+    if (!business.photo || isDummy) {
+      dispatch(fetchBusinessDetails(business.googlePlacesId))
+        .unwrap()
+        .then(res => {
+          if (res.photoUrl) setFallbackPhoto(res.photoUrl);
+        })
+        .catch(() => {
+          dispatch(fetchGooglePlacesImage(business.googlePlacesId as string))
+            .unwrap()
+            .then(img => {
+              if (img.photoUrl) setFallbackPhoto(img.photoUrl);
+            })
+            .catch(() => {});
+        });
+    }
+  }, [business?.googlePlacesId, business?.photo, dispatch]);
 
   // Group services by specialty for accordion
   const specialties = useMemo(() => {
@@ -57,7 +84,8 @@ export const BusinessDetailsScreen: React.FC = () => {
       businessId,
       serviceId,
       serviceName: service?.name,
-      serviceSpecialty: specialtyName,
+      serviceSpecialty: specialtyName ?? undefined,
+      serviceSpecialtyId: service?.specialityId ?? undefined,
     });
   };
 
@@ -79,6 +107,7 @@ export const BusinessDetailsScreen: React.FC = () => {
           address={business?.address}
           website={business?.website}
           photo={business?.photo}
+          fallbackPhoto={fallbackPhoto ?? undefined}
           cta=""
         />
 
@@ -103,7 +132,13 @@ export const BusinessDetailsScreen: React.FC = () => {
         <View style={styles.footer}>
           <LiquidGlassButton
             title="Get Directions"
-            onPress={() => {}}
+            onPress={() => {
+              if (business?.googlePlacesId) {
+                openMapsToPlaceId(business.googlePlacesId, business?.address);
+              } else if (business?.address) {
+                openMapsToAddress(business.address);
+              }
+            }}
             height={56}
             borderRadius={16}
             tintColor={theme.colors.secondary}

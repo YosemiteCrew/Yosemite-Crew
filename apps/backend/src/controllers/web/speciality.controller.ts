@@ -131,9 +131,9 @@ export const SpecialityController = {
 
   getAllByOrganizationId: async (req: Request, res: Response) => {
     try {
-      const { organizationId } = req.params;
+      const { organisationId } = req.params;
 
-      if (!organizationId) {
+      if (!organisationId) {
         res
           .status(400)
           .json({ message: "Organization identifier is required." });
@@ -141,7 +141,7 @@ export const SpecialityController = {
       }
 
       const resources =
-        await SpecialityService.getAllByOrganizationId(organizationId);
+        await SpecialityService.getAllByOrganizationId(organisationId);
 
       res.status(200).json(resources);
     } catch (error) {

@@ -1,8 +1,13 @@
 import React from "react";
+import { InviteProps } from "@/app/types/org";
 
-import "./InviteCard.css"
+import "./InviteCard.css";
 
-const InviteCard = ({ invite }: any) => {
+type InviteCardProps = {
+  invite: InviteProps;
+};
+
+const InviteCard = ({ invite }: InviteCardProps) => {
   return (
     <div className="invite-card">
       <div className="invite-card-title">{invite.name}</div>
@@ -13,6 +18,10 @@ const InviteCard = ({ invite }: any) => {
       <div className="invite-card-item">
         <div className="invite-card-item-label">Role :</div>
         <div className="invite-card-item-value">{invite.role}</div>
+      </div>
+      <div className="invite-card-item">
+        <div className="invite-card-item-label">Employee type :</div>
+        <div className="invite-card-item-value">{invite.employmentType}</div>
       </div>
       <div className="invite-card-actions">
         <div className="invite-card-action">Accept</div>

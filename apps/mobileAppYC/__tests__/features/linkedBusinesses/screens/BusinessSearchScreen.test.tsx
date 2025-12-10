@@ -71,9 +71,9 @@ jest.mock('@react-navigation/native', () => {
   const ReactLib = require('react');
   return {
     ...jest.requireActual('@react-navigation/native'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useFocusEffect: (effect: () => void) => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      // Correctly mocked useEffect behavior
       ReactLib.useEffect(effect, []);
     },
     useNavigation: () => ({
@@ -266,7 +266,7 @@ describe('BusinessSearchScreen', () => {
     });
 
     mockSelectLinkedBusinesses = jest.fn().mockReturnValue([]);
-    (Redux.useSelector as jest.Mock).mockImplementation(selector => {
+    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector => {
       if (selector === LinkedBusinessActions.selectLinkedBusinesses) {
         return mockSelectLinkedBusinesses();
       }

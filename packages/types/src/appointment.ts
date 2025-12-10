@@ -3,28 +3,30 @@ import dayjs from "dayjs";
 import { SPECIES_SYSTEM_URL } from "./companion";
 
 export type AppointmentStatus =
+  | 'NO_PAYMENT'
   | 'REQUESTED'
   | 'UPCOMING'
-  | 'CHEKED_IN'
+  | 'CHECKED_IN'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED';
 
 export type Appointment = {
-  id: string;
-  companion : {
+  id?: string;
+  companion: {
     id: string;
     name: string;
-    species: string;  
+    species: string;
     breed?: string;
     parent: {
       id: string;
       name: string;
     };
-  }
-  lead: {
+  };
+  lead?: {
     id: string;
     name: string;
+    profileUrl?: string;
   }                           // Vet or practitioner being booked
   supportStaff?: {
     id: string;
@@ -49,12 +51,21 @@ export type Appointment = {
   durationMinutes: number;     // Duration in minutes
   endTime: Date;               // Booking end timestamp
   status: AppointmentStatus;
+  isEmergency?: boolean; 
   concern?: string;            // Reason for the appointment
   createdAt?: Date;
   updatedAt?: Date;
+  attachments?: {
+    key?: string;
+    name?: string;
+    contentType?: string;
+  }[]
 };
 
 const BREED_SYSTEM_URL = 'http://hl7.org/fhir/animal-breed'
+const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency'
+const EXT_APPOINTMENT_ATTACHMENTS = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments"
+const EXT_LEAD_PROFILE_URL = "https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url"
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
@@ -66,28 +77,28 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
         reference: `Patient/${appointment.companion.id}`,
         display: appointment.companion.name,
       },
-      status: appointment.status,
     },
     {
       actor: {
         reference: `RelatedPerson/${appointment.companion.parent.id}`,
         display: appointment.companion.parent.name,
       },
-      status: appointment.status,
     },
     {
       actor: {
-        reference: `Practitioner/${appointment.lead.id}`,
-        display: appointment.lead.name
+        reference: `Practitioner/${appointment.lead?.id}`,
+        display: appointment.lead?.name
       },
       status: appointment.status,
-      type: [{coding: [{code: 'PPRF', system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', display: 'primary performer'}]}]
+      type: [{coding: [{code: 'PPRF', system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', display: 'primary performer'}]}],
+      extension: appointment.lead?.profileUrl
+        ? [{ url: EXT_LEAD_PROFILE_URL, valueString: appointment.lead.profileUrl }]
+        : undefined
     },
     {
       actor: {
         reference: `Organization/${appointment.organisationId}`
       },
-      status: appointment.status
     }
   );
 
@@ -142,16 +153,7 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
       ]
     : [];
 
-  const fhirStatusMap: Record<string, string> = {
-    REQUESTED: "proposed",
-    UPCOMING: "booked",
-    CHECKED_IN: "arrived",
-    IN_PROGRESS: "fulfilled",
-    COMPLETED: "fulfilled",
-    CANCELLED: "cancelled",
-  };
-
-  const fhirStatus = fhirStatusMap[appointment.status];
+  const fhirStatus = appointment.status
 
   const extension : Extension[] = []
 
@@ -167,6 +169,26 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
       valueString: appointment.companion.breed
     }
   );
+
+  if (appointment.isEmergency != null) {
+    extension.push({
+      url: EXT_EMERGENCY,
+      valueBoolean: appointment.isEmergency,
+    });
+  }
+
+  if (appointment.attachments?.length) {
+  appointment.attachments.forEach(att => {
+    extension.push({
+      url: EXT_APPOINTMENT_ATTACHMENTS,
+      extension: [
+        { url: "key", valueString: att.key },
+        { url: "name", valueString: att.name },
+        { url: "contentType", valueString: att.contentType }
+      ]
+    });
+  });
+}
 
   const fhirAppointment: FHIRAppointment = {
     resourceType: "Appointment",
@@ -200,18 +222,21 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
 
   const speciesExtesnion = FHIRappointment.extension?.find(p => p.id?.includes("species"))
   const breedExtension = FHIRappointment.extension?.find(p => p.id?.includes("breed"))
+  const emergencyExtension = FHIRappointment.extension?.find(p => p.url?.includes(EXT_EMERGENCY))
+  const leadProfileExtension = leadParticipant?.extension?.find(ext => ext.url === EXT_LEAD_PROFILE_URL)
 
-  const statusMap: Record<string, string> = {
-    proposed: "REQUESTED",
-    booked: "UPCOMING",
-    arrived: "CHECKED_IN",
-    fulfilled: "COMPLETED",
-    cancelled: "CANCELLED",
-  };
+  const pmsStatus = FHIRappointment.status // fallback if unknown status
 
-  const pmsStatus =
-    statusMap[FHIRappointment.status.toLowerCase()] ||
-    "REQUESTED"; // fallback if unknown status
+  const attachments =
+  FHIRappointment.extension
+    ?.filter(ext => ext.url === EXT_APPOINTMENT_ATTACHMENTS)
+    .map(ext => {
+      const key = ext.extension?.find(e => e.url === "key")?.valueString || "";
+      const name = ext.extension?.find(e => e.url === "name")?.valueString;
+      const contentType = ext.extension?.find(e => e.url === "contentType")?.valueString;
+
+      return { key, name, contentType };
+    }) || [];
 
   // Construct internal Appointment object
   const appointment: Appointment = {
@@ -231,6 +256,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     lead: {
       id: leadParticipant?.actor?.reference?.split("/")[1] ?? "",
       name: leadParticipant?.actor?.display ?? "",
+      profileUrl: leadProfileExtension?.valueString,
     },
     supportStaff: supportStaffParticipants.map((s) => ({
       id: s.actor?.reference?.split("/")[1] ?? "",
@@ -258,7 +284,9 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
         id : specialityCoding?.code || "",
         name : specialityCoding?.display || ""
       }
-    }
+    },
+    isEmergency: emergencyExtension?.valueBoolean,
+    attachments
   }
 
   return appointment;

@@ -5,7 +5,7 @@ import BaseAvailabilityModel, {
   AvailabilitySlotMongo,
 } from "src/models/base-availability";
 import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
-import OccupancyModel from "src/models/occupancy";
+import { OccupancyModel } from "src/models/occupancy";
 
 dayjs.extend(utc);
 

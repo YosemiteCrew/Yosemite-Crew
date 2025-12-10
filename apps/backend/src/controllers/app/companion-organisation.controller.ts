@@ -62,10 +62,8 @@ const parseLinkPayload = (body: unknown): LinkPayload | null => {
 
 const parseInvitePayload = (body: unknown): InvitePayload | null => {
   if (!body || typeof body !== "object") return null;
-  const { companionId, email, name, organisationType, placesId } = body as Record<
-    string,
-    unknown
-  >;
+  const { companionId, email, name, organisationType, placesId } =
+    body as Record<string, unknown>;
 
   if (
     typeof companionId !== "string" ||
@@ -76,7 +74,8 @@ const parseInvitePayload = (body: unknown): InvitePayload | null => {
 
   const emailValid = typeof email === "string" && email.trim().length > 0;
   const nameValid = typeof name === "string" && name.trim().length > 0;
-  const placesIdValid = typeof placesId === "string" && placesId.trim().length > 0;
+  const placesIdValid =
+    typeof placesId === "string" && placesId.trim().length > 0;
 
   // At least one must be present
   if (!emailValid && !nameValid && !placesId) {
@@ -110,7 +109,7 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const headerUserId = req.headers?.["x-user-id"];
   if (typeof headerUserId === "string") return headerUserId;
   if (authReq.userId) return authReq.userId;
-  return "6324c8f2-a031-700e-4c85-22f68a8f3646";
+  return authReq.userId;
 };
 
 export const CompanionOrganisationController = {

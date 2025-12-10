@@ -29,7 +29,10 @@ export interface Money {
   /**
    * ISO 4217 Currency Code.
    */
-  currency?: 'AFN' | 'EUR' | 'ALL' | 'DZD' | 'USD' | 'AOA' | 'XCD' | 'ARS' | 'AMD' | 'AWG' | 'AUD' | 'AZN' | 'BSD' |
+  currency?: Currency
+}
+
+export type Currency = 'AFN' | 'EUR' | 'ALL' | 'DZD' | 'USD' | 'AOA' | 'XCD' | 'ARS' | 'AMD' | 'AWG' | 'AUD' | 'AZN' | 'BSD' |
       'BHD' | 'BDT' | 'BBD' | 'BYN' | 'BZD' | 'XOF' | 'BMD' | 'INR' | 'BTN' | 'BOB' | 'BOV' | 'BAM' | 'BWP' | 'NOK' | 'BRL'
       | 'BND' | 'BGN' | 'BIF' | 'CVE' | 'KHR' | 'XAF' | 'CAD' | 'KYD' | 'CLP' | 'CLF' | 'CNY' | 'COP' | 'COU' | 'KMF' |
       'CDF' | 'NZD' | 'CRC' | 'CUP' | 'CUC' | 'ANG' | 'CZK' | 'DKK' | 'DJF' | 'DOP' | 'EGP' | 'SVC' | 'ERN' | 'SZL' | 'ETB'
@@ -42,4 +45,3 @@ export interface Money {
       | 'SYP' | 'TWD' | 'TJS' | 'TZS' | 'THB' | 'TOP' | 'TTD' | 'TND' | 'TRY' | 'TMT' | 'UGX' | 'UAH' | 'AED' | 'USN' |
       'UYU' | 'UYI' | 'UYW' | 'UZS' | 'VUV' | 'VES' | 'VED' | 'VND' | 'YER' | 'ZMW' | 'ZWG' | 'XBA' | 'XBB' | 'XBC' | 'XBD'
       | 'XTS' | 'XXX' | 'XAU' | 'XPD' | 'XPT' | 'XAG';
-}

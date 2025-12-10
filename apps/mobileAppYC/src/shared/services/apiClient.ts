@@ -37,9 +37,11 @@ const client: AxiosInstance = axios.create({
 });
 
 client.interceptors.request.use(config => {
-  const url = config.baseURL
-    ? `${config.baseURL.replace(/\/$/, '')}/${(config.url ?? '').replace(/^\//, '')}`
-    : config.url;
+  const rawUrl = config.url ?? '';
+  const isAbsolute = /^https?:\/\//i.test(rawUrl);
+  const url = config.baseURL && !isAbsolute
+    ? `${config.baseURL.replace(/\/$/, '')}/${rawUrl.replace(/^\//, '')}`
+    : rawUrl;
   console.log('[API] Request', {
     method: config.method,
     url,

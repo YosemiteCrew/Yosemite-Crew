@@ -1,19 +1,41 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoSearch } from "react-icons/io5";
+import { specialties as SPECIALITIES } from "@/app/utils/specialities";
 
 import "./SpecialitySearch.css";
+import { Speciality } from "@yosemite-crew/types";
+import { useOrgStore } from "@/app/stores/orgStore";
 
-const SpecialitySearch = ({ specialities, setSpecialities }: any) => {
+type SpecialitySearchProps = {
+  specialities: Speciality[];
+  setSpecialities: React.Dispatch<React.SetStateAction<Speciality[]>>;
+  multiple?: boolean;
+};
+
+const SpecialitySearch = ({
+  specialities,
+  setSpecialities,
+  multiple = true,
+}: SpecialitySearchProps) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+
+  const selectedNames = useMemo(
+    () => new Set(specialities.map((s: Speciality) => s.name.toLowerCase())),
+    [specialities]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = specialities.filter((s: any) => !s.active);
-    if (!q) return list;
-    return list?.filter((s: any) => s.name.toLowerCase().includes(q));
-  }, [query, specialities]);
+    return SPECIALITIES.filter((s: any) => {
+      const name = s.name.toLowerCase();
+      if (selectedNames.has(name)) return false;
+      if (!q) return true;
+      return name.includes(q);
+    });
+  }, [query, selectedNames]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -30,33 +52,51 @@ const SpecialitySearch = ({ specialities, setSpecialities }: any) => {
     };
   }, []);
 
-  const handleToggle = (key: string) => {
-    setSpecialities((prev: any) =>
-      prev.map((s: any) => (s.key === key ? { ...s, active: !s.active } : s))
-    );
+  const handleSelectSpeciality = (speciality: Speciality) => {
+    if (!primaryOrgId) return;
+    const newItem = {
+      name: speciality.name,
+      organisationId: primaryOrgId,
+    };
+    setSpecialities((prev: Speciality[]) => {
+      if (!multiple) {
+        return [newItem];
+      }
+      const exists = prev.some(
+        (s) => s.name.toLowerCase() === speciality.name.toLowerCase()
+      );
+      if (exists) return prev;
+      return [...prev, newItem];
+    });
+    setQuery("");
+    setOpen(false);
   };
 
   const handleAddSpeciality = () => {
     const name = query.trim();
     if (!name) return;
-    const exists = specialities.some(
-      (s: any) => s.name.toLowerCase() === name.toLowerCase()
-    );
-    if (exists) return;
-    const newItem = {
-      name,
-      key: name,
-      active: true,
-      services: [],
+    if (!primaryOrgId) return;
+    const newItem: Speciality = {
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      organisationId: primaryOrgId,
     };
-    setSpecialities((prev: any) => [newItem, ...prev]);
+    setSpecialities((prev) => {
+      if (!multiple) {
+        return [newItem];
+      }
+      const exists = prev.some(
+        (s) => s.name.toLowerCase() === name.toLowerCase()
+      );
+      if (exists) return prev;
+      return [newItem, ...prev];
+    });
     setQuery("");
     setOpen(false);
   };
 
   return (
     <div className="step-search" ref={wrapperRef}>
-      <IoSearch size={24} className="step-search-icon" color="#302F2E" />
+      <IoSearch size={20} className="step-search-icon" color="#302F2E" />
       <input
         type="text"
         name="speciality-search"
@@ -74,9 +114,9 @@ const SpecialitySearch = ({ specialities, setSpecialities }: any) => {
           {filtered?.length > 0 ? (
             filtered.map((speciality: any) => (
               <button
-                key={speciality.key}
+                key={speciality.name}
                 className="step-search-speciality"
-                onClick={() => handleToggle(speciality.key)}
+                onClick={() => handleSelectSpeciality(speciality)}
               >
                 <div className="step-search-speciality-title">
                   {speciality.name}

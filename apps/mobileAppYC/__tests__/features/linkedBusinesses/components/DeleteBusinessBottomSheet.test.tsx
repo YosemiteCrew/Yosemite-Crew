@@ -21,12 +21,14 @@ jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
     const {View, Text, TouchableOpacity} = require('react-native');
-    const React = require('react');
+
+    // FIX: Alias to avoid shadowing top-level React
+    const ReactMock = require('react');
 
     return {
-      ConfirmActionBottomSheet: React.forwardRef((props: any, ref: any) => {
+      ConfirmActionBottomSheet: ReactMock.forwardRef((props: any, ref: any) => {
         // Expose the methods that the parent (DeleteBusinessBottomSheet) calls
-        React.useImperativeHandle(ref, () => ({
+        ReactMock.useImperativeHandle(ref, () => ({
           open: mockInternalSheetOpen,
           close: mockInternalSheetClose,
         }));

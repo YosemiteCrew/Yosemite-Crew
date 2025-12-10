@@ -23,15 +23,18 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import type {Channel as StreamChannel} from 'stream-chat';
 import {useRoute, useNavigation} from '@react-navigation/native';
+import type {NavigationProp} from '@react-navigation/native';
+import {useSelector} from 'react-redux';
 import {
   getChatClient,
   connectStreamUser,
   getAppointmentChannel,
 } from '../services/streamChatService';
-import {getMockUser} from '@/shared/services/mockStreamBackend';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
+import {selectAuthUser} from '@/features/auth/selectors';
 import {CustomAttachment} from '../components/CustomAttachment';
+import type {TabParamList} from '@/navigation/types';
 
 type RouteParams = {
   appointmentId: string;
@@ -46,6 +49,7 @@ export const ChatChannelScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const route = useRoute();
+  const authUser = useSelector(selectAuthUser);
   const {appointmentId, vetId, appointmentTime, doctorName, petName} =
     route.params as RouteParams;
 
@@ -61,18 +65,32 @@ export const ChatChannelScreen: React.FC = () => {
       // Note: Time check is now handled in MyAppointmentsScreen before navigation
       // This allows "Mock Chat" button to bypass time restrictions for testing
 
-      // 1. Get current user (in production, get from your auth system)
-      // For now, using mock user 'pet-owner-1'
-      const currentUser = getMockUser('pet-owner-1');
+      if (!authUser?.id) {
+        const missingUserMessage =
+          'You must be signed in to chat with your vet. Please log in and try again.';
+        setError(missingUserMessage);
+        setLoading(false);
+        Alert.alert('Chat unavailable', missingUserMessage, [
+          {text: 'Go Back', onPress: () => navigation.goBack()},
+        ]);
+        return;
+      }
 
-      console.log('[Chat] Connecting as user:', currentUser.id);
+      const displayName =
+        [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim() ||
+        authUser.email ||
+        'Pet Owner';
+      const avatar = authUser.profilePicture ?? undefined;
+      const chatUserId = authUser.parentId ?? authUser.id;
+
+      console.log('[Chat] Connecting as user:', chatUserId);
 
       // 2. Connect to Stream
       const chatClient = getChatClient();
       await connectStreamUser(
-        currentUser.id,
-        currentUser.name,
-        currentUser.image,
+        chatUserId,
+        displayName,
+        avatar,
       );
 
       setClient(chatClient);
@@ -96,7 +114,10 @@ export const ChatChannelScreen: React.FC = () => {
       console.error('[Chat] Initialization error:', err);
 
       // User-friendly error messages
-      let errorMessage = 'Failed to load chat. Please try again.';
+      let errorMessage =
+        (typeof err?.message === 'string' && err.message.length > 0
+          ? err.message
+          : 'Failed to load chat. Please try again.');
 
       if (err.message?.includes('API key')) {
         errorMessage =
@@ -125,7 +146,15 @@ export const ChatChannelScreen: React.FC = () => {
         },
       ]);
     }
-  }, [appointmentId, appointmentTime, doctorName, navigation, petName, vetId]);
+  }, [
+    appointmentId,
+    appointmentTime,
+    authUser,
+    doctorName,
+    navigation,
+    petName,
+    vetId,
+  ]);
 
   useEffect(() => {
     initChat();
@@ -181,7 +210,15 @@ export const ChatChannelScreen: React.FC = () => {
       <Header
         title={doctorName}
         showBackButton
-        onBack={() => navigation.goBack()}
+        onBack={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation
+              .getParent<NavigationProp<TabParamList> | undefined>()
+              ?.navigate?.('Appointments', {screen: 'MyAppointments'});
+          }
+        }}
       />
       <View style={styles.chatWrapper}>
         <OverlayProvider>
@@ -197,7 +234,8 @@ export const ChatChannelScreen: React.FC = () => {
                   }
                 }}
               />
-              <MessageInput />
+              <MessageInput
+              />
             </Channel>
           </Chat>
         </OverlayProvider>

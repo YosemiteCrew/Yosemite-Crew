@@ -110,8 +110,8 @@ describe('FormRowComponents', () => {
       render(<RowButton label="My Label" value="" onPress={mockOnPress} />);
 
       expect(screen.getByText('My Label')).toBeTruthy();
-      // It renders {value || ' '}
-      expect(screen.getByText(' ')).toBeTruthy();
+      // It renders '—' (em dash) for empty values
+      expect(screen.getByText('—')).toBeTruthy();
     });
 
     it('calls onPress when pressed', () => {
@@ -134,7 +134,8 @@ describe('FormRowComponents', () => {
       render(<ReadOnlyRow label="Read Label" />);
 
       expect(screen.getByText('Read Label')).toBeTruthy();
-      expect(screen.getByText(' ')).toBeTruthy();
+      // It renders '—' (em dash) for empty values
+      expect(screen.getByText('—')).toBeTruthy();
     });
   });
 });

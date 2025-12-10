@@ -3,6 +3,13 @@ import {createAsyncThunk} from '@reduxjs/toolkit';
 import {AppDispatch, type RootState} from '@/app/store';
 import {resetCompanionState} from '@/features/companion';
 import {resetExpensesState} from '@/features/expenses';
+import {resetDocumentState} from '@/features/documents/documentSlice';
+import {resetTasksState} from '@/features/tasks';
+import {resetAppointmentsState} from '@/features/appointments/appointmentsSlice';
+import {resetBusinessesState} from '@/features/appointments/businessesSlice';
+import {resetLinkedBusinesses} from '@/features/linkedBusinesses';
+import {resetCoParentState} from '@/features/coParent';
+import {resetNotificationState} from '@/features/notifications';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import {getAuth, signOut} from '@react-native-firebase/auth';
 
@@ -226,9 +233,18 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
     if (currentProvider === 'firebase') {
       try {
         const auth = getAuth();
-        await signOut(auth);
+        if (auth.currentUser) {
+          await signOut(auth);
+        } else {
+          console.warn('[Auth] Firebase sign out skipped: no current user');
+        }
       } catch (error) {
-        console.warn('[Auth] Firebase sign out failed:', error);
+        const code = (error as any)?.code;
+        if (code === 'auth/no-current-user') {
+          console.warn('[Auth] Firebase sign out skipped: no current user');
+        } else {
+          console.warn('[Auth] Firebase sign out failed:', error);
+        }
       }
     }
 
@@ -242,6 +258,13 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
     dispatch(setLastRefresh(null));
     dispatch(resetCompanionState());
     dispatch(resetExpensesState());
+    dispatch(resetAppointmentsState());
+    dispatch(resetTasksState());
+    dispatch(resetDocumentState());
+    dispatch(resetBusinessesState());
+    dispatch(resetLinkedBusinesses());
+    dispatch(resetCoParentState());
+    dispatch(resetNotificationState());
   },
 );
 

@@ -25,7 +25,7 @@ router.post(
   authorizeCognitoMobile,
   CompanionOrganisationController.denyPendingLink,
 );
-router.get(
+router.delete(
   "/revoke/:linkId",
   authorizeCognitoMobile,
   CompanionOrganisationController.revokeLink,

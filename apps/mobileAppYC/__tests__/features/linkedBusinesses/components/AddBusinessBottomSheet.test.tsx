@@ -22,7 +22,9 @@ jest.mock('@/hooks', () => ({
 jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
-    const React = require('react'); // FIX: Require React inside the mock factory
+    // FIX: Require React inside the factory and use the variable 'React' consistently
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    const React = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
 
     return {
@@ -53,7 +55,11 @@ jest.mock(
 jest.mock(
   '@/shared/components/common/BottomSheetMessage/BottomSheetMessage',
   () => {
+    // Ideally require React here too for JSX support in strict environments
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    const React = require('react');
     const {Text} = require('react-native');
+
     const MockMessage = (props: any) => (
       <Text testID="bottom-sheet-message">{props.children}</Text>
     );
