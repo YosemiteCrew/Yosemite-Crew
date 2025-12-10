@@ -11,8 +11,8 @@ interface TaskLibraryDefinitionMongo {
   source: "YC_LIBRARY";
   kind: TaskKind;
 
-  category: string; // e.g. Health - parasite prevention
-  name: string; // e.g. Give medication
+  category: string;
+  name: string;
   defaultDescription?: string;
 
   schema: {
@@ -39,7 +39,17 @@ const MedicationFieldsSchema = new Schema(
     hasDosage: Boolean,
     hasFrequency: Boolean,
   },
-  { _id: false },
+  { _id: false }
+);
+
+// ✅ Fix: wrap entire schema field inside a sub-schema
+const LibraryInnerSchema = new Schema(
+  {
+    medicationFields: { type: MedicationFieldsSchema, default: {} },
+    requiresObservationTool: { type: Boolean, default: false },
+    allowsRecurrence: { type: Boolean, default: false },
+  },
+  { _id: false }
 );
 
 const LibrarySchema = new Schema<TaskLibraryDefinitionMongo>(
@@ -54,22 +64,22 @@ const LibrarySchema = new Schema<TaskLibraryDefinitionMongo>(
 
     category: { type: String, required: true },
     name: { type: String, required: true },
-    defaultDescription: { type: String },
+    defaultDescription: String,
 
     schema: {
-      medicationFields: { type: MedicationFieldsSchema, default: {} },
-      requiresObservationTool: Boolean,
-      allowsRecurrence: Boolean,
+      type: LibraryInnerSchema,
+      required: true,
     },
 
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 export type TaskLibraryDefinitionDocument =
   HydratedDocument<TaskLibraryDefinitionMongo>;
+
 export default model<TaskLibraryDefinitionMongo>(
   "TaskLibraryDefinition",
-  LibrarySchema,
+  LibrarySchema
 );

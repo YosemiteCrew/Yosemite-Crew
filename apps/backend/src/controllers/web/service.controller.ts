@@ -217,4 +217,14 @@ export const ServiceController = {
       return handleError(error, res, "Unable to fetch bookable slots");
     }
   },
+
+  listByOrganisation: async (req: Request, res: Response) => {
+    try {
+      const { organisationId } = req.params;
+      const service = await ServiceService.listByOrganisation(organisationId);
+      return res.status(200).json(service);
+    } catch (error: unknown) {
+      return handleError(error, res, "Unable to fetch service.");
+    }
+  }
 };
