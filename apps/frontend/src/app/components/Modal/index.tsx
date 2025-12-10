@@ -4,9 +4,10 @@ type ModalProps = {
   children: React.ReactNode;
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  onClose?: () => void;
 };
 
-const Modal = ({ children, showModal, setShowModal }: ModalProps) => {
+const Modal = ({ children, showModal, setShowModal, onClose }: ModalProps) => {
   const popupRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -14,11 +15,12 @@ const Modal = ({ children, showModal, setShowModal }: ModalProps) => {
     const handleClickOutside = (e: MouseEvent) => {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         setShowModal(false);
+        onClose?.();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showModal]);
+  }, [showModal, onClose, setShowModal]);
 
   return (
     <div

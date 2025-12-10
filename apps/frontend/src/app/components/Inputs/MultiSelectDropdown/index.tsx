@@ -12,7 +12,7 @@ type DropdownProps = {
   error?: string;
   className?: string;
   dropdownClassName?: string;
-  options?: any;
+  options?: Array<string | { label: string; value: string }>;
 };
 
 const MultiSelectDropdown = ({
@@ -26,10 +26,16 @@ const MultiSelectDropdown = ({
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const list = options ?? [];
+  const list =
+    options?.map((opt) =>
+      typeof opt === "string" ? { label: opt, value: opt } : opt
+    ) ?? [];
   const availableOptions = list.filter(
-    (option: string) => !value.includes(option)
+    (option) => !value.includes(option.value)
   );
+
+  const getLabel = (val: string) =>
+    list.find((opt) => opt.value === val)?.label ?? val;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -80,13 +86,13 @@ const MultiSelectDropdown = ({
         </button>
         {open && availableOptions.length > 0 && (
           <div className={`select-input-dropdown ${dropdownClassName}`}>
-            {availableOptions.map((option: any, index: number) => (
+            {availableOptions.map((option, index: number) => (
               <button
                 className={`select-input-dropdown-item ${index === list.length - 1 ? "" : "border-b border-grey-light"}`}
-                key={option}
-                onClick={() => toggleOption(option)}
+                key={option.value}
+                onClick={() => toggleOption(option.value)}
               >
-                {option}
+                {option.label}
               </button>
             ))}
           </div>
@@ -100,7 +106,7 @@ const MultiSelectDropdown = ({
               className="px-4! py-2! rounded-2xl border border-grey-light flex gap-1 items-center"
             >
               <span className="font-satoshi font-semibold text-[15px] text-black-text">
-                {item}
+                {getLabel(item)}
               </span>
               <IoIosClose
                 color="#302f2e"

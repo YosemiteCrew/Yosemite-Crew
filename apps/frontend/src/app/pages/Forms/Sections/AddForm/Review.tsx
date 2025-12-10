@@ -1,23 +1,27 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
-import { flatServices } from "@/app/pages/Organization/demo";
 import {
   FormField,
   FormsCategoryOptions,
   FormsProps,
   FormsUsageOptions,
 } from "@/app/types/forms";
-import React from "react";
+import React, { useEffect } from "react";
 import FormRenderer from "./components/FormRenderer";
 
 type ReviewProps = {
   formData: FormsProps;
+  onPublish: () => void;
+  onSaveDraft: () => void;
+  serviceOptions: { label: string; value: string }[];
+  loading?: boolean;
+  isEditing?: boolean;
 };
 
 const DetailsFields = [
   { label: "Form name", key: "name", type: "text" },
-  { label: "Description", key: "descrition", type: "text" },
+  { label: "Description", key: "description", type: "text" },
   {
     label: "Category",
     key: "category",
@@ -26,46 +30,72 @@ const DetailsFields = [
   },
 ];
 
-const UsageFields = [
-  {
-    label: "Visibility type",
-    key: "usage",
-    type: "dropdown",
-    options: FormsUsageOptions,
-  },
-  {
-    label: "Service",
-    key: "services",
-    type: "multiSelect",
-    options: flatServices,
-  },
-  {
-    label: "Species",
-    key: "species",
-    type: "multiSelect",
-    options: ["Dog", "Cat", "Horse"],
-  },
-];
-
-const buildInitialValues = (fields: FormField[]): Record<string, string> =>
-  fields.reduce(
-    (acc, field) => {
-      if (field.type === "input") {
-        acc[field.id] = field.value ?? "";
-      } else {
-        acc[field.id] = "";
+const buildInitialValues = (fields: FormField[]): Record<string, any> => {
+  const acc: Record<string, any> = {};
+  const walk = (items: FormField[]) => {
+    items.forEach((field) => {
+      if (field.type === "group") {
+        walk(field.fields ?? []);
+        return;
       }
-      return acc;
-    },
-    {} as Record<string, string>
+      if (field.type === "checkbox") {
+        acc[field.id] = [];
+      } else if (field.type === "boolean") {
+        acc[field.id] = false;
+      } else if (field.type === "date") {
+        acc[field.id] = "";
+      } else if (field.type === "number") {
+        acc[field.id] = "";
+      } else {
+        acc[field.id] = field.placeholder ?? "";
+      }
+    });
+  };
+  walk(fields);
+  return acc;
+};
+
+const Review = ({
+  formData,
+  onPublish,
+  onSaveDraft,
+  serviceOptions,
+  loading = false,
+  isEditing = false,
+}: ReviewProps) => {
+  const UsageFields = React.useMemo(
+    () => [
+      {
+        label: "Visibility type",
+        key: "usage",
+        type: "dropdown",
+        options: FormsUsageOptions,
+      },
+      {
+        label: "Service",
+        key: "services",
+        type: "multiSelect",
+        options: serviceOptions,
+      },
+      {
+        label: "Species",
+        key: "species",
+        type: "multiSelect",
+        options: ["Dog", "Cat", "Horse"],
+      },
+    ],
+    [serviceOptions]
   );
 
-const Review = ({ formData }: ReviewProps) => {
-  const [values, setValues] = React.useState<Record<string, string>>(() =>
-    buildInitialValues(formData.fields ?? [])
+  const [values, setValues] = React.useState<Record<string, any>>(() =>
+    buildInitialValues(formData.schema ?? [])
   );
 
-  const handleValueChange = (id: string, value: string) => {
+  useEffect(() => {
+    setValues(buildInitialValues(formData.schema ?? []));
+  }, [formData.schema]);
+
+  const handleValueChange = (id: string, value: any) => {
     setValues((prev) => ({
       ...prev,
       [id]: value,
@@ -81,6 +111,7 @@ const Review = ({ formData }: ReviewProps) => {
           data={formData}
           defaultOpen={true}
           showEditIcon={false}
+          readOnly
         />
         <EditableAccordion
           title="Usage & visibility"
@@ -88,8 +119,9 @@ const Review = ({ formData }: ReviewProps) => {
           data={formData}
           defaultOpen={true}
           showEditIcon={false}
+          readOnly
         />
-        {(formData.fields?.length ?? 0) > 0 && (
+        {(formData.schema?.length ?? 0) > 0 && (
           <Accordion
             title="Form"
             defaultOpen
@@ -97,9 +129,10 @@ const Review = ({ formData }: ReviewProps) => {
             isEditing={true}
           >
             <FormRenderer
-              fields={formData.fields ?? []}
+              fields={formData.schema ?? []}
               values={values}
               onChange={handleValueChange}
+              readOnly
             />
           </Accordion>
         )}
@@ -107,13 +140,17 @@ const Review = ({ formData }: ReviewProps) => {
       <div className="flex flex-col gap-3">
         <Primary
           href="#"
-          text="Publish template"
+          text={isEditing ? "Update & publish" : "Publish template"}
           classname="max-h-12! text-lg! tracking-wide!"
+          onClick={onPublish}
+          isDisabled={loading}
         />
         <Secondary
           href="#"
-          text="Save as draft"
+          text={isEditing ? "Update draft" : "Save as draft"}
           className="max-h-12! text-lg! tracking-wide!"
+          onClick={onSaveDraft}
+          isDisabled={loading}
         />
       </div>
     </div>

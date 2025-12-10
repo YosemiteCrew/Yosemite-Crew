@@ -1,8 +1,8 @@
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import { FormField, InputField } from "@/app/types/forms";
+import { FormField } from "@/app/types/forms";
 
 const InputBuilder: React.FC<{
-  field: InputField;
+  field: FormField & { type: "input" | "number" };
   onChange: (f: FormField) => void;
 }> = ({ field, onChange }) => (
   <div className="flex flex-col gap-3">
@@ -15,11 +15,11 @@ const InputBuilder: React.FC<{
       className="min-h-12!"
     />
     <FormInput
-      intype="text"
-      inname="value"
-      value={field.value}
-      inlabel="Default value"
-      onChange={(e) => onChange({ ...field, value: e.target.value })}
+      intype={field.type === "number" ? "number" : "text"}
+      inname="placeholder"
+      value={field.placeholder || ""}
+      inlabel="Placeholder"
+      onChange={(e) => onChange({ ...field, placeholder: e.target.value })}
       className="min-h-12!"
     />
   </div>
