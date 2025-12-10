@@ -30,6 +30,7 @@ import organisationDocumentRouter from "./organisation-document.router";
 import adverseEventRouter from "./adverse-event.router";
 import taskRouter from "./task.router";
 import inventoryRoter from "./inventory.router"
+import observationToolRouter from "./observationTool.routes"
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -63,4 +64,5 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/adverse-event`, adverseEventRouter);
   app.use(`/v1/task`, taskRouter);
   app.use(`/v1/inventory`, inventoryRoter)
+  app.use(`/v1/observation-tools`, observationToolRouter)
 }
