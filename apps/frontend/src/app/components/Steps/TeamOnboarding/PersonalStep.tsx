@@ -116,7 +116,7 @@ const PersonalStep = ({
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
           type="input"
-          className="h-[60px]!"
+          className="h-12! xl:h-[60px]!"
           containerClassName="w-full"
           placeholder="Date of birth"
         />

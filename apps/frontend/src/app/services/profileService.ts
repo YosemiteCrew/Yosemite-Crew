@@ -54,7 +54,6 @@ export const createUserProfile = async (
       _id: data._id,
       organizationId: data.organizationId,
       personalDetails: data.personalDetails,
-      professionalDetails: data.professionalDetails,
     };
     addProfile(newProfile);
   } catch (err: unknown) {
