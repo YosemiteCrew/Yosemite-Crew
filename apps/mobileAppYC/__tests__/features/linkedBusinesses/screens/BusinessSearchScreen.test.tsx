@@ -72,6 +72,8 @@ jest.mock('@react-navigation/native', () => {
   return {
     ...jest.requireActual('@react-navigation/native'),
     useFocusEffect: (effect: () => void) => {
+
+      // Correctly mocked useEffect behavior
       ReactLib.useEffect(effect, []);
     },
     useNavigation: () => ({
@@ -264,7 +266,7 @@ describe('BusinessSearchScreen', () => {
     });
 
     mockSelectLinkedBusinesses = jest.fn().mockReturnValue([]);
-    (Redux.useSelector as jest.Mock).mockImplementation(selector => {
+    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector => {
       if (selector === LinkedBusinessActions.selectLinkedBusinesses) {
         return mockSelectLinkedBusinesses();
       }
