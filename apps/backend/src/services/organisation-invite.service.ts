@@ -221,12 +221,8 @@ const ensureUserOrganizationMembership = async (
   role: string,
   userId: string,
 ) => {
-  const practitionerReference = userId.startsWith("Practitioner/")
-    ? userId
-    : `Practitioner/${userId}`;
-  const organizationReference = organisationId.startsWith("Organization/")
-    ? organisationId
-    : `Organization/${organisationId}`;
+  const practitionerReference = userId.replace(/^Practitioner\//, "");
+  const organizationReference = organisationId.replace(/^Organization\//, "");
 
   try {
     await UserOrganizationService.createUserOrganizationMapping({
@@ -394,20 +390,18 @@ export const OrganisationInviteService = {
       expiresAt: { $gt: new Date(Date.now()) },
     }).sort({ createdAt: -1 });
 
-    if(!invites.length)
-      return [];
+    if (!invites.length) return [];
     const results = [];
-    for(const invite of invites) {
-
+    for (const invite of invites) {
       const organisation = await OrganizationModel.findOne({
-        _id : new Types.ObjectId(invite.organisationId)
-      })
+        _id: new Types.ObjectId(invite.organisationId),
+      });
 
       results.push({
         invite: buildInviteResponse(invite),
         organisationName: organisation?.name,
-        organisationType: organisation?.type
-      })
+        organisationType: organisation?.type,
+      });
     }
 
     return results;

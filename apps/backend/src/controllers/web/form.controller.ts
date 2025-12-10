@@ -86,6 +86,7 @@ export const FormController = {
   updateForm: async (req: Request, res: Response) => {
     try {
       const formId = req.params.formId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
       if (!userId) {
         return res
@@ -95,7 +96,7 @@ export const FormController = {
 
       const formRequest = req.body as FormRequestDTO;
 
-      const form = await FormService.update(formId, formRequest, userId);
+      const form = await FormService.update(formId, formRequest, userId, orgId);
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {

@@ -145,11 +145,19 @@ export const FormService = {
     return toFormResponseDTO(fhirForm);
   },
 
-  async update(formId: string, fhir: FormRequestDTO, userId: string) {
+  async update(
+    formId: string,
+    fhir: FormRequestDTO,
+    userId: string,
+    orgId: string,
+  ) {
     const fid = ensureObjectId(formId, "formId");
 
     const existing = await FormModel.findById(fid);
     if (!existing) throw new FormServiceError("Form not found", 404);
+
+    if (existing.orgId !== orgId)
+      throw new FormServiceError("Form is not part of your organisation", 400);
 
     const internal: Form = fromFormRequestDTO(fhir);
 

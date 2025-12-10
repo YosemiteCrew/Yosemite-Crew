@@ -237,13 +237,14 @@ describe("FormService", () => {
       mockedFormModel.findById.mockResolvedValueOnce(null);
 
       await expect(
-        FormService.update(validId, {} as any, "user-1"),
+        FormService.update(validId, {} as any, "user-1", "org-1"),
       ).rejects.toThrow("Form not found");
     });
 
     it("updates form fields and saves", async () => {
       const doc = makeFormDoc({
         name: "Old",
+        orgId: "org-1",
         category: "old",
         description: "old",
         visibilityType: "public",
@@ -265,7 +266,7 @@ describe("FormService", () => {
         schema: [{ id: "f1", type: "text", label: "Name", order: 1 }],
       });
 
-      await FormService.update(validId, {} as any, "user-2");
+      await FormService.update(validId, {} as any, "user-2", "org-1");
 
       expect(doc.name).toBe("Updated");
       expect(doc.status).toBe("draft");

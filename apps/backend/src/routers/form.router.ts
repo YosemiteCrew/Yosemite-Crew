@@ -21,7 +21,11 @@ router.get(
 );
 
 // Update form
-router.put("/admin/:formId", authorizeCognito, FormController.updateForm);
+router.put(
+  "/admin/:orgId/:formId",
+  authorizeCognito,
+  FormController.updateForm,
+);
 
 // Publish / Unpublish / Archive
 router.post(
