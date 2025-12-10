@@ -11,6 +11,7 @@ import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCar
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
+import {formatLabel} from '@/shared/utils/helpers';
 
 const formatReadableDate = (date: string | Date): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -18,7 +19,7 @@ const formatReadableDate = (date: string | Date): string => {
     return '—';
   }
 
-  return dateObj.toLocaleDateString('en-GB', {
+  return dateObj.toLocaleDateString('en-US', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -52,6 +53,13 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const cardStyles = useMemo(() => createCardStyles(theme), [theme]);
 
+  const resolvedTitle = title?.trim() || 'Document';
+  const resolvedBusiness = businessName?.trim() || '—';
+  const resolvedVisitType = visitType?.trim()
+    ? formatLabel(visitType.trim(), '—')
+    : '—';
+  const resolvedIssueDate = issueDate || '';
+
   const handleCardPress = () => {
     onPress?.();
   };
@@ -78,19 +86,19 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           <View style={styles.textContainer}>
             <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
               <Text style={styles.label}>Title: </Text>
-              <Text style={styles.value}>{title}</Text>
+              <Text style={styles.value}>{resolvedTitle}</Text>
             </Text>
             <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
               <Text style={styles.label}>Business: </Text>
-              <Text style={styles.value}>{businessName}</Text>
+              <Text style={styles.value}>{resolvedBusiness}</Text>
             </Text>
             <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
               <Text style={styles.label}>Visit type: </Text>
-              <Text style={styles.value}>{visitType}</Text>
+              <Text style={styles.value}>{resolvedVisitType}</Text>
             </Text>
             <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
               <Text style={styles.label}>Issue Date: </Text>
-              <Text style={styles.value}>{formatReadableDate(issueDate)}</Text>
+              <Text style={styles.value}>{formatReadableDate(resolvedIssueDate)}</Text>
             </Text>
           </View>
         </View>

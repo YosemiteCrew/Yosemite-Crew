@@ -50,12 +50,23 @@ import {
   formatDateForDisplay,
 } from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 
-// Profile Image Picker
-import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
+// Profile Image Picker Header
+import {UserProfileHeader} from '@/features/account/components/UserProfileHeader';
+import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 
 // Types
 import type {User} from '@/features/auth/types';
 import {updateUserProfile} from '@/features/auth';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  updateParentProfile,
+  type ParentProfileUpsertPayload,
+} from '@/features/account/services/profileService';
+import {preparePhotoPayload} from '@/features/account/utils/profilePhoto';
+import {
+  requestParentProfileUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/shared/services/uploadService';
 
 // Props
 export type EditParentScreenProps = NativeStackScreenProps<
@@ -75,11 +86,15 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   // Local UI state
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   // Bottom sheet refs
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
   const addressSheetRef = useRef<AddressBottomSheetRef>(null);
   const phoneSheetRef = useRef<CountryMobileBottomSheetRef>(null);
+
+  // Profile image picker ref
+  const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Track which bottom sheet is open
   const [openBottomSheet, setOpenBottomSheet] = useState<'currency' | 'address' | 'phone' | null>(null);
@@ -91,12 +106,149 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   const safeUser = user as User;
 
+  useEffect(() => {
+    let mounted = true;
+    getFreshStoredTokens()
+      .then(tokens => {
+        if (mounted) {
+          const nextToken =
+            tokens && !isTokenExpired(tokens.expiresAt ?? undefined)
+              ? tokens.accessToken ?? null
+              : null;
+          setAccessToken(nextToken);
+        }
+      })
+      .catch(error => {
+        console.warn('[EditParent] Failed to load stored tokens', error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const syncParentProfile = useCallback(
+    async (nextUser: User) => {
+      if (!accessToken) {
+        console.warn('[EditParent] No access token available; skipping remote sync.');
+        return;
+      }
+
+      if (!nextUser.parentId) {
+        console.warn('[EditParent] Missing parent identifier; skipping remote sync.');
+        return;
+      }
+
+      try {
+        const photoPayload = await preparePhotoPayload({
+          imageUri: nextUser.profilePicture ?? null,
+          existingRemoteUrl: nextUser.profileToken ?? null,
+        });
+
+        let profileImageKey: string | null = null;
+        let existingPhotoUrl = photoPayload.remoteUrl ?? null;
+
+        if (photoPayload.localFile) {
+          const presigned = await requestParentProfileUploadUrl({
+            accessToken,
+            mimeType: photoPayload.localFile.mimeType,
+          });
+
+          await uploadFileToPresignedUrl({
+            filePath: photoPayload.localFile.path,
+            mimeType: photoPayload.localFile.mimeType,
+            url: presigned.url,
+          });
+
+          profileImageKey = presigned.key;
+          existingPhotoUrl = null;
+        }
+
+        const hasAddress =
+          nextUser.address?.addressLine ||
+          nextUser.address?.city ||
+          nextUser.address?.stateProvince ||
+          nextUser.address?.postalCode ||
+          nextUser.address?.country;
+
+        const payload: ParentProfileUpsertPayload = {
+          parentId: nextUser.parentId,
+          firstName: (nextUser.firstName ?? '').trim(),
+          lastName: nextUser.lastName?.trim(),
+          phoneNumber: nextUser.phone ?? '',
+          email: nextUser.email,
+          dateOfBirth: nextUser.dateOfBirth ?? null,
+          address: hasAddress
+            ? {
+                addressLine: nextUser.address?.addressLine?.trim(),
+                stateProvince: nextUser.address?.stateProvince?.trim(),
+                city: nextUser.address?.city?.trim(),
+                postalCode: nextUser.address?.postalCode?.trim(),
+                country: nextUser.address?.country?.trim(),
+              }
+            : undefined,
+          isProfileComplete: nextUser.profileCompleted ?? undefined,
+          profileImageKey,
+          existingPhotoUrl,
+        };
+
+        const summary = await updateParentProfile(payload, accessToken);
+
+        const remotePatch: Partial<User> = {};
+        if (summary.profileImageUrl) {
+          remotePatch.profileToken = summary.profileImageUrl;
+          remotePatch.profilePicture = summary.profileImageUrl;
+        }
+        if (summary.isComplete !== undefined) {
+          remotePatch.profileCompleted = summary.isComplete;
+        }
+        if (summary.birthDate) {
+          remotePatch.dateOfBirth = summary.birthDate;
+        }
+        if (summary.phoneNumber) {
+          remotePatch.phone = summary.phoneNumber;
+        }
+        if (summary.address) {
+          remotePatch.address = {
+            addressLine: summary.address.addressLine,
+            city: summary.address.city,
+            stateProvince: summary.address.state,
+            postalCode: summary.address.postalCode,
+            country: summary.address.country,
+          };
+        }
+
+        if (Object.keys(remotePatch).length > 0) {
+          dispatch(updateUserProfile(remotePatch));
+        }
+      } catch (error) {
+        console.error('[EditParent] Failed to sync parent profile', error);
+      }
+    },
+    [accessToken, dispatch],
+  );
+
   const applyPatch = useCallback(
     (patch: Partial<User>) => {
-      if (!safeUser) return;
+      if (!safeUser) {
+        return;
+      }
+
+      const mergedAddress =
+        patch.address === undefined
+          ? safeUser.address
+          : {...safeUser.address, ...patch.address};
+
+      const nextUser: User = {
+        ...safeUser,
+        ...patch,
+        address: mergedAddress,
+      };
+
       dispatch(updateUserProfile(patch));
+      syncParentProfile(nextUser);
     },
-    [dispatch, safeUser],
+    [dispatch, safeUser, syncParentProfile],
   );
 
   // Parse phone number to separate dial code and local number
@@ -188,14 +340,16 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Header block */}
-        <View style={styles.profileHeader}>
-          <ProfileImagePicker
-            imageUri={safeUser.profilePicture}
-            onImageSelected={handleProfileImageChange}
-            size={100} // Decreased size
-          />
-        </View>
+        {/* Header block with profile image picker */}
+        <UserProfileHeader
+          firstName={safeUser.firstName ?? ''}
+          lastName={safeUser.lastName ?? ''}
+          profileImage={safeUser.profilePicture}
+          pickerRef={profileImagePickerRef}
+          onImageSelected={handleProfileImageChange}
+          size={100}
+          showCameraButton
+        />
 
         {/* Card with rows */}
         <LiquidGlassCard
@@ -380,18 +534,4 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
-    profileHeader: {
-      alignItems: 'center',
-      marginVertical: theme.spacing[6],
-    },
-    profileName: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-    },
-    profileEmail: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
-    },
   });

@@ -16,6 +16,8 @@ export const RowButton: React.FC<{
 }> = ({label, value, onPress}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayValue =
+    value && value.trim().length > 0 ? value : '—';
   return (
     <TouchableOpacity
       style={styles.rowButtonTouchable}
@@ -26,7 +28,7 @@ export const RowButton: React.FC<{
         style={styles.rowButtonValue}
         numberOfLines={1}
         ellipsizeMode="tail">
-        {value || ' '}
+        {displayValue}
       </Text>
       <Image source={Images.rightArrow} style={styles.rowButtonArrow} />
     </TouchableOpacity>
@@ -39,6 +41,8 @@ export const ReadOnlyRow: React.FC<{
 }> = ({label, value}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayValue =
+    value && value.trim().length > 0 ? value : '—';
   return (
     <View style={styles.readOnlyRowContainer}>
       <Text style={styles.rowButtonLabel}>{label}</Text>
@@ -46,7 +50,7 @@ export const ReadOnlyRow: React.FC<{
         style={styles.rowButtonValue}
         numberOfLines={1}
         ellipsizeMode="tail">
-        {value || ' '}
+        {displayValue}
       </Text>
     </View>
   );
@@ -59,15 +63,17 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       paddingVertical: theme.spacing[3],
       paddingHorizontal: theme.spacing[3],
+      marginVertical: theme.spacing[1],
     },
     rowButtonLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.textSecondary,
       flex: 1,
     },
     rowButtonValue: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      // Satoshi 15 Bold, 160% line-height, -0.3 letter spacing
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.placeholder,
       marginRight: theme.spacing[3],
       flexShrink: 1,
       flex: 1,
@@ -87,6 +93,6 @@ const createStyles = (theme: any) =>
     separator: {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.borderSeperator,
-      marginLeft: 16,
+      marginHorizontal: theme.spacing[3],
     },
   });

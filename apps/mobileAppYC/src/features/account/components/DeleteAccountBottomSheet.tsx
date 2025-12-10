@@ -22,12 +22,13 @@ interface DeleteAccountBottomSheetProps {
   email?: string | null;
   onCancel?: () => void;
   onDelete: () => Promise<void> | void;
+  isProcessing?: boolean;
 }
 
 export const DeleteAccountBottomSheet = forwardRef<
   DeleteAccountBottomSheetRef,
   DeleteAccountBottomSheetProps
->(({email, onCancel, onDelete}, ref) => {
+>(({email, onCancel, onDelete, isProcessing = false}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -63,6 +64,10 @@ export const DeleteAccountBottomSheet = forwardRef<
   };
 
   const handleDelete = async () => {
+    if (isProcessing) {
+      return;
+    }
+
     const normalizedTypedEmail = typedEmail.trim().toLowerCase();
 
     if (normalizedTypedEmail.length === 0) {
@@ -76,9 +81,18 @@ export const DeleteAccountBottomSheet = forwardRef<
     }
 
     setError(undefined);
-    await onDelete();
-    resetState();
-    handleClose();
+
+    try {
+      await onDelete();
+      resetState();
+      handleClose();
+    } catch (deleteError) {
+      const message =
+        deleteError instanceof Error
+          ? deleteError.message
+          : 'Failed to delete your account. Please try again.';
+      setError(message);
+    }
   };
 
   const isDeleteDisabled = (() => {
@@ -100,7 +114,6 @@ export const DeleteAccountBottomSheet = forwardRef<
       message="Are you sure you want to delete your account?"
       messageAlign="left"
       containerStyle={styles.container}
-      titleStyle={styles.title}
       messageStyle={styles.subtitle}
       buttonContainerStyle={styles.actionsRow}
       secondaryButton={{
@@ -111,12 +124,12 @@ export const DeleteAccountBottomSheet = forwardRef<
         style: styles.cancelButton,
       }}
       primaryButton={{
-        label: 'Delete',
+        label: isProcessing ? 'Deleting...' : 'Delete',
         onPress: handleDelete,
         tintColor: theme.colors.secondary,
         textStyle: styles.deleteText,
         style: styles.deleteButton,
-        disabled: isDeleteDisabled,
+        disabled: isDeleteDisabled || isProcessing,
       }}>
       <View style={styles.noteBlock}>
         <Text style={styles.noteLabel}>Note: </Text>
@@ -173,19 +186,19 @@ const createStyles = (theme: any) =>
       gap: 0,
     },
     noteLabel: {
-      ...theme.typography.subtitleBold14,
+      ...theme.typography.inputLabel,
       color: theme.colors.primary,
       textAlign: 'left',
     },
     noteBody: {
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.secondary,
+      ...theme.typography.inputLabel,
+      color: theme.colors.textPrimary,
       textAlign: 'left',
       flex: 1,
     },
     warning: {
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.error,
+      ...theme.typography.inputLabel,
+      color: theme.colors.error ?? theme.colors.secondary,
       textAlign: 'left',
     },
     actionsRow: {

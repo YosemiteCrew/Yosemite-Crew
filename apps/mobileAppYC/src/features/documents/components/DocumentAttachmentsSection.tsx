@@ -1,5 +1,6 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
+  ActivityIndicator,
   Image,
   Text,
   TouchableOpacity,
@@ -9,6 +10,7 @@ import {
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
+import {isImageFile} from './documentAttachmentUtils';
 
 interface DocumentAttachmentsSectionProps {
   files: DocumentFile[];
@@ -24,8 +26,89 @@ const DEFAULT_EMPTY_TITLE = 'Upload documents';
 const DEFAULT_EMPTY_SUBTITLE =
   'Only DOC, PDF, PNG, JPEG formats\nwith max size 5 MB';
 
-const resolvePreviewSource = (file: DocumentFile) =>
-  file.uri ?? (file as {s3Url?: string}).s3Url ?? null;
+const resolvePreviewSource = (file: DocumentFile) => {
+  if (file.uri) {
+    // Ensure we pass a uri with scheme for React Native Image
+    return file.uri.startsWith('http') ? file.uri : `file://${file.uri.replace(/^file:\/\//, '')}`;
+  }
+  return (
+    (file as {viewUrl?: string}).viewUrl ??
+    (file as {downloadUrl?: string}).downloadUrl ??
+    (file as {s3Url?: string}).s3Url ??
+    null
+  );
+};
+
+interface FilePreviewTileProps {
+  file: DocumentFile;
+  onRequestRemove: (file: DocumentFile) => void;
+  styles: ReturnType<typeof createStyles>;
+  theme: any;
+}
+
+const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
+  file,
+  onRequestRemove,
+  styles,
+  theme,
+}) => {
+  const [isImageLoading, setIsImageLoading] = useState(true);
+  const sourceUri = resolvePreviewSource(file);
+  const isImage = isImageFile(file.type);
+  const isPending = file.status === 'pending';
+
+  useEffect(() => {
+    setIsImageLoading(Boolean(isImage && sourceUri));
+  }, [isImage, sourceUri]);
+
+  const showLoader = (isImage && isImageLoading) || isPending;
+
+  return (
+    <View style={styles.filePreviewBox}>
+      {isImage && sourceUri ? (
+        <>
+          <Image
+            source={{uri: sourceUri}}
+            style={styles.filePreviewImage}
+            resizeMode="cover"
+            onLoadStart={() => setIsImageLoading(true)}
+            onLoadEnd={() => setIsImageLoading(false)}
+            onError={() => setIsImageLoading(false)}
+          />
+          {showLoader && (
+            <View style={styles.loaderOverlay} pointerEvents="none">
+              <ActivityIndicator
+                size="small"
+                color={theme.colors.white}
+                animating
+              />
+            </View>
+          )}
+        </>
+      ) : (
+        <View style={styles.filePlaceholder}>
+          <Image source={Images.documentIcon} style={styles.filePlaceholderIcon} />
+          <Text style={styles.filePlaceholderText} numberOfLines={1}>
+            {file.name}
+          </Text>
+          {isPending && (
+            <ActivityIndicator
+              size="small"
+              color={theme.colors.secondary}
+              style={styles.inlineLoader}
+            />
+          )}
+        </View>
+      )}
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => onRequestRemove(file)}
+        activeOpacity={0.7}>
+        <Image source={Images.closeIcon} style={styles.removeIcon} />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 export const DocumentAttachmentsSection: React.FC<
   DocumentAttachmentsSectionProps
@@ -41,36 +124,6 @@ export const DocumentAttachmentsSection: React.FC<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const renderPreviewTile = (file: DocumentFile) => {
-    const sourceUri = resolvePreviewSource(file);
-    const isImage = typeof file.type === 'string' && file.type.startsWith('image/');
-
-    return (
-      <View key={file.id} style={styles.filePreviewBox}>
-        {isImage && sourceUri ? (
-          <Image
-            source={{uri: sourceUri}}
-            style={styles.filePreviewImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.filePlaceholder}>
-            <Image source={Images.documentIcon} style={styles.filePlaceholderIcon} />
-            <Text style={styles.filePlaceholderText} numberOfLines={1}>
-              {file.name}
-            </Text>
-          </View>
-        )}
-        <TouchableOpacity
-          style={styles.removeButton}
-          onPress={() => onRequestRemove(file)}
-          activeOpacity={0.7}>
-          <Image source={Images.closeIcon} style={styles.removeIcon} />
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   return (
     <View>
       {files.length === 0 ? (
@@ -85,7 +138,15 @@ export const DocumentAttachmentsSection: React.FC<
       ) : (
         <View style={styles.filesPreviewContainer}>
           <View style={styles.multipleFilesGrid}>
-            {files.map(renderPreviewTile)}
+            {files.map(file => (
+              <FilePreviewTile
+                key={file.id}
+                file={file}
+                onRequestRemove={onRequestRemove}
+                styles={styles}
+                theme={theme}
+              />
+            ))}
             {!hideAddButton && (
               <TouchableOpacity
                 style={styles.addMoreBox}
@@ -203,6 +264,19 @@ const createStyles = (theme: any) =>
       width: 24,
       height: 24,
       resizeMode: 'contain',
+    },
+    loaderOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    inlineLoader: {
+      marginTop: theme.spacing['2'],
     },
     errorText: {
       marginTop: theme.spacing['2'],

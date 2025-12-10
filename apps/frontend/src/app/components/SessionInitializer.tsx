@@ -7,45 +7,32 @@ import Github from "./Github/Github";
 import { useAuthStore } from "../stores/authStore";
 import Sidebar from "./Sidebar/Sidebar";
 import { usePathname } from "next/navigation";
-
-const publicRoutes = new Set([
-  "/",
-  "/signin",
-  "/signup",
-  "/forgot-password",
-  "/about",
-  "/application",
-  "/book-demo",
-  "/contact",
-  "/developers",
-  "/pms",
-  "/pricing",
-  "/privacy-policy",
-  "/terms-and-conditions"
-]);
+import { publicRoutes } from "../utils/const";
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
-  const { checkSession } = useAuthStore();
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
+  const isPublicRoute = publicRoutes.has(pathname);
+  const status = useAuthStore((s) => s.status);
 
   useEffect(() => {
-    const initSession = async () => {
-      await checkSession();
-    };
-    initSession();
-  }, [checkSession]);
+    void useAuthStore.getState().checkSession();
+  }, []);
+
+  const isChecking = status === "idle" || status === "checking";
 
   return (
     <>
       <Header />
       <Cookies />
       <Github />
-      {publicRoutes.has(pathname) ? (
+      {isPublicRoute ? (
         <div className="bodywrapper">{children}</div>
       ) : (
         <div className="sidebarwrapper">
           <Sidebar />
-          <div className="sidebarbodywrapper">{children}</div>
+          <div className="sidebarbodywrapper">
+            {isChecking ? null : children}
+          </div>
         </div>
       )}
     </>

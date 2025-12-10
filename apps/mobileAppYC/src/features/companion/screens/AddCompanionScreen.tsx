@@ -409,9 +409,9 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
     console.log('=== Form Submission Started ===');
     console.log('Form Data:', JSON.stringify(data, null, 2));
 
-    if (!user?.id) {
-      setSubmissionError('User not found. Please log in again.');
-      console.error('User not found');
+    if (!user?.parentId) {
+      setSubmissionError('Parent profile not found. Please complete your profile.');
+      console.error('Parent profile missing for companion creation');
       return;
     }
 
@@ -467,7 +467,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
       const result = await dispatch(
         addCompanion({
-          userId: user.id,
+          parentId: user.parentId,
           payload: companionPayload,
         }),
       ).unwrap();
@@ -629,7 +629,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
         {renderTextField('currentWeight', {
           label: 'Current weight (optional)',
-          placeholder: 'kgs',
+          placeholder: 'lbs',
           keyboardType: 'decimal-pad',
         })}
 
@@ -764,7 +764,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             <TouchableInput
               label="Country of origin (optional)"
               value={countryOfOrigin ?? ''}
-              placeholder="Select country"
+              placeholder="Select country of origin"
               onPress={handleCountryPress}
               error={errors.countryOfOrigin?.message}
               rightComponent={

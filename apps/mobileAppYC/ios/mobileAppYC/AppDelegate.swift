@@ -3,11 +3,13 @@ import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import Firebase
+import FirebaseMessaging
 import RNBootSplash
 import FBSDKCoreKit   // ✅ Facebook SDK
+import UserNotifications
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
   var window: UIWindow?
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
@@ -19,6 +21,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // ✅ Firebase
     FirebaseApp.configure()
+    UNUserNotificationCenter.current().delegate = self
+    Messaging.messaging().delegate = self
+    application.registerForRemoteNotifications()
 
     // ✅ Initialize Facebook SDK
     ApplicationDelegate.shared.application(
@@ -78,5 +83,35 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
 #else
     Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif
+  }
+}
+
+// MARK: - Push Notifications
+extension AppDelegate {
+  func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    Messaging.messaging().apnsToken = deviceToken
+  }
+
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    guard let token = fcmToken else {
+      return
+    }
+    NotificationCenter.default.post(
+      name: Notification.Name("FCMToken"),
+      object: nil,
+      userInfo: ["token": token]
+    )
+  }
+
+  // Foreground notification presentation
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.banner, .list, .sound, .badge])
   }
 }

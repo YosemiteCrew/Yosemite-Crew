@@ -69,7 +69,7 @@ describe("GenericTable Component", () => {
         render(<GenericTable data={[]} columns={mockColumns} />);
         expect(screen.getByText("ID")).toBeInTheDocument();
         const rows = screen.getAllByRole("row");
-        expect(rows).toHaveLength(1);
+        expect(rows).toHaveLength(2);
     });
 
     it("should render with pagination and show the first page", () => {
@@ -137,16 +137,6 @@ describe("GenericTable Component", () => {
     it("should not show pagination if total pages is 1 or less", () => {
         render(<GenericTable data={mockData.slice(0, 5)} columns={mockColumns} pagination pageSize={10} />);
         expect(screen.queryByText("Next")).not.toBeInTheDocument();
-    });
-
-    it("should render a bordered table when bordered prop is true", () => {
-        render(<GenericTable data={mockData} columns={mockColumns} bordered={true} />);
-        expect(MockedTable.mock.calls.at(-1)[0].bordered).toBe(true);
-    });
-
-    it("should render a non-bordered table by default", () => {
-    render(<GenericTable data={mockData} columns={mockColumns} />);
-    expect(MockedTable.mock.calls.at(-1)[0].bordered).toBe(false);
     });
 });
 

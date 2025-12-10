@@ -28,7 +28,12 @@ const Faq = () => {
       id: "collapseFour",
       title: "Is your system integrated with an AI scribe?",
       content:
-        "Currently, our system does not include AI scribe integration. However, in our next launch, AI scribe integration will be introduced. Along with this, we’ll also be adding features like prescription alerts and PMS plugins—so stay tuned!",
+        "Currently, our system does not include AI scribe integration. However, in our next launch, AI scribe integration will be introduced. Along with this, we’ll also be adding features like prescription alerts and PMS plugins.",
+    },
+    {
+      id: "collapseFive",
+      title: "What are observational tools?",
+      content: "Observational tools are structured methods for assessing animal welfare, pain, or stress based on observable indicators such as facial expressions, posture, or behavioural changes rather than invasive or physiological measures."
     },
   ];
   // State to track the open accordion item

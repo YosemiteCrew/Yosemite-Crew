@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import { useAuthStore } from "@/app/stores/authStore";
 
@@ -9,16 +9,28 @@ type ProtectedRouteProps = {
 };
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const user = useAuthStore((state) => state.user);
+  const { status, role } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isChecking = status === "idle" || status === "checking";
+  const isAuthed =
+    status === "authenticated" || status === "signin-authenticated";
 
   useEffect(() => {
-    if (!user) {
-      router.replace("/signin");
+    if (role === "member") {
+      if (isChecking) return;
+      if (!isAuthed) {
+        router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
+      }
     }
-  }, [user, router]);
+  }, [isChecking, isAuthed, router, pathname, role]);
 
-  if (!user) return null;
+  if (isChecking) {
+    return null;
+  }
+  if (!isAuthed) return null;
+  if (role !== "member") return null;
 
   return <>{children}</>;
 };

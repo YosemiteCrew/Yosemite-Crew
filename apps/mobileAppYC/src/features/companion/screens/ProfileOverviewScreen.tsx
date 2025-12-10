@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet as RNStyleSheet,
-  Alert,
   BackHandler,
+  Alert,
+  ToastAndroid,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {NavigationProp} from '@react-navigation/native';
+import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
@@ -30,7 +32,7 @@ import DeleteProfileBottomSheet, {
 } from '@/shared/components/common/DeleteProfileBottomSheet/DeleteProfileBottomSheet';
 
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {
   selectCompanions,
   selectCompanionLoading,
@@ -74,12 +76,20 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
+  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
+  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const accessForCompanion = companionId
+    ? accessMap[companionId] ?? defaultAccess
+    : defaultAccess;
+  const isPrimaryParent = (accessForCompanion?.role ?? globalRole ?? '').toUpperCase().includes('PRIMARY');
 
   // Profile image picker ref
   const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
+  const parentId = user?.parentId;
 
   const allCompanions = useSelector(selectCompanions);
   const isLoading = useSelector(selectCompanionLoading);
@@ -89,11 +99,70 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [allCompanions, companionId],
   );
 
+  const showPermissionToast = React.useCallback((label: string) => {
+    const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
+
+  const canAccessFeature = React.useCallback(
+    (permission: keyof NonNullable<typeof accessForCompanion>['permissions']) => {
+      if (isPrimaryParent) {
+        return true;
+      }
+      if (!accessForCompanion) {
+        return true;
+      }
+      return Boolean(accessForCompanion.permissions?.[permission]);
+    },
+    [accessForCompanion, isPrimaryParent],
+  );
+
+  const guardFeature = React.useCallback(
+    (permission: keyof NonNullable<typeof accessForCompanion>['permissions'], label: string) => {
+      if (!canAccessFeature(permission)) {
+        showPermissionToast(label);
+        return false;
+      }
+      return true;
+    },
+    [canAccessFeature, showPermissionToast],
+  );
+
   useEffect(() => {
     if (companionId) {
       dispatch(setSelectedCompanion(companionId));
     }
   }, [companionId, dispatch]);
+
+  // When returning to this screen, reset the Tasks tab stack to its root
+  useFocusEffect(
+    React.useCallback(() => {
+      const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+      try {
+        const tabState = tabNavigation?.getState();
+        const tasksRoute: any = tabState?.routes?.find(r => r.name === 'Tasks');
+        const nestedState = tasksRoute?.state;
+        const targetKey = nestedState?.key; // key of the nested Tasks stack
+        if (targetKey) {
+          // Hard reset the nested Tasks stack to ensure TasksMain is the root
+          tabNavigation?.dispatch({
+            ...CommonActions.reset({
+              index: 0,
+              routes: [{name: 'TasksMain'}],
+            }),
+            target: targetKey as string,
+          });
+        }
+      } catch {
+        // no-op: if state isn't available yet, nothing to reset
+      }
+      return undefined;
+    }, [navigation])
+  );
 
   // Helper to show error alerts
   const showErrorAlert = React.useCallback((title: string, message: string) => {
@@ -112,9 +181,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           updatedAt: new Date().toISOString(),
         };
 
+        if (!parentId) {
+          throw new Error('Parent profile missing. Please sign in again.');
+        }
+
         await dispatch(
           updateCompanionProfile({
-            userId: user?.id || '',
+            parentId,
             updatedCompanion: updated,
           }),
         ).unwrap();
@@ -128,7 +201,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         );
       }
     },
-    [companion, dispatch, user?.id, showErrorAlert],
+    [companion, dispatch, parentId, showErrorAlert],
   );
 
   // Handler for navigating to the Edit Screen
@@ -145,37 +218,80 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   const handleSectionPress = (sectionId: string) => {
-    if (sectionId === 'overview') {
-      navigation.navigate('EditCompanionOverview', {companionId});
+    const navigateToLinkedBusiness = (
+      category: 'hospital' | 'boarder' | 'breeder' | 'groomer',
+    ) =>
+      navigation.navigate('LinkedBusinesses', {
+        screen: 'BusinessSearch',
+        params: {
+          companionId,
+          companionName: companion?.name || '',
+          companionBreed: companion?.breed?.breedName,
+          companionImage: companion?.profileImage,
+          category,
+        },
+      } as any);
+
+    switch (sectionId) {
+      case 'overview':
+        navigation.navigate('EditCompanionOverview', {companionId});
+        break;
+      case 'parent':
+        navigation.navigate('EditParentOverview', {companionId});
+        break;
+      case 'documents':
+        if (!guardFeature('documents', 'documents')) {
+          return;
+        }
+        dispatch(setSelectedCompanion(companionId));
+        navigation.getParent()?.navigate('Documents', {screen: 'DocumentsMain'});
+        break;
+      case 'hospital':
+      case 'boarder':
+      case 'breeder':
+      case 'groomer':
+        if (!guardFeature('appointments', 'clinic access')) {
+          return;
+        }
+        navigateToLinkedBusiness(sectionId);
+        break;
+      case 'expense':
+        if (!guardFeature('expenses', 'expenses')) {
+          return;
+        }
+        dispatch(setSelectedCompanion(companionId));
+        navigation.navigate('ExpensesStack', {screen: 'ExpensesMain'});
+        break;
+      case 'health_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
+        navigateToTasks('health');
+        break;
+      case 'hygiene_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
+        navigateToTasks('hygiene');
+        break;
+      case 'dietary_plan':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
+        navigateToTasks('dietary');
+        break;
+      case 'custom_tasks':
+        if (!guardFeature('tasks', 'tasks')) {
+          return;
+        }
+        navigateToTasks('custom');
+        break;
+      case 'co_parent':
+        navigation.navigate('CoParents');
+        break;
+      default:
+        break;
     }
-    if (sectionId === 'parent') {
-      navigation.navigate('EditParentOverview', {companionId});
-    }
-    if (sectionId === 'documents') {
-      dispatch(setSelectedCompanion(companionId));
-      navigation.getParent()?.navigate('Documents', {
-        screen: 'DocumentsMain',
-      });
-    }
-    if (sectionId === 'expense') {
-      dispatch(setSelectedCompanion(companionId));
-      navigation.navigate('ExpensesStack', {
-        screen: 'ExpensesMain',
-      });
-    }
-    if (sectionId === 'health_tasks') {
-      navigateToTasks('health');
-    }
-    if (sectionId === 'hygiene_tasks') {
-      navigateToTasks('hygiene');
-    }
-    if (sectionId === 'dietary_plan') {
-      navigateToTasks('dietary');
-    }
-    if (sectionId === 'custom_tasks') {
-      navigateToTasks('custom');
-    }
-    // Add logic for other sections here
   };
 
   const handleBackPress = () => {
@@ -204,12 +320,12 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }, []);
 
   const handleDeleteProfile = React.useCallback(async () => {
-    if (!user?.id || !companion?.id) return;
+    if (!parentId || !companion?.id) return;
 
     try {
       console.log('[ProfileOverview] Deleting companion:', companion.id);
       const resultAction = await dispatch(
-        deleteCompanion({userId: user.id, companionId: companion.id}),
+        deleteCompanion({parentId, companionId: companion.id}),
       );
 
       if (deleteCompanion.fulfilled.match(resultAction)) {
@@ -230,7 +346,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         'An error occurred while deleting the companion profile.'
       );
     }
-  }, [user?.id, companion?.id, dispatch, navigation, showErrorAlert]);
+  }, [companion?.id, dispatch, navigation, parentId, showErrorAlert]);
 
   const handleDeleteCancel = React.useCallback(() => {
     setIsDeleteSheetOpen(false);
@@ -257,8 +373,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         title={`${companion.name}'s Profile`}
         showBackButton
         onBack={handleBackPress}
-        rightIcon={Images.deleteIconRed}
-        onRightPress={handleDeletePress}
+        rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+        onRightPress={isPrimaryParent ? handleDeletePress : undefined}
       />
 
       <ScrollView

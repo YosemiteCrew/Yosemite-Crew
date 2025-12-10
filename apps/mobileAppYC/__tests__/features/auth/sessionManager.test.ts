@@ -1,7 +1,18 @@
+// Mock dependencies FIRST before importing
+jest.mock('@react-native-async-storage/async-storage');
+jest.mock('@/features/auth/services/tokenStorage');
+jest.mock('@/features/account/services/profileService');
+jest.mock('@/features/auth/utils/parentProfileMapper', () => ({
+  mergeUserWithParentProfile: (user: any) => user,
+}));
+jest.mock('aws-amplify/auth');
+
+jest.mock('@react-native-firebase/auth');
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppState} from 'react-native';
-import {getAuth} from '@react-native-firebase/auth';
 import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
+import * as firebaseAuth from '@react-native-firebase/auth';
 import {
   persistSessionData,
   persistUserData,
@@ -17,15 +28,8 @@ import {
   loadStoredTokens,
   storeTokens,
 } from '@/features/auth/services/tokenStorage';
-import {fetchProfileStatus} from '@/features/profile/services/profileService';
+import {fetchProfileStatus} from '@/features/account/services/profileService';
 import type {User} from '@/features/auth/types';
-
-// Mock dependencies
-jest.mock('@react-native-async-storage/async-storage');
-jest.mock('@/features/auth/services/tokenStorage');
-jest.mock('@/features/profile/services/profileService');
-jest.mock('@react-native-firebase/auth');
-jest.mock('aws-amplify/auth');
 
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 const mockStoreTokens = storeTokens as jest.MockedFunction<typeof storeTokens>;
@@ -35,12 +39,18 @@ const mockFetchProfileStatus = fetchProfileStatus as jest.MockedFunction<typeof 
 const mockFetchAuthSession = fetchAuthSession as jest.MockedFunction<typeof fetchAuthSession>;
 const mockFetchUserAttributes = fetchUserAttributes as jest.MockedFunction<typeof fetchUserAttributes>;
 const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
-const mockGetAuth = getAuth as jest.MockedFunction<typeof getAuth>;
+const firebaseAuthMock = firebaseAuth as jest.Mocked<typeof firebaseAuth>;
 
 describe('sessionManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
+    firebaseAuthMock.reload.mockResolvedValue(undefined as any);
+    firebaseAuthMock.getIdToken.mockResolvedValue('firebase-id-token' as any);
+    firebaseAuthMock.getIdTokenResult.mockResolvedValue({
+      expirationTime: new Date(Date.now() + 3600000).toISOString(),
+    } as any);
   });
 
   afterEach(() => {
@@ -166,6 +176,7 @@ describe('sessionManager', () => {
       });
       mockFetchProfileStatus.mockResolvedValue({
         exists: true,
+        isComplete: true,
         profileToken: 'profile-token',
         source: 'remote',
       });
@@ -202,9 +213,18 @@ describe('sessionManager', () => {
       mockFetchUserAttributes.mockResolvedValue({
         email: 'test@example.com',
       });
-      mockAsyncStorage.getItem.mockResolvedValue(null);
+
+      // Mock AsyncStorage to return pending profile data
+      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === '@pending_profile_payload') {
+          return JSON.stringify({userId: 'amplify-user-123'});
+        }
+        return null;
+      });
+
       mockFetchProfileStatus.mockResolvedValue({
         exists: false,
+        isComplete: false,
         profileToken: 'test-profile-token',
         source: 'remote',
       });
@@ -218,31 +238,39 @@ describe('sessionManager', () => {
   describe('recoverAuthSession - Firebase', () => {
     it('should recover authenticated Firebase session when Amplify fails', async () => {
       mockFetchAuthSession.mockRejectedValue(new Error('No Amplify session'));
+      mockLoadStoredTokens.mockResolvedValue(null); // No stored tokens
 
       const mockFirebaseUser = {
         uid: 'firebase-user-123',
         email: 'firebase@example.com',
         photoURL: 'https://example.com/photo.jpg',
-        reload: jest.fn().mockResolvedValue(undefined),
-        getIdToken: jest.fn().mockResolvedValue('firebase-id-token'),
-        getIdTokenResult: jest.fn().mockResolvedValue({
-          expirationTime: new Date(Date.now() + 3600000).toISOString(),
-        }),
       };
 
-      mockGetAuth.mockReturnValue({
+      firebaseAuthMock.getAuth.mockReturnValue({
         currentUser: mockFirebaseUser,
       } as any);
 
-      mockAsyncStorage.getItem.mockResolvedValue(
-        JSON.stringify({
-          id: 'firebase-user-123',
-          email: 'firebase@example.com',
-          firstName: 'Firebase',
-          lastName: 'User',
-          profileToken: 'firebase-profile-token',
-        }),
-      );
+      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === '@user_data') {
+          return JSON.stringify({
+            id: 'firebase-user-123',
+            email: 'firebase@example.com',
+            firstName: 'Firebase',
+            lastName: 'User',
+            profileToken: 'firebase-profile-token',
+            profileCompleted: true,
+          });
+        }
+        return null; // No pending profile
+      });
+
+      mockFetchProfileStatus.mockResolvedValue({
+        exists: true,
+        isComplete: true,
+        profileToken: 'firebase-profile-token',
+        source: 'remote',
+      });
+      mockStoreTokens.mockResolvedValue(undefined);
 
       const result = await recoverAuthSession();
 
@@ -255,33 +283,34 @@ describe('sessionManager', () => {
 
     it('should fetch profile status for Firebase user without profile token', async () => {
       mockFetchAuthSession.mockRejectedValue(new Error('No Amplify session'));
+      mockLoadStoredTokens.mockResolvedValue(null); // No stored tokens
 
       const mockFirebaseUser = {
         uid: 'firebase-user-123',
         email: 'firebase@example.com',
-        reload: jest.fn().mockResolvedValue(undefined),
-        getIdToken: jest.fn().mockResolvedValue('firebase-id-token'),
-        getIdTokenResult: jest.fn().mockResolvedValue({
-          expirationTime: new Date(Date.now() + 3600000).toISOString(),
-        }),
       };
 
-      mockGetAuth.mockReturnValue({
+      firebaseAuthMock.getAuth.mockReturnValue({
         currentUser: mockFirebaseUser,
       } as any);
 
-      mockAsyncStorage.getItem.mockResolvedValue(
-        JSON.stringify({
-          id: 'firebase-user-123',
-          email: 'firebase@example.com',
-        }),
-      );
+      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === '@user_data') {
+          return JSON.stringify({
+            id: 'firebase-user-123',
+            email: 'firebase@example.com',
+          });
+        }
+        return null; // No pending profile
+      });
 
       mockFetchProfileStatus.mockResolvedValue({
         exists: true,
+        isComplete: true,
         profileToken: 'new-profile-token',
         source: 'remote',
       });
+      mockStoreTokens.mockResolvedValue(undefined);
 
       const result = await recoverAuthSession();
 
@@ -293,7 +322,7 @@ describe('sessionManager', () => {
   describe('recoverAuthSession - Fallback to stored tokens', () => {
     it('should fallback to stored tokens when both Amplify and Firebase fail', async () => {
       mockFetchAuthSession.mockRejectedValue(new Error('No Amplify session'));
-      mockGetAuth.mockReturnValue({currentUser: null} as any);
+      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
 
       const mockUser: User = {
         id: 'stored-user-123',
@@ -321,7 +350,7 @@ describe('sessionManager', () => {
 
     it('should return unauthenticated when no valid session exists', async () => {
       mockFetchAuthSession.mockRejectedValue(new Error('No session'));
-      mockGetAuth.mockReturnValue({currentUser: null} as any);
+      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
       mockAsyncStorage.getItem.mockResolvedValue(null);
       mockLoadStoredTokens.mockResolvedValue(null);
 
@@ -333,7 +362,7 @@ describe('sessionManager', () => {
 
     it('returns unauthenticated when legacy tokens are invalid JSON', async () => {
       mockFetchAuthSession.mockRejectedValue(new Error('No session'));
-      mockGetAuth.mockReturnValue({currentUser: null} as any);
+      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
       mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
         if (key === '@auth_tokens') return 'not-json';
         return null;
@@ -345,7 +374,7 @@ describe('sessionManager', () => {
 
     it('migrates legacy tokens when present and returns authenticated', async () => {
       mockFetchAuthSession.mockRejectedValue(new Error('No session'));
-      mockGetAuth.mockReturnValue({currentUser: null} as any);
+      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
 
       const mockUser: User = { id: 'legacy-user', email: 'legacy@example.com' };
       mockAsyncStorage.getItem.mockImplementation(async (key: string) => {

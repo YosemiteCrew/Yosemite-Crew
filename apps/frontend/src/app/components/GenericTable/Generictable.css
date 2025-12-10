@@ -1,9 +1,9 @@
 .TableDiv {
-  box-shadow: 0px 0px 30px 0px #4738271a !important;
+   box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.08) !important;
   background: var(--whitebg) !important;
   border: 1px solid var(--lightgrey) !important;
-  border-radius: 24px !important;
-  padding: 24px !important;
+  border-radius: 16px !important;
+  padding: 24px 20px !important;
   vertical-align: middle !important;
   margin: 0 !important;
   width: 100%;
@@ -12,12 +12,9 @@
 }
 .TableDiv thead tr th,
 .TableDiv tbody tr td {
-  padding: 16px 18px;
+  padding: 12px 12px;
   vertical-align: middle;
   border-bottom: 1px solid var(--lightgrey);
-}
-.TableDiv tbody tr:hover {
-  background: var(--popupbg) !important;
 }
 .TableDiv thead tr th {
   color: var(--black-text);
@@ -83,4 +80,14 @@
 }
 .custom-pagination p span {
   font-weight: 700;
+}
+
+@media screen and (max-width: 1440px) {
+  .TableDiv {
+    padding: 14px 10px !important;
+  }
+  .TableDiv thead tr th,
+  .TableDiv tbody tr td {
+    padding: 8px 8px !important;
+  }
 }

@@ -1,143 +1,92 @@
-import { render, screen, fireEvent, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import '@testing-library/jest-dom'
-import PricingPage from '../../pages/PricingPage/PricingPage'
-import { getPlanConfig } from '../../pages/PricingPage/PricingConst'
+import React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 
-globalThis.HTMLElement.prototype.scrollIntoView = jest.fn()
-
-jest.mock('@/app/components/Footer/Footer', () =>
-  function MockFooter() {
-    return <footer>Footer Mock</footer>
-  }
-)
-
-jest.mock('@/app/components/Faq/Faq', () =>
-  function MockFaq() {
-    return <div>FAQ Mock</div>
-  }
-)
-
-jest.mock('@/app/pages/HomePage/HomePage', () => ({
-  FillBtn: ({
-    text,
-    onClick,
-    href,
-  }: {
-    text: string
-    onClick?: () => void
-    href?: string
-  }) => (
-    <a href={href || '#'} onClick={onClick}>
-      {text}
+jest.mock("next/link", () => {
+  const Link = ({ href, children, ...rest }: any) => (
+    <a href={href} {...rest}>
+      {children}
     </a>
+  );
+  Link.displayName = "Link";
+  return { __esModule: true, default: Link };
+});
+
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ inlabel, value, onChange, error }: any) => (
+    <div>
+      <label>
+        {inlabel}
+        <input
+          aria-label={inlabel}
+          value={value}
+          onChange={(e) => onChange(e)}
+        />
+      </label>
+      {error ? <span data-testid={`${inlabel}-error`}>{error}</span> : null}
+    </div>
   ),
-}))
+}));
 
-jest.mock('@iconify/react/dist/iconify.js', () => ({
-  Icon: (props: any) => <span {...props} />,
-}))
+jest.mock("@/app/components/Faq/Faq", () => ({
+  __esModule: true,
+  default: () => <div data-testid="faq" />,
+}));
 
-describe('PricingPage Component', () => {
-  const user = userEvent.setup()
+jest.mock("@/app/components/Footer/Footer", () => ({
+  __esModule: true,
+  default: () => <footer data-testid="footer" />,
+}));
 
-  beforeEach(() => render(<PricingPage />))
+jest.mock("@/app/components/Buttons", () => ({
+  __esModule: true,
+  Primary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
 
-  test('renders major headings and pricing cards correctly', () => {
-    expect(screen.getByRole('heading', { name: /transparent pricing/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /comparison of hosting plans/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /key features/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /pricing calculator/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /free plan/i, level: 4 })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Pay-as-you-go', level: 4 })).toBeInTheDocument()
-  })
+import PricingPage from "@/app/pages/PricingPage/PricingPage";
 
-  test('calculator defaults to Free plan and shows correct price', () => {
-    const freePlanToggle = screen.getByRole('radio', { name: /free plan/i })
-    expect(freePlanToggle).toBeChecked()
+describe("PricingPage", () => {
+  test("toggles billing cycles and shows plans", () => {
+    render(<PricingPage />);
 
-    const estimatedBilling = screen.getByText('Price Cap').parentElement!
-    const priceHeading = within(estimatedBilling).getByRole('heading', { level: 2 })
-    expect(priceHeading).toHaveTextContent('$0')
-  })
+    const monthly = screen.getByText("Pay monthly");
+    const yearly = screen.getByText("Pay yearly");
+    expect(yearly.className).toMatch(/bg-blue-light/);
 
-  test('switches to Custom plan and updates price', async () => {
-    const customPlanToggle = screen.getByRole('radio', { name: /pay-as-you-go/i })
-    await user.click(customPlanToggle)
-    expect(customPlanToggle).toBeChecked()
+    fireEvent.click(monthly);
+    expect(monthly.className).toMatch(/bg-blue-light/);
+    expect(screen.getByText("Transparent pricing, no hidden fees")).toBeInTheDocument();
+    expect(screen.getAllByText("Get started").length).toBeGreaterThan(0);
+  });
 
-    const planConfig = {
-      appointments: 120,
-      assessments: 200,
-      seats: 2,
-      setAppointments: jest.fn(),
-      setAssessments: jest.fn(),
-      setSeats: jest.fn(),
-    }
+  test("opens notify modal and validates inputs", () => {
+    render(<PricingPage />);
 
-    const expectedPrice = getPlanConfig(planConfig).custom.calculatePrice()
+    fireEvent.click(screen.getByText("Notify me"));
+    expect(screen.getByText("Get notified")).toBeInTheDocument();
 
-    const estimatedBilling = screen.getByText('Price Cap').parentElement!
-    const priceHeading = within(estimatedBilling).getByRole('heading', { level: 2 })
-    expect(priceHeading).toHaveTextContent(`$${expectedPrice}`)
-  })
+    fireEvent.click(screen.getByText("Send"));
+    expect(screen.getByTestId("First name-error")).toHaveTextContent("required");
+    expect(screen.getByTestId("Last name-error")).toHaveTextContent("required");
+    expect(screen.getByTestId("Enter email-error")).toHaveTextContent("required");
 
-  test('calculator slider updates the price', async () => {
-    const customPlanToggle = screen.getByRole('radio', { name: /pay-as-you-go/i })
-    await user.click(customPlanToggle)
+    fireEvent.change(screen.getByLabelText("First name"), {
+      target: { value: "Ada" },
+    });
+    fireEvent.change(screen.getByLabelText("Last name"), {
+      target: { value: "Lovelace" },
+    });
+    fireEvent.change(screen.getByLabelText("Enter email"), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.click(screen.getByText("Send"));
 
-    const sliders = screen.getAllByRole('slider')
-    fireEvent.change(sliders[0], { target: { value: 500 } })
-
-    const planConfig = {
-      appointments: 500,
-      assessments: 200,
-      seats: 2,
-      setAppointments: jest.fn(),
-      setAssessments: jest.fn(),
-      setSeats: jest.fn(),
-    }
-
-    const newPrice = getPlanConfig(planConfig).custom.calculatePrice()
-
-    const estimatedBilling = screen.getByText('Price Cap').parentElement!
-    const priceHeading = within(estimatedBilling).getByRole('heading', { level: 2 })
-    expect(priceHeading).toHaveTextContent(`$${newPrice}`)
-  })
-
-  test('"Get Started" link updates with plan selection', async () => {
-    const calculatorHeading = screen.getByRole('heading', { name: /pricing calculator/i })
-    // FIX: Add `as HTMLElement` to cast the result of .closest()
-    const calculatorSection = calculatorHeading.closest('.PricingCalculatorDiv') as HTMLElement
-    const getStartedLink = within(calculatorSection).getByRole('link', { name: /get started/i })
-
-    expect(getStartedLink).toHaveAttribute('href', '/developerslanding')
-
-    const customPlanToggle = screen.getByRole('radio', { name: /pay-as-you-go/i })
-    await user.click(customPlanToggle)
-
-    expect(getStartedLink).toHaveAttribute('href', '/signup')
-  })
-
-  test('clicking plan card updates the calculator', async () => {
-    const payAsYouGoCardHeading = screen.getByRole('heading', { name: 'Pay-as-you-go', level: 4 })
-    // FIX: Add `as HTMLElement` to cast the result of .closest()
-    const payAsYouGoCard = payAsYouGoCardHeading.closest('.PricingcardItem') as HTMLElement
-    const getStartedButton = within(payAsYouGoCard).getByRole('link', { name: /get started/i })
-
-    await user.click(getStartedButton)
-
-    const customPlanToggle = screen.getByRole('radio', { name: /pay-as-you-go/i })
-    expect(customPlanToggle).toBeChecked()
-  })
-})
-
-describe('NeedHelp Component', () => {
-  test('renders correctly and has a valid link', () => {
-    render(<PricingPage />)
-    expect(screen.getByRole('heading', { name: /need help\? we’re all ears!/i })).toBeInTheDocument()
-
-    const getInTouchLink = screen.getByRole('link', { name: /contact support/i })
-    expect(getInTouchLink).toHaveAttribute('href', '/contact')
-  })
-})
+    expect(screen.queryByTestId("First name-error")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("Enter email-error")).not.toBeInTheDocument();
+  });
+});

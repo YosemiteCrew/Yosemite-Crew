@@ -53,7 +53,7 @@
 }
 .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 400;
   font-family: var(--satoshi-font);
   line-height: 120%;
@@ -133,7 +133,7 @@
     gap: 16px;
   }
   .landingSection .LandingData .LeftLanding {
-    padding: 0px 20px;
+    padding: 0px 0px;
     width: 100%;
   }
   .landingSection .LandingData .LeftLanding .landingTexed {

@@ -1,7 +1,9 @@
 import {Images} from '@/assets/images';
 import type {ImageSourcePropType} from 'react-native';
 
-export const resolveImageSource = (source?: ImageSourcePropType | number): ImageSourcePropType => {
+import {normalizeImageUri} from './imageUri';
+
+export const resolveImageSource = (source?: ImageSourcePropType | number | string): ImageSourcePropType => {
   if (typeof source === 'number') {
     return source;
   }
@@ -11,7 +13,27 @@ export const resolveImageSource = (source?: ImageSourcePropType | number): Image
   }
 
   if (typeof source === 'string') {
-    return {uri: source};
+    const uri = normalizeImageUri(source);
+    if (!uri) {
+      return Images.hospitalIcon;
+    }
+
+    // For Google Places URLs, use a simple proxy approach
+    // React Native Image can't load authenticated URLs directly
+    // The backend should have a /proxy/image endpoint that handles this
+    try {
+      const url = new URL(uri);
+      if (url.hostname === 'places.googleapis.com') {
+        console.log('[resolveImageSource] Using proxy for Google Places image');
+        // If you have a backend proxy, construct it here
+        // return {uri: `/api/proxy/image?url=${encodeURIComponent(uri)}`};
+        // For now, just return the URI as-is (fallback to onError handler)
+      }
+    } catch {
+      // Invalid URL, continue with default handling
+    }
+
+    return {uri};
   }
 
   if (Array.isArray(source) && source.length > 0) {

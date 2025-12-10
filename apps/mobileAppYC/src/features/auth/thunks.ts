@@ -1,8 +1,17 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 
 import {AppDispatch, type RootState} from '@/app/store';
+import {resetCompanionState} from '@/features/companion';
+import {resetExpensesState} from '@/features/expenses';
+import {resetDocumentState} from '@/features/documents/documentSlice';
+import {resetTasksState} from '@/features/tasks';
+import {resetAppointmentsState} from '@/features/appointments/appointmentsSlice';
+import {resetBusinessesState} from '@/features/appointments/businessesSlice';
+import {resetLinkedBusinesses} from '@/features/linkedBusinesses';
+import {resetCoParentState} from '@/features/coParent';
+import {resetNotificationState} from '@/features/notifications';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
-import {getAuth} from '@react-native-firebase/auth';
+import {getAuth, signOut} from '@react-native-firebase/auth';
 
 import {
   mergeUser,
@@ -89,9 +98,10 @@ const applyRecoverOutcome = async (
 
 export const initializeAuth = createAsyncThunk<
   void,
-  void,
+  {force?: boolean} | undefined,
   {state: RootState; dispatch: AppDispatch}
->('auth/initialize', async (_, {dispatch, getState}) => {
+>('auth/initialize', async (payload, {dispatch, getState}) => {
+  const force = (payload as {force?: boolean} | undefined)?.force ?? false;
   const state = getState().auth;
 
   console.log('[Auth] initializeAuth called with state:', {
@@ -101,7 +111,7 @@ export const initializeAuth = createAsyncThunk<
   });
 
   // Don't re-initialize if already initialized or currently initializing
-  if (state.initialized || state.status === 'initializing') {
+  if (!force && (state.initialized || state.status === 'initializing')) {
     console.log('[Auth] Already initialized or initializing, skipping');
     ensureAppStateListener(dispatch);
     return;
@@ -220,13 +230,22 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
       console.warn('[Auth] Amplify sign out failed:', error);
     }
 
-    try {
-      const fb = getAuth();
-      if (currentProvider === 'firebase' || fb.currentUser) {
-        await fb.signOut();
+    if (currentProvider === 'firebase') {
+      try {
+        const auth = getAuth();
+        if (auth.currentUser) {
+          await signOut(auth);
+        } else {
+          console.warn('[Auth] Firebase sign out skipped: no current user');
+        }
+      } catch (error) {
+        const code = (error as any)?.code;
+        if (code === 'auth/no-current-user') {
+          console.warn('[Auth] Firebase sign out skipped: no current user');
+        } else {
+          console.warn('[Auth] Firebase sign out failed:', error);
+        }
       }
-    } catch (error) {
-      console.warn('[Auth] Firebase sign out failed:', error);
     }
 
     await clearSessionData({clearPendingProfile: true});
@@ -237,6 +256,15 @@ export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: 
     dispatch(setUnauthenticated());
     dispatch(setSessionExpiry(null));
     dispatch(setLastRefresh(null));
+    dispatch(resetCompanionState());
+    dispatch(resetExpensesState());
+    dispatch(resetAppointmentsState());
+    dispatch(resetTasksState());
+    dispatch(resetDocumentState());
+    dispatch(resetBusinessesState());
+    dispatch(resetLinkedBusinesses());
+    dispatch(resetCoParentState());
+    dispatch(resetNotificationState());
   },
 );
 

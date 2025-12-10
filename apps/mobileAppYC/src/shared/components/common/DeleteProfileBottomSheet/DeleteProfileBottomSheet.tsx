@@ -78,7 +78,6 @@ export const DeleteProfileBottomSheet = forwardRef<
       }}
       containerStyle={styles.container}
       buttonContainerStyle={styles.actionsRow}
-      titleStyle={styles.title}
       messageStyle={styles.subtitle}
     />
   );

@@ -14,9 +14,12 @@ server/dist
 public/dist
 .vscode
 
+apps/dev-docs/.docusaurus
+
 # auth keys file for firebase and oAuth config
 apps/mobileAppYC/ios/mobileAppYC/Info.plist
 apps/mobileAppYC/android/app/src/main/res/values/strings.xml
+apps/mobileAppYC/android/gradle.properties
 
 # Google-Services File
 #
@@ -87,6 +90,23 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Log files - any extension or path
+*.log
+logs/
+log/
+**/logs/
+**/log/
+*.log.*
+debug.log
+error.log
+warn.log
+info.log
+trace.log
+lerna-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
@@ -123,3 +143,8 @@ yarn-error.log
 
 
 apps/mobileAppYC/amplify_outputs.json
+apps/mobileAppYC/prodamplify_outputs.json
+apps/mobileAppYC/devamplify_outputs.json
+
+
+apps/backend/serviceAccount.json

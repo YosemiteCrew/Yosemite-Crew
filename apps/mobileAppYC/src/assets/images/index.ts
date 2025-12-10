@@ -7,6 +7,8 @@ export const Images = {
   catLaptop: require('./auth/cat-laptop.png'),
 
   // Icons
+  offlineImage: require('./icons/offlineImage.png'),
+  yosemiteLogo: require('./icons/yosemiteLogo.png'),
   backIcon: require('./icons/back.png'),
   emailIcon: require('./icons/emailIcon.png'),
   facebookIcon: require('./icons/facebookIcon.png'),
@@ -15,6 +17,7 @@ export const Images = {
   googleTab: require('./icons/googleTab.png'),
   appleTab: require('./icons/appleTab.png'),
   facebookTab: require('./icons/facebookTab.png'),
+  getDirection: require('./icons/getDirection.png'),
   cameraIcon: require('./icons/camera.png'),
   dropdownIcon: require('./icons/dropdown.png'),
   calendarIcon: require('./icons/calendar.png'),
@@ -34,6 +37,7 @@ export const Images = {
   viewIconSlide: require('./icons/viewIconSlide.png'),
   closeIcon: require('./icons/crossIcon.png'),
 downloadInvoice: require('./icons/downloadInvoice.png'),
+ phone: require('./icons/phone.png'),
   // Account
   logoutIcon: require('./account/logoutIcon.png'),
   blackEdit: require('./account/blackEdit.png'),
@@ -78,12 +82,13 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   nutritionIcon: require('./documents/nutritionIcon.png'),
   othersIcon: require('./documents/othersIcon.png'),
   shareIcon: require('./icons/shareIcon.png'),
+  downloadIcon: require('./icons/downloadInvoice.png'),
   uploadIcon: require('./icons/uploadIcon.png'),
   cameraWhite: require('./icons/cameraWhiteIcon.png'),
   galleryIcon: require('./icons/galleryIcon.png'),
   driveIcon: require('./icons/driveIcon.png'),
   currencyIcon: require('./icons/currencyIcon.png'),
-
+  tickGreen: require('./icons/tickGreen.png'),
   emptyExpenseIllustration: require('./expense/emptyExpenseIllustration.png'),
 
   leftArrowIcon: require('./tasks/leftArrow.png'), // Placeholder - use left arrow from Figma
@@ -104,12 +109,8 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   sampleHospital1: require('./appointment/sampleHospital1.png'),
   sampleHospital2: require('./appointment/sampleHospital2.png'),
   sampleHospital3: require('./appointment/sampleHospital3.png'),
-  sampleHospital4: require('./appointment/sampleHospital4.png'),
-  sampleHospital5: require('./appointment/sampleHospital5.png'),
-  doc1: require('./appointment/doc1.png'),
-  doc2: require('./appointment/doc2.png'),
-  doc3: require('./appointment/doc3.png'),
-  sampleInvoice: require('./appointment/sampleInvoice.png'),
+  starOutline: require('./appointment/starOutline.png'),
+  starSolid: require('./appointment/starSolid.png'),
 
   navigation: {
     home: {
@@ -182,6 +183,30 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   equineNostrilModerate: require('./observationalTools/equine-nostril-moderate.png'),
   equineNostrilObvious: require('./observationalTools/equine-nostril-obvious.png'),
 
+
+  //co-parent
+  coparentEmpty: require('./coParent/emptyParent.png'),
+   heroImage: require('./coParent/heroImage.png'),
+   bgCoParent: require('./coParent/bgCoParent.png'),
+  
+
+   //emergency
+adverse1: require('./emergency/adverse1.png'),
+adverse2: require('./emergency/adverse2.png'),
+adverse3: require('./emergency/adverse3.png'),
+catEmergency: require('./emergency/catEmergency.png'),
+medicalCap: require('./emergency/medicalCap.png'),
+pill: require('./emergency/pill.png'),
+
+
+//notification
+bellIcon: require('./icons/notificationIcon.png'),
+chatIcon: require('./icons/chatIcon.png'),
+alertIcon: require('./icons/alertIcon.png'),
+calendarIconNotification: require('./icons/calendar.png'),
+syringeIcon: require('./icons/syringeIcon.png'),
+
+emptyNotifications: require('./notification/emptyNotifications.png'),
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 } as const;

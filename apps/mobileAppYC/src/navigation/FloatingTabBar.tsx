@@ -33,6 +33,7 @@ const ROOT_ROUTE_MAP: Record<string, string> = {
   Appointments: 'MyAppointments',
   Documents: 'DocumentsMain',
   Tasks: 'TasksMain',
+  AdverseEvent: 'Landing',
 };
 
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
@@ -93,7 +94,12 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
         });
 
         if (!isFocused && !event.defaultPrevented) {
-          navigation.navigate(route.name);
+          const rootScreen = ROOT_ROUTE_MAP[route.name];
+          if (rootScreen) {
+            navigation.navigate(route.name, {screen: rootScreen});
+          } else {
+            navigation.navigate(route.name);
+          }
         }
       };
 
@@ -163,6 +169,7 @@ const createStyles = (theme: any) =>
       left: 24,
       right: 24,
       bottom: 16,
+      zIndex: 10,
     },
     bar: {
       flexDirection: 'row',

@@ -1,147 +1,170 @@
 import React from 'react';
-import {render, fireEvent} from '@testing-library/react-native';
-import {GenderBottomSheet} from '@/shared/components/common/GenderBottomSheet/GenderBottomSheet';
+import {render, act} from '@testing-library/react-native';
+// Import View to be used in the mock factory
+import GenderBottomSheet, {
+  type GenderBottomSheetRef,
+} from '@/shared/components/common/GenderBottomSheet/GenderBottomSheet';
+// Use aliased path for type import for consistency
+import type {
+  SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import type {CompanionGender} from '@/features/companion/types';
 
-jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
-  const ReactModule = require('react');
-  return {
-    __esModule: true,
-    default: ReactModule.forwardRef(({children, title}: any, ref: any) => {
-      const {View, Text} = require('react-native');
-      ReactModule.useImperativeHandle(ref, () => ({
-        open: jest.fn(),
-        close: jest.fn(),
-      }));
-      return ReactModule.createElement(
-        View,
-        {testID: 'bottom-sheet'},
-        ReactModule.createElement(Text, {testID: 'sheet-title'}, title),
-        children
-      );
-    }),
-  };
-});
+// --- Mocks ---
 
-jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => {
-  const ReactModule = require('react');
-  return {
-    __esModule: true,
-    default: ({title, onPress}: any) => {
-      const {TouchableOpacity, Text} = require('react-native');
-      return ReactModule.createElement(
-        TouchableOpacity,
-        {onPress, testID: `button-${title}`},
-        ReactModule.createElement(Text, null, title)
-      );
-    },
-  };
-});
+const mockSheetOpen = jest.fn();
+const mockSheetClose = jest.fn();
+const mockChildSheet = jest.fn();
+let mockChildOnSave: (item: SelectItem | null) => void;
 
-jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: '#007AFF',
-        secondary: '#333',
-        background: '#FFF',
-        cardBackground: '#FFF',
-        border: '#E0E0E0',
-        textSecondary: '#666',
-        text: '#000',
-      },
-      spacing: {2: 8, 3: 12, 4: 16, 6: 24, 8: 32},
-      typography: {
-        bodyMedium: {fontSize: 14},
-        titleMedium: {fontSize: 16},
-        h3: {fontSize: 26, lineHeight: 31.2, fontWeight: '500'},
-      },
-      borderRadius: {md: 8, full: 9999},
-    },
-  }),
-}));
+// Mock the child component
+jest.mock(
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  () => {
+    const ReactActual = jest.requireActual('react');
+    // This require() will work because of the global jest.setup.js
+    const {View: RNView} = jest.requireActual('react-native');
 
-jest.mock('@/assets/images', () => ({
-  Images: {checkIcon: 1},
-}));
+    // This component is a NAMED export, not default.
+    return {
+      __esModule: true, // Mark as ES Module
+      GenericSelectBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
+        ReactActual.useImperativeHandle(ref, () => ({
+          open: mockSheetOpen,
+          close: mockSheetClose,
+        }));
+        // Store the onSave callback to be triggered by tests
+        mockChildOnSave = props.onSave;
+        // Spy on all props passed to the child
+        mockChildSheet(props);
+        return <RNView testID="mock-generic-select" />;
+      }),
+    };
+  },
+);
+
+// --- Tests ---
 
 describe('GenderBottomSheet', () => {
   const mockOnSave = jest.fn();
-  const mockRef = React.createRef<any>();
+  const genderItems: SelectItem[] = [
+    {id: 'male', label: 'Male'},
+    {id: 'female', label: 'Female'},
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders without crashing', () => {
-    const {getByTestId} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
+  it('renders and passes correct static props to GenericSelectBottomSheet', () => {
+    render(<GenderBottomSheet onSave={mockOnSave} />);
+
+    expect(mockChildSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Select Gender',
+        items: genderItems,
+        selectedItem: null,
+        hasSearch: false,
+        emptyMessage: 'No gender options available',
+        mode: 'select',
+        snapPoints: ['30%', '35%'],
+        maxListHeight: 300,
+      }),
     );
-    expect(getByTestId('bottom-sheet')).toBeTruthy();
   });
 
-  it('renders title', () => {
-    const {getByTestId} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
-    );
-    expect(getByTestId('sheet-title')).toBeTruthy();
+  it('forwards open and close refs', () => {
+    const ref = React.createRef<GenderBottomSheetRef>();
+    render(<GenderBottomSheet onSave={mockOnSave} ref={ref} />);
+
+    act(() => {
+      ref.current?.open();
+    });
+    expect(mockSheetOpen).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      ref.current?.close();
+    });
+    expect(mockSheetClose).toHaveBeenCalledTimes(1);
   });
 
-  it('renders gender options', () => {
-    const {getByText} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
-    );
-    expect(getByText('Male')).toBeTruthy();
-    expect(getByText('Female')).toBeTruthy();
-  });
+  it('calls onSave with the gender ID when an item is selected', () => {
+    render(<GenderBottomSheet onSave={mockOnSave} />);
 
-  it('calls onSave with male when Male selected', () => {
-    const {getByText} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
-    );
-    fireEvent.press(getByText('Male'));
+    act(() => {
+      mockChildOnSave(genderItems[0]); // Simulate selecting 'Male'
+    });
+
     expect(mockOnSave).toHaveBeenCalledWith('male');
+    expect(mockOnSave).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onSave with female when Female selected', () => {
-    const {getByText} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
+  it('does not call onSave when selection is null', () => {
+    render(<GenderBottomSheet onSave={mockOnSave} />);
+
+    act(() => {
+      mockChildOnSave(null); // Simulate pressing save with no selection
+    });
+
+    expect(mockOnSave).not.toHaveBeenCalled();
+  });
+
+  it('correctly calculates selectedItem using "selected" prop', () => {
+    render(<GenderBottomSheet onSave={mockOnSave} selected="male" />);
+
+    expect(mockChildSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: genderItems[0], // Male
+      }),
     );
-    fireEvent.press(getByText('Female'));
-    expect(mockOnSave).toHaveBeenCalledWith('female');
   });
 
-  it('shows selected state for male', () => {
-    const {getByText} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender="male" onSave={mockOnSave} />
+  it('correctly calculates selectedItem using "selectedGender" prop', () => {
+    render(<GenderBottomSheet onSave={mockOnSave} selectedGender="female" />);
+
+    expect(mockChildSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: genderItems[1], // Female
+      }),
     );
-    expect(getByText('Male')).toBeTruthy();
   });
 
-  it('shows selected state for female', () => {
-    const {getByText} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender="female" onSave={mockOnSave} />
-    );
-    expect(getByText('Female')).toBeTruthy();
-  });
-
-  it('exposes open method via ref', () => {
+  it('prioritizes "selected" prop over "selectedGender" prop', () => {
     render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
+      <GenderBottomSheet
+        onSave={mockOnSave}
+        selected="male"
+        selectedGender="female"
+      />,
     );
-    expect(mockRef.current?.open).toBeDefined();
+
+    expect(mockChildSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: genderItems[0], // Male
+      }),
+    );
   });
 
-  it('exposes close method via ref', () => {
+  it('passes null as selectedItem when no selection is provided', () => {
+    render(<GenderBottomSheet onSave={mockOnSave} />);
+    expect(mockChildSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: null,
+      }),
+    );
+  });
+
+  it('passes null as selectedItem when selection is invalid', () => {
     render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
+      <GenderBottomSheet
+        onSave={mockOnSave}
+        selected={'unknown' as CompanionGender}
+      />,
     );
-    expect(mockRef.current?.close).toBeDefined();
-  });
-
-  it('matches snapshot', () => {
-    const {toJSON} = render(
-      <GenderBottomSheet ref={mockRef} selectedGender={null} onSave={mockOnSave} />
+    expect(mockChildSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: null,
+      }),
     );
-    expect(toJSON()).toMatchSnapshot();
   });
 });

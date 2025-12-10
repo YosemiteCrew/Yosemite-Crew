@@ -36,12 +36,23 @@ import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
 import COUNTRIES from '@/shared/utils/countryList.json';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {useAuth, type User} from '@/features/auth/context/AuthContext';
+import {
+  createParentProfile,
+  updateParentProfile,
+  type ParentProfileUpsertPayload,
+} from '@/features/account/services/profileService';
+import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
-import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
+import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import LocationService from '@/shared/services/LocationService';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {preparePhotoPayload, isRemoteUri} from '@/features/account/utils/profilePhoto';
+import {
+  requestParentProfileUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/shared/services/uploadService';
 
 // Removed direct provider-specific signout; use global logout from AuthContext
 
@@ -86,17 +97,19 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     profileToken,
     tokens,
     initialAttributes,
+    hasRemoteProfile,
+    existingParentProfile,
     showOtpSuccess = false,
   } = route.params;
 
-  const maybeParsedDate = initialAttributes?.dateOfBirth
-    ? new Date(initialAttributes.dateOfBirth)
-    : null;
+  const fallbackBirthDate = initialAttributes?.dateOfBirth ?? existingParentProfile?.birthDate ?? null;
+  const maybeParsedDate = fallbackBirthDate ? new Date(fallbackBirthDate) : null;
   const parsedDateOfBirth =
     maybeParsedDate && !Number.isNaN(maybeParsedDate.getTime())
       ? maybeParsedDate
       : null;
-  const rawPhone = initialAttributes?.phone?.replaceAll(/[^0-9+]/g, '') ?? '';
+  const rawPhoneSource = (initialAttributes?.phone ?? existingParentProfile?.phoneNumber ?? '').trim();
+  const rawPhone = rawPhoneSource.replaceAll(/[^0-9+]/g, '');
   const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
   const defaultCountry =
     COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
@@ -135,24 +148,38 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [isOtpSuccessVisible, setIsOtpSuccessVisible] =
     useState(showOtpSuccess);
 
+  const defaultFirstName = initialAttributes?.firstName ?? existingParentProfile?.firstName ?? '';
+  const defaultLastName = initialAttributes?.lastName ?? existingParentProfile?.lastName ?? '';
+  const defaultProfileImage =
+    initialAttributes?.profilePicture ?? existingParentProfile?.profileImageUrl ?? null;
+
+  const defaultAddressValues = {
+    address: initialAttributes?.address?.addressLine ?? existingParentProfile?.address?.addressLine ?? '',
+    stateProvince:
+      initialAttributes?.address?.stateProvince ?? existingParentProfile?.address?.state ?? '',
+    city: initialAttributes?.address?.city ?? existingParentProfile?.address?.city ?? '',
+    postalCode:
+      initialAttributes?.address?.postalCode ?? existingParentProfile?.address?.postalCode ?? '',
+    country: initialAttributes?.address?.country ?? existingParentProfile?.address?.country ?? '',
+  };
+
   const [step1Data, setStep1Data] = useState({
-    firstName: initialAttributes?.firstName ?? '',
-    lastName: initialAttributes?.lastName ?? '',
+    firstName: defaultFirstName,
+    lastName: defaultLastName,
     mobileNumber: localPhoneNumber,
     dateOfBirth: parsedDateOfBirth,
-    profileImage: initialAttributes?.profilePicture ?? null,
+    profileImage: defaultProfileImage,
   });
 
   const [step2Data, setStep2Data] = useState({
-    address: '',
-    stateProvince: '',
-    city: '',
-    postalCode: '',
-    country: '',
+    address: defaultAddressValues.address,
+    stateProvince: defaultAddressValues.stateProvince,
+    city: defaultAddressValues.city,
+    postalCode: defaultAddressValues.postalCode,
+    country: defaultAddressValues.country,
     acceptTerms: false,
   });
 
@@ -180,17 +207,17 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     clearErrors,
   } = useForm<FormData>({
     defaultValues: {
-      firstName: initialAttributes?.firstName ?? '',
-      lastName: initialAttributes?.lastName ?? '',
+      firstName: defaultFirstName,
+      lastName: defaultLastName,
       countryDialCode: resolvedCountry.dial_code,
       mobileNumber: localPhoneNumber,
       dateOfBirth: parsedDateOfBirth,
-      profileImage: initialAttributes?.profilePicture ?? null,
-      address: '',
-      stateProvince: '',
-      city: '',
-      postalCode: '',
-      country: '',
+      profileImage: defaultProfileImage,
+      address: defaultAddressValues.address,
+      stateProvince: defaultAddressValues.stateProvince,
+      city: defaultAddressValues.city,
+      postalCode: defaultAddressValues.postalCode,
+      country: defaultAddressValues.country,
       acceptTerms: false,
     },
     mode: 'onChange',
@@ -198,38 +225,54 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
   useEffect(() => {
     register('address', {
-      required: 'Address is required',
-      minLength: {
-        value: 5,
-        message: 'Address must be at least 5 characters',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        if (value.length < 5) {
+          return 'Address must be at least 5 characters';
+        }
+        return true;
       },
     });
     register('stateProvince', {
-      required: 'State/Province is required',
-      pattern: {
-        value: /^[A-Za-z\s]+$/,
-        message: 'State/Province can only contain letters and spaces',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z\s]+$/.test(value)
+          ? true
+          : 'State/Province can only contain letters and spaces';
       },
     });
     register('city', {
-      required: 'City is required',
-      pattern: {
-        value: /^[A-Za-z\s]+$/,
-        message: 'City can only contain letters and spaces',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z\s]+$/.test(value)
+          ? true
+          : 'City can only contain letters and spaces';
       },
     });
     register('postalCode', {
-      required: 'Postal code is required',
-      pattern: {
-        value: /^[A-Za-z0-9\s-]{4,10}$/,
-        message: 'Please enter a valid postal code',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z0-9\s-]{4,10}$/.test(value)
+          ? true
+          : 'Please enter a valid postal code';
       },
     });
     register('country', {
-      required: 'Country is required',
-      pattern: {
-        value: /^[A-Za-z\s]+$/,
-        message: 'Country can only contain letters and spaces',
+      validate: value => {
+        if (!value) {
+          return true;
+        }
+        return /^[A-Za-z\s]+$/.test(value)
+          ? true
+          : 'Country can only contain letters and spaces';
       },
     });
   }, [register]);
@@ -267,8 +310,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     let isMounted = true;
 
     const fetchLocation = async () => {
-      setIsRequestingLocation(true);
-
       try {
         const coords = await LocationService.getLocationWithRetry();
         if (coords && isMounted) {
@@ -276,10 +317,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         }
       } catch (error) {
         console.warn('Unable to fetch location', error);
-      } finally {
-        if (isMounted) {
-          setIsRequestingLocation(false);
-        }
       }
     };
 
@@ -366,6 +403,14 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   const handleDatePickerDismiss = useCallback(() => {
     setShowDatePicker(false);
   }, []);
+
+  const handleOpenTerms = useCallback(() => {
+    navigation.navigate('TermsAndConditions');
+  }, [navigation]);
+
+  const handleOpenPrivacy = useCallback(() => {
+    navigation.navigate('PrivacyPolicy');
+  }, [navigation]);
 
   const getMaximumDate = useCallback(() => {
     const today = new Date();
@@ -490,25 +535,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     ] as const;
     const isValid = await trigger(fieldsToValidate);
 
-    if (!step1Data.dateOfBirth) {
-      setError('dateOfBirth', {
-        type: 'manual',
-        message: 'Date of birth is required',
-      });
-      return;
-    }
-
-    const birthDate = new Date(step1Data.dateOfBirth);
-    const maxDate = getMaximumDate();
-
-    if (birthDate > maxDate) {
-      setError('dateOfBirth', {
-        type: 'manual',
-        message: 'You must be at least 18 years old',
-      });
-      return;
-    }
-
     if (isValid) {
       clearErrors('dateOfBirth');
       setCurrentStep(2);
@@ -573,65 +599,25 @@ const handleGoBack = useCallback(async () => {
     return () => sub.remove();
   }, [handleGoBack]);
 
-  const createAccountEndpoint = PASSWORDLESS_AUTH_CONFIG.createAccountUrl;
-
-  const submitCreateAccount = useCallback(
-    async (payload: Record<string, unknown>) => {
-      if (!createAccountEndpoint) {
-        // In sandbox mode, skip API call and simulate success
-        console.log('[CreateAccount] Sandbox mode: Skipping API call for create account');
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        return {success: true};
+  const submitParentProfile = useCallback(
+    async (payload: ParentProfileUpsertPayload) => {
+      if (!tokens.accessToken) {
+        throw new Error('Authentication expired. Please sign in again.');
       }
 
-      const getLocationStatus = () => {
-        if (location) {
-          return 'collected';
-        }
-        if (isRequestingLocation) {
-          return 'pending';
-        }
-        return 'unavailable';
-      };
+      const parentId = existingParentProfile?.id ?? payload.parentId ?? undefined;
+      const hasExistingParent = hasRemoteProfile || Boolean(existingParentProfile);
+      const executor = hasExistingParent ? updateParentProfile : createParentProfile;
 
-      const outgoingPayload = {
-        ...payload,
-        location: location
-          ? {
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }
-          : null,
-        locationStatus: getLocationStatus(),
-      };
-
-      const response = await fetch(createAccountEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${tokens.accessToken}`,
-          'x-profile-token': profileToken,
+      return executor(
+        {
+          ...payload,
+          parentId,
         },
-        body: JSON.stringify(outgoingPayload),
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(
-          message ||
-            'We could not create your account right now. Please try again.',
-        );
-      }
-
-      return response.json().catch(() => ({success: true}));
+        tokens.accessToken,
+      );
     },
-    [
-      createAccountEndpoint,
-      isRequestingLocation,
-      location,
-      profileToken,
-      tokens.accessToken,
-    ],
+    [existingParentProfile, hasRemoteProfile, tokens.accessToken],
   );
 
   const handleSignUp = handleSubmit(async () => {
@@ -653,55 +639,102 @@ const handleGoBack = useCallback(async () => {
       return;
     }
 
-    if (!combinedData.dateOfBirth) {
-      setError('dateOfBirth', {
-        type: 'manual',
-        message: 'Date of birth is required',
-      });
-      return;
-    }
-
     try {
       setIsSubmitting(true);
-      await submitCreateAccount({
+
+      const birthDateIso = combinedData.dateOfBirth?.toISOString().split('T')[0] ?? null;
+      const hasAddressDetails = [
+        combinedData.address,
+        combinedData.stateProvince,
+        combinedData.city,
+        combinedData.postalCode,
+        combinedData.country,
+      ].some(value => Boolean(value?.trim()));
+
+      let profileImageKey: string | null = null;
+      let existingPhotoUrl = combinedData.profileImage ?? profileToken ?? existingParentProfile?.profileImageUrl ?? null;
+
+      if (combinedData.profileImage && !isRemoteUri(combinedData.profileImage)) {
+        const photoPayload = await preparePhotoPayload({
+          imageUri: combinedData.profileImage,
+          existingRemoteUrl: profileToken ?? existingParentProfile?.profileImageUrl ?? null,
+        });
+
+        existingPhotoUrl = photoPayload.remoteUrl ?? null;
+
+        if (photoPayload.localFile) {
+          if (!tokens.accessToken) {
+            throw new Error('Authentication expired. Please sign in again.');
+          }
+
+          const presigned = await requestParentProfileUploadUrl({
+            accessToken: tokens.accessToken,
+            mimeType: photoPayload.localFile.mimeType,
+          });
+
+          await uploadFileToPresignedUrl({
+            filePath: photoPayload.localFile.path,
+            mimeType: photoPayload.localFile.mimeType,
+            url: presigned.url,
+          });
+
+          profileImageKey = presigned.key;
+          existingPhotoUrl = null;
+        }
+      }
+
+      const addressPayload = hasAddressDetails
+        ? {
+            addressLine: combinedData.address?.trim(),
+            stateProvince: combinedData.stateProvince?.trim(),
+            city: combinedData.city?.trim(),
+            postalCode: combinedData.postalCode?.trim(),
+            country: combinedData.country?.trim(),
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          }
+        : undefined;
+
+      const parentPayload: ParentProfileUpsertPayload = {
+        parentId: existingParentProfile?.id ?? null,
+        firstName: combinedData.firstName.trim(),
+        lastName: combinedData.lastName?.trim(),
+        phoneNumber: combinedData.fullMobileNumber,
         email,
-        userId,
-        profileToken,
-        firstName: combinedData.firstName,
-        lastName: combinedData.lastName,
-        phone: combinedData.fullMobileNumber,
-        dateOfBirth: combinedData.dateOfBirth?.toISOString(),
-        address: {
-          addressLine: combinedData.address,
-          stateProvince: combinedData.stateProvince,
-          city: combinedData.city,
-          postalCode: combinedData.postalCode,
-          country: combinedData.country,
-        },
-      });
+        dateOfBirth: birthDateIso,
+        address: addressPayload,
+        profileImageKey,
+        existingPhotoUrl,
+      };
+
+      const parentSummary = await submitParentProfile(parentPayload);
 
       await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
-     const userPayload: User = {
-  id: userId,
-  email,
-  firstName: combinedData.firstName,
-  lastName: combinedData.lastName,
-  phone: combinedData.fullMobileNumber,
-  dateOfBirth: combinedData.dateOfBirth?.toISOString().split('T')[0],
-  profilePicture: combinedData.profileImage ?? undefined,
-  profileToken,
-  currency: combinedData.currency ?? undefined,
-  address: {
-    addressLine: combinedData.address,
-    stateProvince: combinedData.stateProvince,
-    city: combinedData.city,
-    postalCode: combinedData.postalCode,
-    country: combinedData.country,
-  },
-};
-
+      const userPayload: User = mergeUserWithParentProfile(
+        {
+          id: userId,
+          parentId: parentSummary.id ?? existingParentProfile?.id ?? null,
+          email,
+          firstName: combinedData.firstName,
+          lastName: combinedData.lastName,
+          phone: combinedData.fullMobileNumber,
+          dateOfBirth: birthDateIso ?? undefined,
+          profilePicture: combinedData.profileImage ?? undefined,
+          profileToken: parentSummary.profileImageUrl ?? profileToken,
+          address: addressPayload
+            ? {
+                addressLine: addressPayload.addressLine ?? undefined,
+                stateProvince: addressPayload.stateProvince ?? undefined,
+                city: addressPayload.city ?? undefined,
+                postalCode: addressPayload.postalCode ?? undefined,
+                country: addressPayload.country ?? undefined,
+              }
+            : undefined,
+        },
+        parentSummary,
+      );
 
       await login(userPayload, tokens);
     } catch (error) {
@@ -821,16 +854,31 @@ const handleGoBack = useCallback(async () => {
         <Controller
           control={control}
           name="dateOfBirth"
-          rules={{required: 'Date of birth is required'}}
+          rules={{
+            validate: value => {
+              if (!value) {
+                return true;
+              }
+              const birthDate = new Date(value);
+              if (Number.isNaN(birthDate.getTime())) {
+                return 'Please select a valid date';
+              }
+              const maxDate = getMaximumDate();
+              if (birthDate > maxDate) {
+                return 'You must be at least 18 years old';
+              }
+              return true;
+            },
+          }}
           render={() => (
             <TouchableInput
-              label="Date of birth"
+              label="Date of birth (optional)"
               value={
                 step1Data.dateOfBirth
                   ? formatDateForDisplay(step1Data.dateOfBirth)
                   : ''
               }
-              placeholder="Select date of birth"
+              placeholder="Select date of birth (Optional)"
               onPress={handleDatePickerPress}
               error={errors.dateOfBirth?.message}
               rightComponent={
@@ -880,6 +928,13 @@ const handleGoBack = useCallback(async () => {
           error={addressLookupError}
           onSelectSuggestion={handleAddressSuggestionPress}
           fieldErrors={addressFieldErrors}
+          labels={{
+            addressLine: 'Address (optional)',
+            stateProvince: Platform.select({ios: 'State (optional)', default: 'State/Province (optional)'}) ?? 'State/Province (optional)',
+            city: 'City (optional)',
+            postalCode: 'Postal code (optional)',
+            country: 'Country (optional)',
+          }}
         />
 
         <View style={styles.checkboxWrapper}>
@@ -901,11 +956,11 @@ const handleGoBack = useCallback(async () => {
             />
             <View style={styles.termsTextContainer}>
               <Text style={styles.checkboxText}>I agree to the </Text>
-              <TouchableOpacity onPress={() => console.log('Open terms')}>
+              <TouchableOpacity onPress={handleOpenTerms}>
                 <Text style={styles.linkText}>terms and conditions</Text>
               </TouchableOpacity>
               <Text style={styles.checkboxText}> and </Text>
-              <TouchableOpacity onPress={() => console.log('Open privacy')}>
+              <TouchableOpacity onPress={handleOpenPrivacy}>
                 <Text style={styles.linkText}>privacy policy.</Text>
               </TouchableOpacity>
             </View>

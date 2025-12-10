@@ -16,6 +16,7 @@ import CustomBottomSheet, {
   type BottomSheetRef,
 } from '@/shared/components/common/BottomSheet/BottomSheet';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import {useTheme} from '@/hooks';
 
 export interface ConfirmActionBottomSheetRef {
@@ -45,10 +46,15 @@ interface ConfirmActionBottomSheetProps {
   snapPoints?: Array<string | number>;
   initialIndex?: number;
   containerStyle?: StyleProp<ViewStyle>;
-  titleStyle?: StyleProp<TextStyle>;
   messageStyle?: StyleProp<TextStyle>;
   buttonContainerStyle?: StyleProp<ViewStyle>;
   onSheetChange?: (index: number) => void;
+  zIndex?: number;
+  bottomInset?: number;
+  enablePanDown?: boolean;
+  enableHandlePanning?: boolean;
+  showCloseButton?: boolean;
+  backdropPressBehavior?: 'close' | 'none';
 }
 
 export const ConfirmActionBottomSheet = forwardRef<
@@ -66,10 +72,15 @@ export const ConfirmActionBottomSheet = forwardRef<
       snapPoints = ['35%'],
       initialIndex = -1,
       containerStyle,
-      titleStyle,
       messageStyle,
       buttonContainerStyle,
       onSheetChange,
+      zIndex,
+      bottomInset,
+      enablePanDown = true,
+      enableHandlePanning = true,
+      showCloseButton = true,
+      backdropPressBehavior = 'close',
     },
     ref,
   ) => {
@@ -89,6 +100,10 @@ export const ConfirmActionBottomSheet = forwardRef<
         bottomSheetRef.current?.close();
       },
     }));
+
+    const handleClose = () => {
+      bottomSheetRef.current?.close();
+    };
 
     const renderButton = (
       config: ConfirmButtonConfig,
@@ -135,23 +150,30 @@ export const ConfirmActionBottomSheet = forwardRef<
         ref={bottomSheetRef}
         snapPoints={snapPoints}
         initialIndex={initialIndex}
+        zIndex={zIndex ?? 100}
         onChange={index => {
           setIsSheetVisible(index !== -1);
           onSheetChange?.(index);
         }}
-        enablePanDownToClose
+        enablePanDownToClose={enablePanDown}
         enableBackdrop={isSheetVisible}
-        enableHandlePanningGesture
+        enableHandlePanningGesture={enableHandlePanning}
         enableContentPanningGesture={false}
         backdropOpacity={0.5}
         backdropAppearsOnIndex={0}
         backdropDisappearsOnIndex={-1}
-        backdropPressBehavior="close"
+        backdropPressBehavior={backdropPressBehavior}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}
+        bottomInset={bottomInset}
         contentType="view">
         <View style={[styles.container, containerStyle]}>
-          <Text style={[styles.title, titleStyle]}>{title}</Text>
+          <BottomSheetHeader
+            title={title}
+            onClose={handleClose}
+            theme={theme}
+            showCloseButton={showCloseButton}
+          />
           {message ? (
             <Text
               style={[
@@ -198,15 +220,11 @@ const createStyles = (theme: any) =>
     container: {
       gap: theme.spacing['4'],
       paddingHorizontal: theme.spacing['5'],
-      paddingVertical: theme.spacing['6'],
-    },
-    title: {
-      ...theme.typography.h5Clash23,
-      color: theme.colors.secondary,
-      textAlign: 'center',
+      paddingBottom: theme.spacing['12'],
     },
     message: {
-      ...theme.typography.paragraph18Bold,
+      ...theme.typography.titleMedium,
+            paddingBottom: theme.spacing['5'],
       color: theme.colors.secondary,
     },
     buttonRow: {

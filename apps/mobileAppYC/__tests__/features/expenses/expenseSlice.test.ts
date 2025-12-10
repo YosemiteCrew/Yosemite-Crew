@@ -1,5 +1,6 @@
 import expensesReducer, {
   clearExpenseError,
+  resetExpensesState,
   injectMockExpenses,
 } from '@/features/expenses/expenseSlice';
 import {
@@ -56,6 +57,8 @@ const mockExternalExpense: Expense = {
 
 const mockSummary: ExpenseSummary = {
   total: 100,
+  invoiceTotal: 100,
+  externalTotal: 0,
   currencyCode: 'USD',
   lastUpdated: '2023-01-01T00:00:00.000Z',
 };
@@ -88,6 +91,19 @@ describe('expensesSlice', () => {
       expect(nextState.summaries.comp1.total).toBe(150);
       expect(nextState.hydratedCompanions.comp1).toBe(true);
     });
+
+    it('should handle resetExpensesState', () => {
+      const populatedState: ExpensesState = {
+        items: [mockExpense1],
+        loading: true,
+        error: 'Boom',
+        summaries: {comp1: mockSummary},
+        hydratedCompanions: {comp1: true},
+      };
+
+      const nextState = expensesReducer(populatedState, resetExpensesState());
+      expect(nextState).toEqual(initialState);
+    });
   });
 
   describe('extraReducers - fetchExpensesForCompanion', () => {
@@ -109,11 +125,17 @@ describe('expensesSlice', () => {
 
       expect(state.loading).toBe(false);
       expect(state.items).toEqual([mockExpense1, mockExpense2]);
-      expect(state.summaries.comp1).toEqual(payload.summary);
+      expect(state.summaries.comp1).toEqual({
+        total: 150,
+        invoiceTotal: 100,
+        externalTotal: 0,
+        currencyCode: 'USD',
+        lastUpdated: '2023-01-01T00:00:00.000Z',
+      });
       expect(state.hydratedCompanions.comp1).toBe(true);
     });
 
-    it('should merge existing external expenses on fulfilled', () => {
+    it('replaces existing expenses for companion on fulfilled', () => {
       const initialStateWithExternal: ExpensesState = {
         ...initialState,
         items: [mockExternalExpense],
@@ -128,29 +150,6 @@ describe('expensesSlice', () => {
       const state = expensesReducer(initialStateWithExternal, action);
 
       expect(state.loading).toBe(false);
-      expect(state.items).toHaveLength(3);
-      expect(state.items).toContain(mockExpense1);
-      expect(state.items).toContain(mockExpense2);
-      expect(state.items).toContain(mockExternalExpense);
-      expect(state.summaries.comp1.total).toBe(350);
-      expect(state.hydratedCompanions.comp1).toBe(true);
-    });
-
-    it('should not preserve external expense if ID collides', () => {
-      const collidingExternal = {...mockExternalExpense, id: 'exp1'};
-      const initialStateWithExternal: ExpensesState = {
-        ...initialState,
-        items: [collidingExternal],
-      };
-
-      const payload = {
-        companionId: 'comp1',
-        expenses: [mockExpense1, mockExpense2],
-        summary: {...mockSummary, total: 150},
-      };
-      const action = {type: fetchExpensesForCompanion.fulfilled.type, payload};
-      const state = expensesReducer(initialStateWithExternal, action);
-
       expect(state.items).toHaveLength(2);
       expect(state.items).toContain(mockExpense1);
       expect(state.items).toContain(mockExpense2);
@@ -218,10 +217,11 @@ describe('expensesSlice', () => {
     });
 
     it('should update expense and summary on fulfilled', () => {
-      const updates = {amount: 150, title: 'New Title'};
-      const payload = {
-        expenseId: 'exp1',
-        updates: {...updates, updatedAt: '2023-01-02T00:00:00.000Z'},
+      const payload: Expense = {
+        ...mockExpense1,
+        amount: 150,
+        title: 'New Title',
+        updatedAt: '2023-01-02T00:00:00.000Z',
       };
       const action = {type: updateExternalExpense.fulfilled.type, payload};
       const state = expensesReducer(initialStateWithItem, action);

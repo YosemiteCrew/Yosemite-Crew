@@ -288,9 +288,17 @@ export const typography = {
   },
   subtitleBold14: {
     fontFamily: fonts.SATOSHI_BOLD,
+    opacity: 0.6,
     fontSize: 14,
     lineHeight: 14 * 1.2,
     fontWeight: fontWeights.bold,
+  },
+  clashBody13: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: 13,
+    lineHeight: 13 * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.13,
   },
   buttonH6Clash19: {
     fontFamily: fonts.CLASH_GRO_MEDIUM,

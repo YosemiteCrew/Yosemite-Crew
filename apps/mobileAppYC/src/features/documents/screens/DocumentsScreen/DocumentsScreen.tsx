@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo} from 'react';
 import {View, Text, ScrollView, StyleSheet} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -6,7 +6,7 @@ import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import {DocumentCard} from '@/shared/components/common/DocumentCard/DocumentCard';
+import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {CategoryTile} from '@/shared/components/common/CategoryTile/CategoryTile';
 import {EmptyDocumentsScreen} from '../EmptyDocumentsScreen/EmptyDocumentsScreen';
 import {useTheme} from '@/hooks';
@@ -16,6 +16,7 @@ import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
+import {fetchDocuments} from '@/features/documents/documentSlice';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
@@ -24,8 +25,6 @@ export const DocumentsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<DocumentsNavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
-
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Get companions from Redux
   const companions = useSelector((state: RootState) => state.companion.companions);
@@ -71,6 +70,12 @@ export const DocumentsScreen: React.FC = () => {
     }
   }, [companions, selectedCompanionId, dispatch]);
 
+  React.useEffect(() => {
+    if (selectedCompanionId) {
+      dispatch(fetchDocuments({companionId: selectedCompanionId}));
+    }
+  }, [dispatch, selectedCompanionId]);
+
   // Show empty screen if no companions
   if (companions.length === 0) {
     return <EmptyDocumentsScreen />;
@@ -106,39 +111,32 @@ export const DocumentsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}>
         <SearchBar
           placeholder="Search through documents"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          mode="readonly"
+          onPress={() => navigation.navigate('DocumentSearch')}
           containerStyle={styles.searchBar}
         />
 
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
-          onSelect={(id) => dispatch(setSelectedCompanion(id))}
+          onSelect={id => dispatch(setSelectedCompanion(id))}
           showAddButton={false}
           containerStyle={styles.companionSelector}
+          requiredPermission="documents"
+          permissionLabel="documents"
         />
 
         {recentDocuments.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent</Text>
-            {recentDocuments.map(doc => {
-              // Only allow edit/delete for documents added by user from app, not from PMS
-              const canEdit = doc.isUserAdded;
-              return (
-                <DocumentCard
-                  key={doc.id}
-                  title={doc.title}
-                  businessName={doc.businessName}
-                  visitType={doc.visitType}
-                  issueDate={doc.issueDate}
-                  showEditAction={canEdit}
-                  onPressView={() => handleViewDocument(doc.id)}
-                  onPressEdit={canEdit ? () => handleEditDocument(doc.id) : undefined}
-                  onPress={() => handleViewDocument(doc.id)}
-                />
-              );
-            })}
+            {recentDocuments.map(doc => (
+              <DocumentListItem
+                key={doc.id}
+                document={doc}
+                onPressView={handleViewDocument}
+                onPressEdit={handleEditDocument}
+              />
+            ))}
           </View>
         )}
 

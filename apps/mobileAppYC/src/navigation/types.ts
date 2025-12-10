@@ -5,6 +5,7 @@ import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import type {AuthStackParamList} from './AuthNavigator';
 import type {TaskCategory} from '@/features/tasks/types';
 import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
+import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -28,10 +29,59 @@ export type HomeStackParamList = {
   TermsAndConditions: undefined;
   PrivacyPolicy: undefined;
   AddCompanion: undefined;
+  Notifications: undefined;
   ProfileOverview: { companionId: string };
   EditCompanionOverview: { companionId: string };
   EditParentOverview:{ companionId: string };
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
+  LinkedBusinesses: NavigatorScreenParams<LinkedBusinessStackParamList>;
+  AdverseEvent: NavigatorScreenParams<AdverseEventStackParamList>;
+  CoParents: undefined;
+  AddCoParent: undefined;
+  EditCoParent: { coParentId: string };
+  CoParentProfile: { coParentId: string };
+};
+
+export type LinkedBusinessStackParamList = {
+  BusinessSearch: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+  };
+  BusinessAdd: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+    businessId: string;
+    businessName: string;
+    businessAddress: string;
+    phone?: string;
+    email?: string;
+    photo?: any;
+    isPMSRecord: boolean;
+    rating?: number;
+    distance?: number;
+    placeId: string;
+    organisationId?: string;
+  };
+  QRScanner: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+  };
+};
+
+export type CoParentStackParamList = {
+  CoParents: undefined;
+  AddCoParent: undefined;
+  EditCoParent: { coParentId: string };
+  CoParentProfile: { coParentId: string };
 };
 
 export type DocumentStackParamList = {
@@ -40,27 +90,49 @@ export type DocumentStackParamList = {
   EditDocument: { documentId: string };
   DocumentPreview: { documentId: string };
   CategoryDetail: { categoryId: string };
+  DocumentSearch: undefined;
 };
 
 // Appointment stack
 export type AppointmentStackParamList = {
   MyAppointmentsEmpty: undefined;
   MyAppointments: { resetKey?: number } | undefined;
-  BrowseBusinesses: undefined;
+  BrowseBusinesses: { serviceName?: string; autoFocusSearch?: boolean } | undefined;
   BusinessDetails: { businessId: string };
   BookingForm: {
     businessId: string;
+    serviceId?: string;
+    serviceName?: string;
+    serviceSpecialty?: string;
+    serviceSpecialtyId?: string;
     employeeId?: string;
     appointmentType?: string;
     otContext?: ObservationalToolBookingContext;
   };
   ViewAppointment: { appointmentId: string };
-  PaymentInvoice: { appointmentId: string; companionId?: string };
+  PaymentInvoice: {
+    appointmentId: string;
+    companionId?: string;
+    invoice?: import('@/features/appointments/types').Invoice | null;
+    paymentIntent?: import('@/features/appointments/types').PaymentIntentInfo | null;
+  };
   PaymentSuccess: { appointmentId: string; companionId?: string };
   Review: { appointmentId: string };
   Chat: { appointmentId: string };
+  ChatChannel: {
+    appointmentId: string;
+    vetId: string;
+    appointmentTime: string;
+    doctorName: string;
+    petName?: string;
+  };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
-  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' };
+  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
+  OrganisationDocument: {
+    organisationId: string;
+    organisationName?: string | null;
+    category: OrganisationDocumentCategory;
+  };
 };
 
 export type ExpenseStackParamList = {
@@ -79,6 +151,16 @@ export type TaskStackParamList = {
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };
+};
+
+export type AdverseEventStackParamList = {
+  Landing: undefined;
+  Step1: undefined;
+  Step2: undefined;
+  Step3: undefined;
+  Step4: undefined;
+  Step5: undefined;
+  ThankYou: undefined;
 };
 
 // Tab Navigator

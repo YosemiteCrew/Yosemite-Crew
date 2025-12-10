@@ -39,10 +39,8 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   const authState = useAppSelector(selectAuthState);
 
   useEffect(() => {
-    if (!authState.initialized && authState.status !== 'initializing') {
-      dispatch(initializeAuth());
-    }
-  }, [authState.initialized, authState.status, dispatch]);
+    dispatch(initializeAuth({force: true}));
+  }, [dispatch]);
 
   const login = useCallback(
     async (userData: User, tokens: AuthTokens) => {

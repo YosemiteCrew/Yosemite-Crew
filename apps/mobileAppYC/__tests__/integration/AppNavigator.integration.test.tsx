@@ -10,6 +10,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DeviceEventEmitter} from 'react-native';
 import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
 
+// Mock EmergencyBottomSheet to avoid native/complex dependencies during integration test
+jest.mock('@/features/home/components/EmergencyBottomSheet', () => {
+  const ReactModule = require('react');
+  const {View, Text} = require('react-native');
+  const EmergencyBottomSheet = ReactModule.forwardRef((_props: any, ref: any) => {
+    ReactModule.useImperativeHandle(ref, () => ({ open: jest.fn(), close: jest.fn() }));
+    return ReactModule.createElement(
+      View,
+      {testID: 'mock-emergency-bottom-sheet'},
+      ReactModule.createElement(Text, null, 'Emergency'),
+    );
+  });
+  EmergencyBottomSheet.displayName = 'MockEmergencyBottomSheet';
+  return { __esModule: true, EmergencyBottomSheet };
+});
+
 jest.mock('@react-navigation/native-stack', () => {
   require('react');
   return {
@@ -175,6 +191,7 @@ describe('AppNavigator integration', () => {
         isLoggedIn: true,
         user: {
           id: 'user-1',
+          parentId: 'parent-1',
           email: 'user@example.com',
           firstName: 'Test',
           lastName: 'User',

@@ -1,7 +1,7 @@
 /* istanbul ignore file -- UI-heavy edit flow pending dedicated integration coverage */
 import React, {useState, useRef, useEffect} from 'react';
 import {View, Text, StyleSheet, BackHandler} from 'react-native';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
+import {useNavigation, useRoute, RouteProp, CommonActions} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -98,6 +98,16 @@ export const EditDocumentScreen: React.FC = () => {
     );
   }
 
+  const resolveErrorMessage = (error: unknown, fallback: string) => {
+    if (typeof error === 'string') {
+      return error;
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return fallback;
+  };
+
   const handleDelete = () => {
     setIsDeleteSheetOpen(true);
     deleteDocumentSheetRef.current?.open();
@@ -106,17 +116,22 @@ export const EditDocumentScreen: React.FC = () => {
   const confirmDeleteDocument = async () => {
     try {
       console.log('[EditDocument] Deleting document:', documentId);
-      await dispatch(deleteDocument(documentId)).unwrap();
+      await dispatch(deleteDocument({documentId})).unwrap();
       console.log('[EditDocument] Document deleted successfully');
       setIsDeleteSheetOpen(false);
-      navigation.goBack();
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{name: 'DocumentsMain'}],
+        }),
+      );
     } catch (error) {
       console.error('[EditDocument] Failed to delete document:', error);
       setIsDeleteSheetOpen(false);
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to delete document. Please try again.';
+      const message = resolveErrorMessage(
+        error,
+        'Failed to delete document. Please try again.',
+      );
       setFormError('files', message);
     }
   };
@@ -124,15 +139,28 @@ export const EditDocumentScreen: React.FC = () => {
   const uploadManagedFiles = async (
     fileList: DocumentFile[],
   ): Promise<DocumentFile[]> => {
-    const existingFiles = fileList.filter(f => f.s3Url);
-    const newFiles = fileList.filter(f => !f.s3Url);
+    const existingFiles = fileList.filter(
+      f => f.key || f.s3Url || f.viewUrl || f.downloadUrl,
+    );
+    const newFiles = fileList.filter(
+      f => !(f.key || f.s3Url || f.viewUrl || f.downloadUrl),
+    );
 
     if (newFiles.length === 0) {
-      return existingFiles;
+      return fileList;
+    }
+
+    if (!selectedCompanionId && !document?.companionId) {
+      throw new Error('Please select a pet profile to upload documents.');
     }
 
     console.log('[EditDocument] Uploading new files:', newFiles.length);
-    const uploaded = await dispatch(uploadDocumentFiles(newFiles)).unwrap();
+    const uploaded = await dispatch(
+      uploadDocumentFiles({
+        files: newFiles,
+        companionId: selectedCompanionId ?? document?.companionId ?? '',
+      }),
+    ).unwrap();
     console.log('[EditDocument] New files uploaded successfully');
     return [...existingFiles, ...uploaded];
   };
@@ -147,20 +175,23 @@ export const EditDocumentScreen: React.FC = () => {
     try {
       console.log('[EditDocument] Starting document update process');
 
+      if (!selectedCompanionId) {
+        throw new Error('Please select a pet profile to update documents.');
+      }
+
       const uploadedFiles = await uploadManagedFiles(formData.files);
 
       await dispatch(
         updateDocument({
           documentId,
-          updates: {
-            category: formData.category!,
-            subcategory: formData.subcategory!,
-            visitType: formData.visitType || 'general',
-            title: formData.title,
-            businessName: formData.businessName,
-            issueDate: formData.hasIssueDate ? formData.issueDate.toISOString() : '',
-            files: uploadedFiles,
-          },
+          companionId: selectedCompanionId,
+          category: formData.category!,
+          subcategory: formData.subcategory!,
+          visitType: formData.visitType || '',
+          title: formData.title,
+          businessName: formData.businessName,
+          issueDate: formData.hasIssueDate ? formData.issueDate.toISOString() : '',
+          files: uploadedFiles,
         }),
       ).unwrap();
 
@@ -168,10 +199,10 @@ export const EditDocumentScreen: React.FC = () => {
       navigation.goBack();
     } catch (error) {
       console.error('[EditDocument] Failed to update document:', error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to update document. Please try again.';
+      const message = resolveErrorMessage(
+        error,
+        'Failed to update document. Please try again.',
+      );
       setFormError('files', message);
     }
   };

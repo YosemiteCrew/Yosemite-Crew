@@ -11,6 +11,16 @@ if (typeof global.__DEV__ === 'undefined') {
   global.__DEV__ = true;
 }
 
+try {
+  const {Platform} = require('react-native');
+  Platform.constants = Platform.constants || {};
+  Platform.constants.reactNativeVersion = Platform.constants.reactNativeVersion ?? {
+    major: 0,
+    minor: 81,
+    patch: 4,
+  };
+} catch {}
+
 // Suppress warnings from Animated (path changed across RN versions; omit if unavailable)
 try {
   jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
@@ -190,6 +200,32 @@ jest.mock('@gorhom/bottom-sheet', () => {
   };
 });
 
+// Mock react-native-blob-util to avoid requiring native modules in tests
+jest.mock('react-native-blob-util', () => {
+  const mockFetch = jest.fn(() =>
+    Promise.resolve({
+      info: () => ({status: 200}),
+    }),
+  );
+  const mockWrap = jest.fn(value => value);
+
+  const mockBlob = {
+    fetch: mockFetch,
+    wrap: mockWrap,
+    fs: {},
+    android: {},
+    ios: {},
+  };
+  mockBlob.config = jest.fn(() => mockBlob);
+
+  return {
+    __esModule: true,
+    default: mockBlob,
+    fetch: mockFetch,
+    wrap: mockWrap,
+  };
+});
+
 // Safe area context mock to avoid native dependency requirements
 jest.mock('react-native-safe-area-context', () => {
   const React = require('react');
@@ -215,6 +251,71 @@ jest.mock('react-native-safe-area-context', () => {
     initialWindowMetrics: {
       frame: {x: 0, y: 0, width: 0, height: 0},
       insets: {top: 0, right: 0, bottom: 0, left: 0},
+    },
+  };
+});
+
+// Mock NetInfo native module so libraries relying on connectivity checks can run in Jest
+jest.mock('@react-native-community/netinfo', () => {
+  const listeners = new Set();
+  const defaultState = {isConnected: true, isInternetReachable: true};
+  return {
+    __esModule: true,
+    addEventListener: jest.fn((handler) => {
+      listeners.add(handler);
+      handler(defaultState);
+      return () => listeners.delete(handler);
+    }),
+    fetch: jest.fn(() => Promise.resolve(defaultState)),
+    configure: jest.fn(),
+    useNetInfo: () => defaultState,
+  };
+});
+
+// Mock haptic feedback native module
+jest.mock('react-native-haptic-feedback', () => {
+  const trigger = jest.fn();
+  return {
+    __esModule: true,
+    default: {trigger},
+    trigger,
+  };
+});
+
+// Mock Nitro sound recorder used for voice messages
+jest.mock('react-native-nitro-sound', () => {
+  const playListeners = new Set();
+  const recordListeners = new Set();
+  const mockSoundInstance = {
+    setSubscriptionDuration: jest.fn(),
+    addPlayBackListener: jest.fn((listener) => {
+      playListeners.add(listener);
+      return listener;
+    }),
+    addRecordBackListener: jest.fn((listener) => {
+      recordListeners.add(listener);
+      return listener;
+    }),
+    removeRecordBackListener: jest.fn((listener) => recordListeners.delete(listener)),
+    startRecorder: jest.fn(async () => '/tmp/mock-recording.m4a'),
+    stopRecorder: jest.fn(async () => '/tmp/mock-recording.m4a'),
+    startPlayer: jest.fn(async () => undefined),
+    pausePlayer: jest.fn(async () => undefined),
+    resumePlayer: jest.fn(async () => undefined),
+    stopPlayer: jest.fn(async () => undefined),
+  };
+
+  const createSound = jest.fn(() => mockSoundInstance);
+
+  return {
+    __esModule: true,
+    createSound,
+    default: {
+      ...mockSoundInstance,
+      addRecordBackListener: mockSoundInstance.addRecordBackListener,
+      removeRecordBackListener: mockSoundInstance.removeRecordBackListener,
+      startRecorder: mockSoundInstance.startRecorder,
+      stopRecorder: mockSoundInstance.stopRecorder,
     },
   };
 });
@@ -286,9 +387,25 @@ jest.mock('@/features/auth/services/socialAuth', () => ({
 }));
 
 // Mock React Native Firebase Auth to avoid pulling firebase ESM
-jest.mock('@react-native-firebase/auth', () => ({
-  getAuth: jest.fn(() => ({})),
-}));
+jest.mock('@react-native-firebase/auth', () => {
+  const reload = jest.fn(async () => undefined);
+  const getIdToken = jest.fn(async user => user?.getIdToken?.());
+  const getIdTokenResult = jest.fn(async user => user?.getIdTokenResult?.());
+  const getAuth = jest.fn(() => ({}));
+  const signOut = jest.fn(async auth => {
+    // Delegate to instance signOut when provided to match real API shape
+    return auth?.signOut ? auth.signOut() : undefined;
+  });
+
+  return {
+    __esModule: true,
+    getAuth,
+    signOut,
+    getIdToken,
+    getIdTokenResult,
+    reload,
+  };
+});
 
 // Mock Keychain to avoid native module dependency
 jest.mock('react-native-keychain', () => ({
@@ -302,12 +419,16 @@ jest.mock('react-native-keychain', () => ({
 }));
 
 // Mock RN Image Picker
-jest.mock('react-native-image-picker', () => ({
-  launchCamera: jest.fn(),
-  launchImageLibrary: jest.fn(),
-  ImagePickerResponse: {},
-  Asset: {},
-  ImageLibraryOptions: {},
+jest.mock('react-native-image-picker', () => {
+  const mockResponse = {assets: []};
+  return {
+    launchCamera: jest.fn(() => Promise.resolve(mockResponse)),
+    launchImageLibrary: jest.fn(() => Promise.resolve(mockResponse)),
+  };
+});
+
+jest.mock('react-native-fs', () => ({
+  stat: jest.fn(() => Promise.resolve({size: 1024})),
 }));
 
 // Mock native-stack navigator to a simple host component

@@ -355,7 +355,7 @@ export const ObservationalToolScreen: React.FC = () => {
       dispatch(setSelectedCompanion(companion.id));
     }
 
-    const appointmentType = `Observational Tool - ${definition.name}`;
+    const appointmentType = 'Observational Tool';
     const otContext: ObservationalToolBookingContext = {
       toolId: details.toolType,
       provider: resolvedProvider,
@@ -366,6 +366,9 @@ export const ObservationalToolScreen: React.FC = () => {
       screen: 'BookingForm',
       params: {
         businessId: resolvedProvider.businessId,
+        serviceId: details.toolType,
+        serviceName: definition.name,
+        serviceSpecialty: 'Observational Tool',
         employeeId: resolvedProvider.employeeId ?? providerPricing[0]?.employeeId,
         appointmentType,
         otContext,
@@ -476,6 +479,7 @@ export const ObservationalToolScreen: React.FC = () => {
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             disabled={!isStepCompleted}
+            textStyle={styles.confirmPrimaryButtonText}
             style={styles.stepActionButtonFull}
           />
           <LiquidGlassButton
@@ -486,6 +490,7 @@ export const ObservationalToolScreen: React.FC = () => {
             glassEffect="clear"
             interactive
             forceBorder
+            tintColor={theme.colors.surface}
             borderColor={theme.colors.secondary}
             textStyle={styles.backButtonText}
             style={styles.stepActionButtonFull}
@@ -817,7 +822,12 @@ const createStyles = (theme: any) =>
       textAlign: 'left',
     },
     nextText:{
-  color: theme.colors.white,
+      color: theme.colors.white,
+    },
+    confirmPrimaryButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.white,
+      textAlign: 'center',
     },
     toggleRow: {
       flexDirection: 'row',
@@ -1115,6 +1125,7 @@ const createStyles = (theme: any) =>
     backButtonText: {
       ...theme.typography.button,
       color: theme.colors.secondary,
+      textAlign: 'center',
     },
   });
 

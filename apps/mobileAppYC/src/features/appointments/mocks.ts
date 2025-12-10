@@ -1,104 +1,62 @@
 import {Images} from '@/assets/images';
 import type {
-  VetBusiness,
-  VetEmployee,
+  VetService,
   EmployeeAvailability,
   Appointment,
   Invoice,
 } from './types';
 
-export const mockBusinesses: VetBusiness[] = [
-  {
-    id: 'biz_sfamc',
-    name: 'San Francisco Animal Medical Center',
-    category: 'hospital',
-    address: '2343 Fillmore St, San Francisco, CA 94115',
-    distanceMi: 2.5,
-    rating: 4.1,
-    openHours: 'Open 24 Hours',
-    photo: Images.sampleHospital1,
-    specialties: ['Internal Medicine', 'Surgery', 'Oncology'],
-    website: 'sfamc.com',
-    description: '24/7 Emergency Care, Surgery and Operating Rooms, Veterinary ICU, Diagnostic Imaging, Laboratory, Dental services.',
-  },
-  {
-    id: 'biz_oakvet',
-    name: 'OakVet Animal Specialty Hospital',
-    category: 'hospital',
-    address: 'Oakland, CA',
-    distanceMi: 2.8,
-    rating: 4.5,
-    openHours: 'Open 24 Hours',
-    photo: Images.sampleHospital2,
-    description: 'Vaccination, Pain Management, Physical Rehabilitation and Therapy, Isolation Wards for companion animals.',
-  },
-  {
-    id: 'biz_tender_groom',
-    name: 'Tender Loving Care Pet Grooming',
-    category: 'groomer',
-    address: 'San Francisco, CA',
-    distanceMi: 3.6,
-    rating: 4.2,
-    photo: Images.sampleHospital3,
-    description: 'Bathing, Hair Trimming, Ear Cleaning, Paw Pad Care, Specialty Shampoos, Eye Cleaning, De-shedding.',
-  },
-  {
-    id: 'biz_pawpet',
-    name: 'Paw Pet Health Clinic',
-    category: 'hospital',
-    address: 'SFAM Building 30 square D Road San Francisco',
-    distanceMi: 4.2,
-    rating: 4.4,
-    openHours: 'Mon - Sat, 9 AM - 7 PM',
-    photo: Images.sampleHospital5,
-    description:
-      'Pain management programs, orthopedic consultations, post-operative care, rehabilitation and wellness coaching for companion animals.',
-  },
-  {
-    id: 'biz_bay_corgis',
-    name: 'Bay Area Corgis',
-    category: 'breeder',
-    address: 'San Jose, CA',
-    distanceMi: 8.1,
-    rating: 4.3,
-    photo: Images.sampleHospital4,
-    description: 'Health screening, puppy socialization, birthing assistance, registration documentation, temperament training.',
-  },
-];
 
-export const mockEmployees: VetEmployee[] = [
+
+export const mockServices: VetService[] = [
   {
-    id: 'emp_brown',
+    id: 'svc_internal_consult',
     businessId: 'biz_sfamc',
-    name: 'Dr. David Brown',
-    title: 'DVM, DACVIM',
-    specialization: 'Internal Medicine',
-    experienceYears: 10,
-    consultationFee: 200,
-    avatar: Images.doc1,
-    rating: 4.7,
+    specialty: 'Internal Medicine',
+    name: 'Internal Medicine Consultation',
+    description: 'Comprehensive diagnostic review and treatment planning for internal conditions.',
+    basePrice: 185,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_brown',
   },
   {
-    id: 'emp_emily',
+    id: 'svc_oncology_followup',
     businessId: 'biz_sfamc',
-    name: 'Dr. Emily Johnson',
-    title: 'DVM, DACVIM',
-    specialization: 'Cardiology',
-    experienceYears: 13,
-    consultationFee: 220,
-    avatar: Images.doc2,
-    rating: 4.9,
+    specialty: 'Oncology',
+    name: 'Oncology Follow-up',
+    description: 'Post-treatment monitoring including imaging and oncology review.',
+    basePrice: 220,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_emily',
   },
   {
-    id: 'emp_olivia',
+    id: 'svc_cardiology_eval',
+    businessId: 'biz_sfamc',
+    specialty: 'Cardiology',
+    name: 'Cardiology Evaluation',
+    description: 'Advanced cardiology work-up, ECG review, and treatment recommendations.',
+    basePrice: 210,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_emily',
+  },
+  {
+    id: 'svc_rehab_program',
     businessId: 'biz_pawpet',
-    name: 'Dr. Olivia Hernandez',
-    title: 'DVM, DACVAA',
-    specialization: 'Pain Management & Rehabilitation',
-    experienceYears: 9,
-    consultationFee: 180,
-    avatar: Images.doc3,
-    rating: 4.8,
+    specialty: 'Pain Management & Rehab',
+    name: 'Rehab Program Intake',
+    description: 'Custom rehabilitation plan with mobility assessment and therapy plan.',
+    basePrice: 165,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_olivia',
+  },
+  {
+    id: 'svc_groom_spa',
+    businessId: 'biz_tender_groom',
+    specialty: 'Grooming',
+    name: 'Signature Groom & Spa',
+    description: 'Bath, trim, ear cleaning, paw care, and finishing spray.',
+    basePrice: 95,
+    icon: Images.groomingIcon,
   },
 ];
 
@@ -115,40 +73,57 @@ export const mockAvailability: EmployeeAvailability[] = [
   {
     businessId: 'biz_sfamc',
     employeeId: 'emp_brown',
+    serviceId: 'svc_internal_consult',
+    label: 'Internal medicine consults',
     slotsByDate: {
-      [todayISO()]: ['10:00', '11:00', '13:00', '15:00', '18:00'],
+      [todayISO()]: ['10:00', '11:00', '13:00', '15:00', '18:00'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
     },
   },
   {
     businessId: 'biz_sfamc',
     employeeId: 'emp_emily',
+    serviceId: 'svc_cardiology_eval',
+    label: 'Cardiology evaluations',
     slotsByDate: {
-      [todayISO()]: ['09:30', '12:30', '16:00'],
+      [todayISO()]: ['09:30', '12:30', '16:00'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
     },
   },
   {
     businessId: 'biz_pawpet',
     employeeId: 'emp_olivia',
+    serviceId: 'svc_rehab_program',
+    label: 'Rehab intake',
     slotsByDate: {
-      [todayISO()]: ['10:15', '13:45', '17:30'],
+      [todayISO()]: ['10:15', '13:45', '17:30'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
+    },
+  },
+  {
+    businessId: 'biz_tender_groom',
+    serviceId: 'svc_groom_spa',
+    label: 'Grooming sessions',
+    slotsByDate: {
+      [todayISO()]: ['09:00', '11:30', '14:00'].map(time => ({
+        startTime: time,
+        endTime: time,
+        isAvailable: true,
+      })),
     },
   },
 ];
 
-export const mockAppointments = (companionId: string): Appointment[] => [
-  {
-    id: 'apt_demo_1',
-    companionId,
-    businessId: 'biz_sfamc',
-    employeeId: 'emp_emily',
-    date: todayISO(),
-    time: '16:00',
-    type: 'General Checkup',
-    status: 'requested',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+export const mockAppointments = (_companionId: string): Appointment[] => [];
 
 export const mockInvoices: Invoice[] = [
   {
@@ -159,8 +134,8 @@ export const mockInvoices: Invoice[] = [
       {description: 'Appointment fee', rate: 80, lineTotal: 80},
     ],
     subtotal: 100,
-    discount: 20,
-    tax: 15,
+    discountPercent: 20,
+    taxPercent: 15,
     total: 115,
     invoiceNumber: 'BDY024474',
     invoiceDate: new Date().toISOString(),

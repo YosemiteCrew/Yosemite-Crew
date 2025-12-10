@@ -29,22 +29,17 @@ describe("MainLandingPage Component", () => {
     const bookDemoButton = within(heroSection).getByRole("link", {
       name: /book demo/i,
     });
-    const learnMoreButton = within(heroSection).getByRole("link", {
-      name: /learn more/i,
-    });
 
     expect(bookDemoButton).toBeInTheDocument();
-    expect(learnMoreButton).toBeInTheDocument();
 
     expect(bookDemoButton).toHaveAttribute("href", "/book-demo");
-    expect(learnMoreButton).toHaveAttribute("href", "/pms");
   });
 
   test("renders the initial carousel slide content", () => {
     render(<MainLandingPage />);
 
     const firstSlideText = screen.getByText(
-      /empowering veterinary businesses to grow efficiently/i
+      /empowering veterinary clinics to grow sustainably/i
     );
     expect(firstSlideText).toBeInTheDocument();
   });
@@ -58,7 +53,7 @@ describe("MainLandingPage Component", () => {
     await user.click(nextButton);
 
     const secondSlideText = await screen.findByText(
-      /simplifying pet health management for owners/i
+      /simplifying pet health management for parents/i
     );
     expect(secondSlideText).toBeInTheDocument();
   });
@@ -86,10 +81,9 @@ describe("MainLandingPage Component", () => {
     ).toBeInTheDocument();
 
     const learnMoreLinks = screen.getAllByRole("link", { name: /learn more/i });
-    expect(learnMoreLinks).toHaveLength(5);
+    expect(learnMoreLinks).toHaveLength(4);
 
-    expect(learnMoreLinks[2]).toHaveAttribute("href", "/application");
-    expect(learnMoreLinks[3]).toHaveAttribute("href", "/pricing");
-    expect(learnMoreLinks[4]).toHaveAttribute("href", "/developers");
+    expect(learnMoreLinks[2]).toHaveAttribute("href", "/pricing");
+    expect(learnMoreLinks[3]).toHaveAttribute("href", "/developers");
   });
 });

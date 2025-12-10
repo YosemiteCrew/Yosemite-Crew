@@ -1,0 +1,22 @@
+.SettingsCard {
+  border: 1px solid var(--lightgrey);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--whitebg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.SettingsRow {
+  margin: 0;
+  color: var(--notibg);
+  font-family: var(--satoshi-font);
+  font-size: 16px;
+}
+
+.SettingsRow strong {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-weight: 600;
+}

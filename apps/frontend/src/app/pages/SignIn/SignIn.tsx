@@ -10,13 +10,27 @@ import { useErrorTost } from "@/app/components/Toast/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
 import OtpModal from "@/app/components/OtpModal/OtpModal";
 import { Primary } from "@/app/components/Buttons";
+import { useRouter } from "next/navigation";
 
 import "./SignIn.css";
+import { postData } from "@/app/services/axios";
 
-const SignIn = () => {
-  const { signIn, resendCode } = useAuthStore();
+type SignInProps = {
+  redirectPath?: string;
+  signupHref?: string;
+  allowNext?: boolean;
+  isDeveloper?: boolean;
+};
+
+const SignIn = ({
+  redirectPath = "/organizations",
+  signupHref = "/signup",
+  allowNext = true,
+  isDeveloper = false,
+}: Readonly<SignInProps>) => {
+  const { signIn, resendCode, signout } = useAuthStore();
+  const router = useRouter();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inputErrors, setInputErrors] = useState<{
@@ -52,6 +66,15 @@ const SignIn = () => {
     }
   };
 
+  const afterAuthSuccess = async () => {
+    try {
+      await postData("/fhir/v1/user");
+    } catch (error) {
+      await signout();
+      throw error;
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -65,6 +88,15 @@ const SignIn = () => {
 
     try {
       await signIn(email, password);
+      // await afterAuthSuccess();
+      router.push("/organizations");
+      if (typeof globalThis !== "undefined") {
+        // Temporary fallback until custom:role attribute is available in the pool
+        globalThis.sessionStorage?.setItem(
+          "devAuth",
+          isDeveloper ? "true" : "false"
+        );
+      }
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
         await handleCodeResendonError();
@@ -85,14 +117,28 @@ const SignIn = () => {
       }
     }
   };
-  
+
   return (
-    <section className="SignInSec">
+    <section
+      className="SignInSec"
+      style={
+        isDeveloper
+          ? {
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
+            }
+          : undefined
+      }
+    >
       {ErrorTostPopup}
       <div className="RightSignIn">
         <Form onSubmit={handleSignIn}>
           <div className="TopSignInner">
-            <h2>Sign in to your account</h2>
+            <h2>
+              {isDeveloper
+                ? "Sign in to your developer account"
+                : "Sign in to your account"}
+            </h2>
             <FormInput
               intype="email"
               inname="email"
@@ -115,10 +161,15 @@ const SignIn = () => {
             </div>
           </div>
           <div className="Signbtn">
-            <Primary text="Sign in" onClick={handleSignIn} href="#" />
+            <Primary
+              text="Sign in"
+              onClick={handleSignIn}
+              href="#"
+              style={{ width: "100%" }}
+            />
             <h6>
               {" "}
-              Don&apos;t have an account? <Link href="/signup">Sign up</Link>
+              Don&apos;t have an account? <Link href={signupHref}>Sign up</Link>
             </h6>
           </div>
         </Form>

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Switch,
+  Alert,
 } from 'react-native';
 import {Input} from '@/shared/components/common';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -19,15 +20,16 @@ import {CategoryBottomSheet} from '@/shared/components/common/CategoryBottomShee
 import {SubcategoryBottomSheet} from '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import {VisitTypeBottomSheet} from '@/shared/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import PrimaryActionButton from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
+import UploadDeleteSheets from '@/shared/components/common/UploadDeleteSheets/UploadDeleteSheets';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
+import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 import {formatLabel} from '@/shared/utils/helpers';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
 import type {Companion} from '@/features/companion/types';
+import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 
 export interface DocumentFormData {
   category: string | null;
@@ -78,6 +80,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const common = useMemo(() => createCommonFormStyles(theme), [theme]);
 
   const [showDatePicker, setShowDatePicker] = React.useState(false);
 
@@ -108,12 +111,28 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   };
 
   const handleUploadDocuments = () => {
+    if (formData.files.length >= 5) {
+      const message = 'You can upload up to 5 documents only.';
+      onFormChange('files', formData.files);
+      onErrorClear('files');
+      Alert.alert('Limit reached', message);
+      return;
+    }
     openSheet('upload');
     uploadSheetRef.current?.open();
   };
 
   const getCategoryLabel = () => formatLabel(formData.category, 'Select category');
-  const getSubcategoryLabel = () => formatLabel(formData.subcategory, 'Select subcategory');
+  const getSubcategoryLabel = () => {
+    if (!formData.subcategory) {
+      return 'Select subcategory';
+    }
+    const category = DOCUMENT_CATEGORIES.find(cat => cat.id === formData.category);
+    const matchedLabel = category?.subcategories?.find(
+      sub => sub.id === formData.subcategory,
+    )?.label;
+    return matchedLabel ?? formatLabel(formData.subcategory, 'Select subcategory');
+  };
   const getVisitTypeLabel = () => formatLabel(formData.visitType, 'Select visit type');
 
   return (
@@ -128,6 +147,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           onSelect={onCompanionSelect}
           showAddButton={false}
           containerStyle={styles.companionSelector}
+          requiredPermission="documents"
+          permissionLabel="documents"
         />
 
         {showNote && (
@@ -152,9 +173,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               editable={false}
               pointerEvents="none"
               containerStyle={styles.input}
-              icon={
-                <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-              }
+              icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
             />
           </TouchableOpacity>
           {errors.category ? (
@@ -177,9 +196,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               editable={false}
               pointerEvents="none"
               containerStyle={styles.input}
-              icon={
-                <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-              }
+              icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
             />
           </TouchableOpacity>
           {errors.subcategory ? (
@@ -197,9 +214,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             editable={false}
             pointerEvents="none"
             containerStyle={styles.input}
-            icon={
-              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-            }
+            icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
           />
         </TouchableOpacity>
 
@@ -249,10 +264,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               placeholder="Select issue date"
               onPress={() => setShowDatePicker(true)}
               rightComponent={
-                <Image
-                  source={Images.calendarIcon}
-                  style={styles.calendarIcon}
-                />
+                <Image source={Images.calendarIcon} style={common.calendarIcon} />
               }
               containerStyle={styles.inputContainer}
             />
@@ -261,23 +273,22 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
         <DocumentAttachmentsSection
           files={formData.files}
-          onAddPress={handleUploadDocuments}
+          onAddPress={() => {
+            if (formData.files.length >= 5) {
+              onErrorClear('files');
+              return;
+            }
+            handleUploadDocuments();
+          }}
           onRequestRemove={file => handleRemoveFile(file.id)}
           error={errors.files}
         />
 
         <View style={styles.saveButton}>
-          <LiquidGlassButton
+          <PrimaryActionButton
             title={loading ? 'Saving...' : saveButtonText}
             onPress={onSave}
-            style={styles.button}
             textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            borderRadius={16}
             loading={loading}
             disabled={loading}
           />
@@ -321,30 +332,16 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         }}
       />
 
-      <UploadDocumentBottomSheet
-        ref={uploadSheetRef}
-        onTakePhoto={() => {
-          handleTakePhoto();
-          closeSheet();
-        }}
-        onChooseGallery={() => {
-          handleChooseFromGallery();
-          closeSheet();
-        }}
-        onUploadDrive={() => {
-          handleUploadFromDrive();
-          closeSheet();
-        }}
-      />
-
-      <DeleteDocumentBottomSheet
-        ref={deleteSheetRef}
-        documentTitle={
-          fileToDelete
-            ? formData.files.find(f => f.id === fileToDelete)?.name
-            : 'this file'
-        }
-        onDelete={confirmDeleteFile}
+      <UploadDeleteSheets
+        uploadSheetRef={uploadSheetRef}
+        deleteSheetRef={deleteSheetRef}
+        files={formData.files}
+        fileToDelete={fileToDelete as any}
+        onTakePhoto={handleTakePhoto}
+        onChooseGallery={handleChooseFromGallery}
+        onUploadDrive={handleUploadFromDrive}
+        onConfirmDelete={confirmDeleteFile}
+        closeSheet={closeSheet}
       />
     </>
   );
@@ -367,12 +364,6 @@ const createStyles = (theme: any) =>
     input: {
       marginBottom: theme.spacing[4],
     },
-    dropdownIcon: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-      tintColor: theme.colors.textSecondary,
-    },
     dateSection: {
       marginBottom: theme.spacing[4],
     },
@@ -389,26 +380,9 @@ const createStyles = (theme: any) =>
     saveButton: {
       marginTop: theme.spacing[4],
     },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
     buttonText: {
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
-    },
-    calendarIcon: {
-      width: theme.spacing[5],
-      height: theme.spacing[5],
-      tintColor: theme.colors.textSecondary,
     },
     inputContainer: {
       marginBottom: 0,

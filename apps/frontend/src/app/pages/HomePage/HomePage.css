@@ -23,12 +23,14 @@
   flex-direction: column;
   gap: 18px;
   width: 45%;
+  flex: 1 1 45%;
 }
 .RightHeroDiv {
   display: flex;
   flex-direction: column;
   gap: 18px;
   width: 55%;
+  flex: 1 1 55%;
 }
 .RytHeroDiv img {
   width: 100%;
@@ -148,9 +150,12 @@ a.UnFillbtn {
   }
   .LeftHeroDiv {
     width: 100%;
+    flex: 1 1 100%;
   }
   .RightHeroDiv {
     width: 100%;
+
+    flex: 1 1 100%;
   }
 }
 @media screen and (max-width: 768px) {
@@ -226,12 +231,6 @@ a.UnFillbtn {
     gap: 32px;
     flex-direction: column;
   }
-  .LeftHeroDiv {
-    width: 100%;
-  }
-  .RightHeroDiv {
-    width: 100%;
-  }
 }
 @media screen and (max-width: 768px) {
   .PractHeading h2 {
@@ -239,15 +238,18 @@ a.UnFillbtn {
     text-align: center;
     width: 100%;
   }
-}
-@media screen and (max-width: 640px) {
   .Practice_Box_Data {
     grid-template-columns: repeat(3, 1fr);
   }
 }
-@media screen and (max-width: 450px) {
+@media screen and (max-width: 550px) {
   .Practice_Box_Data {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media screen and (max-width: 400px) {
+  .Practice_Box_Data {
+    grid-template-columns: repeat(1, 1fr);
   }
 }
 /* PracticedSection Ended  */
@@ -329,17 +331,17 @@ a.UnFillbtn {
     max-width: 328px;
   }
   .Focus_data {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
-@media screen and (max-width: 640px) {
+@media screen and (max-width: 550px) {
   .Focus_data {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 @media screen and (max-width: 450px) {
   .Focus_data {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(1, 1fr);
     justify-items: center;
   }
 }
@@ -601,7 +603,7 @@ a.UnFillbtn {
 .betInner .careText {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
 .betInner h2 {
   font-size: 48px;
@@ -610,6 +612,7 @@ a.UnFillbtn {
   font-family: var(--grotesk-font);
   color: var(--black-text);
   line-height: 120%;
+  max-width: 350px;
 }
 .betInner p {
   font-size: 18px;
@@ -631,15 +634,15 @@ a.UnFillbtn {
   }
 }
 @media screen and (max-width: 1024px) {
-  .BettercareBox {
-    grid-template-columns: 1fr;
-  }
   .betInner {
     padding: 24px 16px;
   }
   .lftbetter img {
     height: 346px;
   }
+  .betInner h2 {
+  max-width: 100%;
+}
 }
 @media screen and (max-width: 768px) {
   .BettercareBox {
@@ -653,5 +656,10 @@ a.UnFillbtn {
   }
   .lftbetter img {
     height: 246px;
+  }
+}
+@media screen and (max-width: 500px) {
+  .BettercareBox {
+    grid-template-columns: 1fr;
   }
 }

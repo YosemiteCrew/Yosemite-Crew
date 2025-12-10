@@ -377,6 +377,8 @@ export const TasksMainScreen: React.FC = () => {
           onSelect={handleCompanionSelect}
           showAddButton={false}
           containerStyle={styles.companionSelectorTask}
+          requiredPermission="tasks"
+          permissionLabel="tasks"
         />
 
         {/* Month Navigation */}

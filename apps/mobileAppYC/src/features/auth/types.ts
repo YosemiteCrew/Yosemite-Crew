@@ -4,6 +4,7 @@ export type AuthProvider = AuthProviderName;
 
 export interface User {
   id: string;
+  parentId?: string | null;
   email: string;
   firstName?: string;
   lastName?: string;
@@ -11,6 +12,7 @@ export interface User {
   dateOfBirth?: string;
   profilePicture?: string;
   profileToken?: string;
+  profileCompleted?: boolean;
   currency?: string;
   address?: {
     addressLine?: string;

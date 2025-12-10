@@ -1,37 +1,25 @@
 import React, { useState } from "react";
-import { IoCamera } from "react-icons/io5";
-import { FiMinusCircle } from "react-icons/fi";
 import classNames from "classnames";
+
 import FormInput from "../../Inputs/FormInput/FormInput";
-import CountryDropdown from "../../Inputs/CountryDropdown/CountryDropdown";
+import Dropdown from "../../Inputs/Dropdown/Dropdown";
+import GoogleSearchDropDown from "../../Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 import { Primary, Secondary } from "../../Buttons";
+import LogoUploader from "../../UploadImage/LogoUploader";
+import { BusinessTypes } from "@/app/types/org";
+import { getCountryCode, validatePhone } from "@/app/utils/validators";
+import { createOrg } from "@/app/services/orgService";
+import { Organisation } from "@yosemite-crew/types";
 
 import "./Step.css";
-import OrgSearch from "../../Inputs/OrgSearch/OrgSearch";
 
-const businessTypes = [
-  {
-    name: "Hospital",
-    key: "Hospital",
-  },
-  {
-    name: "Breeder",
-    key: "Breeder",
-  },
-  {
-    name: "Boarder",
-    key: "Boarder",
-  },
-  {
-    name: "Groomer",
-    key: "Groomer",
-  },
-];
+type OrgStepProps = {
+  nextStep: () => void;
+  formData: Organisation;
+  setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
+};
 
-const OrgStep = ({ nextStep, formData, setFormData }: any) => {
-  const [image, setImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState(businessTypes[0].key);
+const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     country?: string;
@@ -39,21 +27,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
     taxId?: string;
   }>({});
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setImage(null);
-    setPreview(null);
-  };
-
-  const handleNext = () => {
-    console.log(image);
+  const handleNext = async () => {
     const errors: {
       name?: string;
       country?: string;
@@ -61,72 +35,53 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
       taxId?: string;
     } = {};
     if (!formData.name) errors.name = "Name is required";
-    if (!formData.country) errors.country = "Country is required";
-    if (!formData.number) errors.number = "Number is required";
+    if (!formData.address?.country) errors.country = "Country is required";
+    if (!formData.phoneNo) errors.number = "Number is required";
     if (!formData.taxId) errors.taxId = "TaxID is required";
-
+    const selectedCountry = getCountryCode(formData.address?.country);
+    if (selectedCountry) {
+      const countryCode = selectedCountry.dial_code;
+      const fullMobile = countryCode + formData.phoneNo;
+      if (!validatePhone(fullMobile)) {
+        errors.number = "Valid number is required";
+      }
+    } else {
+      errors.number = "Valid number is required";
+    }
     setFormDataErrors(errors);
-
     if (Object.keys(errors).length > 0) {
       return;
     }
-
-    nextStep();
+    try {
+      await createOrg(formData)
+      nextStep();
+    } catch (error: any) {
+      console.error("Error creating organization:", error);
+    }
   };
 
   return (
     <div className="step-container">
       <div className="step-title">Organisation</div>
 
-      <div className="step-logo-container">
-        <div className="step-logo-upload">
-          {preview ? (
-            <>
-              <img
-                src={preview}
-                alt="Logo Preview"
-                style={{
-                  width: 100,
-                  height: 100,
-                  objectFit: "cover",
-                  borderRadius: "50%",
-                }}
-                className="step-logo-preview"
-              />
-              <button className="remove-icon" onClick={handleRemoveImage}>
-                <FiMinusCircle color="#247AED" size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <input
-                type="file"
-                id="logo-upload"
-                accept="image/*"
-                onChange={handleImageChange}
-                style={{ display: "none" }}
-              />
-              <label htmlFor="logo-upload" style={{ cursor: "pointer" }}>
-                <IoCamera color="#247AED" size={40} />
-              </label>
-            </>
-          )}
-        </div>
-        <div className="step-logo-title">Add logo (optional)</div>
-      </div>
+      <LogoUploader
+        title="Add logo (optional)"
+        apiUrl="/fhir/v1/organization/logo/presigned-url"
+        setFormData={setFormData}
+      />
 
       <div className="step-type">
         <div className="step-type-title">Select your organisation type</div>
         <div className="step-type-options">
-          {businessTypes.map((type) => (
+          {BusinessTypes.map((type) => (
             <button
-              key={type.name}
+              key={type}
               className={classNames("step-type-option", {
-                activetype: selectedType === type.key,
+                activetype: formData.type === type,
               })}
-              onClick={() => setSelectedType(type.key)}
+              onClick={() => setFormData({ ...formData, type: type })}
             >
-              {type.name}
+              {type.charAt(0) + type.toLowerCase().slice(1)}
             </button>
           ))}
         </div>
@@ -137,45 +92,58 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
       </div>
 
       <div className="step-inputs">
-        <OrgSearch
+        <GoogleSearchDropDown
           intype="text"
           inname="name"
           value={formData.name}
           inlabel="Organisation name"
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e: any) =>
+            setFormData({ ...formData, name: e.target.value })
+          }
           error={formDataErrors.name}
           setFormData={setFormData}
         />
         <div className="step-two-input">
-          <CountryDropdown
+          <Dropdown
             placeholder="Select country"
-            value={formData.country}
-            onChange={(e) => setFormData({ ...formData, country: e })}
+            value={formData.address?.country || ""}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                address: { ...formData.address, postalCode: e },
+              })
+            }
             error={formDataErrors.country}
+            type="country"
+            dropdownClassName="h-fit! max-h-[200px]!"
+            search
           />
           <FormInput
             intype="text"
             inname="duns"
-            value={formData.duns}
+            value={formData.DUNSNumber || ""}
             inlabel="DUNS number (optional)"
-            onChange={(e) => setFormData({ ...formData, duns: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, DUNSNumber: e.target.value })
+            }
           />
         </div>
+
         <div className="step-two-input">
           <FormInput
             intype="tel"
             inname="number"
-            value={formData.number}
+            value={formData.phoneNo || ""}
             inlabel="Phone number"
             onChange={(e) =>
-              setFormData({ ...formData, number: e.target.value })
+              setFormData({ ...formData, phoneNo: e.target.value })
             }
             error={formDataErrors.number}
           />
           <FormInput
             intype="text"
             inname="tax id"
-            value={formData.taxId}
+            value={formData.taxId || ""}
             inlabel="Tax ID"
             onChange={(e) =>
               setFormData({ ...formData, taxId: e.target.value })
@@ -186,7 +154,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
         <FormInput
           intype="text"
           inname="website"
-          value={formData.website}
+          value={formData.website || ""}
           inlabel="Website (optional)"
           onChange={(e) =>
             setFormData({ ...formData, website: e.target.value })
@@ -195,31 +163,37 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
         <FormInput
           intype="text"
           inname="Health & Safety Certification"
-          value={formData.healthCertficate}
+          value={formData.healthAndSafetyCertNo || ""}
           inlabel="Health & Safety Certification (optional)"
           onChange={(e) =>
-            setFormData({ ...formData, healthCertficate: e.target.value })
+            setFormData({
+              ...formData,
+              healthAndSafetyCertNo: e.target.value,
+            })
           }
         />
         <FormInput
           intype="text"
           inname="Animal Welfare Compliance"
-          value={formData.animalWelfareCompliance}
+          value={formData.animalWelfareComplianceCertNo || ""}
           inlabel="Animal Welfare Compliance (optional)"
           onChange={(e) =>
             setFormData({
               ...formData,
-              animalWelfareCompliance: e.target.value,
+              animalWelfareComplianceCertNo: e.target.value,
             })
           }
         />
         <FormInput
           intype="text"
           inname="Fire & Emergency compliance"
-          value={formData.fireCompliance}
+          value={formData.fireAndEmergencyCertNo || ""}
           inlabel="Fire & Emergency compliance (optional)"
           onChange={(e) =>
-            setFormData({ ...formData, fireCompliance: e.target.value })
+            setFormData({
+              ...formData,
+              fireAndEmergencyCertNo: e.target.value,
+            })
           }
         />
       </div>

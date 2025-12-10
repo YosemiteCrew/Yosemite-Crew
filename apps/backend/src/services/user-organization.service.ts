@@ -1,363 +1,614 @@
-import { Types } from 'mongoose'
+import { Types } from "mongoose";
 import UserOrganizationModel, {
-    type UserOrganizationDocument,
-    type UserOrganizationMongo,
-} from '../models/user-organization'
+  type UserOrganizationDocument,
+  type UserOrganizationMongo,
+} from "../models/user-organization";
+import OrganizationModel, {
+} from "../models/organization";
 import {
-    fromUserOrganizationRequestDTO,
-    toUserOrganizationResponseDTO,
-    type UserOrganizationRequestDTO,
-    type UserOrganizationDTOAttributes,
-    type UserOrganizationResponseDTO,
-    type UserOrganization,
-} from '@yosemite-crew/types'
+  fromUserOrganizationRequestDTO,
+  toUserOrganizationResponseDTO,
+  type UserOrganizationRequestDTO,
+  type UserOrganizationResponseDTO,
+  type UserOrganization,
+} from "@yosemite-crew/types";
+import { ROLE_PERMISSIONS, RoleCode } from "src/models/role-permission";
 
-export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO
+export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
 export class UserOrganizationServiceError extends Error {
-    constructor(message: string, public readonly statusCode: number) {
-        super(message)
-        this.name = 'UserOrganizationServiceError'
-    }
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "UserOrganizationServiceError";
+  }
+}
+
+const VALID_ROLE_CODES: Set<RoleCode> = new Set([
+  "OWNER",
+  "ADMIN",
+  "SUPERVISOR",
+  "VETERINARIAN",
+  "TECHNICIAN",
+  "ASSISTANT",
+  "RECEPTIONIST",
+]);
+
+function validateRoleCode(role: string): RoleCode {
+  const cleaned = role.trim().toUpperCase() as RoleCode;
+  if (!VALID_ROLE_CODES.has(cleaned)) {
+    throw new UserOrganizationServiceError(
+      `Invalid roleCode "${role}". Allowed: ${[...VALID_ROLE_CODES].join(", ")}`,
+      400
+    );
+  }
+  return cleaned;
+}
+
+function computeEffectivePermissions(
+  role: RoleCode,
+  extra?: string[]
+): string[] {
+  const base = ROLE_PERMISSIONS[role] ?? [];
+  const extras = extra ?? [];
+  return [...new Set([...base, ...extras])];
 }
 
 const pruneUndefined = <T>(value: T): T => {
-    if (Array.isArray(value)) {
-        const arrayValue = value as unknown[]
-        const cleaned: unknown[] = arrayValue
-            .map((item) => pruneUndefined(item))
-            .filter((item) => item !== undefined)
-        return cleaned as unknown as T
+  if (Array.isArray(value)) {
+    const arrayValue = value as unknown[];
+    const cleaned: unknown[] = arrayValue
+      .map((item) => pruneUndefined(item))
+      .filter((item) => item !== undefined);
+    return cleaned as unknown as T;
+  }
+
+  if (value && typeof value === "object") {
+    if (value instanceof Date) {
+      return value;
     }
 
-    if (value && typeof value === 'object') {
-        if (value instanceof Date) {
-            return value
-        }
+    const record = value as Record<string, unknown>;
+    const cleanedRecord: Record<string, unknown> = {};
 
-        const record = value as Record<string, unknown>
-        const cleanedRecord: Record<string, unknown> = {}
+    for (const [key, entryValue] of Object.entries(record)) {
+      const next = pruneUndefined(entryValue);
 
-        for (const [key, entryValue] of Object.entries(record)) {
-            const next = pruneUndefined(entryValue)
-
-            if (next !== undefined) {
-                cleanedRecord[key] = next
-            }
-        }
-
-        return cleanedRecord as unknown as T
+      if (next !== undefined) {
+        cleanedRecord[key] = next;
+      }
     }
 
-    return value
-}
+    return cleanedRecord as unknown as T;
+  }
+
+  return value;
+};
 
 const requireSafeString = (value: unknown, fieldName: string): string => {
-    if (value == null) {
-        throw new UserOrganizationServiceError(`${fieldName} is required.`, 400)
+  if (value == null) {
+    throw new UserOrganizationServiceError(`${fieldName} is required.`, 400);
+  }
+
+  if (typeof value !== "string") {
+    throw new UserOrganizationServiceError(
+      `${fieldName} must be a string.`,
+      400,
+    );
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new UserOrganizationServiceError(
+      `${fieldName} cannot be empty.`,
+      400,
+    );
+  }
+
+  if (trimmed.includes("$")) {
+    throw new UserOrganizationServiceError(
+      `Invalid character in ${fieldName}.`,
+      400,
+    );
+  }
+
+  return trimmed;
+};
+
+const optionalSafeString = (
+  value: unknown,
+  fieldName: string,
+): string | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new UserOrganizationServiceError(
+      `${fieldName} must be a string.`,
+      400,
+    );
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.includes("$")) {
+    throw new UserOrganizationServiceError(
+      `Invalid character in ${fieldName}.`,
+      400,
+    );
+  }
+
+  return trimmed;
+};
+
+const sanitizePermissionList = (
+  value: unknown,
+  fieldName: string,
+): string[] => {
+  if (value == null) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    throw new UserOrganizationServiceError(
+      `${fieldName} must be an array of strings.`,
+      400,
+    );
+  }
+
+  const seen = new Set<string>();
+
+  for (const entry of value) {
+    const safe = optionalSafeString(entry, fieldName);
+    if (safe) {
+      seen.add(safe);
     }
+  }
 
-    if (typeof value !== 'string') {
-        throw new UserOrganizationServiceError(`${fieldName} must be a string.`, 400)
-    }
-
-    const trimmed = value.trim()
-
-    if (!trimmed) {
-        throw new UserOrganizationServiceError(`${fieldName} cannot be empty.`, 400)
-    }
-
-    if (trimmed.includes('$')) {
-        throw new UserOrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
-
-    return trimmed
-}
-
-const optionalSafeString = (value: unknown, fieldName: string): string | undefined => {
-    if (value == null) {
-        return undefined
-    }
-
-    if (typeof value !== 'string') {
-        throw new UserOrganizationServiceError(`${fieldName} must be a string.`, 400)
-    }
-
-    const trimmed = value.trim()
-
-    if (!trimmed) {
-        return undefined
-    }
-
-    if (trimmed.includes('$')) {
-        throw new UserOrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
-    }
-
-    return trimmed
-}
+  return [...seen];
+};
 
 const ensureSafeIdentifier = (value: unknown): string | undefined => {
-    const identifier = optionalSafeString(value, 'Identifier')
+  const identifier = optionalSafeString(value, "Identifier");
 
-    if (!identifier) {
-        return undefined
-    }
+  if (!identifier) {
+    return undefined;
+  }
 
-    if (
-        !Types.ObjectId.isValid(identifier) &&
-        !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
-    ) {
-        throw new UserOrganizationServiceError('Invalid identifier format.', 400)
-    }
+  if (
+    !Types.ObjectId.isValid(identifier) &&
+    !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
+  ) {
+    throw new UserOrganizationServiceError("Invalid identifier format.", 400);
+  }
 
-    return identifier
-}
+  return identifier;
+};
+
+const extractOrganizationIdentifier = (reference: string): string => {
+  const trimmed = reference.trim();
+
+  if (!trimmed) {
+    throw new UserOrganizationServiceError(
+      "Organization reference cannot be empty.",
+      400,
+    );
+  }
+
+  const segments = trimmed.split("/").filter(Boolean);
+
+  if (!segments.length) {
+    throw new UserOrganizationServiceError(
+      "Invalid organization reference format.",
+      400,
+    );
+  }
+
+  const lastSegment = segments.at(-1);
+
+  if (!lastSegment || lastSegment.toLowerCase() === "organization") {
+    throw new UserOrganizationServiceError(
+      "Invalid organization reference format.",
+      400,
+    );
+  }
+
+  return lastSegment;
+};
+
+const buildOrganizationLookupQuery = (reference: string) => {
+  const identifier = extractOrganizationIdentifier(reference);
+  const queries: Array<Record<string, string>> = [];
+
+  if (Types.ObjectId.isValid(identifier)) {
+    queries.push({ _id: identifier });
+  }
+
+  if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
+    queries.push({ fhirId: identifier });
+  }
+
+  if (!queries.length) {
+    throw new UserOrganizationServiceError(
+      "Invalid organization reference format.",
+      400,
+    );
+  }
+
+  return queries.length === 1 ? queries[0] : { $or: queries };
+};
 
 const sanitizeUserOrganizationAttributes = (
-    dto: UserOrganizationDTOAttributes
+  dto: UserOrganization,
 ): UserOrganizationMongo => {
-    const practitionerReference = requireSafeString(dto.practitionerReference, 'Practitioner reference')
-    const organizationReference = requireSafeString(dto.organizationReference, 'Organization reference')
-    const roleCode = requireSafeString(dto.roleCode, 'Role code')
-    const roleDisplay = optionalSafeString(dto.roleDisplay, 'Role display')
+  const practitionerReference = requireSafeString(
+    dto.practitionerReference,
+    "Practitioner reference",
+  );
+  const organizationReference = requireSafeString(
+    dto.organizationReference,
+    "Organization reference",
+  );
+  const roleCode = requireSafeString(dto.roleCode, "Role code");
+  const roleDisplay = optionalSafeString(dto.roleDisplay, "Role display");
+  const extraPermissions = sanitizePermissionList(
+    dto.extraPermissions,
+    "Extra permissions",
+  );
 
-    return {
-        fhirId: ensureSafeIdentifier(dto.id),
-        practitionerReference,
-        organizationReference,
-        roleCode,
-        roleDisplay,
-        active: typeof dto.active === 'boolean' ? dto.active : true,
-    }
-}
+  const effectivePermissions = computeEffectivePermissions(
+    roleCode as RoleCode,
+    extraPermissions,
+  );
+  
+  return {
+    fhirId: ensureSafeIdentifier(dto.id),
+    practitionerReference,
+    organizationReference,
+    roleCode,
+    roleDisplay,
+    active: typeof dto.active === "boolean" ? dto.active : true,
+    extraPermissions,
+    effectivePermissions,
+  };
+};
 
-const buildUserOrganizationDomain = (document: UserOrganizationDocument): UserOrganization => {
-    const { _id, ...rest } = document.toObject({ virtuals: false }) as UserOrganizationMongo & {
-        _id: Types.ObjectId
-    }
+const buildUserOrganizationDomain = (
+  document: UserOrganizationDocument,
+): UserOrganization => {
+  const { _id, ...rest } = document.toObject({
+    virtuals: false,
+  }) as UserOrganizationMongo & {
+    _id: Types.ObjectId;
+  };
 
-    return {
-        _id,
-        fhirId: rest.fhirId,
-        practitionerReference: rest.practitionerReference,
-        organizationReference: rest.organizationReference,
-        roleCode: rest.roleCode,
-        roleDisplay: rest.roleDisplay,
-        active: rest.active,
-    }
-}
+  return {
+    _id,
+    fhirId: rest.fhirId,
+    practitionerReference: rest.practitionerReference,
+    organizationReference: rest.organizationReference,
+    roleCode: rest.roleCode,
+    roleDisplay: rest.roleDisplay,
+    active: rest.active,
+    extraPermissions: rest.extraPermissions ?? [],
+    effectivePermissions: computeEffectivePermissions(
+      rest.roleCode as RoleCode,
+      rest.extraPermissions,
+    ),
+  };
+};
 
 const createPersistableFromFHIR = (payload: UserOrganizationFHIRPayload) => {
-    if (!payload || payload.resourceType !== 'PractitionerRole') {
-        throw new UserOrganizationServiceError(
-            'Invalid payload. Expected FHIR PractitionerRole resource.',
-            400
-        )
-    }
+  if (payload?.resourceType !== "PractitionerRole") {
+    throw new UserOrganizationServiceError(
+      "Invalid payload. Expected FHIR PractitionerRole resource.",
+      400,
+    );
+  }
 
-    const attributes = fromUserOrganizationRequestDTO(payload)
-    const persistable = pruneUndefined(sanitizeUserOrganizationAttributes(attributes))
+  const attributes = fromUserOrganizationRequestDTO(payload);
+  const persistable = pruneUndefined(
+    sanitizeUserOrganizationAttributes(attributes),
+  );
 
-    return { persistable }
-}
+  return { persistable };
+};
 
-const normalizeLookupIdentifier = (value: unknown, fieldName: string): string => {
-    const identifier = optionalSafeString(value, fieldName)
+const normalizeLookupIdentifier = (
+  value: unknown,
+  fieldName: string,
+): string => {
+  const identifier = optionalSafeString(value, fieldName);
 
-    if (!identifier) {
-        throw new UserOrganizationServiceError(`${fieldName} is required.`, 400)
-    }
+  if (!identifier) {
+    throw new UserOrganizationServiceError(`${fieldName} is required.`, 400);
+  }
 
-    return identifier
-}
+  return identifier;
+};
 
-const resolveIdQuery = (id: unknown): { _id?: string; fhirId?: string } | null => {
-    const identifier = normalizeLookupIdentifier(id, 'Identifier')
+const resolveIdQuery = (
+  id: unknown,
+): { _id?: string; fhirId?: string } | null => {
+  const identifier = normalizeLookupIdentifier(id, "Identifier");
 
-    if (Types.ObjectId.isValid(identifier)) {
-        return { _id: identifier }
-    }
+  if (Types.ObjectId.isValid(identifier)) {
+    return { _id: identifier };
+  }
 
-    if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
-        return { fhirId: identifier }
-    }
+  if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
+    return { fhirId: identifier };
+  }
 
-    return null
-}
+  return null;
+};
 
-const resolveStrictIdQuery = (id: unknown, context: string): { _id?: string; fhirId?: string } => {
-    const query = resolveIdQuery(id)
+const resolveStrictIdQuery = (
+  id: unknown,
+  context: string,
+): { _id?: string; fhirId?: string } => {
+  const query = resolveIdQuery(id);
 
-    if (!query) {
-        throw new UserOrganizationServiceError(`Invalid ${context} format.`, 400)
-    }
+  if (!query) {
+    throw new UserOrganizationServiceError(`Invalid ${context} format.`, 400);
+  }
 
-    return query
-}
+  return query;
+};
 
-type ReferenceLookup = Partial<Record<'practitionerReference' | 'organizationReference', string>>
+type ReferenceLookup = Partial<
+  Record<"practitionerReference" | "organizationReference", string>
+>;
 
 const buildReferenceLookups = (id: unknown): ReferenceLookup[] => {
-    const trimmed = normalizeLookupIdentifier(id, 'Identifier')
+  const trimmed = normalizeLookupIdentifier(id, "Identifier");
 
-    if (!trimmed) {
-        return []
+  if (!trimmed) {
+    return [];
+  }
+
+  const lookups: ReferenceLookup[] = [];
+  const seen = new Set<string>();
+  const pushLookup = (
+    field: "practitionerReference" | "organizationReference",
+    reference: string,
+  ) => {
+    const key = `${field}:${reference}`;
+    if (seen.has(key)) {
+      return;
     }
+    seen.add(key);
+    lookups.push({ [field]: reference });
+  };
 
-    const lookups: ReferenceLookup[] = []
-    const seen = new Set<string>()
-    const pushLookup = (
-        field: 'practitionerReference' | 'organizationReference',
-        reference: string
-    ) => {
-        const key = `${field}:${reference}`
-        if (seen.has(key)) {
-            return
-        }
-        seen.add(key)
-        lookups.push({ [field]: reference })
-    }
-
-    if (trimmed.includes('/')) {
-        if (trimmed.startsWith('Practitioner/')) {
-            pushLookup('practitionerReference', trimmed)
-        } else if (trimmed.startsWith('Organization/')) {
-            pushLookup('organizationReference', trimmed)
-        } else {
-            pushLookup('practitionerReference', trimmed)
-            pushLookup('organizationReference', trimmed)
-        }
+  if (trimmed.includes("/")) {
+    if (trimmed.startsWith("Practitioner/")) {
+      pushLookup("practitionerReference", trimmed);
+    } else if (trimmed.startsWith("Organization/")) {
+      pushLookup("organizationReference", trimmed);
     } else {
-        pushLookup('practitionerReference', trimmed)
-        pushLookup('organizationReference', trimmed)
-        pushLookup('practitionerReference', `Practitioner/${trimmed}`)
-        pushLookup('organizationReference', `Organization/${trimmed}`)
+      pushLookup("practitionerReference", trimmed);
+      pushLookup("organizationReference", trimmed);
     }
+  } else {
+    pushLookup("practitionerReference", trimmed);
+    pushLookup("organizationReference", trimmed);
+    pushLookup("practitionerReference", `Practitioner/${trimmed}`);
+    pushLookup("organizationReference", `Organization/${trimmed}`);
+  }
 
-    return lookups
-}
+  return lookups;
+};
 
 export const UserOrganizationService = {
-    async upsert(payload: UserOrganizationFHIRPayload) {
-        const { persistable } = createPersistableFromFHIR(payload)
+  async upsert(payload: UserOrganizationFHIRPayload) {
+    const { persistable } = createPersistableFromFHIR(payload);
+    validateRoleCode(persistable.roleCode)
 
-        const id = ensureSafeIdentifier(payload.id ?? persistable.fhirId)
-        let document: UserOrganizationDocument | null = null
-        let created = false
+    const id = ensureSafeIdentifier(payload.id ?? persistable.fhirId);
+    let document: UserOrganizationDocument | null = null;
+    let created = false;
 
-        if (id) {
-            document = await UserOrganizationModel.findOneAndUpdate(
-                resolveStrictIdQuery(id, 'identifier'),
-                { $set: persistable },
-                { new: true, sanitizeFilter: true }
-            )
+    if (id) {
+      document = await UserOrganizationModel.findOneAndUpdate(
+        resolveStrictIdQuery(id, "identifier"),
+        { $set: persistable },
+        { new: true, sanitizeFilter: true },
+      );
+    }
+
+    if (!document) {
+      const existing = await UserOrganizationModel.findOne({
+        practitionerReference: persistable.practitionerReference,
+        organizationReference: persistable.organizationReference,
+        roleCode: persistable.roleCode,
+      }).setOptions({ sanitizeFilter: true });
+
+      if (existing) {
+        document = await UserOrganizationModel.findOneAndUpdate(
+          { _id: existing._id },
+          { $set: persistable },
+          { new: true, sanitizeFilter: true },
+        );
+      } else {
+        document = await UserOrganizationModel.create(persistable);
+        created = true;
+      }
+    }
+
+    if (!document) {
+      throw new UserOrganizationServiceError(
+        "Unable to persist user-organization mapping.",
+        500,
+      );
+    }
+
+    const mapping = buildUserOrganizationDomain(document);
+    return {
+      response: toUserOrganizationResponseDTO(mapping),
+      created,
+    };
+  },
+
+  async create(payload: UserOrganizationFHIRPayload) {
+    const { persistable } = createPersistableFromFHIR(payload);
+    validateRoleCode(persistable.roleCode)
+
+    const document = await UserOrganizationModel.create(persistable);
+    const mapping = buildUserOrganizationDomain(document);
+
+    return toUserOrganizationResponseDTO(mapping);
+  },
+
+  async getById(
+    id: string,
+  ): Promise<
+    UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null
+  > {
+    let document: UserOrganizationDocument | null = null;
+    const idQuery = resolveIdQuery(id);
+
+    if (idQuery) {
+      document = await UserOrganizationModel.findOne(idQuery, null, {
+        sanitizeFilter: true,
+      });
+    }
+
+    if (!document) {
+      const referenceQueries = buildReferenceLookups(id);
+
+      if (referenceQueries.length) {
+        const documents = await UserOrganizationModel.find({
+          $or: referenceQueries,
+        }).setOptions({
+          sanitizeFilter: true,
+        });
+
+        if (!documents.length) {
+          return null;
         }
 
-        if (!document) {
-            const existing = await UserOrganizationModel.findOne({
-                practitionerReference: persistable.practitionerReference,
-                organizationReference: persistable.organizationReference,
-                roleCode: persistable.roleCode,
-            }).setOptions({ sanitizeFilter: true })
-
-            if (existing) {
-                document = await UserOrganizationModel.findOneAndUpdate(
-                    { _id: existing._id },
-                    { $set: persistable },
-                    { new: true, sanitizeFilter: true }
-                )
-            } else {
-                document = await UserOrganizationModel.create(persistable)
-                created = true
-            }
+        if (documents.length === 1) {
+          const mapping = buildUserOrganizationDomain(documents[0]);
+          return toUserOrganizationResponseDTO(mapping);
         }
 
-        if (!document) {
-            throw new UserOrganizationServiceError('Unable to persist user-organization mapping.', 500)
-        }
+        const mappings = documents.map((doc) =>
+          buildUserOrganizationDomain(doc),
+        );
+        return mappings.map((mapping) =>
+          toUserOrganizationResponseDTO(mapping),
+        );
+      }
+    }
 
-        const mapping = buildUserOrganizationDomain(document)
-        return {
-            response: toUserOrganizationResponseDTO(mapping),
-            created,
-        }
-    },
+    if (!document) {
+      return null;
+    }
 
-    async create(payload: UserOrganizationFHIRPayload) {
-        const { persistable } = createPersistableFromFHIR(payload)
+    const mapping = buildUserOrganizationDomain(document);
+    return toUserOrganizationResponseDTO(mapping);
+  },
 
-        const document = await UserOrganizationModel.create(persistable)
-        const mapping = buildUserOrganizationDomain(document)
+  async listAll() {
+    const documents = await UserOrganizationModel.find();
+    const mappings = documents.map((document) =>
+      buildUserOrganizationDomain(document),
+    );
 
-        return toUserOrganizationResponseDTO(mapping)
-    },
+    return mappings.map((mapping) => toUserOrganizationResponseDTO(mapping));
+  },
 
-    async getById(id: string): Promise<UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null> {
-        let document: UserOrganizationDocument | null = null
-        const idQuery = resolveIdQuery(id)
+  async deleteById(id: string) {
+    const result = await UserOrganizationModel.findOneAndDelete(
+      resolveStrictIdQuery(id, "identifier"),
+      {
+        sanitizeFilter: true,
+      },
+    );
+    return Boolean(result);
+  },
 
-        if (idQuery) {
-            document = await UserOrganizationModel.findOne(idQuery, null, { sanitizeFilter: true })
-        }
+  async update(id: string, payload: UserOrganizationFHIRPayload) {
+    const { persistable } = createPersistableFromFHIR(payload);
+    validateRoleCode(persistable.roleCode);
 
-        if (!document) {
-            const referenceQueries = buildReferenceLookups(id)
+    const document = await UserOrganizationModel.findOneAndUpdate(
+      resolveStrictIdQuery(id, "identifier"),
+      { $set: persistable },
+      { new: true, sanitizeFilter: true },
+    );
 
-            if (referenceQueries.length) {
-                const documents = await UserOrganizationModel.find({ $or: referenceQueries }).setOptions({
-                    sanitizeFilter: true,
-                })
+    if (!document) {
+      return null;
+    }
 
-                if (!documents.length) {
-                    return null
-                }
+    const mapping = buildUserOrganizationDomain(document);
+    return toUserOrganizationResponseDTO(mapping);
+  },
 
-                if (documents.length === 1) {
-                    const mapping = buildUserOrganizationDomain(documents[0])
-                    return toUserOrganizationResponseDTO(mapping)
-                }
+  async createUserOrganizationMapping(userOrganisation: UserOrganization) {
+    const persistable = pruneUndefined(
+      sanitizeUserOrganizationAttributes(userOrganisation),
+    );
+    const document = await UserOrganizationModel.create(persistable);
+    if (!document) {
+      throw new UserOrganizationServiceError(
+        "Unable to create user-organization mapping.",
+        500,
+      );
+    }
+  },
 
-                const mappings = documents.map((doc) => buildUserOrganizationDomain(doc))
-                return mappings.map((mapping) => toUserOrganizationResponseDTO(mapping))
-            }
-        }
+  async deleteAllByOrganizationId(organisationId: string) {
+    const orgId = requireSafeString(organisationId, "Organization Identifier");
 
-        if (!document) {
-            return null
-        }
+    await UserOrganizationModel.deleteMany({
+      organizationReference: orgId,
+    }).exec();
+  },
 
-        const mapping = buildUserOrganizationDomain(document)
-        return toUserOrganizationResponseDTO(mapping)
-    },
+  async listByUserId(id: string) {
+    const userId = requireSafeString(id, "User Id");
+    const mappings = await UserOrganizationModel.find({
+      practitionerReference: userId,
+    });
 
-    async listAll() {
-        const documents = await UserOrganizationModel.find()
-        const mappings = documents.map((document) => buildUserOrganizationDomain(document))
+    if (!mappings.length) {
+      return [];
+    }
 
-        return mappings.map((mapping) => toUserOrganizationResponseDTO(mapping))
-    },
+    const results = [];
 
-    async deleteById(id: string) {
-        const result = await UserOrganizationModel.findOneAndDelete(resolveStrictIdQuery(id, 'identifier'), {
-            sanitizeFilter: true,
-        })
-        return Boolean(result)
-    },
+    for (const mapping of mappings) {
+      const orgRef = mapping.organizationReference;
 
-    async update(id: string, payload: UserOrganizationFHIRPayload) {
-        const { persistable } = createPersistableFromFHIR(payload)
+      // Extract the ID portion from FHIR reference
+      const organizationId = extractOrganizationIdentifier(orgRef);
 
-        const document = await UserOrganizationModel.findOneAndUpdate(
-            resolveStrictIdQuery(id, 'identifier'),
-            { $set: persistable },
-            { new: true, sanitizeFilter: true }
-        )
+      // Build query using your existing helper
+      const orgQuery = buildOrganizationLookupQuery(organizationId);
 
-        if (!document) {
-            return null
-        }
+      // Lookup organization
+      const organizationDoc = await OrganizationModel.findOne(orgQuery);
 
-        const mapping = buildUserOrganizationDomain(document)
-        return toUserOrganizationResponseDTO(mapping)
-    },
-}
+      const organization = organizationDoc?.toObject?.() ?? null; // convert mongoose doc to object
+
+      const mappingDomain = buildUserOrganizationDomain(mapping);
+
+      results.push({
+        mapping: toUserOrganizationResponseDTO(mappingDomain),
+        organization: organization,
+      });
+    }
+    return results;
+  },
+};

@@ -319,7 +319,7 @@
 .AbtTeamSec .AbtTeamdata .AbtTeamHead .para h6 {
   margin: 0;
   font-size: 23px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 120%;
   font-family: var(--grotesk-font);
   color: var(--notibg);

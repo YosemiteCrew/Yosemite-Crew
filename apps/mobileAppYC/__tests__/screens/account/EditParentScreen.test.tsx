@@ -110,10 +110,17 @@ jest.mock('@/features/auth/selectors', () => ({
   selectAuthIsLoading: jest.fn(),
 }));
 jest.mock('@/features/auth', () => ({
-  ...jest.requireActual('@/features/auth'),
+  __esModule: true,
   updateUserProfile: jest.fn(
     (patch: Partial<User>) => () => mockUpdateUserProfileImpl(patch),
   ),
+  // Provide stubs for other exports referenced via the barrel
+  selectAuthState: jest.fn(),
+  establishSession: jest.fn(() => () => Promise.resolve()),
+  initializeAuth: jest.fn(() => () => Promise.resolve()),
+  logout: jest.fn(() => () => Promise.resolve()),
+  refreshSession: jest.fn(() => () => Promise.resolve()),
+  authReducer: jest.fn(),
 }));
 
 // --- Component Mocks ---
@@ -258,6 +265,23 @@ jest.mock('@/shared/components/common/ProfileImagePicker/ProfileImagePicker', ()
         {...props}
         onPress={() => props.onImageSelected('new-uri')}
       />
+    )),
+  };
+});
+
+// User Profile Header
+jest.mock('@/features/account/components/UserProfileHeader', () => {
+  const {View: MockView, Text: MockText} = require('react-native');
+  return {
+    UserProfileHeader: jest.fn((props: any) => (
+      <MockView testID="mock-user-profile-header">
+        <MockText>{props.firstName} {props.lastName}</MockText>
+        <MockView
+          testID="mock-image-picker"
+          {...props}
+          onPress={() => props.onImageSelected('new-uri')}
+        />
+      </MockView>
     )),
   };
 });

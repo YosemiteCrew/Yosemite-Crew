@@ -32,18 +32,54 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({selectedD
     return getMonthDates(currentMonth, selectedDate).map(d => ({...d, isCurrentMonth: d.date.getMonth() === currentMonth.getMonth()} as DateInfo & {isCurrentMonth: boolean}));
   }, [currentMonth, selectedDate]);
 
+  // Keep month in sync when parent changes selectedDate across months
   useEffect(() => {
-    setTimeout(() => {
-      if (dateListRef.current && weekDates.length > 0) {
-        const selectedIndex = weekDates.findIndex(item => item.date.getFullYear() === selectedDate.getFullYear() && item.date.getMonth() === selectedDate.getMonth() && item.date.getDate() === selectedDate.getDate());
-        if (selectedIndex !== -1) {
-          dateListRef.current?.scrollToIndex({index: selectedIndex, viewPosition: 0.5, animated: true});
-          setTimeout(() => {
-            dateListRef.current?.scrollToIndex({index: selectedIndex, viewPosition: 0.5, animated: true});
-          }, 250);
-        }
+    if (
+      selectedDate.getFullYear() !== currentMonth.getFullYear() ||
+      selectedDate.getMonth() !== currentMonth.getMonth()
+    ) {
+      setCurrentMonth(new Date(selectedDate));
+    }
+  }, [selectedDate, currentMonth]);
+
+  useEffect(() => {
+    if (!dateListRef.current || weekDates.length === 0) {
+      return;
+    }
+
+    const selectedIndex = weekDates.findIndex(
+      item =>
+        item.date.getFullYear() === selectedDate.getFullYear() &&
+        item.date.getMonth() === selectedDate.getMonth() &&
+        item.date.getDate() === selectedDate.getDate(),
+    );
+
+    if (selectedIndex < 0 || selectedIndex >= weekDates.length) {
+      return;
+    }
+
+    const scrollTo = (index: number) => {
+      if (!dateListRef.current) {
+        return;
       }
-    }, 80);
+      try {
+        dateListRef.current.scrollToIndex({
+          index,
+          viewPosition: 0.5,
+          animated: true,
+        });
+      } catch (err) {
+        console.warn('[CalendarMonthStrip] scrollToIndex failed', err);
+      }
+    };
+
+    const timeoutId = setTimeout(() => scrollTo(selectedIndex), 80);
+    const retryId = setTimeout(() => scrollTo(selectedIndex), 220);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(retryId);
+    };
   }, [weekDates, selectedDate]);
 
   const getItemLayout = useCallback((_: any, index: number) => {

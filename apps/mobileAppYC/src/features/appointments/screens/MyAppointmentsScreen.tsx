@@ -1,5 +1,13 @@
 import React, {useEffect} from 'react';
-import {SectionList, View, Text, StyleSheet, TouchableOpacity, ScrollView} from 'react-native';
+import {
+  SectionList,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -10,14 +18,29 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
-import {fetchAppointmentsForCompanion, updateAppointmentStatus} from '@/features/appointments/appointmentsSlice';
+import {
+  fetchAppointmentsForCompanion,
+} from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
 import {createSelectUpcomingAppointments, createSelectPastAppointments} from '@/features/appointments/selectors';
-import {useNavigation} from '@react-navigation/native';
+import type {Appointment} from '@/features/appointments/types';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import {openMapsToAddress} from '@/shared/utils/openMaps';
-import {RootState as RS} from '@/app/store';
+import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
+import {formatDateLocale, formatTimeLocale} from '@/features/appointments/utils/timeFormatting';
+import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
+import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
+import {transformAppointmentCardData} from '@/features/appointments/utils/appointmentCardData';
+import {handleChatActivation} from '@/features/appointments/utils/chatActivation';
+import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/appointments/utils/businessCoordinates';
+import {usePermissions} from '@/shared/hooks/usePermissions';
+import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
+import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
+import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
+import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
+import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
+import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -30,46 +53,67 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
-  const hasHydrated = useSelector((s: RootState) => selectedCompanionId ? s.appointments.hydratedCompanions[selectedCompanionId] : false);
+  const {canUseAppointments, canUseChat} = usePermissions(selectedCompanionId);
 
   const upcomingSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
   const pastSelector = React.useMemo(() => createSelectPastAppointments(), []);
   const upcoming = useSelector((state: RootState) => upcomingSelector(state, selectedCompanionId ?? null));
   const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
-  const businesses = useSelector((s: RS) => s.businesses.businesses);
-  const employees = useSelector((s: RS) => s.businesses.employees);
+  const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
+  const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
+  const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
+  const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
+  const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
+  const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
+  useAutoSelectCompanion(companions, selectedCompanionId);
 
-  useEffect(() => {
-    if (!selectedCompanionId && companions.length > 0) {
-      dispatch(setSelectedCompanion(companions[0].id));
-    }
-  }, [companions, selectedCompanionId, dispatch]);
-
-  useEffect(() => {
-    if (selectedCompanionId && !hasHydrated) {
-      dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionId}));
-    }
-  }, [dispatch, selectedCompanionId, hasHydrated]);
-
-  const businessMap = React.useMemo(() => new Map(businesses.map(b => [b.id, b])), [businesses]);
-  const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
-
-  const formatDate = React.useCallback(
-    (iso: string) =>
-      new Date(iso).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-    [],
+  const fetchAppointmentsOnce = React.useCallback(
+    (companionId?: string | null) => {
+      if (!companionId) return;
+      if (lastFetchedCompanionIdRef.current === companionId) return;
+      lastFetchedCompanionIdRef.current = companionId;
+      dispatch(fetchAppointmentsForCompanion({companionId}));
+    },
+    [dispatch],
   );
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (selectedCompanionId) {
+        fetchAppointmentsOnce(selectedCompanionId);
+      }
+      return () => {
+        lastFetchedCompanionIdRef.current = null;
+      };
+    }, [fetchAppointmentsOnce, selectedCompanionId]),
+  );
+
+  // Also refetch when selected companion changes (covers tab switches)
+  useEffect(() => {
+    const targetId =
+      selectedCompanionId ??
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.identifier?.[0]?.value;
+    if (targetId) {
+      if (!selectedCompanionId) {
+        dispatch(setSelectedCompanion(targetId));
+      }
+      fetchAppointmentsOnce(targetId);
+    }
+  }, [dispatch, selectedCompanionId, companions, fetchAppointmentsOnce]);
+
   const filteredUpcoming = React.useMemo(() => {
-    return upcoming.filter(apt => {
+    const filtered = upcoming.filter(apt => {
       if (filter === 'all') return true;
       const biz = businessMap.get(apt.businessId);
       return biz?.category === filter;
+    });
+    return filtered.sort((a, b) => {
+      const aTime = new Date(`${a.date}T${a.time ?? '00:00'}Z`).getTime();
+      const bTime = new Date(`${b.date}T${b.time ?? '00:00'}Z`).getTime();
+      return aTime - bTime;
     });
   }, [upcoming, filter, businessMap]);
 
@@ -80,6 +124,127 @@ export const MyAppointmentsScreen: React.FC = () => {
       return biz?.category === filter;
     });
   }, [past, filter, businessMap]);
+  const appointmentsForFallback = React.useMemo(
+    () => [...filteredUpcoming, ...filteredPast],
+    [filteredPast, filteredUpcoming],
+  );
+
+  // Show permission toast when appointments access is denied
+  React.useEffect(() => {
+    if (selectedCompanionId && !canUseAppointments) {
+      showPermissionDeniedToast('appointments');
+    }
+  }, [canUseAppointments, selectedCompanionId]);
+
+  // Fetch business photo fallbacks when primary photos are missing or dummy
+  useFetchPhotoFallbacks(appointmentsForFallback, businessMap, requestBusinessPhoto);
+
+  type AppointmentItem = (typeof filteredUpcoming)[number];
+  type EmployeeRecord = ReturnType<typeof employeeMap.get>;
+  const getCoordinatesFromUtility = React.useCallback(
+    (apt: AppointmentItem | null | undefined) => {
+      if (!apt) return {lat: null, lng: null};
+      return getBusinessCoordinatesUtil(apt, businessMap);
+    },
+    [businessMap],
+  );
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'UPCOMING':
+        return 'Upcoming';
+      case 'CHECKED_IN':
+        return 'Checked in';
+      case 'NO_PAYMENT':
+      case 'AWAITING_PAYMENT':
+        return 'Payment pending';
+      case 'PAID':
+        return 'Paid';
+      case 'CONFIRMED':
+      case 'SCHEDULED':
+        return 'Scheduled';
+      case 'IN_PROGRESS':
+        return 'In progress';
+      case 'RESCHEDULED':
+        return 'Rescheduled';
+      case 'COMPLETED':
+        return 'Completed';
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'PAYMENT_FAILED':
+        return 'Payment failed';
+      default:
+        return status;
+    }
+  };
+
+  const handleChatPress = React.useCallback(
+    ({
+      appointment,
+      employee,
+      doctorName,
+      petName,
+    }: {
+      appointment: AppointmentItem;
+      employee?: EmployeeRecord;
+      doctorName: string;
+      petName?: string;
+    }) => {
+      const openChat = () => {
+        // Backend sends appointment.date and appointment.time in UTC
+        // Convert to ISO format with Z suffix for proper UTC handling
+        const normalized = appointment.time.length === 5
+          ? `${appointment.time}:00`
+          : appointment.time;
+        const appointmentDateTime = `${appointment.date}T${normalized}Z`;
+
+        navigation.navigate('ChatChannel', {
+          appointmentId: appointment.id,
+          vetId: employee?.id ?? appointment.employeeId ?? 'unknown-vet',
+          appointmentTime: appointmentDateTime,
+          doctorName,
+          petName,
+        });
+      };
+
+      handleChatActivation({
+        appointment,
+        employee,
+        companions,
+        doctorName,
+        petName,
+        onOpenChat: openChat,
+      });
+    },
+    [navigation, companions],
+  );
+
+  const handleCheckIn = React.useCallback(
+    async (appointment: AppointmentItem) => {
+      await handleCheckInUtil({
+        appointment,
+        businessCoordinates: getCoordinatesFromUtility(appointment),
+        onCheckingInChange: (id, checking) => {
+          setCheckingIn(prev => ({...prev, [id]: checking}));
+        },
+        hasPermission: canUseAppointments,
+        onPermissionDenied: () => showPermissionDeniedToast('appointments'),
+      });
+    },
+    [handleCheckInUtil, canUseAppointments, getCoordinatesFromUtility],
+  );
+
+  const fetchOrgRatingIfNeeded = useFetchOrgRatingIfNeeded({
+    orgRatings,
+    setOrgRatings,
+    logTag: 'Appointments',
+  });
+
+  React.useEffect(() => {
+    const targets = filteredPast.filter(apt => apt.status === 'COMPLETED');
+    targets.forEach(apt => {
+      fetchOrgRatingIfNeeded(apt.businessId);
+    });
+  }, [fetchOrgRatingIfNeeded, filteredPast]);
 
   const renderEmptyCard = (title: string, subtitle: string) => (
     <LiquidGlassCard
@@ -95,11 +260,6 @@ export const MyAppointmentsScreen: React.FC = () => {
   );
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
-
-  const handleApprove = (appointmentId: string, companionId: string) => {
-    dispatch(updateAppointmentStatus({appointmentId, status: 'approved'}));
-    navigation.navigate('PaymentInvoice', {appointmentId, companionId});
-  };
 
   const sections = React.useMemo(
     () => [
@@ -119,109 +279,220 @@ export const MyAppointmentsScreen: React.FC = () => {
     </View>
   );
 
-  const renderItem = ({item, section}: {item: (typeof filteredUpcoming)[number]; section: {key: string}}) => {
-    if (!item) {
-      return null;
-    }
-    const emp = employeeMap.get(item.employeeId);
-    const biz = businessMap.get(item.businessId);
-    const formattedDate = formatDate(item.date);
-    if (section.key === 'upcoming') {
-      let footer: React.ReactNode;
-
-      if (item.status === 'requested') {
-        footer = (
-          <View style={styles.upcomingFooter}>
-            <View style={styles.statusBadgePending}>
-              <Text style={styles.statusBadgeText}>Pending confirmation</Text>
-            </View>
-            <LiquidGlassButton
-              title="Approve (mock)"
-              onPress={() => handleApprove(item.id, item.companionId)}
-              height={44}
-              borderRadius={12}
-              tintColor="rgba(255,255,255,0.95)"
-              forceBorder
-              borderColor={theme.colors.border}
-              textStyle={styles.secondaryActionText}
-              shadowIntensity="none"
-              style={styles.footerButton}
-            />
-          </View>
-        );
-      } else if (item.status === 'approved') {
-        footer = (
-          <View style={styles.upcomingFooter}>
-            <LiquidGlassButton
-              title="Pay now"
-              onPress={() => navigation.navigate('PaymentInvoice', {appointmentId: item.id, companionId: item.companionId})}
-              height={48}
-              borderRadius={12}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.reviewButtonText}
-              style={styles.reviewButtonCard}
-            />
-          </View>
-        );
+  const renderUpcomingCard = ({
+    item,
+    cardTitle,
+    cardSubtitle,
+    businessName,
+    dateTimeLabel,
+    avatarSource,
+    fallbackPhoto,
+    googlePlacesId,
+    assignmentNote,
+    businessAddress,
+    petName,
+    emp,
+    needsPayment,
+    isRequested,
+    statusAllowsActions,
+    isCheckedIn,
+    isInProgress,
+    checkInLabel,
+    checkInDisabled,
+    isCheckingIn,
+  }: {
+    item: (typeof filteredUpcoming)[number];
+    cardTitle: string;
+    cardSubtitle: string;
+    businessName: string;
+    dateTimeLabel: string;
+    avatarSource: any;
+    fallbackPhoto: string | null;
+    googlePlacesId: string | null;
+    assignmentNote?: string;
+    businessAddress: string;
+    petName?: string;
+    emp?: EmployeeRecord;
+    needsPayment: boolean;
+    isRequested: boolean;
+    statusAllowsActions: boolean;
+    isCheckedIn: boolean;
+    isInProgress: boolean;
+    checkInLabel: string;
+    checkInDisabled: boolean;
+    isCheckingIn: boolean;
+  }) => {
+    const resolvedCheckInDisabled = isCheckingIn || checkInDisabled;
+    let resolvedCheckInLabel = checkInLabel;
+    if (!resolvedCheckInLabel) {
+      if (isInProgress) {
+        resolvedCheckInLabel = 'In progress';
+      } else if (isCheckedIn) {
+        resolvedCheckInLabel = 'Checked in';
+      } else {
+        resolvedCheckInLabel = 'Check in';
       }
-
-      return (
-        <View style={styles.cardWrapper}>
-          <AppointmentCard
-            doctorName={emp?.name || 'Doctor'}
-            specialization={emp?.specialization || ''}
-            hospital={biz?.name || ''}
-            dateTime={`${formattedDate} - ${item.time}`}
-            avatar={emp?.avatar || Images.cat}
-            note={item.status === 'paid' ? 'Note: Check in is only allowed if you arrive 5 minutes early at location.' : undefined}
-            showActions={item.status === 'paid'}
-            onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-            onGetDirections={() => {
-              if (biz?.address) openMapsToAddress(biz.address);
-            }}
-            onChat={() => navigation.navigate('Chat', {appointmentId: item.id})}
-            onCheckIn={() => dispatch(updateAppointmentStatus({appointmentId: item.id, status: 'completed'}))}
-            footer={footer}
-          />
-        </View>
-      );
     }
+    const paymentFooter = needsPayment ? (
+      <View style={styles.upcomingFooter}>
+        <LiquidGlassButton
+          title="Pay now"
+          onPress={() =>
+            navigation.navigate('PaymentInvoice', {
+              appointmentId: item.id,
+              companionId: item.companionId,
+            })
+          }
+          height={48}
+          borderRadius={12}
+          tintColor={theme.colors.secondary}
+          shadowIntensity="medium"
+          textStyle={styles.reviewButtonText}
+          style={styles.reviewButtonCard}
+        />
+      </View>
+    ) : null;
+
+    const requestedBadge = isRequested ? (
+      <View style={[styles.pastStatusBadge, styles.pastStatusBadgeRequested]}>
+        <Text style={[styles.pastStatusBadgeText, styles.pastStatusBadgeTextRequested]}>Requested</Text>
+      </View>
+    ) : null;
+
+    const footer =
+      paymentFooter || requestedBadge ? (
+        <View style={styles.upcomingFooter}>
+          {requestedBadge}
+          {paymentFooter}
+        </View>
+      ) : undefined;
 
     return (
       <View style={styles.cardWrapper}>
         <AppointmentCard
-          doctorName={emp?.name || 'Doctor'}
-          specialization={emp?.specialization || ''}
-          hospital={biz?.name || ''}
-          dateTime={`${formattedDate} - ${item.time}`}
-          avatar={emp?.avatar || Images.cat}
-          showActions={false}
+          doctorName={cardTitle}
+          specialization={cardSubtitle}
+          hospital={businessName}
+          dateTime={dateTimeLabel}
+          avatar={avatarSource || Images.cat}
+          fallbackAvatar={fallbackPhoto ?? undefined}
+          onAvatarError={() => handleAvatarError(googlePlacesId, item.businessId)}
+          note={assignmentNote}
+          showActions={statusAllowsActions}
           onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
-          footer={
-            <View style={styles.pastFooter}>
-              <View style={styles.pastStatusWrapper}>
-                <Text style={[styles.pastStatusBadge, item.status === 'canceled' && styles.pastStatusBadgeCanceled]}>
-                  {item.status === 'canceled' ? 'Canceled' : 'Completed'}
-                </Text>
-              </View>
-              {item.status !== 'canceled' && (
-                <LiquidGlassButton
-                  title="Review"
-                  onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
-                  height={48}
-                  borderRadius={12}
-                  tintColor={theme.colors.secondary}
-                  shadowIntensity="medium"
-                  textStyle={styles.reviewButtonText}
-                  style={styles.reviewButtonCard}
-                />
-              )}
-            </View>
+          onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+          onGetDirections={() => {
+            if (googlePlacesId) {
+              openMapsToPlaceId(googlePlacesId, businessAddress);
+            } else if (businessAddress) {
+              openMapsToAddress(businessAddress);
+            }
+          }}
+          canChat={canUseChat}
+          onChat={() =>
+            handleChatPress({
+              appointment: item,
+              employee: emp,
+              doctorName: cardTitle,
+              petName,
+            })
           }
+          onChatBlocked={() => showPermissionDeniedToast('chat with vet')}
+          checkInLabel={resolvedCheckInLabel}
+          checkInDisabled={resolvedCheckInDisabled}
+          onCheckIn={() => {
+            if (!resolvedCheckInDisabled) {
+              handleCheckIn(item);
+            }
+          }}
+          footer={footer}
         />
       </View>
     );
+  };
+
+  const renderItem = ({item, section}: {item: (typeof filteredUpcoming)[number]; section: {key: string}}) => {
+    if (!item || !canUseAppointments) {
+      return null;
+    }
+    const emp = employeeMap.get(item.employeeId ?? '');
+    const formattedDate = formatDateLocale(item.date);
+    const timeLabel = formatTimeLocale(item.date, item.time);
+    const dateTimeLabel = timeLabel ? `${formattedDate} - ${timeLabel}` : formattedDate;
+    const isCheckingIn = Boolean(checkingIn[item.id]);
+
+    const cardData = transformAppointmentCardData(
+      item,
+      businessMap,
+      employeeMap,
+      serviceMap,
+      companions,
+      businessFallbacks,
+      Images,
+    );
+
+    const {
+      cardTitle,
+      cardSubtitle,
+      businessName,
+      businessAddress,
+      petName,
+      avatarSource,
+      fallbackPhoto,
+      googlePlacesId,
+      assignmentNote,
+    } = cardData;
+    const {
+      needsPayment,
+      isRequested,
+      statusAllowsActions,
+      isCheckedIn,
+      isInProgress,
+      checkInLabel,
+      checkInDisabled,
+    } = cardData;
+
+    return section.key === 'upcoming'
+      ? renderUpcomingCard({
+          item,
+          cardTitle,
+          cardSubtitle,
+          businessName,
+          dateTimeLabel,
+          avatarSource,
+          fallbackPhoto,
+          googlePlacesId,
+          assignmentNote,
+          businessAddress,
+          petName,
+          emp,
+          needsPayment,
+          isRequested,
+          statusAllowsActions,
+          isCheckedIn,
+          isInProgress,
+          checkInLabel,
+          checkInDisabled,
+          isCheckingIn,
+        })
+      : (
+          <PastAppointmentCard
+            item={item}
+            cardTitle={cardTitle}
+            cardSubtitle={cardSubtitle}
+            businessName={businessName}
+            dateTimeLabel={dateTimeLabel}
+            avatarSource={avatarSource}
+            fallbackPhoto={fallbackPhoto}
+            googlePlacesId={googlePlacesId}
+            onAvatarError={handleAvatarError}
+            navigation={navigation}
+            styles={styles}
+            orgRating={orgRatings[item.businessId]}
+            formatStatus={formatStatus}
+            secondaryColor={theme.colors.secondary}
+          />
+        );
   };
 
   const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
@@ -234,6 +505,8 @@ export const MyAppointmentsScreen: React.FC = () => {
         onSelect={id => dispatch(setSelectedCompanion(id))}
         showAddButton={false}
         containerStyle={styles.companionSelector}
+        requiredPermission="appointments"
+        permissionLabel="appointments"
       />
 
       <SectionListHorizontalPills filter={filter} setFilter={setFilter} />
@@ -266,6 +539,111 @@ export const MyAppointmentsScreen: React.FC = () => {
   );
 };
 
+type PastAppointmentCardProps = {
+  item: Appointment;
+  cardTitle: string;
+  cardSubtitle: string;
+  businessName: string;
+  dateTimeLabel: string;
+  avatarSource: any;
+  fallbackPhoto: string | null;
+  googlePlacesId: string | null;
+  onAvatarError: (googlePlacesId: string | null, businessId: string) => void;
+  navigation: Nav;
+  styles: ReturnType<typeof createStyles>;
+  orgRating?: OrgRatingState;
+  formatStatus: (status: string) => string;
+  secondaryColor: string;
+};
+
+const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
+  item,
+  cardTitle,
+  cardSubtitle,
+  businessName,
+  dateTimeLabel,
+  avatarSource,
+  fallbackPhoto,
+  googlePlacesId,
+  onAvatarError,
+  navigation,
+  styles,
+  orgRating,
+  formatStatus,
+  secondaryColor,
+}) => {
+  let ratingContent: React.ReactNode = null;
+
+  if (item.status === 'COMPLETED') {
+    if (!orgRating || orgRating.loading) {
+      ratingContent = <Text style={styles.ratingLoadingText}>Checking review status...</Text>;
+    } else if (orgRating.isRated) {
+      ratingContent = (
+        <View style={styles.ratingRow}>
+          <Image source={Images.starSolid} style={styles.ratingIcon} />
+          <Text style={styles.ratingValueText}>
+            {orgRating.rating ?? '-'}
+            /5
+          </Text>
+        </View>
+      );
+    } else {
+      ratingContent = (
+        <LiquidGlassButton
+          title="Review"
+          onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
+          height={48}
+          borderRadius={12}
+          tintColor={secondaryColor}
+          shadowIntensity="medium"
+          textStyle={styles.reviewButtonText}
+        />
+      );
+    }
+  }
+
+  return (
+    <View style={styles.cardWrapper}>
+      <AppointmentCard
+        doctorName={cardTitle}
+        specialization={cardSubtitle}
+        hospital={businessName}
+        dateTime={dateTimeLabel}
+        avatar={avatarSource || Images.cat}
+        fallbackAvatar={fallbackPhoto ?? undefined}
+        onAvatarError={() => onAvatarError(googlePlacesId, item.businessId)}
+        showActions={false}
+        onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+        footer={
+          <View style={styles.pastFooter}>
+            <View style={styles.pastStatusWrapper}>
+              <View
+                style={[
+                  styles.pastStatusBadge,
+                  item.status === 'CANCELLED' && styles.pastStatusBadgeCanceled,
+                  item.status === 'REQUESTED' && styles.pastStatusBadgeRequested,
+                  item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeFailed,
+                ]}>
+                <Text
+                  style={[
+                    styles.pastStatusBadgeText,
+                    item.status === 'CANCELLED' && styles.pastStatusBadgeTextCanceled,
+                    item.status === 'REQUESTED' && styles.pastStatusBadgeTextRequested,
+                    item.status === 'PAYMENT_FAILED' && styles.pastStatusBadgeTextFailed,
+                  ]}>
+                  {formatStatus(item.status)}
+                </Text>
+              </View>
+            </View>
+            {ratingContent}
+          </View>
+        }
+      />
+    </View>
+  );
+};
+
 const SectionListHorizontalPills = ({
   filter,
   setFilter,
@@ -281,7 +659,6 @@ const SectionListHorizontalPills = ({
     {id: 'hospital', label: 'Hospital'},
     {id: 'groomer', label: 'Groomer'},
     {id: 'breeder', label: 'Breeder'},
-    {id: 'pet_center', label: 'Pet Center'},
     {id: 'boarder', label: 'Boarder'},
   ];
 
@@ -340,14 +717,13 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.primaryTint,
     },
     statusBadgeText: {
-      ...theme.typography.body12,
+      ...theme.typography.title,
       color: theme.colors.secondary,
     },
     reviewButtonCard: {marginTop: theme.spacing[1]},
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
     upcomingFooter: {
       gap: theme.spacing[2],
-      marginTop: theme.spacing[3],
     },
     footerButton: {
       alignSelf: 'flex-start',
@@ -360,48 +736,69 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[3],
       marginTop: theme.spacing[1],
     },
+    ratingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing[1.5],
+    },
+    ratingIcon: {
+      width: 18,
+      height: 18,
+      marginRight: 8,
+    },
+    ratingValueText: {
+      ...theme.typography.body14,
+      color: theme.colors.secondary,
+    },
+    ratingLoadingText: {
+      ...theme.typography.body12,
+      color: theme.colors.textSecondary,
+    },
     pastStatusWrapper: {
       flexDirection: 'row',
       justifyContent: 'flex-start',
     },
     pastStatusBadge: {
       alignSelf: 'flex-start',
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: 4,
-      borderRadius: 10,
+      paddingHorizontal: theme.spacing[2.5],
+      paddingVertical: 6,
+      borderRadius: 12,
       backgroundColor: 'rgba(16, 185, 129, 0.12)',
-      ...theme.typography.body12,
+    },
+    pastStatusBadgeText: {
+      ...theme.typography.title,
       color: '#0F5132',
-      fontWeight: '600',
     },
     pastStatusBadgeCanceled: {
       backgroundColor: 'rgba(239, 68, 68, 0.12)',
       color: '#991B1B',
     },
+    pastStatusBadgeTextCanceled: {
+      color: '#991B1B',
+    },
+    pastStatusBadgeRequested: {
+      backgroundColor: theme.colors.primaryTint,
+      color: theme.colors.primary,
+    },
+    pastStatusBadgeTextRequested: {
+      color: theme.colors.primary,
+    },
+    pastStatusBadgeFailed: {
+      backgroundColor: 'rgba(251, 191, 36, 0.16)',
+      color: '#92400E',
+    },
+    pastStatusBadgeTextFailed: {
+      color: '#92400E',
+    },
     infoTile: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      ...baseTileContainer(theme),
       padding: theme.spacing[5],
       gap: theme.spacing[2],
       overflow: 'hidden',
     },
-    tileFallback: {
-      borderRadius: theme.borderRadius.lg,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
-    },
-    tileTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    tileSubtitle: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
+    tileFallback: sharedTileStyles(theme).tileFallback,
+    tileTitle: sharedTileStyles(theme).tileTitle,
+    tileSubtitle: sharedTileStyles(theme).tileSubtitle,
     bottomSpacer: {height: theme.spacing[16]},
   });
 
