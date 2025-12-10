@@ -8,14 +8,14 @@ type GetUserRequest = Request<{ id: string }>;
 export const UserController = {
   create: async (req: Request, res: Response) => {
     try {
-      
-      const authRequest = req as AuthenticatedRequest
-      const { userId, email, firstName, lastName } = authRequest
+      const authRequest = req as AuthenticatedRequest;
+      const { userId, email, firstName, lastName } = authRequest;
 
       if (!userId || !email) {
-        return res.status(400).json({ message: "Missing user identity from token." });
+        return res
+          .status(400)
+          .json({ message: "Missing user identity from token." });
       }
-      
 
       const user = await UserService.create({
         id: userId,
@@ -23,7 +23,7 @@ export const UserController = {
         firstName: firstName!,
         lastName: lastName!,
       });
-      
+
       res.status(201).json(user);
     } catch (error: unknown) {
       if (error instanceof UserServiceError) {

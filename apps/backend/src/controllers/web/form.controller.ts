@@ -53,11 +53,11 @@ export const FormController = {
     }
   },
 
-  getFormListForOrganisation: async(req: Request, res: Response) => {
+  getFormListForOrganisation: async (req: Request, res: Response) => {
     try {
       const orgId = req.params.orgId;
 
-      const form = await FormService.listFormsForOrganisation(orgId)
+      const form = await FormService.listFormsForOrganisation(orgId);
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {

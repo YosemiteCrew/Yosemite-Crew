@@ -124,10 +124,7 @@ describe("ContactService", () => {
       const updated = { id: "contact-1", status: "RESOLVED" };
       mockedContactModel.findByIdAndUpdate.mockResolvedValueOnce(updated);
 
-      const result = await ContactService.updateStatus(
-        "contact-1",
-        "RESOLVED",
-      );
+      const result = await ContactService.updateStatus("contact-1", "RESOLVED");
 
       expect(mockedContactModel.findByIdAndUpdate).toHaveBeenCalledWith(
         "contact-1",

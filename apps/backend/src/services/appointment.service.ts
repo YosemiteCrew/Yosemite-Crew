@@ -384,14 +384,11 @@ export const AppointmentService = {
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
         appointment.companion.name,
         appointment.startTime.toDateString(),
-      )
+      );
 
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
-      await NotificationService.sendToUser(
-        parentId,
-        notificationPayload
-      )
+      await NotificationService.sendToUser(parentId, notificationPayload);
 
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),
@@ -475,15 +472,17 @@ export const AppointmentService = {
       );
 
       const lead = await UserProfileModel.findOne(
-        { userId: extracted.leadVetId, },
-        { personalDetails: 1 }
-      )
+        { userId: extracted.leadVetId },
+        { personalDetails: 1 },
+      );
 
       // Apply changes from PMS
       appointment.lead = {
         id: extracted.leadVetId,
         name: extracted.leadVetName ?? "Vet",
-        profileUrl: lead?.personalDetails?.profilePictureUrl ?? `https://ui-avatars.com/api/?name=${extracted.leadVetName}`,
+        profileUrl:
+          lead?.personalDetails?.profilePictureUrl ??
+          `https://ui-avatars.com/api/?name=${extracted.leadVetName}`,
       };
 
       appointment.supportStaff = extracted.supportStaff ?? [];
@@ -499,14 +498,11 @@ export const AppointmentService = {
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
         appointment.companion.name,
         appointment.startTime.toDateString(),
-      )
+      );
 
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
-      await NotificationService.sendToUser(
-        parentId,
-        notificationPayload
-      )
+      await NotificationService.sendToUser(parentId, notificationPayload);
 
       // Convert final domain → FHIR appointment
       return toAppointmentResponseDTO(toDomain(appointment));
@@ -560,13 +556,12 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
-      const notificationPayload = NotificationTemplates.Appointment.CANCELLED(appointment.companion.name);
+      const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
+        appointment.companion.name,
+      );
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
-      await NotificationService.sendToUser(
-        parentId,
-        notificationPayload
-      )
+      await NotificationService.sendToUser(parentId, notificationPayload);
     } catch (err) {
       await session.abortTransaction();
       await session.endSession();
@@ -651,14 +646,11 @@ export const AppointmentService = {
 
     const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
       appointment.companion.name,
-    )
+    );
 
     // Send notification to parent
     const parentId = appointment.companion.parent.id;
-    await NotificationService.sendToUser(
-      parentId,
-      notificationPayload
-    )
+    await NotificationService.sendToUser(parentId, notificationPayload);
 
     return toAppointmentResponseDTO(toDomain(appointment));
   },

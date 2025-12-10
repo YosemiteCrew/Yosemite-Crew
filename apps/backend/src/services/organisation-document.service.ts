@@ -157,10 +157,11 @@ export const OrganizationDocumentService = {
       throw new OrgDocumentServiceError("organisationId is required", 400);
     }
 
-    const query: Partial<OrganizationDocumentMongo> & { organisationId: string } =
-      {
-        organisationId: input.organisationId,
-      };
+    const query: Partial<OrganizationDocumentMongo> & {
+      organisationId: string;
+    } = {
+      organisationId: input.organisationId,
+    };
 
     if (input.category) {
       query.category = input.category;
@@ -170,21 +171,18 @@ export const OrganizationDocumentService = {
       query.visibility = input.visibility;
     }
 
-    return OrganizationDocumentModel.find(query)
-      .sort({ updatedAt: -1 })
-      .exec();
+    return OrganizationDocumentModel.find(query).sort({ updatedAt: -1 }).exec();
   },
 
   /**
    * For mobile app: only PUBLIC documents for an org,
    * usually legal docs to show during onboarding / booking.
    */
-  async listPublicDocumentsForOrganisation(filter : {
+  async listPublicDocumentsForOrganisation(filter: {
     organisationId: string;
     category?: string;
     visibility?: string;
-  }
-  ): Promise<OrganizationDocumentDocument[]> {
+  }): Promise<OrganizationDocumentDocument[]> {
     if (!filter.organisationId) {
       throw new OrgDocumentServiceError("organisationId is required", 400);
     }
@@ -200,7 +198,9 @@ export const OrganizationDocumentService = {
    * If exists -> update & bump version when file changes.
    * If not -> create new one.
    */
-  async upsertPolicyDocument(input: CreateOrgDocumentInput): Promise<OrganizationDocumentDocument> {
+  async upsertPolicyDocument(
+    input: CreateOrgDocumentInput,
+  ): Promise<OrganizationDocumentDocument> {
     if (
       ![
         "TERMS_AND_CONDITIONS",

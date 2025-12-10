@@ -4,8 +4,10 @@ import { authorizeCognitoMobile } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/withdraw", 
-  authorizeCognitoMobile, 
-  AccountWithdrawalController.create);
+router.post(
+  "/withdraw",
+  authorizeCognitoMobile,
+  AccountWithdrawalController.create,
+);
 
 export default router;

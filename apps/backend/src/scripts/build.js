@@ -11,7 +11,7 @@ const pkg = require("../../package.json");
 const externals = [
   ...Object.keys(pkg.dependencies || {}),
   "stream-chat",
-  "axios"
+  "axios",
 ];
 
 const entry = path.resolve(__dirname, "../main.ts");

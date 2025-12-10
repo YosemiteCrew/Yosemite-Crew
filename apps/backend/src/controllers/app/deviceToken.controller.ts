@@ -30,9 +30,13 @@ export class DeviceTokenController {
 
     try {
       await DeviceTokenService.registerToken(userId, deviceToken, platform);
-      res.status(200).json({ message: "Device token registered successfully." });
+      res
+        .status(200)
+        .json({ message: "Device token registered successfully." });
     } catch (error) {
-      logger.error(`Error registering device token: ${error instanceof Error ? error.message : "Unknown error"}`);
+      logger.error(
+        `Error registering device token: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       res.status(500).json({ message: "Failed to register device token." });
     }
   }
@@ -50,10 +54,14 @@ export class DeviceTokenController {
 
     try {
       await DeviceTokenService.removeToken(deviceToken);
-      res.status(200).json({ message: "Device token unregistered successfully." });
+      res
+        .status(200)
+        .json({ message: "Device token unregistered successfully." });
     } catch (error) {
-      logger.error(`Error unregistering device token: ${error instanceof Error ? error.message : "Unknown error"}`);
+      logger.error(
+        `Error unregistering device token: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       res.status(500).json({ message: "Failed to unregister device token." });
     }
   }
-}   
+}

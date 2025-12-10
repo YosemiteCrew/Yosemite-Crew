@@ -155,13 +155,9 @@ export const InvoiceService = {
       notes: input.notes,
     });
 
-    const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
-      totalPayable,
-    )
-    await NotificationService.sendToUser(
-      input.parentId,
-      notificationPayload
-    )
+    const notificationPayload =
+      NotificationTemplates.Payment.PAYMENT_PENDING(totalPayable);
+    await NotificationService.sendToUser(input.parentId, notificationPayload);
 
     return invoice;
   },
@@ -245,16 +241,16 @@ export const InvoiceService = {
     const doc = await InvoiceModel.findById(_id);
     const org = await OrganizationModel.findById(doc?.organisationId);
 
-    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404); 
+    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
     return {
-      organistion :{
-        name: org?.name || '',
-        placesId: org?.googlePlacesId || '',
-        address: org?.address || '',
-        image: org?.imageURL || ''
+      organistion: {
+        name: org?.name || "",
+        placesId: org?.googlePlacesId || "",
+        address: org?.address || "",
+        image: org?.imageURL || "",
       },
-      invoice: toInvoiceResponseDTO(toDomain(doc))
+      invoice: toInvoiceResponseDTO(toDomain(doc)),
     };
   },
 
