@@ -2,10 +2,7 @@ import TaskModel from "../../src/models/task";
 import TaskCompletionModel from "../../src/models/taskCompletion";
 import TaskLibraryDefinitionModel from "../../src/models/taskLibraryDefinition";
 import TaskTemplateModel from "../../src/models/taskTemplate";
-import {
-  TaskService,
-  TaskServiceError,
-} from "../../src/services/task.service";
+import { TaskService, TaskServiceError } from "../../src/services/task.service";
 
 type MockedTaskModel = {
   findById: jest.Mock;
@@ -291,7 +288,11 @@ describe("TaskService", () => {
         timezone: "UTC",
         medication: { name: "Old" },
         observationToolId: "obs-1",
-        reminder: { enabled: true, offsetMinutes: 15, scheduledNotificationId: "sched-1" },
+        reminder: {
+          enabled: true,
+          offsetMinutes: 15,
+          scheduledNotificationId: "sched-1",
+        },
         syncWithCalendar: false,
         attachments: [],
         recurrence: {

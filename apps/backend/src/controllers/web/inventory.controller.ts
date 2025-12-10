@@ -97,7 +97,11 @@ export const InventoryController = {
   // ITEM: UPDATE
   // ─────────────────────────────────────────────
   updateItem: async (
-    req: Request<{ itemId: string }, InventoryItemDocument, UpdateInventoryItemInput>,
+    req: Request<
+      { itemId: string },
+      InventoryItemDocument,
+      UpdateInventoryItemInput
+    >,
     res: Response,
   ): Promise<void> => {
     try {
@@ -198,12 +202,15 @@ export const InventoryController = {
   // ITEM: DETAIL (with batches)
   // ─────────────────────────────────────────────
   getItemWithBatches: async (
-    req: Request<{ itemId: string, organisationId: string }>,
+    req: Request<{ itemId: string; organisationId: string }>,
     res: Response,
   ): Promise<void> => {
     try {
       const { itemId, organisationId } = req.params;
-      const result = await InventoryService.getItemWithBatches(itemId, organisationId);
+      const result = await InventoryService.getItemWithBatches(
+        itemId,
+        organisationId,
+      );
       res.json(result);
     } catch (error) {
       handleError(error, res);
@@ -214,7 +221,11 @@ export const InventoryController = {
   // BATCH: ADD
   // ─────────────────────────────────────────────
   addBatch: async (
-    req: Request<{ itemId: string }, InventoryBatchDocument, InventoryBatchInput>,
+    req: Request<
+      { itemId: string },
+      InventoryBatchDocument,
+      InventoryBatchInput
+    >,
     res: Response,
   ): Promise<void> => {
     try {
@@ -232,7 +243,11 @@ export const InventoryController = {
   // BATCH: UPDATE
   // ─────────────────────────────────────────────
   updateBatch: async (
-    req: Request<{ batchId: string }, InventoryBatchDocument, Partial<InventoryBatchInput>>,
+    req: Request<
+      { batchId: string },
+      InventoryBatchDocument,
+      Partial<InventoryBatchInput>
+    >,
     res: Response,
   ): Promise<void> => {
     try {
@@ -368,21 +383,25 @@ export const InventoryController = {
  */
 export const InventoryVendorController = {
   createVendor: async (
-    req: Request<EmptyParams, InventoryVendorDocument, {
-      organisationId: string;
-      name: string;
-      brand?: string;
-      vendorType?: string;
-      licenseNumber?: string;
-      paymentTerms?: string;
-      deliveryFrequency?: string;
-      leadTimeDays?: number;
-      contactInfo?: {
-        phone?: string;
-        email?: string;
-        address?: string;
-      };
-    }>,
+    req: Request<
+      EmptyParams,
+      InventoryVendorDocument,
+      {
+        organisationId: string;
+        name: string;
+        brand?: string;
+        vendorType?: string;
+        licenseNumber?: string;
+        paymentTerms?: string;
+        deliveryFrequency?: string;
+        leadTimeDays?: number;
+        contactInfo?: {
+          phone?: string;
+          email?: string;
+          address?: string;
+        };
+      }
+    >,
     res: Response,
   ): Promise<void> => {
     try {
@@ -394,12 +413,19 @@ export const InventoryVendorController = {
   },
 
   updateVendor: async (
-    req: Request<{ vendorId: string }, InventoryVendorDocument, Partial<InventoryVendorDocument>>,
+    req: Request<
+      { vendorId: string },
+      InventoryVendorDocument,
+      Partial<InventoryVendorDocument>
+    >,
     res: Response,
   ): Promise<void> => {
     try {
       const { vendorId } = req.params;
-      const updated = await InventoryVendorService.updateVendor(vendorId, req.body);
+      const updated = await InventoryVendorService.updateVendor(
+        vendorId,
+        req.body,
+      );
       res.json(updated);
     } catch (error) {
       handleError(error, res);
@@ -455,12 +481,16 @@ export const InventoryVendorController = {
  */
 export const InventoryMetaFieldController = {
   createField: async (
-    req: Request<EmptyParams, InventoryMetaFieldDocument, {
-      businessType: string;
-      fieldKey: string;
-      label: string;
-      values: string[];
-    }>,
+    req: Request<
+      EmptyParams,
+      InventoryMetaFieldDocument,
+      {
+        businessType: string;
+        fieldKey: string;
+        label: string;
+        values: string[];
+      }
+    >,
     res: Response,
   ): Promise<void> => {
     try {
@@ -472,12 +502,19 @@ export const InventoryMetaFieldController = {
   },
 
   updateField: async (
-    req: Request<{ fieldId: string }, InventoryMetaFieldDocument, Partial<InventoryMetaFieldDocument>>,
+    req: Request<
+      { fieldId: string },
+      InventoryMetaFieldDocument,
+      Partial<InventoryMetaFieldDocument>
+    >,
     res: Response,
   ): Promise<void> => {
     try {
       const { fieldId } = req.params;
-      const updated = await InventoryMetaFieldService.updateField(fieldId, req.body);
+      const updated = await InventoryMetaFieldService.updateField(
+        fieldId,
+        req.body,
+      );
       res.json(updated);
     } catch (error) {
       handleError(error, res);
@@ -498,7 +535,12 @@ export const InventoryMetaFieldController = {
   },
 
   listFields: async (
-    req: Request<EmptyParams, InventoryMetaFieldDocument[], unknown, ListMetaFieldsQuery>,
+    req: Request<
+      EmptyParams,
+      InventoryMetaFieldDocument[],
+      unknown,
+      ListMetaFieldsQuery
+    >,
     res: Response,
   ): Promise<void> => {
     try {
@@ -527,7 +569,8 @@ export const InventoryAlertController = {
   ): Promise<void> => {
     try {
       const { organisationId } = req.params;
-      const items = await InventoryAlertService.getLowStockItems(organisationId);
+      const items =
+        await InventoryAlertService.getLowStockItems(organisationId);
       res.json(items);
     } catch (error) {
       handleError(error, res);
@@ -535,7 +578,12 @@ export const InventoryAlertController = {
   },
 
   getExpiringItems: async (
-    req: Request<{ organisationId: string }, unknown, unknown, ExpiringItemsQuery>,
+    req: Request<
+      { organisationId: string },
+      unknown,
+      unknown,
+      ExpiringItemsQuery
+    >,
     res: Response,
   ): Promise<void> => {
     try {

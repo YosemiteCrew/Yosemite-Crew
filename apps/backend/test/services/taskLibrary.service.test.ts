@@ -59,9 +59,9 @@ describe("TaskLibraryService", () => {
         exec: jest.fn().mockResolvedValue(null),
       });
 
-      await expect(TaskLibraryService.getById("missing")).rejects.toBeInstanceOf(
-        TaskLibraryServiceError,
-      );
+      await expect(
+        TaskLibraryService.getById("missing"),
+      ).rejects.toBeInstanceOf(TaskLibraryServiceError);
     });
   });
 });

@@ -167,10 +167,9 @@ export const ObservationToolSubmissionController = {
   // PMS — get one
   getById: async (req: Request, res: Response) => {
     try {
-      const submission =
-        await ObservationToolSubmissionService.getById(
-          req.params.submissionId,
-        );
+      const submission = await ObservationToolSubmissionService.getById(
+        req.params.submissionId,
+      );
       if (!submission) {
         return res
           .status(404)
@@ -188,11 +187,10 @@ export const ObservationToolSubmissionController = {
       const submissionId = req.params.submissionId;
       const { appointmentId } = req.body as { appointmentId: string };
 
-      const updated =
-        await ObservationToolSubmissionService.linkToAppointment({
-          submissionId,
-          appointmentId,
-        });
+      const updated = await ObservationToolSubmissionService.linkToAppointment({
+        submissionId,
+        appointmentId,
+      });
 
       res.json(updated);
     } catch (error) {

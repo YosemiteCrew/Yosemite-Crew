@@ -7,7 +7,10 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
 
 jest.mock("../../src/services/task.service", () => {
   class MockTaskServiceError extends Error {
-    constructor(message: string, public statusCode = 400) {
+    constructor(
+      message: string,
+      public statusCode = 400,
+    ) {
       super(message);
       this.name = "TaskServiceError";
     }
@@ -49,23 +52,28 @@ jest.mock("../../src/services/taskTemplate.service", () => ({
   },
 }));
 
-import { TaskController, TaskLibraryController, TaskTemplateController } from "../../src/controllers/web/task.controller";
-import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
 import {
-  TaskService,
-  TaskServiceError,
-} from "../../src/services/task.service";
+  TaskController,
+  TaskLibraryController,
+  TaskTemplateController,
+} from "../../src/controllers/web/task.controller";
+import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
+import { TaskService, TaskServiceError } from "../../src/services/task.service";
 import { TaskLibraryService } from "../../src/services/taskLibrary.service";
 import { TaskTemplateService } from "../../src/services/taskTemplate.service";
 
-const mockedAuthUserService =
-  AuthUserMobileService as unknown as jest.Mocked<typeof AuthUserMobileService>;
-const mockedTaskService =
-  TaskService as unknown as jest.Mocked<typeof TaskService>;
-const mockedTaskLibraryService =
-  TaskLibraryService as unknown as jest.Mocked<typeof TaskLibraryService>;
-const mockedTaskTemplateService =
-  TaskTemplateService as unknown as jest.Mocked<typeof TaskTemplateService>;
+const mockedAuthUserService = AuthUserMobileService as unknown as jest.Mocked<
+  typeof AuthUserMobileService
+>;
+const mockedTaskService = TaskService as unknown as jest.Mocked<
+  typeof TaskService
+>;
+const mockedTaskLibraryService = TaskLibraryService as unknown as jest.Mocked<
+  typeof TaskLibraryService
+>;
+const mockedTaskTemplateService = TaskTemplateService as unknown as jest.Mocked<
+  typeof TaskTemplateService
+>;
 
 const createResponse = () => ({
   status: jest.fn().mockReturnThis(),
@@ -83,14 +91,21 @@ describe("TaskController", () => {
       mockedAuthUserService.getByProviderUserId.mockResolvedValueOnce(null);
       const req = {
         headers: { "x-user-id": "user-1" },
-        body: { audience: "PARENT_TASK", companionId: "comp-1", dueAt: new Date(), assignedTo: "someone" },
+        body: {
+          audience: "PARENT_TASK",
+          companionId: "comp-1",
+          dueAt: new Date(),
+          assignedTo: "someone",
+        },
       } as any;
       const res = createResponse();
 
       await TaskController.createCustomTask(req, res as any);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({ message: "Parent account not found" });
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Parent account not found",
+      });
       expect(mockedTaskService.createCustom).not.toHaveBeenCalled();
     });
 
@@ -166,7 +181,9 @@ describe("TaskController", () => {
         },
       } as any;
       const res = createResponse();
-      mockedTaskService.createFromTemplate.mockResolvedValueOnce({ _id: "t2" } as any);
+      mockedTaskService.createFromTemplate.mockResolvedValueOnce({
+        _id: "t2",
+      } as any);
 
       await TaskController.createFromTemplate(req, res as any);
 
@@ -195,7 +212,9 @@ describe("TaskController", () => {
 
   describe("updateTask", () => {
     it("delegates to service with actor id", async () => {
-      mockedTaskService.updateTask.mockResolvedValueOnce({ _id: "task-1" } as any);
+      mockedTaskService.updateTask.mockResolvedValueOnce({
+        _id: "task-1",
+      } as any);
       const req = {
         headers: { "x-user-id": "actor-3" },
         params: { taskId: "task-1" },
@@ -231,7 +250,9 @@ describe("TaskController", () => {
     });
 
     it("passes through valid status", async () => {
-      mockedTaskService.changeStatus.mockResolvedValueOnce({ task: { _id: "task-1" } } as any);
+      mockedTaskService.changeStatus.mockResolvedValueOnce({
+        task: { _id: "task-1" },
+      } as any);
       const req = {
         headers: { "x-user-id": "actor" },
         params: { taskId: "task-1" },
@@ -277,7 +298,9 @@ describe("TaskController", () => {
         },
       } as any;
       const res = createResponse();
-      mockedTaskService.listForParent.mockResolvedValueOnce([{ _id: "t" }] as any);
+      mockedTaskService.listForParent.mockResolvedValueOnce([
+        { _id: "t" },
+      ] as any);
 
       await TaskController.listParentTasks(req, res as any);
 
@@ -305,7 +328,9 @@ describe("TaskController", () => {
         },
       } as any;
       const res = createResponse();
-      mockedTaskService.listForEmployee.mockResolvedValueOnce([{ _id: "t2" }] as any);
+      mockedTaskService.listForEmployee.mockResolvedValueOnce([
+        { _id: "t2" },
+      ] as any);
 
       await TaskController.listEmployeeTasks(req, res as any);
 
@@ -328,7 +353,9 @@ describe("TaskController", () => {
         query: { audience: "PARENT_TASK", status: "PENDING" },
       } as any;
       const res = createResponse();
-      mockedTaskService.listForCompanion.mockResolvedValueOnce([{ _id: "t3" }] as any);
+      mockedTaskService.listForCompanion.mockResolvedValueOnce([
+        { _id: "t3" },
+      ] as any);
 
       await TaskController.listForCompanion(req, res as any);
 
@@ -352,18 +379,24 @@ describe("TaskLibraryController", () => {
   it("lists active tasks with kind filter", async () => {
     const req = { query: { kind: "MEDICATION" } } as any;
     const res = createResponse();
-    mockedTaskLibraryService.listActive.mockResolvedValueOnce([{ _id: "lib" }] as any);
+    mockedTaskLibraryService.listActive.mockResolvedValueOnce([
+      { _id: "lib" },
+    ] as any);
 
     await TaskLibraryController.list(req, res as any);
 
-    expect(mockedTaskLibraryService.listActive).toHaveBeenCalledWith("MEDICATION");
+    expect(mockedTaskLibraryService.listActive).toHaveBeenCalledWith(
+      "MEDICATION",
+    );
     expect(res.json).toHaveBeenCalledWith([{ _id: "lib" }]);
   });
 
   it("gets by id", async () => {
     const req = { params: { libraryId: "lib-1" } } as any;
     const res = createResponse();
-    mockedTaskLibraryService.getById.mockResolvedValueOnce({ _id: "lib-1" } as any);
+    mockedTaskLibraryService.getById.mockResolvedValueOnce({
+      _id: "lib-1",
+    } as any);
 
     await TaskLibraryController.getById(req, res as any);
 
@@ -380,10 +413,18 @@ describe("TaskTemplateController", () => {
   it("creates template with actor id", async () => {
     const req = {
       headers: { "x-user-id": "creator-1" },
-      body: { organisationId: "org-1", name: "Template", category: "A", kind: "CUSTOM", defaultRole: "EMPLOYEE" },
+      body: {
+        organisationId: "org-1",
+        name: "Template",
+        category: "A",
+        kind: "CUSTOM",
+        defaultRole: "EMPLOYEE",
+      },
     } as any;
     const res = createResponse();
-    mockedTaskTemplateService.create.mockResolvedValueOnce({ _id: "tmpl" } as any);
+    mockedTaskTemplateService.create.mockResolvedValueOnce({
+      _id: "tmpl",
+    } as any);
 
     await TaskTemplateController.create(req, res as any);
 
@@ -400,11 +441,15 @@ describe("TaskTemplateController", () => {
       body: { name: "New name" },
     } as any;
     const res = createResponse();
-    mockedTaskTemplateService.update.mockResolvedValueOnce({ _id: "tmpl-1" } as any);
+    mockedTaskTemplateService.update.mockResolvedValueOnce({
+      _id: "tmpl-1",
+    } as any);
 
     await TaskTemplateController.update(req, res as any);
 
-    expect(mockedTaskTemplateService.update).toHaveBeenCalledWith("tmpl-1", { name: "New name" });
+    expect(mockedTaskTemplateService.update).toHaveBeenCalledWith("tmpl-1", {
+      name: "New name",
+    });
     expect(res.json).toHaveBeenCalledWith({ _id: "tmpl-1" });
   });
 
@@ -419,20 +464,30 @@ describe("TaskTemplateController", () => {
   });
 
   it("lists templates by organisation", async () => {
-    const req = { params: { organisationId: "org-2" }, query: { kind: "HYGIENE" } } as any;
+    const req = {
+      params: { organisationId: "org-2" },
+      query: { kind: "HYGIENE" },
+    } as any;
     const res = createResponse();
-    mockedTaskTemplateService.listForOrganisation.mockResolvedValueOnce([{ _id: "tmpl-3" }] as any);
+    mockedTaskTemplateService.listForOrganisation.mockResolvedValueOnce([
+      { _id: "tmpl-3" },
+    ] as any);
 
     await TaskTemplateController.list(req, res as any);
 
-    expect(mockedTaskTemplateService.listForOrganisation).toHaveBeenCalledWith("org-2", "HYGIENE");
+    expect(mockedTaskTemplateService.listForOrganisation).toHaveBeenCalledWith(
+      "org-2",
+      "HYGIENE",
+    );
     expect(res.json).toHaveBeenCalledWith([{ _id: "tmpl-3" }]);
   });
 
   it("gets template by id", async () => {
     const req = { params: { templateId: "tmpl-4" } } as any;
     const res = createResponse();
-    mockedTaskTemplateService.getById.mockResolvedValueOnce({ _id: "tmpl-4" } as any);
+    mockedTaskTemplateService.getById.mockResolvedValueOnce({
+      _id: "tmpl-4",
+    } as any);
 
     await TaskTemplateController.getById(req, res as any);
 

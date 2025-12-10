@@ -226,5 +226,5 @@ export const ServiceController = {
     } catch (error: unknown) {
       return handleError(error, res, "Unable to fetch service.");
     }
-  }
+  },
 };

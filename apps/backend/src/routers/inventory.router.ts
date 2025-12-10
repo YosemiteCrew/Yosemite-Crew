@@ -13,9 +13,21 @@ const router = Router();
 // ITEMS
 // ─────────────────────────────────────────────
 router.post("/items", authorizeCognito, InventoryController.createItem);
-router.patch("/items/:itemId", authorizeCognito, InventoryController.updateItem);
-router.post("/items/:itemId/hide", authorizeCognito, InventoryController.hideItem);
-router.post("/items/:itemId/archive", authorizeCognito, InventoryController.archiveItem);
+router.patch(
+  "/items/:itemId",
+  authorizeCognito,
+  InventoryController.updateItem,
+);
+router.post(
+  "/items/:itemId/hide",
+  authorizeCognito,
+  InventoryController.hideItem,
+);
+router.post(
+  "/items/:itemId/archive",
+  authorizeCognito,
+  InventoryController.archiveItem,
+);
 
 router.get(
   "/organisation/:organisationId/items",

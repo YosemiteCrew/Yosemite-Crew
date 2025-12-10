@@ -53,7 +53,7 @@ const OTFieldSchema = new Schema<OTField>(
       map: { type: Schema.Types.Mixed },
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const ObservationToolDefinitionSchema =
@@ -72,15 +72,16 @@ const ObservationToolDefinitionSchema =
 
       isActive: { type: Boolean, default: true },
     },
-    { timestamps: true }
+    { timestamps: true },
   );
 
 export type ObservationToolDefinitionDocument =
   HydratedDocument<ObservationToolDefinitionMongo>;
-export const ObservationToolDefinitionModel =  model<ObservationToolDefinitionMongo>(
-  "ObservationToolDefinition",
-  ObservationToolDefinitionSchema
-);
+export const ObservationToolDefinitionModel =
+  model<ObservationToolDefinitionMongo>(
+    "ObservationToolDefinition",
+    ObservationToolDefinitionSchema,
+  );
 
 export type ObservationToolAnswers = Record<string, unknown>;
 
@@ -118,12 +119,13 @@ const ObservationToolSubmissionSchema =
 
       evaluationAppointmentId: String,
     },
-    { timestamps: true }
+    { timestamps: true },
   );
 
 export type ObservationToolSubmissionDocument =
   HydratedDocument<ObservationToolSubmissionMongo>;
-export const ObservationToolSubmissionModel = model<ObservationToolSubmissionMongo>(
-  "ObservationToolSubmission",
-  ObservationToolSubmissionSchema
-);
+export const ObservationToolSubmissionModel =
+  model<ObservationToolSubmissionMongo>(
+    "ObservationToolSubmission",
+    ObservationToolSubmissionSchema,
+  );

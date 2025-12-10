@@ -19,8 +19,7 @@ jest.mock("../../src/models/taskTemplate", () => ({
   },
 }));
 
-const mockedModel =
-  TaskTemplateModel as unknown as MockedTaskTemplateModel;
+const mockedModel = TaskTemplateModel as unknown as MockedTaskTemplateModel;
 
 describe("TaskTemplateService", () => {
   beforeEach(() => {
@@ -149,9 +148,9 @@ describe("TaskTemplateService", () => {
         exec: jest.fn().mockResolvedValue(null),
       });
 
-      await expect(TaskTemplateService.getById("missing")).rejects.toBeInstanceOf(
-        TaskTemplateServiceError,
-      );
+      await expect(
+        TaskTemplateService.getById("missing"),
+      ).rejects.toBeInstanceOf(TaskTemplateServiceError);
     });
   });
 });

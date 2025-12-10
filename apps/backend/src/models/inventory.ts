@@ -17,13 +17,13 @@ export interface InventoryItemMongo {
   name: string;
   sku?: string;
 
-  category: string;       // Medicine / Consumable / Bedding / Accessory...
+  category: string; // Medicine / Consumable / Bedding / Accessory...
   subCategory?: string;
 
   description?: string;
   imageUrl?: string;
 
-  attributes: Record<string, unknown>;  // dynamic fields per business type
+  attributes: Record<string, unknown>; // dynamic fields per business type
 
   onHand: number;
   allocated: number;
@@ -33,7 +33,7 @@ export interface InventoryItemMongo {
   sellingPrice?: number;
   currency?: string;
 
-  vendorId?: string;      // references InventoryVendor
+  vendorId?: string; // references InventoryVendor
 
   status: "ACTIVE" | "HIDDEN" | "DELETED";
 
@@ -78,7 +78,7 @@ const InventoryItemSchema = new Schema<InventoryItemMongo>(
       default: "ACTIVE",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 InventoryItemSchema.index({ organisationId: 1, name: 1 });
@@ -87,13 +87,16 @@ InventoryItemSchema.index({ businessType: 1 });
 InventoryItemSchema.index({ status: 1 });
 
 export type InventoryItemDocument = HydratedDocument<InventoryItemMongo>;
-export const InventoryItemModel = model<InventoryItemMongo>("InventoryItem", InventoryItemSchema);
+export const InventoryItemModel = model<InventoryItemMongo>(
+  "InventoryItem",
+  InventoryItemSchema,
+);
 
 // Invetory Batch
 
 export interface InventoryBatchMongo {
-  itemId: string;  // InventoryItem reference
-  organisationId : string;
+  itemId: string; // InventoryItem reference
+  organisationId: string;
   batchNumber?: string;
   lotNumber?: string;
   regulatoryTrackingId?: string;
@@ -125,14 +128,17 @@ const InventoryBatchSchema = new Schema<InventoryBatchMongo>(
     quantity: { type: Number, default: 0 },
     allocated: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 InventoryBatchSchema.index({ expiryDate: 1 });
 InventoryBatchSchema.index({ minShelfLifeAlertDate: 1 });
 
 export type InventoryBatchDocument = HydratedDocument<InventoryBatchMongo>;
-export const InventoryBatchModel = model<InventoryBatchMongo>("InventoryBatch", InventoryBatchSchema);
+export const InventoryBatchModel = model<InventoryBatchMongo>(
+  "InventoryBatch",
+  InventoryBatchSchema,
+);
 
 // Invetory Vendor
 
@@ -177,23 +183,25 @@ const VendorSchema = new Schema<InventoryVendorMongo>(
       address: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 VendorSchema.index({ organisationId: 1, name: 1 });
 
 export type InventoryVendorDocument = HydratedDocument<InventoryVendorMongo>;
-export const InventoryVendorModel = model<InventoryVendorMongo>("InventoryVendor", VendorSchema);
-
+export const InventoryVendorModel = model<InventoryVendorMongo>(
+  "InventoryVendor",
+  VendorSchema,
+);
 
 // Inventory Meta field
 
 export interface InventoryMetaFieldMongo {
-  businessType: string;  // HOSPITAL / GROOMING / BREEDING / BOARDING
-  fieldKey: string;      // "therapeuticClass", "coatType", "unitOfMeasure"
-  label: string;         // user-friendly label
+  businessType: string; // HOSPITAL / GROOMING / BREEDING / BOARDING
+  fieldKey: string; // "therapeuticClass", "coatType", "unitOfMeasure"
+  label: string; // user-friendly label
 
-  values: string[];      // dropdown options
+  values: string[]; // dropdown options
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -206,7 +214,7 @@ const MetaFieldSchema = new Schema<InventoryMetaFieldMongo>(
     label: { type: String, required: true },
     values: { type: [String], required: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 MetaFieldSchema.index({ businessType: 1, fieldKey: 1 }, { unique: true });
@@ -216,7 +224,7 @@ export type InventoryMetaFieldDocument =
 
 export const InventoryMetaFieldModel = model<InventoryMetaFieldMongo>(
   "InventoryMetaField",
-  MetaFieldSchema
+  MetaFieldSchema,
 );
 
 // Stock movement
@@ -241,10 +249,10 @@ const StockMovementSchema = new Schema<StockMovementMongo>(
     userId: String,
     createdAt: { type: Date, default: Date.now },
   },
-  { timestamps: false }
+  { timestamps: false },
 );
 
 export const StockMovementModel = model<StockMovementMongo>(
   "InventoryStockMovement",
-  StockMovementSchema
+  StockMovementSchema,
 );

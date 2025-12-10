@@ -138,22 +138,21 @@ export interface ConsumeStockInput {
     | "GROOMING_USAGE"
     | "BOARDING_USAGE"
     | "OTHER";
-  referenceId?: string; 
+  referenceId?: string;
 }
-
 
 export interface StockMovementInput {
   itemId: string;
   batchId?: string;
   change: number;
-  reason: string; 
+  reason: string;
   referenceId?: string;
   userId?: string;
 }
 
 /**
  * HELPER: Calculate stock status for UI
-*/
+ */
 const computeStockHealthStatus = (args: {
   onHand: number;
   reorderLevel?: number | null;
@@ -161,32 +160,36 @@ const computeStockHealthStatus = (args: {
   nearestExpiry?: Date | null;
 }): StockHealthStatus => {
   const { onHand, reorderLevel, nearestExpiry, soonThresholdDays = 7 } = args;
-  
+
   const now = dayjs();
   if (nearestExpiry && dayjs(nearestExpiry).isBefore(now, "day")) {
     return "EXPIRED";
   }
-  
+
   if (
     nearestExpiry &&
     dayjs(nearestExpiry).isBefore(now.add(soonThresholdDays, "day"), "day")
   ) {
     return "EXPIRING_SOON";
   }
-  
+
   if (reorderLevel != null && onHand <= reorderLevel) {
     return "LOW_STOCK";
   }
-  
+
   return "HEALTHY";
 };
 
 /**
  * HELPER: Recompute onHand and allocated from batches
-*/
+ */
 const recomputeStockFromBatches = async (
   itemId: string,
-): Promise<{ onHand: number; allocated: number; nearestExpiry: Date | null }> => {
+): Promise<{
+  onHand: number;
+  allocated: number;
+  nearestExpiry: Date | null;
+}> => {
   const batches = await InventoryBatchModel.find({ itemId }).lean();
 
   let onHand = 0;
@@ -209,7 +212,7 @@ const recomputeStockFromBatches = async (
 
 /**
  * HELPER: validate ObjectId
-*/
+ */
 const ensureObjectId = (id: string, fieldName = "id") => {
   if (!Types.ObjectId.isValid(id)) {
     throw new InventoryServiceError(`Invalid ${fieldName}`, 400);
@@ -218,7 +221,7 @@ const ensureObjectId = (id: string, fieldName = "id") => {
 
 /**
  * HELPER: log stock movment
-*/
+ */
 const logMovement = async (payload: StockMovementInput) => {
   await StockMovementModel.create({
     ...payload,
@@ -288,7 +291,9 @@ export const InventoryService = {
 
       await InventoryBatchModel.insertMany(payloads);
 
-      const { onHand, allocated } = await recomputeStockFromBatches(item._id.toString());
+      const { onHand, allocated } = await recomputeStockFromBatches(
+        item._id.toString(),
+      );
       item.onHand = onHand;
       item.allocated = allocated;
       await item.save();
@@ -323,14 +328,17 @@ export const InventoryService = {
       item.attributes = input.attributes;
     }
 
-    if (input.unitCost !== undefined) item.unitCost = input.unitCost ?? undefined;
+    if (input.unitCost !== undefined)
+      item.unitCost = input.unitCost ?? undefined;
     if (input.sellingPrice !== undefined)
       item.sellingPrice = input.sellingPrice ?? undefined;
-    if (input.currency !== undefined) item.currency = input.currency ?? undefined;
+    if (input.currency !== undefined)
+      item.currency = input.currency ?? undefined;
     if (input.reorderLevel !== undefined)
       item.reorderLevel = input.reorderLevel ?? undefined;
 
-    if (input.vendorId !== undefined) item.vendorId = input.vendorId ?? undefined;
+    if (input.vendorId !== undefined)
+      item.vendorId = input.vendorId ?? undefined;
 
     if (input.status !== undefined) item.status = input.status;
 
@@ -451,13 +459,18 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   async getItemWithBatches(
     itemId: string,
-    organisationId: string
-  ): Promise<{ item: InventoryItemDocument; batches: InventoryBatchDocument[] }> {
+    organisationId: string,
+  ): Promise<{
+    item: InventoryItemDocument;
+    batches: InventoryBatchDocument[];
+  }> {
     ensureObjectId(itemId, "itemId");
 
     const [item, batches] = await Promise.all([
       InventoryItemModel.findById(itemId).exec(),
-      InventoryBatchModel.find({ itemId, organisationId }).sort({ expiryDate: 1 }).exec(),
+      InventoryBatchModel.find({ itemId, organisationId })
+        .sort({ expiryDate: 1 })
+        .exec(),
     ]);
 
     if (!item) {
@@ -600,9 +613,7 @@ export const InventoryService = {
       );
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(
-      input.itemId,
-    );
+    const { onHand, allocated } = await recomputeStockFromBatches(input.itemId);
     item.onHand = onHand;
     item.allocated = allocated;
     await item.save();
@@ -667,7 +678,10 @@ export const InventoryAdjustmentService = {
       }
 
       if (remaining > 0) {
-        throw new InventoryServiceError("Insufficient stock for adjustment", 400);
+        throw new InventoryServiceError(
+          "Insufficient stock for adjustment",
+          400,
+        );
       }
     }
 

@@ -93,10 +93,7 @@ describe("InventoryService", () => {
         businessType: "HOSPITAL",
         name: "Bandage",
         category: "Supplies",
-        batches: [
-          { quantity: 4, allocated: 1 },
-          { quantity: 3 },
-        ],
+        batches: [{ quantity: 4, allocated: 1 }, { quantity: 3 }],
       });
 
       expect(mockedItemModel.create).toHaveBeenCalledWith(

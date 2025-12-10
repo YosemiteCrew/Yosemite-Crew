@@ -7,7 +7,10 @@ import {
 } from "src/models/observationToolDefinition";
 
 export class ObservationToolSubmissionServiceError extends Error {
-  constructor(message: string, public statusCode = 400) {
+  constructor(
+    message: string,
+    public statusCode = 400,
+  ) {
     super(message);
     this.name = "ObservationToolSubmissionServiceError";
   }
@@ -50,7 +53,12 @@ const computeScore = (
     if (!field.scoring) continue;
 
     // map-based scoring (e.g. CHOICE)
-    if (field.scoring.map && answer != null) {
+    if (
+      field.scoring.map &&
+      (typeof answer === "string" ||
+        typeof answer === "number" ||
+        typeof answer === "boolean")
+    ) {
       const mapped = field.scoring.map[String(answer)];
       if (typeof mapped === "number") {
         total += mapped;
@@ -146,9 +154,7 @@ export const ObservationToolSubmissionService = {
     return doc;
   },
 
-  async getById(
-    id: string,
-  ): Promise<ObservationToolSubmissionDocument | null> {
+  async getById(id: string): Promise<ObservationToolSubmissionDocument | null> {
     return ObservationToolSubmissionModel.findById(id).exec();
   },
 

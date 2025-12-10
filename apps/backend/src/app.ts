@@ -22,7 +22,7 @@ export function createApp() {
   app.post(
     "/v1/stripe/webhook",
     express.raw({ type: "application/json" }),
-    StripeController.webhook
+    StripeController.webhook,
   );
 
   registerRoutes(app); // all routes in 1 place

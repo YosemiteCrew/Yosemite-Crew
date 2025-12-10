@@ -39,7 +39,7 @@ const MedicationFieldsSchema = new Schema(
     hasDosage: Boolean,
     hasFrequency: Boolean,
   },
-  { _id: false }
+  { _id: false },
 );
 
 // ✅ Fix: wrap entire schema field inside a sub-schema
@@ -49,7 +49,7 @@ const LibraryInnerSchema = new Schema(
     requiresObservationTool: { type: Boolean, default: false },
     allowsRecurrence: { type: Boolean, default: false },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const LibrarySchema = new Schema<TaskLibraryDefinitionMongo>(
@@ -73,7 +73,7 @@ const LibrarySchema = new Schema<TaskLibraryDefinitionMongo>(
 
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export type TaskLibraryDefinitionDocument =
@@ -81,5 +81,5 @@ export type TaskLibraryDefinitionDocument =
 
 export default model<TaskLibraryDefinitionMongo>(
   "TaskLibraryDefinition",
-  LibrarySchema
+  LibrarySchema,
 );

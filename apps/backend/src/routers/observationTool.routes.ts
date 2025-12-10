@@ -1,8 +1,5 @@
 import { Router } from "express";
-import {
-  authorizeCognito,
-  authorizeCognitoMobile,
-} from "src/middlewares/auth";
+import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 import {
   ObservationToolDefinitionController,
   ObservationToolSubmissionController,

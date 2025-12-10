@@ -6,7 +6,10 @@ import {
 } from "src/models/observationToolDefinition";
 
 export class ObservationToolDefinitionServiceError extends Error {
-  constructor(message: string, public statusCode = 400) {
+  constructor(
+    message: string,
+    public statusCode = 400,
+  ) {
     super(message);
     this.name = "ObservationToolDefinitionServiceError";
   }

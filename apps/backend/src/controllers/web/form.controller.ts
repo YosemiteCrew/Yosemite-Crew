@@ -3,6 +3,7 @@ import { FormService, FormServiceError } from "src/services/form.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { FormRequestDTO, FormSubmissionRequestDTO } from "@yosemite-crew/types";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import logger from "src/utils/logger";
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -32,7 +33,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in createForm:", error);
+      logger.error("Unexpected error in createForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -48,7 +49,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormForAdmin:", error);
+      logger.error("Unexpected error in getFormForAdmin:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -63,7 +64,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormForAdmin:", error);
+      logger.error("Unexpected error in getFormForAdmin:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -78,7 +79,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormForClient:", error);
+      logger.error("Unexpected error in getFormForClient:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -102,7 +103,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in updateForm:", error);
+      logger.error("Unexpected error in updateForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -123,7 +124,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in publishForm:", error);
+      logger.error("Unexpected error in publishForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -144,7 +145,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in unpublishForm:", error);
+      logger.error("Unexpected error in unpublishForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -165,7 +166,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in archiveForm:", error);
+      logger.error("Unexpected error in archiveForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -189,7 +190,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in submitForm:", error);
+      logger.error("Unexpected error in submitForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -204,7 +205,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormSubmissions:", error);
+      logger.error("Unexpected error in getFormSubmissions:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -219,7 +220,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in listFormSubmissions:", error);
+      logger.error("Unexpected error in listFormSubmissions:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
