@@ -520,22 +520,16 @@ export type CreateUserProfilePayload = {
   organizationId: unknown;
   personalDetails?: unknown;
   professionalDetails?: unknown;
-  baseAvailability: unknown;
 };
 
 export type UpdateUserProfilePayload = {
   personalDetails?: unknown;
   professionalDetails?: unknown;
-  baseAvailability?: unknown;
 };
 
 const sanitizeCreatePayload = (
   payload: CreateUserProfilePayload,
-): { profile: UserProfileMongo; baseAvailability: unknown } => {
-  if (!("baseAvailability" in payload)) {
-    throw new UserProfileServiceError("Base availability is required.", 400);
-  }
-
+): { profile: UserProfileMongo } => {
   const personalDetails = sanitizePersonalDetails(payload.personalDetails);
   const professionalDetails = sanitizeProfessionalDetails(
     payload.professionalDetails,
@@ -548,12 +542,12 @@ const sanitizeCreatePayload = (
     professionalDetails,
   });
 
-  return { profile, baseAvailability: payload.baseAvailability };
+  return { profile };
 };
 
 const sanitizeUpdatePayload = (
   payload: UpdateUserProfilePayload,
-): { attributes: Partial<UserProfileMongo>; baseAvailability?: unknown } => {
+): { attributes: Partial<UserProfileMongo> } => {
   const sanitized: Partial<UserProfileMongo> = {};
   let hasProfileUpdate = false;
 
@@ -571,24 +565,18 @@ const sanitizeUpdatePayload = (
     hasProfileUpdate = true;
   }
 
-  const hasAvailabilityUpdate = "baseAvailability" in payload;
-
-  if (!hasProfileUpdate && !hasAvailabilityUpdate) {
+  if (!hasProfileUpdate) {
     throw new UserProfileServiceError("No updatable fields provided.", 400);
   }
 
   return {
     attributes: pruneUndefined(sanitized),
-    baseAvailability: hasAvailabilityUpdate
-      ? payload.baseAvailability
-      : undefined,
   };
 };
 
 export const UserProfileService = {
   async create(payload: CreateUserProfilePayload): Promise<UserProfileType> {
-    const { profile: attributes, baseAvailability } =
-      sanitizeCreatePayload(payload);
+    const { profile: attributes } = sanitizeCreatePayload(payload);
 
     const existing = await UserProfileModel.findOne(
       { userId: attributes.userId, organizationId: attributes.organizationId },
@@ -605,16 +593,13 @@ export const UserProfileService = {
 
     const document = await UserProfileModel.create(attributes);
 
-    let availability: UserAvailability[];
+    let availability: UserAvailability[] = [];
 
     try {
-      availability = await BaseAvailabilityService.create({
-        userId: attributes.userId,
-        availability: baseAvailability,
-      });
+      availability = await BaseAvailabilityService.getByUserId(
+        attributes.userId,
+      );
     } catch (error: unknown) {
-      await UserProfileModel.deleteOne({ _id: document._id });
-
       if (error instanceof BaseAvailabilityServiceError) {
         throw new UserProfileServiceError(error.message, error.statusCode);
       }
@@ -634,7 +619,7 @@ export const UserProfileService = {
   ): Promise<UserProfileType | null> {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
-    const { attributes, baseAvailability } = sanitizeUpdatePayload(payload);
+    const { attributes } = sanitizeUpdatePayload(payload);
 
     const document =
       Object.keys(attributes).length > 0
@@ -653,16 +638,10 @@ export const UserProfileService = {
       return null;
     }
 
-    let availability: UserAvailability[];
+    let availability: UserAvailability[] = [];
 
     try {
-      if (baseAvailability !== undefined) {
-        availability = await BaseAvailabilityService.update(identifier, {
-          availability: baseAvailability,
-        });
-      } else {
-        availability = await BaseAvailabilityService.getByUserId(identifier);
-      }
+      availability = await BaseAvailabilityService.getByUserId(identifier);
     } catch (error: unknown) {
       if (error instanceof BaseAvailabilityServiceError) {
         throw new UserProfileServiceError(error.message, error.statusCode);

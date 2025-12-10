@@ -88,7 +88,7 @@ describe("UserProfileService", () => {
       } as any;
 
       mockedModel.create.mockResolvedValueOnce(document);
-      mockedAvailabilityService.create.mockResolvedValueOnce([
+      mockedAvailabilityService.getByUserId.mockResolvedValueOnce([
         {
           _id: "avail-1",
           userId: "user-1",
@@ -117,14 +117,6 @@ describe("UserProfileService", () => {
           specialization: "Dermatology",
           qualification: "BVetMed",
         },
-        baseAvailability: [
-          {
-            dayOfWeek: "MONDAY",
-            slots: [
-              { startTime: "09:00", endTime: "17:00", isAvailable: true },
-            ],
-          },
-        ],
       });
 
       expect(mockedModel.findOne).toHaveBeenCalledWith(
@@ -153,17 +145,9 @@ describe("UserProfileService", () => {
           qualification: "BVetMed",
         },
       });
-      expect(mockedAvailabilityService.create).toHaveBeenCalledWith({
-        userId: "user-1",
-        availability: [
-          {
-            dayOfWeek: "MONDAY",
-            slots: [
-              { startTime: "09:00", endTime: "17:00", isAvailable: true },
-            ],
-          },
-        ],
-      });
+      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith(
+        "user-1",
+      );
       expect(document.save).toHaveBeenCalled();
       expect(result).toEqual({
         _id: "profile-id",
@@ -199,7 +183,6 @@ describe("UserProfileService", () => {
         UserProfileService.create({
           userId: "user-1",
           organizationId: "org-1",
-          baseAvailability: [],
         }),
       ).rejects.toMatchObject({
         message: "Profile already exists for this user in this organization.",
@@ -212,19 +195,7 @@ describe("UserProfileService", () => {
         UserProfileService.create({
           userId: "",
           organizationId: "org-1",
-          baseAvailability: [],
         }),
-      ).rejects.toBeInstanceOf(UserProfileServiceError);
-    });
-
-    it("requires base availability", async () => {
-      await expect(
-        UserProfileService.create({
-          userId: "user-1",
-          organizationId: "org-1",
-          personalDetails: {},
-          professionalDetails: {},
-        } as any),
       ).rejects.toBeInstanceOf(UserProfileServiceError);
     });
   });
@@ -269,7 +240,7 @@ describe("UserProfileService", () => {
       } as any;
 
       mockedModel.findOneAndUpdate.mockResolvedValueOnce(document);
-      mockedAvailabilityService.update.mockResolvedValueOnce([
+      mockedAvailabilityService.getByUserId.mockResolvedValueOnce([
         {
           _id: "avail-1",
           userId: "user-1",
@@ -284,14 +255,6 @@ describe("UserProfileService", () => {
           specialization: "Oncology",
           qualification: "MVSc",
         },
-        baseAvailability: [
-          {
-            dayOfWeek: "TUESDAY",
-            slots: [
-              { startTime: "10:00", endTime: "18:00", isAvailable: true },
-            ],
-          },
-        ],
       });
 
       expect(mockedModel.findOneAndUpdate).toHaveBeenCalledWith(
@@ -307,16 +270,9 @@ describe("UserProfileService", () => {
         },
         { new: true, sanitizeFilter: true },
       );
-      expect(mockedAvailabilityService.update).toHaveBeenCalledWith("user-1", {
-        availability: [
-          {
-            dayOfWeek: "TUESDAY",
-            slots: [
-              { startTime: "10:00", endTime: "18:00", isAvailable: true },
-            ],
-          },
-        ],
-      });
+      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith(
+        "user-1",
+      );
       expect(document.save).toHaveBeenCalled();
       expect(result).toEqual({
         _id: "profile-id",
@@ -350,14 +306,6 @@ describe("UserProfileService", () => {
 
       const result = await UserProfileService.update("user-1", "org-1", {
         personalDetails: { gender: "FEMALE" },
-        baseAvailability: [
-          {
-            dayOfWeek: "MONDAY",
-            slots: [
-              { startTime: "09:00", endTime: "10:00", isAvailable: true },
-            ],
-          },
-        ],
       });
 
       expect(result).toBeNull();
