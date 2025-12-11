@@ -33,7 +33,7 @@ const TitleCalendar = ({
           classname="w-[140px] sm:w-40"
           onClick={() => setAddPopup(true)}
         />
-        <Datepicker currentDate={currentDate} setCurrentDate={setCurrentDate} />
+        <Datepicker currentDate={currentDate} setCurrentDate={setCurrentDate} placeholder="Select Date" />
         <div className="flex items-center rounded-2xl">
           <button
             onClick={() => setActiveCalendar("vet")}

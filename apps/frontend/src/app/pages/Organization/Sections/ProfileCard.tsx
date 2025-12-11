@@ -20,11 +20,12 @@ type ProfileCardProps = {
   showProfile?: boolean;
   showProfileUser?: boolean;
   editable?: boolean;
+  onSave?: (values: Record<string, string>) => Promise<void> | void;
 };
 
 const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case "verified":
+    case "active":
       return { color: "#008F5D", backgroundColor: "#E6F4EF" };
     case "pending":
       return { color: "#F68523", backgroundColor: "#FEF3E9" };
@@ -39,7 +40,8 @@ const ProfileCard = ({
   org,
   showProfile,
   showProfileUser,
-  editable = true
+  editable = true,
+  onSave,
 }: ProfileCardProps) => {
   const attributes = useAuthStore((s) => s.attributes);
   const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +54,7 @@ const ProfileCard = ({
       {} as Record<string, string>
     )
   );
+
   const [formValuesErrors, setFormValuesErrors] = useState<
     Record<string, string | undefined>
   >({});
@@ -70,8 +73,15 @@ const ProfileCard = ({
   }, [org, fields]);
 
   const handleChange = (key: string, value: string) => {
-    setFormValues((prev) => ({ ...prev, [key]: value }));
-    setFormValuesErrors((prev) => ({ ...prev, [key]: undefined }));
+    setFormValues((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+
+    setFormValuesErrors((prev) => ({
+      ...prev,
+      [key]: undefined,
+    }));
   };
 
   const validate = () => {
@@ -102,9 +112,14 @@ const ProfileCard = ({
     setIsEditing(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    setIsEditing(false);
+    try {
+      await onSave?.(formValues);
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error in ProfileCard onSave:", error);
+    }
   };
 
   return (
@@ -145,6 +160,7 @@ const ProfileCard = ({
               <div className="flex items-center gap-3">
                 <Image
                   src={
+                    org.imageURL ||
                     "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
                   }
                   alt="Logo"
@@ -154,17 +170,19 @@ const ProfileCard = ({
                 />
                 <div className="flex flex-col">
                   <div className="font-grotesk font-medium text-black-text text-[28px]">
-                    San Francisco Medical Center
+                    {org.name}
                   </div>
                   <div
                     className="px-3.5! py-1.5! rounded-xl w-fit font-satoshi font-semibold text-[16px]"
-                    style={getStatusStyle(org.status)}
+                    style={getStatusStyle(
+                      org.isVerified ? "Active" : "Pending"
+                    )}
                   >
-                    {org.status}
+                    {org.isVerified ? "Active" : "Pending"}
                   </div>
                 </div>
               </div>
-              {org?.status?.toLowerCase() !== "verified" && (
+              {!org?.isVerified && (
                 <Primary
                   text="Book onboarding call"
                   href="/book-demo"
@@ -172,7 +190,7 @@ const ProfileCard = ({
                 />
               )}
             </div>
-            {org?.status?.toLowerCase() !== "verified" && (
+            {!org?.isVerified && (
               <div className="font-satoshi font-medium text-grey-noti text-[18px]">
                 <span className="text-[#247AED]">Note : </span>This short chat
                 helps us confirm your business and add you to our trusted
@@ -185,7 +203,7 @@ const ProfileCard = ({
         {fields.map((field, index) => (
           <div key={field.key}>
             {isEditing && field.editable ? (
-              <div className="flex-1 py-1">
+              <div className="flex-1 py-2 px-2">
                 <FormInput
                   intype={field.type || "text"}
                   inname={field.key}

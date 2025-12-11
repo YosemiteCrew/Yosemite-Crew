@@ -79,25 +79,24 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
       />
       {open && (
         <div className="availability-dublicate-dropdown">
-          {daysOfWeek.map((d, i) => (
+          {copyTargets.map((d, i) => (
             <button
-              key={d}
+              key={d.name}
               className="availability-dublicate-dropdown-item"
-              onClick={() => handleSelect(d)}
             >
               <label
-                htmlFor={`availability-duplicate-${d}-check`}
+                htmlFor={`availability-duplicate-${d.name}-check`}
                 className="availability-dublicate-dropdown-item-label"
               >
                 <input
-                  id={`availability-duplicate-${d}-check`}
+                  id={`availability-duplicate-${d.name}-check`}
                   type="checkbox"
-                  checked={copyTargets[i].active}
-                  disabled={copyTargets[i].disable}
+                  checked={d.active}
+                  disabled={d.disable}
                   className="availability-dublicate-dropdown-item-check"
-                  readOnly
+                  onClick={() => handleSelect(d.name)}
                 />
-                <span>{d}</span>
+                <span>{d.name}</span>
               </label>
             </button>
           ))}

@@ -22,6 +22,7 @@ type EditableAccordionProps = {
   defaultOpen?: boolean;
   showEditIcon?: boolean;
   readOnly?: boolean;
+  onSave?: (values: FormValues) => void | Promise<void>;
 };
 
 const FieldComponents: Record<
@@ -34,6 +35,17 @@ const FieldComponents: Record<
   }>
 > = {
   text: ({ field, value, onChange, error }) => (
+    <FormInput
+      intype={field.type || "text"}
+      inname={field.key}
+      value={value}
+      inlabel={field.label}
+      error={error}
+      onChange={(e) => onChange(e.target.value)}
+      className="min-h-12!"
+    />
+  ),
+  number: ({ field, value, onChange, error }) => (
     <FormInput
       intype={field.type || "text"}
       inname={field.key}
@@ -85,7 +97,12 @@ const FieldComponents: Record<
     />
   ),
   date: ({ field, value, onChange }) => (
-    <Datepicker currentDate={value} setCurrentDate={onChange} type="input" />
+    <Datepicker
+      currentDate={value}
+      setCurrentDate={onChange}
+      type="input"
+      placeholder={field.label}
+    />
   ),
 };
 
@@ -126,6 +143,18 @@ const FieldValueComponents: Record<
   }>
 > = {
   text: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {formValues[field.key] || "-"}
+      </div>
+    </div>
+  ),
+  number: ({ field, index, fields, formValues }) => (
     <div
       className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
     >
@@ -252,6 +281,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   defaultOpen = false,
   showEditIcon = true,
   readOnly = false,
+  onSave,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(() =>
@@ -316,6 +346,10 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         if (value.length === 0) {
           errors[field.key] = `${field.label} is required`;
         }
+      } else if (field.type === "number") {
+        if (!value) {
+          errors[field.key] = `${field.label} is required`;
+        }
       } else {
         const str = (value || "").trim();
         if (!str) {
@@ -358,9 +392,15 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     }
   }, [readOnly, isEditing]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    setIsEditing(false);
+
+    try {
+      await onSave?.(formValues);
+      setIsEditing(false);
+    } catch (e) {
+      console.error("Failed to save accordion data:", e);
+    }
   };
 
   const effectiveEditing = readOnly ? false : isEditing;

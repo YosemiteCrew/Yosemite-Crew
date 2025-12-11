@@ -1,14 +1,11 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { useInviteStore } from "@/app/stores/inviteStore";
 import { loadOrgs } from "@/app/services/orgService";
-import { loadInvites } from "@/app/services/invitesService";
 
-export const useLoadOrgAndInvites = () => {
+export const useLoadOrg = () => {
   const authStatus = useAuthStore((s) => s.status);
   const orgStatus = useOrgStore((s) => s.status);
-  const inviteStatus = useInviteStore((s) => s.status);
 
   const isAuthed =
     authStatus === "authenticated" || authStatus === "signin-authenticated";
@@ -19,11 +16,4 @@ export const useLoadOrgAndInvites = () => {
       void loadOrgs();
     }
   }, [isAuthed, orgStatus]);
-
-  // useEffect(() => {
-  //   if (!isAuthed) return;
-  //   if (inviteStatus === "idle") {
-  //     void loadInvites();
-  //   }
-  // }, [isAuthed, inviteStatus]);
 };

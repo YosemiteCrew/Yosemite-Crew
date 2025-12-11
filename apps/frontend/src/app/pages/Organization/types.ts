@@ -28,15 +28,21 @@ export const SpecialityOptions = [
   "Dermatology",
 ];
 export const RoleOptions = [
-  "Vet",
-  "Receptionist",
-  "Technician",
-  "Admin",
-  "Assistant",
-  "Admin",
+  "OWNER",
+  "ADMIN",
+  "SUPERVISOR",
+  "VETERINARIAN",
+  "TECHNICIAN",
+  "ASSISTANT",
+  "RECEPTIONIST",
 ];
 export const StaffOptions: string[] = [
   "Dr. Emily brown",
   "Dr. Drake ramoray",
   "Dr. Philip philips",
+];
+export const EmploymentTypes = [
+  { name: "Full time", key: "FULL_TIME" },
+  { name: "Part time", key: "PART_TIME" },
+  { name: "Contract", key: "CONTRACTOR" },
 ];

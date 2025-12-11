@@ -6,16 +6,13 @@ import "./OrgCard.css";
 
 type OrgCardProps = {
   org: OrgWithMembership;
-  handleOrgClick: (orgId: string) => void;
+  handleOrgClick: (org: OrgWithMembership) => void;
 };
 
 const OrgCard = ({ org, handleOrgClick }: OrgCardProps) => {
   return (
     <div className="org-card">
-      <button
-        onClick={() => handleOrgClick(org.org._id?.toString() || org.org.name)}
-        className="org-card-title"
-      >
+      <button onClick={() => handleOrgClick(org)} className="org-card-title">
         {org.org.name}
       </button>
       <div className="org-card-item">
