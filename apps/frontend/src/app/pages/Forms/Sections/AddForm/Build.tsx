@@ -198,18 +198,20 @@ const isMedicationGroup = (field: FormField) =>
 const isServiceGroup = (field: FormField): field is FormField & { type: "group" } =>
   field.type === "group" && Boolean((field as any).meta?.serviceGroup);
 
-const getServiceCheckbox = (field: FormField & { type: "group" }) =>
-  (field.fields ?? []).find((f) => f.type === "checkbox");
+const getServiceCheckbox = (
+  field: FormField & { type: "group"; fields?: FormField[] }
+): (FormField & { type: "checkbox"; options?: { label: string; value: string }[] }) | undefined =>
+  (field.fields ?? []).find(
+    (f): f is FormField & { type: "checkbox"; options?: { label: string; value: string }[] } =>
+      f.type === "checkbox"
+  );
 
 const ensureServiceCheckbox = (
   field: FormField & { type: "group" },
   serviceOptions: { label: string; value: string }[]
 ): { group: FormField & { type: "group" }; selected: string[] } => {
   const existingCheckbox = getServiceCheckbox(field);
-  const selected =
-    existingCheckbox && Array.isArray((existingCheckbox as any).options)
-      ? ((existingCheckbox as any).options as any[]).map((opt) => opt.value)
-      : [];
+  const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
 
   const checkbox: FormField = {
     id: existingCheckbox?.id || `${field.id}_services`,
@@ -256,15 +258,15 @@ const updateServiceGroupOptions = (
 ): FormField => {
   const checkbox = getServiceCheckbox(field);
   if (!checkbox) return field;
-  const selectedValues = (checkbox.options ?? []).map((opt: any) => opt.value);
+  const selectedValues = (checkbox.options ?? []).map((opt) => opt.value);
 
   const mappedOptions = serviceOptions.map((opt) => ({ ...opt }));
   const missingSelected = selectedValues.filter(
-    (val) => !mappedOptions.some((opt) => opt.value === val)
+    (val: string) => !mappedOptions.some((opt) => opt.value === val)
   );
   const mergedOptions = [
     ...mappedOptions,
-    ...missingSelected.map((val) => ({ label: val, value: val })),
+    ...missingSelected.map((val: string) => ({ label: val, value: val })),
   ];
 
   const updatedCheckbox = { ...checkbox, options: mergedOptions };
@@ -334,8 +336,13 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   createField,
   serviceOptions,
 }) => {
+  const groupField: FormField & { type: "group"; fields?: FormField[] } = {
+    ...field,
+    fields: field.fields ?? [],
+  };
+
   if (isServiceGroup(field)) {
-    const { group, selected } = ensureServiceCheckbox(field, serviceOptions);
+    const { group, selected } = ensureServiceCheckbox(groupField, serviceOptions);
     const checkbox = getServiceCheckbox(group);
 
     const updateOptions = (values: string[]) => {
@@ -358,15 +365,15 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="font-grotesk text-black-text text-[18px] font-medium">
-            {field.label || "Services"}
+            {group.label || "Services"}
           </div>
         </div>
         <FormInput
           intype="text"
-          inname={`group-${field.id}-label`}
-          value={field.label || ""}
+          inname={`group-${group.id}-label`}
+          value={group.label || ""}
           inlabel="Group name"
-          onChange={(e) => onChange({ ...field, label: e.target.value })}
+          onChange={(e) => onChange({ ...group, label: e.target.value })}
           className="min-h-12!"
         />
         <MultiSelectDropdown
@@ -383,22 +390,24 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
 
   const updateNestedField = (id: string, updatedField: FormField) => {
     onChange({
-      ...field,
-      fields: (field.fields ?? []).map((f) => (f.id === id ? updatedField : f)),
+      ...groupField,
+      fields: (groupField.fields ?? []).map((f) =>
+        f.id === id ? updatedField : f
+      ),
     });
   };
 
   const removeNestedField = (id: string) =>
     onChange({
-      ...field,
-      fields: (field.fields ?? []).filter((f) => f.id !== id),
+      ...groupField,
+      fields: (groupField.fields ?? []).filter((f) => f.id !== id),
     });
 
   const addNestedField = (key: OptionKey) => {
     const newField = createField(key);
     onChange({
-      ...field,
-      fields: [...(field.fields ?? []), newField],
+      ...groupField,
+      fields: [...(groupField.fields ?? []), newField],
     });
   };
 
@@ -406,21 +415,21 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="font-grotesk text-black-text text-[18px] font-medium">
-          {field.label || "Group"}
+          {groupField.label || "Group"}
         </div>
         <AddFieldDropdown onSelect={addNestedField} />
       </div>
 
       <FormInput
         intype="text"
-        inname={`group-${field.id}-label`}
-        value={field.label || ""}
+        inname={`group-${groupField.id}-label`}
+        value={groupField.label || ""}
         inlabel="Group name"
-        onChange={(e) => onChange({ ...field, label: e.target.value })}
+        onChange={(e) => onChange({ ...groupField, label: e.target.value })}
         className="min-h-12!"
       />
 
-      {(field.fields ?? []).map((nested) =>
+      {(groupField.fields ?? []).map((nested) =>
         nested.type === "group" ? (
           <BuilderWrapper
             key={nested.id}
