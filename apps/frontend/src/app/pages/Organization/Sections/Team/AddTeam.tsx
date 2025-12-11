@@ -37,7 +37,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   }>({});
 
   const SpecialitiesOptions = useMemo(
-    () => specialities.map((s) => ({ name: s.name, key: s._id })),
+    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
     [specialities]
   );
 
@@ -46,7 +46,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
     if (!formData.email) errors.email = "Email is required";
     if (!formData.speciality.name) errors.speciality = "Speciality is required";
     if (!formData.role) errors.role = "Role is required";
-    if (!isValidEmail(formData.email)) errors.email = "Enter a valid email"
+    if (!isValidEmail(formData.email)) errors.email = "Enter a valid email";
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
