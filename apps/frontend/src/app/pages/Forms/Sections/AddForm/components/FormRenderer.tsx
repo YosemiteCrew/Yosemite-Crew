@@ -5,11 +5,13 @@ import SignatureRenderer from "./Signature/SignatureRenderer";
 import TextRenderer from "./Text/TextRenderer";
 import BooleanRenderer from "./Boolean/BooleanRenderer";
 import DateRenderer from "./Date/DateRenderer";
+import ServiceGroupRenderer from "./ServiceGroup/ServiceGroupRenderer";
 
 const getFallbackValue = (field: FormField) => {
   if (field.type === "checkbox") return [];
   if (field.type === "boolean") return false;
   if (field.type === "number" || field.type === "date") return "";
+  if (field.type === "service-group") return field.services ?? [];
   if (field.type === "textarea" || field.type === "input") {
     return field.placeholder || "";
   }
@@ -21,6 +23,7 @@ type RuntimeRendererProps = {
   value: any;
   onChange: (v: any) => void;
   readOnly?: boolean;
+  serviceOptions?: { label: string; value: string }[];
 };
 
 const runtimeComponentMap: Record<
@@ -37,6 +40,7 @@ const runtimeComponentMap: Record<
   date: DateRenderer as any,
   signature: SignatureRenderer as any,
   group: (() => null) as any,
+  "service-group": ServiceGroupRenderer as any,
 };
 
 type FormRendererProps = {
@@ -44,6 +48,7 @@ type FormRendererProps = {
   values: Record<string, any>;
   onChange: (id: string, value: any) => void;
   readOnly?: boolean;
+  serviceOptions?: { label: string; value: string }[];
 };
 
 export const FormRenderer: React.FC<FormRendererProps> = ({
@@ -51,6 +56,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
   values,
   onChange,
   readOnly = false,
+  serviceOptions = [],
 }) => {
   return (
     <div className="flex flex-col gap-3">
@@ -69,6 +75,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
                 values={values}
                 onChange={onChange}
                 readOnly={readOnly}
+                serviceOptions={serviceOptions}
               />
             </div>
           );
@@ -84,6 +91,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
             value={value}
             onChange={(v: any) => onChange(field.id, v)}
             readOnly={readOnly}
+            serviceOptions={serviceOptions}
           />
         );
       })}

@@ -19,7 +19,8 @@ export type FieldType =
   | "boolean"
   | "date"
   | "signature"
-  | "group";
+  | "group"
+  | "service-group";
 
 export interface FieldOption {
   label: string;
@@ -64,13 +65,19 @@ export interface GroupField extends BaseField {
   fields: FormField[];
 }
 
+export interface ServiceGroupField extends BaseField {
+  type: "service-group";
+  services?: string[];
+}
+
 export type FormField =
   | InputField
   | ChoiceField
   | BooleanField
   | DateField
   | SignatureField
-  | GroupField;
+  | GroupField
+  | ServiceGroupField;
 
 export interface FormSchema {
   fields: FormField[];
@@ -217,10 +224,15 @@ const buildFieldExtensions = (field: BaseField): Extension[] | undefined => {
   if (field.group)
     ex.push({ url: FIELD_GROUP_EXTENSION_URL, valueString: field.group });
 
-  if (field.meta && Object.keys(field.meta).length)
+  const metaPayload =
+    field.type === "service-group" && (field as any).services?.length
+      ? { ...(field.meta ?? {}), services: (field as any).services }
+      : field.meta;
+
+  if (metaPayload && Object.keys(metaPayload).length)
     ex.push({
       url: FIELD_META_EXTENSION_URL,
-      valueString: JSON.stringify(field.meta),
+      valueString: JSON.stringify(metaPayload),
     });
 
   return ex.length ? ex : undefined;
@@ -238,6 +250,7 @@ const toQuestionnaireItemType = (field: FormField): QuestionnaireItemType => {
     case "date": return "date";
     case "signature": return "attachment";
     case "group": return "group";
+    case "service-group": return "string";
     default: return "string";
   }
 };
@@ -434,6 +447,17 @@ const questionnaireItemToFormField = (item: QuestionnaireItem): FormField => {
       ...base,
       type: "group",
       fields: (item.item ?? []).map(questionnaireItemToFormField),
+    };
+  }
+
+  if (type === "service-group") {
+    const services = Array.isArray((base.meta as any)?.services)
+      ? ((base.meta as any).services as string[])
+      : undefined;
+    return {
+      ...(base as any),
+      type: "service-group",
+      services,
     };
   }
 

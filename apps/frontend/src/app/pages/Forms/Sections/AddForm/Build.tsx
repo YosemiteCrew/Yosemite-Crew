@@ -10,11 +10,14 @@ import SignatureBuilder from "./components/Signature/SignatureBuilder";
 import BuilderWrapper from "./components/BuildWrapper";
 import BooleanBuilder from "./components/Boolean/BooleanBuilder";
 import DateBuilder from "./components/Date/DateBuilder";
+import ServiceGroupBuilder from "./components/ServiceGroup/ServiceGroupBuilder";
 
 type BuildProps = {
   formData: FormsProps;
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
   onNext: () => void;
+  serviceOptions: { label: string; value: string }[];
+  registerValidator?: (fn: () => boolean) => void;
 };
 
 type OptionKey = FormFieldType | "medication";
@@ -69,12 +72,17 @@ const addOptions: OptionProp[] = [
     name: "Medication group",
     key: "medication",
   },
+  {
+    name: "Service group",
+    key: "service-group",
+  },
 ];
 
 type BuilderComponentProps = {
   field: FormField;
   onChange: (f: FormField) => void;
   createField?: (t: OptionKey) => FormField;
+  serviceOptions?: { label: string; value: string }[];
 };
 
 const builderComponentMap: Record<FormFieldType, React.ComponentType<BuilderComponentProps>> = {
@@ -88,6 +96,7 @@ const builderComponentMap: Record<FormFieldType, React.ComponentType<BuilderComp
   date: DateBuilder as any,
   signature: SignatureBuilder as any,
   group: (() => null) as any, // Placeholder; handled inline
+  "service-group": ServiceGroupBuilder as any,
 };
 
 const defaultDropdownOptions = [
@@ -135,6 +144,13 @@ const fieldFactory: Record<OptionKey, (id: string) => FormField> = {
   date: (id) => ({ id, type: "date", label: "Date" }),
   signature: (id) => ({ id, type: "signature", label: "Signature" }),
   group: (id) => ({ id, type: "group", label: "Group", fields: [] }),
+  "service-group": (id) => ({
+    id,
+    type: "service-group",
+    label: "Services",
+    required: false,
+    services: [],
+  }),
 };
 
 const AddFieldDropdown: React.FC<{
@@ -234,12 +250,18 @@ export const FieldBuilder: React.FC<{
   onChange: (f: FormField) => void;
   onDelete: () => void;
   createField: (t: OptionKey) => FormField;
-}> = ({ field, onChange, onDelete, createField }) => {
+  serviceOptions?: { label: string; value: string }[];
+}> = ({ field, onChange, onDelete, createField, serviceOptions = [] }) => {
   const Component = builderComponentMap[field.type];
 
   return (
     <BuilderWrapper field={field} onDelete={onDelete}>
-      <Component field={field} onChange={onChange} createField={createField} />
+      <Component
+        field={field}
+        onChange={onChange}
+        createField={createField}
+        serviceOptions={serviceOptions}
+      />
     </BuilderWrapper>
   );
 };
@@ -248,12 +270,14 @@ type GroupBuilderProps = {
   field: FormField & { type: "group"; fields?: FormField[] };
   onChange: (f: FormField) => void;
   createField: (t: OptionKey) => FormField;
+  serviceOptions: { label: string; value: string }[];
 };
 
 const GroupBuilder: React.FC<GroupBuilderProps> = ({
   field,
   onChange,
   createField,
+  serviceOptions,
 }) => {
   const updateNestedField = (id: string, updatedField: FormField) => {
     onChange({
@@ -305,6 +329,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
               field={nested as FormField & { type: "group" }}
               onChange={(updated) => updateNestedField(nested.id, updated)}
               createField={createField}
+              serviceOptions={serviceOptions}
             />
           </BuilderWrapper>
         ) : (
@@ -314,6 +339,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
             onChange={(updated) => updateNestedField(nested.id, updated)}
             onDelete={() => removeNestedField(nested.id)}
             createField={createField}
+            serviceOptions={serviceOptions}
           />
         )
       )}
@@ -321,7 +347,14 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   );
 };
 
-const Build = ({ formData, setFormData, onNext }: BuildProps) => {
+const Build = ({
+  formData,
+  setFormData,
+  onNext,
+  serviceOptions,
+  registerValidator,
+}: BuildProps) => {
+  const [buildError, setBuildError] = useState<string>("");
   const createField = (key: OptionKey): FormField => {
     const id = crypto.randomUUID();
     return fieldFactory[key](id);
@@ -373,6 +406,19 @@ const Build = ({ formData, setFormData, onNext }: BuildProps) => {
     }));
   };
 
+  const validate = React.useCallback(() => {
+    if (!formData.schema || formData.schema.length === 0) {
+      setBuildError("Add at least one field to continue.");
+      return false;
+    }
+    setBuildError("");
+    return true;
+  }, [formData.schema]);
+
+  React.useEffect(() => {
+    registerValidator?.(validate);
+  }, [registerValidator, validate]);
+
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
       <div className="flex flex-col gap-6">
@@ -399,6 +445,7 @@ const Build = ({ formData, setFormData, onNext }: BuildProps) => {
                     handleFieldChange(field.id, updatedField)
                   }
                   createField={createField}
+                  serviceOptions={serviceOptions}
                 />
               </BuilderWrapper>
             );
@@ -414,9 +461,13 @@ const Build = ({ formData, setFormData, onNext }: BuildProps) => {
                 setFormData((prev) => removeFieldById(prev, field.id))
               }
               createField={createField}
+              serviceOptions={serviceOptions}
             />
           );
         })}
+        {buildError && (
+          <span className="text-red-500 text-sm">{buildError}</span>
+        )}
       </div>
       <Primary
         href="#"

@@ -31,8 +31,23 @@ export const FormsStatusFilters: Array<FormsStatus | "All"> = [
   ...formsStatuses,
 ];
 
-export type FormFieldType = FieldType;
-export type FormField = BackendFormField & { defaultValue?: any };
+export type FormFieldType = FieldType | "service-group";
+
+export type ServiceGroupField = {
+  id: string;
+  type: "service-group";
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  order?: number;
+  group?: string;
+  services?: string[];
+  meta?: Record<string, any>;
+};
+
+export type FormField = (BackendFormField | ServiceGroupField) & {
+  defaultValue?: any;
+};
 
 export type FormsProps = {
   _id?: string;
@@ -114,6 +129,14 @@ const buildMedicationGroup = (suffix: string, label: string): FormField => ({
   type: "group",
   label,
   fields: buildMedicationFields(`medication_${suffix}`),
+});
+
+const buildServicesGroup = (): FormField => ({
+  id: "services_group",
+  type: "service-group",
+  label: "Services",
+  required: false,
+  services: [],
 });
 
 export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
@@ -278,6 +301,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       fields: [
         buildMedicationGroup("1", "Medication 1"),
         buildMedicationGroup("2", "Medication 2"),
+        buildServicesGroup(),
       ],
     },
     {

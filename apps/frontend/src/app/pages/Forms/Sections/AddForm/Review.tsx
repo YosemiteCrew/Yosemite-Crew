@@ -33,20 +33,22 @@ const DetailsFields = [
 const buildInitialValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
-    items.forEach((field) => {
-      if (field.type === "group") {
-        walk(field.fields ?? []);
-        return;
-      }
-      if (field.type === "checkbox") {
-        acc[field.id] = [];
-      } else if (field.type === "boolean") {
-        acc[field.id] = false;
-      } else if (field.type === "date") {
-        acc[field.id] = "";
-      } else if (field.type === "number") {
-        acc[field.id] = "";
-      } else {
+  items.forEach((field) => {
+    if (field.type === "group") {
+      walk(field.fields ?? []);
+      return;
+    }
+    if (field.type === "checkbox") {
+      acc[field.id] = [];
+    } else if (field.type === "boolean") {
+      acc[field.id] = false;
+    } else if (field.type === "service-group") {
+      acc[field.id] = field.services ?? [];
+    } else if (field.type === "date") {
+      acc[field.id] = "";
+    } else if (field.type === "number") {
+      acc[field.id] = "";
+    } else {
         acc[field.id] = field.placeholder ?? "";
       }
     });
@@ -133,6 +135,7 @@ const Review = ({
               values={values}
               onChange={handleValueChange}
               readOnly
+              serviceOptions={serviceOptions}
             />
           </Accordion>
         )}

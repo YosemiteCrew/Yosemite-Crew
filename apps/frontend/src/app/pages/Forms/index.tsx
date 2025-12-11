@@ -9,7 +9,10 @@ import AddForm from "./Sections/AddForm";
 import FormInfo from "./Sections/FormInfo";
 import { useFormsStore } from "@/app/stores/formsStore";
 import { loadForms } from "@/app/services/formService";
-import { loadServicesForOrg } from "@/app/services/serviceService";
+import {
+  useLoadSpecialitiesForPrimaryOrg,
+  useServicesForPrimaryOrgSpecialities,
+} from "@/app/hooks/useSpecialities";
 
 const Forms = () => {
   const { formsById, formIds, activeFormId, setActiveForm, loading } =
@@ -19,16 +22,15 @@ const Forms = () => {
   const [viewPopup, setViewPopup] = useState(false);
   const [editingForm, setEditingForm] = useState<FormsProps | null>(null);
   const [draftForm, setDraftForm] = useState<FormsProps | null>(null);
-  const [serviceOptions, setServiceOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
+  useLoadSpecialitiesForPrimaryOrg();
+  const services = useServicesForPrimaryOrgSpecialities();
   const fetchedRef = useRef(false);
 
   const list = useMemo<FormsProps[]>(
     () =>
       formIds
         .map((id) => formsById[id])
-        .filter((f): f is FormsProps => Boolean(f)),
+        .filter(Boolean),
     [formIds, formsById]
   );
 
@@ -47,6 +49,15 @@ const Forms = () => {
     setFilteredList(list);
   }, [list]);
 
+  const serviceOptions = useMemo(
+    () =>
+      services.map((s) => ({
+        label: s.name,
+        value: s.id || (s as any)._id || s.name,
+      })),
+    [services]
+  );
+
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
@@ -57,16 +68,6 @@ const Forms = () => {
         }
       } catch (err) {
         console.error("Failed to load forms", err);
-      }
-      try {
-        const services = await loadServicesForOrg();
-        const opts = services.map((s) => ({
-          label: s.name,
-          value: s.id || (s as any)._id || s.name,
-        }));
-        setServiceOptions(opts);
-      } catch (err) {
-        console.error("Failed to load services", err);
       }
     })();
   }, [list.length]);

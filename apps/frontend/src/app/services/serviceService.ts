@@ -1,31 +1,29 @@
 import axios from "axios";
 import { getData } from "@/app/services/axios";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { Service } from "@yosemite-crew/types";
+import { useServiceStore } from "@/app/stores/serviceStore";
+import { Service, ServiceRequestDTO, fromServiceRequestDTO } from "@yosemite-crew/types";
 
-export const loadServicesForOrg = async (): Promise<Service[]> => {
-  const orgId = useOrgStore.getState().primaryOrgId;
-  if (!orgId) {
+export const loadServicesForOrg = async (
+  orgId?: string
+): Promise<Service[]> => {
+  const primaryOrgId = orgId ?? useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
     console.warn("No primary organisation selected. Skipping service fetch.");
     return [];
   }
 
   try {
-    try {
-      const res = await getData<Service[]>(
-        `/fhir/v1/service/organisaion/${orgId}`
-      );
-      return res.data ?? [];
-    } catch (primaryError) {
-      if (axios.isAxiosError(primaryError)) {
-        // retry with corrected spelling if the first path fails
-        const res = await getData<Service[]>(
-          `/fhir/v1/service/organisation/${orgId}`
-        );
-        return res.data ?? [];
-      }
-      throw primaryError;
+    const res = await getData<ServiceRequestDTO[]>(
+      `/fhir/v1/service/organisation/${primaryOrgId}`
+    );
+    if (!Array.isArray(res.data)) {
+      console.warn("Services response is not an array.", res.data);
+      return [];
     }
+    const services = res.data.map(fromServiceRequestDTO);
+    useServiceStore.getState().setServices(services);
+    return services;
   } catch (err) {
     if (axios.isAxiosError(err)) {
       console.error(

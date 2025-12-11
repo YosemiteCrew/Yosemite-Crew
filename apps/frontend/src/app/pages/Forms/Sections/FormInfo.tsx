@@ -21,23 +21,27 @@ const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
     items.forEach((field) => {
-      if (field.type === "group") {
-        walk(field.fields ?? []);
-        return;
-      }
-      if (field.type === "checkbox") {
-        acc[field.id] = [];
-        return;
-      }
-      if (field.type === "boolean") {
-        acc[field.id] = false;
-        return;
-      }
-      if (field.type === "date") {
-        acc[field.id] = "";
-        return;
-      }
-      if (field.type === "number") {
+    if (field.type === "group") {
+      walk(field.fields ?? []);
+      return;
+    }
+    if (field.type === "checkbox") {
+      acc[field.id] = [];
+      return;
+    }
+    if (field.type === "boolean") {
+      acc[field.id] = false;
+      return;
+    }
+    if (field.type === "service-group") {
+      acc[field.id] = field.services ?? [];
+      return;
+    }
+    if (field.type === "date") {
+      acc[field.id] = "";
+      return;
+    }
+    if (field.type === "number") {
         acc[field.id] = "";
         return;
       }
@@ -251,6 +255,7 @@ const FormInfo = ({
                   values={buildPreviewValues(activeForm.schema ?? [])}
                   onChange={() => {}}
                   readOnly
+                  serviceOptions={serviceOptions}
                 />
               </Accordion>
             )}
