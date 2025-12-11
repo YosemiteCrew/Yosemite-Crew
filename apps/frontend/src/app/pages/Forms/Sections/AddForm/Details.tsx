@@ -3,7 +3,6 @@ import { Primary } from "@/app/components/Buttons";
 import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
-import { flatServices } from "@/app/pages/Organization/demo";
 import {
   FormsCategory,
   FormsCategoryOptions,
@@ -11,17 +10,58 @@ import {
   FormsUsage,
   FormsUsageOptions,
 } from "@/app/types/forms";
+import { getCategoryTemplate } from "@/app/utils/forms";
 import React, { useState } from "react";
 
 type DetailsProps = {
   formData: FormsProps;
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
+  onNext: () => void;
+  serviceOptions: { label: string; value: string }[];
 };
 
-const Details = ({ formData, setFormData }: DetailsProps) => {
-  const [formDataErrors] = useState<{
+const Details = ({
+  formData,
+  setFormData,
+  onNext,
+  serviceOptions,
+}: DetailsProps) => {
+  const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
+    category?: string;
+    species?: string;
   }>({});
+
+  const handleCategoryChange = (category: FormsCategory) => {
+    const shouldApplyTemplate =
+      !formData._id || (formData.schema?.length ?? 0) === 0;
+    setFormData((prev) => ({
+      ...prev,
+      category,
+      schema:
+        category && shouldApplyTemplate ? getCategoryTemplate(category) : prev.schema,
+    }));
+  };
+
+  const validate = () => {
+    const errors: { name?: string; category?: string; species?: string } = {};
+    if (!formData.name.trim()) {
+      errors.name = "Form name is required";
+    }
+    if (!formData.category) {
+      errors.category = "Category is required";
+    }
+    if (!formData.species || formData.species.length === 0) {
+      errors.species = "Select at least one species";
+    }
+    setFormDataErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (!validate()) return;
+    onNext();
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
@@ -57,14 +97,15 @@ const Details = ({ formData, setFormData }: DetailsProps) => {
             />
             <Dropdown
               placeholder="Category"
-              value={formData.category}
-              onChange={(e) =>
-                setFormData({ ...formData, category: e as FormsCategory })
-              }
+              value={formData.category || ""}
+              onChange={(e) => handleCategoryChange(e as FormsCategory)}
               className="min-h-12!"
               dropdownClassName="top-[55px]! !h-fit"
               options={FormsCategoryOptions}
             />
+            {formDataErrors.category && (
+              <span className="text-red-500 text-sm">{formDataErrors.category}</span>
+            )}
           </div>
         </Accordion>
         <Accordion
@@ -89,23 +130,30 @@ const Details = ({ formData, setFormData }: DetailsProps) => {
               value={formData.services || []}
               onChange={(e) => setFormData({ ...formData, services: e })}
               className="min-h-12!"
-              options={flatServices}
+              options={serviceOptions}
               dropdownClassName="h-fit!"
             />
             <MultiSelectDropdown
               placeholder="Species"
               value={formData.species || []}
-              onChange={(e) => setFormData({ ...formData, species: e })}
+              onChange={(e) => {
+                setFormData({ ...formData, species: e });
+                setFormDataErrors((prev) => ({ ...prev, species: undefined }));
+              }}
               className="min-h-12!"
               options={["Dog", "Cat", "Horse"]}
               dropdownClassName="h-fit!"
             />
+            {formDataErrors.species && (
+              <span className="text-red-500 text-sm">{formDataErrors.species}</span>
+            )}
           </div>
         </Accordion>
       </div>
       <Primary
         href="#"
-        text="Save"
+        text="Next"
+        onClick={handleNext}
         classname="max-h-12! text-lg! tracking-wide!"
       />
     </div>

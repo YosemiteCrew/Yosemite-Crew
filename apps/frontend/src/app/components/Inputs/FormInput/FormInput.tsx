@@ -11,8 +11,11 @@ type FormInputProps = {
   readonly?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onClick?: (e: React.MouseEvent<HTMLInputElement>) => void;
   error?: string;
   className?: string;
+  tabIndex?: number;
 };
 
 const FormInput = ({
@@ -22,9 +25,12 @@ const FormInput = ({
   value,
   onChange,
   onBlur,
+  onFocus,
+  onClick,
   readonly,
   error,
-  className
+  className,
+  tabIndex,
 }: Readonly<FormInputProps>) => {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -43,8 +49,16 @@ const FormInput = ({
           readOnly={readonly}
           required
           placeholder=" "
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={(e) => {
+            setIsFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            onBlur?.(e as React.ChangeEvent<HTMLInputElement>);
+          }}
+          onClick={onClick}
+          tabIndex={tabIndex}
           className={`${error ? "is-invalid" : ""} ${className}`}
         />
         <label htmlFor={inname}>{inlabel}</label>

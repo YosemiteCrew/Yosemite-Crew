@@ -1,14 +1,14 @@
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import { InputField } from "@/app/types/forms";
+import { FormField } from "@/app/types/forms";
 
 const InputRenderer: React.FC<{
-  field: InputField;
+  field: FormField & { type: "input" | "number" };
   value: string;
   onChange: (v: string) => void;
 }> = ({ field, value, onChange }) => (
   <div className="flex flex-col gap-3">
     <FormInput
-      intype="text"
+      intype={field.type === "number" ? "number" : "text"}
       inname="Label"
       value={value}
       inlabel={field.label || ""}

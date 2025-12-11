@@ -1,8 +1,8 @@
-import { SignatureField } from "@/app/types/forms";
+import { FormField } from "@/app/types/forms";
 import React from "react";
 
 const SignatureRenderer: React.FC<{
-  field: SignatureField;
+  field: FormField;
 }> = ({ field }) => (
   <div className="flex flex-col gap-3">
     <div className="font-grotesk text-black-text text-[18px] font-medium">
