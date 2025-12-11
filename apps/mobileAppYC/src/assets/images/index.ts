@@ -209,6 +209,9 @@ syringeIcon: require('./icons/syringeIcon.png'),
 emptyNotifications: require('./notification/emptyNotifications.png'),
   // Support & Help
   contactHero: require('./support/contactHero.png'),
+
+  // Loaders
+  yosemiteLoader: require('../yosemiteLoader.gif'),
 } as const;
 
 export type ImageKeys = keyof typeof Images;

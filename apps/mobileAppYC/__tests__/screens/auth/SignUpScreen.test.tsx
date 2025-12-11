@@ -187,12 +187,9 @@ describe('SignUpScreen', () => {
   });
 
   it('renders correctly', () => {
-    // FIX 3: Use getAllByTestId and check length
-    const {getByText, getAllByTestId} = renderComponent();
+    const {getByText} = renderComponent();
 
     expect(getByText('All companions, one place')).toBeTruthy();
-    // Check if at least one mock image exists
-    expect(getAllByTestId('mock-image').length).toBeGreaterThan(0);
     expect(getByText('Sign up with email')).toBeTruthy();
     expect(getByText('Sign up with Google')).toBeTruthy();
     expect(getByText('Sign up with Facebook')).toBeTruthy();

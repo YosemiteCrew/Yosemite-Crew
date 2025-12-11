@@ -5,7 +5,6 @@ import {
   ScrollView,
   Image,
   Text,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -14,6 +13,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -113,7 +113,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
       <SafeAreaView style={commonStyles.container}>
         <Header title="Profile" showBackButton onBack={handleBack} />
         <View style={commonStyles.centerContent}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <GifLoader />
         </View>
       </SafeAreaView>
     );

@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo} from 'react';
-import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator, Alert} from 'react-native';
+import {View, StyleSheet, ScrollView, Image, Text, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useFocusEffect} from '@react-navigation/native';
@@ -7,6 +7,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {Images} from '@/assets/images';
 import {CoParentCard} from '../../components/CoParentCard/CoParentCard';
 import {selectCoParents, selectCoParentLoading, fetchCoParents} from '../../index';
@@ -126,7 +127,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
 
       {loading ? (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <GifLoader />
         </View>
       ) : (
         <ScrollView

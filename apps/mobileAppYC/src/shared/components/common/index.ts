@@ -2,6 +2,7 @@ export { Button } from './Button/Button';
 export { Input } from './Input/Input';
 export { TouchableInput } from './TouchableInput/TouchableInput';
 export { Loading } from './Loading/Loading';
+export { GifLoader } from './GifLoader/GifLoader';
 export { Modal } from './Modal/Modal';
 export { OTPInput } from './OTPInput/OTPInput';
 export { Header } from './Header/Header';
