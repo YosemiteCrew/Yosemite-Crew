@@ -42,7 +42,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadSpecialitiesForPrimaryOrg();
   useLoadTeam();
   useLoadProfiles();
-  useLoadAvailabilities()
+  useLoadAvailabilities();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -58,10 +58,12 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     primaryOrgId ? (s.membershipsByOrgId[primaryOrgId] ?? null) : null
   );
 
+  const specialityStatus = useSpecialityStore((s) => s.status);
   const getSpecialitiesByOrgId = useSpecialityStore(
     (s) => s.getSpecialitiesByOrgId
   );
 
+  const availabilityStatus = useAvailabilityStore((s) => s.status);
   const getAvailabilitiesByOrgId = useAvailabilityStore(
     (s) => s.getAvailabilitiesByOrgId
   );
@@ -73,7 +75,14 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (orgStatus === "idle" || orgStatus === "loading") {
+    if (
+      orgStatus === "idle" ||
+      orgStatus === "loading" ||
+      availabilityStatus === "loading" ||
+      availabilityStatus === "idle" ||
+      specialityStatus === "loading" ||
+      specialityStatus === "idle"
+    ) {
       return;
     }
 
@@ -85,7 +94,8 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     }
 
     const specialities: Speciality[] = getSpecialitiesByOrgId(primaryOrgId);
-    const availabilities: ApiDayAvailability[] = getAvailabilitiesByOrgId(primaryOrgId);
+    const availabilities: ApiDayAvailability[] =
+      getAvailabilitiesByOrgId(primaryOrgId);
     const step = computeOrgOnboardingStep(primaryOrg, specialities);
     const profileStep = computeTeamOnboardingStep(profile, availabilities);
     const isVerified = primaryOrg.isVerified;
@@ -97,7 +107,9 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
         if (step < 3) {
           // onboarding step < 3 → force /create-org
           redirectTo = "/create-org?orgId=" + primaryOrgId;
-        } else if (step === 3 && pathname !== "/dashboard") {
+        } else if (step === 3 && pathname === "/organization") {
+          redirectTo = "/organization";
+        } else {
           // onboarding step === 3 → /dashboard
           redirectTo = "/dashboard";
         }
@@ -117,7 +129,18 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     }
 
     setChecked(true);
-  }, [primaryOrgId, primaryOrg, getSpecialitiesByOrgId, pathname, router, profile, orgStatus, getAvailabilitiesByOrgId]);
+  }, [
+    primaryOrgId,
+    primaryOrg,
+    getSpecialitiesByOrgId,
+    pathname,
+    router,
+    profile,
+    orgStatus,
+    getAvailabilitiesByOrgId,
+    specialityStatus,
+    availabilityStatus
+  ]);
 
   if (!checked) return null;
 

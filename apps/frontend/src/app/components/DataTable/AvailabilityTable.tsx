@@ -76,7 +76,7 @@ const AvailabilityTable = ({
       key: "speciality",
       width: "15%",
       render: (item: Team) => (
-        <div className="appointment-profile-title">{item.speciality.name || "-"}</div>
+        <div className="appointment-profile-title">{item?.speciality?.name || "-"}</div>
       ),
     },
     {
