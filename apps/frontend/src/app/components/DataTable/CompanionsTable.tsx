@@ -149,9 +149,22 @@ const CompanionsTable = ({
         <GenericTable data={filteredList} columns={columns} bordered={false} />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((companion, index) => (
-          <CompanionCard key={index + companion.name} companion={companion} />
-        ))}
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((companion, index) => (
+            <CompanionCard
+              key={index + companion.name}
+              companion={companion}
+              handleViewCompanion={handleViewCompanion}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

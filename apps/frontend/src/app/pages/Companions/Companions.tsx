@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Primary } from "@/app/components/Buttons";
 import CompanionFilters from "@/app/components/Filters/CompanionFilters";
@@ -10,10 +10,8 @@ import AddCompanion from "@/app/components/AddCompanion";
 import CompanionInfo from "@/app/components/CompanionInfo";
 
 const Companions = () => {
-  const [list, setList] = useState<CompanionProps[]>(demoData);
+  const [list] = useState<CompanionProps[]>(demoData);
   const [filteredList, setFilteredList] = useState<CompanionProps[]>(demoData);
-  const [isLoading, setIsLoading] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [addPopup, setAddPopup] = useState(false);
   const [viewCompanion, setViewCompanion] = useState(false);
   const [activeCompanion, setActiveCompanion] = useState<CompanionProps | null>(
@@ -27,31 +25,6 @@ const Companions = () => {
       setActiveCompanion(null);
     }
   }, [filteredList]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && !isLoading && filteredList.length > 0) {
-          setIsLoading(true);
-          setTimeout(() => {
-            updateList();
-            setIsLoading(false);
-          }, 300);
-        }
-      },
-      { threshold: 1 }
-    );
-    const currentSentinel = sentinelRef.current;
-    if (currentSentinel) observer.observe(currentSentinel);
-    return () => {
-      if (currentSentinel) observer.unobserve(currentSentinel);
-    };
-  }, [isLoading, filteredList]);
-
-  const updateList = () => {
-    setList((prev) => [...prev, ...demoData]);
-  };
 
   return (
     <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
@@ -74,16 +47,6 @@ const Companions = () => {
           setActiveCompanion={setActiveCompanion}
           setViewCompanion={setViewCompanion}
         />
-        <div
-          ref={sentinelRef}
-          className="w-full h-10 flex justify-center items-center"
-        >
-          {isLoading && (
-            <span className="text-gray-500 text-sm">
-              Loading more companions...
-            </span>
-          )}
-        </div>
       </div>
 
       <AddCompanion showModal={addPopup} setShowModal={setAddPopup} />
