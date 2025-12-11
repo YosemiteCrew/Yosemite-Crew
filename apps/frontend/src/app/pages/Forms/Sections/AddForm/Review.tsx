@@ -42,8 +42,6 @@ const buildInitialValues = (fields: FormField[]): Record<string, any> => {
       acc[field.id] = [];
     } else if (field.type === "boolean") {
       acc[field.id] = false;
-    } else if (field.type === "service-group") {
-      acc[field.id] = field.services ?? [];
     } else if (field.type === "date") {
       acc[field.id] = "";
     } else if (field.type === "number") {
@@ -135,7 +133,6 @@ const Review = ({
               values={values}
               onChange={handleValueChange}
               readOnly
-              serviceOptions={serviceOptions}
             />
           </Accordion>
         )}

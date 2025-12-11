@@ -1,6 +1,7 @@
 import { Primary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { FormField, FormFieldType, FormsProps, buildMedicationFields } from "@/app/types/forms";
+import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { IoIosAddCircleOutline } from "react-icons/io";
 import TextBuilder from "./components/Text/TextBuilder";
@@ -10,7 +11,6 @@ import SignatureBuilder from "./components/Signature/SignatureBuilder";
 import BuilderWrapper from "./components/BuildWrapper";
 import BooleanBuilder from "./components/Boolean/BooleanBuilder";
 import DateBuilder from "./components/Date/DateBuilder";
-import ServiceGroupBuilder from "./components/ServiceGroup/ServiceGroupBuilder";
 
 type BuildProps = {
   formData: FormsProps;
@@ -20,7 +20,7 @@ type BuildProps = {
   registerValidator?: (fn: () => boolean) => void;
 };
 
-type OptionKey = FormFieldType | "medication";
+type OptionKey = FormFieldType | "medication" | "service-group";
 
 type OptionProp = {
   name: string;
@@ -82,7 +82,6 @@ type BuilderComponentProps = {
   field: FormField;
   onChange: (f: FormField) => void;
   createField?: (t: OptionKey) => FormField;
-  serviceOptions?: { label: string; value: string }[];
 };
 
 const builderComponentMap: Record<FormFieldType, React.ComponentType<BuilderComponentProps>> = {
@@ -96,7 +95,6 @@ const builderComponentMap: Record<FormFieldType, React.ComponentType<BuilderComp
   date: DateBuilder as any,
   signature: SignatureBuilder as any,
   group: (() => null) as any, // Placeholder; handled inline
-  "service-group": ServiceGroupBuilder as any,
 };
 
 const defaultDropdownOptions = [
@@ -109,7 +107,7 @@ const defaultRadioOptions = [
   { label: "Option B", value: "option_b" },
 ];
 
-const fieldFactory: Record<OptionKey, (id: string) => FormField> = {
+const fieldFactory: Record<OptionKey, (id: string, serviceOptions?: { label: string; value: string }[]) => FormField> = {
   medication: (id) => ({
     id,
     type: "group",
@@ -144,12 +142,12 @@ const fieldFactory: Record<OptionKey, (id: string) => FormField> = {
   date: (id) => ({ id, type: "date", label: "Date" }),
   signature: (id) => ({ id, type: "signature", label: "Signature" }),
   group: (id) => ({ id, type: "group", label: "Group", fields: [] }),
-  "service-group": (id) => ({
+  "service-group": (id, serviceOptions = []) => ({
     id,
-    type: "service-group",
+    type: "group",
     label: "Services",
-    required: false,
-    services: [],
+    meta: { serviceGroup: true } as any,
+    fields: [],
   }),
 };
 
@@ -197,6 +195,44 @@ const isTreatmentPlanGroup = (
 const isMedicationGroup = (field: FormField) =>
   field.type === "group" && (field.label || "").toLowerCase().includes("medication");
 
+const isServiceGroup = (field: FormField): field is FormField & { type: "group" } =>
+  field.type === "group" && Boolean((field as any).meta?.serviceGroup);
+
+const getServiceCheckbox = (field: FormField & { type: "group" }) =>
+  (field.fields ?? []).find((f) => f.type === "checkbox");
+
+const ensureServiceCheckbox = (
+  field: FormField & { type: "group" },
+  serviceOptions: { label: string; value: string }[]
+): { group: FormField & { type: "group" }; selected: string[] } => {
+  const existingCheckbox = getServiceCheckbox(field);
+  const selected =
+    existingCheckbox && Array.isArray((existingCheckbox as any).options)
+      ? ((existingCheckbox as any).options as any[]).map((opt) => opt.value)
+      : [];
+
+  const checkbox: FormField = {
+    id: existingCheckbox?.id || `${field.id}_services`,
+    type: "checkbox",
+    label: "Services",
+    options: selected.map((val) => {
+      const match = serviceOptions.find((o) => o.value === val);
+      return match ?? { label: val, value: val };
+    }),
+    multiple: true,
+  };
+
+  const otherFields = (field.fields ?? []).filter((f) => f.id !== checkbox.id);
+
+  return {
+    group: {
+      ...field,
+      fields: [...otherFields, checkbox],
+    },
+    selected,
+  };
+};
+
 const buildLabeledMedication = (
   fields: FormField[] | undefined,
   baseMedication: FormField
@@ -214,6 +250,31 @@ const addFieldToTreatmentPlan = (
       ? { ...field, fields: [...(field.fields ?? []), fieldToAdd] }
       : field
   );
+const updateServiceGroupOptions = (
+  field: FormField & { type: "group" },
+  serviceOptions: { label: string; value: string }[]
+): FormField => {
+  const checkbox = getServiceCheckbox(field);
+  if (!checkbox) return field;
+  const selectedValues = (checkbox.options ?? []).map((opt: any) => opt.value);
+
+  const mappedOptions = serviceOptions.map((opt) => ({ ...opt }));
+  const missingSelected = selectedValues.filter(
+    (val) => !mappedOptions.some((opt) => opt.value === val)
+  );
+  const mergedOptions = [
+    ...mappedOptions,
+    ...missingSelected.map((val) => ({ label: val, value: val })),
+  ];
+
+  const updatedCheckbox = { ...checkbox, options: mergedOptions };
+  return {
+    ...field,
+    fields: (field.fields ?? []).map((f) =>
+      f.id === checkbox.id ? updatedCheckbox : f
+    ),
+  };
+};
 const addMedicationToTreatmentPlan = (
   schema: FormField[],
   medicationField: FormField
@@ -250,18 +311,12 @@ export const FieldBuilder: React.FC<{
   onChange: (f: FormField) => void;
   onDelete: () => void;
   createField: (t: OptionKey) => FormField;
-  serviceOptions?: { label: string; value: string }[];
-}> = ({ field, onChange, onDelete, createField, serviceOptions = [] }) => {
+}> = ({ field, onChange, onDelete, createField }) => {
   const Component = builderComponentMap[field.type];
 
   return (
     <BuilderWrapper field={field} onDelete={onDelete}>
-      <Component
-        field={field}
-        onChange={onChange}
-        createField={createField}
-        serviceOptions={serviceOptions}
-      />
+      <Component field={field} onChange={onChange} createField={createField} />
     </BuilderWrapper>
   );
 };
@@ -279,6 +334,53 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   createField,
   serviceOptions,
 }) => {
+  if (isServiceGroup(field)) {
+    const { group, selected } = ensureServiceCheckbox(field, serviceOptions);
+    const checkbox = getServiceCheckbox(group);
+
+    const updateOptions = (values: string[]) => {
+      const nextCheckbox = {
+        ...(checkbox as any),
+        options: values.map((val) => {
+          const match = serviceOptions.find((o) => o.value === val);
+          return match ?? { label: val, value: val };
+        }),
+      };
+      onChange({
+        ...group,
+        fields: (group.fields ?? []).map((f) =>
+          f.id === checkbox?.id ? (nextCheckbox as FormField) : f
+        ),
+      });
+    };
+
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="font-grotesk text-black-text text-[18px] font-medium">
+            {field.label || "Services"}
+          </div>
+        </div>
+        <FormInput
+          intype="text"
+          inname={`group-${field.id}-label`}
+          value={field.label || ""}
+          inlabel="Group name"
+          onChange={(e) => onChange({ ...field, label: e.target.value })}
+          className="min-h-12!"
+        />
+        <MultiSelectDropdown
+          placeholder="Select services"
+          value={selected}
+          onChange={updateOptions}
+          options={serviceOptions}
+          className="min-h-12!"
+          dropdownClassName="!h-fit"
+        />
+      </div>
+    );
+  }
+
   const updateNestedField = (id: string, updatedField: FormField) => {
     onChange({
       ...field,
@@ -339,7 +441,6 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
             onChange={(updated) => updateNestedField(nested.id, updated)}
             onDelete={() => removeNestedField(nested.id)}
             createField={createField}
-            serviceOptions={serviceOptions}
           />
         )
       )}
@@ -357,7 +458,7 @@ const Build = ({
   const [buildError, setBuildError] = useState<string>("");
   const createField = (key: OptionKey): FormField => {
     const id = crypto.randomUUID();
-    return fieldFactory[key](id);
+    return fieldFactory[key](id, serviceOptions);
   };
 
   const updateFieldInForm = (
@@ -399,12 +500,30 @@ const Build = ({
       return;
     }
 
-    const newField: FormField = createField(key);
+    const newField: FormField =
+      key === "service-group"
+        ? ensureServiceCheckbox(
+            createField(key) as FormField & { type: "group" },
+            serviceOptions
+          ).group
+        : createField(key);
     setFormData((prev) => ({
       ...prev,
       schema: [...(prev.schema ?? []), newField],
     }));
   };
+
+  useEffect(() => {
+    if (!serviceOptions.length) return;
+    setFormData((prev) => ({
+      ...prev,
+      schema: (prev.schema ?? []).map((field) =>
+        isServiceGroup(field)
+          ? ensureServiceCheckbox(field, serviceOptions).group
+          : field
+      ),
+    }));
+  }, [serviceOptions, setFormData]);
 
   const validate = React.useCallback(() => {
     if (!formData.schema || formData.schema.length === 0) {
@@ -431,16 +550,19 @@ const Build = ({
 
         {formData.schema?.map((field) => {
           if (field.type === "group") {
+            const ensured = isServiceGroup(field)
+              ? ensureServiceCheckbox(field, serviceOptions).group
+              : field;
             return (
               <BuilderWrapper
-                key={field.id}
-                field={field}
+                key={ensured.id}
+                field={ensured}
                 onDelete={() =>
                   setFormData((prev) => removeFieldById(prev, field.id))
                 }
               >
                 <GroupBuilder
-                  field={field}
+                  field={ensured}
                   onChange={(updatedField) =>
                     handleFieldChange(field.id, updatedField)
                   }
@@ -461,7 +583,6 @@ const Build = ({
                 setFormData((prev) => removeFieldById(prev, field.id))
               }
               createField={createField}
-              serviceOptions={serviceOptions}
             />
           );
         })}

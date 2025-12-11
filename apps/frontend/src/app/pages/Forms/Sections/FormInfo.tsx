@@ -33,10 +33,6 @@ const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
       acc[field.id] = false;
       return;
     }
-    if (field.type === "service-group") {
-      acc[field.id] = field.services ?? [];
-      return;
-    }
     if (field.type === "date") {
       acc[field.id] = "";
       return;
@@ -255,7 +251,6 @@ const FormInfo = ({
                   values={buildPreviewValues(activeForm.schema ?? [])}
                   onChange={() => {}}
                   readOnly
-                  serviceOptions={serviceOptions}
                 />
               </Accordion>
             )}
