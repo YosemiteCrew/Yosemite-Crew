@@ -83,7 +83,7 @@ const Task = () => {
             dropdownClassName="top-[55px]! !h-fit"
             options={LeadOptions}
           />
-          <Datepicker currentDate={due} setCurrentDate={setDue} type="input" />
+          <Datepicker currentDate={due} setCurrentDate={setDue} type="input" placeholder="Select date" />
         </div>
       </Accordion>
       <Primary href="#" text="Save" classname="h-13!" onClick={createTask} />

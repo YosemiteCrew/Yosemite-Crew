@@ -2,9 +2,9 @@
 import React, { useMemo, useState } from "react";
 import AvailabilityTable from "../DataTable/AvailabilityTable";
 import Link from "next/link";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 
 import "./Summary.css";
-import { DemoTeam } from "@/app/pages/Organization/demo";
 
 const AvailabilityLabels = [
   {
@@ -27,30 +27,30 @@ const AvailabilityLabels = [
   },
 
   {
-    name: "Off duty",
-    value: "off",
+    name: "Off-Duty",
+    value: "off-duty",
     background: "#EAEAEA",
     color: "#302F2E",
   },
 ];
 
 const Availability = () => {
+  const teams = useTeamForPrimaryOrg();
   const [selectedLabel, setSelectedLabel] = useState("all");
-  const [team] = useState(DemoTeam);
 
   const filteredList = useMemo(() => {
-    return team.filter((item) => {
+    return teams.filter((item) => {
       const matchesStatus =
         selectedLabel === "all" ||
         item.status.toLowerCase() === selectedLabel.toLowerCase();
       return matchesStatus;
     });
-  }, [team, selectedLabel]);
+  }, [teams, selectedLabel]);
 
   return (
     <div className="summary-container">
       <div className="summary-title">
-        Availability&nbsp;<span>({team.length})</span>
+        Availability&nbsp;<span>({teams.length})</span>
       </div>
       <div className="summary-labels-left">
         {AvailabilityLabels?.map((label, i) => (

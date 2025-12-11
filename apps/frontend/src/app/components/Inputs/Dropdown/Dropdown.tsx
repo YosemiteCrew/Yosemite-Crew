@@ -8,12 +8,12 @@ import countries from "@/app/utils/countryList.json";
 
 import "./Dropdown.css";
 
-type DropdownType = "country" | "breed" | undefined;
+type DropdownType = "country" | "breed" | "general" | undefined;
 
 type DropdownProps = {
   placeholder: string;
   value: string;
-  onChange: (e: string) => void;
+  onChange: (e: any) => void;
   error?: string;
   className?: string;
   dropdownClassName?: string;

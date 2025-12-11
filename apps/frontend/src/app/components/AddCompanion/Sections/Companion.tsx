@@ -108,7 +108,10 @@ const Companion = () => {
             />
             <SelectLabel
               title="Gender"
-              options={GenderOptions}
+              options={GenderOptions.map((option) => ({
+                name: option,
+                key: option,
+              }))}
               activeOption={formData.gender}
               setOption={(value: string) =>
                 setFormData({ ...formData, gender: value })
@@ -116,7 +119,10 @@ const Companion = () => {
             />
             <SelectLabel
               title="Neutered status"
-              options={NeuteuredOptions}
+              options={NeuteuredOptions.map((option) => ({
+                name: option,
+                key: option,
+              }))}
               activeOption={formData.neutuered}
               setOption={(value: string) =>
                 setFormData({ ...formData, neutuered: value })
@@ -164,7 +170,10 @@ const Companion = () => {
             />
             <SelectLabel
               title="My pet comes from:"
-              options={OriginOptions}
+              options={OriginOptions.map((option) => ({
+                name: option,
+                key: option,
+              }))}
               activeOption={formData.origin}
               setOption={(value: string) =>
                 setFormData({ ...formData, origin: value })

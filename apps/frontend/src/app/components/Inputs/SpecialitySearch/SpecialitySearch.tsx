@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoSearch } from "react-icons/io5";
 import { specialties as SPECIALITIES } from "@/app/utils/specialities";
 
-import "./SpecialitySearch.css";
 import { Speciality } from "@yosemite-crew/types";
 import { useOrgStore } from "@/app/stores/orgStore";
+
+import "./SpecialitySearch.css";
 
 type SpecialitySearchProps = {
   specialities: Speciality[];

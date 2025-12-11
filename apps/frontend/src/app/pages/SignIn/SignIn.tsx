@@ -13,7 +13,6 @@ import { Primary } from "@/app/components/Buttons";
 import { useRouter } from "next/navigation";
 
 import "./SignIn.css";
-import { postData } from "@/app/services/axios";
 
 type SignInProps = {
   redirectPath?: string;
@@ -28,7 +27,7 @@ const SignIn = ({
   allowNext = true,
   isDeveloper = false,
 }: Readonly<SignInProps>) => {
-  const { signIn, resendCode, signout } = useAuthStore();
+  const { signIn, resendCode } = useAuthStore();
   const router = useRouter();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [email, setEmail] = useState("");
@@ -66,15 +65,6 @@ const SignIn = ({
     }
   };
 
-  const afterAuthSuccess = async () => {
-    try {
-      await postData("/fhir/v1/user");
-    } catch (error) {
-      await signout();
-      throw error;
-    }
-  };
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -88,7 +78,6 @@ const SignIn = ({
 
     try {
       await signIn(email, password);
-      // await afterAuthSuccess();
       router.push("/organizations");
       if (typeof globalThis !== "undefined") {
         // Temporary fallback until custom:role attribute is available in the pool

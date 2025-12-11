@@ -1,19 +1,32 @@
 import { Speciality } from "@yosemite-crew/types";
 import { create } from "zustand";
 
+type SpecialityStatus = "idle" | "loading" | "loaded" | "error";
+
 type SpecialityState = {
   specialitiesById: Record<string, Speciality>;
   specialityIdsByOrgId: Record<string, string[]>;
 
+  status: SpecialityStatus;
+  error: string | null;
+  lastFetchedAt: string | null;
+
   setSpecialities: (specialities: Speciality[]) => void;
   addSpeciality: (speciality: Speciality) => void;
+  updateSpeciality: (speciality: Speciality) => void;
   getSpecialitiesByOrgId: (orgId: string) => Speciality[];
   clearSpecialities: () => void;
+  startLoading: () => void;
+  endLoading: () => void;
+  setError: (message: string) => void;
 };
 
 export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
   specialitiesById: {},
   specialityIdsByOrgId: {},
+  status: "idle",
+  error: null,
+  lastFetchedAt: null,
 
   setSpecialities: (specialities) =>
     set(() => {
@@ -31,6 +44,7 @@ export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
       return {
         specialitiesById,
         specialityIdsByOrgId,
+        status: "loaded",
       };
     }),
 
@@ -46,13 +60,31 @@ export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
       const alreadyListed = existingIdsForOrg.includes(id);
       const specialityIdsByOrgId: Record<string, string[]> = {
         ...state.specialityIdsByOrgId,
-        [orgId]: alreadyListed
-          ? existingIdsForOrg
-          : [...existingIdsForOrg, id],
+        [orgId]: alreadyListed ? existingIdsForOrg : [...existingIdsForOrg, id],
       };
       return {
         specialitiesById,
         specialityIdsByOrgId,
+        status: "loaded",
+      };
+    }),
+
+  updateSpeciality: (updated) =>
+    set((state) => {
+      const id = updated._id;
+      if (!id || !state.specialitiesById[id]) {
+        console.warn("updateSpeciality: speciality not found:", updated);
+        return state;
+      }
+      return {
+        specialitiesById: {
+          ...state.specialitiesById,
+          [id]: {
+            ...state.specialitiesById[id],
+            ...updated,
+          },
+        },
+        status: "loaded",
       };
     }),
 
@@ -68,5 +100,25 @@ export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
     set(() => ({
       specialitiesById: {},
       specialityIdsByOrgId: {},
+      status: "idle",
+      error: null
+    })),
+
+  startLoading: () =>
+    set(() => ({
+      status: "loading",
+      error: null,
+    })),
+
+  endLoading: () =>
+    set(() => ({
+      status: "loaded",
+      error: null,
+    })),
+
+  setError: (message: string) =>
+    set(() => ({
+      status: "error",
+      error: message,
     })),
 }));

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import countries from "../../../utils/countryList.json";
 import { Organisation } from "@yosemite-crew/types";
+import { UserProfile } from "@/app/types/profile";
 
 import "./GoogleSearchDropDown.css";
 
@@ -14,7 +15,7 @@ type GoogleSearchDropDownProps = {
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
-  setFormData?: React.Dispatch<React.SetStateAction<Organisation>>;
+  setFormData?: any;
   onlyAddress?: boolean;
 };
 
@@ -239,20 +240,23 @@ const GoogleSearchDropDown = ({
     const latitude = details.location?.latitude ?? null;
     const longitude = details.location?.longitude ?? null;
     if (onlyAddress) {
-      setFormData?.((prev) => ({
+      setFormData?.((prev: UserProfile) => ({
         ...prev,
-        googlePlacesId: details.id,
-        address: {
-          addressLine: address,
-          city: city,
-          state: state,
-          postalCode: postalCode,
-          latitude: Number(latitude),
-          longitude: Number(longitude),
+        personalDetails: {
+          ...prev.personalDetails,
+          address: {
+            ...prev.personalDetails?.address,
+            addressLine: address,
+            city: city,
+            state: state,
+            postalCode: postalCode,
+            latitude: Number(latitude),
+            longitude: Number(longitude),
+          },
         },
       }));
     } else {
-      setFormData?.((prev) => ({
+      setFormData?.((prev: Organisation) => ({
         ...prev,
         name,
         phoneNo: normalizePhoneNumber(phone),

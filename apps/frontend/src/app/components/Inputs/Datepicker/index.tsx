@@ -29,6 +29,9 @@ type DatepickerProps = {
   minYear?: number;
   maxYear?: number;
   type?: string;
+  className?: string;
+  containerClassName?: string;
+  placeholder: string;
 };
 
 const Datepicker = ({
@@ -37,6 +40,9 @@ const Datepicker = ({
   minYear = 1970,
   maxYear = 2100,
   type = "icon",
+  className,
+  containerClassName,
+  placeholder
 }: DatepickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
@@ -107,9 +113,9 @@ const Datepicker = ({
   const viewDate = new Date(viewYear, viewMonth, 1);
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={`relative ${containerClassName}`} ref={containerRef}>
       {type === "input" ? (
-        <div className={`SignInput floating-input focused relative`}>
+        <div className={`SignInput floating-input focused relative ${className}`}>
           <input
             type={"text"}
             name={"date-input"}
@@ -119,7 +125,7 @@ const Datepicker = ({
             disabled
             className={`min-h-12!`}
           />
-          <label htmlFor={"date-input"}>Due date</label>
+          <label htmlFor={"date-input"}>{placeholder}</label>
           <IoCalendarClear
             size={20}
             color="#302f2e"

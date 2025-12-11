@@ -35,9 +35,14 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
   const router = useRouter();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
 
-  const handleOrgClick = (orgId: string) => {
-    setPrimaryOrg(orgId);
-    router.push("/dashboard");
+  const handleOrgClick = (org: OrgWithMembership) => {
+    const id = org.org._id?.toString() || org.org.name;
+    setPrimaryOrg(id);
+    if (org.org.isVerified) {
+      router.push("/dashboard");
+    } else {
+      router.push("/create-org?orgId=" + id);
+    }
   };
 
   const columns: Column<OrgWithMembership>[] = [
@@ -47,9 +52,7 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
       width: "30%",
       render: (item: OrgWithMembership) => (
         <button
-          onClick={() =>
-            handleOrgClick(item.org._id?.toString() || item.org.name)
-          }
+          onClick={() => handleOrgClick(item)}
           className="OrgListDetails text-left"
         >
           {item.org.name}
