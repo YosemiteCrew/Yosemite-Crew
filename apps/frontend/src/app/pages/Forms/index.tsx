@@ -1,56 +1,113 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Primary } from "@/app/components/Buttons";
 import { FormsProps } from "@/app/types/forms";
-import { demoForms } from "./demo";
 import FormsFilters from "@/app/components/Filters/FormsFilters";
 import FormsTable from "@/app/components/DataTable/FormsTable";
 import AddForm from "./Sections/AddForm";
 import FormInfo from "./Sections/FormInfo";
+import { useFormsStore } from "@/app/stores/formsStore";
+import { loadForms } from "@/app/services/formService";
+import { loadServicesForOrg } from "@/app/services/serviceService";
 
 const Forms = () => {
-  const [list, setList] = useState<FormsProps[]>(demoForms);
-  const [filteredList, setFilteredList] = useState<FormsProps[]>(demoForms);
-  const [isLoading, setIsLoading] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const { formsById, formIds, activeFormId, setActiveForm, loading } =
+    useFormsStore();
+  const [filteredList, setFilteredList] = useState<FormsProps[]>([]);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
-  const [activeForm, setActiveForm] = useState<FormsProps | null>(
-    demoForms[0] ?? null
+  const [editingForm, setEditingForm] = useState<FormsProps | null>(null);
+  const [draftForm, setDraftForm] = useState<FormsProps | null>(null);
+  const [serviceOptions, setServiceOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const fetchedRef = useRef(false);
+
+  const list = useMemo<FormsProps[]>(
+    () =>
+      formIds
+        .map((id) => formsById[id])
+        .filter((f): f is FormsProps => Boolean(f)),
+    [formIds, formsById]
   );
 
-  useEffect(() => {
-    if (filteredList.length > 0) {
-      setActiveForm(filteredList[0]);
-    } else {
-      setActiveForm(null);
+  const activeForm: FormsProps | null = useMemo(() => {
+    const current = activeFormId ? formsById[activeFormId] : null;
+    if (current) {
+      const presentInFilter = filteredList.some(
+        (f) => f._id === current._id
+      );
+      if (presentInFilter) return current;
     }
-  }, [filteredList]);
+    return filteredList[0] ?? null;
+  }, [activeFormId, filteredList, formsById]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && !isLoading && filteredList.length > 0) {
-          setIsLoading(true);
-          setTimeout(() => {
-            updateList();
-            setIsLoading(false);
-          }, 300);
-        }
-      },
-      { threshold: 1 }
-    );
-    const currentSentinel = sentinelRef.current;
-    if (currentSentinel) observer.observe(currentSentinel);
-    return () => {
-      if (currentSentinel) observer.unobserve(currentSentinel);
-    };
-  }, [isLoading, filteredList]);
+    setFilteredList(list);
+  }, [list]);
 
-  const updateList = () => {
-    setList((prev) => [...prev, ...demoForms]);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    void (async () => {
+      try {
+        if (!list.length) {
+          await loadForms();
+        }
+      } catch (err) {
+        console.error("Failed to load forms", err);
+      }
+      try {
+        const services = await loadServicesForOrg();
+        const opts = services.map((s) => ({
+          label: s.name,
+          value: s.id || (s as any)._id || s.name,
+        }));
+        setServiceOptions(opts);
+      } catch (err) {
+        console.error("Failed to load services", err);
+      }
+    })();
+  }, [list.length]);
+
+  useEffect(() => {
+    if (!filteredList.length) {
+      setActiveForm(null);
+      return;
+    }
+    const isActiveInFilter =
+      activeFormId &&
+      filteredList.some((item) => item._id === activeFormId);
+    if (!isActiveInFilter) {
+      const first = filteredList[0];
+      if (first?._id) setActiveForm(first._id);
+    }
+  }, [activeFormId, filteredList, setActiveForm]);
+
+  const openAddForm = () => {
+    setEditingForm(null);
+    setAddPopup(true);
+  };
+
+  const openEditForm = (form: FormsProps) => {
+    setDraftForm(null);
+    setEditingForm(form);
+    setViewPopup(false);
+    setAddPopup(true);
+  };
+
+  const handleAddClose = () => {
+    if (editingForm) {
+      setDraftForm(null);
+    }
+    setEditingForm(null);
+  };
+
+  const handleSelectForm = (form: FormsProps) => {
+    if (form?._id) {
+      setActiveForm(form._id);
+    }
   };
 
   return (
@@ -63,7 +120,7 @@ const Forms = () => {
           href="#"
           text="Add"
           classname="w-[140px] sm:w-40"
-          onClick={() => setAddPopup(true)}
+          onClick={openAddForm}
         />
       </div>
 
@@ -72,25 +129,29 @@ const Forms = () => {
         <FormsTable
           filteredList={filteredList}
           activeForm={activeForm}
-          setActiveForm={setActiveForm}
+          setActiveForm={handleSelectForm}
           setViewPopup={setViewPopup}
+          loading={loading}
         />
-        <div
-          ref={sentinelRef}
-          className="w-full h-10 flex justify-center items-center"
-        >
-          {isLoading && (
-            <span className="text-gray-500 text-sm">Loading more forms...</span>
-          )}
-        </div>
       </div>
 
-      <AddForm showModal={addPopup} setShowModal={setAddPopup} />
+      <AddForm
+        key={editingForm?._id ? `edit-${editingForm._id}` : "add-form"}
+        showModal={addPopup}
+        setShowModal={setAddPopup}
+        initialForm={editingForm}
+        onClose={handleAddClose}
+        serviceOptions={serviceOptions}
+        draft={editingForm ? null : draftForm}
+        onDraftChange={(d) => !editingForm && setDraftForm(d)}
+      />
       {activeForm && (
         <FormInfo
           showModal={viewPopup}
           setShowModal={setViewPopup}
           activeForm={activeForm}
+          onEdit={openEditForm}
+          serviceOptions={serviceOptions}
         />
       )}
     </div>

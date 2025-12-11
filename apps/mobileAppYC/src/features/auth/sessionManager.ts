@@ -5,7 +5,9 @@ import {
   getIdToken,
   getIdTokenResult,
   reload,
+  signOut as firebaseSignOut,
 } from '@react-native-firebase/auth';
+import {syncAuthUser} from '@/features/auth/services/authUserService';
 import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
 import {Buffer} from 'node:buffer';
 
@@ -373,15 +375,46 @@ const attemptFirebaseRecovery = async (
     }
 
     const idToken = await getIdToken(firebaseUser);
-    const profileTokenResult = await resolveProfileTokenForUser(
-      {
-        existingProfileToken,
-        accessToken: idToken,
-        userId: firebaseUser.uid,
-        parentId: existingUser?.parentId ?? undefined,
-      },
-      'Firebase',
-    );
+    let authSync: Awaited<ReturnType<typeof syncAuthUser>> | undefined;
+    try {
+      authSync = await syncAuthUser({
+        authToken: idToken,
+        idToken,
+      });
+    } catch (error) {
+      console.warn('[Auth] Failed to sync Firebase auth user during recovery', error);
+    }
+
+    const parentSummary = authSync?.parentSummary;
+
+    // If we have no linked parent and no pending profile to resume, treat this
+    // Firebase session as orphaned and sign out to avoid forcing CreateAccount.
+    if (!parentSummary && !existingUser?.parentId) {
+      try {
+        await firebaseSignOut(auth);
+      } catch (signOutError) {
+        console.warn('[Auth] Firebase sign out failed during orphan recovery', signOutError);
+      }
+      await clearSessionData({clearPendingProfile: true});
+      return null;
+    }
+
+    const profileTokenResult = parentSummary
+      ? {
+          status: 'resolved' as const,
+          token: parentSummary.profileImageUrl ?? existingProfileToken,
+          parent: parentSummary,
+          isComplete: parentSummary.isComplete,
+        }
+      : await resolveProfileTokenForUser(
+          {
+            existingProfileToken,
+            accessToken: idToken,
+            userId: firebaseUser.uid,
+            parentId: existingUser?.parentId ?? undefined,
+          },
+          'Firebase',
+        );
 
     const tokenResult = await getIdTokenResult(firebaseUser);
     const expiresAt = tokenResult?.expirationTime
@@ -392,12 +425,15 @@ const attemptFirebaseRecovery = async (
       id: firebaseUser.uid,
       parentId: profileTokenResult.parent?.id ?? existingUser?.parentId,
       email: firebaseUser.email ?? existingUser?.email ?? '',
-      firstName: existingUser?.firstName,
-      lastName: existingUser?.lastName,
+      firstName: parentSummary?.firstName ?? existingUser?.firstName,
+      lastName: parentSummary?.lastName ?? existingUser?.lastName,
       phone: existingUser?.phone,
       dateOfBirth: existingUser?.dateOfBirth,
       profilePicture:
-        existingUser?.profilePicture ?? firebaseUser.photoURL ?? undefined,
+        parentSummary?.profileImageUrl ??
+        existingUser?.profilePicture ??
+        firebaseUser.photoURL ??
+        undefined,
       profileToken: profileTokenResult.token ?? existingProfileToken ?? undefined,
       address: existingUser?.address,
     };
