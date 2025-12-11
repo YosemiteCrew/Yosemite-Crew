@@ -34,7 +34,11 @@ jest.mock('@/features/tasks/thunks', () => ({
 }));
 
 // Helper to create mock data
-const mockTask = (id: string, companionId: string, status = 'pending'): any => ({
+const mockTask = (
+  id: string,
+  companionId: string,
+  status = 'pending'
+): any => ({
   id,
   companionId,
   title: `Task ${id}`,
@@ -128,8 +132,12 @@ describe('features/tasks/taskSlice', () => {
       expect(nextState.loading).toBe(false);
       expect(nextState.items).toHaveLength(2); // 1 kept + 1 new
       // Explicitly typed 't' as any to fix TS7006
-      expect(nextState.items.find((t: any) => t.id === 'old1')).toBeUndefined();
-      expect(nextState.items.find((t: any) => t.id === 'new1')).toBeDefined();
+      expect(
+        nextState.items.find((t: any) => t.id === 'old1')
+      ).toBeUndefined();
+      expect(
+        nextState.items.find((t: any) => t.id === 'new1')
+      ).toBeDefined();
       expect(nextState.hydratedCompanions.C1).toBe(true);
     });
 
@@ -138,7 +146,10 @@ describe('features/tasks/taskSlice', () => {
         type: rejectedType,
         payload: 'Network Error',
       };
-      const nextState = tasksReducer({ ...initialState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...initialState, loading: true },
+        action
+      );
       expect(nextState.loading).toBe(false);
       expect(nextState.error).toBe('Network Error');
     });
@@ -148,7 +159,10 @@ describe('features/tasks/taskSlice', () => {
         type: rejectedType,
         payload: undefined,
       };
-      const nextState = tasksReducer({ ...initialState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...initialState, loading: true },
+        action
+      );
       expect(nextState.loading).toBe(false);
       expect(nextState.error).toBe('Unable to fetch tasks');
     });
@@ -175,13 +189,19 @@ describe('features/tasks/taskSlice', () => {
 
     it('should set error payload on rejected', () => {
       const action = { type: rejectedType, payload: 'Failed to add' };
-      const nextState = tasksReducer({ ...initialState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...initialState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Failed to add');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
       const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer({ ...initialState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...initialState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Unable to add task');
     });
   });
@@ -224,13 +244,19 @@ describe('features/tasks/taskSlice', () => {
 
     it('should set error payload on rejected', () => {
       const action = { type: rejectedType, payload: 'Update failed' };
-      const nextState = tasksReducer({ ...startState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...startState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Update failed');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
       const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer({ ...startState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...startState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Unable to update task');
     });
   });
@@ -264,13 +290,19 @@ describe('features/tasks/taskSlice', () => {
 
     it('should set error payload on rejected', () => {
       const action = { type: rejectedType, payload: 'Delete failed' };
-      const nextState = tasksReducer({ ...startState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...startState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Delete failed');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
       const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer({ ...startState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...startState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Unable to delete task');
     });
   });
@@ -294,7 +326,11 @@ describe('features/tasks/taskSlice', () => {
       const completedDate = '2023-12-25T10:00:00.000Z';
       const action = {
         type: fulfilledType,
-        payload: { taskId: '1', status: 'completed', completedAt: completedDate },
+        payload: {
+          taskId: '1',
+          status: 'completed',
+          completedAt: completedDate,
+        },
       };
       const nextState = tasksReducer(startState, action);
 
@@ -307,7 +343,13 @@ describe('features/tasks/taskSlice', () => {
     it('should update status and remove completedAt when not completed', () => {
       const completedState = {
         ...initialState,
-        items: [{ ...mockTask('1', 'C1'), status: 'completed', completedAt: 'date' }],
+        items: [
+          {
+            ...mockTask('1', 'C1'),
+            status: 'completed',
+            completedAt: 'date',
+          },
+        ],
       };
 
       const action = {
@@ -321,23 +363,32 @@ describe('features/tasks/taskSlice', () => {
     });
 
     it('should ignore update if task not found', () => {
-        const action = {
-          type: fulfilledType,
-          payload: { taskId: '999', status: 'completed' },
-        };
-        const nextState = tasksReducer(startState, action);
-        expect(nextState.items).toEqual(startState.items);
+      const action = {
+        type: fulfilledType,
+        payload: { taskId: '999', status: 'completed' },
+      };
+      const nextState = tasksReducer(startState, action);
+      expect(nextState.items).toEqual(startState.items);
     });
 
     it('should set error payload on rejected', () => {
-      const action = { type: rejectedType, payload: 'Status update error' };
-      const nextState = tasksReducer({ ...startState, loading: true }, action);
+      const action = {
+        type: rejectedType,
+        payload: 'Status update error',
+      };
+      const nextState = tasksReducer(
+        { ...startState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Status update error');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
       const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer({ ...startState, loading: true }, action);
+      const nextState = tasksReducer(
+        { ...startState, loading: true },
+        action
+      );
       expect(nextState.error).toBe('Unable to update task status');
     });
   });
