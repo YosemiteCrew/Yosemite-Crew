@@ -1,8 +1,18 @@
 import AccordionButton from "@/app/components/Accordion/AccordionButton";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import ProfileCard from "../../Organization/Sections/ProfileCard";
 import Availability from "@/app/components/Availability/Availability";
 import { usePrimaryOrgWithMembership } from "@/app/hooks/useOrgSelectors";
+import { Primary } from "@/app/components/Buttons";
+import {
+  AvailabilityState,
+  convertAvailability,
+  daysOfWeek,
+  DEFAULT_INTERVAL,
+  hasAtLeastOneAvailability,
+} from "@/app/components/Availability/utils";
+import { upsertAvailability } from "@/app/services/availability";
+import { usePrimaryAvailability } from "@/app/hooks/useAvailabiities";
 
 const ProfessionalFields = [
   {
@@ -141,6 +151,42 @@ const OrgRelatedFields = [
 
 const OrgSection = () => {
   const { org, membership } = usePrimaryOrgWithMembership();
+  const { availabilities } = usePrimaryAvailability();
+  const [availability, setAvailability] = useState<AvailabilityState>(
+    daysOfWeek.reduce<AvailabilityState>((acc, day) => {
+      const isWeekday =
+        day === "Monday" ||
+        day === "Tuesday" ||
+        day === "Wednesday" ||
+        day === "Thursday" ||
+        day === "Friday";
+
+      acc[day] = {
+        enabled: isWeekday,
+        intervals: [{ ...DEFAULT_INTERVAL }],
+      };
+      return acc;
+    }, {} as AvailabilityState)
+  );
+
+  useEffect(() => {
+    if (availabilities) {
+      setAvailability(availabilities);
+    }
+  }, [availabilities]);
+
+  const handleClick = async () => {
+    try {
+      const converted = convertAvailability(availability);
+      if (!hasAtLeastOneAvailability(converted)) {
+        console.log("No availability selected");
+        return;
+      }
+      await upsertAvailability(converted, null);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   if (!org || !membership) return null;
 
@@ -168,8 +214,19 @@ const OrgSection = () => {
               Availability
             </div>
           </div>
-          <div className="px-10! py-10!">
-            <Availability />
+          <div className="px-10! py-10! flex flex-col gap-4">
+            <Availability
+              availability={availability}
+              setAvailability={setAvailability}
+            />
+            <div className="w-full flex justify-end!">
+              <Primary
+                href="#"
+                text="Save"
+                style={{ width: "160px" }}
+                onClick={handleClick}
+              />
+            </div>
           </div>
         </div>
       </div>

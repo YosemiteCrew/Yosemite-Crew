@@ -1,10 +1,11 @@
+import { ApiDayAvailability } from "../components/Availability/utils";
 import { UserProfile } from "../types/profile";
 
 export type TeamOnboardingStep = 0 | 1 | 2 | 3;
 
 export const computeTeamOnboardingStep = (
   profile: UserProfile | null | undefined,
-  slots: any[]
+  slots: ApiDayAvailability[]
 ): TeamOnboardingStep => {
   if (!profile) return 0;
 

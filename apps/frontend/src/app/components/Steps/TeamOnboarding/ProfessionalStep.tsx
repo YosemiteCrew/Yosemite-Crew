@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Primary, Secondary } from "../../Buttons";
+import { Primary } from "../../Buttons";
 import FormInput from "../../Inputs/FormInput/FormInput";
 import FileInput from "../../Inputs/FileInput/FileInput";
 import { UserProfile } from "@/app/types/profile";
@@ -46,7 +46,6 @@ const ProfessionalStep = ({
     }
     try {
       await updateUserProfile(formData, orgIdFromQuery);
-      nextStep();
     } catch (error: any) {
       console.error("Error updating profile:", error);
     }
@@ -155,13 +154,7 @@ const ProfessionalStep = ({
         <FileInput />
       </div>
 
-      <div className="team-buttons">
-        <Secondary
-          href="#"
-          text="Back"
-          style={{ width: "160px" }}
-          onClick={() => prevStep()}
-        />
+      <div className="team-buttons justify-end! w-full">
         <Primary
           href="#"
           text="Next"

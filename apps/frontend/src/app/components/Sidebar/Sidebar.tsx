@@ -9,6 +9,7 @@ import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useLoadProfiles } from "@/app/hooks/useProfiles";
+import { useLoadAvailabilities } from "@/app/hooks/useAvailabiities";
 
 import "./Sidebar.css";
 
@@ -46,6 +47,7 @@ const devRoutes: RouteItem[] = [
 const Sidebar = () => {
   useLoadOrg()
   useLoadProfiles()
+  useLoadAvailabilities()
   const pathname = usePathname();
   const router = useRouter();
   const { signout } = useAuthStore();

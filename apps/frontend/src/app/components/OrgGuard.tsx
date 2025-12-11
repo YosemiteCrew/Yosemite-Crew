@@ -13,6 +13,9 @@ import { useLoadTeam } from "../hooks/useTeam";
 import { useLoadProfiles } from "../hooks/useProfiles";
 import { useUserProfileStore } from "../stores/profileStore";
 import { computeTeamOnboardingStep } from "../utils/teamOnboarding";
+import { useLoadAvailabilities } from "../hooks/useAvailabiities";
+import { useAvailabilityStore } from "../stores/availabilityStore";
+import { ApiDayAvailability } from "./Availability/utils";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -39,6 +42,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadSpecialitiesForPrimaryOrg();
   useLoadTeam();
   useLoadProfiles();
+  useLoadAvailabilities()
 
   const router = useRouter();
   const pathname = usePathname();
@@ -56,6 +60,10 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
 
   const getSpecialitiesByOrgId = useSpecialityStore(
     (s) => s.getSpecialitiesByOrgId
+  );
+
+  const getAvailabilitiesByOrgId = useAvailabilityStore(
+    (s) => s.getAvailabilitiesByOrgId
   );
 
   const profile = useUserProfileStore((s) =>
@@ -77,8 +85,9 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     }
 
     const specialities: Speciality[] = getSpecialitiesByOrgId(primaryOrgId);
+    const availabilities: ApiDayAvailability[] = getAvailabilitiesByOrgId(primaryOrgId);
     const step = computeOrgOnboardingStep(primaryOrg, specialities);
-    const profileStep = computeTeamOnboardingStep(profile, []);
+    const profileStep = computeTeamOnboardingStep(profile, availabilities);
     const isVerified = primaryOrg.isVerified;
     const role = membership.roleDisplay ?? membership.roleCode;
     let redirectTo: string | null = null;
@@ -108,7 +117,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     }
 
     setChecked(true);
-  }, [primaryOrgId, primaryOrg, getSpecialitiesByOrgId, pathname, router, profile, orgStatus]);
+  }, [primaryOrgId, primaryOrg, getSpecialitiesByOrgId, pathname, router, profile, orgStatus, getAvailabilitiesByOrgId]);
 
   if (!checked) return null;
 

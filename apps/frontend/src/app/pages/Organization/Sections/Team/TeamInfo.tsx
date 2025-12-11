@@ -1,6 +1,5 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
-import Availability from "@/app/components/Availability/Availability";
 import Modal from "@/app/components/Modal";
 import { Team } from "@/app/types/team";
 import React from "react";
@@ -84,17 +83,6 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
             data={activeTeam}
             defaultOpen={false}
           />
-
-          <Accordion
-            title="Availability"
-            defaultOpen={false}
-            showEditIcon={false}
-            isEditing={false}
-          >
-            <div className="flex flex-col gap-3 py-5!">
-              <Availability />
-            </div>
-          </Accordion>
 
           <Accordion
             title="Permissions"

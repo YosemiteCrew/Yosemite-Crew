@@ -95,7 +95,6 @@ const PersonalStep = ({
     }
     try {
       await createUserProfile(formData, orgIdFromQuery);
-      nextStep();
     } catch (error: any) {
       console.error("Error creating profile:", error);
     }

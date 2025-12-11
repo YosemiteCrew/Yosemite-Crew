@@ -6,13 +6,15 @@ import {
   TeamOnboardingStep,
 } from "../utils/teamOnboarding";
 import { useUserProfileStore } from "../stores/profileStore";
+import { useAvailabilityStore } from "../stores/availabilityStore";
+import { ApiDayAvailability } from "../components/Availability/utils";
 
 export const useTeamOnboarding = (
   orgId: string | null
 ): {
   profile: UserProfile | null;
   step: TeamOnboardingStep;
-  slots: any[];
+  slots: ApiDayAvailability[];
   shouldRedirectToOrganizations: boolean;
 } => {
   const profile = useUserProfileStore((s) =>
@@ -24,6 +26,11 @@ export const useTeamOnboarding = (
     orgId ? (s.membershipsByOrgId[orgId] ?? null) : null
   );
   const orgStatus = useOrgStore((s) => s.status);
+  const availabilityStatus = useAvailabilityStore((s) => s.status);
+  const availabilitiesById = useAvailabilityStore((s) => s.availabilitiesById);
+  const availabilityIdsByOrgId = useAvailabilityStore(
+    (s) => s.availabilityIdsByOrgId
+  );
 
   const { step, slots, effectiveprofile, shouldRedirectToOrganizations } =
     useMemo(() => {
@@ -35,7 +42,12 @@ export const useTeamOnboarding = (
           shouldRedirectToOrganizations: true,
         };
       }
-      if (orgStatus === "loading" || orgStatus === "idle") {
+      if (
+        orgStatus === "loading" ||
+        orgStatus === "idle" ||
+        availabilityStatus === "loading" ||
+        availabilityStatus === "idle"
+      ) {
         return {
           step: 0 as TeamOnboardingStep,
           slots: [],
@@ -76,15 +88,28 @@ export const useTeamOnboarding = (
         };
       }
 
-      const step = computeTeamOnboardingStep(profile, []);
+      const ids = availabilityIdsByOrgId[orgId] ?? [];
+      const availabilities = ids
+        .map((id) => availabilitiesById[id])
+        .filter((s): s is ApiDayAvailability => s != null);
+
+      const step = computeTeamOnboardingStep(profile, availabilities);
 
       return {
         step,
         effectiveprofile: profile,
-        slots: [],
+        slots: availabilities,
         shouldRedirectToOrganizations: false,
       };
-    }, [orgId, profile, membership, orgStatus]);
+    }, [
+      orgId,
+      profile,
+      membership,
+      orgStatus,
+      availabilityStatus,
+      availabilitiesById,
+      availabilityIdsByOrgId,
+    ]);
 
   return {
     profile: effectiveprofile,

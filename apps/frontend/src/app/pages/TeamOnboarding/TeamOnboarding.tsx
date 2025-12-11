@@ -14,6 +14,12 @@ import "./TeamOnboarding.css";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTeamOnboarding } from "@/app/hooks/useTeamOnboarding";
 import { UserProfile } from "@/app/types/profile";
+import {
+  AvailabilityState,
+  convertFromGetApi,
+  daysOfWeek,
+  DEFAULT_INTERVAL,
+} from "@/app/components/Availability/utils";
 
 const TeamSteps: StepContent[] = [
   {
@@ -77,6 +83,22 @@ const TeamOnboarding = () => {
 
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<UserProfile>(EMPTY_PROFILE);
+  const [availability, setAvailability] = useState<AvailabilityState>(
+    daysOfWeek.reduce<AvailabilityState>((acc, day) => {
+      const isWeekday =
+        day === "Monday" ||
+        day === "Tuesday" ||
+        day === "Wednesday" ||
+        day === "Thursday" ||
+        day === "Friday";
+
+      acc[day] = {
+        enabled: isWeekday,
+        intervals: [{ ...DEFAULT_INTERVAL }],
+      };
+      return acc;
+    }, {} as AvailabilityState)
+  );
 
   useEffect(() => {
     if (shouldRedirectToOrganizations) {
@@ -93,7 +115,11 @@ const TeamOnboarding = () => {
     if (profile) {
       setFormData(profile);
     }
-  }, [profile, storeSlots, computedStep, shouldRedirectToOrganizations, router]);
+    if (storeSlots.length > 0) {
+      const temp = convertFromGetApi(storeSlots)
+      setAvailability(temp);
+    }
+  }, [profile, computedStep, shouldRedirectToOrganizations, router, storeSlots]);
 
   const nextStep = () =>
     setActiveStep((s) => Math.min(s + 1, TeamSteps.length - 1));
@@ -120,7 +146,14 @@ const TeamOnboarding = () => {
           orgIdFromQuery={orgIdFromQuery}
         />
       )}
-      {activeStep === 2 && <AvailabilityStep prevStep={prevStep} />}
+      {activeStep === 2 && (
+        <AvailabilityStep
+          prevStep={prevStep}
+          orgIdFromQuery={orgIdFromQuery}
+          availability={availability}
+          setAvailability={setAvailability}
+        />
+      )}
     </div>
   );
 };
