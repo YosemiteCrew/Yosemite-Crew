@@ -60,6 +60,7 @@ export const BreedBottomSheet = forwardRef<
       searchPlaceholder="Search from 200+ breeds"
       emptyMessage="No breeds available"
       mode="select"
+      maxListHeight={640}
       snapPoints={['95%','98%']}
     />
   );

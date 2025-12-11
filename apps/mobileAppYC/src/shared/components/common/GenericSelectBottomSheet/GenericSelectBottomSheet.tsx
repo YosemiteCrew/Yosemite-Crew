@@ -59,7 +59,7 @@ export const GenericSelectBottomSheet = forwardRef<
   emptyMessage = "No items available",
   customContent,
   mode = 'confirm',
-  maxListHeight = 640,
+  maxListHeight = 400,
   onSheetChange,
 }, ref) => {
   const { theme } = useTheme();
