@@ -440,6 +440,7 @@ const buildFHIRResponse = (
     animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
     googlePlacesId: rest.googlePlacesId,
+    stripeAccountId: rest.stripeAccountId
   };
 
   const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined);
