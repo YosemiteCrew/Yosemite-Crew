@@ -60,7 +60,7 @@ export const BreedBottomSheet = forwardRef<
       searchPlaceholder="Search from 200+ breeds"
       emptyMessage="No breeds available"
       mode="select"
-      snapPoints={['65%','75%']}
+      snapPoints={['95%','98%']}
     />
   );
 });

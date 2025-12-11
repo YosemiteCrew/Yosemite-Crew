@@ -78,6 +78,8 @@ import type {
   Companion
 } from '@/features/companion/types';
 import {setSelectedCompanion, updateCompanionProfile} from '@/features/companion';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 
 // Props
 export type CompanionOverviewScreenProps = NativeStackScreenProps<
@@ -91,6 +93,7 @@ export const CompanionOverviewScreen: React.FC<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
+  const {weightUnit} = usePreferences();
 
   const allCompanions = useSelector((state: RootState) => state.companion.companions);
   const isLoading = useSelector(selectCompanionLoading);
@@ -247,6 +250,28 @@ export const CompanionOverviewScreen: React.FC<
     return () => backHandler.remove();
   }, [showDobPicker, openBottomSheet]);
 
+  const currentWeightDisplay = useMemo(() => {
+    if (!safeCompanion?.currentWeight) {
+      return '';
+    }
+
+    // Weight is stored in kg, convert if user prefers lbs
+    let weight = safeCompanion.currentWeight;
+    if (weightUnit === 'lbs') {
+      weight = convertWeight(weight, 'kg', 'lbs');
+    }
+
+    return `${weight.toFixed(1)} ${weightUnit}`;
+  }, [safeCompanion, weightUnit]);
+
+  const ageWhenNeuteredDisplay = useMemo(() => {
+    if (!safeCompanion?.ageWhenNeutered) return '';
+    const age = safeCompanion.ageWhenNeutered;
+    const numValue = Number.parseFloat(age);
+    if (Number.isNaN(numValue)) return age;
+    return `${age} ${numValue === 1 ? 'Year' : 'Years'}`;
+  }, [safeCompanion]);
+
   if (safeCompanion == null) {
     return (
       <SafeAreaView style={styles.container}>
@@ -261,11 +286,6 @@ export const CompanionOverviewScreen: React.FC<
       </SafeAreaView>
     );
   }
-
-  const currentWeightDisplay =
-    safeCompanion.currentWeight === null || safeCompanion.currentWeight === undefined
-      ? ''
-      : `${safeCompanion.currentWeight} kg`;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -342,15 +362,21 @@ export const CompanionOverviewScreen: React.FC<
 
             <Separator />
 
-            {/* Current weight – Inline (kg) */}
+            {/* Current weight – Inline */}
             <InlineEditRow
               label="Current weight"
               value={currentWeightDisplay}
               keyboardType="decimal-pad"
               onSave={val => {
-                // Remove any non-numeric or unit text like "kg"
+                // Remove any non-numeric or unit text
                 const cleaned = val.replaceAll(/[^0-9.]/g, '').trim();
-                const num = cleaned === '' ? null : Number(cleaned);
+                let num = cleaned === '' ? null : Number(cleaned);
+
+                // Convert to kg if user entered in lbs
+                if (num !== null && !Number.isNaN(num) && weightUnit === 'lbs') {
+                  num = convertWeight(num, 'lbs', 'kg');
+                }
+
                 applyPatch({
                   currentWeight:
                     num === null || Number.isNaN(num) ? null : num,
@@ -394,8 +420,17 @@ export const CompanionOverviewScreen: React.FC<
                 <Separator />
                 <InlineEditRow
                   label="Age when neutered"
-                  value={safeCompanion.ageWhenNeutered ?? ''}
-                  onSave={val => applyPatch({ageWhenNeutered: val || null})}
+                  value={ageWhenNeuteredDisplay}
+                  onSave={val => {
+                    // Remove unit text (Year/Years) before saving - using string methods to avoid ReDoS
+                    let cleaned = val.trim();
+                    if (cleaned.toLowerCase().endsWith(' years')) {
+                      cleaned = cleaned.slice(0, -6).trim();
+                    } else if (cleaned.toLowerCase().endsWith(' year')) {
+                      cleaned = cleaned.slice(0, -5).trim();
+                    }
+                    applyPatch({ageWhenNeutered: cleaned || null});
+                  }}
                 />
               </>
             )}
