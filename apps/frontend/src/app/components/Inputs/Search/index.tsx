@@ -3,7 +3,9 @@ import { IoSearch } from "react-icons/io5";
 
 const Search = ({ value, setSearch, className }: any) => {
   return (
-    <div className={`${className} h-9 rounded-2xl border! border-[#BFBFBE]! px-3 py-2.5 flex items-center justify-center`}>
+    <div
+      className={`${className ?? ""} h-10! min-h-10! rounded-2xl border! border-[#BFBFBE]! px-3 py-2.5 flex items-center justify-center`}
+    >
       <input
         type="text"
         value={value}

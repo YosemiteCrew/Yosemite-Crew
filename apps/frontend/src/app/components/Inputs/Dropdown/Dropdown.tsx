@@ -17,9 +17,10 @@ type DropdownProps = {
   error?: string;
   className?: string;
   dropdownClassName?: string;
-  options?: any;
+  options?: Array<string | { label: string; value: string }>;
   type?: DropdownType;
   search?: boolean;
+  disabled?: boolean;
 };
 
 const Dropdown = ({
@@ -32,16 +33,47 @@ const Dropdown = ({
   options,
   type,
   search = false,
+  disabled = false,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const list = type === "country" ? countries : (options ?? []);
+  const list = useMemo(() => {
+    if (type === "country") {
+      return countries.map((option) => ({
+        key: option.code,
+        label: `${option.flag} ${option.name}`,
+        value: option.name,
+      }));
+    }
+    if (type === "breed") {
+      return (options ?? []).map((option: any, index: number) => ({
+        key: option.breedId ?? index,
+        label: option.breedName ?? "",
+        value: option.breedName ?? "",
+      }));
+    }
+    return (options ?? []).map((option: any, index: number) => {
+      if (typeof option === "string") {
+        return { key: option, label: option, value: option };
+      }
+      if (option && typeof option === "object" && "label" in option) {
+        const val = option.value ?? option.label ?? index.toString();
+        return {
+          key: val ?? index,
+          label: option.label ?? String(val),
+          value: val ?? "",
+        };
+      }
+      const str = String(option ?? index);
+      return { key: index, label: str, value: str };
+    });
+  }, [options, type]);
   const [query, setQuery] = useState("");
 
   const filteredList = useMemo(() => {
     if (search) {
       return list.filter((item: any) => {
-        const matchesSearch = item.name
+        const matchesSearch = (item.label || "")
           .toLowerCase()
           .includes(query.toLowerCase());
         return matchesSearch;
@@ -66,6 +98,7 @@ const Dropdown = ({
   }, []);
 
   const isActive = open || !!value;
+  const selected = list.find((opt: any) => opt.value === value);
 
   return (
     <div className="select-wrapper">
@@ -78,18 +111,23 @@ const Dropdown = ({
         <button
           className={classNames(
             "select-input-container",
-            { blueborder: value },
+            { blueborder: value, "pointer-events-none opacity-70": disabled },
             className
           )}
-          onClick={() => setOpen((prev) => !prev)}
+          onClick={() => {
+            if (disabled) return;
+            setOpen((prev) => !prev);
+          }}
         >
-          {value && <div className="select-input-selected">{value}</div>}
+          {selected && (
+            <div className="select-input-selected">{selected.label}</div>
+          )}
           <div className="select-input-drop-icon">
             <FaSortDown color="#747473" size={20} />
           </div>
         </button>
         <label className="select-floating-label">{placeholder}</label>
-        {open && (
+        {open && !disabled && (
           <div className={`select-input-dropdown ${dropdownClassName}`}>
             {search && (
               <div
@@ -111,26 +149,9 @@ const Dropdown = ({
             )}
             {filteredList.length > 0 &&
               filteredList.map((option: any, index: number) => {
-                let key: React.Key;
-                let label: string;
-                let valueToSend: string;
-                if (type === "country") {
-                  key = option.code;
-                  label = `${option.flag} ${option.name}`;
-                  valueToSend = label;
-                } else if (type === "breed") {
-                  key = option.breedId;
-                  label = option.breedName;
-                  valueToSend = option.breedName;
-                } else if (type == "general") {
-                  label = option.name;
-                  key = option.key;
-                  valueToSend = option;
-                } else {
-                  label = typeof option === "string" ? option : String(option);
-                  key = label || index;
-                  valueToSend = label;
-                }
+                const key: React.Key = option.key ?? index;
+                const label: string = option.label ?? option.value ?? "";
+                const valueToSend: string = option.value ?? option.label ?? "";
                 const handleClick = () => {
                   onChange(valueToSend);
                   setOpen(false);

@@ -120,7 +120,7 @@ export const CountryMobileBottomSheet = forwardRef<
           onChangeText={setTempMobile}
           label="Phone number"
           keyboardType="phone-pad"
-          maxLength={10}
+          maxLength={12}
         />
       </View>
     </View>

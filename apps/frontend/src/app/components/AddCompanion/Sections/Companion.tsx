@@ -91,16 +91,16 @@ const Companion = () => {
                 dropdownClassName="top-[55px]! !h-fit"
                 options={SpeciesOptions}
               />
-              <Dropdown
-                placeholder="Breed"
-                value={formData.breed}
-                onChange={(e) => setFormData({ ...formData, breed: e })}
-                error={formDataErrors.breed}
-                className="min-h-12!"
-                dropdownClassName="top-[55px]!"
-                options={BreedMap[formData.species] ?? []}
-                type="breed"
-              />
+            <Dropdown
+              placeholder="Breed"
+              value={formData.breed}
+              onChange={(e) => setFormData({ ...formData, breed: e })}
+              error={formDataErrors.breed}
+              className="min-h-12!"
+              dropdownClassName="top-[55px]!"
+              options={(BreedMap[formData.species] ?? []) as any}
+              type="breed"
+            />
             </div>
             <DateInput
               value={formData.dob}

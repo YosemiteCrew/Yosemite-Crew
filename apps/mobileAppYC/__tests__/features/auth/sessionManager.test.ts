@@ -2,6 +2,7 @@
 jest.mock('@react-native-async-storage/async-storage');
 jest.mock('@/features/auth/services/tokenStorage');
 jest.mock('@/features/account/services/profileService');
+jest.mock('@/features/auth/services/authUserService');
 jest.mock('@/features/auth/utils/parentProfileMapper', () => ({
   mergeUserWithParentProfile: (user: any) => user,
 }));
@@ -29,6 +30,7 @@ import {
   storeTokens,
 } from '@/features/auth/services/tokenStorage';
 import {fetchProfileStatus} from '@/features/account/services/profileService';
+import {syncAuthUser} from '@/features/auth/services/authUserService';
 import type {User} from '@/features/auth/types';
 
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
@@ -36,6 +38,7 @@ const mockStoreTokens = storeTokens as jest.MockedFunction<typeof storeTokens>;
 const mockLoadStoredTokens = loadStoredTokens as jest.MockedFunction<typeof loadStoredTokens>;
 const mockClearStoredTokens = clearStoredTokens as jest.MockedFunction<typeof clearStoredTokens>;
 const mockFetchProfileStatus = fetchProfileStatus as jest.MockedFunction<typeof fetchProfileStatus>;
+const mockSyncAuthUser = syncAuthUser as jest.MockedFunction<typeof syncAuthUser>;
 const mockFetchAuthSession = fetchAuthSession as jest.MockedFunction<typeof fetchAuthSession>;
 const mockFetchUserAttributes = fetchUserAttributes as jest.MockedFunction<typeof fetchUserAttributes>;
 const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
@@ -264,6 +267,17 @@ describe('sessionManager', () => {
         return null; // No pending profile
       });
 
+      mockSyncAuthUser.mockResolvedValue({
+        userId: 'firebase-user-123',
+        parentSummary: {
+          id: 'parent-123',
+          firstName: 'Firebase',
+          lastName: 'User',
+          profileImageUrl: 'firebase-profile-token',
+          isComplete: true,
+        },
+      });
+
       mockFetchProfileStatus.mockResolvedValue({
         exists: true,
         isComplete: true,
@@ -299,9 +313,15 @@ describe('sessionManager', () => {
           return JSON.stringify({
             id: 'firebase-user-123',
             email: 'firebase@example.com',
+            parentId: 'parent-123',
           });
         }
         return null; // No pending profile
+      });
+
+      // No parentSummary from syncAuthUser to force fetching profile status
+      mockSyncAuthUser.mockResolvedValue({
+        userId: 'firebase-user-123',
       });
 
       mockFetchProfileStatus.mockResolvedValue({

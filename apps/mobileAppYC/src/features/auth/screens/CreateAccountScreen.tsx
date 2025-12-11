@@ -821,8 +821,8 @@ const handleGoBack = useCallback(async () => {
           rules={{
             required: 'Mobile number is required',
             pattern: {
-              value: /^\d{10}$/,
-              message: 'Please enter a valid 10-digit mobile number',
+              value: /^\d{6,12}$/,
+              message: 'Please enter a valid mobile number (6-12 digits)',
             },
           }}
           render={() => (

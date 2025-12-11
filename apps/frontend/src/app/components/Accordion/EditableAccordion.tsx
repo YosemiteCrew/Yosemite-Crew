@@ -12,7 +12,7 @@ type FieldConfig = {
   key: string;
   type?: string;
   required?: boolean;
-  options?: string[];
+  options?: Array<string | { label: string; value: string }>;
 };
 
 type EditableAccordionProps = {
@@ -21,6 +21,7 @@ type EditableAccordionProps = {
   data: Record<string, any>;
   defaultOpen?: boolean;
   showEditIcon?: boolean;
+  readOnly?: boolean;
   onSave?: (values: FormValues) => void | Promise<void>;
 };
 
@@ -65,6 +66,16 @@ const FieldComponents: Record<
       options={field.options || []}
     />
   ),
+  dropdown: ({ field, value, onChange }) => (
+    <Dropdown
+      placeholder={field.label}
+      value={value || ""}
+      onChange={(e) => onChange(e)}
+      className="min-h-12!"
+      dropdownClassName="top-[55px]! !h-fit"
+      options={field.options || []}
+    />
+  ),
   multiSelect: ({ field, value, onChange }) => (
     <MultiSelectDropdown
       placeholder={field.label}
@@ -95,6 +106,20 @@ const FieldComponents: Record<
   ),
 };
 
+const normalizeOptions = (
+  options?: Array<string | { label: string; value: string }>
+) =>
+  options?.map((option: any) =>
+    typeof option === "string"
+      ? { label: option, value: option }
+      : option
+  ) ?? [];
+
+const resolveLabel = (
+  options: Array<{ label: string; value: string }>,
+  value: string
+) => options.find((o) => o.value === value)?.label ?? value;
+
 const RenderField = (
   field: any,
   value: any,
@@ -119,7 +144,7 @@ const FieldValueComponents: Record<
 > = {
   text: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
     >
       <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
         {field.label + ":"}
@@ -131,7 +156,7 @@ const FieldValueComponents: Record<
   ),
   number: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
     >
       <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
         {field.label + ":"}
@@ -149,11 +174,16 @@ const FieldValueComponents: Record<
         {field.label + ":"}
       </div>
       <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-        {formValues[field.key] || "-"}
+        {(() => {
+          const value = formValues[field.key];
+          const options = normalizeOptions(field.options);
+          if (options.length) return resolveLabel(options, value);
+          return value || "-";
+        })()}
       </div>
     </div>
   ),
-  multiSelect: ({ field, index, fields, formValues }) => (
+  dropdown: ({ field, index, fields, formValues }) => (
     <div
       className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
     >
@@ -163,8 +193,35 @@ const FieldValueComponents: Record<
       <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
         {(() => {
           const value = formValues[field.key];
+          const options = normalizeOptions(field.options);
+          if (options.length) return resolveLabel(options, value);
+          return value || "-";
+        })()}
+      </div>
+    </div>
+  ),
+  multiSelect: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {(() => {
+          const value = formValues[field.key];
+          const options = normalizeOptions(field.options);
           if (Array.isArray(value)) {
-            return value.length ? value.join(", ") : "-";
+            if (!value.length) return "-";
+            if (options.length) {
+              return value
+                .map((v: string) => resolveLabel(options, v))
+                .join(", ");
+            }
+            return value.join(", ");
+          }
+          if (options.length) {
+            return resolveLabel(options, value);
           }
           return value || "-";
         })()}
@@ -173,7 +230,7 @@ const FieldValueComponents: Record<
   ),
   country: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
     >
       <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
         {field.label + ":"}
@@ -185,7 +242,7 @@ const FieldValueComponents: Record<
   ),
   date: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
     >
       <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
         {field.label + ":"}
@@ -204,7 +261,7 @@ const RenderValue = (
   formValues: FormValues
 ) => {
   const type = field.type || "text";
-  const Component = FieldValueComponents[type] || FieldComponents["text"];
+  const Component = FieldValueComponents[type] || FieldValueComponents["text"];
   return (
     <Component
       field={field}
@@ -223,6 +280,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   data,
   defaultOpen = false,
   showEditIcon = true,
+  readOnly = false,
   onSave,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -328,6 +386,12 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setIsEditing(false);
   };
 
+  useEffect(() => {
+    if (readOnly && isEditing) {
+      setIsEditing(false);
+    }
+  }, [readOnly, isEditing]);
+
   const handleSave = async () => {
     if (!validate()) return;
 
@@ -339,19 +403,25 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     }
   };
 
+  const effectiveEditing = readOnly ? false : isEditing;
+
   return (
     <div className="flex flex-col gap-6 w-full">
       <Accordion
         title={title}
         defaultOpen={defaultOpen}
-        onEditClick={() => setIsEditing((prev) => !prev)}
-        isEditing={isEditing}
-        showEditIcon={showEditIcon}
+        onEditClick={() => !readOnly && setIsEditing((prev) => !prev)}
+        isEditing={effectiveEditing}
+        showEditIcon={!readOnly && showEditIcon}
       >
-        <div className={`flex flex-col ${isEditing ? "gap-3" : "gap-0"}`}>
+        <div
+          className={`flex flex-col ${
+            !readOnly && effectiveEditing ? "gap-3" : "gap-0"
+          }`}
+        >
           {fields.map((field, index) => (
             <div key={field.key}>
-              {isEditing ? (
+              {!readOnly && effectiveEditing ? (
                 <div className="flex-1">
                   {RenderField(
                     field,

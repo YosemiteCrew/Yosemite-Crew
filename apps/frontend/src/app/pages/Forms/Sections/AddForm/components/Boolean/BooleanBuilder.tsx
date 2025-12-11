@@ -1,8 +1,8 @@
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { FormField } from "@/app/types/forms";
 
-const SignatureBuilder: React.FC<{
-  field: FormField;
+const BooleanBuilder: React.FC<{
+  field: FormField & { type: "boolean" };
   onChange: (f: FormField) => void;
 }> = ({ field, onChange }) => (
   <div className="flex flex-col gap-3">
@@ -17,4 +17,4 @@ const SignatureBuilder: React.FC<{
   </div>
 );
 
-export default SignatureBuilder;
+export default BooleanBuilder;
