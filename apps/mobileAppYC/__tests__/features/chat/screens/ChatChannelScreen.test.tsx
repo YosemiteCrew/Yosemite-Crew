@@ -9,7 +9,6 @@ import {
   connectStreamUser,
   getAppointmentChannel,
 } from '@/features/chat/services/streamChatService';
-import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
 
 // --- Mocks ---
 
@@ -147,9 +146,8 @@ describe('ChatChannelScreen', () => {
     (connectStreamUser as jest.Mock).mockImplementation(
       () => new Promise(() => {}),
     );
-    const {UNSAFE_getByType} = render(<ChatChannelScreen />);
-    // The loading state now uses the Loading component with GifLoader
-    expect(UNSAFE_getByType(GifLoader)).toBeTruthy();
+    const {getByText} = render(<ChatChannelScreen />);
+    expect(getByText('Loading chat...')).toBeTruthy();
   });
 
   it('initializes chat successfully and renders channel', async () => {
