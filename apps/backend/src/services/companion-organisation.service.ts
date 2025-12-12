@@ -5,9 +5,10 @@ import CompanionOrganisationModel, {
 } from "../models/companion-organisation";
 import { assertSafeString } from "src/utils/sanitize";
 import ParentCompanionModel from "src/models/parent-companion";
-import CompanionModel, { type CompanionMongo } from "../models/companion";
-import { ParentModel } from "src/models/parent";
-import helpers from "src/utils/helper";
+import CompanionModel from "../models/companion";
+import {  ParentDocument, ParentModel } from "src/models/parent";
+import { toFHIR as toFHIRCompanion } from "./companion.service";
+import { toFHIR } from "./parent.service";
 
 export class CompanionOrganisationServiceError extends Error {
   constructor(
@@ -373,85 +374,40 @@ export const CompanionOrganisationService = {
 
   async getLinksForOrganisation(organisationId: string | Types.ObjectId) {
     const id = ensureObjectId(organisationId, "organisationId");
+
     const links = await CompanionOrganisationModel.find({
       organisationId: id,
       status: { $in: ["ACTIVE", "PENDING"] },
-    }).populate("companionId", "name breed gender dateOfBirth");
+    });
 
-    type PopulatedCompanion = CompanionMongo & { _id: Types.ObjectId };
-    type PopulatedParent = { _id: Types.ObjectId; firstName?: string; lastName?: string };
+    return Promise.all(
+      links.map(async (link) => {
+        // 1️⃣ Fetch companion directly
+        const companion = await CompanionModel.findById(link.companionId);
+        if (!companion) {
+          return null;
+        }
 
-    const companionIds = links
-      .map((link) => {
-        const companion = link.companionId as Types.ObjectId | PopulatedCompanion;
-
-        if (!companion) return null;
-        return companion instanceof Types.ObjectId ? companion : companion._id;
-      })
-      .filter(Boolean) as Types.ObjectId[];
-
-    const primaryParents = await ParentCompanionModel.find({
-      companionId: { $in: companionIds },
-      role: "PRIMARY",
-      status: "ACTIVE",
-    }).populate("parentId", "firstName lastName");
-
-    const parentByCompanionId = new Map<string, { firstName?: string; lastName?: string }>();
-    primaryParents.forEach((parentLink) => {
-      const parent = parentLink.parentId as unknown;
-      if (parent && typeof parent === "object" && "_id" in parent) {
-        const typedParent = parent as PopulatedParent;
-        parentByCompanionId.set(parentLink.companionId.toString(), {
-          firstName: typedParent.firstName,
-          lastName: typedParent.lastName,
+        // 2️⃣ Fetch primary parent directly
+        const parentLink = await ParentCompanionModel.findOne({
+          companionId: companion._id,
+          role: "PRIMARY",
+          status: "ACTIVE",
         });
-      }
-    });
 
-    return links.map((link) => {
-      const companion = link.companionId as Types.ObjectId | PopulatedCompanion;
-      const companionId = companion
-        ? companion instanceof Types.ObjectId
-          ? companion.toString()
-          : companion._id.toString()
-        : undefined;
+        const parent = parentLink
+        ? await ParentModel.findById(parentLink.parentId)
+        : null;
 
-      const parent = companionId
-        ? parentByCompanionId.get(companionId)
-        : undefined;
-
-      const parentName = parent
-        ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
-        : undefined;
-
-      const dateOfBirth =
-        companion && !(companion instanceof Types.ObjectId)
-          ? companion.dateOfBirth
-          : undefined;
-
-      const age = dateOfBirth ? helpers.calculateAge(dateOfBirth) : undefined;
-
-      return {
-        linkId: link._id.toString(),
-        organisationId: link.organisationId?.toString(),
-        status: link.status,
-        organisationType: link.organisationType,
-        companionId,
-        companionName:
-          companion && !(companion instanceof Types.ObjectId)
-            ? companion.name
-            : undefined,
-        breed:
-          companion && !(companion instanceof Types.ObjectId)
-            ? companion.breed
-            : undefined,
-        gender:
-          companion && !(companion instanceof Types.ObjectId)
-            ? companion.gender
-            : undefined,
-        parentName,
-        age,
-      };
-    });
+        return {
+          linkId: link._id.toString(),
+          organisationId: link.organisationId?.toString(),
+          organisationType: link.organisationType,
+          status: link.status,
+          companion: toFHIRCompanion(companion),
+          parent: toFHIR(parent as ParentDocument)
+        }
+      }),
+    ).then((results) => results.filter(Boolean));
   },
 };

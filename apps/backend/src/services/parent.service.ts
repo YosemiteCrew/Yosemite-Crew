@@ -35,7 +35,7 @@ const ensureMongoId = (id: string): Types.ObjectId => {
 };
 
 /** Convert Mongo → Domain → FHIR DTO */
-const toFHIR = (doc: ParentDocument) => {
+export const toFHIR = (doc: ParentDocument) => {
   const json = doc.toObject();
 
   const parent: Parent = {

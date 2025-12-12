@@ -69,7 +69,7 @@ const toPersistable = (payload: CompanionRequestDTO): CompanionMongo => {
 /**
  * Mongo → Companion → FHIR DTO
  */
-const toFHIR = (doc: CompanionDocument) => {
+export const toFHIR = (doc: CompanionDocument) => {
   const plain = doc.toObject() as CompanionMongo & {
     _id: Types.ObjectId;
     createdAt?: Date;

@@ -740,6 +740,8 @@ export const OrganizationService = {
             $maxDistance: radius,
           },
         },
+        isVerified: true,
+        isActive: true,
       },
       {
         _id: 1,
