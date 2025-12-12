@@ -33,5 +33,10 @@ router.put(
   authorizeCognito,
   ParentController.updateParentPMS,
 );
+router.get(
+  "/pms/search",
+  authorizeCognito,
+  ParentController.searchByName
+)
 
 export default router;

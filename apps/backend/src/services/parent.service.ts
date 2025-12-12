@@ -278,7 +278,11 @@ export const ParentService = {
     const searchRegex = new RegExp(name.trim(), "i");
 
     const documents = await ParentModel.find({
-      name: searchRegex,
+      $or: [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+      ],
     });
 
     return {
