@@ -6,9 +6,9 @@ import CompanionOrganisationModel, {
 import { assertSafeString } from "src/utils/sanitize";
 import ParentCompanionModel from "src/models/parent-companion";
 import CompanionModel from "../models/companion";
-import {  ParentDocument, ParentModel } from "src/models/parent";
+import { ParentDocument, ParentModel } from "src/models/parent";
 import { toFHIR as toFHIRCompanion } from "./companion.service";
-import { toFHIR as toFHIRParent} from "./parent.service";
+import { toFHIR as toFHIRParent } from "./parent.service";
 
 export class CompanionOrganisationServiceError extends Error {
   constructor(
@@ -408,9 +408,7 @@ export const CompanionOrganisationService = {
 
           // ✅ SAFE
           companion: toFHIRCompanion(companion),
-          parent: parent
-            ? toFHIRParent(parent)
-            : null,
+          parent: parent ? toFHIRParent(parent) : null,
         };
       }),
     );

@@ -37,5 +37,10 @@ router.post(
 );
 router.get("/org/:id", authorizeCognito, CompanionController.getCompanionById);
 router.put("/org/:id", authorizeCognito, CompanionController.updateCompanion);
+router.get(
+  "/pms/:parentId/:organisationId/list",
+  authorizeCognito,
+  CompanionController.listParentCompanionsNotInOrganisation,
+);
 
 export default router;

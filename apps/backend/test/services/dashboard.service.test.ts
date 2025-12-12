@@ -145,9 +145,11 @@ describe("DashboardService", () => {
 
       mockedInventoryItemModel.find.mockReturnValueOnce({
         lean: () => ({
-          exec: jest.fn().mockResolvedValueOnce([
-            { _id: "item-1", onHand: 5, name: "Item 1" },
-          ]),
+          exec: jest
+            .fn()
+            .mockResolvedValueOnce([
+              { _id: "item-1", onHand: 5, name: "Item 1" },
+            ]),
         }),
       });
 

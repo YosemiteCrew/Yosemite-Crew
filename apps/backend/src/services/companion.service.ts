@@ -22,6 +22,7 @@ import {
 import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
+import CompanionOrganisationModel from "src/models/companion-organisation";
 
 export class CompanionServiceError extends Error {
   constructor(
@@ -227,6 +228,62 @@ export const CompanionService = {
     const documents = await CompanionModel.find({ _id: { $in: companionIds } });
 
     return { responses: documents.map(toFHIR) };
+  },
+
+  async listByParentNotInOrganisation(
+    parentId: string,
+    organisationId: string,
+  ) {
+    if (!Types.ObjectId.isValid(parentId)) {
+      throw new CompanionServiceError("Invalid Parent Document Id", 400);
+    }
+
+    if (!Types.ObjectId.isValid(organisationId)) {
+      throw new CompanionServiceError("Invalid Organisation Document Id", 400);
+    }
+
+    const parentDocId = new Types.ObjectId(parentId);
+    const organisationDocId = new Types.ObjectId(organisationId);
+
+    // 1️⃣ Get all active companions for parent
+    const parentCompanionIds =
+      await ParentCompanionService.getActiveCompanionIdsForParent(parentDocId);
+
+    if (!parentCompanionIds.length) {
+      return { responses: [] };
+    }
+
+    // 2️⃣ Get companion IDs already linked to this organisation
+    const linkedCompanions = await CompanionOrganisationModel.find(
+      {
+        organisationId: organisationDocId,
+        companionId: { $in: parentCompanionIds },
+      },
+      { companionId: 1 },
+    ).lean();
+
+    const linkedCompanionIdSet = new Set(
+      linkedCompanions.map((c) => c.companionId.toString()),
+    );
+
+    // 3️⃣ Filter out linked companions
+    const unlinkedCompanionIds = parentCompanionIds.filter(
+      (id) => !linkedCompanionIdSet.has(id.toString()),
+    );
+
+    if (!unlinkedCompanionIds.length) {
+      return { responses: [] };
+    }
+
+    // 4️⃣ Fetch companion documents
+    const documents = await CompanionModel.find({
+      _id: { $in: unlinkedCompanionIds },
+    });
+
+    // 5️⃣ Map to FHIR
+    return {
+      responses: documents.map(toFHIR),
+    };
   },
 
   async getById(id: string) {

@@ -490,8 +490,8 @@ export const DashboardService = {
             organisationId,
             createdAt: { $gte: startOfYear, $lte: endOfYear },
             change: { $lt: 0 },
+          },
         },
-      },
         {
           $group: {
             _id: null,
@@ -522,25 +522,26 @@ export const DashboardService = {
       turnsPerYear > 0 ? Math.round(365 / turnsPerYear) : null;
 
     // 4) Monthly trend (rough: same formula grouped per month)
-    const monthlyAgg = await StockMovementModel.aggregate<MonthlyConsumptionAgg>([
-      {
-        $match: {
-          organisationId,
-          createdAt: { $gte: startOfYear, $lte: endOfYear },
-          change: { $lt: 0 },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
+    const monthlyAgg =
+      await StockMovementModel.aggregate<MonthlyConsumptionAgg>([
+        {
+          $match: {
+            organisationId,
+            createdAt: { $gte: startOfYear, $lte: endOfYear },
+            change: { $lt: 0 },
           },
-          consumed: { $sum: { $multiply: ["$change", -1] } },
         },
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
-    ]);
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            consumed: { $sum: { $multiply: ["$change", -1] } },
+          },
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]);
 
     const trend = monthlyAgg.map((row) => {
       const mYear = row._id.year;
