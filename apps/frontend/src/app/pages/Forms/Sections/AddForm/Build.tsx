@@ -1,6 +1,7 @@
 import { Primary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { FormField, FormFieldType, FormsProps, buildMedicationFields } from "@/app/types/forms";
+import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { IoIosAddCircleOutline } from "react-icons/io";
 import TextBuilder from "./components/Text/TextBuilder";
@@ -15,9 +16,11 @@ type BuildProps = {
   formData: FormsProps;
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
   onNext: () => void;
+  serviceOptions: { label: string; value: string }[];
+  registerValidator?: (fn: () => boolean) => void;
 };
 
-type OptionKey = FormFieldType | "medication";
+type OptionKey = FormFieldType | "medication" | "service-group";
 
 type OptionProp = {
   name: string;
@@ -69,6 +72,10 @@ const addOptions: OptionProp[] = [
     name: "Medication group",
     key: "medication",
   },
+  {
+    name: "Service group",
+    key: "service-group",
+  },
 ];
 
 type BuilderComponentProps = {
@@ -100,7 +107,7 @@ const defaultRadioOptions = [
   { label: "Option B", value: "option_b" },
 ];
 
-const fieldFactory: Record<OptionKey, (id: string) => FormField> = {
+const fieldFactory: Record<OptionKey, (id: string, serviceOptions?: { label: string; value: string }[]) => FormField> = {
   medication: (id) => ({
     id,
     type: "group",
@@ -135,6 +142,13 @@ const fieldFactory: Record<OptionKey, (id: string) => FormField> = {
   date: (id) => ({ id, type: "date", label: "Date" }),
   signature: (id) => ({ id, type: "signature", label: "Signature" }),
   group: (id) => ({ id, type: "group", label: "Group", fields: [] }),
+  "service-group": (id, serviceOptions = []) => ({
+    id,
+    type: "group",
+    label: "Services",
+    meta: { serviceGroup: true } as any,
+    fields: [],
+  }),
 };
 
 const AddFieldDropdown: React.FC<{
@@ -181,6 +195,46 @@ const isTreatmentPlanGroup = (
 const isMedicationGroup = (field: FormField) =>
   field.type === "group" && (field.label || "").toLowerCase().includes("medication");
 
+const isServiceGroup = (field: FormField): field is FormField & { type: "group" } =>
+  field.type === "group" && Boolean((field as any).meta?.serviceGroup);
+
+const getServiceCheckbox = (
+  field: FormField & { type: "group"; fields?: FormField[] }
+): (FormField & { type: "checkbox"; options?: { label: string; value: string }[] }) | undefined =>
+  (field.fields ?? []).find(
+    (f): f is FormField & { type: "checkbox"; options?: { label: string; value: string }[] } =>
+      f.type === "checkbox"
+  );
+
+const ensureServiceCheckbox = (
+  field: FormField & { type: "group" },
+  serviceOptions: { label: string; value: string }[]
+): { group: FormField & { type: "group" }; selected: string[] } => {
+  const existingCheckbox = getServiceCheckbox(field);
+  const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
+
+  const checkbox: FormField = {
+    id: existingCheckbox?.id || `${field.id}_services`,
+    type: "checkbox",
+    label: "Services",
+    options: selected.map((val) => {
+      const match = serviceOptions.find((o) => o.value === val);
+      return match ?? { label: val, value: val };
+    }),
+    multiple: true,
+  };
+
+  const otherFields = (field.fields ?? []).filter((f) => f.id !== checkbox.id);
+
+  return {
+    group: {
+      ...field,
+      fields: [...otherFields, checkbox],
+    },
+    selected,
+  };
+};
+
 const buildLabeledMedication = (
   fields: FormField[] | undefined,
   baseMedication: FormField
@@ -198,6 +252,31 @@ const addFieldToTreatmentPlan = (
       ? { ...field, fields: [...(field.fields ?? []), fieldToAdd] }
       : field
   );
+const updateServiceGroupOptions = (
+  field: FormField & { type: "group" },
+  serviceOptions: { label: string; value: string }[]
+): FormField => {
+  const checkbox = getServiceCheckbox(field);
+  if (!checkbox) return field;
+  const selectedValues = (checkbox.options ?? []).map((opt) => opt.value);
+
+  const mappedOptions = serviceOptions.map((opt) => ({ ...opt }));
+  const missingSelected = selectedValues.filter(
+    (val: string) => !mappedOptions.some((opt) => opt.value === val)
+  );
+  const mergedOptions = [
+    ...mappedOptions,
+    ...missingSelected.map((val: string) => ({ label: val, value: val })),
+  ];
+
+  const updatedCheckbox = { ...checkbox, options: mergedOptions };
+  return {
+    ...field,
+    fields: (field.fields ?? []).map((f) =>
+      f.id === checkbox.id ? updatedCheckbox : f
+    ),
+  };
+};
 const addMedicationToTreatmentPlan = (
   schema: FormField[],
   medicationField: FormField
@@ -248,31 +327,87 @@ type GroupBuilderProps = {
   field: FormField & { type: "group"; fields?: FormField[] };
   onChange: (f: FormField) => void;
   createField: (t: OptionKey) => FormField;
+  serviceOptions: { label: string; value: string }[];
 };
 
 const GroupBuilder: React.FC<GroupBuilderProps> = ({
   field,
   onChange,
   createField,
+  serviceOptions,
 }) => {
+  const groupField: FormField & { type: "group"; fields?: FormField[] } = {
+    ...field,
+    fields: field.fields ?? [],
+  };
+
+  if (isServiceGroup(field)) {
+    const { group, selected } = ensureServiceCheckbox(groupField, serviceOptions);
+    const checkbox = getServiceCheckbox(group);
+
+    const updateOptions = (values: string[]) => {
+      const nextCheckbox = {
+        ...(checkbox as any),
+        options: values.map((val) => {
+          const match = serviceOptions.find((o) => o.value === val);
+          return match ?? { label: val, value: val };
+        }),
+      };
+      onChange({
+        ...group,
+        fields: (group.fields ?? []).map((f) =>
+          f.id === checkbox?.id ? (nextCheckbox as FormField) : f
+        ),
+      });
+    };
+
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="font-grotesk text-black-text text-[18px] font-medium">
+            {group.label || "Services"}
+          </div>
+        </div>
+        <FormInput
+          intype="text"
+          inname={`group-${group.id}-label`}
+          value={group.label || ""}
+          inlabel="Group name"
+          onChange={(e) => onChange({ ...group, label: e.target.value })}
+          className="min-h-12!"
+        />
+        <MultiSelectDropdown
+          placeholder="Select services"
+          value={selected}
+          onChange={updateOptions}
+          options={serviceOptions}
+          className="min-h-12!"
+          dropdownClassName="!h-fit"
+        />
+      </div>
+    );
+  }
+
   const updateNestedField = (id: string, updatedField: FormField) => {
     onChange({
-      ...field,
-      fields: (field.fields ?? []).map((f) => (f.id === id ? updatedField : f)),
+      ...groupField,
+      fields: (groupField.fields ?? []).map((f) =>
+        f.id === id ? updatedField : f
+      ),
     });
   };
 
   const removeNestedField = (id: string) =>
     onChange({
-      ...field,
-      fields: (field.fields ?? []).filter((f) => f.id !== id),
+      ...groupField,
+      fields: (groupField.fields ?? []).filter((f) => f.id !== id),
     });
 
   const addNestedField = (key: OptionKey) => {
     const newField = createField(key);
     onChange({
-      ...field,
-      fields: [...(field.fields ?? []), newField],
+      ...groupField,
+      fields: [...(groupField.fields ?? []), newField],
     });
   };
 
@@ -280,21 +415,21 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="font-grotesk text-black-text text-[18px] font-medium">
-          {field.label || "Group"}
+          {groupField.label || "Group"}
         </div>
         <AddFieldDropdown onSelect={addNestedField} />
       </div>
 
       <FormInput
         intype="text"
-        inname={`group-${field.id}-label`}
-        value={field.label || ""}
+        inname={`group-${groupField.id}-label`}
+        value={groupField.label || ""}
         inlabel="Group name"
-        onChange={(e) => onChange({ ...field, label: e.target.value })}
+        onChange={(e) => onChange({ ...groupField, label: e.target.value })}
         className="min-h-12!"
       />
 
-      {(field.fields ?? []).map((nested) =>
+      {(groupField.fields ?? []).map((nested) =>
         nested.type === "group" ? (
           <BuilderWrapper
             key={nested.id}
@@ -305,6 +440,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
               field={nested as FormField & { type: "group" }}
               onChange={(updated) => updateNestedField(nested.id, updated)}
               createField={createField}
+              serviceOptions={serviceOptions}
             />
           </BuilderWrapper>
         ) : (
@@ -321,10 +457,17 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   );
 };
 
-const Build = ({ formData, setFormData, onNext }: BuildProps) => {
+const Build = ({
+  formData,
+  setFormData,
+  onNext,
+  serviceOptions,
+  registerValidator,
+}: BuildProps) => {
+  const [buildError, setBuildError] = useState<string>("");
   const createField = (key: OptionKey): FormField => {
     const id = crypto.randomUUID();
-    return fieldFactory[key](id);
+    return fieldFactory[key](id, serviceOptions);
   };
 
   const updateFieldInForm = (
@@ -366,12 +509,43 @@ const Build = ({ formData, setFormData, onNext }: BuildProps) => {
       return;
     }
 
-    const newField: FormField = createField(key);
+    const newField: FormField =
+      key === "service-group"
+        ? ensureServiceCheckbox(
+            createField(key) as FormField & { type: "group" },
+            serviceOptions
+          ).group
+        : createField(key);
     setFormData((prev) => ({
       ...prev,
       schema: [...(prev.schema ?? []), newField],
     }));
   };
+
+  useEffect(() => {
+    if (!serviceOptions.length) return;
+    setFormData((prev) => ({
+      ...prev,
+      schema: (prev.schema ?? []).map((field) =>
+        isServiceGroup(field)
+          ? ensureServiceCheckbox(field, serviceOptions).group
+          : field
+      ),
+    }));
+  }, [serviceOptions, setFormData]);
+
+  const validate = React.useCallback(() => {
+    if (!formData.schema || formData.schema.length === 0) {
+      setBuildError("Add at least one field to continue.");
+      return false;
+    }
+    setBuildError("");
+    return true;
+  }, [formData.schema]);
+
+  React.useEffect(() => {
+    registerValidator?.(validate);
+  }, [registerValidator, validate]);
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
@@ -385,20 +559,24 @@ const Build = ({ formData, setFormData, onNext }: BuildProps) => {
 
         {formData.schema?.map((field) => {
           if (field.type === "group") {
+            const ensured = isServiceGroup(field)
+              ? ensureServiceCheckbox(field, serviceOptions).group
+              : field;
             return (
               <BuilderWrapper
-                key={field.id}
-                field={field}
+                key={ensured.id}
+                field={ensured}
                 onDelete={() =>
                   setFormData((prev) => removeFieldById(prev, field.id))
                 }
               >
                 <GroupBuilder
-                  field={field}
+                  field={ensured}
                   onChange={(updatedField) =>
                     handleFieldChange(field.id, updatedField)
                   }
                   createField={createField}
+                  serviceOptions={serviceOptions}
                 />
               </BuilderWrapper>
             );
@@ -417,6 +595,9 @@ const Build = ({ formData, setFormData, onNext }: BuildProps) => {
             />
           );
         })}
+        {buildError && (
+          <span className="text-red-500 text-sm">{buildError}</span>
+        )}
       </div>
       <Primary
         href="#"

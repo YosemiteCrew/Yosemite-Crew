@@ -510,3 +510,58 @@ jest.mock('react-native/Libraries/Components/Keyboard/Keyboard', () => {
     Keyboard: mockKeyboard,
   };
 });
+
+// Mock @d11/react-native-fast-image to avoid native dependencies
+jest.mock('@d11/react-native-fast-image', () => {
+  const React = require('react');
+  const {Image} = require('react-native');
+
+  const FastImage = React.forwardRef((props, ref) =>
+    React.createElement(Image, {...props, ref})
+  );
+  FastImage.displayName = 'FastImage';
+
+  FastImage.resizeMode = {
+    contain: 'contain',
+    cover: 'cover',
+    stretch: 'stretch',
+    center: 'center',
+  };
+
+  FastImage.priority = {
+    low: 'low',
+    normal: 'normal',
+    high: 'high',
+  };
+
+  FastImage.cacheControl = {
+    immutable: 'immutable',
+    web: 'web',
+    cacheOnly: 'cacheOnly',
+  };
+
+  FastImage.preload = jest.fn();
+  FastImage.clearMemoryCache = jest.fn();
+  FastImage.clearDiskCache = jest.fn();
+
+  return {
+    __esModule: true,
+    default: FastImage,
+  };
+});
+
+// Mock Image.resolveAssetSource for react-native
+try {
+  const {Image} = require('react-native');
+  if (!Image.resolveAssetSource) {
+    Image.resolveAssetSource = jest.fn((source) => {
+      if (typeof source === 'number') {
+        return {uri: `asset://image_${source}`, width: 100, height: 100};
+      }
+      if (typeof source === 'object' && source.uri) {
+        return {uri: source.uri, width: 100, height: 100};
+      }
+      return {uri: 'asset://default', width: 100, height: 100};
+    });
+  }
+} catch {}

@@ -1,36 +1,20 @@
 import React from 'react';
-import {
-  View,
-  ActivityIndicator,
-  Text,
-  StyleSheet,
-} from 'react-native';
-import { useTheme } from '@/hooks';
+import {View, StyleSheet} from 'react-native';
+import {useTheme} from '@/hooks';
+import {GifLoader} from '../GifLoader/GifLoader';
 
 interface LoadingProps {
-  text?: string;
-  size?: 'small' | 'large';
-  color?: string;
+  size?: 'small' | 'medium' | 'large';
 }
 
 export const Loading: React.FC<LoadingProps> = ({
-  text = 'Loading...',
-  size = 'large',
-  color,
+  size = 'medium',
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ActivityIndicator
-        size={size}
-        color={color || theme.colors.primary}
-      />
-      {Boolean(text) && (
-        <Text style={[styles.text, { color: theme.colors.text }]}>
-          {text}
-        </Text>
-      )}
+    <View style={[styles.container, {backgroundColor: theme.colors.background}]}>
+      <GifLoader size={size} />
     </View>
   );
 };
@@ -40,10 +24,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  text: {
-    marginTop: 16,
-    fontSize: 16,
-    textAlign: 'center',
   },
 });

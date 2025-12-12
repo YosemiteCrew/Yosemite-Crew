@@ -274,6 +274,42 @@ const RenderValue = (
 
 type FormValues = Record<string, any>;
 
+const buildInitialValues = (
+  fields: FieldConfig[],
+  data: Record<string, any>
+): FormValues =>
+  fields.reduce((acc, field) => {
+    const initialValue = data?.[field.key];
+    if (field.type === "multiSelect") {
+      let value: string | string[] = [];
+      if (Array.isArray(initialValue)) {
+        value = initialValue;
+      } else if (typeof initialValue === "string" && initialValue.trim() !== "") {
+        value = [initialValue];
+      }
+      acc[field.key] = value;
+    } else {
+      acc[field.key] = initialValue ?? "";
+    }
+    return acc;
+  }, {} as FormValues);
+
+const getRequiredError = (
+  field: FieldConfig,
+  value: any
+): string | undefined => {
+  if (!field.required) return undefined;
+  const label = `${field.label} is required`;
+
+  if (Array.isArray(value)) {
+    return value.length === 0 ? label : undefined;
+  }
+  if (field.type === "number") {
+    return value ? undefined : label;
+  }
+  return (value || "").toString().trim() ? undefined : label;
+};
+
 const EditableAccordion: React.FC<EditableAccordionProps> = ({
   title,
   fields,
@@ -285,50 +321,14 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(() =>
-    fields.reduce((acc, field) => {
-      const initialValue = data?.[field.key];
-      if (field.type === "multiSelect") {
-        let value: string | string[] = [];
-        if (Array.isArray(initialValue)) {
-          value = initialValue;
-        } else if (
-          typeof initialValue === "string" &&
-          initialValue.trim() !== ""
-        ) {
-          value = [initialValue];
-        }
-        acc[field.key] = value;
-      } else {
-        acc[field.key] = initialValue ?? "";
-      }
-      return acc;
-    }, {} as FormValues)
+    buildInitialValues(fields, data)
   );
   const [formValuesErrors, setFormValuesErrors] = useState<
     Record<string, string | undefined>
   >({});
 
   useEffect(() => {
-    setFormValues(
-      fields.reduce((acc, field) => {
-        const initialValue = data?.[field.key];
-        if (field.type === "multiSelect") {
-          let value: string | string[] = [];
-          if (Array.isArray(initialValue)) {
-            value = initialValue;
-          } else if (
-            typeof initialValue === "string" &&
-            initialValue.trim() !== ""
-          ) {
-            value = [initialValue];
-          }
-          acc[field.key] = value;
-        } else {
-          acc[field.key] = initialValue ?? "";
-        }
-        return acc;
-      }, {} as FormValues)
-    );
+    setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
   }, [data, fields]);
 
@@ -340,21 +340,9 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const validate = () => {
     const errors: Record<string, string> = {};
     for (const field of fields) {
-      if (!field.required) continue;
-      const value = formValues[field.key];
-      if (Array.isArray(value)) {
-        if (value.length === 0) {
-          errors[field.key] = `${field.label} is required`;
-        }
-      } else if (field.type === "number") {
-        if (!value) {
-          errors[field.key] = `${field.label} is required`;
-        }
-      } else {
-        const str = (value || "").trim();
-        if (!str) {
-          errors[field.key] = `${field.label} is required`;
-        }
+      const error = getRequiredError(field, formValues[field.key]);
+      if (error) {
+        errors[field.key] = error;
       }
     }
     setFormValuesErrors(errors);
@@ -362,26 +350,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   };
 
   const handleCancel = () => {
-    setFormValues(
-      fields.reduce((acc, field) => {
-        const initialValue = data?.[field.key];
-        if (field.type === "multiSelect") {
-          let value: string | string[] = [];
-          if (Array.isArray(initialValue)) {
-            value = initialValue;
-          } else if (
-            typeof initialValue === "string" &&
-            initialValue.trim() !== ""
-          ) {
-            value = [initialValue];
-          }
-          acc[field.key] = value;
-        } else {
-          acc[field.key] = initialValue ?? "";
-        }
-        return acc;
-      }, {} as FormValues)
-    );
+    setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
     setIsEditing(false);
   };

@@ -6,7 +6,6 @@ import {
   Image,
   Text,
   Switch,
-  ActivityIndicator,
   Alert,
   Image as RNImage,
 } from 'react-native';
@@ -16,6 +15,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -158,7 +158,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       <SafeAreaView style={commonStyles.container}>
         <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
         <View style={commonStyles.centerContent}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <GifLoader />
         </View>
       </SafeAreaView>
     );

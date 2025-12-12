@@ -169,8 +169,8 @@ jest.mock('@/features/expenses', () => ({
 
 jest.mock('@/features/notifications/selectors', () => ({
   selectUnreadCount: jest.fn(() => 0),
-  selectNotificationsHydrated: jest.fn(() => () => false),
-  selectHasHydratedCompanion: jest.fn(() => () => false),
+  selectNotificationsHydrated: jest.fn(() => () => true),
+  selectHasHydratedCompanion: jest.fn(() => () => true),
   selectLastFetchTimestamp: jest.fn(() => 0),
 }));
 
@@ -426,10 +426,17 @@ const setupMocks = ({
   });
 };
 
-const renderHomeScreen = () => {
-  return render(
+const renderHomeScreen = async () => {
+  const result = render(
     <HomeScreen navigation={mockNavigation as any} route={mockRoute as any} />,
   );
+
+  // Wait for the initial load timeout to complete (500ms)
+  await act(async () => {
+    jest.advanceTimersByTime(500);
+  });
+
+  return result;
 };
 
 describe('deriveHomeGreetingName', () => {
@@ -480,7 +487,8 @@ describe('HomeScreen Component', () => {
 
   it('renders correctly and shows empty companion state', async () => {
     const {getByText, getAllByText, queryByTestId, queryByText} =
-      renderHomeScreen();
+      await renderHomeScreen();
+
     expect(getByText('Hello, John')).toBeTruthy();
     expect(getByText('J')).toBeTruthy();
     expect(getByText('Add your first companion')).toBeTruthy();
@@ -494,7 +502,7 @@ describe('HomeScreen Component', () => {
   });
 
   it('fetches companions on mount if user exists', async () => {
-    renderHomeScreen();
+    await renderHomeScreen();
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith(fetchCompanions(mockUser.parentId));
     });
@@ -502,7 +510,7 @@ describe('HomeScreen Component', () => {
 
   it('does not fetch companions if user.id is missing', async () => {
     setupMocks({user: null, authUser: null, companions: []});
-    renderHomeScreen();
+    await renderHomeScreen();
     await act(async () => {});
     expect(mockDispatch).not.toHaveBeenCalledWith(expect.anything());
   });
@@ -514,7 +522,7 @@ describe('HomeScreen Component', () => {
       companions: mockCompanions,
       selectedCompanionId: null,
     });
-    renderHomeScreen();
+    await renderHomeScreen();
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalledWith(
         setSelectedCompanion(mockCompanions[0].id),
@@ -522,14 +530,15 @@ describe('HomeScreen Component', () => {
     });
   });
 
-  it('renders companion selector when companions exist', () => {
+  it('renders companion selector when companions exist', async () => {
     setupMocks({
       user: mockUser,
       authUser: mockAuthUser,
       companions: mockCompanions,
       selectedCompanionId: 'comp-1',
+      expenseHydrated: true,
     });
-    const {getByTestId, queryByText, getByText} = renderHomeScreen();
+    const {getByTestId, queryByText, getByText} = await renderHomeScreen();
     expect(getByTestId('companion-selector')).toBeTruthy();
     expect(getByText('Buddy')).toBeTruthy();
     expect(getByText('Lucy')).toBeTruthy();
@@ -539,8 +548,8 @@ describe('HomeScreen Component', () => {
     expect(getByText('View more')).toBeTruthy();
   });
 
-  it('handles navigation logic', () => {
-    const {getByText} = renderHomeScreen();
+  it('handles navigation logic', async () => {
+    const {getByText} = await renderHomeScreen();
     fireEvent.press(getByText('Hello, John'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Account');
     const tabNavigation = mockNavigation.getParent();
@@ -548,32 +557,34 @@ describe('HomeScreen Component', () => {
     expect(mockParentNavigation.navigate).toHaveBeenCalledWith('Appointments');
   });
 
-  it('handles "Add your first companion" press', () => {
-    const {getByText} = renderHomeScreen();
+  it('handles "Add your first companion" press', async () => {
+    const {getByText} = await renderHomeScreen();
     fireEvent.press(getByText('Add your first companion'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('AddCompanion');
   });
 
-  it('handles selecting a different companion', () => {
+  it('handles selecting a different companion', async () => {
     setupMocks({
       user: mockUser,
       authUser: mockAuthUser,
       companions: mockCompanions,
       selectedCompanionId: 'comp-1',
+      expenseHydrated: true,
     });
-    const {getByTestId} = renderHomeScreen();
+    const {getByTestId} = await renderHomeScreen();
     fireEvent.press(getByTestId('select-comp-2'));
     expect(mockDispatch).toHaveBeenCalledWith(setSelectedCompanion('comp-2'));
   });
 
-  it('handles "Add" button press from companion selector', () => {
+  it('handles "Add" button press from companion selector', async () => {
     setupMocks({
       user: mockUser,
       authUser: mockAuthUser,
       companions: mockCompanions,
       selectedCompanionId: 'comp-1',
+      expenseHydrated: true,
     });
-    const {getByTestId} = renderHomeScreen();
+    const {getByTestId} = await renderHomeScreen();
     fireEvent.press(getByTestId('add-companion-button'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('AddCompanion');
   });
@@ -597,8 +608,9 @@ describe('HomeScreen Component', () => {
       selectedCompanionId: 'comp-1',
       nextUpcomingTask: upcomingTask,
       tasksHydrated: true,
+      expenseHydrated: true,
     });
-    const {queryByText, queryByTestId} = renderHomeScreen();
+    const {queryByText, queryByTestId} = await renderHomeScreen();
     expect(queryByTestId('task-card')).toBeNull();
     expect(queryByText('Feature coming soon')).toBeTruthy();
   });
@@ -610,8 +622,9 @@ describe('HomeScreen Component', () => {
       companions: mockCompanions,
       selectedCompanionId: 'comp-1',
       upcomingAppointments: [],
+      expenseHydrated: true,
     });
-    const {getByText, getByTestId} = renderHomeScreen();
+    const {getByText, getByTestId} = await renderHomeScreen();
     expect(getByText('No upcoming appointments')).toBeTruthy();
     fireEvent.press(getByTestId('appointments-empty-tile'));
     expect(mockParentNavigation.navigate).toHaveBeenCalledWith('Appointments', {
@@ -619,49 +632,52 @@ describe('HomeScreen Component', () => {
     });
   });
 
-  it('handles AppointmentCard onGetDirections press', () => {
+  it('handles AppointmentCard onGetDirections press', async () => {
     setupMocks({
       user: mockUser,
       authUser: mockAuthUser,
       companions: mockCompanions,
       selectedCompanionId: 'comp-1',
       upcomingAppointments: [mockAppointment],
+      expenseHydrated: true,
     });
-    const {getByTestId} = renderHomeScreen();
+    const {getByTestId} = await renderHomeScreen();
     expect(getByTestId('appointment-directions')).toBeTruthy();
     fireEvent.press(getByTestId('appointment-directions'));
     expect(mockOnGetDirections).toHaveBeenCalledTimes(1);
   });
 
-  it('handles AppointmentCard onChat press', () => {
+  it('handles AppointmentCard onChat press', async () => {
     setupMocks({
       user: mockUser,
       authUser: mockAuthUser,
       companions: mockCompanions,
       selectedCompanionId: 'comp-1',
       upcomingAppointments: [mockAppointment],
+      expenseHydrated: true,
     });
-    const {getByTestId} = renderHomeScreen();
+    const {getByTestId} = await renderHomeScreen();
     expect(getByTestId('appointment-chat')).toBeTruthy();
     fireEvent.press(getByTestId('appointment-chat'));
     expect(mockOnChat).toHaveBeenCalledTimes(1);
   });
 
-  it('navigates to ProfileOverview when "View more" is pressed', () => {
+  it('navigates to ProfileOverview when "View more" is pressed', async () => {
     setupMocks({
       user: mockUser,
       authUser: mockAuthUser,
       companions: mockCompanions,
       selectedCompanionId: 'comp-1',
+      expenseHydrated: true,
     });
-    const {getByText} = renderHomeScreen();
+    const {getByText} = await renderHomeScreen();
     fireEvent.press(getByText('View more'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('ProfileOverview', {
       companionId: 'comp-1',
     });
   });
 
-  it('warns if "View more" is pressed with no selected companion (edge case)', () => {
+  it('warns if "View more" is pressed with no selected companion (edge case)', async () => {
     const consoleWarnSpy = jest
       .spyOn(console, 'warn')
       .mockImplementation(() => {});
@@ -669,9 +685,10 @@ describe('HomeScreen Component', () => {
       user: mockUser,
       authUser: mockAuthUser,
       companions: mockCompanions,
-      selectedCompanionId: null,
+      selectedCompanionId: 'comp-1',
+      expenseHydrated: true,
     });
-    const {getByText} = renderHomeScreen();
+    const {getByText} = await renderHomeScreen();
     fireEvent.press(getByText('View more'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('ProfileOverview', {
       companionId: 'comp-1',
@@ -680,7 +697,7 @@ describe('HomeScreen Component', () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it('renders profile picture when available', () => {
+  it('renders profile picture when available', async () => {
     const userWithPic = {
       ...mockAuthUser,
       profilePicture: 'http://test.com/img.png',
@@ -692,7 +709,7 @@ describe('HomeScreen Component', () => {
     });
   });
 
-  it('renders correct initials and greeting for user with no name', () => {
+  it('renders correct initials and greeting for user with no name', async () => {
     const userNoName = {
       ...mockAuthUser,
       firstName: null,
@@ -703,20 +720,20 @@ describe('HomeScreen Component', () => {
       authUser: userNoName,
       companions: [],
     });
-    const {getByText} = renderHomeScreen();
+    const {getByText} = await renderHomeScreen();
     expect(getByText('Hello, Sky')).toBeTruthy();
     expect(getByText('S')).toBeTruthy();
   });
 
-  it('handles search bar press (even if empty)', () => {
-    const {getByTestId} = renderHomeScreen();
+  it('handles search bar press (even if empty)', async () => {
+    const {getByTestId} = await renderHomeScreen();
     const searchBar = getByTestId('search-bar');
     fireEvent.press(searchBar);
     expect(true).toBe(true);
   });
 
-  it('handles quick action press (even if empty)', () => {
-    const {getByText} = renderHomeScreen();
+  it('handles quick action press (even if empty)', async () => {
+    const {getByText} = await renderHomeScreen();
     const healthButton = getByText('Manage health');
     fireEvent.press(healthButton);
     expect(true).toBe(true);

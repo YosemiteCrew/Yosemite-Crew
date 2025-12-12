@@ -183,7 +183,7 @@ const checkOnboardingStatus = async () => {
   };
 
   if (isLoading || authLoading) {
-    return <Loading text="Loading..." />;
+    return <Loading />;
   }
 
   console.log(
