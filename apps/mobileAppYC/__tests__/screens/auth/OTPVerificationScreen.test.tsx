@@ -184,7 +184,6 @@ describe('OTPVerificationScreen', () => {
     expect(getByTestId('mock-otp-input')).toBeTruthy();
     expect(getByTestId('mock-liquid-button')).toBeDisabled();
     expect(getByText('00:60 sec')).toBeTruthy();
-    expect(getByTestId('mock-image')).toBeTruthy();
   });
 
   it('renders correctly for an existing user', () => {

@@ -189,8 +189,11 @@ describe('SwipeableGlassCard', () => {
     );
 
     // 4. Handle Release (Close)
-    // dx > -29 -> close (0)
-    config.onPanResponderRelease!(mockEvent, {dx: -10, dy: 0} as any);
+    // The previous step left the card OPEN (currentOffset = -58).
+    // To close it, we must swipe RIGHT (positive dx).
+    // Final Offset = -58 + 30 = -28.
+    // -28 > -29 (threshold) -> should close (0).
+    config.onPanResponderRelease!(mockEvent, {dx: 30, dy: 0} as any);
     expect(mockSpring).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({toValue: 0}),

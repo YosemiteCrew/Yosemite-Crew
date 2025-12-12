@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, act} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {
@@ -117,6 +117,12 @@ jest.mock('@/shared/components/common', () => {
       <RNTouchableOpacity onPress={onPressView} testID="yearly-spend-card">
         <RNText>Spend: {amount}</RNText>
       </RNTouchableOpacity>
+    ),
+    // Added Loading mock here to fix the crash
+    Loading: () => (
+      <RNView testID="loading-state">
+        <RNText>Loading...</RNText>
+      </RNView>
     ),
   };
 });
@@ -359,11 +365,27 @@ describe('HomeScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Enable fake timers for all tests in this block
+    jest.useFakeTimers();
     (useNavigation as jest.Mock).mockReturnValue(mockNavigationProp);
     require('@/features/auth/context/AuthContext').useAuth.mockReturnValue({
       user: mockUser,
     });
   });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // Helper to render and fast-forward the loading timeout
+  const renderAndWait = (component: React.ReactElement) => {
+    const result = render(component);
+    // Fast forward past the 500ms setTimeout in HomeScreen
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    return result;
+  };
 
   // 1. Helper Logic
   describe('deriveHomeGreetingName', () => {
@@ -383,7 +405,7 @@ describe('HomeScreen', () => {
   describe('Rendering', () => {
     it('renders user name, avatar, and expenses', () => {
       const store = createStore();
-      const {getByText} = render(
+      const {getByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -392,19 +414,9 @@ describe('HomeScreen', () => {
       expect(getByText('Spend: 500')).toBeTruthy();
     });
 
-    it('handles image error by setting state', () => {
-      // To test onError, we rely on the implementation detail that when error happens,
-      // the text "J" (initials) would be shown if we force it.
-      // Since we mocked Image, we simulate the state change logic indirectly or via fireEvent if we could query the image.
-      // Given the mock constraints, we verify the happy path renders.
-      // In a real env, we'd query by testID='header-avatar' and fireEvent(img, 'error')
-      // Here we trust the state logic coverage via branch analysis or adding a small testID in source.
-      // Assuming current source doesn't have testID for image, we just ensure it renders without crash.
-    });
-
     it('renders empty state when no companions', () => {
       const store = createStore({companion: {list: [], selectedId: null}});
-      const {getByText, getAllByText} = render(
+      const {getByText, getAllByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -418,7 +430,7 @@ describe('HomeScreen', () => {
   describe('Navigation Actions', () => {
     it('navigates to Account', () => {
       const store = createStore();
-      const {getByText} = render(
+      const {getByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -428,7 +440,7 @@ describe('HomeScreen', () => {
     });
     it('navigates to Expenses stack', () => {
       const store = createStore();
-      const {getByTestId} = render(
+      const {getByTestId} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -443,7 +455,7 @@ describe('HomeScreen', () => {
       const store = createStore();
       mockGetParent.mockReturnValue({navigate: mockNavigate});
 
-      const {getByTestId} = render(
+      const {getByTestId} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -466,7 +478,7 @@ describe('HomeScreen', () => {
 
     it('navigates to ProfileOverview', () => {
       const store = createStore();
-      const {getByText} = render(
+      const {getByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -492,7 +504,7 @@ describe('HomeScreen', () => {
       const store = createStore({appointments: {upcoming: [mockAppt]}});
       mockGetParent.mockReturnValue({navigate: mockNavigate});
 
-      const {getByTestId} = render(
+      const {getByTestId} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -526,7 +538,7 @@ describe('HomeScreen', () => {
       const store = createStore({appointments: {upcoming: [mockAppt]}});
       mockGetParent.mockReturnValue({navigate: mockNavigate});
 
-      const {getByTestId} = render(
+      const {getByTestId} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -560,7 +572,7 @@ describe('HomeScreen', () => {
       // Mock alert/toast
       const spy = jest.spyOn(Alert, 'alert');
 
-      const {getByText} = render(
+      const {getByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -568,9 +580,6 @@ describe('HomeScreen', () => {
 
       expect(getByText('Appointments restricted')).toBeTruthy();
       expect(getByText('Expenses restricted')).toBeTruthy();
-
-      // Try emergency action (bell icon - index 0 in header actions usually, but we rely on impl finding it via image source if possible, or just calling handleEmergencyPress directly? We can't access internal functions.
-      // We'll rely on the logic that guardFeature was called during render for the sections.)
 
       // To test the "guardFeature" logic for 'companionProfile' specifically which is inside an onPress:
       // ProfileOverview requires permission 'companionProfile'
@@ -583,7 +592,7 @@ describe('HomeScreen', () => {
         },
       });
 
-      const {getByText: getByTextRes} = render(
+      const {getByText: getByTextRes} = renderAndWait(
         <Provider store={restrictedStore}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -606,7 +615,7 @@ describe('HomeScreen', () => {
     it('shows coming soon for tasks', () => {
       const spy = jest.spyOn(Alert, 'alert');
       const store = createStore();
-      const {getByText} = render(
+      const {getByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -618,7 +627,7 @@ describe('HomeScreen', () => {
     it('alerts search if no companion', () => {
       const store = createStore({companion: {list: []}});
       const spy = jest.spyOn(Alert, 'alert');
-      const {getByTestId} = render(
+      const {getByTestId} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
@@ -638,16 +647,12 @@ describe('HomeScreen', () => {
         appointments: {upcoming: [appt1, appt2, appt3]},
       });
 
-      const {getByTestId} = render(
+      const {getByTestId} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
       );
 
-      // transformAppointmentCardData is mocked to return generic title "Dr. Test"
-      // To verify sorting, we'd need the mock to be dynamic or inspect the call.
-      // Since we can't change the mock easily per test without setup, we trust that
-      // "nextUpcomingAppointment" logic ran. The fact it renders validly means it picked one.
       expect(getByTestId('appointment-card')).toBeTruthy();
     });
   });

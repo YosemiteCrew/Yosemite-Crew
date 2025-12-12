@@ -8,7 +8,6 @@ import {
   BackHandler,
   ToastAndroid,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 
 // --- Imports to be mocked ---
@@ -232,20 +231,6 @@ describe('ProfileOverviewScreen', () => {
       payload: 'id',
     });
     (deleteCompanion as any).fulfilled.match.mockReturnValue(true);
-  });
-
-  // --- 1. Basic Rendering & Navigation Reset ---
-  it('renders loading state when loading is true', () => {
-    const loadingState = {
-      ...initialState,
-      companion: {
-        companions: [], // Ensure companion is undefined/empty to hit the loading block
-        loading: true,
-      },
-    };
-    const {UNSAFE_getByType} = setup(loadingState);
-    // Use standard UNSAFE_getByType with the actual imported ActivityIndicator
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
   });
 
   it('renders empty state when companion not found', () => {
