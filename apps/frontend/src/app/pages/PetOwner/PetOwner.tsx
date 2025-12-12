@@ -196,7 +196,7 @@ const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
 
   return (
     <div className="PetAppBtn">
-      <Link href="#">
+      <Link href="https://apps.apple.com/in/app/yosemite-crew/id6756180296">
         <Icon icon="basil:apple-solid" width="29" height="29" />
         <div>
           <p>Download on the</p>
