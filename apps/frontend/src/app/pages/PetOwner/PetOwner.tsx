@@ -27,13 +27,13 @@ const PetOwner = () => {
               </div>
               <Image
                 alt="Pet owner app"
-                height={500}
-                width={400}
-                objectFit="contain"
-                src={
-                  "https://d2il6osz49gpup.cloudfront.net/pet-parent/petparent.png"
-                }
-              ></Image>
+                width={800}
+                height={1000}
+                quality={100}
+                style={{ width: 'auto', height: 'auto', maxWidth: '55%' }}
+                src="https://d2il6osz49gpup.cloudfront.net/pet-parent/petparent.png"
+                priority
+              />
             </div>
           </div>
         </section>
