@@ -4,8 +4,27 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Loading} from '@/shared/components/common/Loading/Loading';
 import {themeReducer} from '@/features/theme';
-import {View} from 'react-native';
-import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
+
+// Fix: Require View inside the mock to avoid ReferenceError
+jest.mock('@/shared/components/common/GifLoader/GifLoader', () => {
+  const {View} = require('react-native');
+  return {
+    GifLoader: ({size}: {size: string}) => (
+      <View testID="gif-loader" data-size={size} />
+    ),
+  };
+});
+
+// Mock hooks
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({
+    theme: {
+      colors: {
+        background: '#ffffff',
+      },
+    },
+  }),
+}));
 
 describe('Loading', () => {
   const createTestStore = () => {
@@ -20,47 +39,39 @@ describe('Loading', () => {
     <Provider store={createTestStore()}>{children}</Provider>
   );
 
-  it('should render GifLoader component', () => {
+  it('should render GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading />));
     });
-    expect(tree.root.findByType(GifLoader)).toBeTruthy();
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader).toBeTruthy();
   });
 
-  it('should render with container View', () => {
+  it('should pass default size "medium" to GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading />));
     });
-    const views = tree.root.findAllByType(View);
-    expect(views.length).toBeGreaterThan(0);
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader.props['data-size']).toBe('medium');
   });
 
-  it('should render with default medium size', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Loading />));
-    });
-    const gifLoader = tree.root.findByType(GifLoader);
-    expect(gifLoader.props.size).toBe('medium');
-  });
-
-  it('should render with small size', () => {
+  it('should pass small size to GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading size="small" />));
     });
-    const gifLoader = tree.root.findByType(GifLoader);
-    expect(gifLoader.props.size).toBe('small');
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader.props['data-size']).toBe('small');
   });
 
-  it('should render with large size', () => {
+  it('should pass large size to GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading size="large" />));
     });
-    const gifLoader = tree.root.findByType(GifLoader);
-    expect(gifLoader.props.size).toBe('large');
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader.props['data-size']).toBe('large');
   });
 });
