@@ -12,6 +12,7 @@ import { useLoadProfiles } from "@/app/hooks/useProfiles";
 import { useLoadAvailabilities } from "@/app/hooks/useAvailabiities";
 
 import "./Sidebar.css";
+import { useLoadSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 
 type RouteItem = {
   name: string;
@@ -48,6 +49,7 @@ const Sidebar = () => {
   useLoadOrg()
   useLoadProfiles()
   useLoadAvailabilities()
+  useLoadSpecialitiesForPrimaryOrg()
   const pathname = usePathname();
   const router = useRouter();
   const { signout } = useAuthStore();

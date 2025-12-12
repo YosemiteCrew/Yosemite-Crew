@@ -19,6 +19,7 @@ const Objective = ({
   setFormData,
   activeAppointment,
 }: ObjectiveProps) => {
+  const [query, setQuery] = useState("");
   const [formDataErrors] = useState<{
     general?: string;
   }>({});
@@ -40,6 +41,8 @@ const Objective = ({
             placeholder="Search"
             options={DemoSubjectiveOptions}
             onSelect={handleObjectiveSelect}
+            query={query}
+            setQuery={setQuery}
           />
           <FormInput
             intype="text"

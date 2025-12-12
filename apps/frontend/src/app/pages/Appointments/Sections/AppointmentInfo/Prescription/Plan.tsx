@@ -1,7 +1,7 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 import { serviceOptions, allServices } from "@/app/pages/Organization/demo";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ServiceCard from "./ServiceCard";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import { Primary } from "@/app/components/Buttons";
@@ -15,6 +15,11 @@ type PlanProps = {
 };
 
 const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
+  const [suggestionsQuery, setSuggestionsQuery] = useState("");
+  const [servicesQuery, setServicesQuery] = useState("");
+  const [medicationsQuery, setMedicationsQuery] = useState("");
+  const [planQuery, setPlanQuery] = useState("");
+
   const filteredServiceOptions = useMemo(() => {
     return serviceOptions.filter(
       (option) =>
@@ -75,6 +80,8 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
             placeholder="Search plan"
             options={filteredServiceOptions}
             onSelect={handleServiceSelect}
+            query={planQuery}
+            setQuery={setPlanQuery}
           />
         </div>
         <Accordion
@@ -88,6 +95,8 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
               placeholder="Search services"
               options={filteredServiceOptions}
               onSelect={handleServiceSelect}
+              query={servicesQuery}
+              setQuery={setServicesQuery}
             />
             {formData.services.length > 0 && (
               <div className="flex flex-col gap-1 px-2">
@@ -113,6 +122,8 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
               placeholder="Search medications"
               options={filteredServiceOptions}
               onSelect={handleServiceSelect}
+              query={medicationsQuery}
+              setQuery={setMedicationsQuery}
             />
           </div>
         </Accordion>
@@ -127,6 +138,8 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
               placeholder="Search services"
               options={filteredSugesstionsOptions}
               onSelect={handleSugesstionSelect}
+              query={suggestionsQuery}
+              setQuery={setSuggestionsQuery}
             />
             {formData.suggestions.length > 0 && (
               <div className="flex flex-col gap-1 px-2">

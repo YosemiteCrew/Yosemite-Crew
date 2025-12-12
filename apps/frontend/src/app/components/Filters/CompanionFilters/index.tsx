@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Search from "../../Inputs/Search";
-import { CompanionProps } from "../../../pages/Companions/types";
+import { CompanionParent } from "@/app/pages/Companions/types";
 
 const Species = [
   {
@@ -18,6 +18,10 @@ const Species = [
   {
     name: "Cat",
     key: "cat",
+  },
+  {
+    name: "Other",
+    key: "other",
   },
 ];
 
@@ -43,7 +47,7 @@ const Statuses = [
 ];
 
 type CompanionFiltersProps = {
-  list: CompanionProps[];
+  list: CompanionParent[];
   setFilteredList: any;
 };
 
@@ -53,15 +57,19 @@ const CompanionFilters = ({ list, setFilteredList }: CompanionFiltersProps) => {
   const [search, setSearch] = useState("");
 
   const filteredList = useMemo(() => {
+    const searchLower = search.toLowerCase();
+    const activeStatusLower = activeStatus.toLowerCase();
+    const activeSpecieLower = activeSpecie.toLowerCase();
+
     return list.filter((item) => {
-      const matchesStatus =
-        item.status.toLowerCase() === activeStatus.toLowerCase();
+      const status = item.companion.status?.toLowerCase() ?? "inactive";
+      const matchesStatus = status === activeStatusLower;
       const matchesSpecie =
         activeSpecie === "all" ||
-        item.species.toLowerCase() === activeSpecie.toLowerCase();
+        item.companion.type.toLowerCase() === activeSpecieLower;
       const matchesSearch =
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.parent.toLowerCase().includes(search.toLowerCase());
+        item.companion.name.toLowerCase().includes(searchLower) ||
+        item.parent.firstName.toLowerCase().includes(searchLower);
       return matchesStatus && matchesSpecie && matchesSearch;
     });
   }, [list, activeSpecie, activeStatus, search]);

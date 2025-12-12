@@ -1,16 +1,19 @@
 import React from "react";
 import EditableAccordion from "../../Accordion/EditableAccordion";
+import { CompanionParent } from "@/app/pages/Companions/types";
 
 const Fields = [
-  { label: "Parent", key: "parent", type: "text" },
-  { label: "Email", key: "parentEmail", type: "email" },
-  { label: "Phone number", key: "parentNumber", type: "tel" },
-  { label: "Co-parent", key: "coParentName", type: "text" },
-  { label: "Email", key: "coParentEmail", type: "email" },
-  { label: "Phone number", key: "coParentNumber", type: "tel" },
+  { label: "First name", key: "firstName", type: "text" },
+  { label: "Last name", key: "lastName", type: "text" },
+  { label: "Email", key: "email", type: "email" },
+  { label: "Phone number", key: "phoneNumber", type: "tel" },
 ];
 
-const Parent = ({ companion }: any) => {
+type ParentType = {
+  companion: CompanionParent;
+};
+
+const Parent = ({ companion }: ParentType) => {
   return (
     <div className="flex flex-col gap-6 w-full">
       <div className="font-grotesk text-black-text text-[23px] font-medium">
@@ -20,8 +23,9 @@ const Parent = ({ companion }: any) => {
       <EditableAccordion
         title="Parent information"
         fields={Fields}
-        data={companion}
+        data={companion.parent}
         defaultOpen={true}
+        showEditIcon={false}
       />
     </div>
   );

@@ -1,16 +1,17 @@
 import React from "react";
 import EditableAccordion from "../../Accordion/EditableAccordion";
+import { CompanionParent } from "@/app/pages/Companions/types";
 
 const GenderOptions: string[] = ["Male", "Female", "Others"];
 
 const Fields = [
-  { label: "Date of birth", key: "dateOfBirth", type: "text" },
+  { label: "Date of birth", key: "dateOfBirth", type: "date" },
   { label: "Gender", key: "gender", type: "select", options: GenderOptions },
-  { label: "Current weight", key: "weight", type: "text" },
-  { label: "Color", key: "color", type: "text" },
+  { label: "Current weight", key: "currentWeight", type: "text" },
+  { label: "Color", key: "colour", type: "text" },
   {
     label: "Neutered status",
-    key: "neuteredStatus",
+    key: "isneutered",
     type: "select",
     options: ["yes", "no"],
   },
@@ -19,17 +20,21 @@ const Fields = [
   { label: "Country of origin", key: "countryOfOrigin", type: "country" },
   {
     label: "Pet came from",
-    key: "petCameFrom",
+    key: "source",
     type: "select",
     options: ["Breeder", "Foster/Shelter", "Shop", "Friends/Family", "Other"],
   },
   { label: "Microchip number", key: "microchipNumber", type: "text" },
   { label: "Passport number", key: "passportNumber", type: "text" },
-  { label: "Insurance policy", key: "insurancePolicy", type: "text" },
-  { label: "Insurance number", key: "insuranceNumber", type: "text" },
+  { label: "Insurance policy", key: "companyName", type: "text" },
+  { label: "Insurance number", key: "policyNumber", type: "text" },
 ];
 
-const Companion = ({ companion }: any) => {
+type CompanionType = {
+  companion: CompanionParent;
+};
+
+const Companion = ({ companion }: CompanionType) => {
   return (
     <div className="flex flex-col gap-6 w-full">
       <div className="font-grotesk text-black-text text-[23px] font-medium">
@@ -39,7 +44,7 @@ const Companion = ({ companion }: any) => {
       <EditableAccordion
         title="Companion information"
         fields={Fields}
-        data={companion}
+        data={{ ...companion.companion, ...companion.companion.insurance }}
         defaultOpen={true}
       />
     </div>

@@ -13,8 +13,6 @@ const Specialities = () => {
   const [activeSpeciality, setActiveSpeciality] =
     useState<SpecialityWeb | null>(specialities[0] ?? null);
 
-    console.log(specialities)
-
   useEffect(() => {
     setActiveSpeciality((prev) => {
       if (specialities.length === 0) return null;

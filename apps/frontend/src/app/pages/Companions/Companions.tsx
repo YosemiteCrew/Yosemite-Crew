@@ -4,27 +4,36 @@ import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Primary } from "@/app/components/Buttons";
 import CompanionFilters from "@/app/components/Filters/CompanionFilters";
 import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
-import { CompanionProps } from "@/app/pages/Companions/types";
-import { demoData } from "./demo";
 import AddCompanion from "@/app/components/AddCompanion";
 import CompanionInfo from "@/app/components/CompanionInfo";
+import OrgGuard from "@/app/components/OrgGuard";
+import {
+  useCompanionsParentsForPrimaryOrg,
+  useLoadCompanionsForPrimaryOrg,
+} from "@/app/hooks/useCompanion";
+import { CompanionParent } from "./types";
 
 const Companions = () => {
-  const [list] = useState<CompanionProps[]>(demoData);
-  const [filteredList, setFilteredList] = useState<CompanionProps[]>(demoData);
+  useLoadCompanionsForPrimaryOrg();
+
+  const companions = useCompanionsParentsForPrimaryOrg();
+  const [filteredList, setFilteredList] =
+    useState<CompanionParent[]>(companions);
   const [addPopup, setAddPopup] = useState(false);
   const [viewCompanion, setViewCompanion] = useState(false);
-  const [activeCompanion, setActiveCompanion] = useState<CompanionProps | null>(
-    demoData[0] ?? null
-  );
+  const [activeCompanion, setActiveCompanion] =
+    useState<CompanionParent | null>(companions[0] ?? null);
 
   useEffect(() => {
-    if (filteredList.length > 0) {
-      setActiveCompanion(filteredList[0]);
-    } else {
-      setActiveCompanion(null);
-    }
-  }, [filteredList]);
+    setActiveCompanion((prev) => {
+      if (companions.length === 0) return null;
+      if (prev?.companion.id) {
+        const updated = companions.find((s) => s.companion.id === prev.companion.id);
+        if (updated) return updated;
+      }
+      return companions[0];
+    });
+  }, [companions]);
 
   return (
     <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
@@ -40,7 +49,7 @@ const Companions = () => {
         />
       </div>
       <div className="w-full flex flex-col gap-6">
-        <CompanionFilters list={list} setFilteredList={setFilteredList} />
+        <CompanionFilters list={companions} setFilteredList={setFilteredList} />
         <CompanionsTable
           filteredList={filteredList}
           activeCompanion={activeCompanion}
@@ -64,7 +73,9 @@ const Companions = () => {
 const ProtectedCompanions = () => {
   return (
     <ProtectedRoute>
-      <Companions />
+      <OrgGuard>
+        <Companions />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

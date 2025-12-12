@@ -10,9 +10,9 @@ import { GenderOptions, UserProfile } from "@/app/types/profile";
 import { createUserProfile } from "@/app/services/profileService";
 import Datepicker from "../../Inputs/Datepicker";
 import { getCountryCode, validatePhone } from "@/app/utils/validators";
+import { formatDateLocal } from "@/app/utils/date";
 
 import "./Step.css";
-import { formatDateLocal } from "@/app/utils/date";
 
 type PersonalStepProps = {
   nextStep: () => void;
@@ -107,7 +107,15 @@ const PersonalStep = ({
       <LogoUploader
         title="Add profile picture (optional)"
         apiUrl="/api/profile-logo"
-        setFormData={setFormData}
+        setImageUrl={(url) => {
+          setFormData((prev) => ({
+            ...prev,
+            personalDetails: {
+              ...prev.personalDetails,
+              profilePictureUrl: url,
+            },
+          }));
+        }}
       />
 
       <div className="team-personal-container">

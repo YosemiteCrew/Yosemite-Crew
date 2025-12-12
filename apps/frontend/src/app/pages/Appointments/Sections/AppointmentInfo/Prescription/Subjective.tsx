@@ -21,6 +21,7 @@ const Subjective = ({
   const [formDataErrors] = useState<{
     desc?: string;
   }>({});
+  const [query, setQuery] = useState("");
 
   const handleSubjectiveSelect = (id: string) => {
     const selected = DemoSubjective.find((item) => item.id === id);
@@ -53,6 +54,8 @@ const Subjective = ({
             placeholder="Search"
             options={DemoSubjectiveOptions}
             onSelect={handleSubjectiveSelect}
+            query={query}
+            setQuery={setQuery}
           />
           <FormDesc
             intype="text"

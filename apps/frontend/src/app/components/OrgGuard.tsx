@@ -38,11 +38,7 @@ type OrgGuardProps = {
  *        - if on /complete-profile → /dashboard
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
-  useLoadOrg();
-  useLoadSpecialitiesForPrimaryOrg();
   useLoadTeam();
-  useLoadProfiles();
-  useLoadAvailabilities();
 
   const router = useRouter();
   const pathname = usePathname();

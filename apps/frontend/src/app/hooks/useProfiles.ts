@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { loadProfiles } from "../services/profileService";
 import { useOrgStore } from "../stores/orgStore";
 import { useUserProfileStore } from "../stores/profileStore";
+import { UserProfile } from "../types/profile";
 
 export const useLoadProfiles = () => {
   const profileStatus = useUserProfileStore((s) => s.status);
@@ -13,4 +14,15 @@ export const useLoadProfiles = () => {
       void loadProfiles();
     }
   }, [profileStatus, orgIds]);
+};
+
+export const usePrimaryOrgProfile = (): UserProfile | null => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const profileStatus = useUserProfileStore((s) => s.status);
+  const profilesByOrgId = useUserProfileStore((s) => s.profilesByOrgId);
+
+  return useMemo(() => {
+    if (!primaryOrgId || profileStatus !== "loaded") return null;
+    return profilesByOrgId[primaryOrgId] ?? null;
+  }, [primaryOrgId, profilesByOrgId, profileStatus]);
 };

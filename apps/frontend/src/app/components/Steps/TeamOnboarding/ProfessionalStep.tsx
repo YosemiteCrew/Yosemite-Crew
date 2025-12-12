@@ -3,9 +3,9 @@ import { Primary } from "../../Buttons";
 import FormInput from "../../Inputs/FormInput/FormInput";
 import FileInput from "../../Inputs/FileInput/FileInput";
 import { UserProfile } from "@/app/types/profile";
+import { updateUserProfile } from "@/app/services/profileService";
 
 import "./Step.css";
-import { updateUserProfile } from "@/app/services/profileService";
 
 type ProfessionalStepProps = {
   nextStep: () => void;
