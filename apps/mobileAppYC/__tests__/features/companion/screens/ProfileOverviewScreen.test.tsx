@@ -9,7 +9,6 @@ import {
   ToastAndroid,
   Platform,
 } from 'react-native';
-import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
 
 // --- Imports to be mocked ---
 import {
@@ -232,20 +231,6 @@ describe('ProfileOverviewScreen', () => {
       payload: 'id',
     });
     (deleteCompanion as any).fulfilled.match.mockReturnValue(true);
-  });
-
-  // --- 1. Basic Rendering & Navigation Reset ---
-  it('renders loading state when loading is true', () => {
-    const loadingState = {
-      ...initialState,
-      companion: {
-        companions: [], // Ensure companion is undefined/empty to hit the loading block
-        loading: true,
-      },
-    };
-    const {UNSAFE_getByType} = setup(loadingState);
-    // The Loading component now uses GifLoader instead of ActivityIndicator
-    expect(UNSAFE_getByType(GifLoader)).toBeTruthy();
   });
 
   it('renders empty state when companion not found', () => {

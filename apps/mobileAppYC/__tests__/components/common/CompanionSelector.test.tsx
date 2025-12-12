@@ -1,312 +1,386 @@
 import React from 'react';
-import { render, fireEvent, act } from '@testing-library/react-native';
-import {
-  CompanionSelector,
-  type CompanionBase,
-} from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import { useTheme } from '@/hooks';
-import { Images } from '@/assets/images';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
+import {render, fireEvent} from '@testing-library/react-native';
+import {CompanionSelector} from '../../../src/shared/components/common/CompanionSelector/CompanionSelector';
+import {Platform, ToastAndroid, Alert, Image} from 'react-native';
+import * as Redux from 'react-redux';
 
 // --- Mocks ---
 
-// 1. Mock useTheme
-const mockTheme = {
-  spacing: {
-    '1': 2,
-    '2.5': 6,
-    '3': 8,
-  },
-  colors: {
-    primaryTint: 'mock-primaryTint',
-    cardBackground: 'mock-cardBackground',
-    primary: 'mock-primary',
-    secondary: 'mock-secondary',
-    lightBlueBackground: 'mock-lightBlueBackground',
-    primaryTintStrong: 'mock-primaryTintStrong',
-    primarySurface: 'mock-primarySurface',
-  },
-  borderRadius: {
-    full: 50,
-  },
-  typography: {
-    titleMedium: { fontSize: 18 },
-    titleSmall: { fontSize: 16 },
-    labelXsBold: { fontSize: 10, fontWeight: 'bold' },
-  },
-};
-
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
+// Mock Redux
+jest.mock('react-redux', () => ({
+  useSelector: jest.fn(),
 }));
 
-// 2. Mock assets
+// Mock Images asset
 jest.mock('@/assets/images', () => ({
   Images: {
-    blueAddIcon: 98765, // Mocked image source
+    blueAddIcon: {uri: 'blue-add-icon-png'},
   },
 }));
 
-// 3. Mock react-native
-jest.mock('react-native', () => {
-  const ReactActual = jest.requireActual('react');
-  const RN = jest.requireActual('react-native');
-
-  const createMockComponent = (name: string, testID?: string) =>
-    ReactActual.forwardRef((props: any, ref: any) =>
-      ReactActual.createElement(name, {
-        ...props,
-        ref,
-        testID: props.testID || testID,
-      }),
-    );
-
-  // FIX: Mock that respects 'disabled' and provides a stable testID
-  const MockTouchableOpacity = ReactActual.forwardRef((props: any, ref: any) => {
-    const { onPress, disabled, ...rest } = props;
-
-    const handlePress = () => {
-      if (!disabled) {
-        onPress?.();
-      }
-    };
-
-    return ReactActual.createElement('TouchableOpacity', {
-      ...rest,
-      ref,
-      onPress: handlePress,
-      disabled: disabled,
-      // FIX: Use a generic, stable testID. Do NOT access props.key
-      testID: props.testID || 'mock-touchable-opacity',
-    });
-  });
-
-  return {
-    ScrollView: createMockComponent('ScrollView', 'mock-scroll-view'),
-    TouchableOpacity: MockTouchableOpacity, // Use the new mock
-    Text: createMockComponent('Text', 'mock-text'),
-    View: createMockComponent('View', 'mock-view'),
-    Image: createMockComponent('Image', 'mock-image'),
-    Animated: {
-      View: createMockComponent('Animated.View', 'mock-animated-view'),
-    },
-    StyleSheet: {
-      create: (styles: any) => styles,
-      flatten: (styles: any) => styles,
-    },
-    Platform: RN.Platform,
-    PixelRatio: RN.PixelRatio,
-  };
-});
-
-// --- Test Setup ---
-const mockCompanions: CompanionBase[] = [
-  { id: '1', name: 'Buddy', profileImage: 'http://image.url/buddy.png', taskCount: 2 },
-  { id: '2', name: 'Lucy', profileImage: null, taskCount: 0 },
-  { id: '3', name: 'Max', profileImage: undefined /* no taskCount */ },
-];
-
-const createWrapper = (ui: React.ReactElement, preloadedState: any = {}) => {
-  const store = configureStore({
-    reducer: () => ({
-      coParent: {
-        accessByCompanionId: {},
-        defaultAccess: null,
-        lastFetchedRole: null,
-        lastFetchedPermissions: null,
-        ...preloadedState?.coParent,
+// Mock useTheme hook
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({
+    theme: {
+      colors: {
+        primary: 'blue',
+        primaryTint: 'lightblue',
+        secondary: 'black',
+        cardBackground: 'white',
+        lightBlueBackground: '#E6F7FF',
+        primarySurface: '#EEF',
+        primaryTintStrong: 'blue',
       },
-    }),
-  });
+      spacing: {
+        '1': 4,
+        '2.5': 10,
+      },
+      borderRadius: {
+        full: 999,
+      },
+      typography: {
+        titleMedium: {fontSize: 16, fontWeight: 'bold'},
+        titleSmall: {fontSize: 14},
+        labelXsBold: {fontSize: 12, fontWeight: 'bold'},
+      },
+    },
+  }),
+}));
 
-  return render(<Provider store={store}>{ui}</Provider>);
-};
+// Mock normalizeImageUri
+jest.mock('@/shared/utils/imageUri', () => ({
+  normalizeImageUri: (uri: string | null) => uri || null,
+}));
 
-describe('CompanionSelector', () => {
+// Mock Toast/Alert
+jest.spyOn(Alert, 'alert');
+jest.spyOn(ToastAndroid, 'show');
+
+describe('CompanionSelector Component', () => {
   const mockOnSelect = jest.fn();
   const mockOnAddCompanion = jest.fn();
 
+  const mockCompanions = [
+    {
+      id: '1',
+      name: 'Buddy',
+      profileImage: 'http://img.com/1.jpg',
+      taskCount: 2,
+    },
+    {id: '2', name: 'Max', profileImage: null}, // No image -> Fallback initial
+    {id: '3', name: 'Bella'}, // No taskCount -> Undefined badge text
+  ];
+
   beforeEach(() => {
     jest.clearAllMocks();
-    (useTheme as jest.Mock).mockReturnValue({ theme: mockTheme });
+    // Default Redux state: safe defaults for all 4 selector calls
+    // 1. accessMap
+    // 2. defaultAccess
+    // 3. globalRole
+    // 4. globalPermissions
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(null);
   });
 
-  it('renders all companions and the add button by default', () => {
-    const { getByText, getAllByTestId } = createWrapper(
+  // ===========================================================================
+  // 1. Rendering Logic (Avatars, Fallbacks, Badges)
+  // ===========================================================================
+
+  it('renders companions correctly', () => {
+    const {getByText} = render(
       <CompanionSelector
         companions={mockCompanions}
-        selectedCompanionId={null}
+        selectedCompanionId="1"
         onSelect={mockOnSelect}
-        onAddCompanion={mockOnAddCompanion}
       />,
     );
 
     expect(getByText('Buddy')).toBeTruthy();
-    expect(getByText('Lucy')).toBeTruthy();
     expect(getByText('Max')).toBeTruthy();
-    expect(getByText('Add companion')).toBeTruthy();
 
-    const addIcon = getAllByTestId('mock-image').find(
-      (img) => img.props.source === Images.blueAddIcon,
-    );
-    expect(addIcon).toBeTruthy();
+    // Check Badge Text Logic
+    expect(getByText('2 Tasks')).toBeTruthy(); // Buddy has tasks
   });
 
-  it('renders profileImage for companion with one', () => {
-    const { getAllByTestId } = createWrapper(
+  it('renders fallback initial when profile image is missing or null', () => {
+    const {getByText} = render(
       <CompanionSelector
-        companions={mockCompanions}
+        companions={[mockCompanions[1]]} // Max (no image)
         selectedCompanionId={null}
         onSelect={mockOnSelect}
       />,
     );
-
-    const images = getAllByTestId('mock-image');
-    const buddyAvatar = images.find(
-      (img) => img.props.source.uri === 'http://image.url/buddy.png',
-    );
-    expect(buddyAvatar).toBeTruthy();
-  });
-
-  it('renders placeholder with initial for companions without profileImage', () => {
-    const { getByText } = createWrapper(
-      <CompanionSelector
-        companions={mockCompanions}
-        selectedCompanionId={null}
-        onSelect={mockOnSelect}
-      />,
-    );
-    expect(getByText('L')).toBeTruthy();
+    // Max -> 'M'
     expect(getByText('M')).toBeTruthy();
   });
 
-  it('applies selected styles only to the selected companion', () => {
-    const { getAllByTestId } = createWrapper(
+  it('renders fallback initial when image load fails', () => {
+    const {getByText, UNSAFE_getByType} = render(
       <CompanionSelector
-        companions={mockCompanions}
-        selectedCompanionId="1" // Buddy is selected
+        companions={[mockCompanions[0]]} // Buddy (has image initially)
+        selectedCompanionId="1"
         onSelect={mockOnSelect}
       />,
     );
 
-    const rings = getAllByTestId('mock-animated-view');
-    const buddyRing = rings[0];
-    const lucyRing = rings[1];
+    const image = UNSAFE_getByType(Image);
+    // Trigger onError
+    fireEvent(image, 'error');
 
-    expect(buddyRing.props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ transform: [{ scale: 1.08 }] })]),
-    );
-    expect(lucyRing.props.style).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ transform: [{ scale: 1.08 }] })]),
-    );
+    // Should re-render with fallback initial 'B' for Buddy
+    expect(getByText('B')).toBeTruthy();
   });
 
-  it('calls onSelect with the correct id when a companion is pressed', () => {
-    // FIX: Use getAllByTestId
-    const { getAllByTestId } = createWrapper(
+  it('renders custom badge text if getBadgeText prop is provided', () => {
+    const {getByText} = render(
       <CompanionSelector
         companions={mockCompanions}
-        selectedCompanionId={null}
+        selectedCompanionId="1"
         onSelect={mockOnSelect}
+        getBadgeText={c => `Custom ${c.name}`}
       />,
     );
 
-    const touchables = getAllByTestId('mock-touchable-opacity');
-    // 0: Buddy, 1: Lucy, 2: Max
-    // Press 'Lucy' (id: '2')
-    act(() => {
-      fireEvent.press(touchables[1]);
-    });
-    expect(mockOnSelect).toHaveBeenCalledWith('2');
+    expect(getByText('Custom Buddy')).toBeTruthy();
   });
 
-  it('calls onAddCompanion when the add button is pressed', () => {
-    // FIX: Use getAllByTestId
-    const { getAllByTestId } = createWrapper(
-      <CompanionSelector
-        companions={mockCompanions}
-        selectedCompanionId={null}
-        onSelect={mockOnSelect}
-        onAddCompanion={mockOnAddCompanion}
-      />,
-    );
-
-    const touchables = getAllByTestId('mock-touchable-opacity');
-    // 0: Buddy, 1: Lucy, 2: Max, 3: Add button
-    act(() => {
-      fireEvent.press(touchables[3]);
-    });
-    expect(mockOnAddCompanion).toHaveBeenCalledTimes(1);
-  });
-
-  it('hides the add button when showAddButton is false', () => {
-    const { queryByText } = createWrapper(
-      <CompanionSelector
-        companions={mockCompanions}
-        selectedCompanionId={null}
-        onSelect={mockOnSelect}
-        onAddCompanion={mockOnAddCompanion}
-        showAddButton={false}
-      />,
-    );
-    expect(queryByText('Add companion')).toBeNull();
-  });
-
-  it('hides the add button when onAddCompanion is not provided', () => {
-    const { queryByText } = createWrapper(
-      <CompanionSelector
-        companions={mockCompanions}
-        selectedCompanionId={null}
-        onSelect={mockOnSelect}
-        onAddCompanion={undefined}
-        showAddButton={true}
-      />,
-    );
-    expect(queryByText('Add companion')).toBeNull();
-  });
-
-  it('applies containerStyle to the ScrollView', () => {
-    const customStyle = { backgroundColor: 'red' };
-    const { getByTestId } = createWrapper(
+  it('renders "Add companion" button when showAddButton is true', () => {
+    const {getByText} = render(
       <CompanionSelector
         companions={[]}
         selectedCompanionId={null}
         onSelect={mockOnSelect}
-        containerStyle={customStyle}
+        onAddCompanion={mockOnAddCompanion}
+        showAddButton={true}
       />,
     );
-    expect(getByTestId('mock-scroll-view').props.contentContainerStyle).toEqual(
-      expect.arrayContaining([customStyle]),
-    );
+
+    const addButton = getByText('Add companion');
+    fireEvent.press(addButton);
+    expect(mockOnAddCompanion).toHaveBeenCalled();
   });
 
-  it('uses getBadgeText function for badge text (Priority 1)', () => {
-    const mockGetBadgeText = jest.fn((c: CompanionBase) => `Custom: ${c.name}`);
-    const { getByText, queryByText } = createWrapper(
+  it('does NOT render "Add companion" button when showAddButton is false', () => {
+    const {queryByText} = render(
+      <CompanionSelector
+        companions={[]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        showAddButton={false}
+      />,
+    );
+
+    expect(queryByText('Add companion')).toBeNull();
+  });
+
+  // ===========================================================================
+  // 2. Sorting Logic (Priority & Original Order)
+  // ===========================================================================
+
+  it('correctly uses resolveRolePriority for sorting', () => {
+    // Define IDs explicitly to match test expectation
+    // 1: Viewer (Priority 2)
+    // 2: Primary (Priority 0)
+    // 3: CoParent (Priority 1)
+    const accessMapMock = {
+      '1': {role: 'VIEWER'},
+      '2': {role: 'PRIMARY_OWNER'},
+      '3': {role: 'COPARENT'},
+    };
+
+    // Explicitly mock the 4 selector calls in order
+    (Redux.useSelector as unknown as jest.Mock)
+      .mockReturnValueOnce(accessMapMock) // 1. accessMap
+      .mockReturnValueOnce(null) // 2. defaultAccess
+      .mockReturnValueOnce(null) // 3. globalRole
+      .mockReturnValueOnce(null); // 4. globalPermissions
+
+    const {getAllByText} = render(
+      <CompanionSelector
+        companions={mockCompanions} // Input Order: 1, 2, 3
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+      />,
+    );
+
+    const names = getAllByText(/Buddy|Max|Bella/);
+    // Expected Sort Order:
+    // 1. Max (ID 2, Primary) -> Priority 0
+    // 2. Bella (ID 3, CoParent) -> Priority 1
+    // 3. Buddy (ID 1, Viewer) -> Priority 2
+
+    expect(names[0].props.children).toBe('Max');
+    expect(names[1].props.children).toBe('Bella');
+    expect(names[2].props.children).toBe('Buddy');
+  });
+
+  // ===========================================================================
+  // 3. Interaction & Permissions Logic
+  // ===========================================================================
+
+  it('selects companion if no permission is required', () => {
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(null); // Reset mocks
+
+    const {getByText} = render(
       <CompanionSelector
         companions={mockCompanions}
         selectedCompanionId={null}
         onSelect={mockOnSelect}
-        getBadgeText={mockGetBadgeText}
       />,
     );
-    expect(mockGetBadgeText).toHaveBeenCalledWith(mockCompanions[0]);
-    expect(getByText('Custom: Buddy')).toBeTruthy();
-    expect(queryByText('2 Tasks')).toBeNull();
+
+    fireEvent.press(getByText('Buddy'));
+    expect(mockOnSelect).toHaveBeenCalledWith('1');
   });
 
-  it('uses taskCount for badge text when getBadgeText is absent (Priority 2)', () => {
-    const { getByText } = createWrapper(
+  it('selects companion if permission is required and user HAS permission', () => {
+    const accessMapMock = {
+      '1': {
+        role: 'VIEWER',
+        permissions: {canViewVet: true},
+      },
+    };
+
+    (Redux.useSelector as unknown as jest.Mock)
+      .mockReturnValueOnce(accessMapMock) // accessMap
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null);
+
+    const {getByText} = render(
       <CompanionSelector
-        companions={mockCompanions}
+        companions={[mockCompanions[0]]}
         selectedCompanionId={null}
         onSelect={mockOnSelect}
+        requiredPermission="canViewVet"
       />,
     );
-    expect(getByText('2 Tasks')).toBeTruthy(); // For Buddy
-    expect(getByText('0 Tasks')).toBeTruthy(); // For Lucy
+
+    fireEvent.press(getByText('Buddy'));
+    expect(mockOnSelect).toHaveBeenCalledWith('1');
+  });
+
+  it('shows toast/alert if permission is REQUIRED but user LACKS permission', () => {
+    Platform.OS = 'android'; // Test Android Toast path
+    const accessMapMock = {
+      '1': {
+        role: 'VIEWER',
+        permissions: {canViewVet: false},
+      },
+    };
+
+    (Redux.useSelector as unknown as jest.Mock)
+      .mockReturnValueOnce(accessMapMock)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null);
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        requiredPermission="canViewVet"
+        permissionLabel="Vet Records"
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+
+    expect(mockOnSelect).not.toHaveBeenCalled();
+    expect(ToastAndroid.show).toHaveBeenCalledWith(
+      expect.stringContaining('access to Vet Records'),
+      expect.anything(),
+    );
+  });
+
+  it('shows iOS Alert if permission denied on iOS', () => {
+    Platform.OS = 'ios';
+    const accessMapMock = {
+      '1': {role: 'VIEWER', permissions: {canEdit: false}},
+    };
+
+    (Redux.useSelector as unknown as jest.Mock)
+      .mockReturnValueOnce(accessMapMock)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null);
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        requiredPermission="canEdit"
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+    expect(Alert.alert).toHaveBeenCalled();
+  });
+
+  it('allows access if user is PRIMARY regardless of permissions object', () => {
+    const accessMapMock = {
+      '1': {role: 'PRIMARY_OWNER', permissions: {canEdit: false}}, // explicitly false, but role is primary
+    };
+
+    (Redux.useSelector as unknown as jest.Mock)
+      .mockReturnValueOnce(accessMapMock)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null);
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        requiredPermission="canEdit"
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+    expect(mockOnSelect).toHaveBeenCalledWith('1');
+  });
+
+  // ===========================================================================
+  // 4. Edge Cases & Branches
+  // ===========================================================================
+
+  it('handles companion with missing ID gracefully', () => {
+    // If a companion has no ID
+    const badCompanion = {name: 'Ghost', taskCount: 0};
+
+    // Mock defaults to prevent crash on sort
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(null);
+
+    const {getByText} = render(
+      // @ts-ignore
+      <CompanionSelector companions={[badCompanion]} onSelect={mockOnSelect} />,
+    );
+
+    fireEvent.press(getByText('Ghost'));
+    // onSelect logic checks for id existence, so it shouldn't be called
+    expect(mockOnSelect).not.toHaveBeenCalled();
+  });
+
+  it('handles _id and companionId fallback properties for ID', () => {
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(null);
+
+    // Test the ID resolution logic in sort and render
+    const altCompanions = [
+      {_id: 'a1', name: 'Alpha'},
+      {companionId: 'b2', name: 'Beta'},
+    ];
+
+    const {getByText} = render(
+      // @ts-ignore
+      <CompanionSelector companions={altCompanions} onSelect={mockOnSelect} />,
+    );
+
+    fireEvent.press(getByText('Alpha'));
+    expect(mockOnSelect).toHaveBeenCalledWith('a1');
+
+    fireEvent.press(getByText('Beta'));
+    expect(mockOnSelect).toHaveBeenCalledWith('b2');
   });
 });
