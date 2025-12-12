@@ -8,8 +8,8 @@ import {
   BackHandler,
   ToastAndroid,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
+import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
 
 // --- Imports to be mocked ---
 import {
@@ -244,8 +244,8 @@ describe('ProfileOverviewScreen', () => {
       },
     };
     const {UNSAFE_getByType} = setup(loadingState);
-    // Use standard UNSAFE_getByType with the actual imported ActivityIndicator
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    // The Loading component now uses GifLoader instead of ActivityIndicator
+    expect(UNSAFE_getByType(GifLoader)).toBeTruthy();
   });
 
   it('renders empty state when companion not found', () => {

@@ -59,6 +59,8 @@ const AddForm = ({
   const [formData, setFormData] = useState<FormsProps>(
     draft ?? initialForm ?? defaultForm()
   );
+  const detailValidatorRef = useRef<() => boolean>(() => true);
+  const buildValidatorRef = useRef<() => boolean>(() => true);
   const [isSaving, setIsSaving] = useState(false);
   const wasOpenRef = useRef(false);
 
@@ -95,8 +97,32 @@ const AddForm = ({
   };
 
   const goToNextStep = () => {
-    if (activeLabel === "form-details") setActiveLabel("build-form");
-    else if (activeLabel === "build-form") setActiveLabel("review");
+    if (activeLabel === "form-details") {
+      if (!detailValidatorRef.current()) return;
+      setActiveLabel("build-form");
+    } else if (activeLabel === "build-form") {
+      if (!buildValidatorRef.current()) return;
+      setActiveLabel("review");
+    }
+  };
+
+  const handleLabelClick = (target: string) => {
+    if (target === activeLabel) return;
+    const order = ["form-details", "build-form", "review"] as const;
+    const currentIndex = order.indexOf(activeLabel as any);
+    const targetIndex = order.indexOf(target as any);
+    if (currentIndex === -1 || targetIndex === -1) {
+      setActiveLabel(target);
+      return;
+    }
+
+    if (targetIndex > currentIndex) {
+      for (let i = 0; i < targetIndex; i++) {
+        if (order[i] === "form-details" && !detailValidatorRef.current()) return;
+        if (order[i] === "build-form" && !buildValidatorRef.current()) return;
+      }
+    }
+    setActiveLabel(target);
   };
 
   const handleClear = () => {
@@ -174,7 +200,7 @@ const AddForm = ({
         <SubLabels
           labels={Labels}
           activeLabel={activeLabel}
-          setActiveLabel={setActiveLabel}
+          setActiveLabel={handleLabelClick}
         />
 
         <div className="flex overflow-y-auto flex-1">
@@ -184,6 +210,9 @@ const AddForm = ({
               setFormData={setFormData}
               onNext={goToNextStep}
               serviceOptions={serviceOptions}
+              registerValidator={(fn) => {
+                detailValidatorRef.current = fn;
+              }}
             />
           )}
           {activeLabel === "build-form" && (
@@ -191,6 +220,10 @@ const AddForm = ({
               formData={formData}
               setFormData={setFormData}
               onNext={goToNextStep}
+              serviceOptions={serviceOptions}
+              registerValidator={(fn) => {
+                buildValidatorRef.current = fn;
+              }}
             />
           )}
           {activeLabel === "review" && (

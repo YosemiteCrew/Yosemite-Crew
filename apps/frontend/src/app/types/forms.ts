@@ -32,7 +32,10 @@ export const FormsStatusFilters: Array<FormsStatus | "All"> = [
 ];
 
 export type FormFieldType = FieldType;
-export type FormField = BackendFormField & { defaultValue?: any };
+
+export type FormField = BackendFormField & {
+  defaultValue?: any;
+};
 
 export type FormsProps = {
   _id?: string;
@@ -114,6 +117,22 @@ const buildMedicationGroup = (suffix: string, label: string): FormField => ({
   type: "group",
   label,
   fields: buildMedicationFields(`medication_${suffix}`),
+});
+
+const buildServicesGroup = (): FormField => ({
+  id: "services_group",
+  type: "group",
+  label: "Services",
+  meta: { serviceGroup: true } as any,
+  fields: [
+    {
+      id: "services_group_services",
+      type: "checkbox",
+      label: "Services",
+      options: [],
+      multiple: true,
+    } as BackendFormField,
+  ],
 });
 
 export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
@@ -278,6 +297,7 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       fields: [
         buildMedicationGroup("1", "Medication 1"),
         buildMedicationGroup("2", "Medication 2"),
+        buildServicesGroup(),
       ],
     },
     {

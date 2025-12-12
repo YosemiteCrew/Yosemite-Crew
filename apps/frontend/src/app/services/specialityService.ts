@@ -18,57 +18,82 @@ import { SpecialityWeb } from "../types/speciality";
 
 export const loadSpecialitiesForOrg = async (opts?: {
   silent?: boolean;
+  force?: boolean;
 }): Promise<void> => {
-  const { startLoading, setSpecialities } = useSpecialityStore.getState();
+  const { startLoading, setSpecialities, status } = useSpecialityStore.getState();
   const { setServices } = useServiceStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn("No primary organization selected. Cannot load specialities.");
     return;
   }
-  if (!opts?.silent) {
-    startLoading();
-  }
+  if (!shouldFetchSpecialities(status, opts)) return;
+  if (!opts?.silent) startLoading();
+
   try {
-    const res = await getData<SpecialityWithServices[]>(
-      `/fhir/v1/speciality/${primaryOrgId}`
-    );
-    if (!Array.isArray(res.data)) {
-      console.warn("Specialities response is not an array.", res.data);
-      return;
-    }
-    const normalSpecialities: SpecialityDTOAttributes[] = [];
-    const normalServices: Service[] = [];
-    for (const item of res.data) {
-      if (!item) continue;
-      const { speciality, services } = item;
-      if (speciality) {
-        const normalSpeciality = fromSpecialityRequestDTO(speciality);
-        normalSpecialities.push(normalSpeciality);
-      } else {
-        console.warn(
-          "Missing speciality in SpecialityWithServices item:",
-          item
-        );
-      }
-      if (Array.isArray(services)) {
-        for (const serviceDTO of services) {
-          if (!serviceDTO) continue;
-          const normalService = fromServiceRequestDTO(serviceDTO);
-          normalServices.push(normalService);
-        }
-      } else if (services != null) {
-        console.warn(
-          "Services field is not an array in SpecialityWithServices item:",
-          item
-        );
-      }
-    }
+    const payload = await fetchSpecialities(primaryOrgId);
+    const { normalSpecialities, normalServices } = normalizeSpecialities(payload);
     setSpecialities(normalSpecialities);
     setServices(normalServices);
   } catch (err) {
     console.error("Failed to load specialities:", err);
     throw err;
+  }
+};
+
+const fetchSpecialities = async (orgId: string): Promise<SpecialityWithServices[]> => {
+  const res = await getData<SpecialityWithServices[]>(`/fhir/v1/speciality/${orgId}`);
+  if (!Array.isArray(res.data)) {
+    console.warn("Specialities response is not an array.", res.data);
+    return [];
+  }
+  return res.data;
+};
+
+const shouldFetchSpecialities = (
+  status: ReturnType<typeof useSpecialityStore.getState>["status"],
+  opts?: { force?: boolean }
+) => {
+  if (opts?.force) return true;
+  return status === "idle" || status === "error";
+};
+
+const normalizeSpecialities = (items: SpecialityWithServices[]) => {
+  const normalSpecialities: SpecialityDTOAttributes[] = [];
+  const normalServices: Service[] = [];
+
+  for (const item of items) {
+    if (!item) continue;
+    addSpeciality(normalSpecialities, item);
+    addServices(normalServices, item);
+  }
+
+  return { normalSpecialities, normalServices };
+};
+
+const addSpeciality = (
+  bucket: SpecialityDTOAttributes[],
+  item: SpecialityWithServices
+) => {
+  const speciality = item.speciality;
+  if (!speciality) {
+    console.warn("Missing speciality in SpecialityWithServices item:", item);
+    return;
+  }
+  bucket.push(fromSpecialityRequestDTO(speciality));
+};
+
+const addServices = (bucket: Service[], item: SpecialityWithServices) => {
+  const services = item.services;
+  if (services == null) return;
+  if (!Array.isArray(services)) {
+    console.warn("Services field is not an array in SpecialityWithServices item:", item);
+    return;
+  }
+
+  for (const serviceDTO of services) {
+    if (!serviceDTO) continue;
+    bucket.push(fromServiceRequestDTO(serviceDTO));
   }
 };
 
