@@ -15,6 +15,7 @@ type AvailabilityState = {
   setAvailabilitiesForOrg: (orgId: string, items: ApiDayAvailability[]) => void;
   upsertAvailabilityStore: (item: ApiDayAvailability) => void;
   removeAvailability: (id: string) => void;
+  clearAvailabilitiesForOrg: (orgId: string) => void;
   getAvailabilitiesByOrgId: (orgId: string) => ApiDayAvailability[];
   clearAvailabilities: () => void;
   startLoading: () => void;
@@ -122,6 +123,25 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       return {
         availabilitiesById: restAvailabilitiesById,
         availabilityIdsByOrgId,
+      };
+    }),
+
+  clearAvailabilitiesForOrg: (orgId: string) =>
+    set((state) => {
+      const ids = state.availabilityIdsByOrgId[orgId] ?? [];
+      if (!ids.length) {
+        const { [orgId]: _, ...restIds } = state.availabilityIdsByOrgId;
+        return { availabilityIdsByOrgId: restIds };
+      }
+      const availabilitiesById = { ...state.availabilitiesById };
+      for (const id of ids) delete availabilitiesById[id];
+      const { [orgId]: _, ...restIds } = state.availabilityIdsByOrgId;
+      return {
+        availabilitiesById,
+        availabilityIdsByOrgId: restIds,
+        status: "loaded",
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
       };
     }),
 

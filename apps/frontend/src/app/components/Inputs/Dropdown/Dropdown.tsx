@@ -21,6 +21,7 @@ type DropdownProps = {
   type?: DropdownType;
   search?: boolean;
   disabled?: boolean;
+  returnObject?: boolean;
 };
 
 const Dropdown = ({
@@ -34,6 +35,7 @@ const Dropdown = ({
   type,
   search = false,
   disabled = false,
+  returnObject = false,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -153,14 +155,14 @@ const Dropdown = ({
                 const label: string = option.label ?? option.value ?? "";
                 const valueToSend: string = option.value ?? option.label ?? "";
                 const handleClick = () => {
-                  onChange(valueToSend);
+                  onChange(returnObject ? option : valueToSend);
                   setOpen(false);
                   setQuery("");
                 };
                 return (
                   <button
                     className={`select-input-dropdown-item ${index === list.length - 1 ? "" : "border-b border-grey-light"}`}
-                    key={key}
+                    key={label + "team-key" + index}
                     onClick={handleClick}
                   >
                     {label}

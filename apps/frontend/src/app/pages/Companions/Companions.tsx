@@ -8,14 +8,11 @@ import AddCompanion from "@/app/components/AddCompanion";
 import CompanionInfo from "@/app/components/CompanionInfo";
 import OrgGuard from "@/app/components/OrgGuard";
 import {
-  useCompanionsParentsForPrimaryOrg,
-  useLoadCompanionsForPrimaryOrg,
+  useCompanionsParentsForPrimaryOrg
 } from "@/app/hooks/useCompanion";
 import { CompanionParent } from "./types";
 
 const Companions = () => {
-  useLoadCompanionsForPrimaryOrg();
-
   const companions = useCompanionsParentsForPrimaryOrg();
   const [filteredList, setFilteredList] =
     useState<CompanionParent[]>(companions);

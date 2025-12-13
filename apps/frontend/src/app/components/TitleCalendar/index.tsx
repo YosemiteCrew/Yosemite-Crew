@@ -22,11 +22,11 @@ const TitleCalendar = ({
   setCurrentDate,
 }: TitleCalendarProps) => {
   return (
-    <div className="flex justify-between items-center w-full">
+    <div className="flex justify-between items-center w-full flex-wrap">
       <div className="font-grotesk font-medium text-black-text text-[33px]">
         {title}
       </div>
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-3 items-center flex-wrap">
         <Primary
           href="#"
           text="Add"

@@ -8,14 +8,11 @@ import { SpecialityWeb } from "../types/speciality";
 
 export const useLoadSpecialitiesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const specialityStatus = useSpecialityStore((s) => s.status);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (specialityStatus === "idle") {
-      void loadSpecialitiesForOrg();
-    }
-  }, [primaryOrgId, specialityStatus]);
+    void loadSpecialitiesForOrg({ force: true });
+  }, [primaryOrgId]);
 };
 
 export const useSpecialitiesForPrimaryOrg = (): Speciality[] => {

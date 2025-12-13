@@ -5,6 +5,7 @@ import { SpecialityWeb } from "@/app/types/speciality";
 import { Service } from "@yosemite-crew/types";
 
 import "./DataTable.css";
+import SpecialitiesCard from "../Cards/SpecialitiesCard";
 
 type Column<T> = {
   label: string;
@@ -47,7 +48,9 @@ const SpecialitiesTable = ({
       key: "Services",
       width: "35%",
       render: (item: SpecialityWeb) => (
-        <div className="appointment-profile-title">{getServiceNames(item.services) || "-"}</div>
+        <div className="appointment-profile-title">
+          {getServiceNames(item.services) || "-"}
+        </div>
       ),
     },
     {
@@ -55,7 +58,9 @@ const SpecialitiesTable = ({
       key: "Team members",
       width: "15%",
       render: (item: SpecialityWeb) => (
-        <div className="appointment-profile-title">{item.teamMemberIds?.length || 0}</div>
+        <div className="appointment-profile-title">
+          {item.teamMemberIds?.length || 0}
+        </div>
       ),
     },
     {
@@ -64,7 +69,9 @@ const SpecialitiesTable = ({
       width: "20%",
       render: (item: SpecialityWeb) => (
         <div className="flex items-center gap-2">
-          <div className="appointment-profile-title">{item.headName || "-"}</div>
+          <div className="appointment-profile-title">
+            {item.headName || "-"}
+          </div>
         </div>
       ),
     },
@@ -95,6 +102,24 @@ const SpecialitiesTable = ({
           pagination
           pageSize={5}
         />
+      </div>
+      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item, i) => (
+            <SpecialitiesCard
+              key={item.name + i}
+              speciality={item}
+              handleViewSpeciality={handleViewSpeciality}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

@@ -10,9 +10,10 @@ import { GenderOptions, UserProfile } from "@/app/types/profile";
 import { createUserProfile } from "@/app/services/profileService";
 import Datepicker from "../../Inputs/Datepicker";
 import { getCountryCode, validatePhone } from "@/app/utils/validators";
-import { formatDateLocal } from "@/app/utils/date";
+import { formatDateUTC } from "@/app/utils/date";
 
 import "./Step.css";
+import { useAuthStore } from "@/app/stores/authStore";
 
 type PersonalStepProps = {
   nextStep: () => void;
@@ -27,6 +28,7 @@ const PersonalStep = ({
   setFormData,
   orgIdFromQuery,
 }: PersonalStepProps) => {
+  const attributes = useAuthStore((s) => s.attributes);
   const [formDataErrors, setFormDataErrors] = useState<{
     dob?: string;
     country?: string;
@@ -46,7 +48,7 @@ const PersonalStep = ({
       ...formData,
       personalDetails: {
         ...formData.personalDetails,
-        dateOfBirth: formatDateLocal(currentDate),
+        dateOfBirth: formatDateUTC(currentDate),
       },
     });
   }, [currentDate]);
@@ -100,13 +102,15 @@ const PersonalStep = ({
     }
   };
 
+  if (!attributes) return null;
+
   return (
     <div className="team-container">
       <div className="team-title">Personal details</div>
 
       <LogoUploader
         title="Add profile picture (optional)"
-        apiUrl="/api/profile-logo"
+        apiUrl={`/fhir/v1/user-profile/${orgIdFromQuery}/${attributes.sub}/profile-picture`}
         setImageUrl={(url) => {
           setFormData((prev) => ({
             ...prev,

@@ -38,6 +38,17 @@ export const formatDateLabel = (value?: Date | string): string => {
   return d.toLocaleDateString();
 };
 
+export const formatTimeLabel = (value?: Date | string): string => {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 export const statusToLabel = (status?: Form["status"]): FormsStatus => {
   if (!status) return "Draft";
   return statusToLabelMap[status] ?? "Draft";

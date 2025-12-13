@@ -1,4 +1,3 @@
-import { AppointmentsProps } from "@/app/types/appointments";
 import React, { useEffect, useMemo, useRef } from "react";
 import {
   eventsForDayHour,
@@ -16,11 +15,12 @@ import {
 } from "../helpers";
 import Slot from "./Slot";
 import { getStatusStyle } from "../../DataTable/Appointments";
+import { Appointment } from "@yosemite-crew/types";
 
 const PIXELS_PER_MINUTE = PIXELS_PER_STEP / MINUTES_PER_STEP;
 
 type WeekCalendarProps = {
-  events: AppointmentsProps[];
+  events: Appointment[];
   date: Date;
   handleViewAppointment: any;
   weekStart: Date;
@@ -41,8 +41,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const height = PIXELS_PER_MINUTE * 60;
 
   const { allDayByDay, timedEvents } = useMemo(() => {
-    const byDay: AppointmentsProps[][] = days.map(() => []);
-    const timed: AppointmentsProps[] = [];
+    const byDay: Appointment[][] = days.map(() => []);
+    const timed: Appointment[] = [];
     for (const ev of events) {
       let isAllDaySomeDay = false;
       for (let idx = 0; idx < days.length; idx++) {
@@ -133,7 +133,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                   <div key={day.toISOString()} className="flex flex-col gap-1">
                     {dayAllEvents.map((ev) => (
                       <button
-                        key={`${ev.name}-${ev.start.toISOString()}`}
+                        key={`${ev.companion.name}-${ev.startTime.toISOString()}`}
                         type="button"
                         onClick={() => handleViewAppointment(ev)}
                         className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
@@ -145,7 +145,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         }}
                       >
                         <div className="font-medium truncate">
-                          {ev.name} • {ev.reason}
+                          {ev.companion.name} • {ev.concern || ""}
                         </div>
                       </button>
                     ))}

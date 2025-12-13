@@ -12,9 +12,11 @@ type TeamState = {
   lastFetchedAt: string | null;
 
   setTeams: (teams: Team[]) => void;
+  setTeamsForOrg: (orgId: string, items: Team[]) => void;
   addTeam: (team: Team) => void;
   updateTeam: (team: Team) => void;
   removeTeam: (id: string) => void;
+  clearTeamsForOrg: (orgId: string) => void;
   getTeamsByOrgId: (orgId: string) => Team[];
   clearTeams: () => void;
   startLoading: () => void;
@@ -43,6 +45,31 @@ export const useTeamStore = create<TeamState>()((set, get) => ({
         teamIdsByOrgId[orgId].push(id);
       }
       return { teamsById, teamIdsByOrgId, status: "loaded" };
+    }),
+
+  setTeamsForOrg: (orgId, items) =>
+    set((state) => {
+      const teamsById = { ...state.teamsById };
+      const existingIds = state.teamIdsByOrgId[orgId] ?? [];
+      for (const id of existingIds) {
+        delete teamsById[id];
+      }
+      const newIds: string[] = [];
+      for (const team of items) {
+        const id = team._id;
+        teamsById[id] = team;
+        newIds.push(id);
+      }
+      return {
+        teamsById,
+        teamIdsByOrgId: {
+          ...state.teamIdsByOrgId,
+          [orgId]: newIds,
+        },
+        status: "loaded",
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
     }),
 
   addTeam: (team) =>
@@ -100,12 +127,31 @@ export const useTeamStore = create<TeamState>()((set, get) => ({
       };
     }),
 
+  clearTeamsForOrg: (orgId: string) =>
+    set((state) => {
+      const ids = state.teamIdsByOrgId[orgId] ?? [];
+      if (!ids.length) {
+        const { [orgId]: _, ...restIdx } = state.teamIdsByOrgId;
+        return { teamIdsByOrgId: restIdx };
+      }
+      const teamsById = { ...state.teamsById };
+      for (const id of ids) delete teamsById[id];
+      const { [orgId]: _, ...restIdx } = state.teamIdsByOrgId;
+      return {
+        teamsById,
+        teamIdsByOrgId: restIdx,
+        status: "loaded",
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
+    }),
+
   clearTeams: () =>
     set(() => ({
       teamsById: {},
       teamIdsByOrgId: {},
       status: "idle",
-      error: null
+      error: null,
     })),
 
   startLoading: () =>

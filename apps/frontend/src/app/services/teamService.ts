@@ -6,13 +6,17 @@ import { getData, postData } from "./axios";
 import { loadOrgs } from "./orgService";
 import { loadProfiles } from "./profileService";
 
-export const loadTeam = async (opts?: { silent?: boolean }) => {
-  const { setTeams, startLoading } = useTeamStore.getState();
+export const loadTeam = async (opts?: {
+  silent?: boolean;
+  force?: boolean;
+}) => {
+  const { startLoading, status, setTeamsForOrg } = useTeamStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn("No primary organization selected. Cannot send invite.");
     return [];
   }
+  if (!shouldFetchTeam(status, opts)) return;
   if (!opts?.silent) {
     startLoading();
   }
@@ -36,11 +40,19 @@ export const loadTeam = async (opts?: { silent?: boolean }) => {
       };
       temp.push(teamObject);
     }
-    setTeams(temp);
+    setTeamsForOrg(primaryOrgId, temp);
   } catch (err: any) {
     console.error("Failed to load invites:", err);
     throw err;
   }
+};
+
+const shouldFetchTeam = (
+  status: ReturnType<typeof useTeamStore.getState>["status"],
+  opts?: { force?: boolean }
+) => {
+  if (opts?.force) return true;
+  return status === "idle" || status === "error";
 };
 
 export const sendInvite = async (invite: TeamFormDataType) => {

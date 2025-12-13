@@ -19,8 +19,9 @@ import { useParentStore } from "../stores/parentStore";
 
 export const loadCompanionsForPrimaryOrg = async (opts?: {
   silent?: boolean;
+  force?: boolean;
 }) => {
-  const { startLoading, setError, setCompanionsForOrg } =
+  const { startLoading, setError, setCompanionsForOrg, status } =
     useCompanionStore.getState();
   const { addBulkParents } = useParentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
@@ -28,6 +29,7 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
     console.warn("No primary organization selected. Cannot load companions.");
     return;
   }
+  if (!shouldFetchCompanions(status, opts)) return;
   if (!opts?.silent) {
     startLoading();
   }
@@ -60,23 +62,31 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
         if (status === 403) {
-          setError("You don't have permission to fetch organizations.");
+          setError("You don't have permission to fetch companions.");
         } else if (status === 404) {
-          setError("Organization service not found. Please contact support.");
+          setError("Companion service not found. Please contact support.");
         } else {
           setError(
             err.response?.data?.message ??
               err.message ??
-              "Failed to load organizations"
+              "Failed to load companions"
           );
         }
       } else {
-        setError("Unexpected error while fetching organization");
+        setError("Unexpected error while fetching companions");
       }
     }
     console.error("Failed to load orgs:", err);
     throw err;
   }
+};
+
+const shouldFetchCompanions = (
+  status: ReturnType<typeof useCompanionStore.getState>["status"],
+  opts?: { force?: boolean }
+) => {
+  if (opts?.force) return true;
+  return status === "idle" || status === "error";
 };
 
 export const createCompanion = async (

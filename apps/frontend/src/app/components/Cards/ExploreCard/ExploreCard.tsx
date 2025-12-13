@@ -1,28 +1,35 @@
+"use client"
 import React from "react";
 import CardHeader from "../CardHeader/CardHeader";
 
+import { useExploreMetrics } from "@/app/hooks/useMetrics";
+import { DashboardSummary } from "@/app/types/metrics";
+
 import "./ExploreCard.css";
 
-const DummyStats = [
+const getExploreStats = (metrics: DashboardSummary) => [
   {
     name: "Revenue",
-    value: "$0",
+    value: `$${metrics.revenue}`,
   },
   {
     name: "Appointments",
-    value: "0",
+    value: metrics.appointments.toString(),
   },
   {
     name: "Tasks",
-    value: "0",
+    value: metrics.tasks.toString(),
   },
   {
     name: "Staff on duty",
-    value: "0",
+    value: metrics.staffOnDuty.toString(),
   },
 ];
 
 const Explorecard = () => {
+  const metrics = useExploreMetrics();
+  const stats = getExploreStats(metrics);
+
   return (
     <div className="explore-container">
       <CardHeader
@@ -30,7 +37,7 @@ const Explorecard = () => {
         options={["Last week", "Last month", "Last 6 months", "Last 1 year"]}
       />
       <div className="explore-cards">
-        {DummyStats.map((stat) => (
+        {stats.map((stat) => (
           <div className="explore-stat" key={stat.name}>
             <div className="explore-stat-name">{stat.name}</div>
             <div className="explore-stat-value">{stat.value}</div>

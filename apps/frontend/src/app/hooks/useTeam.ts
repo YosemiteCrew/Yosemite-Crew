@@ -6,13 +6,10 @@ import { useTeamStore } from "../stores/teamStore";
 
 export const useLoadTeam = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const teamStatus = useTeamStore((s) => s.status);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (teamStatus === "idle") {
-      void loadTeam();
-    }
+    void loadTeam({ force: true });
   }, [primaryOrgId]);
 };
 

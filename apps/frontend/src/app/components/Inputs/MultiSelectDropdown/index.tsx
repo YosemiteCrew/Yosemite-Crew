@@ -89,7 +89,7 @@ const MultiSelectDropdown = ({
             {availableOptions.map((option, index: number) => (
               <button
                 className={`select-input-dropdown-item ${index === list.length - 1 ? "" : "border-b border-grey-light"}`}
-                key={option.value}
+                key={option.value + index}
                 onClick={() => toggleOption(option.value)}
               >
                 {option.label}

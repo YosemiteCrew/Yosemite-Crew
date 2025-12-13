@@ -1,6 +1,5 @@
 import Labels from "@/app/components/Labels/Labels";
 import Modal from "@/app/components/Modal";
-import { AppointmentsProps } from "@/app/types/appointments";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { BsChatHeartFill } from "react-icons/bs";
@@ -9,7 +8,7 @@ import { IoDocumentText, IoEye } from "react-icons/io5";
 import { PiMoneyWavyFill } from "react-icons/pi";
 import Summary from "./Finance/Summary";
 import Task from "./Tasks/Task";
-import Appointment from "./Info/Appointment";
+import AppointmentInfo from "./Info/AppointmentInfo";
 import Companion from "./Info/Companion";
 import History from "./Info/History";
 import Subjective from "./Prescription/Subjective";
@@ -23,11 +22,12 @@ import Discharge from "./Prescription/Discharge";
 import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
 import { ServiceWeb } from "@/app/types/org";
+import { Appointment } from "@yosemite-crew/types";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeAppointment: AppointmentsProps | null;
+  activeAppointment: Appointment | null;
 };
 
 export type ServiceEdit = ServiceWeb & {
@@ -108,14 +108,14 @@ const labels = [
     iconSize: 24,
     labels: [
       { key: "summary", name: "Summary" },
-      { key: "payment-details", name: "Payment details" }
+      { key: "payment-details", name: "Payment details" },
     ],
   },
 ];
 
 const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   info: {
-    appointment: Appointment,
+    appointment: AppointmentInfo,
     companion: Companion,
     history: History,
   },
@@ -135,7 +135,7 @@ const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   },
   finance: {
     summary: Summary,
-    "payment-details": Details
+    "payment-details": Details,
   },
 };
 
@@ -172,7 +172,7 @@ const AppoitmentInfo = ({
     notes: "",
     services: [],
     suggestions: [],
-    followUp: false
+    followUp: false,
   });
 
   useEffect(() => {
@@ -195,7 +195,7 @@ const AppoitmentInfo = ({
             <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
               <Image
                 alt="pet image"
-                src={activeAppointment?.image || ""}
+                src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
                 className="rounded-full"
                 height={80}
                 width={80}
@@ -209,10 +209,12 @@ const AppoitmentInfo = ({
             />
           </div>
           <div className="flex justify-center font-grotesk font-medium text-[23px] text-black-text">
-            {activeAppointment?.name}
+            {activeAppointment?.companion?.name}
           </div>
           <div className="flex justify-center font-satoshi font-medium text-[14px] text-black-text">
-            {activeAppointment?.breed + " / " + activeAppointment?.species}
+            {activeAppointment?.companion?.breed +
+              " / " +
+              activeAppointment?.companion?.species}
           </div>
         </div>
 

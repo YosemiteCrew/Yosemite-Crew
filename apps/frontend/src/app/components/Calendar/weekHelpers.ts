@@ -1,4 +1,4 @@
-import { AppointmentsProps } from "@/app/types/appointments";
+import { Appointment } from "@yosemite-crew/types";
 import { isSameDay } from "./helpers";
 
 export const HOURS_IN_DAY = 24;
@@ -19,12 +19,12 @@ export function getWeekDays(weekStart: Date): Date[] {
 }
 
 export function eventsForDayHour(
-  events: AppointmentsProps[],
+  events: Appointment[],
   day: Date,
   hour: number
-): AppointmentsProps[] {
+): Appointment[] {
   return events.filter((ev) => {
-    return isSameDay(ev.start, day) && ev.start.getHours() === hour;
+    return isSameDay(ev.startTime, day) && ev.startTime.getHours() === hour;
   });
 }
 

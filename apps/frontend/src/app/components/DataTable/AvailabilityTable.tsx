@@ -6,6 +6,7 @@ import { IoEye } from "react-icons/io5";
 import { Team } from "@/app/types/team";
 
 import "./DataTable.css";
+import AvailabilityCard from "../Cards/AvailabilityCard";
 
 type Column<T> = {
   label: string;
@@ -40,7 +41,7 @@ const AvailabilityTable = ({
   setView,
   hideActions = false,
 }: AvailabilityTableProps) => {
-  const handleViewTeam = (team: any) => {
+  const handleViewTeam = (team: Team) => {
     setActive?.(team);
     setView?.(true);
   };
@@ -76,7 +77,9 @@ const AvailabilityTable = ({
       key: "speciality",
       width: "15%",
       render: (item: Team) => (
-        <div className="appointment-profile-title">{item?.speciality?.name || "-"}</div>
+        <div className="appointment-profile-title">
+          {item?.speciality?.name || "-"}
+        </div>
       ),
     },
     {
@@ -84,7 +87,9 @@ const AvailabilityTable = ({
       key: "today",
       width: "12.5%",
       render: (item: Team) => (
-        <div className="appointment-profile-title">{item.todayAppointment || "0"}</div>
+        <div className="appointment-profile-title">
+          {item.todayAppointment || "0"}
+        </div>
       ),
     },
     {
@@ -136,6 +141,24 @@ const AvailabilityTable = ({
           pagination
           pageSize={5}
         />
+      </div>
+      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item, i) => (
+            <AvailabilityCard
+              key={item._id + i}
+              team={item}
+              handleViewTeam={handleViewTeam}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

@@ -6,14 +6,14 @@
  * Renders below the navbar and takes remaining viewport height.
  */
 
-import React from 'react';
-import {ChatContainer} from '@/app/components/chat/ChatContainer';
-import './page.css';
+import React from "react";
+import ProtectedChatContainer from "@/app/components/chat/ChatContainer";
+import "./page.css";
 
 export default function ChatPage() {
   return (
     <div className="chat-page">
-      <ChatContainer />
+      <ProtectedChatContainer />
     </div>
   );
 }

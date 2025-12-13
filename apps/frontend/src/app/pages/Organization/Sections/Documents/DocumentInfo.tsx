@@ -1,26 +1,68 @@
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import Modal from "@/app/components/Modal";
-import React from "react";
+import { OrganizationDocument } from "@/app/types/document";
+import React, { useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
+import { OrgDocumentCategoryOptions } from "../../types";
+import { updateDocument } from "@/app/services/documentService";
+import DocUploader from "@/app/components/UploadImage/DocUploader";
+import { Primary } from "@/app/components/Buttons";
 
 type DocumentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeDocument: any;
+  activeDocument: OrganizationDocument;
 };
 
 const Fields = [
-  { label: "Title", key: "title", type: "text" },
+  { label: "Title", key: "title", type: "text", required: true },
   { label: "Description", key: "description", type: "text" },
-  { label: "Created on", key: "date", type: "text" },
-  { label: "Last updated on", key: "lastUpdated", type: "text" },
-]
+  {
+    label: "Category",
+    key: "category",
+    type: "dropdown",
+    options: OrgDocumentCategoryOptions,
+  },
+];
 
 const DocumentInfo = ({
   showModal,
   setShowModal,
   activeDocument,
 }: DocumentInfoProps) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string>(activeDocument.fileUrl);
+
+  const handleUpdate = async (values: any) => {
+    try {
+      const formData: OrganizationDocument = {
+        id: activeDocument.id,
+        organisationId: activeDocument.id,
+        fileUrl: activeDocument.fileUrl,
+        title: values.title,
+        description: values.description,
+        category: values.category,
+      };
+      await updateDocument(formData);
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleUpdateFile = async () => {
+    try {
+      const formData: OrganizationDocument = {
+        ...activeDocument,
+        fileUrl,
+      };
+      await updateDocument(formData);
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
@@ -41,12 +83,32 @@ const DocumentInfo = ({
           />
         </div>
 
-        <EditableAccordion
-          title="Document info"
-          fields={Fields}
-          data={activeDocument}
-          defaultOpen={true}
-        />
+        <div className="flex flex-col flex-1 gap-5 w-full overflow-y-hidden justify-between">
+          <div className="flex flex-col gap-6">
+            <EditableAccordion
+              title="Document info"
+              fields={Fields}
+              data={activeDocument}
+              defaultOpen={true}
+              onSave={handleUpdate}
+            />
+            <DocUploader
+              placeholder="Upload document"
+              apiUrl={`/v1/organisation-document/pms/${activeDocument.organisationId}/documents/upload`}
+              onChange={(s) => setFileUrl(s)}
+              file={file}
+              setFile={setFile}
+            />
+          </div>
+          {fileUrl && (
+            <Primary
+              href="#"
+              text="Save"
+              classname="max-h-12! text-lg! tracking-wide!"
+              onClick={handleUpdateFile}
+            />
+          )}
+        </div>
       </div>
     </Modal>
   );

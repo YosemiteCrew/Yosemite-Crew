@@ -7,12 +7,13 @@ import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import Datepicker from "../Inputs/Datepicker";
 import { getFormattedDate } from "../Calendar/weekHelpers";
 
-type FieldConfig = {
+export type FieldConfig = {
   label: string;
   key: string;
   type?: string;
   required?: boolean;
   options?: Array<string | { label: string; value: string }>;
+  editable?: boolean;
 };
 
 type EditableAccordionProps = {
@@ -94,6 +95,7 @@ const FieldComponents: Record<
       className="min-h-12!"
       dropdownClassName="top-[55px]! !h-fit"
       type="country"
+      search
     />
   ),
   date: ({ field, value, onChange }) => (
@@ -110,9 +112,7 @@ const normalizeOptions = (
   options?: Array<string | { label: string; value: string }>
 ) =>
   options?.map((option: any) =>
-    typeof option === "string"
-      ? { label: option, value: option }
-      : option
+    typeof option === "string" ? { label: option, value: option } : option
   ) ?? [];
 
 const resolveLabel = (
@@ -284,7 +284,10 @@ const buildInitialValues = (
       let value: string | string[] = [];
       if (Array.isArray(initialValue)) {
         value = initialValue;
-      } else if (typeof initialValue === "string" && initialValue.trim() !== "") {
+      } else if (
+        typeof initialValue === "string" &&
+        initialValue.trim() !== ""
+      ) {
         value = [initialValue];
       }
       acc[field.key] = value;

@@ -135,13 +135,22 @@ const Tasks = ({
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((item: TasksProps, i) => (
-          <TaskCard
-            key={item.task + i}
-            item={item}
-            handleViewTask={handleViewTask}
-          />
-        ))}
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item: TasksProps, i) => (
+            <TaskCard
+              key={item.task + i}
+              item={item}
+              handleViewTask={handleViewTask}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

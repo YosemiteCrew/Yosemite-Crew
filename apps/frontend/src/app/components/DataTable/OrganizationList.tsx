@@ -102,13 +102,22 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
         />
       </div>
       <div className="card-list">
-        {orgs.map((org, index) => (
-          <OrgCard
-            key={org.org.name + index}
-            org={org}
-            handleOrgClick={handleOrgClick}
-          />
-        ))}
+        {(() => {
+          if (orgs.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return orgs.map((org, index) => (
+            <OrgCard
+              key={org.org.name + index}
+              org={org}
+              handleOrgClick={handleOrgClick}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

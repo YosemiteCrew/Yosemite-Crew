@@ -18,11 +18,10 @@ export const useLoadProfiles = () => {
 
 export const usePrimaryOrgProfile = (): UserProfile | null => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const profileStatus = useUserProfileStore((s) => s.status);
   const profilesByOrgId = useUserProfileStore((s) => s.profilesByOrgId);
 
   return useMemo(() => {
-    if (!primaryOrgId || profileStatus !== "loaded") return null;
+    if (!primaryOrgId) return null;
     return profilesByOrgId[primaryOrgId] ?? null;
-  }, [primaryOrgId, profilesByOrgId, profileStatus]);
+  }, [primaryOrgId, profilesByOrgId]);
 };

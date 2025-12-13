@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Search from "../../Inputs/Search";
-import { AppointmentsProps } from "@/app/types/appointments";
+import { Appointment } from "@yosemite-crew/types";
 
 const Types = [
   {
@@ -15,6 +15,12 @@ const Types = [
 
 const Statuses = [
   {
+    name: "No payment",
+    key: "no_payment",
+    bg: "#008F5D",
+    text: "#fff",
+  },
+  {
     name: "Requested",
     key: "requested",
     bg: "#eaeaea",
@@ -28,13 +34,13 @@ const Statuses = [
   },
   {
     name: "Checked-in",
-    key: "checked-in",
+    key: "checked_in",
     bg: "#FEF3E9",
     text: "#F68523",
   },
   {
     name: "In progress",
-    key: "in-progress",
+    key: "in_progress",
     bg: "#E6F4EF",
     text: "#54B492",
   },
@@ -44,10 +50,16 @@ const Statuses = [
     bg: "#008F5D",
     text: "#fff",
   },
+  {
+    name: "Cancelled",
+    key: "cancelled",
+    bg: "#008F5D",
+    text: "#fff",
+  },
 ];
 
 type AppointmentFiltersProps = {
-  list: AppointmentsProps[];
+  list: Appointment[];
   setFilteredList: any;
 };
 
@@ -65,8 +77,8 @@ const AppointmentFilters = ({
         item.status.toLowerCase() === activeStatus.toLowerCase();
       const matchesType =
         activeType === "all" ||
-        (activeType === "emergencies" && item.emergency);
-      const matchesSearch = item.name
+        (activeType === "emergencies" && item.isEmergency);
+      const matchesSearch = item.companion?.name
         .toLowerCase()
         .includes(search.toLowerCase());
       return matchesStatus && matchesType && matchesSearch;
@@ -95,7 +107,7 @@ const AppointmentFilters = ({
           <Search value={search} setSearch={setSearch} />
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {Statuses.map((status) => (
           <button
             key={status.key}
