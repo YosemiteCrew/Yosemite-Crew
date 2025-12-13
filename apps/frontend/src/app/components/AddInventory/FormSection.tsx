@@ -1,29 +1,37 @@
 import React from "react";
 import Accordion from "../Accordion/Accordion";
-import { Primary } from "../Buttons";
+import { Primary, Secondary } from "../Buttons";
 import FormInput from "../Inputs/FormInput/FormInput";
 import Dropdown from "../Inputs/Dropdown/Dropdown";
+import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import FormDesc from "../Inputs/FormDesc/FormDesc";
+import Datepicker from "../Inputs/Datepicker";
+import { Icon } from "@iconify/react/dist/iconify.js";
 import { BusinessType } from "@/app/types/org";
 
+import { InventoryItem, InventoryErrors } from "@/app/pages/Inventory/types";
 import {
-  InventoryItem,
-  InventoryErrors,
-} from "@/app/pages/Inventory/types";
-import { InventoryFormConfig, ConfigItem, FieldDef } from "./InventoryConfig";
+  InventoryFormConfig,
+  ConfigItem,
+  FieldDef,
+  InventorySectionKey,
+} from "./InventoryConfig";
 
 type FormSectionProps = {
   businessType: BusinessType;
-  sectionKey: keyof InventoryItem;
+  sectionKey: InventorySectionKey;
   sectionTitle: string;
   formData: InventoryItem;
   errors: InventoryErrors;
   onFieldChange: (
-    section: keyof InventoryItem,
+    section: InventorySectionKey,
     name: string,
-    value: string
+    value: string | string[]
   ) => void;
   onSave?: () => void;
+  saveLabel?: string;
+  disableSave?: boolean;
+  onClear?: () => void;
 };
 
 const FormSection: React.FC<FormSectionProps> = ({
@@ -34,6 +42,9 @@ const FormSection: React.FC<FormSectionProps> = ({
   errors,
   onFieldChange,
   onSave,
+  saveLabel,
+  disableSave,
+  onClear,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] || {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -43,14 +54,27 @@ const FormSection: React.FC<FormSectionProps> = ({
   }
 
   const sectionData = formData[sectionKey] as any;
-  const sectionErrors = errors[sectionKey] as any;
+  const sectionErrors = (errors as Record<InventorySectionKey, any>)[sectionKey];
+
+  const parseDate = (value?: string): Date => {
+    if (!value) return new Date();
+    if (value.includes("/")) {
+      const [dd, mm, yyyy] = value.split("/");
+      const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? new Date() : date;
+  };
+
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
   const getValue = (field: FieldDef<any>): string =>
     sectionData?.[field.name] ?? "";
   const getError = (field: FieldDef<any>): string | undefined =>
     sectionErrors?.[field.name];
 
-  const handleChange = (field: FieldDef<any>, value: string) => {
+  const handleChange = (field: FieldDef<any>, value: string | string[]) => {
     onFieldChange(sectionKey, field.name, value);
   };
 
@@ -59,11 +83,11 @@ const FormSection: React.FC<FormSectionProps> = ({
     const value = getValue(field);
     const error = getError(field);
 
-    if (component === "text" || component === "date") {
+    if (component === "text") {
       return (
         <FormInput
           key={key ?? field.name}
-          intype={component === "date" ? "date" : "text"}
+          intype="text"
           inname={field.name}
           value={value}
           inlabel={placeholder || ""}
@@ -71,6 +95,33 @@ const FormSection: React.FC<FormSectionProps> = ({
           error={error}
           className="min-h-12!"
         />
+      );
+    }
+
+    if (component === "date") {
+      const currentDate = parseDate(value);
+      return (
+        <div key={key ?? field.name} className="flex flex-col gap-1">
+          <Datepicker
+            currentDate={currentDate}
+            setCurrentDate={(next) => {
+              const resolved =
+                typeof next === "function"
+                  ? (next as (prev: Date) => Date)(currentDate)
+                  : next;
+              handleChange(field, formatDate(resolved));
+            }}
+            placeholder={placeholder || ""}
+            type="input"
+            className="min-h-12!"
+          />
+          {error && (
+            <div className="Errors">
+              <Icon icon="mdi:error" width="16" height="16" />
+              {error}
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -85,6 +136,25 @@ const FormSection: React.FC<FormSectionProps> = ({
           className="min-h-12!"
           dropdownClassName="top-[55px]! !h-fit"
           options={options || []}
+        />
+      );
+    }
+
+    if (component === "multiSelect") {
+      const arrayValue = Array.isArray(value)
+        ? value
+        : value
+          ? String(value).split(",").map((v) => v.trim())
+          : [];
+      return (
+        <MultiSelectDropdown
+          key={key ?? field.name}
+          placeholder={placeholder || ""}
+          value={arrayValue}
+          onChange={(vals) => handleChange(field, vals)}
+          className="min-h-12!"
+          options={options || []}
+          dropdownClassName="h-fit!"
         />
       );
     }
@@ -141,12 +211,22 @@ const FormSection: React.FC<FormSectionProps> = ({
         </Accordion>
       </div>
 
-      <Primary
-        href="#"
-        text="Save"
-        classname="max-h-12! text-lg! tracking-wide!"
-        onClick={onSave}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Secondary
+          href="#"
+          text="Clear"
+          onClick={onClear}
+          isDisabled={disableSave}
+          className="h-12! text-lg! tracking-wide!"
+        />
+        <Primary
+          href="#"
+          text={saveLabel ?? "Next"}
+          classname="h-12! text-lg! tracking-wide!"
+          onClick={onSave}
+          isDisabled={disableSave}
+        />
+      </div>
     </div>
   );
 };

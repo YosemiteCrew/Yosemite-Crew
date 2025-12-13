@@ -8,8 +8,9 @@ import {
 } from "@/app/pages/Inventory/types";
 import { BusinessType } from "@/app/types/org";
 import FormSection from "./FormSection";
+import { InventorySectionKey } from "./InventoryConfig";
 
-const labels: { key: keyof InventoryItem; name: string }[] = [
+const labels: { key: InventorySectionKey; name: string }[] = [
   { key: "basicInfo", name: "Basic Information" },
   { key: "classification", name: "Classification attribute" },
   { key: "pricing", name: "Pricing" },
@@ -25,7 +26,7 @@ const emptyInventoryItem: InventoryItem = {
     subCategory: "",
     department: "",
     description: "",
-    status: "Low stock",
+    status: "Active",
 
     // Hospital
     itemType: undefined,
@@ -50,7 +51,7 @@ const emptyInventoryItem: InventoryItem = {
   classification: {
     form: "",
     unitofMeasure: "",
-    species: "",
+    species: [],
     administration: "",
     therapeuticClass: undefined,
     strength: undefined,
@@ -109,18 +110,28 @@ const emptyInventoryItem: InventoryItem = {
 type AddInventoryProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  businessType: BusinessType
+  businessType: BusinessType;
+  onSubmit: (data: InventoryItem) => Promise<void>;
 };
 
-const AddInventory = ({ showModal, setShowModal, businessType }: AddInventoryProps) => {
-  const [activeLabel, setActiveLabel] = useState<keyof InventoryItem>(
+const AddInventory = ({
+  showModal,
+  setShowModal,
+  businessType,
+  onSubmit,
+}: AddInventoryProps) => {
+  const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     labels[0].key
   );
   const [formData, setFormData] = useState<InventoryItem>(emptyInventoryItem);
   const [errors, setErrors] = useState<InventoryErrors>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [sectionStatus, setSectionStatus] = useState<
+    Partial<Record<InventorySectionKey, "valid" | "error">>
+  >({});
 
   const updateSection = (
-    section: keyof InventoryItem,
+    section: InventorySectionKey,
     patch: Record<string, any>
   ) => {
     setFormData((prev) => ({
@@ -129,22 +140,166 @@ const AddInventory = ({ showModal, setShowModal, businessType }: AddInventoryPro
     }));
   };
 
-  const validate = (): boolean => {
-    const nextErrors: InventoryErrors = {};
-    const basic = formData.basicInfo;
-    const be: InventoryErrors["basicInfo"] = {};
-    if (!basic.name) be.name = "Name is required";
-    if (!basic.category) be.category = "Category is required";
-    if (Object.keys(be).length > 0) nextErrors.basicInfo = be;
+  const validateSection = (section: InventorySectionKey): boolean => {
+    const nextErrors: InventoryErrors = { ...errors };
+    const updateStatus = (valid: boolean) => {
+      setSectionStatus((prev) => ({ ...prev, [section]: valid ? "valid" : "error" }));
+    };
+
+    if (section === "basicInfo") {
+      const basic = formData.basicInfo;
+      const be: InventoryErrors["basicInfo"] = {};
+      if (!basic.name) be.name = "Name is required";
+      if (!basic.category) be.category = "Category is required";
+      if (!basic.subCategory) be.subCategory = "Sub category is required";
+      if (Object.keys(be).length > 0) {
+        nextErrors.basicInfo = be;
+        setErrors(nextErrors);
+        updateStatus(false);
+        return false;
+      }
+      delete nextErrors.basicInfo;
+      setErrors(nextErrors);
+      updateStatus(true);
+      return true;
+    }
+
+    if (section === "classification") {
+      const classification = formData.classification;
+      const ce: InventoryErrors["classification"] = {};
+      if (
+        !classification.species ||
+        (Array.isArray(classification.species)
+          ? classification.species.length === 0
+          : classification.species === "")
+      ) {
+        ce.species = "Select at least one species";
+      }
+      if (Object.keys(ce).length > 0) {
+        nextErrors.classification = ce;
+        setErrors(nextErrors);
+        updateStatus(false);
+        return false;
+      }
+      delete nextErrors.classification;
+      setErrors(nextErrors);
+      updateStatus(true);
+      return true;
+    }
+
+    if (section === "pricing") {
+      const pricing = formData.pricing;
+      const pe: InventoryErrors["pricing"] = {};
+      if (!pricing.purchaseCost) pe.purchaseCost = "Purchase cost is required";
+      else if (Number.isNaN(Number(pricing.purchaseCost))) {
+        pe.purchaseCost = "Enter a valid number";
+      }
+      if (!pricing.selling) pe.selling = "Selling price is required";
+      else if (Number.isNaN(Number(pricing.selling))) {
+        pe.selling = "Enter a valid number";
+      }
+      if (Object.keys(pe).length > 0) {
+        nextErrors.pricing = pe;
+        setErrors(nextErrors);
+        updateStatus(false);
+        return false;
+      }
+      delete nextErrors.pricing;
+      setErrors(nextErrors);
+      updateStatus(true);
+      return true;
+    }
+
+    if (section === "stock") {
+      const stock = formData.stock;
+      const se: InventoryErrors["stock"] = {};
+      if (!stock.current) se.current = "On hand quantity is required";
+      else if (Number.isNaN(Number(stock.current))) {
+        se.current = "Enter a valid number";
+      }
+      if (!stock.reorderLevel) se.reorderLevel = "Reorder level is required";
+      else if (Number.isNaN(Number(stock.reorderLevel))) {
+        se.reorderLevel = "Enter a valid number";
+      }
+      if (Object.keys(se).length > 0) {
+        nextErrors.stock = se;
+        setErrors(nextErrors);
+        updateStatus(false);
+        return false;
+      }
+      delete nextErrors.stock;
+      setErrors(nextErrors);
+      updateStatus(true);
+      return true;
+    }
+
+    // Optional sections
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    updateStatus(true);
+    return true;
   };
 
-  const handleSaveAll = () => {
-    if (!validate()) return;
-    console.log("Submitting inventory:", formData);
-    // Submit to API here
+  const validateAll = (): boolean => {
+    const allValid = labels.every((label) => validateSection(label.key));
+    if (!allValid) {
+      const firstInvalid = labels.find(
+        (l) => sectionStatus[l.key] === "error" || !validateSection(l.key)
+      );
+      if (firstInvalid) setActiveLabel(firstInvalid.key);
+    }
+    return allValid;
   };
+
+  const resetForm = () => {
+    setFormData(emptyInventoryItem);
+    setErrors({});
+    setActiveLabel(labels[0].key);
+    setSectionStatus({});
+  };
+
+  const handleSaveAll = async () => {
+    if (isSaving) return;
+    if (!validateAll()) return;
+    setIsSaving(true);
+    try {
+      await onSubmit(formData);
+      resetForm();
+      setShowModal(false);
+    } catch (err) {
+      console.error("Failed to submit inventory:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const goToStep = (target: InventorySectionKey) => {
+    const currentIndex = labels.findIndex((l) => l.key === activeLabel);
+    const targetIndex = labels.findIndex((l) => l.key === target);
+    if (targetIndex > currentIndex) {
+      const valid = validateSection(activeLabel);
+      if (!valid) return;
+    }
+    setActiveLabel(target);
+  };
+
+  const handleNext = async () => {
+    const currentValid = validateSection(activeLabel);
+    if (!currentValid) return;
+    const currentIndex = labels.findIndex((l) => l.key === activeLabel);
+    const nextLabel = labels[currentIndex + 1];
+    if (nextLabel) {
+      setActiveLabel(nextLabel.key);
+      return;
+    }
+    await handleSaveAll();
+  };
+
+  const ctaLabel =
+    activeLabel === labels[labels.length - 1].key
+      ? isSaving
+        ? "Saving..."
+        : "Save"
+      : "Next";
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -169,7 +324,8 @@ const AddInventory = ({ showModal, setShowModal, businessType }: AddInventoryPro
         <SubLabels
           labels={labels}
           activeLabel={activeLabel}
-          setActiveLabel={setActiveLabel}
+          setActiveLabel={goToStep}
+          statuses={sectionStatus}
         />
 
         <div className="flex overflow-y-auto flex-1">
@@ -184,7 +340,10 @@ const AddInventory = ({ showModal, setShowModal, businessType }: AddInventoryPro
             onFieldChange={(section, name, value) =>
               updateSection(section, { [name]: value })
             }
-            onSave={handleSaveAll}
+            onSave={handleNext}
+            saveLabel={ctaLabel}
+            disableSave={isSaving}
+            onClear={resetForm}
           />
         </div>
       </div>

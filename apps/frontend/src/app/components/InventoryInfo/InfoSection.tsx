@@ -15,12 +15,17 @@ type InfoSectionProps = {
   sectionKey: InventorySectionKey;
   sectionTitle: string;
   inventory: InventoryItem;
+  onSaveSection?: (
+    section: InventorySectionKey,
+    values: Record<string, any>
+  ) => Promise<void>;
+  disableEditing?: boolean;
 };
 
 type EditableField = {
   label: string;
   key: string;
-  type: "text" | "select";
+  type: "text" | "select" | "date";
   options?: string[];
 };
 
@@ -29,6 +34,8 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   sectionKey,
   sectionTitle,
   inventory,
+  onSaveSection,
+  disableEditing = false,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] || {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -46,7 +53,11 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   const toEditableField = (field: FieldDef<any>): EditableField => {
     const label = field.label || field.placeholder || field.name;
     const type: EditableField["type"] =
-      field.component === "dropdown" ? "select" : "text";
+      field.component === "dropdown"
+        ? "select"
+        : field.component === "date"
+          ? "date"
+          : "text";
     return {
       label,
       key: field.name,
@@ -82,6 +93,8 @@ const InfoSection: React.FC<InfoSectionProps> = ({
         fields={fields}
         data={data}
         defaultOpen={true}
+        readOnly={disableEditing}
+        onSave={(values) => onSaveSection?.(sectionKey, values)}
       />
     </div>
   );

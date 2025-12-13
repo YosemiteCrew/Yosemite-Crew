@@ -67,6 +67,7 @@ describe("<AddInventory />", () => {
         showModal={true}
         setShowModal={jest.fn()}
         businessType="HOSPITAL"
+        onSubmit={jest.fn().mockResolvedValue(undefined)}
       />,
     );
 
@@ -89,6 +90,7 @@ describe("<AddInventory />", () => {
         showModal={false}
         setShowModal={jest.fn()}
         businessType="GROOMER"
+        onSubmit={jest.fn().mockResolvedValue(undefined)}
       />,
     );
 

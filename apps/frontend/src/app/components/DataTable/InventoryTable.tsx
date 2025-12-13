@@ -4,6 +4,7 @@ import GenericTable from "../GenericTable/GenericTable";
 import InventoryCard from "../Cards/InventoryCard";
 import { InventoryItem } from "@/app/pages/Inventory/types";
 import { IoEye } from "react-icons/io5";
+import { displayStatusLabel, getStatusBadgeStyle } from "@/app/pages/Inventory/utils";
 
 import "./DataTable.css";
 
@@ -21,18 +22,7 @@ type InventoryTableProps = {
 };
 
 export const getStatusStyle = (status: string) => {
-  switch (status?.toLowerCase()) {
-    case "this week":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
-    case "expired":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
-    case "low stock":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
-    case "hidden":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
-    default:
-      return { color: "#6b7280", backgroundColor: "rgba(107,114,128,0.1)" };
-  }
+  return getStatusBadgeStyle(status);
 };
 
 const InventoryTable = ({
@@ -44,6 +34,20 @@ const InventoryTable = ({
     setActiveInventory(inventory);
     setViewInventory(true);
   };
+
+  const formatCurrency = (value: string | number | undefined) => {
+    const num = Number(value ?? 0);
+    if (!Number.isFinite(num)) return "$ 0";
+    return `$ ${num}`;
+  };
+
+  const totalValue = (item: InventoryItem) => {
+    const price = Number(item.pricing.selling ?? 0);
+    const onHand = Number(item.stock.current ?? 0);
+    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return "$ 0";
+    return `$ ${Math.round(price * onHand)}`;
+  };
+
   const columns: Column<InventoryItem>[] = [
     {
       label: "Item name",
@@ -69,7 +73,7 @@ const InventoryTable = ({
       width: "10%",
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {item.stock.current + " units"}
+          {(item.stock.current || 0) + " units"}
         </div>
       ),
     },
@@ -79,7 +83,7 @@ const InventoryTable = ({
       width: "7.5%",
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {"$ " + item.pricing.purchaseCost}
+          {formatCurrency(item.pricing.purchaseCost)}
         </div>
       ),
     },
@@ -89,7 +93,7 @@ const InventoryTable = ({
       width: "7.5%",
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {"$ " + item.pricing.selling}
+          {formatCurrency(item.pricing.selling)}
         </div>
       ),
     },
@@ -99,7 +103,7 @@ const InventoryTable = ({
       width: "10%",
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {"$ " + Number(item.pricing.selling) * Number(item.pricing.selling)}
+          {totalValue(item)}
         </div>
       ),
     },
@@ -128,9 +132,9 @@ const InventoryTable = ({
       render: (item: InventoryItem) => (
         <div
           className="appointment-status"
-          style={getStatusStyle(item.basicInfo.status)}
+          style={getStatusStyle(displayStatusLabel(item))}
         >
-          {item.basicInfo.status}
+          {displayStatusLabel(item)}
         </div>
       ),
     },
@@ -165,7 +169,7 @@ const InventoryTable = ({
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {filteredList.map((item: InventoryItem) => (
           <InventoryCard
-            key={item.basicInfo.name}
+            key={item.id ?? item.basicInfo.name}
             item={item}
             handleViewInventory={handleViewInventory}
           />

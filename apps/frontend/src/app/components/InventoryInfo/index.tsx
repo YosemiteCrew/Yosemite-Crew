@@ -5,15 +5,20 @@ import { IoIosCloseCircleOutline } from "react-icons/io";
 import Modal from "../Modal";
 import SubLabels from "../Labels/SubLabels";
 import InfoSection from "./InfoSection";
+import { Primary, Secondary } from "../Buttons";
+import { InventorySectionKey } from "@/app/components/AddInventory/InventoryConfig";
 
 type InventoryInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeInventory: InventoryItem | null;
   businessType: BusinessType;
+  onUpdate: (item: InventoryItem) => Promise<void>;
+  onHide: (itemId: string) => Promise<void>;
+  onUnhide: (itemId: string) => Promise<void>;
 };
 
-const labels: { key: keyof InventoryItem; name: string }[] = [
+const modalSections: { key: InventorySectionKey; name: string }[] = [
   { key: "basicInfo", name: "Basic Information" },
   { key: "classification", name: "Classification attribute" },
   { key: "pricing", name: "Pricing" },
@@ -27,12 +32,68 @@ const InventoryInfo = ({
   setShowModal,
   activeInventory,
   businessType,
+  onUpdate,
+  onHide,
+  onUnhide,
 }: InventoryInfoProps) => {
-  const [activeLabel, setActiveLabel] = useState<keyof InventoryItem>(
-    labels[0].key
+  const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
+    modalSections[0].key
   );
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isHiding, setIsHiding] = useState(false);
   const currentLabelConfig =
-    labels.find((l) => l.key === activeLabel) || labels[0];
+    modalSections.find((l) => l.key === activeLabel) || modalSections[0];
+
+  const handleSectionSave = async (
+    section: InventorySectionKey,
+    values: Record<string, any>
+  ) => {
+    if (!activeInventory || isUpdating || isHiding) return;
+    setIsUpdating(true);
+    try {
+      const updated: InventoryItem = {
+        ...activeInventory,
+        [section]: {
+          ...(activeInventory as any)[section],
+          ...values,
+        },
+      };
+      await onUpdate(updated);
+    } catch (err) {
+      console.error("Failed to update inventory section:", err);
+      throw err;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleHide = async () => {
+    if (!activeInventory?.id || isHiding) return;
+    setIsHiding(true);
+    try {
+      await onHide(activeInventory.id);
+      setShowModal(false);
+    } catch (err) {
+      console.error("Failed to hide inventory item:", err);
+    } finally {
+      setIsHiding(false);
+    }
+  };
+
+  const handleUnhide = async () => {
+    if (!activeInventory?.id || isHiding) return;
+    setIsHiding(true);
+    try {
+      await onUnhide(activeInventory.id);
+      setShowModal(false);
+    } catch (err) {
+      console.error("Failed to unhide inventory item:", err);
+    } finally {
+      setIsHiding(false);
+    }
+  };
+
+  const isHidden = (activeInventory?.status || "").toUpperCase() === "HIDDEN";
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -55,7 +116,7 @@ const InventoryInfo = ({
         </div>
 
         <SubLabels
-          labels={labels}
+          labels={modalSections}
           activeLabel={activeLabel}
           setActiveLabel={setActiveLabel}
         />
@@ -67,8 +128,35 @@ const InventoryInfo = ({
               sectionKey={activeLabel}
               sectionTitle={currentLabelConfig.name}
               inventory={activeInventory}
+              onSaveSection={handleSectionSave}
+              disableEditing={isUpdating || isHiding}
             />
           ) : null}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Secondary
+            href="#"
+            text="Close"
+            onClick={() => setShowModal(false)}
+            isDisabled={isUpdating || isHiding}
+            className="h-12! text-lg! tracking-wide!"
+          />
+          <Primary
+            href="#"
+            text={
+              isHiding
+                ? isHidden
+                  ? "Unhiding..."
+                  : "Hiding..."
+                : isHidden
+                  ? "Unhide item"
+                  : "Hide item"
+            }
+            onClick={isHidden ? handleUnhide : handleHide}
+            isDisabled={isHiding || isUpdating || !activeInventory?.id}
+            classname="h-12! text-lg! tracking-wide!"
+          />
         </div>
       </div>
     </Modal>

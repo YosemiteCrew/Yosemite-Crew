@@ -96,14 +96,31 @@ const FieldComponents: Record<
       type="country"
     />
   ),
-  date: ({ field, value, onChange }) => (
-    <Datepicker
-      currentDate={value}
-      setCurrentDate={onChange}
-      type="input"
-      placeholder={field.label}
-    />
-  ),
+  date: ({ field, value, onChange }) => {
+    const parseDate = (val: any): Date => {
+      if (!val) return new Date();
+      if (typeof val === "string" && val.includes("/")) {
+        const [dd, mm, yyyy] = val.split("/");
+        const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+      const parsed = new Date(val);
+      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    };
+    const formatDate = (date: Date) => date.toISOString().split("T")[0];
+    return (
+      <Datepicker
+        currentDate={parseDate(value)}
+        setCurrentDate={(next) => {
+          const resolved =
+            typeof next === "function" ? (next as (prev: Date) => Date)(new Date()) : next;
+          onChange(formatDate(resolved));
+        }}
+        type="input"
+        placeholder={field.label}
+      />
+    );
+  },
 };
 
 const normalizeOptions = (
@@ -150,7 +167,9 @@ const FieldValueComponents: Record<
         {field.label + ":"}
       </div>
       <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-        {formValues[field.key] || "-"}
+        {Array.isArray(formValues[field.key])
+          ? (formValues[field.key] as string[]).join(", ")
+          : formValues[field.key] || "-"}
       </div>
     </div>
   ),
@@ -240,18 +259,31 @@ const FieldValueComponents: Record<
       </div>
     </div>
   ),
-  date: ({ field, index, fields, formValues }) => (
-    <div
-      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
-    >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+  date: ({ field, index, fields, formValues }) => {
+    const value = formValues[field.key];
+    const parsed = (() => {
+      if (!value) return null;
+      if (typeof value === "string" && value.includes("/")) {
+        const [dd, mm, yyyy] = value.split("/");
+        const d = new Date(`${yyyy}-${mm}-${dd}`);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
+    })();
+    return (
+      <div
+        className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      >
+        <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+          {field.label + ":"}
+        </div>
+        <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+          {parsed ? getFormattedDate(parsed) : "-"}
+        </div>
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-        {getFormattedDate(formValues[field.key])}
-      </div>
-    </div>
-  ),
+    );
+  },
 };
 
 const RenderValue = (
@@ -288,6 +320,8 @@ const buildInitialValues = (
         value = [initialValue];
       }
       acc[field.key] = value;
+    } else if (field.type === "date") {
+      acc[field.key] = initialValue ?? "";
     } else {
       acc[field.key] = initialValue ?? "";
     }

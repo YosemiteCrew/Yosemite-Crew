@@ -1,5 +1,82 @@
 import { BusinessType } from "@/app/types/org";
 
+export type InventoryStatus = "ACTIVE" | "HIDDEN";
+
+export type StockHealthStatus =
+  | "HEALTHY"
+  | "LOW_STOCK"
+  | "EXPIRED"
+  | "EXPIRING_SOON"
+  | string;
+
+export type InventoryBatchApi = {
+  batchNumber?: string;
+  lotNumber?: string;
+  regulatoryTrackingId?: string;
+  manufactureDate?: string;
+  expiryDate?: string;
+  minShelfLifeAlertDate?: string;
+  quantity?: number;
+  allocated?: number;
+};
+
+export type InventoryApiItem = {
+  _id: string;
+  organisationId: string;
+  businessType: BusinessType;
+  name: string;
+  sku?: string;
+  category?: string;
+  subCategory?: string;
+  description?: string;
+  imageUrl?: string;
+  attributes?: Record<string, any>;
+  onHand?: number;
+  allocated?: number;
+  reorderLevel?: number;
+  unitCost?: number;
+  sellingPrice?: number;
+  currency?: string;
+  vendorId?: string;
+  status?: string;
+  stockHealth?: StockHealthStatus;
+  batches?: InventoryBatchApi[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type InventoryBatchPayload = {
+  batchNumber?: string;
+  lotNumber?: string;
+  regulatoryTrackingId?: string;
+  manufactureDate?: string;
+  expiryDate?: string;
+  minShelfLifeAlertDate?: string;
+  quantity?: number;
+  allocated?: number;
+};
+
+export type InventoryRequestPayload = {
+  organisationId: string;
+  businessType: BusinessType;
+  name: string;
+  sku?: string;
+  category?: string;
+  subCategory?: string;
+  description?: string;
+  imageUrl?: string;
+  attributes?: Record<string, any>;
+  onHand?: number;
+  allocated?: number;
+  reorderLevel?: number;
+  unitCost?: number;
+  sellingPrice?: number;
+  currency?: string;
+  vendorId?: string;
+  status?: string;
+  batches?: InventoryBatchPayload[];
+};
+
 // Primary Information Values
 export const StatusOptions: string[] = [
   "Low stock",
@@ -245,8 +322,8 @@ export const SafetyClassificationOptions: string[] = [
 
 export type ClassificationValues = {
   form: string;
-  unitofMeasure: string;
-  species: string;
+  unitofMeasure: string | string[];
+  species: string | string[];
   administration: string;
 
   // Hospital
@@ -345,6 +422,16 @@ export type BatchValues = {
 };
 
 export interface InventoryItem {
+  id?: string;
+  organisationId?: string;
+  businessType?: BusinessType;
+  stockHealth?: StockHealthStatus;
+  status?: InventoryStatus | string;
+  attributes?: Record<string, any>;
+  sku?: string;
+  imageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
   basicInfo: BasicInfoValues;
   classification: ClassificationValues;
   pricing: PricingValues;
@@ -352,6 +439,12 @@ export interface InventoryItem {
   stock: StockValues;
   batch: BatchValues;
 }
+
+export type InventoryFiltersState = {
+  category: string;
+  status: string;
+  search: string;
+};
 
 export type InventoryErrors = {
   basicInfo?: Partial<Record<keyof BasicInfoValues, string>>;
