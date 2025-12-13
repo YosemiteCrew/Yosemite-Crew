@@ -28,12 +28,22 @@ router.post(
   authorizeCognito,
   InventoryController.archiveItem,
 );
-
+router.post(
+  "/items/:itemId/active",
+  authorizeCognito,
+  InventoryController.activeItem
+)
 router.get(
   "/organisation/:organisationId/items",
   authorizeCognito,
   InventoryController.listItems,
 );
+
+router.get(
+  "/organisation/:organisationId/turnover",
+  authorizeCognito,
+  InventoryController.getInventoryTurnOver
+)
 
 router.get(
   "/items/:itemId",

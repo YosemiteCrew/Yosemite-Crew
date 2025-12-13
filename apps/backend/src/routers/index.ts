@@ -31,7 +31,7 @@ import adverseEventRouter from "./adverse-event.router";
 import taskRouter from "./task.router";
 import inventoryRoter from "./inventory.router";
 import observationToolRouter from "./observationTool.routes";
-import dashboardRouter from "./dashboard.router"
+import dashboardRouter from "./dashboard.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);

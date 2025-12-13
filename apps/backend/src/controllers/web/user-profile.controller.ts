@@ -104,7 +104,7 @@ export const UserProfileController = {
     }
   },
 
-  getProfilePictureUploadUrl: async(req: Request, res: Response) => {
+  getProfilePictureUploadUrl: async (req: Request, res: Response) => {
     try {
       const { organizationId, userId } = req.params;
       if (!organizationId || !userId) {
@@ -128,12 +128,12 @@ export const UserProfileController = {
       const { url, key } = await generatePresignedUrl(
         mimeType,
         "user-org",
-        `${userId}-${organizationId}`
-      )
+        `${userId}-${organizationId}`,
+      );
       res.status(200).json({ uploadUrl: url, s3Key: key });
     } catch (error) {
       logger.error("Failed to generate logo upload URL", error);
       res.status(500).json({ message: "Unable to generate logo upload URL." });
     }
-  }
+  },
 };

@@ -81,7 +81,14 @@ const getErrorCode = (error: unknown): string | undefined => {
 };
 
 const buildS3Key = (
-  type: "temp" | "user" | "org" | "custom" | "parent" | "companion" | "user-org",
+  type:
+    | "temp"
+    | "user"
+    | "org"
+    | "custom"
+    | "parent"
+    | "companion"
+    | "user-org",
   idOrFolder?: string,
   mimeType?: string,
 ): string => {
@@ -100,7 +107,7 @@ const buildS3Key = (
     case "custom":
       return `${idOrFolder}/${uuidv4()}${ext}`;
     case "user-org":
-      return `user-org/${idOrFolder}/${uuidv4()}${ext}`
+      return `user-org/${idOrFolder}/${uuidv4()}${ext}`;
     default:
       throw new Error("Invalid upload type");
   }
@@ -165,7 +172,14 @@ async function uploadBufferAsFile(
 
 async function generatePresignedUrl(
   mimeType: string,
-  type: "temp" | "user" | "org" | "custom" | "parent" | "companion" | "user-org",
+  type:
+    | "temp"
+    | "user"
+    | "org"
+    | "custom"
+    | "parent"
+    | "companion"
+    | "user-org",
   idOrFolder?: string,
 ) {
   const bucket = getBucketName();

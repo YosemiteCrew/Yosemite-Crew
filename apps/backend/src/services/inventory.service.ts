@@ -181,6 +181,28 @@ const computeStockHealthStatus = (args: {
   return "HEALTHY";
 };
 
+export type InventoryTurnoverStatus =
+  | "EXCELLENT"
+  | "HEALTHY"
+  | "MODERATE"
+  | "LOW";
+
+export interface InventoryTurnoverRow {
+  itemId: string;
+  itemName: string;
+  subCategory?: string;
+
+  beginningInventory: number;
+  endingInventory: number;
+  avgInventory: number;
+
+  totalPurchases: number;
+  turnsPerYear: number;
+  daysOnShelf: number;
+
+  status: InventoryTurnoverStatus;
+}
+
 /**
  * HELPER: Recompute onHand and allocated from batches
  */
@@ -228,6 +250,15 @@ const logMovement = async (payload: StockMovementInput) => {
     ...payload,
     createdAt: new Date(),
   });
+};
+
+const computeTurnoverStatus = (
+  turnsPerYear: number,
+): InventoryTurnoverStatus => {
+  if (turnsPerYear >= 12) return "EXCELLENT";
+  if (turnsPerYear >= 6) return "HEALTHY";
+  if (turnsPerYear >= 3) return "MODERATE";
+  return "LOW";
 };
 
 export const InventoryService = {
@@ -368,6 +399,17 @@ export const InventoryService = {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
     item.status = "DELETED";
+    await item.save();
+    return item;
+  },
+
+  async activeItem(itemId: string): Promise<InventoryItemDocument> {
+    ensureObjectId(itemId, "itemId");
+    const item = await InventoryItemModel.findById(itemId).exec();
+    if (!item) {
+      throw new InventoryServiceError("Inventory item not found", 404);
+    }
+    item.status = "ACTIVE";
     await item.save();
     return item;
   },
@@ -621,6 +663,109 @@ export const InventoryService = {
 
     // Later you can log StockMovement here
     return item;
+  },
+
+  async getInventoryTurnoverByItem (params: {
+    organisationId: string;
+    from?: Date; // default: 12 months ago
+    to?: Date; // default: now
+  }) {
+    const { organisationId } = params;
+
+    const to = params.to ?? new Date();
+    const from = params.from ?? dayjs(to).subtract(12, "month").toDate();
+
+    // 1️⃣ Fetch all active items for org
+    const items = await InventoryItemModel.find({
+      organisationId,
+      status: { $ne: "DELETED" },
+    }).exec();
+
+    if (!items.length) return [];
+
+    const itemIds = items.map((i) => i._id.toString());
+
+    // 2️⃣ Fetch stock movements (PURCHASE ONLY)
+    const movements = await StockMovementModel.find({
+      organisationId,
+      itemId: { $in: itemIds },
+      reason: "PURCHASE",
+      change: { $gt: 0 },
+      createdAt: { $gte: from, $lte: to },
+    }).lean();
+
+    // Group purchases by item
+    const purchasesByItem = new Map<string, number>();
+    for (const m of movements) {
+      const key = m.itemId.toString();
+      purchasesByItem.set(key, (purchasesByItem.get(key) ?? 0) + m.change);
+    }
+
+    const results: Array<{
+      itemId: string;
+      name: string;
+      category: string;
+      subCategory?: string;
+
+      beginningInventory: number;
+      endingInventory: number;
+      avgInventory: number;
+      totalPurchased: number;
+      turnsPerYear: number;
+      daysOnShelf: number;
+    }> = [];
+
+    // 3️⃣ Compute inventory snapshots per item
+    for (const item of items) {
+      const itemId = item._id.toString();
+
+      // Ending inventory = current onHand
+      const endingInventory = item.onHand ?? 0;
+
+      // Beginning inventory = ending - net purchases + net consumption
+      // Instead of guessing, we reconstruct from batches at `from`
+      const batchesAtStart = await InventoryBatchModel.aggregate([
+        {
+          $match: {
+            organisationId,
+            itemId: itemId,
+            createdAt: { $lte: from },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            qty: { $sum: "$quantity" },
+          },
+        },
+      ]);
+
+      const beginningInventory = batchesAtStart[0]?.qty ?? 0;
+
+      const avgInventory = (beginningInventory + endingInventory) / 2;
+
+      const totalPurchased = purchasesByItem.get(itemId) ?? 0;
+
+      const turnsPerYear = avgInventory > 0 ? totalPurchased / avgInventory : 0;
+
+      const daysOnShelf = turnsPerYear > 0 ? 365 / turnsPerYear : 0;
+
+      results.push({
+        itemId,
+        name: item.name,
+        category: item.category,
+        subCategory: item.subCategory,
+
+        beginningInventory,
+        endingInventory,
+        avgInventory,
+        totalPurchased,
+        turnsPerYear: Number(turnsPerYear.toFixed(2)),
+        daysOnShelf: Number(daysOnShelf.toFixed(1)),
+      });
+    }
+
+    return results;
   },
 };
 

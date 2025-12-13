@@ -21,6 +21,7 @@ import {
   InventoryVendorDocument,
   InventoryMetaFieldDocument,
 } from "src/models/inventory";
+import logger from "src/utils/logger";
 
 type EmptyParams = Record<string, never>;
 
@@ -125,6 +126,19 @@ export const InventoryController = {
     try {
       const { itemId } = req.params;
       const item = await InventoryService.hideItem(itemId);
+      res.json(item);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  activeItem: async (
+    req: Request<{ itemId: string }>,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      const { itemId } = req.params;
+      const item = await InventoryService.activeItem(itemId);
       res.json(item);
     } catch (error) {
       handleError(error, res);
@@ -376,6 +390,40 @@ export const InventoryController = {
       handleError(error, res);
     }
   },
+
+  getInventoryTurnOver : async (req: Request, res: Response) => {
+    try {
+      const { organisationId } = req.params
+
+      const from = req.query.from
+        ? new Date(req.query.from as string)
+        : undefined;
+
+      const to = req.query.to
+        ? new Date(req.query.to as string)
+        : undefined;
+
+      const result = await InventoryService.getInventoryTurnoverByItem({
+        organisationId,
+        from,
+        to,
+      });
+
+      res.status(200).json({
+        organisationId,
+        from: from ?? "last_12_months",
+        to: to ?? new Date(),
+        items: result,
+      });
+    } catch (error) {
+      if (error instanceof InventoryServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      logger.error("Failed to get inventory turnover", error);
+      return res.status(500).json({ message: "Failed to load inventory turnover" });
+    }
+  }
 };
 
 /**
