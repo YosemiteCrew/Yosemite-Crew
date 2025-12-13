@@ -267,7 +267,7 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   async createItem(
     input: CreateInventoryItemInput,
-  ): Promise<InventoryItemDocument> {
+  ){
     if (!input.organisationId) {
       throw new InventoryServiceError("organisationId is required", 400);
     }
@@ -331,7 +331,14 @@ export const InventoryService = {
       await item.save();
     }
 
-    return item;
+    const batches = await InventoryBatchModel.find({ itemId: item.id, organisationId: item.organisationId})
+        .sort({ expiryDate: 1 })
+        .exec()
+
+    return {
+      item,
+      batches
+    }
   },
 
   // ─────────────────────────────────────────────
@@ -340,7 +347,7 @@ export const InventoryService = {
   async updateItem(
     itemId: string,
     input: UpdateInventoryItemInput,
-  ): Promise<InventoryItemDocument> {
+  ){
     ensureObjectId(itemId, "itemId");
 
     const item = await InventoryItemModel.findById(itemId).exec();
@@ -375,7 +382,15 @@ export const InventoryService = {
     if (input.status !== undefined) item.status = input.status;
 
     await item.save();
-    return item;
+
+    const batches = await InventoryBatchModel.find({ itemId, organisationId: item.organisationId})
+        .sort({ expiryDate: 1 })
+        .exec()
+
+    return {
+      item,
+      batches
+    }
   },
 
   // ─────────────────────────────────────────────

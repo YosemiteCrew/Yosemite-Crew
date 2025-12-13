@@ -20,6 +20,11 @@ import helpers from "src/utils/helper";
 
 dayjs.extend(utc);
 
+
+type BookableSlotWithVets = AvailabilitySlotMongo & {
+  vetIds: string[];
+};
+
 export class ServiceServiceError extends Error {
   constructor(
     message: string,
@@ -202,81 +207,103 @@ export const ServiceService = {
   },
 
   async getBookableSlotsService(
-    serviceId: string,
-    organisationId: string,
-    referenceDate: Date,
-  ) {
-    const id = ensureObjectId(serviceId, "serviceId");
+  serviceId: string,
+  organisationId: string,
+  referenceDate: Date,
+) {
+  const id = ensureObjectId(serviceId, "serviceId");
 
-    const service = await ServiceModel.findOne({ _id: id });
-    if (!service) throw new Error("Service not found");
+  const service = await ServiceModel.findById(id);
+  if (!service) throw new Error("Service not found");
 
-    const { specialityId, durationMinutes } = service;
+  const { specialityId, durationMinutes } = service;
 
-    const speciality = await SpecialityModel.findById(specialityId);
-    if (!speciality) throw new Error("Speciality not found");
+  const speciality = await SpecialityModel.findById(specialityId);
+  if (!speciality) throw new Error("Speciality not found");
 
-    const vetIds = speciality.memberUserIds || [];
+  const vetIds = speciality.memberUserIds || [];
 
-    if (vetIds.length === 0) {
-      return {
-        date: referenceDate,
-        windows: [],
-      };
-    }
+  if (vetIds.length === 0) {
+    return {
+      date: referenceDate,
+      windows: [],
+    };
+  }
 
-    const allWindows: AvailabilitySlotMongo[] = [];
+  /**
+   * STEP 1: Collect slots with vetId attached
+   */
+  const allSlots: Array<BookableSlotWithVets> = [];
 
-    for (const vetId of vetIds) {
-      const result = await AvailabilityService.getBookableSlotsForDate(
-        organisationId,
-        vetId,
-        durationMinutes,
-        referenceDate,
-      );
-
-      if (result?.windows?.length) {
-        allWindows.push(...result.windows);
-      }
-    }
-
-    const uniqueSlotsMap = new Map<string, AvailabilitySlotMongo>();
-
-    for (const w of allWindows) {
-      const key = `${w.startTime}-${w.endTime}`;
-      uniqueSlotsMap.set(key, w);
-    }
-
-    let finalWindows: AvailabilitySlotMongo[] = Array.from(
-      uniqueSlotsMap.values(),
+  for (const vetId of vetIds) {
+    const result = await AvailabilityService.getBookableSlotsForDate(
+      organisationId,
+      vetId,
+      durationMinutes,
+      referenceDate,
     );
 
-    // Remove past slots if referenceDate == today
-    const todayStr = dayjs().utc().format("YYYY-MM-DD");
-    const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
-
-    if (refStr === todayStr) {
-      const now = dayjs().utc();
-
-      finalWindows = finalWindows.filter((slot) => {
-        const slotTime = dayjs(`${refStr} ${slot.startTime}`).utc();
-        return slotTime.isAfter(now);
-      });
+    if (result?.windows?.length) {
+      for (const slot of result.windows) {
+        allSlots.push({
+          ...slot,
+          vetIds: [vetId],
+        });
+      }
     }
+  }
 
-    // Sort ascending by time
-    finalWindows.sort((a, b) => {
-      const t1 = dayjs(`2000-01-01 ${a.startTime}`);
-      const t2 = dayjs(`2000-01-01 ${b.startTime}`);
-      return t1.valueOf() - t2.valueOf();
+  /**
+   * STEP 2: Deduplicate slots and merge vetIds
+   */
+  const slotMap = new Map<string, BookableSlotWithVets>();
+
+  for (const slot of allSlots) {
+    const key = `${slot.startTime}-${slot.endTime}`;
+
+    if (!slotMap.has(key)) {
+      slotMap.set(key, slot);
+    } else {
+      const existing = slotMap.get(key)!;
+      existing.vetIds.push(...slot.vetIds);
+    }
+  }
+
+  let finalWindows = Array.from(slotMap.values()).map((slot) => ({
+    ...slot,
+    vetIds: Array.from(new Set(slot.vetIds)), // ensure uniqueness
+  }));
+
+  /**
+   * STEP 3: Remove past slots if today
+   */
+  const todayStr = dayjs().utc().format("YYYY-MM-DD");
+  const refStr = dayjs(referenceDate).utc().format("YYYY-MM-DD");
+
+  if (refStr === todayStr) {
+    const now = dayjs().utc();
+
+    finalWindows = finalWindows.filter((slot) => {
+      const slotTime = dayjs(`${refStr} ${slot.startTime}`).utc();
+      return slotTime.isAfter(now);
     });
+  }
 
-    return {
-      date: refStr,
-      dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
-      windows: finalWindows,
-    };
-  },
+  /**
+   * STEP 4: Sort slots by start time
+   */
+  finalWindows.sort((a, b) => {
+    const t1 = dayjs(`2000-01-01 ${a.startTime}`);
+    const t2 = dayjs(`2000-01-01 ${b.startTime}`);
+    return t1.valueOf() - t2.valueOf();
+  });
+
+  return {
+    date: refStr,
+    dayOfWeek: dayjs(referenceDate).utc().format("dddd").toUpperCase(),
+    windows: finalWindows,
+  };
+},
 
   async listOrganisationsProvidingServiceNearby(
     serviceName: string,
