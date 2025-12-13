@@ -399,6 +399,21 @@ export const InventoryFormConfig: Record<
         },
       },
       {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
+      },
+      {
         kind: "field",
         field: {
           name: "manufactureDate",
@@ -719,6 +734,21 @@ export const InventoryFormConfig: Record<
           placeholder: "Batch / Lot Number",
           component: "text",
         },
+      },
+      {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
       },
       {
         kind: "field",
@@ -1058,6 +1088,21 @@ export const InventoryFormConfig: Record<
         },
       },
       {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
+      },
+      {
         kind: "field",
         field: {
           name: "litterId",
@@ -1361,6 +1406,21 @@ export const InventoryFormConfig: Record<
           placeholder: "Batch / Lot Number",
           component: "text",
         },
+      },
+      {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
       },
       {
         kind: "field",

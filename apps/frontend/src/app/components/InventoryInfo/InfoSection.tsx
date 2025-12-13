@@ -20,6 +20,17 @@ type InfoSectionProps = {
     values: Record<string, any>
   ) => Promise<void>;
   disableEditing?: boolean;
+  onEditingChange?: (editing: boolean) => void;
+  onRegisterActions?: (
+    actions:
+      | {
+          save: () => Promise<void>;
+          cancel: () => void;
+          startEditing: () => void;
+          isEditing: () => boolean;
+        }
+      | null
+  ) => void;
 };
 
 type EditableField = {
@@ -36,6 +47,8 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   inventory,
   onSaveSection,
   disableEditing = false,
+  onEditingChange,
+  onRegisterActions,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] || {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -95,6 +108,9 @@ const InfoSection: React.FC<InfoSectionProps> = ({
         defaultOpen={true}
         readOnly={disableEditing}
         onSave={(values) => onSaveSection?.(sectionKey, values)}
+        hideInlineActions
+        onEditingChange={onEditingChange}
+        onRegisterActions={onRegisterActions}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Primary } from "@/app/components/Buttons";
 import InventoryFilters from "@/app/components/Filters/InventoryFilters";
+import InventoryTurnoverFilters from "@/app/components/Filters/InventoryTurnoverFilters";
 import InventoryTable from "@/app/components/DataTable/InventoryTable";
 import AddInventory from "@/app/components/AddInventory";
 import InventoryTurnoverTable from "@/app/components/DataTable/InventoryTurnoverTable";
@@ -11,9 +12,11 @@ import {
   CategoryOptionsByBusiness,
   InventoryFiltersState,
   InventoryItem,
+  InventoryTurnoverItem,
 } from "./types";
 import {
   buildInventoryPayload,
+  buildBatchPayload,
   defaultFilters,
   mapApiItemToInventoryItem,
   formatStatusLabel,
@@ -24,6 +27,8 @@ import {
   hideInventoryItem,
   updateInventoryItem,
   unhideInventoryItem,
+  fetchInventoryTurnover,
+  createInventoryBatch,
 } from "@/app/services/inventoryService";
 import { BusinessType, BusinessTypes } from "@/app/types/org";
 import { useOrgStore } from "@/app/stores/orgStore";
@@ -43,6 +48,8 @@ const Inventory = () => {
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
+  const [turnoverList, setTurnoverList] = useState<InventoryTurnoverItem[]>([]);
+  const [filteredTurnoverList, setFilteredTurnoverList] = useState<InventoryTurnoverItem[]>([]);
   const [addPopup, setAddPopup] = useState(false);
   const [viewInventory, setViewInventory] = useState(false);
   const [activeInventory, setActiveInventory] = useState<InventoryItem | null>(
@@ -81,7 +88,7 @@ const Inventory = () => {
   );
 
   const loadInventory = useCallback(
-    async (orgId?: string) => {
+    async (orgId?: string, focusItemId?: string) => {
       const orgToUse = orgId ?? primaryOrgId;
       if (!orgToUse) {
         setInventory([]);
@@ -91,12 +98,21 @@ const Inventory = () => {
       setLoadingList(true);
       setError(null);
       try {
-        const data = await fetchInventoryItems(orgToUse);
-        const mapped = data.map((entry) =>
+        const [items, turnover] = await Promise.all([
+          fetchInventoryItems(orgToUse),
+          fetchInventoryTurnover(orgToUse),
+        ]);
+        const mapped = items.map((entry) =>
           withResolvedBusinessType(mapApiItemToInventoryItem(entry))
         );
         setInventory(mapped);
+        setTurnoverList(turnover);
+        setFilteredTurnoverList(turnover);
         setActiveInventory((prev) => {
+          if (focusItemId) {
+            const focused = mapped.find((i) => i.id === focusItemId);
+            if (focused) return focused;
+          }
           const existing = prev ? mapped.find((i) => i.id === prev.id) : null;
           return existing ?? mapped[0] ?? null;
         });
@@ -199,6 +215,30 @@ const Inventory = () => {
     }
   };
 
+  const handleAddBatch = async (itemId: string, batches: any[]) => {
+    if (!itemId) return;
+    setError(null);
+    try {
+      const payloads = batches
+        .map((b) =>
+          buildBatchPayload({
+            ...b,
+            itemId,
+            organisationId: primaryOrgId ?? "",
+          } as any)
+        )
+        .filter(Boolean);
+      const created = await Promise.all(
+        payloads.map((p) => createInventoryBatch(itemId, p!))
+      );
+      // Reload inventory to reflect latest batches from API and update active item
+      await loadInventory(primaryOrgId, itemId);
+    } catch (err) {
+      setError("Unable to add batch.");
+      throw err;
+    }
+  };
+
   const handleHideInventory = async (itemId: string) => {
     if (!itemId) return;
     setError(null);
@@ -297,7 +337,11 @@ const Inventory = () => {
         <div className="font-grotesk font-medium text-black-text text-[33px]">
           Turnover
         </div>
-        <InventoryTurnoverTable filteredList={[]} />
+        <InventoryTurnoverFilters
+          list={turnoverList}
+          setFilteredList={setFilteredTurnoverList}
+        />
+        <InventoryTurnoverTable filteredList={filteredTurnoverList} />
       </div>
 
       <AddInventory
@@ -314,6 +358,7 @@ const Inventory = () => {
           activeInventory={activeInventory}
           businessType={activeInventory.businessType ?? resolvedBusinessType}
           onUpdate={handleUpdateInventory}
+          onAddBatch={handleAddBatch}
           onHide={handleHideInventory}
           onUnhide={handleUnhideInventory}
         />

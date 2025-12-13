@@ -5,7 +5,7 @@ import { Primary, Secondary } from "../Buttons";
 import Dropdown from "../Inputs/Dropdown/Dropdown";
 import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import Datepicker from "../Inputs/Datepicker";
-import { getFormattedDate } from "../Calendar/weekHelpers";
+import { formatDisplayDate } from "@/app/pages/Inventory/utils";
 
 type FieldConfig = {
   label: string;
@@ -23,6 +23,16 @@ type EditableAccordionProps = {
   showEditIcon?: boolean;
   readOnly?: boolean;
   onSave?: (values: FormValues) => void | Promise<void>;
+  hideInlineActions?: boolean;
+  onEditingChange?: (isEditing: boolean) => void;
+  onRegisterActions?: (
+    actions: {
+      save: () => Promise<void>;
+      cancel: () => void;
+      startEditing: () => void;
+      isEditing: () => boolean;
+    } | null
+  ) => void;
 };
 
 const FieldComponents: Record<
@@ -261,16 +271,6 @@ const FieldValueComponents: Record<
   ),
   date: ({ field, index, fields, formValues }) => {
     const value = formValues[field.key];
-    const parsed = (() => {
-      if (!value) return null;
-      if (typeof value === "string" && value.includes("/")) {
-        const [dd, mm, yyyy] = value.split("/");
-        const d = new Date(`${yyyy}-${mm}-${dd}`);
-        return Number.isNaN(d.getTime()) ? null : d;
-      }
-      const d = new Date(value);
-      return Number.isNaN(d.getTime()) ? null : d;
-    })();
     return (
       <div
         className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
@@ -279,7 +279,7 @@ const FieldValueComponents: Record<
           {field.label + ":"}
         </div>
         <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-          {parsed ? getFormattedDate(parsed) : "-"}
+          {formatDisplayDate(value) || "-"}
         </div>
       </div>
     );
@@ -352,6 +352,9 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   showEditIcon = true,
   readOnly = false,
   onSave,
+  hideInlineActions = false,
+  onEditingChange,
+  onRegisterActions,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(() =>
@@ -392,6 +395,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   useEffect(() => {
     if (readOnly && isEditing) {
       setIsEditing(false);
+      onEditingChange?.(false);
     }
   }, [readOnly, isEditing]);
 
@@ -405,6 +409,30 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       console.error("Failed to save accordion data:", e);
     }
   };
+
+  useEffect(() => {
+    onEditingChange?.(isEditing);
+  }, [isEditing, onEditingChange]);
+
+  useEffect(() => {
+    onRegisterActions?.({
+      save: handleSave,
+      cancel: handleCancel,
+      startEditing: () => {
+        setIsEditing(true);
+      },
+      isEditing: () => isEditing,
+    });
+    return () => onRegisterActions?.(null);
+  }, [
+    onRegisterActions,
+    handleSave,
+    handleCancel,
+    isEditing,
+    onEditingChange,
+    fields,
+    data,
+  ]);
 
   const effectiveEditing = readOnly ? false : isEditing;
 
@@ -443,7 +471,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         </div>
       </Accordion>
 
-      {isEditing && (
+      {isEditing && !hideInlineActions && (
         <div className="grid grid-cols-2 gap-3">
           <Secondary
             href="#"

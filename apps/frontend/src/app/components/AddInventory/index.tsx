@@ -6,6 +6,7 @@ import {
   InventoryItem,
   InventoryErrors,
 } from "@/app/pages/Inventory/types";
+import { calculateBatchTotals } from "@/app/pages/Inventory/utils";
 import { BusinessType } from "@/app/types/org";
 import FormSection from "./FormSection";
 import { InventorySectionKey } from "./InventoryConfig";
@@ -104,7 +105,10 @@ const emptyInventoryItem: InventoryItem = {
     tracking: undefined,
     litterId: undefined,
     nextRefillDate: undefined,
+    quantity: "",
+    allocated: "",
   },
+  batches: [],
 };
 
 type AddInventoryProps = {
@@ -132,8 +136,28 @@ const AddInventory = ({
 
   const updateSection = (
     section: InventorySectionKey,
-    patch: Record<string, any>
+    patch: Record<string, any>,
+    index?: number
   ) => {
+    if (section === "batch") {
+      setFormData((prev) => {
+        const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
+        const targetIndex = index ?? 0;
+        batches[targetIndex] = { ...(batches[targetIndex] ?? {}), ...patch };
+        const totals = calculateBatchTotals(batches);
+        const stock = { ...prev.stock };
+        if (totals.onHand !== undefined) stock.current = String(totals.onHand);
+        if (totals.allocated !== undefined) stock.allocated = String(totals.allocated);
+        if (totals.available !== undefined) stock.available = String(totals.available);
+        return {
+          ...prev,
+          batch: batches[0],
+          batches,
+          stock,
+        };
+      });
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
       [section]: { ...prev[section], ...patch },
@@ -251,7 +275,10 @@ const AddInventory = ({
   };
 
   const resetForm = () => {
-    setFormData(emptyInventoryItem);
+    setFormData({
+      ...emptyInventoryItem,
+      batches: [emptyInventoryItem.batch],
+    });
     setErrors({});
     setActiveLabel(labels[0].key);
     setSectionStatus({});
@@ -337,13 +364,60 @@ const AddInventory = ({
             }
             formData={formData}
             errors={errors}
-            onFieldChange={(section, name, value) =>
-              updateSection(section, { [name]: value })
+            onFieldChange={(section, name, value, index) =>
+              updateSection(section, { [name]: value }, index)
             }
             onSave={handleNext}
             saveLabel={ctaLabel}
             disableSave={isSaving}
             onClear={resetForm}
+            onAddBatch={() =>
+              setFormData((prev) => {
+                const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
+                const nextBatches = [
+                  ...batches,
+                  {
+                    batch: "",
+                    manufactureDate: "",
+                    expiryDate: "",
+                    serial: undefined,
+                    tracking: undefined,
+                    litterId: undefined,
+                    nextRefillDate: undefined,
+                    quantity: "",
+                    allocated: "",
+                  },
+                ];
+                const totals = calculateBatchTotals(nextBatches);
+                const stock = { ...prev.stock };
+                if (totals.onHand !== undefined) stock.current = String(totals.onHand);
+                if (totals.allocated !== undefined) stock.allocated = String(totals.allocated);
+                if (totals.available !== undefined) stock.available = String(totals.available);
+                return {
+                  ...prev,
+                  batches: nextBatches,
+                  batch: nextBatches[0] ?? emptyInventoryItem.batch,
+                  stock,
+                };
+              })
+            }
+            onRemoveBatch={(index) =>
+              setFormData((prev) => {
+                const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
+                const next = batches.filter((_, i) => i !== index);
+                const totals = calculateBatchTotals(next);
+                const stock = { ...prev.stock };
+                if (totals.onHand !== undefined) stock.current = String(totals.onHand);
+                if (totals.allocated !== undefined) stock.allocated = String(totals.allocated);
+                if (totals.available !== undefined) stock.available = String(totals.available);
+                return {
+                  ...prev,
+                  batch: next[0] ?? emptyInventoryItem.batch,
+                  batches: next.length ? next : [emptyInventoryItem.batch],
+                  stock,
+                };
+              })
+            }
           />
         </div>
       </div>

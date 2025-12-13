@@ -26,12 +26,15 @@ type FormSectionProps = {
   onFieldChange: (
     section: InventorySectionKey,
     name: string,
-    value: string | string[]
+    value: string | string[],
+    index?: number
   ) => void;
   onSave?: () => void;
   saveLabel?: string;
   disableSave?: boolean;
   onClear?: () => void;
+  onAddBatch?: () => void;
+  onRemoveBatch?: (index: number) => void;
 };
 
 const FormSection: React.FC<FormSectionProps> = ({
@@ -45,6 +48,8 @@ const FormSection: React.FC<FormSectionProps> = ({
   saveLabel,
   disableSave,
   onClear,
+  onAddBatch,
+  onRemoveBatch,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] || {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -56,15 +61,15 @@ const FormSection: React.FC<FormSectionProps> = ({
   const sectionData = formData[sectionKey] as any;
   const sectionErrors = (errors as Record<InventorySectionKey, any>)[sectionKey];
 
-  const parseDate = (value?: string): Date => {
-    if (!value) return new Date();
+  const parseDate = (value?: string): Date | null => {
+    if (!value) return null;
     if (value.includes("/")) {
       const [dd, mm, yyyy] = value.split("/");
       const parsed = new Date(`${yyyy}-${mm}-${dd}`);
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? new Date() : date;
+    return Number.isNaN(date.getTime()) ? null : date;
   };
 
   const formatDate = (date: Date) => date.toISOString().split("T")[0];
@@ -74,14 +79,28 @@ const FormSection: React.FC<FormSectionProps> = ({
   const getError = (field: FieldDef<any>): string | undefined =>
     sectionErrors?.[field.name];
 
-  const handleChange = (field: FieldDef<any>, value: string | string[]) => {
-    onFieldChange(sectionKey, field.name, value);
+  const handleChange = (
+    field: FieldDef<any>,
+    value: string | string[],
+    batchIndex?: number
+  ) => {
+    onFieldChange(sectionKey, field.name, value, batchIndex);
   };
 
-  const renderField = (field: FieldDef<any>, key?: React.Key) => {
+  const renderField = (
+    field: FieldDef<any>,
+    key?: React.Key,
+    index?: number
+  ) => {
     const { placeholder, component, options } = field;
-    const value = getValue(field);
-    const error = getError(field);
+    const value =
+      sectionKey === "batch" && typeof index === "number"
+        ? (formData.batches?.[index] as any)?.[field.name] ?? ""
+        : getValue(field);
+    const error =
+      sectionKey === "batch" && typeof index === "number"
+        ? (errors.batch as any)?.[field.name]
+        : getError(field);
 
     if (component === "text") {
       return (
@@ -91,7 +110,7 @@ const FormSection: React.FC<FormSectionProps> = ({
           inname={field.name}
           value={value}
           inlabel={placeholder || ""}
-          onChange={(e) => handleChange(field, e.target.value)}
+          onChange={(e) => handleChange(field, e.target.value, index)}
           error={error}
           className="min-h-12!"
         />
@@ -107,9 +126,13 @@ const FormSection: React.FC<FormSectionProps> = ({
             setCurrentDate={(next) => {
               const resolved =
                 typeof next === "function"
-                  ? (next as (prev: Date) => Date)(currentDate)
+                  ? (next as (prev: Date | null) => Date | null)(currentDate)
                   : next;
-              handleChange(field, formatDate(resolved));
+              if (!resolved) {
+                handleChange(field, "", index);
+                return;
+              }
+              handleChange(field, formatDate(resolved), index);
             }}
             placeholder={placeholder || ""}
             type="input"
@@ -131,7 +154,7 @@ const FormSection: React.FC<FormSectionProps> = ({
           key={key ?? field.name}
           placeholder={placeholder || ""}
           value={value}
-          onChange={(v) => handleChange(field, v)}
+          onChange={(v) => handleChange(field, v, index)}
           error={error}
           className="min-h-12!"
           dropdownClassName="top-[55px]! !h-fit"
@@ -151,7 +174,7 @@ const FormSection: React.FC<FormSectionProps> = ({
           key={key ?? field.name}
           placeholder={placeholder || ""}
           value={arrayValue}
-          onChange={(vals) => handleChange(field, vals)}
+          onChange={(vals) => handleChange(field, vals as string[], index)}
           className="min-h-12!"
           options={options || []}
           dropdownClassName="h-fit!"
@@ -167,7 +190,7 @@ const FormSection: React.FC<FormSectionProps> = ({
           inname={field.name}
           value={value}
           inlabel={placeholder || ""}
-          onChange={(e) => handleChange(field, e.target.value)}
+          onChange={(e) => handleChange(field, e.target.value, index)}
           className="min-h-[120px]!"
         />
       );
@@ -176,18 +199,20 @@ const FormSection: React.FC<FormSectionProps> = ({
     return null;
   };
 
-  const renderItem = (item: ConfigItem<any>, index: number) => {
+  const renderItem = (item: ConfigItem<any>, index: number, batchIndex?: number) => {
     if ("fields" in item && item.kind === "row") {
       return (
         <div key={index} className="grid grid-cols-2 gap-3">
-          {item.fields.map((field, i) => renderField(field, `${index}-${i}`))}
+          {item.fields.map((field, i) =>
+            renderField(field, `${index}-${i}`, batchIndex)
+          )}
         </div>
       );
     }
 
     return (
       <div key={index} className="w-full">
-        {renderField(item.field, index)}
+        {renderField(item.field, index, batchIndex)}
       </div>
     );
   };
@@ -205,9 +230,47 @@ const FormSection: React.FC<FormSectionProps> = ({
           showEditIcon={false}
           isEditing={true}
         >
-          <div className="flex flex-col gap-3">
-            {sectionConfig.map((item, index) => renderItem(item, index))}
-          </div>
+          {sectionKey === "batch" ? (
+            <div className="flex flex-col gap-6">
+              {(formData.batches && formData.batches.length > 0
+                ? formData.batches
+                : [formData.batch]
+              ).map((_, batchIdx) => (
+                <div key={batchIdx} className="flex flex-col gap-3 border border-grey-light rounded-xl p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-satoshi font-semibold text-black-text">
+                      Batch {batchIdx + 1}
+                    </div>
+                    {formData.batches && formData.batches.length > 1 && (
+                      <button
+                        type="button"
+                        className="text-red-500 text-sm font-semibold"
+                        onClick={() => onRemoveBatch?.(batchIdx)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {sectionConfig.map((item, index) =>
+                      renderItem(item, index, batchIdx)
+                    )}
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => onAddBatch?.()}
+                className="w-full h-12 rounded-xl border border-dashed border-grey-light text-black-text font-satoshi font-semibold hover:bg-grey-bg"
+              >
+                Add another batch
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {sectionConfig.map((item, index) => renderItem(item, index))}
+            </div>
+          )}
         </Accordion>
       </div>
 

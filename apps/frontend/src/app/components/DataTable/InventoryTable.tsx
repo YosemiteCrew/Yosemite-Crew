@@ -5,6 +5,7 @@ import InventoryCard from "../Cards/InventoryCard";
 import { InventoryItem } from "@/app/pages/Inventory/types";
 import { IoEye } from "react-icons/io5";
 import { displayStatusLabel, getStatusBadgeStyle } from "@/app/pages/Inventory/utils";
+import { formatDisplayDate } from "@/app/pages/Inventory/utils";
 
 import "./DataTable.css";
 
@@ -112,7 +113,9 @@ const InventoryTable = ({
       key: "expiry",
       width: "10%",
       render: (item: InventoryItem) => (
-        <div className="appointment-profile-title">{item.batch.expiryDate}</div>
+        <div className="appointment-profile-title">
+          {formatDisplayDate(item.batch.expiryDate)}
+        </div>
       ),
     },
     {

@@ -1,6 +1,7 @@
 import React from "react";
 import { getStatusStyle } from "../../DataTable/InventoryTable";
 import { displayStatusLabel } from "@/app/pages/Inventory/utils";
+import { formatDisplayDate } from "@/app/pages/Inventory/utils";
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
   const formatCurrency = (value: string | number | undefined) => {
@@ -68,7 +69,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Expiry:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.batch.expiryDate}
+          {formatDisplayDate(item.batch.expiryDate)}
         </div>
       </div>
       <div className="flex gap-1">

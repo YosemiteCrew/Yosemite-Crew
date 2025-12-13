@@ -6,15 +6,16 @@ import {
   InventoryItem,
   InventoryRequestPayload,
   StockHealthStatus,
+  BatchValues,
 } from "./types";
 
-const toStringSafe = (value: any): string => {
+export const toStringSafe = (value: any): string => {
   if (value === undefined || value === null) return "";
   if (typeof value === "number" && Number.isNaN(value)) return "";
   return String(value);
 };
 
-const toNumberSafe = (value: any): number | undefined => {
+export const toNumberSafe = (value: any): number | undefined => {
   const num = Number(value);
   return Number.isFinite(num) ? num : undefined;
 };
@@ -26,6 +27,61 @@ const cleanObject = (obj: Record<string, any>) =>
     acc[key] = value;
     return acc;
   }, {});
+
+export const formatDisplayDate = (value?: string): string => {
+  if (!value) return "";
+  const normalize = (val: string) => {
+    if (val.includes("/")) {
+      const [dd, mm, yyyy] = val.split("/");
+      const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    const parsed = new Date(val);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const date = normalize(value);
+  if (!date) return "";
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+export const calculateBatchTotals = (
+  batches?: BatchValues[]
+): { onHand?: number; allocated?: number; available?: number } => {
+  if (!batches || batches.length === 0) return {};
+
+  let onHand = 0;
+  let allocated = 0;
+  let hasOnHand = false;
+  let hasAllocated = false;
+
+  batches.forEach((batch) => {
+    const qty = toNumberSafe(batch.quantity);
+    const alloc = toNumberSafe(batch.allocated);
+    if (qty !== undefined) {
+      onHand += qty;
+      hasOnHand = true;
+    }
+    if (alloc !== undefined) {
+      allocated += alloc;
+      hasAllocated = true;
+    }
+  });
+
+  const available =
+    hasOnHand || hasAllocated
+      ? (hasOnHand ? onHand : 0) - (hasAllocated ? allocated : 0)
+      : undefined;
+
+  return {
+    onHand: hasOnHand ? onHand : undefined,
+    allocated: hasAllocated ? allocated : undefined,
+    available,
+  };
+};
 
 export const formatStatusLabel = (status?: string): string => {
   const key = (status || "").toString().trim().toUpperCase();
@@ -87,34 +143,78 @@ export const mapApiItemToInventoryItem = (
   apiItem: InventoryApiItem
 ): InventoryItem => {
   const attributes = apiItem.attributes ?? {};
-  const batchData = apiItem.batches?.[0];
   const statusLabel = formatStatusLabel(apiItem.status);
   const stockHealthLabel = formatStockHealthLabel(apiItem.stockHealth);
-  const num = (val: any): number | undefined => {
-    const parsed = Number(val);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  };
-  const onHandVal =
-    num(apiItem.onHand) ??
-    num(attributes.onHand) ??
-    num(attributes.current) ??
-    num(attributes.available);
-  const effectiveOnHand =
-    onHandVal && onHandVal !== 0
-      ? onHandVal
-      : num(attributes.available) ?? onHandVal;
-  const allocatedVal = num(apiItem.allocated) ?? num(attributes.allocated);
-  const available =
-    num(attributes.available) ??
-    (effectiveOnHand !== undefined && allocatedVal !== undefined
-      ? effectiveOnHand - allocatedVal
-      : effectiveOnHand);
-
   const normalizeStringOrArray = (val: any): string | string[] => {
     if (Array.isArray(val)) return val.filter(Boolean);
     if (val === undefined || val === null) return "";
     return String(val);
   };
+
+  const firstDefined = <T,>(...vals: (T | undefined)[]): T | undefined => {
+    for (const val of vals) {
+      if (val !== undefined) return val;
+    }
+    return undefined;
+  };
+
+  const batches =
+    apiItem.batches?.map((b) => ({
+      _id: b._id,
+      itemId: b.itemId,
+      organisationId: b.organisationId,
+      batch: toStringSafe(
+        b.batchNumber ??
+          b.lotNumber ??
+          attributes.batch ??
+          attributes.batchNumber ??
+          attributes.lotNumber ??
+          attributes.serial ??
+          apiItem.sku
+      ),
+      manufactureDate: toStringSafe(
+        b.manufactureDate ?? attributes.manufactureDate
+      ),
+      expiryDate: toStringSafe(b.expiryDate ?? attributes.expiryDate),
+      serial: toStringSafe(b.lotNumber ?? attributes.serial),
+      tracking: toStringSafe(b.regulatoryTrackingId ?? attributes.tracking),
+      litterId: toStringSafe(attributes.litterId),
+      nextRefillDate: toStringSafe(
+        b.minShelfLifeAlertDate ??
+          attributes.minShelfLifeAlertDate ??
+          attributes.nextRefillDate
+      ),
+      minShelfLifeAlertDate: toStringSafe(
+        b.minShelfLifeAlertDate ?? attributes.minShelfLifeAlertDate
+      ),
+      quantity: toStringSafe(b.quantity),
+      allocated: toStringSafe(b.allocated),
+      createdAt: toStringSafe(b.createdAt),
+      updatedAt: toStringSafe(b.updatedAt),
+    })) ?? [];
+
+  const batchTotals = calculateBatchTotals(batches);
+  const onHandVal = firstDefined(
+    batchTotals.onHand,
+    toNumberSafe(apiItem.onHand),
+    toNumberSafe(attributes.onHand),
+    toNumberSafe(attributes.current),
+    toNumberSafe(attributes.available)
+  );
+  const allocatedVal = firstDefined(
+    batchTotals.allocated,
+    toNumberSafe(apiItem.allocated),
+    toNumberSafe(attributes.allocated)
+  );
+  const available = firstDefined(
+    batchTotals.available,
+    toNumberSafe(attributes.available),
+    onHandVal !== undefined && allocatedVal !== undefined
+      ? onHandVal - allocatedVal
+      : onHandVal
+  );
+
+  const primaryBatch = batches[0];
 
   return {
     id: apiItem._id,
@@ -127,6 +227,7 @@ export const mapApiItemToInventoryItem = (
     imageUrl: apiItem.imageUrl,
     createdAt: apiItem.createdAt,
     updatedAt: apiItem.updatedAt,
+    batches,
     basicInfo: {
       name: apiItem.name ?? "",
       category: apiItem.category ?? "",
@@ -188,7 +289,9 @@ export const mapApiItemToInventoryItem = (
       leadTime: toStringSafe(attributes.leadTime),
     },
     stock: {
-      current: toStringSafe(effectiveOnHand ?? attributes.current),
+      current: toStringSafe(
+        onHandVal ?? toNumberSafe(attributes.current) ?? attributes.current
+      ),
       allocated: toStringSafe(allocatedVal ?? attributes.allocated),
       available: toStringSafe(available),
       reorderLevel: toStringSafe(apiItem.reorderLevel),
@@ -199,8 +302,7 @@ export const mapApiItemToInventoryItem = (
     },
     batch: {
       batch: toStringSafe(
-        batchData?.batchNumber ??
-          batchData?.lotNumber ??
+        primaryBatch?.batch ??
           attributes.batch ??
           attributes.batchNumber ??
           attributes.lotNumber ??
@@ -208,19 +310,31 @@ export const mapApiItemToInventoryItem = (
           apiItem.sku
       ),
       manufactureDate: toStringSafe(
-        batchData?.manufactureDate ?? attributes.manufactureDate
+        primaryBatch?.manufactureDate ?? attributes.manufactureDate
       ),
-      expiryDate: toStringSafe(batchData?.expiryDate ?? attributes.expiryDate),
-      serial: toStringSafe(batchData?.lotNumber ?? attributes.serial),
-      tracking: toStringSafe(
-        batchData?.regulatoryTrackingId ?? attributes.tracking
+      expiryDate: toStringSafe(
+        primaryBatch?.expiryDate ?? attributes.expiryDate
       ),
-      litterId: toStringSafe(attributes.litterId),
+      serial: toStringSafe(primaryBatch?.serial ?? attributes.serial),
+      tracking: toStringSafe(primaryBatch?.tracking ?? attributes.tracking),
+      litterId: toStringSafe(primaryBatch?.litterId ?? attributes.litterId),
       nextRefillDate: toStringSafe(
-        batchData?.minShelfLifeAlertDate ??
+        primaryBatch?.nextRefillDate ??
           attributes.minShelfLifeAlertDate ??
           attributes.nextRefillDate
       ),
+      minShelfLifeAlertDate: toStringSafe(
+        primaryBatch?.minShelfLifeAlertDate ??
+          attributes.minShelfLifeAlertDate ??
+          attributes.nextRefillDate
+      ),
+      quantity: toStringSafe(primaryBatch?.quantity ?? onHandVal),
+      allocated: toStringSafe(primaryBatch?.allocated ?? allocatedVal),
+      _id: primaryBatch?._id,
+      itemId: primaryBatch?.itemId,
+      organisationId: primaryBatch?.organisationId,
+      createdAt: primaryBatch?.createdAt,
+      updatedAt: primaryBatch?.updatedAt,
     },
   };
 };
@@ -233,13 +347,13 @@ const normalizeStatusForApi = (
   return value.replace(/\s+/g, "_").toUpperCase();
 };
 
-const buildBatchPayload = (
-  formData: InventoryItem
+export const buildBatchPayload = (
+  batch: BatchValues
 ): InventoryBatchPayload | undefined => {
-  const { batch } = formData;
-  const quantity = toNumberSafe(formData.stock.current);
-  const allocated = toNumberSafe(formData.stock.allocated);
-
+  const quantity = toNumberSafe(
+    batch.quantity ?? (batch as any).current ?? (batch as any).available
+  );
+  const allocated = toNumberSafe(batch.allocated ?? (batch as any).allocated);
   const normalizeDateForApi = (val?: string) => {
     if (!val) return undefined;
     if (val.includes("/")) {
@@ -256,13 +370,27 @@ const buildBatchPayload = (
     return undefined;
   };
 
+  const normalizedManufacture = normalizeDateForApi(batch.manufactureDate);
+  const normalizedExpiry = normalizeDateForApi(batch.expiryDate);
+  const normalizedMinShelfLife = normalizeDateForApi(
+    batch.nextRefillDate ?? batch.minShelfLifeAlertDate
+  );
+  const manufactureRaw = toStringSafe(batch.manufactureDate);
+  const expiryRaw = toStringSafe(batch.expiryDate);
+  const minShelfRaw = toStringSafe(
+    batch.nextRefillDate ?? batch.minShelfLifeAlertDate
+  );
+
   const payload: InventoryBatchPayload = cleanObject({
+    _id: batch._id,
+    itemId: batch.itemId,
+    organisationId: batch.organisationId,
     batchNumber: batch.batch,
     lotNumber: batch.serial,
     regulatoryTrackingId: batch.tracking,
-    manufactureDate: normalizeDateForApi(batch.manufactureDate),
-    expiryDate: normalizeDateForApi(batch.expiryDate),
-    minShelfLifeAlertDate: normalizeDateForApi(batch.nextRefillDate),
+    manufactureDate: normalizedManufacture ?? (manufactureRaw || undefined),
+    expiryDate: normalizedExpiry ?? (expiryRaw || undefined),
+    minShelfLifeAlertDate: normalizedMinShelfLife ?? (minShelfRaw || undefined),
     quantity,
     allocated,
   });
@@ -278,6 +406,16 @@ export const buildInventoryPayload = (
   const statusForApi = normalizeStatusForApi(
     formData.status ?? formData.basicInfo.status
   );
+
+  const batchesSource =
+    formData.batches && formData.batches.length > 0
+      ? formData.batches
+      : [formData.batch];
+  const batchPayloads = batchesSource
+    .map((b) => buildBatchPayload(b))
+    .filter(Boolean) as InventoryBatchPayload[];
+  const batchTotals = calculateBatchTotals(batchesSource);
+  const firstBatch = batchesSource[0];
 
   const attributes = cleanObject({
     department: formData.basicInfo.department,
@@ -306,11 +444,14 @@ export const buildInventoryPayload = (
     stockType: formData.stock.stockType,
     minStockAlert: formData.stock.minStockAlert,
     reorderQuantity: formData.stock.reorderQuantity,
-    available: formData.stock.available,
-    serial: formData.batch.serial,
-    tracking: formData.batch.tracking,
-    litterId: formData.batch.litterId,
-    nextRefillDate: formData.batch.nextRefillDate,
+    available:
+      batchTotals.available !== undefined
+        ? batchTotals.available
+        : toNumberSafe(formData.stock.available),
+    serial: firstBatch?.serial,
+    tracking: firstBatch?.tracking,
+    litterId: firstBatch?.litterId,
+    nextRefillDate: firstBatch?.nextRefillDate,
   });
 
   const payload: InventoryRequestPayload = {
@@ -327,8 +468,14 @@ export const buildInventoryPayload = (
       species: formData.classification.species,
       unitofMeasure: formData.classification.unitofMeasure,
     },
-    onHand: toNumberSafe(formData.stock.current),
-    allocated: toNumberSafe(formData.stock.allocated),
+    onHand:
+      batchTotals.onHand !== undefined
+        ? batchTotals.onHand
+        : toNumberSafe(formData.stock.current),
+    allocated:
+      batchTotals.allocated !== undefined
+        ? batchTotals.allocated
+        : toNumberSafe(formData.stock.allocated),
     reorderLevel: toNumberSafe(formData.stock.reorderLevel),
     unitCost: toNumberSafe(formData.pricing.purchaseCost),
     sellingPrice: toNumberSafe(formData.pricing.selling),
@@ -337,9 +484,8 @@ export const buildInventoryPayload = (
     status: statusForApi,
   };
 
-  const batchPayload = buildBatchPayload(formData);
-  if (batchPayload) {
-    payload.batches = [batchPayload];
+  if (batchPayloads.length > 0) {
+    payload.batches = batchPayloads;
   }
 
   return payload;

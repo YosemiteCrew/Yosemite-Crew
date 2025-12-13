@@ -18,6 +18,11 @@ export type InventoryBatchApi = {
   minShelfLifeAlertDate?: string;
   quantity?: number;
   allocated?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  _id?: string;
+  itemId?: string;
+  organisationId?: string;
 };
 
 export type InventoryApiItem = {
@@ -46,6 +51,9 @@ export type InventoryApiItem = {
 };
 
 export type InventoryBatchPayload = {
+  _id?: string;
+  itemId?: string;
+  organisationId?: string;
   batchNumber?: string;
   lotNumber?: string;
   regulatoryTrackingId?: string;
@@ -132,6 +140,7 @@ export const CategoryOptionsByBusiness: Record<BusinessType, string[]> = {
   ],
 };
 export const SubCategoryOptions: string[] = [
+  "Accessories",
   "Antibiotic",
   "Anti-inflammatory",
   "Dewormer",
@@ -139,7 +148,6 @@ export const SubCategoryOptions: string[] = [
   "Antifungal",
   "Antiviral",
   "Bandage",
-  "Gloves",
   "IV Line",
   "Syringe",
   "Vitamin",
@@ -243,6 +251,7 @@ export const FormOptions = [
   "Wipe",
   "Treat",
   "Food pack",
+  "Other"
 ];
 export const UnitOptions = [
   "tablets",
@@ -266,6 +275,7 @@ export const AdminstrationOptions = [
 ];
 // Hospital
 export const TherapeuticOptions = [
+  "Accessories",
   "Antibiotic",
   "Analgesic",
   "Antifungal",
@@ -412,6 +422,14 @@ export type BatchValues = {
   manufactureDate: string;
   expiryDate: string;
   nextRefillDate?: string;
+  quantity?: string;
+  allocated?: string;
+  _id?: string;
+  itemId?: string;
+  organisationId?: string;
+  minShelfLifeAlertDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
 
   // Hospital
   serial?: string;
@@ -432,6 +450,7 @@ export interface InventoryItem {
   imageUrl?: string;
   createdAt?: string;
   updatedAt?: string;
+  batches?: BatchValues[];
   basicInfo: BasicInfoValues;
   classification: ClassificationValues;
   pricing: PricingValues;
@@ -456,13 +475,17 @@ export type InventoryErrors = {
 };
 
 export interface InventoryTurnoverItem {
+  itemId?: string;
   name: string;
-  category: "Medicine" | "Consumable" | "Equipment";
+  category?: string;
+  subCategory?: string;
   beginningInventory: number;
   endingInventory: number;
-  averageInventory: number;
-  totalPurchases: number;
+  averageInventory?: number;
+  avgInventory?: number;
+  totalPurchases?: number;
+  totalPurchased?: number;
   turnsPerYear: number;
   daysOnShelf: number;
-  status: "Excellent" | "Healthy" | "Moderate" | "Low" | "Out of stock";
+  status?: "Excellent" | "Healthy" | "Moderate" | "Low" | "Out of stock" | string;
 }
