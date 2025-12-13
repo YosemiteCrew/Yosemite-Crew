@@ -119,8 +119,8 @@ describe("InventoryService", () => {
         itemId: itemId.toString(),
       });
       expect(save).toHaveBeenCalled();
-      expect(result.onHand).toBe(7);
-      expect(result.allocated).toBe(1);
+      expect(result.item.onHand).toBe(7);
+      expect(result.item.allocated).toBe(1);
     });
   });
 

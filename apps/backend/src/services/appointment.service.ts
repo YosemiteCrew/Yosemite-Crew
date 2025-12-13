@@ -352,29 +352,32 @@ export const AppointmentService = {
         { session },
       );
 
-      const invoice = await InvoiceService.createDraftForAppointment({
-        appointmentId: doc._id.toString(),
-        parentId: appointment.companion.parent.id,
-        companionId: appointment.companion.id,
-        organisationId: appointment.organisationId,
-        currency: "usd",
-        items: [
-          {
-            description: appointment.appointmentType?.name ?? "Consultation",
-            quantity: 1,
-            unitPrice: pricing.baseCost,
-            discountPercent: pricing.discountPercent,
-          },
-        ],
-        notes: appointment.concern,
-      });
+      const [invoice] = await InvoiceService.createDraftForAppointment(
+        {
+          appointmentId: doc._id.toString(),
+          parentId: appointment.companion.parent.id,
+          companionId: appointment.companion.id,
+          organisationId: appointment.organisationId,
+          currency: "usd",
+          items: [
+            {
+              description: appointment.appointmentType?.name ?? "Consultation",
+              quantity: 1,
+              unitPrice: pricing.baseCost,
+              discountPercent: pricing.discountPercent,
+            },
+          ],
+          notes: appointment.concern,
+        },
+        session,
+      );
 
       let paymentIntentData = null;
 
       // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
       if (createPayment === true) {
         paymentIntentData = await StripeService.createPaymentIntentForInvoice(
-          invoice._id.toString(),
+          invoice._id.toString()
         );
       }
 

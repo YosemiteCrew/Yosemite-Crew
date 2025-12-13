@@ -31,8 +31,8 @@ router.post(
 router.post(
   "/items/:itemId/active",
   authorizeCognito,
-  InventoryController.activeItem
-)
+  InventoryController.activeItem,
+);
 router.get(
   "/organisation/:organisationId/items",
   authorizeCognito,
@@ -42,8 +42,8 @@ router.get(
 router.get(
   "/organisation/:organisationId/turnover",
   authorizeCognito,
-  InventoryController.getInventoryTurnOver
-)
+  InventoryController.getInventoryTurnOver,
+);
 
 router.get(
   "/items/:itemId",

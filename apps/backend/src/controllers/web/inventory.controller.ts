@@ -391,17 +391,15 @@ export const InventoryController = {
     }
   },
 
-  getInventoryTurnOver : async (req: Request, res: Response) => {
+  getInventoryTurnOver: async (req: Request, res: Response) => {
     try {
-      const { organisationId } = req.params
+      const { organisationId } = req.params;
 
       const from = req.query.from
         ? new Date(req.query.from as string)
         : undefined;
 
-      const to = req.query.to
-        ? new Date(req.query.to as string)
-        : undefined;
+      const to = req.query.to ? new Date(req.query.to as string) : undefined;
 
       const result = await InventoryService.getInventoryTurnoverByItem({
         organisationId,
@@ -421,9 +419,11 @@ export const InventoryController = {
       }
 
       logger.error("Failed to get inventory turnover", error);
-      return res.status(500).json({ message: "Failed to load inventory turnover" });
+      return res
+        .status(500)
+        .json({ message: "Failed to load inventory turnover" });
     }
-  }
+  },
 };
 
 /**

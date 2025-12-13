@@ -265,9 +265,7 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // CREATE ITEM (optionally with initial batches)
   // ─────────────────────────────────────────────
-  async createItem(
-    input: CreateInventoryItemInput,
-  ){
+  async createItem(input: CreateInventoryItemInput) {
     if (!input.organisationId) {
       throw new InventoryServiceError("organisationId is required", 400);
     }
@@ -331,23 +329,23 @@ export const InventoryService = {
       await item.save();
     }
 
-    const batches = await InventoryBatchModel.find({ itemId: item.id, organisationId: item.organisationId})
-        .sort({ expiryDate: 1 })
-        .exec()
+    const batches = await InventoryBatchModel.find({
+      itemId: item._id.toString(),
+      organisationId: item.organisationId,
+    })
+      .sort({ expiryDate: 1 })
+      .exec();
 
     return {
       item,
-      batches
-    }
+      batches,
+    };
   },
 
   // ─────────────────────────────────────────────
   // UPDATE ITEM
   // ─────────────────────────────────────────────
-  async updateItem(
-    itemId: string,
-    input: UpdateInventoryItemInput,
-  ){
+  async updateItem(itemId: string, input: UpdateInventoryItemInput) {
     ensureObjectId(itemId, "itemId");
 
     const item = await InventoryItemModel.findById(itemId).exec();
@@ -383,14 +381,17 @@ export const InventoryService = {
 
     await item.save();
 
-    const batches = await InventoryBatchModel.find({ itemId, organisationId: item.organisationId})
-        .sort({ expiryDate: 1 })
-        .exec()
+    const batches = await InventoryBatchModel.find({
+      itemId,
+      organisationId: item.organisationId,
+    })
+      .sort({ expiryDate: 1 })
+      .exec();
 
     return {
       item,
-      batches
-    }
+      batches,
+    };
   },
 
   // ─────────────────────────────────────────────
@@ -506,7 +507,7 @@ export const InventoryService = {
       }
 
       const itemObject = item.toObject();
-      result.push({ ...itemObject, stockHealth, batches });
+      result.push({ ...itemObject, stockHealth, batches: itemBatches });
     }
 
     return result;
@@ -680,7 +681,7 @@ export const InventoryService = {
     return item;
   },
 
-  async getInventoryTurnoverByItem (params: {
+  async getInventoryTurnoverByItem(params: {
     organisationId: string;
     from?: Date; // default: 12 months ago
     to?: Date; // default: now
@@ -728,6 +729,7 @@ export const InventoryService = {
       totalPurchased: number;
       turnsPerYear: number;
       daysOnShelf: number;
+      status: string;
     }> = [];
 
     // 3️⃣ Compute inventory snapshots per item
@@ -739,12 +741,13 @@ export const InventoryService = {
 
       // Beginning inventory = ending - net purchases + net consumption
       // Instead of guessing, we reconstruct from batches at `from`
-      const batchesAtStart = await InventoryBatchModel.aggregate([
-        {
-          $match: {
-            organisationId,
-            itemId: itemId,
-            createdAt: { $lte: from },
+      const batchesAtStart =
+        await InventoryBatchModel.aggregate<{ qty: number }>([
+          {
+            $match: {
+              organisationId,
+              itemId: itemId,
+              createdAt: { $lte: from },
           },
         },
         {
@@ -777,6 +780,7 @@ export const InventoryService = {
         totalPurchased,
         turnsPerYear: Number(turnsPerYear.toFixed(2)),
         daysOnShelf: Number(daysOnShelf.toFixed(1)),
+        status: computeTurnoverStatus(turnsPerYear)
       });
     }
 
