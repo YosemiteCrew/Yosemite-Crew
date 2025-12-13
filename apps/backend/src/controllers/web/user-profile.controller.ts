@@ -106,8 +106,9 @@ export const UserProfileController = {
 
   getProfilePictureUploadUrl: async (req: Request, res: Response) => {
     try {
-      const { organizationId, userId } = req.params;
-      if (!organizationId || !userId) {
+      const { organizationId } = req.params;
+      const userId = resolveUserIdFromRequest(req);
+      if (!organizationId ) {
         return res.status(400).json({
           message: "organizationId and userId are required in params",
         });
