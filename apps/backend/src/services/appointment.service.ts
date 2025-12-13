@@ -374,15 +374,15 @@ export const AppointmentService = {
 
       let paymentIntentData = null;
 
+      await session.commitTransaction();
+      await session.endSession();
+
       // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
       if (createPayment === true) {
         paymentIntentData = await StripeService.createPaymentIntentForInvoice(
           invoice._id.toString()
         );
       }
-
-      await session.commitTransaction();
-      await session.endSession();
 
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
         appointment.companion.name,
