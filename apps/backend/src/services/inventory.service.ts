@@ -36,6 +36,7 @@ export type StockHealthStatus =
 type InventoryListItem = InventoryItemMongo & {
   _id: Types.ObjectId;
   stockHealth: StockHealthStatus;
+  batches?: InventoryBatchDocument[];
 };
 
 export class InventoryServiceError extends Error {
@@ -448,7 +449,7 @@ export const InventoryService = {
       }
 
       const itemObject = item.toObject();
-      result.push({ ...itemObject, stockHealth });
+      result.push({ ...itemObject, stockHealth, batches });
     }
 
     return result;

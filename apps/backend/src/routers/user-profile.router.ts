@@ -15,5 +15,10 @@ router.get(
   authorizeCognito,
   UserProfileController.getByUserId,
 );
+router.get(
+  "/:organizationId/:userId/profile-picture",
+  authorizeCognito,
+  UserProfileController.getProfilePictureUploadUrl
+)
 
 export default router;

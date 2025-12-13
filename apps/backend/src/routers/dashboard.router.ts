@@ -8,21 +8,21 @@ const router = Router();
 router.get(
   "/summary/:organisationId",
   authorizeCognito,
-  withOrgPermissions,
+  withOrgPermissions(),
   requirePermission(["analytics:view:any"]),
   DashboardController.summary,
 );
 router.get(
   "/appointments/:organisationId/trend",
   authorizeCognito,
-  withOrgPermissions,
+  withOrgPermissions(),
   requirePermission(["analytics:view:any"]),
   DashboardController.appointmentsTrend,
 );
 router.get(
   "/revenue/:organisationId/trend",
   authorizeCognito,
-  withOrgPermissions,
+  withOrgPermissions(),
   requirePermission(["analytics:view:any"]),
   DashboardController.revenueTrend,
 );
@@ -36,21 +36,21 @@ router.get(
 router.get(
   "/revenue-leaders/:organisationId",
   authorizeCognito,
-  withOrgPermissions,
+  withOrgPermissions(),
   requirePermission(["analytics:view:any"]),
   DashboardController.revenueLeaders,
 );
 router.get(
   "/inventory/:organisationId/turnover",
   authorizeCognito,
-  withOrgPermissions,
+  withOrgPermissions(),
   requirePermission(["analytics:view:any"]),
   DashboardController.inventoryTurnover,
 );
 router.get(
   "/inventory/:organisationId/products",
   authorizeCognito,
-  withOrgPermissions,
+  withOrgPermissions(),
   requirePermission(["analytics:view:any"]),
   DashboardController.productTurnover,
 );
