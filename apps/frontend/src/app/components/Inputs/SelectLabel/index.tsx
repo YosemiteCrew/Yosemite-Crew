@@ -9,7 +9,7 @@ type SelectLabelProps = {
   title: string;
   options: OptionProp[];
   activeOption: string;
-  setOption: (key: string) => void;
+  setOption: (key: any) => void;
   type?: string;
 };
 

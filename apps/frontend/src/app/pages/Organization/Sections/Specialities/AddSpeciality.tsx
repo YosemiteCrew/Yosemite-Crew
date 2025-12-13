@@ -28,6 +28,7 @@ const AddSpeciality = ({
   const handleSubmit = async () => {
     try {
       await createBulkSpecialityServices(formData);
+      setFormData([])
       setShowModal(false);
     } catch (err) {
       console.error("Failed to save specialities:", err);

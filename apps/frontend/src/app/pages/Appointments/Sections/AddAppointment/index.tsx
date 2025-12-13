@@ -59,6 +59,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   }>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState("");
+  const [query, setQuery] = useState("");
 
   const handleCompanionSelect = (id: string) => {
     const selected = CompanionData.find((item) => item.id === id);
@@ -105,6 +106,8 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
                   placeholder="Search companion or parent"
                   options={CompanionDataOptions}
                   onSelect={handleCompanionSelect}
+                  query={query}
+                  setQuery={setQuery}
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <FormInput

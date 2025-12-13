@@ -3,24 +3,23 @@ import { IoSearch } from "react-icons/io5";
 import { specialtiesByKey } from "@/app/utils/specialities";
 import { Service } from "@yosemite-crew/types";
 import { SpecialityWeb } from "@/app/types/speciality";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { createService } from "@/app/services/specialityService";
 
 import "./ServiceSearch.css";
-import { useOrgStore } from "@/app/stores/orgStore";
 
 type SpecialityCardProps = {
   speciality: SpecialityWeb;
-  setSpecialities: React.Dispatch<React.SetStateAction<SpecialityWeb[]>>;
 };
 
-const ServiceSearch = ({
-  speciality,
-  setSpecialities,
+const ServiceSearchEdit = ({
+  speciality
 }: SpecialityCardProps) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const SERVICES = specialtiesByKey[speciality.name]?.services || [];
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId)
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   const selectedNames = useMemo(
     () =>
@@ -55,62 +54,47 @@ const ServiceSearch = ({
     };
   }, []);
 
-  const handleSelectService = (serviceName: string) => {
-    setSpecialities((prev: SpecialityWeb[]) =>
-      prev.map((sp) => {
-        if (sp.name.toLowerCase() !== speciality.name.toLowerCase()) return sp;
-        const exists = checkIfAlready(serviceName, sp.services || []);
-        if (exists) return sp;
-        return {
-          ...sp,
-          services: [
-            ...(sp.services ?? []),
-            {
-              name: serviceName,
-              description: "",
-              maxDiscount: 10,
-              cost: 10,
-              durationMinutes: 15,
-              organisationId: primaryOrgId
-            } as Service,
-          ],
-        };
-      })
-    );
-    setQuery("");
-    setOpen(false);
+  const handleSelectService = async (serviceName: string) => {
+    const newService = {
+      name: serviceName,
+      description: "",
+      maxDiscount: 10,
+      cost: 10,
+      durationMinutes: 15,
+      organisationId: primaryOrgId,
+      specialityId: speciality._id,
+    } as Service;
+    try {
+      await createService(newService);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setQuery("");
+      setOpen(false);
+    }
   };
 
-  const handleAddService = () => {
+  const handleAddService = async () => {
     const name = query.trim();
     if (!name) return;
-    setSpecialities((prev: SpecialityWeb[]) =>
-      prev.map((sp) => {
-        if (sp.name.toLowerCase() !== speciality.name.toLowerCase()) return sp;
-        const exists = checkIfAlready(name, sp.services || []);
-        if (exists) return sp;
-        return {
-          ...sp,
-          services: [
-            ...(sp.services ?? []),
-            {
-              name: name.charAt(0).toUpperCase() + name.slice(1),
-              description: "",
-              maxDiscount: 10,
-              cost: 15,
-              durationMinutes: 15,
-              organisationId: primaryOrgId
-            } as Service,
-          ],
-        };
-      })
-    );
-    setQuery("");
-    setOpen(false);
+    const newService = {
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      description: "",
+      maxDiscount: 10,
+      cost: 10,
+      durationMinutes: 15,
+      organisationId: primaryOrgId,
+      specialityId: speciality._id,
+    } as Service;
+    try {
+      await createService(newService);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setQuery("");
+      setOpen(false);
+    }
   };
-
-  const checkIfAlready = (name: string, services: Service[] = []) =>
-    services.some((s) => s.name.toLowerCase() === name.toLowerCase());
 
   return (
     <div className="service-search" ref={wrapperRef}>
@@ -154,4 +138,4 @@ const ServiceSearch = ({
   );
 };
 
-export default ServiceSearch;
+export default ServiceSearchEdit;

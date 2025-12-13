@@ -14,6 +14,7 @@ export const useOrgOnboarding = (
   step: OnboardingStep;
   specialities: Speciality[];
 } => {
+  const orgStatus = useOrgStore((s) => s.status);
   const org = useOrgStore((s) =>
     orgId ? ((s.orgsById[orgId] as Organisation | undefined) ?? null) : null
   );
@@ -21,20 +22,39 @@ export const useOrgOnboarding = (
     orgId ? (s.membershipsByOrgId[orgId] ?? null) : null
   );
 
+  const specialitityStatus = useSpecialityStore((s) => s.status);
   const specialitiesById = useSpecialityStore((s) => s.specialitiesById);
   const specialityIdsByOrgId = useSpecialityStore(
     (s) => s.specialityIdsByOrgId
   );
 
   const { step, specialities, effectiveOrg } = useMemo(() => {
-    if (!orgId || !org || !membership) {
+    if (!orgId) {
       return {
         step: 0 as OnboardingStep,
         specialities: [] as Speciality[],
         effectiveOrg: null as Organisation | null,
       };
     }
-
+    if (
+      orgStatus === "loading" ||
+      orgStatus === "idle" ||
+      specialitityStatus === "loading" ||
+      specialitityStatus === "idle"
+    ) {
+      return {
+        step: 0 as OnboardingStep,
+        specialities: [] as Speciality[],
+        effectiveOrg: null as Organisation | null,
+      };
+    }
+    if (!org || !membership) {
+      return {
+        step: 0 as OnboardingStep,
+        specialities: [] as Speciality[],
+        effectiveOrg: null as Organisation | null,
+      };
+    }
     const role = (
       membership.roleDisplay ??
       membership.roleCode ??
@@ -58,7 +78,15 @@ export const useOrgOnboarding = (
     const step = computeOrgOnboardingStep(org, specialities);
 
     return { step, specialities, effectiveOrg: org };
-  }, [orgId, org, specialitiesById, specialityIdsByOrgId, membership]);
+  }, [
+    orgId,
+    org,
+    specialitiesById,
+    specialityIdsByOrgId,
+    membership,
+    specialitityStatus,
+    orgStatus,
+  ]);
 
   return {
     org: effectiveOrg,

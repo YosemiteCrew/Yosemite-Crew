@@ -1,3 +1,10 @@
+import {
+  Companion,
+  CompanionRequestDTO,
+  Parent,
+  ParentRequestDTO,
+} from "@yosemite-crew/types";
+
 export type CompanionProps = {
   image: string;
   name: string;
@@ -30,3 +37,25 @@ export type CompanionProps = {
   coParentEmail?: string;
   coParentNumber?: string;
 };
+
+export type StoredParent = Parent & {
+  id: string;
+};
+
+export type StoredCompanion = Companion & {
+  id: string;
+  organisationId: string;
+  parentId: string;
+};
+
+export type CompanionParent = {
+  companion: StoredCompanion;
+  parent: StoredParent;
+};
+
+export type RequestCompanion = {
+  companion: CompanionRequestDTO;
+  parent: ParentRequestDTO;
+};
+
+export type GetCompanionResponse = RequestCompanion[];

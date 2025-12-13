@@ -1,6 +1,8 @@
 import { Primary, Secondary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 import { useAuthStore } from "@/app/stores/authStore";
+import { isHttpsImageUrl } from "@/app/utils/urls";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { RiEdit2Fill } from "react-icons/ri";
@@ -43,6 +45,7 @@ const ProfileCard = ({
   editable = true,
   onSave,
 }: ProfileCardProps) => {
+  const profile = usePrimaryOrgProfile();
   const attributes = useAuthStore((s) => s.attributes);
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>(() =>
@@ -141,7 +144,11 @@ const ProfileCard = ({
         {showProfileUser && (
           <div className="px-6! py-3! flex gap-3 items-center">
             <Image
-              src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+              src={
+                isHttpsImageUrl(profile?.personalDetails?.profilePictureUrl)
+                  ? profile?.personalDetails?.profilePictureUrl
+                  : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+              }
               alt="Logo"
               height={60}
               width={60}

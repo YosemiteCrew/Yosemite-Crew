@@ -10,16 +10,21 @@ type SearchDropdownProps = {
   options: OptionProps[];
   onSelect: (e: any) => void;
   placeholder: string;
+  query: string;
+  setQuery: (v: string) => void;
+  minChars?: number
 };
 
 const SearchDropdown = ({
   onSelect,
   options,
   placeholder,
+  query,
+  setQuery,
+  minChars = 2
 }: SearchDropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,10 +48,12 @@ const SearchDropdown = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  const onSelectOption = (option: string) => {
-    onSelect(option);
+  const onSelectOption = (key: string) => {
+    onSelect(key);
     setOpen(false);
   };
+
+  const canSearch = open && query.length >= minChars && filtered.length > 0;
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -66,13 +73,13 @@ const SearchDropdown = ({
         />
         <IoSearch size={22} color="#302F2E" className="cursor-pointer" />
       </div>
-      {open && filtered.length > 0 && (
+      {canSearch && (
         <div className="absolute left-0 mt-1 border border-grey-noti bg-white z-10 rounded-xl max-h-[150px] w-full overflow-auto flex flex-col py-1 px-2 scrollbar-hidden">
           {filtered.map((option, i) => (
             <button
               key={option.key}
               onClick={() => onSelectOption(option.key)}
-              className={`${i != filtered.length-1 && "border-b border-grey-light"} py-2 px-2 outline-none bg-white text-[13px] font-satoshi font-semibold text-black-text text-start`}
+              className={`${i != filtered.length - 1 && "border-b border-grey-light"} py-2 px-2 outline-none bg-white text-[13px] font-satoshi font-semibold text-black-text text-start`}
             >
               {option.value}
             </button>

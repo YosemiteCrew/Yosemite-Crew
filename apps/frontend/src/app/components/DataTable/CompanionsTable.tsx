@@ -1,12 +1,15 @@
 "use client";
 import React from "react";
-import { FaCalendar } from "react-icons/fa";
+import { FaCalendar, FaTasks } from "react-icons/fa";
 import { IoEye } from "react-icons/io5";
 import Image from "next/image";
 
 import CompanionCard from "../Cards/CompanionCard/CompanionCard";
 import GenericTable from "../GenericTable/GenericTable";
-import { CompanionProps } from "../../pages/Companions/types";
+import { CompanionParent } from "../../pages/Companions/types";
+
+import { getAgeInYears } from "@/app/utils/date";
+import { isHttpsImageUrl } from "@/app/utils/urls";
 
 import "./DataTable.css";
 
@@ -18,9 +21,9 @@ type Column<T> = {
 };
 
 type CompanionsTableProps = {
-  filteredList: CompanionProps[];
-  activeCompanion: CompanionProps | null;
-  setActiveCompanion: (companion: CompanionProps) => void;
+  filteredList: CompanionParent[];
+  activeCompanion: CompanionParent | null;
+  setActiveCompanion: (companion: CompanionParent) => void;
   setViewCompanion: (open: boolean) => void;
 };
 
@@ -43,29 +46,41 @@ const CompanionsTable = ({
   setActiveCompanion,
   setViewCompanion,
 }: CompanionsTableProps) => {
-  const handleViewCompanion = (companion: CompanionProps) => {
+  const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
     setViewCompanion(true);
   };
 
-  const columns: Column<CompanionProps>[] = [
+  const columns: Column<CompanionParent>[] = [
     {
       label: "Name",
       key: "name",
       width: "20%",
-      render: (item: CompanionProps) => (
+      render: (item: CompanionParent) => (
         <div className="appointment-profile">
           <Image
-            src={item.image}
+            src={
+              isHttpsImageUrl(item.companion.photoUrl)
+                ? item.companion.photoUrl
+                : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+            }
             alt=""
             height={40}
             width={40}
-            style={{ borderRadius: "50%" }}
+            style={{
+              borderRadius: "50%",
+              objectFit: "cover",
+              maxWidth: "40px",
+              minWidth: "40px",
+              maxHeight: "40px",
+            }}
           />
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">{item.name}</div>
+            <div className="appointment-profile-title">
+              {item.companion.name}
+            </div>
             <div className="appointment-profile-sub">
-              {item.breed + "/" + item.species}
+              {item.companion.breed + "/" + item.companion.type}
             </div>
           </div>
         </div>
@@ -75,41 +90,43 @@ const CompanionsTable = ({
       label: "Parent",
       key: "parent",
       width: "10%",
-      render: (item: CompanionProps) => (
-        <div className="appointment-profile-title">{item.parent}</div>
+      render: (item: CompanionParent) => (
+        <div className="appointment-profile-title">{item.parent.firstName}</div>
       ),
     },
     {
       label: "Gender/Age",
       key: "gender/age",
       width: "10%",
-      render: (item: CompanionProps) => (
+      render: (item: CompanionParent) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.gender}</div>
-          <div className="appointment-profile-title">{item.age}</div>
+          <div className="appointment-profile-title">
+            {item.companion.gender}
+          </div>
+          <div className="appointment-profile-title">
+            {getAgeInYears(item.companion.dateOfBirth)}
+          </div>
         </div>
       ),
     },
     {
-      label: "Last Medication",
-      key: "Last Medication",
+      label: "Allergy",
+      key: "allergy",
       width: "15%",
-      render: (item: CompanionProps) => (
-        <div className="appointment-profile-title">{item.lastMedication}</div>
+      render: (item: CompanionParent) => (
+        <div className="appointment-profile-title">
+          {item.companion.allergy || "-"}
+        </div>
       ),
     },
     {
       label: "Upcoming Appointment",
       key: "Upcoming Appointment",
       width: "20%",
-      render: (item: CompanionProps) => (
+      render: (item: CompanionParent) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">
-            {item.upcomingAppointent}
-          </div>
-          <div className="appointment-profile-sub">
-            {item.upcomingAppointentTime}
-          </div>
+          <div className="appointment-profile-title">{"-"}</div>
+          <div className="appointment-profile-sub">{""}</div>
         </div>
       ),
     },
@@ -117,9 +134,12 @@ const CompanionsTable = ({
       label: "Status",
       key: "status",
       width: "15%",
-      render: (item: CompanionProps) => (
-        <div className="appointment-status" style={getStatusStyle(item.status)}>
-          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+      render: (item: CompanionParent) => (
+        <div
+          className="appointment-status"
+          style={getStatusStyle(item.companion.status || "inactive")}
+        >
+          {item.companion.status || "inactive"}
         </div>
       ),
     },
@@ -127,7 +147,7 @@ const CompanionsTable = ({
       label: "Actions",
       key: "actions",
       width: "10%",
-      render: (item: CompanionProps) => (
+      render: (item: CompanionParent) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewCompanion(item)}
@@ -137,6 +157,9 @@ const CompanionsTable = ({
           </button>
           <button className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer">
             <FaCalendar size={14} color="#302F2E" />
+          </button>
+          <button className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer">
+            <FaTasks size={14} color="#302F2E" />
           </button>
         </div>
       ),
@@ -149,9 +172,22 @@ const CompanionsTable = ({
         <GenericTable data={filteredList} columns={columns} bordered={false} />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((companion, index) => (
-          <CompanionCard key={index + companion.name} companion={companion} />
-        ))}
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((companion, index) => (
+            <CompanionCard
+              key={index + companion.companion.name}
+              companion={companion}
+              handleViewCompanion={handleViewCompanion}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

@@ -53,7 +53,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
       return;
     }
     try {
-      await createOrg(formData)
+      await createOrg(formData);
       nextStep();
     } catch (error: any) {
       console.error("Error creating organization:", error);
@@ -67,7 +67,9 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
       <LogoUploader
         title="Add logo (optional)"
         apiUrl="/fhir/v1/organization/logo/presigned-url"
-        setFormData={setFormData}
+        setImageUrl={(url) => {
+          setFormData((prev) => ({ ...prev, imageURL: url }));
+        }}
       />
 
       <div className="step-type">

@@ -2,13 +2,17 @@
 import React from "react";
 import Image from "next/image";
 import { FaClock } from "react-icons/fa6";
+
 import { Primary, Secondary } from "../Buttons";
 import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useAuthStore } from "@/app/stores/authStore";
+import { isHttpsImageUrl } from "@/app/utils/urls";
+import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 
 import "./DashboardProfile.css";
 
 const DashboardProfile = () => {
+  const profile = usePrimaryOrgProfile();
   const primaryOrg = usePrimaryOrg();
   const attributes = useAuthStore((s) => s.attributes);
 
@@ -19,7 +23,11 @@ const DashboardProfile = () => {
       <div className="dashboard-profile-text">Welcome</div>
       <div className="dashboard-profile">
         <Image
-          src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+          src={
+            isHttpsImageUrl(profile?.personalDetails?.profilePictureUrl)
+              ? profile?.personalDetails?.profilePictureUrl
+              : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+          }
           alt="logo"
           height={40}
           width={40}
@@ -41,19 +49,31 @@ const DashboardProfile = () => {
               <div className="font-grotesk font-medium text-black-text text-[23px]">
                 Setup stripe payment
               </div>
-              <Secondary text="Setup stripe" href="/setup-stripe" className="w-[200px]!" />
+              <Secondary
+                text="Setup stripe"
+                href={"/stripe-onboarding?orgId=" + primaryOrg._id}
+                className="w-[200px]!"
+              />
             </div>
             <div className="dashboard-status">
               <div className="font-grotesk font-medium text-black-text text-[23px]">
                 Add specialities & services
               </div>
-              <Secondary text="Add services" href="/orgnanization" className="w-[200px]!" />
+              <Secondary
+                text="Add services"
+                href="/orgnanization"
+                className="w-[200px]!"
+              />
             </div>
             <div className="dashboard-status">
               <div className="font-grotesk font-medium text-black-text text-[23px]">
                 Invite team members
               </div>
-              <Secondary text="Invite team" href="/orgnanization" className="w-[200px]!" />
+              <Secondary
+                text="Invite team"
+                href="/orgnanization"
+                className="w-[200px]!"
+              />
             </div>
           </div>
         ) : (

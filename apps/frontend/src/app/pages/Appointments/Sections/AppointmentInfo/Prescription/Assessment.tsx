@@ -19,6 +19,7 @@ const Assessment = ({
   setFormData,
   activeAppointment,
 }: AssessmentProps) => {
+  const [query, setQuery] = useState("");
   const [formDataErrors] = useState<{
     prognosis?: string;
   }>({});
@@ -40,6 +41,8 @@ const Assessment = ({
             placeholder="Search"
             options={DemoSubjectiveOptions}
             onSelect={handleAssessmentSelect}
+            query={query}
+            setQuery={setQuery}
           />
           <FormInput
             intype="text"

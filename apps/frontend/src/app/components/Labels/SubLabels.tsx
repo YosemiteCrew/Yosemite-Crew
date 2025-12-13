@@ -9,9 +9,15 @@ type SubLabelsProps = {
   labels: SubLabelItem[];
   activeLabel: string;
   setActiveLabel: (key: any) => void;
+  disableClicking?: boolean;
 };
 
-const SubLabels = ({ labels, activeLabel, setActiveLabel }: SubLabelsProps) => {
+const SubLabels = ({
+  labels,
+  activeLabel,
+  setActiveLabel,
+  disableClicking = false,
+}: SubLabelsProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -34,7 +40,7 @@ const SubLabels = ({ labels, activeLabel, setActiveLabel }: SubLabelsProps) => {
       {labels.map((label) => (
         <button
           key={label.key}
-          onClick={() => setActiveLabel(label.key)}
+          onClick={() => !disableClicking && setActiveLabel(label.key)}
           className={`${activeLabel === label.key ? "border-blue-text! bg-blue-light! text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-black-text! text-black-text"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-9 px-3 border! flex items-center whitespace-nowrap rounded-xl! font-satoshi font-semibold text-[15px]`}
         >
           {label.name}
