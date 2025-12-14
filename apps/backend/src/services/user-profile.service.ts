@@ -14,6 +14,7 @@ import {
   BaseAvailabilityService,
   BaseAvailabilityServiceError,
 } from "./base-availability.service";
+import UserOrganizationModel from "src/models/user-organization";
 
 export class UserProfileServiceError extends Error {
   constructor(
@@ -658,7 +659,7 @@ export const UserProfileService = {
   async getByUserId(
     userId: unknown,
     organizationId: unknown,
-  ): Promise<UserProfileType | null> {
+  ) {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
 
@@ -686,6 +687,14 @@ export const UserProfileService = {
 
     const status = await applyProfileStatus(document, availability);
 
-    return buildDomainProfile(document, { statusOverride: status });
+    const userOrganisation = await UserOrganizationModel.findOne({
+      practitionerReference: userId,
+      organizationReference: organizationId
+    })
+
+    return {
+      profile: buildDomainProfile(document, { statusOverride: status }),
+      mapping: userOrganisation
+    };
   },
 };
