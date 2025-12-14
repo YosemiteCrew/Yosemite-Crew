@@ -110,7 +110,8 @@ describe("Forms Utils", () => {
       expect(fields).toEqual([]);
     });
 
-    it("deep clones groups correctly (Recursive check)", () => {
+    // UPDATED TEST: Made async and used await import()
+    it("deep clones groups correctly (Recursive check)", async () => {
       // We need to re-mock specifically for this test to test recursion inside cloneField
       jest.resetModules();
       jest.doMock("@/app/types/forms", () => ({
@@ -125,8 +126,10 @@ describe("Forms Utils", () => {
         },
       }));
 
-      // Re-import to get the new mock
-      const { getCategoryTemplate: getComplex } = require("@/app/utils/forms");
+      // Re-import to get the new mock using dynamic import instead of require
+      const { getCategoryTemplate: getComplex } = await import(
+        "@/app/utils/forms"
+      );
       const fields = getComplex("Complex");
 
       expect(fields[0].type).toBe("group");
@@ -172,18 +175,34 @@ describe("Forms Utils", () => {
 
     it("handles visibility normalization logic", () => {
       // Standard
-      expect(mapFormToUI({ ...baseForm, visibilityType: "Internal" } as any).usage).toBe("Internal");
+      expect(
+        mapFormToUI({ ...baseForm, visibilityType: "Internal" } as any).usage
+      ).toBe("Internal");
 
       // Normalize logic
-      expect(mapFormToUI({ ...baseForm, visibilityType: "internal_external" } as any).usage).toBe("Internal & External");
-      expect(mapFormToUI({ ...baseForm, visibilityType: "internal&external" } as any).usage).toBe("Internal & External");
-      expect(mapFormToUI({ ...baseForm, visibilityType: "interna_external" } as any).usage).toBe("Internal & External"); // Typo coverage
+      expect(
+        mapFormToUI({ ...baseForm, visibilityType: "internal_external" } as any)
+          .usage
+      ).toBe("Internal & External");
+      expect(
+        mapFormToUI({ ...baseForm, visibilityType: "internal&external" } as any)
+          .usage
+      ).toBe("Internal & External");
+      expect(
+        mapFormToUI({ ...baseForm, visibilityType: "interna_external" } as any)
+          .usage
+      ).toBe("Internal & External"); // Typo coverage
 
       // Unknown string fallback
-      expect(mapFormToUI({ ...baseForm, visibilityType: "CustomVisibility" } as any).usage).toBe("CustomVisibility");
+      expect(
+        mapFormToUI({ ...baseForm, visibilityType: "CustomVisibility" } as any)
+          .usage
+      ).toBe("CustomVisibility");
 
       // Null fallback
-      expect(mapFormToUI({ ...baseForm, visibilityType: null } as any).usage).toBe("Internal");
+      expect(
+        mapFormToUI({ ...baseForm, visibilityType: null } as any).usage
+      ).toBe("Internal");
     });
 
     it("formats lastUpdated date", () => {
@@ -193,9 +212,13 @@ describe("Forms Utils", () => {
     });
 
     it("falls back to createdAt if updatedAt missing", () => {
-        const form = { ...baseForm, updatedAt: null, createdAt: new Date("2023-01-01") };
-        const ui = mapFormToUI(form as any);
-        expect(ui.lastUpdated).not.toBe("");
+      const form = {
+        ...baseForm,
+        updatedAt: null,
+        createdAt: new Date("2023-01-01"),
+      };
+      const ui = mapFormToUI(form as any);
+      expect(ui.lastUpdated).not.toBe("");
     });
   });
 
@@ -204,7 +227,9 @@ describe("Forms Utils", () => {
       const dto = { some: "data" } as any;
       const result = questionnaireToForm(dto);
       expect(fromFormRequestDTO).toHaveBeenCalledWith(dto);
-      expect(result).toEqual(expect.objectContaining({ _convertedFromDTO: true }));
+      expect(result).toEqual(
+        expect.objectContaining({ _convertedFromDTO: true })
+      );
     });
 
     it("mapQuestionnaireToUI composes functions correctly", () => {
@@ -311,29 +336,29 @@ describe("Forms Utils", () => {
     });
 
     it("preserves createdBy if existing in form object", () => {
-       // We force cast to include createdBy which might exist on the object but not on the UI props strictly
-       const formWithCreator = { ...mockUIForm, createdBy: "creator-user" };
+      // We force cast to include createdBy which might exist on the object but not on the UI props strictly
+      const formWithCreator = { ...mockUIForm, createdBy: "creator-user" };
 
-       buildFHIRPayload({
-         form: formWithCreator,
-         orgId: "org-1",
-         userId: "editor-user",
-       });
+      buildFHIRPayload({
+        form: formWithCreator,
+        orgId: "org-1",
+        userId: "editor-user",
+      });
 
-       const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];
-       expect(normalized.createdBy).toBe("creator-user");
-       expect(normalized.updatedBy).toBe("editor-user");
+      const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];
+      expect(normalized.createdBy).toBe("creator-user");
+      expect(normalized.updatedBy).toBe("editor-user");
     });
 
     it("sets createdBy to userId if new form", () => {
-        buildFHIRPayload({
-          form: mockUIForm, // no createdBy
-          orgId: "org-1",
-          userId: "new-user",
-        });
+      buildFHIRPayload({
+        form: mockUIForm, // no createdBy
+        orgId: "org-1",
+        userId: "new-user",
+      });
 
-        const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];
-        expect(normalized.createdBy).toBe("new-user");
-     });
+      const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];
+      expect(normalized.createdBy).toBe("new-user");
+    });
   });
 });
