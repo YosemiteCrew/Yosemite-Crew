@@ -47,5 +47,15 @@ router.post(
   authorizeCognito,
   CompanionOrganisationController.rejectInvite,
 );
+router.post(
+  "/pms/:organisationId/:companionId/link",
+  authorizeCognito,
+  CompanionOrganisationController.linkByPmsUser,
+);
+router.get(
+  "/pms/:organisationId/list",
+  authorizeCognito,
+  CompanionOrganisationController.getLinksForOrganisation,
+);
 
 export default router;

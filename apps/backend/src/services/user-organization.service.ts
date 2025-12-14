@@ -3,8 +3,7 @@ import UserOrganizationModel, {
   type UserOrganizationDocument,
   type UserOrganizationMongo,
 } from "../models/user-organization";
-import OrganizationModel, {
-} from "../models/organization";
+import OrganizationModel from "../models/organization";
 import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
@@ -13,6 +12,11 @@ import {
   type UserOrganization,
 } from "@yosemite-crew/types";
 import { ROLE_PERMISSIONS, RoleCode } from "src/models/role-permission";
+import UserProfileModel from "src/models/user-profile";
+import SpecialityModel from "src/models/speciality";
+import { AvailabilityService } from "./availability.service";
+import UserModel from "src/models/user";
+import { OccupancyModel } from "src/models/occupancy";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -41,7 +45,7 @@ function validateRoleCode(role: string): RoleCode {
   if (!VALID_ROLE_CODES.has(cleaned)) {
     throw new UserOrganizationServiceError(
       `Invalid roleCode "${role}". Allowed: ${[...VALID_ROLE_CODES].join(", ")}`,
-      400
+      400,
     );
   }
   return cleaned;
@@ -49,7 +53,7 @@ function validateRoleCode(role: string): RoleCode {
 
 function computeEffectivePermissions(
   role: RoleCode,
-  extra?: string[]
+  extra?: string[],
 ): string[] {
   const base = ROLE_PERMISSIONS[role] ?? [];
   const extras = extra ?? [];
@@ -268,7 +272,7 @@ const sanitizeUserOrganizationAttributes = (
     roleCode as RoleCode,
     extraPermissions,
   );
-  
+
   return {
     fhirId: ensureSafeIdentifier(dto.id),
     practitionerReference,
@@ -411,7 +415,7 @@ const buildReferenceLookups = (id: unknown): ReferenceLookup[] => {
 export const UserOrganizationService = {
   async upsert(payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
-    validateRoleCode(persistable.roleCode)
+    validateRoleCode(persistable.roleCode);
 
     const id = ensureSafeIdentifier(payload.id ?? persistable.fhirId);
     let document: UserOrganizationDocument | null = null;
@@ -460,7 +464,7 @@ export const UserOrganizationService = {
 
   async create(payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
-    validateRoleCode(persistable.roleCode)
+    validateRoleCode(persistable.roleCode);
 
     const document = await UserOrganizationModel.create(persistable);
     const mapping = buildUserOrganizationDomain(document);
@@ -609,6 +613,77 @@ export const UserOrganizationService = {
         organization: organization,
       });
     }
+    return results;
+  },
+
+  async listByOrganisationId(id: string) {
+    const organisationId = requireSafeString(id, "User Id");
+    const mappings = await UserOrganizationModel.find(
+      {
+        organizationReference: organisationId,
+      },
+      {
+        practitionerReference: 1,
+        organizationReference: 1,
+        roleCode: 1,
+      },
+    );
+
+    if (!mappings.length) {
+      return [];
+    }
+
+    const results = [];
+    for (const mapping of mappings) {
+      const userRef = mapping.practitionerReference;
+      const user = await UserModel.findOne({ userId: userRef });
+      const userProfile = await UserProfileModel.findOne({
+        userId: userRef,
+      });
+
+      const speciality = await SpecialityModel.findOne({
+        organisationId,
+        memberUserIds: userRef, // matches any element in the array
+      });
+
+      const currentStatus = await AvailabilityService.getCurrentStatus(
+        organisationId,
+        userRef,
+      );
+      const weeklyHours = await AvailabilityService.getWeeklyWorkingHours(
+        organisationId,
+        userRef,
+        new Date(),
+      );
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const count = await OccupancyModel.countDocuments({
+        organisationId, // required
+        sourceType: "APPOINTMENT", // filter appointment only
+        startTime: { $gte: startOfDay, $lte: endOfDay },
+      });
+
+      let name: string = "";
+      if (user?.firstName) name += user.firstName;
+      if (user?.lastName) name += " " + user.lastName;
+      const result = {
+        userOrganisation: toUserOrganizationResponseDTO(mapping),
+        name,
+        profileUrl: userProfile?.personalDetails?.profilePictureUrl,
+        speciality: speciality,
+        currentStatus,
+        weeklyHours,
+        count,
+      };
+
+      results.push(result);
+    }
+
     return results;
   },
 };

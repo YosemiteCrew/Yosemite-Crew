@@ -7,6 +7,8 @@ import { assertSafeString } from "src/utils/sanitize";
 import ParentCompanionModel from "src/models/parent-companion";
 import CompanionModel from "../models/companion";
 import { ParentModel } from "src/models/parent";
+import { toFHIR as toFHIRCompanion } from "./companion.service";
+import { toFHIR as toFHIRParent } from "./parent.service";
 
 export class CompanionOrganisationServiceError extends Error {
   constructor(
@@ -372,6 +374,46 @@ export const CompanionOrganisationService = {
 
   async getLinksForOrganisation(organisationId: string | Types.ObjectId) {
     const id = ensureObjectId(organisationId, "organisationId");
-    return CompanionOrganisationModel.find({ organisationId: id });
+
+    const links = await CompanionOrganisationModel.find({
+      organisationId: id,
+      status: { $in: ["ACTIVE", "PENDING"] },
+    });
+
+    const results = await Promise.all(
+      links.map(async (link) => {
+        // 1️⃣ Fetch companion
+        const companion = await CompanionModel.findById(link.companionId);
+        if (!companion) {
+          // orphaned link → skip
+          return null;
+        }
+
+        // 2️⃣ Fetch primary parent
+        const parentLink = await ParentCompanionModel.findOne({
+          companionId: companion._id,
+          role: "PRIMARY",
+          status: "ACTIVE",
+        });
+
+        const parent = parentLink
+          ? await ParentModel.findById(parentLink.parentId)
+          : null;
+
+        return {
+          linkId: link._id.toString(),
+          organisationId: link.organisationId?.toString(),
+          organisationType: link.organisationType,
+          status: link.status,
+
+          // ✅ SAFE
+          companion: toFHIRCompanion(companion),
+          parent: parent ? toFHIRParent(parent) : null,
+        };
+      }),
+    );
+
+    // Remove nulls caused by orphaned links
+    return results.filter(Boolean);
   },
 };

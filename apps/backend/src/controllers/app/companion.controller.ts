@@ -279,4 +279,32 @@ export const CompanionController = {
       return res.status(500).json({ message: "Unable to search companions." });
     }
   },
+
+  listParentCompanionsNotInOrganisation: async (
+    req: Request,
+    res: Response,
+  ) => {
+    try {
+      const { parentId, organisationId } = req.params;
+
+      if (!parentId || !organisationId) {
+        return res
+          .status(400)
+          .json({ message: "Companion ID and Organisation ID is required." });
+      }
+
+      const result = await CompanionService.listByParentNotInOrganisation(
+        parentId,
+        organisationId,
+      );
+
+      return res.status(200).json(result.responses);
+    } catch (error) {
+      if (error instanceof CompanionServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Failed to search companion by Parent ID", error);
+      return res.status(500).json({ message: "Unable to search companions." });
+    }
+  },
 };

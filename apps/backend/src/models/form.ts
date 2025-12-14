@@ -13,7 +13,7 @@ const FormSchema = new Schema<Form>(
 
     visibilityType: {
       type: String,
-      enum: ["Internal", "External"],
+      enum: ["Internal", "External", "Internal_External"],
       required: true,
     },
 

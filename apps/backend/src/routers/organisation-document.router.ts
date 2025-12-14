@@ -8,7 +8,7 @@ const router = Router();
  * PMS ROUTES
  */
 
-router.get(
+router.post(
   "/pms/:orgId/documents/upload",
   authorizeCognito,
   OrganizationDocumentController.uploadFile,
