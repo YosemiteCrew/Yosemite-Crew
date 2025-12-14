@@ -19,7 +19,8 @@ import { FormsProps } from "@/app/types/forms";
 // Mock Router (passthrough not shown, assuming correctly mocked elsewhere)
 
 // Mock Protected Route (passthrough)
-jest.mock("@/app/components/ProtectedRoute", () => ({
+jest.mock("../../../components/ProtectedRoute", () => ({
+  // FIX: Use relative path
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="protected-route">{children}</div>
@@ -27,119 +28,131 @@ jest.mock("@/app/components/ProtectedRoute", () => ({
 }));
 
 // Mock Services
-jest.mock("@/app/services/formService", () => ({
+jest.mock("../../../services/formService", () => ({
+  // FIX: Use relative path
   loadForms: jest.fn(),
 }));
 
 // Mock Hooks
-jest.mock("@/app/hooks/useSpecialities", () => ({
+jest.mock("../../../hooks/useSpecialities", () => ({
+  // FIX: Use relative path
   useLoadSpecialitiesForPrimaryOrg: jest.fn(),
   useServicesForPrimaryOrgSpecialities: jest.fn(),
 }));
 
 // Mock Store
-jest.mock("@/app/stores/formsStore", () => ({
+jest.mock("../../../stores/formsStore", () => ({
+  // FIX: Use relative path
   useFormsStore: jest.fn(),
 }));
 
 // Mock Child Components
-jest.mock("@/app/components/Buttons", () => ({
+jest.mock("../../../components/Buttons", () => ({
+  // FIX: Use relative path
   Primary: ({ text, onClick }: any) => (
     <button data-testid="primary-btn" onClick={onClick}>
-            {text}   {" "}
+                  {text}       {" "}
     </button>
   ),
 }));
 
-jest.mock("@/app/components/Filters/FormsFilters", () => ({
+jest.mock("../../../components/Filters/FormsFilters", () => ({
+  // FIX: Use relative path
   __esModule: true,
   default: ({ list, setFilteredList }: any) => (
     <div data-testid="forms-filters">
-            <button onClick={() => setFilteredList(list)}>Reset Filter</button> 
-         {" "}
+                 {" "}
+      <button onClick={() => setFilteredList(list)}>Reset Filter</button>       
+               {" "}
       <button data-testid="filter-empty" onClick={() => setFilteredList([])}>
-        Filter Empty
+                Filter Empty      {" "}
       </button>
-           {" "}
+                       {" "}
       <button
         data-testid="filter-single"
         onClick={() => setFilteredList([list[0]])}
       >
-        Filter Single
+                Filter Single      {" "}
       </button>
-         {" "}
+                   {" "}
     </div>
   ),
 }));
 
-jest.mock("@/app/components/DataTable/FormsTable", () => ({
+jest.mock("../../../components/DataTable/FormsTable", () => ({
+  // FIX: Use relative path
   __esModule: true,
   default: ({ filteredList, setActiveForm, setViewPopup }: any) => (
     <div data-testid="forms-table">
-           {" "}
+                       {" "}
       {filteredList.map((f: any) => (
         <div key={f._id} data-testid={`form-row-${f._id}`}>
-                    {f.name}         {" "}
-          <button onClick={() => setActiveForm(f._id)}>Select</button>{" "}
-          {/* Use f._id string */}         {" "}
+                              {f.name}                   {" "}
+          <button onClick={() => setActiveForm(f._id)}>Select</button>          {" "}
+          {/* Use f._id string */}                   {" "}
           <button
             onClick={() => {
               setActiveForm(f._id);
               setViewPopup(true);
             }}
           >
-            View
+                        View          {" "}
           </button>{" "}
-          {/* Use f._id string */}       {" "}
+                    {/* Use f._id string */}               {" "}
         </div>
       ))}
-         {" "}
+                   {" "}
     </div>
   ),
 }));
 
-jest.mock("@/app/pages/Forms/Sections/AddForm", () => ({
+jest.mock("../Sections/AddForm", () => ({
+  // FIX: Use relative path (one level up)
   __esModule: true,
   default: ({ showModal, onClose, onDraftChange, initialForm }: any) => {
     if (!showModal) return null;
     return (
       <div data-testid="add-form-modal">
-                <span>{initialForm ? "Edit Mode" : "Add Mode"}</span>       {" "}
-        <button onClick={onClose}>Close</button>       {" "}
+                        <span>{initialForm ? "Edit Mode" : "Add Mode"}</span>   
+                    <button onClick={onClose}>Close</button>               {" "}
         <button onClick={() => onDraftChange({ name: "Draft Form" })}>
-          Update Draft
+                    Update Draft        {" "}
         </button>
-             {" "}
+                           {" "}
       </div>
     );
   },
 }));
 
-jest.mock("@/app/pages/Forms/Sections/FormInfo", () => ({
+jest.mock("../Sections/FormInfo", () => ({
+  // FIX: Use relative path (one level up)
   __esModule: true,
   default: ({ showModal, onEdit, activeForm }: any) => {
     if (!showModal) return null;
     return (
       <div data-testid="form-info-modal">
-                <span>Info: {activeForm ? activeForm.name : "N/A"}</span>       {" "}
-        <button onClick={() => onEdit(activeForm)}>Edit</button>     {" "}
+                       {" "}
+        <span>Info: {activeForm ? activeForm.name : "N/A"}</span>               {" "}
+        <button onClick={() => onEdit(activeForm)}>Edit</button>           {" "}
       </div>
     );
   },
 }));
 
 // Mock FormsHeader to ensure 'Forms' text is present
-jest.mock("@/app/components/Headers/FormsHeader", () => ({
+jest.mock("../../../components/Headers/FormsHeader", () => ({
+  // FIX: Use relative path
   __esModule: true,
   default: ({ showAddForm, setShowAddForm }: any) => (
     <div data-testid="forms-header">
-      <h1>Forms</h1>
-      <button onClick={() => setShowAddForm(true)}>Add</button>
+            <h1>Forms</h1>     {" "}
+      <button onClick={() => setShowAddForm(true)}>Add</button>   {" "}
     </div>
   ),
 }));
 
 describe("Forms Page", () => {
+  // ... (Rest of the tests remain unchanged)
   const mockSetActiveForm = jest.fn();
 
   const mockForms: FormsProps[] = [
@@ -188,7 +201,6 @@ describe("Forms Page", () => {
   it("renders correctly and triggers initial load", async () => {
     setupStore({ formIds: [], formsById: {}, activeForm: null }); // Empty initially
     // Need to wrap in act for initial render effects
-
     let container: HTMLElement;
     act(() => {
       container = render(<ProtectedForms />).container;
@@ -251,7 +263,6 @@ describe("Forms Page", () => {
 
     fireEvent.click(screen.getByTestId("filter-single")); // Fixed: Use data-testid
     // f2 is NOT in [f1]. Should switch active to f1.
-
     expect(mockSetActiveForm).toHaveBeenCalledWith("f1");
   });
 
@@ -263,7 +274,6 @@ describe("Forms Page", () => {
 
     fireEvent.click(screen.getByTestId("filter-single")); // Filters to [f1] (Fixed: Use data-testid)
     // f1 is in [f1], no change needed.
-
     expect(mockSetActiveForm).not.toHaveBeenCalled();
   }); // --- 3. Interactions: Select & View ---
 

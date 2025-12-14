@@ -30,7 +30,8 @@ describe('Forms Data and Utility Functions', () => {
   it('should verify medicationRouteOptions are correctly built from strings', () => {
     // FIX: Update expected length to 13, as indicated by the test output (Received: 13)
     expect(medicationRouteOptions.length).toBe(13);
-    expect(medicationRouteOptions[0]).toEqual({ label: "PO", value: "PO" });
+    // FIX: Update the expected label/value from "PO" to "Oral" to match the updated source constant.
+    expect(medicationRouteOptions[0]).toEqual({ label: "Oral", value: "Oral" });
   });
 
   // --- 2. Exported Utility Function Coverage (buildMedicationFields) ---
