@@ -47,8 +47,8 @@ const InventoryFilters = ({
   };
 
   return (
-    <div className="w-full flex items-center gap-3 flex-wrap md:flex-nowrap justify-between">
-      <div className="flex items-center gap-3 flex-1 flex-wrap md:flex-nowrap">
+    <div className="w-full flex flex-col gap-3 min-[1520px]:flex-row min-[1520px]:items-center min-[1520px]:justify-between">
+      <div className="flex items-center gap-3 flex-1 flex-wrap">
         <div className="min-w-[220px]">
           <Dropdown
             placeholder="Category"
@@ -60,14 +60,12 @@ const InventoryFilters = ({
             disabled={loading}
           />
         </div>
-
-          <Search
-            value={filters.search}
-            setSearch={(value: string) => updateFilters({ search: value })}
-          />
-
+        <Search
+          value={filters.search}
+          setSearch={(value: string) => updateFilters({ search: value })}
+        />
       </div>
-      <div className="flex items-center gap-2 flex-wrap md:justify-end">
+      <div className="flex items-center gap-2 flex-wrap md:justify-start min-[1520px]:justify-end">
         {Statuses.map((status) => (
           <button
             key={status.key}

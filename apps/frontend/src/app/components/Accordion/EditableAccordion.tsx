@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Accordion from "./Accordion";
 import FormInput from "../Inputs/FormInput/FormInput";
 import { Primary, Secondary } from "../Buttons";
@@ -98,33 +98,37 @@ const FieldComponents: Record<
   ),
   country: ({ field, value, onChange }) => (
     <Dropdown
-      placeholder={field.label}
-      value={value || ""}
-      onChange={(e) => onChange(e)}
-      className="min-h-12!"
-      dropdownClassName="top-[55px]! !h-fit"
-      type="country"
-    />
-  ),
+        placeholder={field.label}
+        value={value || ""}
+        onChange={(e) => onChange(e)}
+        className="min-h-12!"
+        dropdownClassName="top-[55px]! !h-fit"
+        type="country"
+      />
+    ),
   date: ({ field, value, onChange }) => {
-    const parseDate = (val: any): Date => {
-      if (!val) return new Date();
+    const parseDate = (val: any): Date | null => {
+      if (!val) return null;
       if (typeof val === "string" && val.includes("/")) {
         const [dd, mm, yyyy] = val.split("/");
         const parsed = new Date(`${yyyy}-${mm}-${dd}`);
         if (!Number.isNaN(parsed.getTime())) return parsed;
       }
       const parsed = new Date(val);
-      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
     const formatDate = (date: Date) => date.toISOString().split("T")[0];
     return (
       <Datepicker
         currentDate={parseDate(value)}
-        setCurrentDate={(next) => {
+        setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
           const resolved =
-            typeof next === "function" ? (next as (prev: Date) => Date)(new Date()) : next;
-          onChange(formatDate(resolved));
+            typeof next === "function" ? (next as (prev: Date | null) => Date | null)(parseDate(value)) : next;
+          if (resolved) {
+            onChange(formatDate(resolved));
+          } else {
+            onChange("");
+          }
         }}
         type="input"
         placeholder={field.label}
@@ -374,7 +378,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setFormValuesErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
-  const validate = () => {
+  const validate = useCallback(() => {
     const errors: Record<string, string> = {};
     for (const field of fields) {
       const error = getRequiredError(field, formValues[field.key]);
@@ -384,22 +388,22 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     }
     setFormValuesErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [fields, formValues]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
     setIsEditing(false);
-  };
+  }, [fields, data]);
 
   useEffect(() => {
     if (readOnly && isEditing) {
       setIsEditing(false);
       onEditingChange?.(false);
     }
-  }, [readOnly, isEditing]);
+  }, [readOnly, isEditing, onEditingChange]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!validate()) return;
 
     try {
@@ -408,7 +412,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     } catch (e) {
       console.error("Failed to save accordion data:", e);
     }
-  };
+  }, [formValues, onSave, validate]);
 
   useEffect(() => {
     onEditingChange?.(isEditing);

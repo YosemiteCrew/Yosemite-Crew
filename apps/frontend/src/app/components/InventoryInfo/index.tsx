@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { BatchValues, InventoryItem } from "@/app/pages/Inventory/types";
 import { BusinessType } from "@/app/types/org";
 import { IoIosCloseCircleOutline } from "react-icons/io";
@@ -38,6 +38,8 @@ type BatchEditorProps = {
       | {
           save: () => Promise<void>;
           cancel: () => void;
+          startEditing?: () => void;
+          isEditing?: () => boolean;
         }
       | null
   ) => void;
@@ -86,41 +88,41 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
 
   const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
-  const beginEditing = () => {
+  const beginEditing = useCallback(() => {
     if (disableEditing) return;
     setIsEditing(true);
     if (newBatches.length === 0) {
       setNewBatches([{ ...emptyBatch }]);
     }
-  };
+  }, [disableEditing, newBatches.length]);
 
   useEffect(() => {
     onEditingChange?.(isEditing);
   }, [isEditing, onEditingChange]);
 
-  const handleChange = (index: number, name: string, value: string) => {
+  const handleChange = useCallback((index: number, name: keyof BatchValues, value: string) => {
     setNewBatches((prev) => {
       const next = [...prev];
       next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
       return next;
     });
     if (!isEditing) setIsEditing(true);
-  };
+  }, [isEditing]);
 
-  const addBatch = () => {
+  const addBatch = useCallback(() => {
     setNewBatches((prev) => [...prev, { ...emptyBatch }]);
     if (!isEditing) setIsEditing(true);
-  };
+  }, [isEditing]);
 
-  const removeBatch = (index: number) => {
+  const removeBatch = useCallback((index: number) => {
     setNewBatches((prev) => {
       const next = prev.filter((_, i) => i !== index);
       return next.length ? next : [{ ...emptyBatch }];
     });
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     const meaningfulNew = newBatches.filter((b) =>
       Object.values(b || {}).some((v) => toStringSafe(v) !== "")
     );
@@ -129,12 +131,12 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     });
     setIsEditing(false);
     setNewBatches([]);
-  };
+  }, [newBatches, onSave]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setNewBatches([]);
     setIsEditing(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (disableEditing && isEditing) {
@@ -174,7 +176,8 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     key?: React.Key
   ) => {
     const { placeholder, component, options, name } = field;
-    const value = newBatches[batchIndex]?.[name] ?? "";
+    const typedName = name as keyof BatchValues;
+    const value = newBatches[batchIndex]?.[typedName] ?? "";
 
     if (component === "date") {
       const currentDate = parseDate(value);
@@ -182,16 +185,16 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
         <Datepicker
           key={key ?? name}
           currentDate={currentDate}
-          setCurrentDate={(next) => {
+          setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
             const resolved =
               typeof next === "function"
                 ? (next as (prev: Date | null) => Date | null)(currentDate)
                 : next;
             if (!resolved) {
-              handleChange(batchIndex, name, "");
+              handleChange(batchIndex, typedName, "");
               return;
             }
-            handleChange(batchIndex, name, formatDate(resolved));
+            handleChange(batchIndex, typedName, formatDate(resolved));
           }}
           placeholder={placeholder || ""}
           type="input"
@@ -206,7 +209,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
           key={key ?? name}
           placeholder={placeholder || ""}
           value={value}
-          onChange={(v) => handleChange(batchIndex, name, v)}
+          onChange={(v) => handleChange(batchIndex, typedName, v)}
           className="min-h-12!"
           dropdownClassName="top-[55px]! !h-fit"
           options={options || []}
@@ -221,7 +224,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
         inname={name}
         value={value}
         inlabel={placeholder || ""}
-        onChange={(e) => handleChange(batchIndex, name, e.target.value)}
+        onChange={(e) => handleChange(batchIndex, typedName, e.target.value)}
         className="min-h-12!"
       />
     );
@@ -459,6 +462,43 @@ const InventoryInfo = ({
   ) => {
     if (!activeInventory || isUpdating || isHiding) return;
     setIsUpdating(true);
+    const logValidation = (msg: string, details?: Record<string, any>) => {
+      console.error(`[Inventory] ${msg}`, details ? JSON.stringify(details) : "");
+    };
+    const basicValidation = () => {
+      const errs: Record<string, string> = {};
+      if (!values.name && !activeInventory.basicInfo.name) {
+        errs.name = "Name is required";
+      }
+      if (!values.category && !activeInventory.basicInfo.category) {
+        errs.category = "Category is required";
+      }
+      if (!values.subCategory && !activeInventory.basicInfo.subCategory) {
+        errs.subCategory = "Sub category is required";
+      }
+      return errs;
+    };
+    const pricingValidation = () => {
+      const errs: Record<string, string> = {};
+      const purchase = values.purchaseCost ?? activeInventory.pricing.purchaseCost;
+      const selling = values.selling ?? activeInventory.pricing.selling;
+      if (purchase === "" || purchase === undefined) errs.purchaseCost = "Purchase cost is required";
+      else if (Number.isNaN(Number(purchase))) errs.purchaseCost = "Enter a valid number";
+      if (selling === "" || selling === undefined) errs.selling = "Selling price is required";
+      else if (Number.isNaN(Number(selling))) errs.selling = "Enter a valid number";
+      return errs;
+    };
+    const stockValidation = () => {
+      const errs: Record<string, string> = {};
+      const current = values.current ?? activeInventory.stock.current;
+      const reorder = values.reorderLevel ?? activeInventory.stock.reorderLevel;
+      if (current === "" || current === undefined) errs.current = "On hand quantity is required";
+      else if (Number.isNaN(Number(current))) errs.current = "Enter a valid number";
+      if (reorder === "" || reorder === undefined) errs.reorderLevel = "Reorder level is required";
+      else if (Number.isNaN(Number(reorder))) errs.reorderLevel = "Enter a valid number";
+      return errs;
+    };
+
     try {
       let updated: InventoryItem;
       if (section === "batch") {
@@ -467,6 +507,7 @@ const InventoryInfo = ({
             ? (values as any).newBatches
             : [];
         if (newBatches.length === 0) {
+          logValidation("Batch validation failed: at least one batch required when saving batch section");
           setIsUpdating(false);
           return;
         }
@@ -476,6 +517,20 @@ const InventoryInfo = ({
         setIsUpdating(false);
         return;
       } else {
+        const sectionErrors: Record<InventorySectionKey, Record<string, string>> = {
+          basicInfo: basicValidation(),
+          classification: {},
+          pricing: pricingValidation(),
+          vendor: {},
+          stock: stockValidation(),
+          batch: {},
+        };
+        const errs = sectionErrors[section];
+        if (errs && Object.keys(errs).length > 0) {
+          logValidation(`Validation failed for ${section}`, errs);
+          setIsUpdating(false);
+          return;
+        }
         updated = {
           ...activeInventory,
           [section]: {

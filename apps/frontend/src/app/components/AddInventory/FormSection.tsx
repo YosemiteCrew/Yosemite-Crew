@@ -123,7 +123,7 @@ const FormSection: React.FC<FormSectionProps> = ({
         <div key={key ?? field.name} className="flex flex-col gap-1">
           <Datepicker
             currentDate={currentDate}
-            setCurrentDate={(next) => {
+            setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
               const resolved =
                 typeof next === "function"
                   ? (next as (prev: Date | null) => Date | null)(currentDate)

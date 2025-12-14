@@ -28,6 +28,17 @@ const cleanObject = (obj: Record<string, any>) =>
     return acc;
   }, {});
 
+const parseDateSafe = (value?: string): Date | null => {
+  if (!value) return null;
+  if (value.includes("/")) {
+    const [dd, mm, yyyy] = value.split("/");
+    const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 export const formatDisplayDate = (value?: string): string => {
   if (!value) return "";
   const normalize = (val: string) => {
@@ -193,6 +204,19 @@ export const mapApiItemToInventoryItem = (
       updatedAt: toStringSafe(b.updatedAt),
     })) ?? [];
 
+  const selectPrimaryBatch = (batchList: BatchValues[]): BatchValues | undefined => {
+    if (!batchList.length) return undefined;
+    const withExpiry = batchList
+      .map((b) => ({ batch: b, date: parseDateSafe(b.expiryDate) }))
+      .filter((entry) => entry.date !== null) as { batch: BatchValues; date: Date }[];
+    if (withExpiry.length) {
+      return withExpiry.reduce((earliest, current) =>
+        current.date.getTime() < earliest.date.getTime() ? current : earliest
+      ).batch;
+    }
+    return batchList[0];
+  };
+
   const batchTotals = calculateBatchTotals(batches);
   const onHandVal = firstDefined(
     batchTotals.onHand,
@@ -214,7 +238,7 @@ export const mapApiItemToInventoryItem = (
       : onHandVal
   );
 
-  const primaryBatch = batches[0];
+  const primaryBatch = selectPrimaryBatch(batches);
 
   return {
     id: apiItem._id,
@@ -313,7 +337,9 @@ export const mapApiItemToInventoryItem = (
         primaryBatch?.manufactureDate ?? attributes.manufactureDate
       ),
       expiryDate: toStringSafe(
-        primaryBatch?.expiryDate ?? attributes.expiryDate
+        primaryBatch?.expiryDate ??
+          attributes.expiryDate ??
+          batches.find((b) => b.expiryDate)?.expiryDate
       ),
       serial: toStringSafe(primaryBatch?.serial ?? attributes.serial),
       tracking: toStringSafe(primaryBatch?.tracking ?? attributes.tracking),

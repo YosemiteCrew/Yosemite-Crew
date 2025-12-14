@@ -25,7 +25,9 @@ const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
 
 type DatepickerProps = {
   currentDate: Date | null;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date | null>>;
+  setCurrentDate:
+    | React.Dispatch<React.SetStateAction<Date | null>>
+    | React.Dispatch<React.SetStateAction<Date>>;
   minYear?: number;
   maxYear?: number;
   type?: string;
@@ -44,6 +46,8 @@ const Datepicker = ({
   containerClassName,
   placeholder
 }: DatepickerProps) => {
+  const updateDate =
+    setCurrentDate as React.Dispatch<React.SetStateAction<Date | null>>;
   const [isOpen, setIsOpen] = useState(false);
   const today = new Date();
   const initialYear = currentDate?.getFullYear() ?? today.getFullYear();
@@ -104,7 +108,7 @@ const Datepicker = ({
   };
 
   const handleSelectDate = (day: Date) => {
-    setCurrentDate(day);
+    updateDate(day);
     setIsOpen(false);
   };
 

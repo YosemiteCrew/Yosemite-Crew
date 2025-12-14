@@ -38,7 +38,7 @@ const ServiceSearch = ({
       if (!q) return true;
       return name.includes(q);
     });
-  }, [query, selectedNames]);
+  }, [query, selectedNames, SERVICES]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

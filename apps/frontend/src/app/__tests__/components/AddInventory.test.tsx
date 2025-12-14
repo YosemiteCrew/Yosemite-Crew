@@ -50,6 +50,12 @@ jest.mock("@/app/components/AddInventory/FormSection", () => ({
         >
           set-category
         </button>
+        <button
+          type="button"
+          onClick={() => onFieldChange(sectionKey, "subCategory", "SubCategory A")}
+        >
+          set-subcategory
+        </button>
         <button type="button" onClick={onSave}>
           save-section
         </button>
@@ -61,6 +67,16 @@ jest.mock("@/app/components/AddInventory/FormSection", () => ({
 import AddInventory from "@/app/components/AddInventory";
 
 describe("<AddInventory />", () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
   test("switches between sections via sub labels", () => {
     render(
       <AddInventory
@@ -76,6 +92,11 @@ describe("<AddInventory />", () => {
       "data-section",
       "basicInfo",
     );
+
+    // Fill required fields to allow navigation
+    fireEvent.click(screen.getByText("set-name"));
+    fireEvent.click(screen.getByText("set-category"));
+    fireEvent.click(screen.getByText("set-subcategory"));
 
     fireEvent.click(screen.getByText("Classification attribute"));
     expect(screen.getByTestId("form-section")).toHaveAttribute(
@@ -99,9 +120,13 @@ describe("<AddInventory />", () => {
     expect(screen.getByTestId("errors").textContent).toMatch(
       "Category is required",
     );
+    expect(screen.getByTestId("errors").textContent).toMatch(
+      "Sub category is required",
+    );
 
     fireEvent.click(screen.getByText("set-name"));
     fireEvent.click(screen.getByText("set-category"));
+    fireEvent.click(screen.getByText("set-subcategory"));
     fireEvent.click(screen.getByText("save-section"));
 
     expect(screen.getByTestId("errors").textContent).toBe("{}");

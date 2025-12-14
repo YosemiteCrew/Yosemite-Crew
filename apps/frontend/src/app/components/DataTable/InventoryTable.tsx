@@ -36,16 +36,22 @@ const InventoryTable = ({
     setViewInventory(true);
   };
 
+  const displayValue = (val?: string | number | null) => {
+    if (val === undefined || val === null) return "—";
+    if (typeof val === "string" && val.trim() === "") return "—";
+    return val;
+  };
+
   const formatCurrency = (value: string | number | undefined) => {
     const num = Number(value ?? 0);
-    if (!Number.isFinite(num)) return "$ 0";
+    if (!Number.isFinite(num)) return "—";
     return `$ ${num}`;
   };
 
   const totalValue = (item: InventoryItem) => {
     const price = Number(item.pricing.selling ?? 0);
     const onHand = Number(item.stock.current ?? 0);
-    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return "$ 0";
+    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return "—";
     return `$ ${Math.round(price * onHand)}`;
   };
 
@@ -74,7 +80,9 @@ const InventoryTable = ({
       width: "10%",
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {(item.stock.current || 0) + " units"}
+          {displayValue(item.stock.current || "") === "—"
+            ? "—"
+            : `${item.stock.current} units`}
         </div>
       ),
     },
@@ -114,7 +122,7 @@ const InventoryTable = ({
       width: "10%",
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {formatDisplayDate(item.batch.expiryDate)}
+          {formatDisplayDate(item.batch.expiryDate) || "—"}
         </div>
       ),
     },
@@ -124,7 +132,7 @@ const InventoryTable = ({
       width: "10%",
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {item.stock.stockLocation}
+          {displayValue(item.stock.stockLocation)}
         </div>
       ),
     },

@@ -1,8 +1,8 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useOrgStore } from "@/app/stores/orgStore";
-import { fetchInventoryItems } from "@/app/services/inventoryService";
+import { fetchInventoryItems, fetchInventoryTurnover } from "@/app/services/inventoryService";
 import ProtectedInventory from "@/app/pages/Inventory";
 
 jest.mock("@/app/components/ProtectedRoute", () => ({
@@ -106,6 +106,7 @@ jest.mock("@/app/components/InventoryInfo", () => ({
 jest.mock("@/app/services/inventoryService", () => ({
   __esModule: true,
   fetchInventoryItems: jest.fn(),
+  fetchInventoryTurnover: jest.fn(),
   createInventoryItem: jest.fn(),
   updateInventoryItem: jest.fn(),
   hideInventoryItem: jest.fn(),
@@ -136,6 +137,7 @@ const mockInventoryResponse = [
 describe("Inventory page", () => {
   beforeEach(() => {
     (fetchInventoryItems as jest.Mock).mockResolvedValue(mockInventoryResponse);
+    (fetchInventoryTurnover as jest.Mock).mockResolvedValue([]);
     useOrgStore.setState({
       orgsById: {
         "org-1": { _id: "org-1", name: "Org", type: "HOSPITAL" } as any,
@@ -147,7 +149,9 @@ describe("Inventory page", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-    useOrgStore.getState().clearOrgs();
+    act(() => {
+      useOrgStore.getState().clearOrgs();
+    });
   });
 
   test("renders inventory layout inside protected route", async () => {

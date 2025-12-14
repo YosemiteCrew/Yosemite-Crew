@@ -4,16 +4,22 @@ import { displayStatusLabel } from "@/app/pages/Inventory/utils";
 import { formatDisplayDate } from "@/app/pages/Inventory/utils";
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
+  const displayValue = (val?: string | number | null) => {
+    if (val === undefined || val === null) return "—";
+    if (typeof val === "string" && val.trim() === "") return "—";
+    return val;
+  };
+
   const formatCurrency = (value: string | number | undefined) => {
     const num = Number(value ?? 0);
-    if (!Number.isFinite(num)) return "$ 0";
+    if (!Number.isFinite(num)) return "—";
     return `$ ${num}`;
   };
 
   const totalValue = () => {
     const price = Number(item.pricing?.selling ?? 0);
     const onHand = Number(item.stock?.current ?? 0);
-    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return "$ 0";
+    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return "—";
     return `$ ${Math.round(price * onHand)}`;
   };
 
@@ -37,7 +43,9 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Stock:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {(item.stock.current || 0) + " units"}
+          {displayValue(item.stock.current || "") === "—"
+            ? "—"
+            : `${item.stock.current} units`}
         </div>
       </div>
       <div className="flex gap-1">
@@ -69,7 +77,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Expiry:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {formatDisplayDate(item.batch.expiryDate)}
+          {formatDisplayDate(item.batch.expiryDate) || "—"}
         </div>
       </div>
       <div className="flex gap-1">
@@ -77,7 +85,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Location:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.stock.stockLocation}
+          {displayValue(item.stock.stockLocation)}
         </div>
       </div>
       <div

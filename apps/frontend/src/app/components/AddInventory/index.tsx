@@ -134,6 +134,16 @@ const AddInventory = ({
     Partial<Record<InventorySectionKey, "valid" | "error">>
   >({});
 
+  const logValidationFailure = (
+    section: InventorySectionKey,
+    details: Record<string, string>
+  ) => {
+    console.error(
+      `[Inventory] Validation failed for ${section}`,
+      JSON.stringify(details)
+    );
+  };
+
   const updateSection = (
     section: InventorySectionKey,
     patch: Record<string, any>,
@@ -179,6 +189,7 @@ const AddInventory = ({
       if (Object.keys(be).length > 0) {
         nextErrors.basicInfo = be;
         setErrors(nextErrors);
+        logValidationFailure(section, be);
         updateStatus(false);
         return false;
       }
@@ -189,22 +200,7 @@ const AddInventory = ({
     }
 
     if (section === "classification") {
-      const classification = formData.classification;
-      const ce: InventoryErrors["classification"] = {};
-      if (
-        !classification.species ||
-        (Array.isArray(classification.species)
-          ? classification.species.length === 0
-          : classification.species === "")
-      ) {
-        ce.species = "Select at least one species";
-      }
-      if (Object.keys(ce).length > 0) {
-        nextErrors.classification = ce;
-        setErrors(nextErrors);
-        updateStatus(false);
-        return false;
-      }
+      // Classification is optional for cleaning supplies and other non-drug items.
       delete nextErrors.classification;
       setErrors(nextErrors);
       updateStatus(true);
@@ -225,6 +221,7 @@ const AddInventory = ({
       if (Object.keys(pe).length > 0) {
         nextErrors.pricing = pe;
         setErrors(nextErrors);
+        logValidationFailure(section, pe);
         updateStatus(false);
         return false;
       }
@@ -248,6 +245,7 @@ const AddInventory = ({
       if (Object.keys(se).length > 0) {
         nextErrors.stock = se;
         setErrors(nextErrors);
+        logValidationFailure(section, se);
         updateStatus(false);
         return false;
       }
@@ -269,7 +267,10 @@ const AddInventory = ({
       const firstInvalid = labels.find(
         (l) => sectionStatus[l.key] === "error" || !validateSection(l.key)
       );
-      if (firstInvalid) setActiveLabel(firstInvalid.key);
+      if (firstInvalid) {
+        console.error(`[Inventory] Validation halted at section ${firstInvalid.key}`);
+        setActiveLabel(firstInvalid.key);
+      }
     }
     return allValid;
   };
@@ -311,7 +312,10 @@ const AddInventory = ({
 
   const handleNext = async () => {
     const currentValid = validateSection(activeLabel);
-    if (!currentValid) return;
+    if (!currentValid) {
+      console.error(`[Inventory] Validation failed at step ${activeLabel}`);
+      return;
+    }
     const currentIndex = labels.findIndex((l) => l.key === activeLabel);
     const nextLabel = labels[currentIndex + 1];
     if (nextLabel) {

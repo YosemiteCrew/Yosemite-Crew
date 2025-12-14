@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Primary } from "@/app/components/Buttons";
 import InventoryFilters from "@/app/components/Filters/InventoryFilters";
@@ -15,25 +15,12 @@ import {
   InventoryTurnoverItem,
 } from "./types";
 import {
-  buildInventoryPayload,
-  buildBatchPayload,
   defaultFilters,
-  mapApiItemToInventoryItem,
-  formatStatusLabel,
 } from "./utils";
-import {
-  createInventoryItem,
-  fetchInventoryItems,
-  hideInventoryItem,
-  updateInventoryItem,
-  unhideInventoryItem,
-  fetchInventoryTurnover,
-  createInventoryBatch,
-} from "@/app/services/inventoryService";
 import { BusinessType, BusinessTypes } from "@/app/types/org";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
-import { useRef } from "react";
+import { useInventoryModule } from "@/app/hooks/useInventory";
 
 const Inventory = () => {
   useLoadOrg();
@@ -44,29 +31,32 @@ const Inventory = () => {
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
   const resolvedBusinessType: BusinessType = businessType ?? "GROOMER";
 
+  const {
+    inventory,
+    turnover,
+    status,
+    error: loadError,
+    createItem,
+    updateItem,
+    hideItem,
+    unhideItem,
+    addBatch,
+  } = useInventoryModule(resolvedBusinessType);
+
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
-  const [turnoverList, setTurnoverList] = useState<InventoryTurnoverItem[]>([]);
   const [filteredTurnoverList, setFilteredTurnoverList] = useState<InventoryTurnoverItem[]>([]);
   const [addPopup, setAddPopup] = useState(false);
   const [viewInventory, setViewInventory] = useState(false);
   const [activeInventory, setActiveInventory] = useState<InventoryItem | null>(
     null
   );
-  const [loadingList, setLoadingList] = useState(false);
   const [savingItem, setSavingItem] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const lastLoadedOrgId = useRef<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const withResolvedBusinessType = useCallback(
-    (item: InventoryItem): InventoryItem => ({
-      ...item,
-      businessType: item.businessType ?? resolvedBusinessType,
-    }),
-    [resolvedBusinessType]
-  );
+  const loadingList = status === "loading";
+  const error = actionError ?? loadError;
 
   useEffect(() => {
     const org = primaryOrgId ? orgsById[primaryOrgId] : null;
@@ -87,71 +77,28 @@ const Inventory = () => {
     [resolvedBusinessType]
   );
 
-  const loadInventory = useCallback(
-    async (orgId?: string, focusItemId?: string) => {
-      const orgToUse = orgId ?? primaryOrgId;
-      if (!orgToUse) {
-        setInventory([]);
-        setActiveInventory(null);
-        return;
-      }
-      setLoadingList(true);
-      setError(null);
-      try {
-        const [items, turnover] = await Promise.all([
-          fetchInventoryItems(orgToUse),
-          fetchInventoryTurnover(orgToUse),
-        ]);
-        const mapped = items.map((entry) =>
-          withResolvedBusinessType(mapApiItemToInventoryItem(entry))
-        );
-        setInventory(mapped);
-        setTurnoverList(turnover);
-        setFilteredTurnoverList(turnover);
-        setActiveInventory((prev) => {
-          if (focusItemId) {
-            const focused = mapped.find((i) => i.id === focusItemId);
-            if (focused) return focused;
-          }
-          const existing = prev ? mapped.find((i) => i.id === prev.id) : null;
-          return existing ?? mapped[0] ?? null;
-        });
-      } catch (err) {
-        setError("Unable to load inventory right now.");
-      } finally {
-        setLoadingList(false);
-      }
-    },
-    [primaryOrgId, withResolvedBusinessType]
-  );
-
   useEffect(() => {
-    if (!primaryOrgId) return;
-    if (lastLoadedOrgId.current === primaryOrgId) return;
-    lastLoadedOrgId.current = primaryOrgId;
-    void loadInventory(primaryOrgId);
-  }, [primaryOrgId, loadInventory]);
-
-  useEffect(() => {
-    if (!inventory.length) {
-      setActiveInventory(null);
-      setViewInventory(false);
-    }
-  }, [inventory.length]);
+    setFilteredTurnoverList(turnover);
+  }, [turnover]);
 
   useEffect(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
     const statusFilter = filters.status.toUpperCase();
     const nextFiltered = inventory.filter((item) => {
-      const statusKey = (item.status || "").toUpperCase();
+      const statusKey = (item.status || item.basicInfo.status || "").toUpperCase();
       const stockHealthKey = (item.stockHealth || "").toUpperCase();
+      const isStockHealthFilter =
+        statusFilter !== "ALL" &&
+        statusFilter !== "ACTIVE" &&
+        statusFilter !== "HIDDEN";
       const categoryMatch =
         filters.category === "all" ||
         item.basicInfo.category?.toLowerCase() === filters.category.toLowerCase();
       const statusMatch =
         statusFilter === "ALL" ||
-        statusKey === statusFilter ||
-        (statusKey !== "HIDDEN" && statusKey !== "ACTIVE" && stockHealthKey === statusFilter);
+        (isStockHealthFilter
+          ? stockHealthKey === statusFilter
+          : statusKey === statusFilter);
       const searchMatch =
         !normalizedSearch ||
         item.basicInfo.name.toLowerCase().includes(normalizedSearch) ||
@@ -162,139 +109,105 @@ const Inventory = () => {
   }, [inventory, filters.category, filters.status, debouncedSearch]);
 
   useEffect(() => {
-    if (filteredInventory.length > 0) {
-      setActiveInventory(filteredInventory[0]);
-    } else {
-      setActiveInventory(null);
+    setActiveInventory((prev) => {
+      if (!filteredInventory.length) return null;
+      if (prev) {
+        const existing = filteredInventory.find((i) => i.id === prev.id);
+        if (existing) return existing;
+      }
+      return filteredInventory[0];
+    });
+    if (!filteredInventory.length) {
       setViewInventory(false);
     }
   }, [filteredInventory]);
 
-  const handleCreateInventory = async (data: InventoryItem) => {
-    if (!primaryOrgId) {
-      throw new Error("No organisation selected.");
-    }
-    setSavingItem(true);
-    setError(null);
-    try {
-      const payload = buildInventoryPayload(
-        data,
-        primaryOrgId,
-        resolvedBusinessType
-      );
-      const created = await createInventoryItem(payload);
-      const mapped = withResolvedBusinessType(mapApiItemToInventoryItem(created));
-      setInventory((prev) => [mapped, ...prev]);
-      setActiveInventory(mapped);
-    } catch (err) {
-      setError("Unable to save inventory item.");
-      throw err;
-    } finally {
-      setSavingItem(false);
-    }
-  };
-
-  const handleUpdateInventory = async (updatedItem: InventoryItem) => {
-    if (!updatedItem.id || !primaryOrgId) return;
-    setError(null);
-    try {
-      const payload = buildInventoryPayload(
-        updatedItem,
-        primaryOrgId,
-        updatedItem.businessType ?? resolvedBusinessType
-      );
-      const res = await updateInventoryItem(updatedItem.id, payload);
-      const mapped = withResolvedBusinessType(mapApiItemToInventoryItem(res));
-      setInventory((prev) =>
-        prev.map((item) => (item.id === mapped.id ? mapped : item))
-      );
-      setActiveInventory(mapped);
-    } catch (err) {
-      setError("Unable to update inventory item.");
-      throw err;
-    }
-  };
-
-  const handleAddBatch = async (itemId: string, batches: any[]) => {
-    if (!itemId) return;
-    setError(null);
-    try {
-      const payloads = batches
-        .map((b) =>
-          buildBatchPayload({
-            ...b,
-            itemId,
-            organisationId: primaryOrgId ?? "",
-          } as any)
-        )
-        .filter(Boolean);
-      const created = await Promise.all(
-        payloads.map((p) => createInventoryBatch(itemId, p!))
-      );
-      // Reload inventory to reflect latest batches from API and update active item
-      await loadInventory(primaryOrgId, itemId);
-    } catch (err) {
-      setError("Unable to add batch.");
-      throw err;
-    }
-  };
-
-  const handleHideInventory = async (itemId: string) => {
-    if (!itemId) return;
-    setError(null);
-    try {
-      const res = await hideInventoryItem(itemId);
-      if (res) {
-        const mapped = withResolvedBusinessType(mapApiItemToInventoryItem(res));
-        const hiddenStatus = formatStatusLabel(mapped.status ?? "HIDDEN");
-        const withStatus: InventoryItem = {
-          ...mapped,
-          stockHealth: mapped.stockHealth ?? "HIDDEN",
-          status: mapped.status ?? "HIDDEN",
-          basicInfo: {
-            ...mapped.basicInfo,
-            status: hiddenStatus,
-          },
-        };
-        setInventory((prev) =>
-          prev.map((item) => (item.id === itemId ? withStatus : item))
-        );
-        setActiveInventory((prev) =>
-          prev && prev.id === itemId ? withStatus : prev
-        );
-      } else {
-        await loadInventory();
+  const handleCreateInventory = useCallback(
+    async (data: InventoryItem) => {
+      if (!primaryOrgId) {
+        throw new Error("No organisation selected.");
       }
-    } catch (err) {
-      setError("Unable to hide inventory item.");
-      throw err;
-    }
-  };
-
-  const handleUnhideInventory = async (itemId: string) => {
-    if (!itemId) return;
-    setError(null);
-    try {
-      const res = await unhideInventoryItem(itemId);
-      if (res) {
-        const mapped = withResolvedBusinessType(mapApiItemToInventoryItem(res));
-        setInventory((prev) =>
-          prev.map((item) => (item.id === itemId ? mapped : item))
-        );
-        setActiveInventory((prev) =>
-          prev && prev.id === itemId ? mapped : prev
-        );
-      } else {
-        await loadInventory();
+      setSavingItem(true);
+      setActionError(null);
+      try {
+        const created = await createItem(data);
+        setActiveInventory(created);
+        setAddPopup(false);
+      } catch (err) {
+        setActionError("Unable to save inventory item.");
+        throw err;
+      } finally {
+        setSavingItem(false);
       }
-    } catch (err) {
-      setError("Unable to unhide inventory item.");
-      throw err;
-    }
-  };
+    },
+    [primaryOrgId, createItem]
+  );
+
+  const handleUpdateInventory = useCallback(
+    async (updatedItem: InventoryItem) => {
+      if (!updatedItem.id) return;
+      setActionError(null);
+      try {
+        const mapped = await updateItem(updatedItem);
+        setActiveInventory(mapped);
+      } catch (err) {
+        setActionError("Unable to update inventory item.");
+        throw err;
+      }
+    },
+    [updateItem]
+  );
+
+  const handleAddBatch = useCallback(
+    async (itemId: string, batches: any[]) => {
+      if (!itemId) return;
+      setActionError(null);
+      try {
+        await addBatch(itemId, batches);
+      } catch (err) {
+        setActionError("Unable to add batch.");
+        throw err;
+      }
+    },
+    [addBatch]
+  );
+
+  const handleHideInventory = useCallback(
+    async (itemId: string) => {
+      if (!itemId) return;
+      setActionError(null);
+      try {
+        const res = await hideItem(itemId);
+        if (res) {
+          setActiveInventory(res);
+        }
+      } catch (err) {
+        setActionError("Unable to hide inventory item.");
+        throw err;
+      }
+    },
+    [hideItem]
+  );
+
+  const handleUnhideInventory = useCallback(
+    async (itemId: string) => {
+      if (!itemId) return;
+      setActionError(null);
+      try {
+        const res = await unhideItem(itemId);
+        if (res) {
+          setActiveInventory(res);
+        }
+      } catch (err) {
+        setActionError("Unable to unhide inventory item.");
+        throw err;
+      }
+    },
+    [unhideItem]
+  );
 
   return (
-    <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
+    <div className="flex flex-col gap-5 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
       <div className="flex justify-between items-center w-full">
         <div className="font-grotesk font-medium text-black-text text-[33px]">
           Inventory
@@ -338,7 +251,7 @@ const Inventory = () => {
           Turnover
         </div>
         <InventoryTurnoverFilters
-          list={turnoverList}
+          list={turnover}
           setFilteredList={setFilteredTurnoverList}
         />
         <InventoryTurnoverTable filteredList={filteredTurnoverList} />
