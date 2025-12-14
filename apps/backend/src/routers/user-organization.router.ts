@@ -10,6 +10,11 @@ router.get(
   authorizeCognito,
   UserOrganizationController.listMappingsForUser,
 );
+router.get(
+  "/org/mapping/:organisationId",
+  //authorizeCognito,
+  UserOrganizationController.listByOrganisationId,
+);
 router.get("/:id", UserOrganizationController.getMappingById);
 router.get("/", UserOrganizationController.listMappings);
 router.delete("/:id", UserOrganizationController.deleteMappingById);
