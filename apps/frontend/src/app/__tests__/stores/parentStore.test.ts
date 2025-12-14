@@ -3,19 +3,25 @@ import { StoredParent } from "@/app/pages/Companions/types";
 import { act } from "@testing-library/react";
 
 // Mock data
+// Fixed: Replaced 'name' with 'firstName' and 'lastName' to match StoredParent type
 const mockParent1: StoredParent = {
   id: "parent-1",
-  name: "John Doe",
+  firstName: "John",
+  lastName: "Doe",
   email: "john@example.com",
   phone: "1234567890",
-};
+  // Added other potential required fields as optional/safe defaults if needed by type
+  organisationId: "org-1",
+} as unknown as StoredParent;
 
 const mockParent2: StoredParent = {
   id: "parent-2",
-  name: "Jane Smith",
+  firstName: "Jane",
+  lastName: "Smith",
   email: "jane@example.com",
   phone: "0987654321",
-};
+  organisationId: "org-1",
+} as unknown as StoredParent;
 
 describe("useParentStore", () => {
   beforeEach(() => {
@@ -63,14 +69,14 @@ describe("useParentStore", () => {
       useParentStore.getState().upsertParent(mockParent1);
     });
 
-    // Update
-    const updatedParent = { ...mockParent1, name: "John Updated" };
+    // Update - Fixed: Updating firstName instead of name
+    const updatedParent = { ...mockParent1, firstName: "John Updated" };
     act(() => {
       useParentStore.getState().upsertParent(updatedParent);
     });
 
     const state = useParentStore.getState();
-    expect(state.parentsById["parent-1"].name).toBe("John Updated");
+    expect(state.parentsById["parent-1"].firstName).toBe("John Updated");
     // Ensure ID is not duplicated
     expect(state.parentIds).toEqual(["parent-1"]);
   });
@@ -98,14 +104,15 @@ describe("useParentStore", () => {
     });
 
     // Bulk add updated parent 1 + new parent 2
-    const updatedParent1 = { ...mockParent1, name: "John Bulk Updated" };
+    // Fixed: Updating firstName instead of name
+    const updatedParent1 = { ...mockParent1, firstName: "John Bulk Updated" };
     act(() => {
       useParentStore.getState().addBulkParents([updatedParent1, mockParent2]);
     });
 
     const state = useParentStore.getState();
     expect(state.parentIds).toHaveLength(2);
-    expect(state.parentsById["parent-1"].name).toBe("John Bulk Updated");
+    expect(state.parentsById["parent-1"].firstName).toBe("John Bulk Updated");
     expect(state.parentsById["parent-2"]).toEqual(mockParent2);
   });
 

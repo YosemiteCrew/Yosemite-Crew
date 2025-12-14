@@ -11,7 +11,10 @@ import { InvoiceProps } from "@/app/types/invoice";
 // Mock Next.js Image
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} alt={props.alt || "mock-img"} />,
+  default: (props: any) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img {...props} alt={props.alt || "mock-img"} />
+  ),
 }));
 
 // Mock Icons
@@ -26,7 +29,8 @@ jest.mock("@/app/components/Cards/InvoiceCard", () => ({
     <div data-testid="mobile-card">
       <span data-testid="mobile-pet">{invoice.metadata.pet}</span>
       <button
-        data-testid={`mobile-view-btn-${invoice.id}`}
+        // Fixed: Use _id or id depending on what's available at runtime in the mock
+        data-testid={`mobile-view-btn-${invoice._id || invoice.id}`}
         onClick={() => handleViewInvoice(invoice)}
       >
         View Mobile
@@ -36,7 +40,6 @@ jest.mock("@/app/components/Cards/InvoiceCard", () => ({
 }));
 
 // IMPORTANT: Smart Mock for GenericTable
-// We render the columns to test the 'render' functions defined in InvoiceTable.tsx
 jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
@@ -67,8 +70,11 @@ describe("InvoiceTable Component", () => {
   const mockSetActiveInvoice = jest.fn();
   const mockSetViewInvoice = jest.fn();
 
+  // Fixed: Added _id to match InvoiceProps type (likely MongoDB style)
+  // Kept id just in case logic falls back to it, but typed as 'any' to bypass strict checks if needed
   const mockData: InvoiceProps[] = [
     {
+      _id: "inv-1",
       id: "inv-1",
       amount: 150,
       dueDate: "2023-11-01",
@@ -88,6 +94,7 @@ describe("InvoiceTable Component", () => {
       },
     } as any,
     {
+      _id: "inv-2",
       id: "inv-2",
       amount: 200,
       dueDate: "2023-11-05",
@@ -134,14 +141,14 @@ describe("InvoiceTable Component", () => {
 
     // Row 1 (Fido)
     expect(scope.getByText("Fido")).toBeInTheDocument();
-    expect(scope.getByText("John")).toBeInTheDocument(); // Parent Name Split
+    expect(scope.getByText("John")).toBeInTheDocument();
     expect(scope.getByText("appt-123")).toBeInTheDocument();
     expect(scope.getByText("Checkup")).toBeInTheDocument();
     expect(scope.getByText("Oct 01, 2023")).toBeInTheDocument();
     expect(scope.getByText("10:00 AM")).toBeInTheDocument();
-    expect(scope.getByText("$ 100.00")).toBeInTheDocument(); // Subtotal
-    expect(scope.getByText("$ 10.00")).toBeInTheDocument(); // Tax
-    expect(scope.getByText("$ 110.00")).toBeInTheDocument(); // Total
+    expect(scope.getByText("$ 100.00")).toBeInTheDocument();
+    expect(scope.getByText("$ 10.00")).toBeInTheDocument();
+    expect(scope.getByText("$ 110.00")).toBeInTheDocument();
     expect(scope.getByText("Paid")).toBeInTheDocument();
 
     // Row 2 (Rex)
@@ -191,7 +198,10 @@ describe("InvoiceTable Component", () => {
       />
     );
 
-    const mobileBtn = screen.getByTestId(`mobile-view-btn-${mockData[0].id}`);
+    // Fixed: Use _id for selector to match mock rendering logic logic
+    // Using explicit cast to 'any' to safely access property if Typescript complains
+    const id = (mockData[0] as any)._id || (mockData[0] as any).id;
+    const mobileBtn = screen.getByTestId(`mobile-view-btn-${id}`);
     fireEvent.click(mobileBtn);
 
     expect(mockSetActiveInvoice).toHaveBeenCalledWith(mockData[0]);

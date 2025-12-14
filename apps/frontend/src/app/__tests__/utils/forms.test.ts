@@ -13,6 +13,8 @@ import {
   toFormResponseDTO,
   Form,
 } from "@yosemite-crew/types";
+// Fixed: Changed import name from 'FormCategory' to 'FormsCategory'
+import { FormsCategory } from "@/app/types/forms";
 
 // --- Mocks ---
 
@@ -37,7 +39,17 @@ jest.mock("@/app/types/forms", () => {
         { name: "template-field", type: "text", label: "Template Field" },
       ],
       Intake: [], // Empty template
+      // Complex mock for recursive test structure
+      Group: [
+        {
+          type: "group",
+          name: "g1",
+          fields: [{ type: "text", name: "child1", label: "Child" }],
+        },
+      ],
     },
+    // Export FormsCategory as an empty object for type resolution in test scope
+    FormsCategory: {}
   };
 });
 
@@ -51,7 +63,6 @@ describe("Forms Utils", () => {
   describe("formatDateLabel", () => {
     it("formats a valid Date object", () => {
       const date = new Date("2023-10-27T10:00:00Z");
-      // toLocaleDateString depends on node locale
       const result = formatDateLabel(date);
       expect(result).not.toBe("");
       expect(result).not.toBe("Invalid Date");
@@ -99,8 +110,9 @@ describe("Forms Utils", () => {
   // --- 2. Template Logic ---
 
   describe("getCategoryTemplate", () => {
+    // Fixed: Casting to FormsCategory
     it("returns deep cloned template fields for known category", () => {
-      const fields = getCategoryTemplate("Medical" as any);
+      const fields = getCategoryTemplate("Medical" as FormsCategory);
       expect(fields).toHaveLength(1);
       expect((fields[0] as any).name).toBe("template-field");
     });
@@ -110,31 +122,15 @@ describe("Forms Utils", () => {
       expect(fields).toEqual([]);
     });
 
-    // UPDATED TEST: Made async and used await import()
     it("deep clones groups correctly (Recursive check)", async () => {
-      // We need to re-mock specifically for this test to test recursion inside cloneField
       jest.resetModules();
-      jest.doMock("@/app/types/forms", () => ({
-        CategoryTemplates: {
-          Complex: [
-            {
-              type: "group",
-              name: "g1",
-              fields: [{ type: "text", name: "child1" }],
-            },
-          ],
-        },
-      }));
 
-      // Re-import to get the new mock using dynamic import instead of require
-      const { getCategoryTemplate: getComplex } = await import(
-        "@/app/utils/forms"
-      );
-      const fields = getComplex("Complex");
+      const fields = getCategoryTemplate("Group" as any);
+      const groupField = fields[0] as any;
 
-      expect(fields[0].type).toBe("group");
-      expect(fields[0].fields).toHaveLength(1);
-      expect((fields[0].fields[0] as any).name).toBe("child1");
+      expect(groupField.type).toBe("group");
+      expect(groupField.fields).toHaveLength(1);
+      expect(groupField.fields[0].name).toBe("child1");
     });
   });
 
@@ -145,7 +141,7 @@ describe("Forms Utils", () => {
       _id: "123",
       orgId: "org-1",
       name: "Test Form",
-      category: "Medical",
+      category: "Medical" as FormsCategory,
       status: "draft",
       schema: [],
       visibilityType: "Internal",
@@ -251,10 +247,11 @@ describe("Forms Utils", () => {
   // --- 4. Payload Building ---
 
   describe("buildFHIRPayload", () => {
+    // Fixed: Casting category to FormsCategory
     const mockUIForm = {
       _id: "ui-1",
       name: "UI Form",
-      category: "Medical",
+      category: "Medical" as FormsCategory,
       status: "Draft",
       usage: "Internal",
       schema: [], // Empty schema to test fallback
@@ -287,9 +284,7 @@ describe("Forms Utils", () => {
       });
 
       const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];
-      // Should have picked up the "template-field" from Medical mock
       expect(normalized.schema).toHaveLength(1);
-      // Cast to any to avoid "Property name does not exist on type FormField"
       expect((normalized.schema[0] as any).name).toBe("template-field");
     });
 
@@ -315,7 +310,6 @@ describe("Forms Utils", () => {
         form: formWithSchema,
         orgId: "org-1",
         userId: "user-1",
-        fallbackToTemplate: true,
       });
 
       const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];

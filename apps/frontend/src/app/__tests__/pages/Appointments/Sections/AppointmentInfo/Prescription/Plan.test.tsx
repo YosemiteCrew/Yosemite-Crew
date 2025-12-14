@@ -2,7 +2,8 @@ import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Plan from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
-import { formDataProps } from "@/app/pages/Appointments/Sections/AppointmentInfo";
+// Fixed: Corrected import case to 'FormDataProps'
+import { FormDataProps } from "@/app/pages/Appointments/Sections/AppointmentInfo";
 
 // --- Mocks ---
 
@@ -81,7 +82,7 @@ describe("Plan Component", () => {
   const mockSetFormData = jest.fn();
   const mockActiveAppointment = {} as any;
 
-  const defaultFormData: formDataProps = {
+  const defaultFormData: FormDataProps = {
     services: [],
     suggestions: [],
     notes: "",

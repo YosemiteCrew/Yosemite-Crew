@@ -11,8 +11,42 @@ import {
   isAllDayForDate,
   eventsForDay,
 } from "@/app/components/Calendar/helpers";
-import { AppointmentsProps } from "@/app/types/appointments";
+// Fixed: Removed 'Task' from @yosemite-crew/types as it doesn't exist
+import { Appointment } from "@yosemite-crew/types";
+// Fixed: Import TasksProps from your local types definition
 import { TasksProps } from "@/app/types/tasks";
+
+// Helper to create a minimal valid appointment for testing layout
+const createMockAppt = (start: Date, end: Date): Appointment =>
+  ({
+    _id: "test-id",
+    start,
+    end,
+    // Add required fields to satisfy TS
+    organisationId: "org-1",
+    companion: { id: "c1", name: "Rex", parentId: "p1" } as any,
+    appointmentDate: start,
+    startTime: "00:00",
+    endTime: "00:00",
+    status: "Confirmed",
+    service: { name: "Test Service", color: "#fff" },
+    room: "Room 1",
+    user: { name: "Dr. Test" },
+  } as unknown as Appointment);
+
+// Helper to create a minimal valid task using TasksProps
+const createMockTask = (due: Date): TasksProps =>
+  ({
+    // Add required fields based on TasksProps definition
+    task: "Test Task",
+    description: "Test Desc",
+    category: "General",
+    from: "User A",
+    to: "User B",
+    toLabel: "Assignee",
+    due: due,
+    status: "Upcoming",
+  } as TasksProps);
 
 describe("Calendar Helpers", () => {
   // --- Date Comparison & Formatting ---
@@ -31,15 +65,15 @@ describe("Calendar Helpers", () => {
     });
 
     it("returns false for different month", () => {
-        const d1 = new Date(2023, 9, 27);
-        const d2 = new Date(2023, 10, 27);
-        expect(isSameDay(d1, d2)).toBe(false);
+      const d1 = new Date(2023, 9, 27);
+      const d2 = new Date(2023, 10, 27);
+      expect(isSameDay(d1, d2)).toBe(false);
     });
 
     it("returns false for different year", () => {
-        const d1 = new Date(2023, 9, 27);
-        const d2 = new Date(2024, 9, 27);
-        expect(isSameDay(d1, d2)).toBe(false);
+      const d1 = new Date(2023, 9, 27);
+      const d2 = new Date(2024, 9, 27);
+      expect(isSameDay(d1, d2)).toBe(false);
     });
   });
 
@@ -87,8 +121,8 @@ describe("Calendar Helpers", () => {
     });
 
     it("calculates midnight correctly", () => {
-        const date = new Date(2023, 9, 27, 0, 0);
-        expect(minutesSinceStartOfDay(date)).toBe(0);
+      const date = new Date(2023, 9, 27, 0, 0);
+      expect(minutesSinceStartOfDay(date)).toBe(0);
     });
   });
 
@@ -112,10 +146,10 @@ describe("Calendar Helpers", () => {
       // Step: 5 min. 60/5 = 12 steps. 90/5 = 18 steps.
       // Top: 12 * 25px = 300px
       // Duration: 30 mins = 6 steps. Height: 6 * 25px = 150px
-      const event = {
-        start: new Date(2023, 9, 27, 1, 0),
-        end: new Date(2023, 9, 27, 1, 30),
-      } as AppointmentsProps;
+      const event = createMockAppt(
+        new Date(2023, 9, 27, 1, 0),
+        new Date(2023, 9, 27, 1, 30)
+      );
 
       const { topPx, heightPx } = computeVerticalPositionPx(event);
       expect(topPx).toBe(300);
@@ -131,8 +165,14 @@ describe("Calendar Helpers", () => {
     });
 
     it("handles non-overlapping events", () => {
-      const e1 = { start: new Date(2023, 9, 27, 9, 0), end: new Date(2023, 9, 27, 10, 0) } as AppointmentsProps;
-      const e2 = { start: new Date(2023, 9, 27, 10, 0), end: new Date(2023, 9, 27, 11, 0) } as AppointmentsProps;
+      const e1 = createMockAppt(
+        new Date(2023, 9, 27, 9, 0),
+        new Date(2023, 9, 27, 10, 0)
+      );
+      const e2 = createMockAppt(
+        new Date(2023, 9, 27, 10, 0),
+        new Date(2023, 9, 27, 11, 0)
+      );
 
       const result = layoutDayEvents([e1, e2]);
 
@@ -148,8 +188,14 @@ describe("Calendar Helpers", () => {
     it("handles simple overlapping events", () => {
       // e1: 9:00 - 10:00
       // e2: 9:30 - 10:30 (overlaps e1)
-      const e1 = { start: new Date(2023, 9, 27, 9, 0), end: new Date(2023, 9, 27, 10, 0) } as AppointmentsProps;
-      const e2 = { start: new Date(2023, 9, 27, 9, 30), end: new Date(2023, 9, 27, 10, 30) } as AppointmentsProps;
+      const e1 = createMockAppt(
+        new Date(2023, 9, 27, 9, 0),
+        new Date(2023, 9, 27, 10, 0)
+      );
+      const e2 = createMockAppt(
+        new Date(2023, 9, 27, 9, 30),
+        new Date(2023, 9, 27, 10, 30)
+      );
 
       const result = layoutDayEvents([e1, e2]);
 
@@ -167,10 +213,22 @@ describe("Calendar Helpers", () => {
       // B: 9:15-9:45 (overlaps A)
       // C: 9:30-10:30 (overlaps A and B) -> Max width 3
       // D: 11:00-12:00 (separate)
-      const eA = { start: new Date(2023, 9, 27, 9, 0), end: new Date(2023, 9, 27, 10, 0) } as AppointmentsProps;
-      const eB = { start: new Date(2023, 9, 27, 9, 15), end: new Date(2023, 9, 27, 9, 45) } as AppointmentsProps;
-      const eC = { start: new Date(2023, 9, 27, 9, 30), end: new Date(2023, 9, 27, 10, 30) } as AppointmentsProps;
-      const eD = { start: new Date(2023, 9, 27, 11, 0), end: new Date(2023, 9, 27, 12, 0) } as AppointmentsProps;
+      const eA = createMockAppt(
+        new Date(2023, 9, 27, 9, 0),
+        new Date(2023, 9, 27, 10, 0)
+      );
+      const eB = createMockAppt(
+        new Date(2023, 9, 27, 9, 15),
+        new Date(2023, 9, 27, 9, 45)
+      );
+      const eC = createMockAppt(
+        new Date(2023, 9, 27, 9, 30),
+        new Date(2023, 9, 27, 10, 30)
+      );
+      const eD = createMockAppt(
+        new Date(2023, 9, 27, 11, 0),
+        new Date(2023, 9, 27, 12, 0)
+      );
 
       const result = layoutDayEvents([eA, eB, eC, eD]);
 
@@ -180,7 +238,11 @@ describe("Calendar Helpers", () => {
       expect(result[2].columnsCount).toBe(3);
 
       // Indices should be unique within active overlap
-      const indices = new Set([result[0].columnIndex, result[1].columnIndex, result[2].columnIndex]);
+      const indices = new Set([
+        result[0].columnIndex,
+        result[1].columnIndex,
+        result[2].columnIndex,
+      ]);
       expect(indices.size).toBe(3);
 
       // Check second cluster
@@ -214,15 +276,6 @@ describe("Calendar Helpers", () => {
       const px = getNowTopPxForDay(today);
       expect(px).toBe(300);
     });
-
-    it("returns null if outside day range (defensive)", () => {
-       // Mock system time to valid
-       jest.setSystemTime(new Date(2023, 9, 27, 12, 0));
-       // If day param is wrong, it returns null (covered).
-       // If minutes logic fails (e.g. invalid date passed as now?), it returns null.
-       // Standard Date objects won't return > 24*60, so this path is logically unreachable
-       // with standard Date usage, but acts as a guard.
-    });
   });
 
   // --- Misc Helpers ---
@@ -230,30 +283,27 @@ describe("Calendar Helpers", () => {
   describe("isAllDayForDate", () => {
     it("returns true if event covers the entire day", () => {
       const day = new Date(2023, 9, 27);
-      const ev = {
-        start: new Date(2023, 9, 27, 0, 0, 0),
-        end: new Date(2023, 9, 27, 23, 59, 59, 999),
-      } as AppointmentsProps;
+      const ev = createMockAppt(
+        new Date(2023, 9, 27, 0, 0, 0),
+        new Date(2023, 9, 27, 23, 59, 59, 999)
+      );
 
       expect(isAllDayForDate(ev, day)).toBe(true);
     });
 
     it("returns true if event spans multiple days including this one", () => {
-        const day = new Date(2023, 9, 27);
-        const ev = {
-          start: new Date(2023, 9, 26),
-          end: new Date(2023, 9, 28),
-        } as AppointmentsProps;
+      const day = new Date(2023, 9, 27);
+      const ev = createMockAppt(new Date(2023, 9, 26), new Date(2023, 9, 28));
 
-        expect(isAllDayForDate(ev, day)).toBe(true);
+      expect(isAllDayForDate(ev, day)).toBe(true);
     });
 
     it("returns false if partial day", () => {
       const day = new Date(2023, 9, 27);
-      const ev = {
-        start: new Date(2023, 9, 27, 10, 0),
-        end: new Date(2023, 9, 27, 11, 0),
-      } as AppointmentsProps;
+      const ev = createMockAppt(
+        new Date(2023, 9, 27, 10, 0),
+        new Date(2023, 9, 27, 11, 0)
+      );
 
       expect(isAllDayForDate(ev, day)).toBe(false);
     });
@@ -261,9 +311,9 @@ describe("Calendar Helpers", () => {
 
   describe("eventsForDay", () => {
     it("filters tasks by due date matching the day", () => {
-      const t1 = { due: new Date(2023, 9, 27, 10, 0) } as TasksProps;
-      const t2 = { due: new Date(2023, 9, 28, 10, 0) } as TasksProps; // Different day
-      const t3 = { due: new Date(2023, 9, 27, 15, 0) } as TasksProps;
+      const t1 = createMockTask(new Date(2023, 9, 27, 10, 0));
+      const t2 = createMockTask(new Date(2023, 9, 28, 10, 0)); // Different day
+      const t3 = createMockTask(new Date(2023, 9, 27, 15, 0));
 
       const day = new Date(2023, 9, 27);
       const result = eventsForDay([t1, t2, t3], day);

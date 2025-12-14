@@ -2,8 +2,8 @@ import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { DayCalendar } from "@/app/components/Calendar/common/DayCalendar";
-import { AppointmentsProps } from "@/app/types/appointments";
 import * as helpers from "@/app/components/Calendar/helpers";
+import { Appointment } from "@yosemite-crew/types";
 
 // --- Mocks ---
 
@@ -22,7 +22,10 @@ jest.mock("@/app/components/Calendar/helpers", () => ({
 // Mock Next.js Image
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} alt={props.alt || "mock-img"} />,
+  default: (props: any) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img {...props} alt={props.alt || "mock-img"} />
+  ),
 }));
 
 // Mock Icons
@@ -61,7 +64,8 @@ describe("DayCalendar Component", () => {
   const mockHandleViewAppointment = jest.fn();
   const initialDate = new Date("2023-10-10T12:00:00Z");
 
-  const mockEvents: AppointmentsProps[] = [
+  // Fixed: Ensure mock events match the full 'Appointment' type
+  const mockEvents: Appointment[] = [
     {
       id: "1",
       name: "Fido",
@@ -72,7 +76,14 @@ describe("DayCalendar Component", () => {
       status: "Confirmed",
       lead: "Dr. Smith",
       parentName: "John Doe",
-    } as any,
+      // Added missing required fields
+      organisationId: "org-1",
+      companion: { id: "comp-1", name: "Fido", parentId: "parent-1" } as any,
+      appointmentDate: new Date("2023-10-10"),
+      startTime: "10:00",
+      endTime: "11:00",
+      room: "Room A",
+    } as unknown as Appointment,
     {
       id: "2",
       name: "Rex",
@@ -81,7 +92,14 @@ describe("DayCalendar Component", () => {
       end: new Date("2023-10-10T23:59:59Z"),
       image: "/dog2.png",
       status: "In-progress",
-    } as any,
+      // Added missing required fields
+      organisationId: "org-1",
+      companion: { id: "comp-2", name: "Rex", parentId: "parent-2" } as any,
+      appointmentDate: new Date("2023-10-10"),
+      startTime: "00:00",
+      endTime: "23:59",
+      room: "Room B",
+    } as unknown as Appointment,
   ];
 
   beforeEach(() => {

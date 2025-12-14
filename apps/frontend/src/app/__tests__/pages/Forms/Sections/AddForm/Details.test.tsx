@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Details from "@/app/pages/Forms/Sections/AddForm/Details";
-import { FormsProps } from "@/app/types/forms";
+import { FormsProps, FormsCategory } from "@/app/types/forms";
 import * as formUtils from "@/app/utils/forms";
 
 // --- Mocks ---
@@ -83,13 +83,17 @@ describe("Details Component", () => {
 
   const defaultFormData: FormsProps = {
     name: "",
-    category: "" as any,
+    category: "Custom", // Initialized to a valid FormsCategory literal
     description: "",
     usage: "Internal",
     species: [],
     services: [],
     schema: [],
-  };
+    updatedBy: "",
+    lastUpdated: "",
+    status: "Draft",
+    _id: undefined,
+  } as FormsProps;
 
   const serviceOptions = [{ label: "Service A", value: "A" }];
 
@@ -140,8 +144,6 @@ describe("Details Component", () => {
     const input = screen.getByTestId("input-Form name");
     fireEvent.change(input, { target: { value: "New Name" } });
 
-    // FIX: The component uses direct object update for 'name', not functional update
-    // setFormData({ ...formData, name: e.target.value });
     expect(mockSetFormData).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "New Name",
@@ -162,8 +164,7 @@ describe("Details Component", () => {
     const input = screen.getByTestId("input-Description");
     fireEvent.change(input, { target: { value: "New Desc" } });
 
-    // The component uses functional update for 'description'
-    // setFormData((prev) => ({ ...prev, description: e.target.value }));
+    expect(mockSetFormData).toHaveBeenCalled();
   });
 
   it("updates usage dropdown", () => {
@@ -178,7 +179,6 @@ describe("Details Component", () => {
 
     fireEvent.click(screen.getByTestId("dropdown-select-Visibility type"));
 
-    // The component uses direct object update for 'usage'
     expect(mockSetFormData).toHaveBeenCalledWith(
       expect.objectContaining({ usage: "SelectedValue" })
     );
@@ -210,7 +210,6 @@ describe("Details Component", () => {
   // --- 3. Category Logic (Schema Template) ---
 
   it("updates category and applies template if form is new", () => {
-    // New form: no _id, empty schema
     const newForm = { ...defaultFormData, _id: undefined, schema: [] };
 
     render(
@@ -224,21 +223,33 @@ describe("Details Component", () => {
 
     fireEvent.click(screen.getByTestId("dropdown-select-Category"));
 
-    // Category uses functional update
-    const updateFn = mockSetFormData.mock.calls[0][0];
-    const newState = updateFn(newForm);
+    const updateFn = mockSetFormData.mock.calls.slice(-1)[0][0];
+    let newState: FormsProps = newForm; // Initialize newState
+    act(() => {
+      const updateResult = updateFn(newForm);
+      if (updateResult) {
+        newState = updateResult;
+      }
+    });
 
+    // Check if newState was successfully updated
+    // Fixed: Checking 'SelectedValue' casted to FormsCategory
     expect(newState.category).toBe("SelectedValue");
-    expect(formUtils.getCategoryTemplate).toHaveBeenCalledWith("SelectedValue");
-    expect(newState.schema).toEqual([{ id: "template-field" }]);
+
+    // Fixed: Added check if newState is defined before accessing schema
+    if (newState) {
+      expect(formUtils.getCategoryTemplate).toHaveBeenCalledWith(
+        "SelectedValue"
+      );
+      expect(newState.schema).toEqual([{ id: "template-field" }]);
+    }
   });
 
   it("updates category but DOES NOT apply template if form has existing schema", () => {
-    // Existing schema
     const existingForm = {
       ...defaultFormData,
       _id: "123", // Has ID
-      schema: [{ field: "existing" }], // Has schema
+      schema: [{ field: "existing" }] as any, // Has schema
     };
 
     render(
@@ -252,28 +263,30 @@ describe("Details Component", () => {
 
     fireEvent.click(screen.getByTestId("dropdown-select-Category"));
 
-    const updateFn = mockSetFormData.mock.calls[0][0];
-    const newState = updateFn(existingForm);
+    const updateFn = mockSetFormData.mock.calls.slice(-1)[0][0];
+    let newState: FormsProps = existingForm; // Initialize newState
+    act(() => {
+      const updateResult = updateFn(existingForm);
+      if (updateResult) {
+        newState = updateResult;
+      }
+    });
 
     expect(newState.category).toBe("SelectedValue");
-    // Should NOT call getCategoryTemplate or overwrite schema
-    expect(newState.schema).toEqual([{ field: "existing" }]);
+
+    // Fixed: Added check if newState is defined before accessing schema
+    if (newState) {
+      // Should NOT overwrite schema
+      expect(newState.schema).toEqual([{ field: "existing" }]);
+    }
   });
 
   // --- 4. Validation & Next Step ---
 
   it("validates required fields on Next and blocks submission if invalid", () => {
-    // Empty data
-    const emptyData = {
-      ...defaultFormData,
-      name: "",
-      category: "",
-      species: [],
-    };
-
     render(
       <Details
-        formData={emptyData}
+        formData={defaultFormData}
         setFormData={mockSetFormData}
         onNext={mockOnNext}
         serviceOptions={serviceOptions}
@@ -282,15 +295,12 @@ describe("Details Component", () => {
 
     fireEvent.click(screen.getByTestId("next-btn"));
 
-    // Check for error renders (using findBy because state update is async)
     expect(screen.getByTestId("error-Form name")).toHaveTextContent(
       "Form name is required"
     );
-    // Description validation
     expect(screen.getByTestId("error-Description")).toHaveTextContent(
       "Description is required"
     );
-    // Note: Dropdown errors are rendered as plain spans in the component, not inside the mock
     expect(screen.getByText("Select at least one species")).toBeInTheDocument();
 
     expect(mockOnNext).not.toHaveBeenCalled();
@@ -306,25 +316,22 @@ describe("Details Component", () => {
       />
     );
 
-    // 1. Trigger Errors
     fireEvent.click(screen.getByTestId("next-btn"));
     expect(screen.getByTestId("error-Form name")).toBeInTheDocument();
 
-    // 2. Fix Name Error
     fireEvent.change(screen.getByTestId("input-Form name"), {
       target: { value: "Fixed" },
     });
 
-    // The component clears error in the onChange handler before calling setFormData.
-    // The verification here is that setFormData was called, implying the handler ran without crashing.
     expect(mockSetFormData).toHaveBeenCalled();
   });
 
   it("calls onNext if validation passes", () => {
-    const validData: any = {
+    const validData: FormsProps = {
+      ...defaultFormData,
       name: "Valid Name",
       description: "Desc",
-      category: "Consultation",
+      category: "Consent form",
       species: ["Dog"],
       usage: "Internal",
     };
@@ -359,14 +366,16 @@ describe("Details Component", () => {
   });
 
   it("allows parent to trigger validation via registered validator", () => {
-    let capturedValidator: any;
+    let capturedValidator: (data: FormsProps) => boolean = () => false; // Initialize explicitly
     mockRegisterValidator.mockImplementation((fn) => {
       capturedValidator = fn;
     });
 
+    const invalidData = { ...defaultFormData, name: "" } as FormsProps; // Invalid
+
     render(
       <Details
-        formData={{ ...defaultFormData, name: "" }} // Invalid
+        formData={invalidData}
         setFormData={mockSetFormData}
         onNext={mockOnNext}
         serviceOptions={serviceOptions}
@@ -374,14 +383,12 @@ describe("Details Component", () => {
       />
     );
 
-    // Parent triggers validation
-    let isValid;
+    let isValid: boolean = false; // Initialize explicitly
     act(() => {
-      isValid = capturedValidator();
+      isValid = capturedValidator(invalidData);
     });
 
     expect(isValid).toBe(false);
-    // Errors should appear
     expect(screen.getByTestId("error-Form name")).toBeInTheDocument();
   });
 });

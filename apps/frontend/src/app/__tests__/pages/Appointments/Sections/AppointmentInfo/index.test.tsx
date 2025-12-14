@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AppoitmentInfo from "@/app/pages/Appointments/Sections/AppointmentInfo";
-import { AppointmentsProps } from "@/app/types/appointments";
+import { Appointment } from "@yosemite-crew/types";
 
 // --- Mocks ---
 
@@ -154,13 +154,28 @@ jest.mock(
 describe("AppoitmentInfo Component", () => {
   const mockSetShowModal = jest.fn();
 
-  const mockAppointment: AppointmentsProps = {
+  // Fixed: Updated to match full Appointment type
+  const mockAppointment: Appointment = {
+    _id: "123",
     id: "123",
     name: "Fido",
     breed: "Labrador",
     species: "Dog",
     image: "https://example.com/fido.png",
-  } as any;
+    // Added required fields
+    organisationId: "org-1",
+    companion: { id: "c1", name: "Fido", parentId: "p1" } as any,
+    appointmentDate: new Date("2023-10-27"),
+    startTime: "10:00",
+    endTime: "10:30",
+    start: new Date("2023-10-27T10:00:00"),
+    end: new Date("2023-10-27T10:30:00"),
+    status: "Confirmed" as any,
+    service: { name: "Checkup", color: "#fff" },
+    room: "Room 1",
+    user: { name: "Dr. Test" } as any,
+    lead: "Dr. Test",
+  } as unknown as Appointment;
 
   beforeEach(() => {
     jest.clearAllMocks();

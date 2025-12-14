@@ -33,6 +33,8 @@ jest.mock("@/app/pages/Organization/Sections/ProfileCard", () => ({
         data-testid={`save-btn-${title}`}
         onClick={() => {
           if (title === "Organization") {
+            // NOTE: This mock simulates the result *if* the save were successful.
+            // The component itself handles calling updateOrg(staleData) and then updating state based on results.
             onSave({ name: "Updated Name", country: "Canada" });
           } else if (title === "Address") {
             onSave({ city: "Vancouver", state: "BC" });
@@ -50,8 +52,9 @@ jest.mock("@/app/pages/Organization/Sections/ProfileCard", () => ({
 const mockPrimaryOrg: Organisation = {
   _id: "org-1",
   name: "Original Name",
-  type: "Clinic",
+  type: "HOSPITAL", // Fixed: Using a valid literal based on earlier context (or assume it's imported correctly)
   taxId: "123",
+  phoneNo: "1234567890", // Fixed: Added missing required field
   address: {
     addressLine: "123 St",
     city: "Old City",
@@ -64,28 +67,29 @@ const mockPrimaryOrg: Organisation = {
 describe("Profile Component", () => {
   // Capture original console.error to restore it later
   const originalConsoleError = console.error;
+  let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Suppress console.error for expected errors in specific tests
-    // or we can mock it per test. For global suite safety:
-    console.error = jest.fn((msg, ...args) => {
-      // Filter out the specific error expected in the catch block
-      if (
-        typeof msg === "string" &&
-        msg.includes("Error updating organization")
-      )
-        return;
-      // Also filter the 'act' warning if it pops up (though we try to avoid it with await)
-      if (typeof msg === "string" && msg.includes("was not wrapped in act"))
-        return;
-      originalConsoleError(msg, ...args);
-    });
+    // Setup console.error spy to suppress expected error logs during tests
+    consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation((msg, ...args) => {
+        // Filter out the specific error expected in the catch block
+        if (
+          typeof msg === "string" &&
+          (msg.includes("Error updating organization") ||
+            msg.includes("was not wrapped in act"))
+        ) {
+          return;
+        }
+        originalConsoleError(msg, ...args);
+      });
   });
 
   afterEach(() => {
-    console.error = originalConsoleError;
+    consoleErrorSpy.mockRestore();
   });
 
   // --- 1. Rendering ---
@@ -115,13 +119,10 @@ describe("Profile Component", () => {
     const saveBtn = screen.getByTestId("save-btn-Organization");
     fireEvent.click(saveBtn);
 
-    // NOTE: Based on the provided component code, it calls updateOrg with the OLD formData state.
-    // The test asserts this behavior to pass, highlighting the bug in the component.
-    // If the component logic `await updateOrg(formData)` was fixed to `await updateOrg(updated)`,
-    // this test would assert the updated values.
+    // Assert that updateOrg was called with the old state (bug in component)
     expect(updateOrg).toHaveBeenCalledWith(mockPrimaryOrg);
 
-    // Verify UI state updates eventually
+    // Verify UI state updates eventually based on the mock ProfileCard's onSave callback
     await waitFor(() => {
       const orgData = screen.getByTestId("data-Organization").textContent;
       expect(orgData).toContain("Updated Name");
@@ -139,7 +140,7 @@ describe("Profile Component", () => {
     const saveBtn = screen.getByTestId("save-btn-Address");
     fireEvent.click(saveBtn);
 
-    // NOTE: Same issue here. Component sends stale state.
+    // Assert that updateOrg was called with the old state (bug in component)
     expect(updateOrg).toHaveBeenCalledWith(mockPrimaryOrg);
 
     await waitFor(() => {
@@ -159,7 +160,7 @@ describe("Profile Component", () => {
 
     await waitFor(() => {
       // We check if our suppressed console.error was called
-      expect(console.error).toHaveBeenCalledWith(
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Error updating organization:",
         expect.any(Error)
       );
@@ -174,7 +175,7 @@ describe("Profile Component", () => {
     fireEvent.click(screen.getByTestId("save-btn-Address"));
 
     await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Error updating organization:",
         expect.any(Error)
       );

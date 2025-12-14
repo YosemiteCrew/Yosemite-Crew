@@ -53,7 +53,7 @@ jest.mock("react-icons/io5", () => ({
 
 // --- Test Data ---
 
-// Fixed: Category must match the FormsProps union type (e.g. "Custom")
+// Fixed: Added 'schema: []' to satisfy FormsProps type requirements
 const mockForms: FormsProps[] = [
   {
     name: "Intake Form",
@@ -62,6 +62,7 @@ const mockForms: FormsProps[] = [
     updatedBy: "Alice",
     lastUpdated: "2023-10-01",
     status: "Published",
+    schema: [],
   },
   {
     name: "Feedback Form",
@@ -70,6 +71,7 @@ const mockForms: FormsProps[] = [
     updatedBy: "Bob",
     lastUpdated: "2023-10-05",
     status: "Draft",
+    schema: [],
   },
   {
     name: "Archived Form",
@@ -78,6 +80,7 @@ const mockForms: FormsProps[] = [
     updatedBy: "Charlie",
     lastUpdated: "2023-01-01",
     status: "Archived",
+    schema: [],
   },
 ];
 

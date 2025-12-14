@@ -37,7 +37,7 @@ jest.mock("@/app/components/Calendar/helpers", () => ({
 
 describe("Slotpicker Component", () => {
   const mockSetSelectedDate = jest.fn();
-  const mockSetSelectedTime = jest.fn();
+  const mockSetSelectedSlot = jest.fn();
 
   // Fixed Date: Oct 15, 2023 (Sunday)
   const initialDate = new Date("2023-10-15T12:00:00Z");
@@ -50,6 +50,31 @@ describe("Slotpicker Component", () => {
     d.setDate(d.getDate() + i);
     return d;
   });
+
+  // Fixed: Added 'vetIds' to match the Slot interface required by Slotpicker
+  const mockTimeSlots = [
+    {
+      id: "1",
+      startTime: "10:00 AM",
+      endTime: "11:00 AM",
+      label: "10:00 AM",
+      vetIds: [],
+    },
+    {
+      id: "2",
+      startTime: "12:00 PM",
+      endTime: "01:00 PM",
+      label: "12:00 PM",
+      vetIds: [],
+    },
+    {
+      id: "3",
+      startTime: "03:00 PM",
+      endTime: "04:00 PM",
+      label: "3:00 PM",
+      vetIds: [],
+    },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -85,8 +110,9 @@ describe("Slotpicker Component", () => {
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
@@ -110,13 +136,13 @@ describe("Slotpicker Component", () => {
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime="10:00 AM"
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={mockTimeSlots[0]} // 10:00 AM selected
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
     // Check Day Highlight
-    // The button containing "15" should have active classes
     const dayBtn = screen.getByText("15").closest("button");
     expect(dayBtn?.className).toContain("text-[#247AED]");
     expect(dayBtn?.className).toContain("bg-[#E9F2FD]");
@@ -126,8 +152,8 @@ describe("Slotpicker Component", () => {
     expect(timeBtn?.className).toContain("bg-[#E9F2FD]");
 
     // Check Non-highlighted Time
-    const otherTimeBtn = screen.getByText("11:00 AM").closest("button");
-    expect(otherTimeBtn?.className).toContain("bg-white");
+    const otherTimeBtn = screen.getByText("12:00 PM").closest("button");
+    expect(otherTimeBtn?.className).not.toContain("bg-[#E9F2FD]");
   });
 
   // --- 2. Month Navigation ---
@@ -137,26 +163,18 @@ describe("Slotpicker Component", () => {
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
-    // Clear initial render calls to getStartOfWeek (from useState and useEffect)
     (weekHelpers.getStartOfWeek as jest.Mock).mockClear();
 
-    // There are two "Prev" buttons.
-    // The first one (index 0) is for Month (top row).
-    // The second one (index 1) is for Week (middle row).
     const prevMonthBtn = screen.getAllByTestId("icon-prev")[0];
-
     fireEvent.click(prevMonthBtn);
 
-    // handlePrevMonth logic: new Date(viewYear, viewMonth - 1, 7)
-    // viewMonth was 9 (Oct). New month is 8 (Sept).
-    // getStartOfWeek is called with Sept 7, 2023.
     expect(weekHelpers.getStartOfWeek).toHaveBeenCalledWith(expect.any(Date));
-    // Use last call or 0 since we cleared
     const calledDate = (weekHelpers.getStartOfWeek as jest.Mock).mock
       .calls[0][0];
     expect(calledDate.getMonth()).toBe(8); // September
@@ -167,8 +185,9 @@ describe("Slotpicker Component", () => {
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
@@ -177,7 +196,6 @@ describe("Slotpicker Component", () => {
     const nextMonthBtn = screen.getAllByTestId("icon-next")[0];
     fireEvent.click(nextMonthBtn);
 
-    // handleNextMonth logic: new Date(viewYear, viewMonth + 1, 7)
     const calledDate = (weekHelpers.getStartOfWeek as jest.Mock).mock
       .calls[0][0];
     expect(calledDate.getMonth()).toBe(10); // November
@@ -190,16 +208,15 @@ describe("Slotpicker Component", () => {
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
-    // Second "Prev" button is for week
     const prevWeekBtn = screen.getAllByTestId("icon-prev")[1];
     fireEvent.click(prevWeekBtn);
 
-    // Should call setWeekStart with result of getPrevWeek(currentWeekStart)
     expect(weekHelpers.getPrevWeek).toHaveBeenCalledWith(weekStartDate);
   });
 
@@ -208,12 +225,12 @@ describe("Slotpicker Component", () => {
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
-    // Second "Next" button is for week
     const nextWeekBtn = screen.getAllByTestId("icon-next")[1];
     fireEvent.click(nextWeekBtn);
 
@@ -227,59 +244,59 @@ describe("Slotpicker Component", () => {
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
-    // Click on the button for the 2nd day in the mocked week
     const dayBtn = screen.getAllByText(/[0-9]{2}/)[1].closest("button");
     fireEvent.click(dayBtn!);
 
     expect(mockSetSelectedDate).toHaveBeenCalledWith(mockDays[1]);
   });
 
-  it("calls setSelectedTime when a time slot is clicked", () => {
+  it("calls setSelectedSlot when a time slot is clicked", () => {
     render(
       <Slotpicker
         selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
     const slotBtn = screen.getByText("12:00 PM");
     fireEvent.click(slotBtn);
 
-    expect(mockSetSelectedTime).toHaveBeenCalledWith("12:00 PM");
+    expect(mockSetSelectedSlot).toHaveBeenCalledWith(mockTimeSlots[1]);
   });
 
   it("updates view when selectedDate prop changes externally", () => {
     const { rerender } = render(
       <Slotpicker
-        selectedDate={initialDate} // Oct 15
+        selectedDate={initialDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
-    // Reset mocks to clear initial render calls
     (weekHelpers.getStartOfWeek as jest.Mock).mockClear();
 
-    // Rerender with new date (Dec 25)
     const newDate = new Date("2023-12-25T12:00:00Z");
     rerender(
       <Slotpicker
         selectedDate={newDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedTime=""
-        setSelectedTime={mockSetSelectedTime}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
       />
     );
 
-    // useEffect should trigger getStartOfWeek with new date
     expect(weekHelpers.getStartOfWeek).toHaveBeenCalledWith(newDate);
   });
 });

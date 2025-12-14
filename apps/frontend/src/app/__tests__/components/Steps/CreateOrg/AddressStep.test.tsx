@@ -37,10 +37,13 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
 
 // --- Test Data ---
 
+// Fixed: Used valid 'type' literal ("HOSPITAL") and added required fields
 const mockOrgData: Organisation = {
   _id: "org-temp",
   name: "New Org",
-  type: "Clinic",
+  type: "HOSPITAL", // Fixed: "Clinic" is not a valid type in Organisation union
+  phoneNo: "", // Added required field
+  taxId: "", // Added required field
   address: {
     addressLine: "",
     city: "",
@@ -167,15 +170,12 @@ describe("AddressStep Component", () => {
         nextStep={mockNextStep}
         prevStep={mockPrevStep}
         formData={completedOrgData}
-        setFormData={mockSetFormData} // This mock won't be used in handleNext, but that's okay
+        setFormData={mockSetFormData}
       />
     );
 
     fireEvent.click(screen.getByTestId("next-btn"));
 
-    // Verify updateOrg is called with the current completed data
-    // NOTE: This asserts the *actual* (buggy) behavior of the component,
-    // which sends the current `formData` from the closure.
     expect(updateOrg).toHaveBeenCalledWith(completedOrgData);
 
     await waitFor(() => {

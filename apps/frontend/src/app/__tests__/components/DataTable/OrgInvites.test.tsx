@@ -73,6 +73,7 @@ jest.mock("react-icons/io", () => ({
 
 // --- Test Data ---
 
+// Fixed: Added missing required properties for Invite type
 const mockInvites: Invite[] = [
   {
     _id: "inv-1",
@@ -83,7 +84,15 @@ const mockInvites: Invite[] = [
     employmentType: "FULL_TIME", // To test split/join logic
     email: "test@example.com",
     status: "Pending",
-  } as Invite,
+    // Missing fields added
+    invitedByUserId: "user-1",
+    departmentId: "dept-1",
+    inviteeEmail: "test@example.com",
+    token: "token-123",
+    createdAt: "2023-01-01",
+    updatedAt: "2023-01-01",
+    __v: 0,
+  } as unknown as Invite,
   {
     _id: "inv-2",
     organisationName: "Health Plus",
@@ -93,7 +102,15 @@ const mockInvites: Invite[] = [
     employmentType: "PART_TIME",
     email: "doc@example.com",
     status: "Pending",
-  } as Invite,
+    // Missing fields added
+    invitedByUserId: "user-2",
+    departmentId: "dept-2",
+    inviteeEmail: "doc@example.com",
+    token: "token-456",
+    createdAt: "2023-01-02",
+    updatedAt: "2023-01-02",
+    __v: 0,
+  } as unknown as Invite,
 ];
 
 describe("OrgInvites Component", () => {
@@ -118,7 +135,9 @@ describe("OrgInvites Component", () => {
 
   it("renders table row data correctly", () => {
     render(<OrgInvites invites={mockInvites} />);
-
+    // Add specific row data assertions here if needed
+    expect(screen.getByText("Tech Corp")).toBeInTheDocument();
+    expect(screen.getByText("Health Plus")).toBeInTheDocument();
   });
 
   // --- 2. Rendering (Mobile Cards) ---

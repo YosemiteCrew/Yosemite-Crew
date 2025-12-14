@@ -2,11 +2,11 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Objective from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Objective";
-import { formDataProps } from "@/app/pages/Appointments/Sections/AppointmentInfo"; // Adjust import path if needed
+// Fixed: Corrected import name to match export
+import { FormDataProps } from "@/app/pages/Appointments/Sections/AppointmentInfo";
 
 // --- Mocks ---
 
-// Mock Data
 jest.mock(
   "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/demo",
   () => ({
@@ -14,7 +14,6 @@ jest.mock(
   })
 );
 
-// Mock Child Components
 jest.mock("@/app/components/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
@@ -86,8 +85,7 @@ describe("Objective Component", () => {
   const mockSetFormData = jest.fn();
   const mockActiveAppointment = {} as any;
 
-  // Initialize with empty strings for all used fields to avoid uncontrolled input warnings
-  const defaultFormData: formDataProps = {
+  const defaultFormData: FormDataProps = {
     general: "",
     temp: "",
     pulse: "",
@@ -122,7 +120,6 @@ describe("Objective Component", () => {
     expect(screen.getByText("Vitals")).toBeInTheDocument();
     expect(screen.getByTestId("save-btn")).toBeInTheDocument();
 
-    // Check presence of specific inputs
     const fields = [
       "general",
       "temperature",
@@ -140,7 +137,6 @@ describe("Objective Component", () => {
       expect(screen.getByTestId(`input-${field}`)).toBeInTheDocument();
     });
 
-    // Check textarea
     expect(screen.getByTestId("desc-musculoskeletal")).toBeInTheDocument();
   });
 
@@ -153,11 +149,9 @@ describe("Objective Component", () => {
       />
     );
 
-    // Testing internal state update of 'query'
     const searchInput = screen.getByTestId("search-query-input");
     fireEvent.change(searchInput, { target: { value: "Test Query" } });
-    expect(searchInput).toHaveValue("Test Query"); // Mock reflects value change if controlled locally in test? No, mocked component is uncontrolled here but event fires.
-    // Since setQuery is internal to parent but passed to child, checking no crash is sufficient coverage for the prop function.
+    expect(searchInput).toHaveValue("Test Query");
   });
 
   it("handles empty selection handler", () => {
@@ -168,7 +162,6 @@ describe("Objective Component", () => {
         activeAppointment={mockActiveAppointment}
       />
     );
-    // handleObjectiveSelect is empty in source, just ensuring it is called
     fireEvent.click(screen.getByTestId("search-select-btn"));
   });
 
@@ -180,14 +173,12 @@ describe("Objective Component", () => {
         activeAppointment={mockActiveAppointment}
       />
     );
-    // handleSave is empty in source
     fireEvent.click(screen.getByTestId("save-btn"));
   });
 
-  // Helper to test input changes
   const testInputUpdate = (
     testId: string,
-    key: keyof formDataProps,
+    key: keyof FormDataProps | string, // Relaxed type to string to allow testing keys that might be mapped
     value: string
   ) => {
     const input = screen.getByTestId(testId);
@@ -206,40 +197,23 @@ describe("Objective Component", () => {
       />
     );
 
-    // 1. General (Top)
-    testInputUpdate("input-general", "general", "Normal");
+    // Fixed: Cast keys to 'any' or rely on string type in helper to avoid strict checking errors in test
+    testInputUpdate("input-general", "general" as any, "Normal");
+    testInputUpdate("input-temperature", "temp" as any, "38.5");
+    testInputUpdate("input-pulse", "pulse" as any, "100");
+    testInputUpdate("input-respiration", "respiration" as any, "20");
+    testInputUpdate("input-mucous", "mucousColor" as any, "Pink");
+    testInputUpdate("input-bloodPressure", "bloodPressure" as any, "120/80");
+    testInputUpdate("input-weight", "weight" as any, "15kg");
+    testInputUpdate("input-hydration", "hydration" as any, "Adequate");
+    testInputUpdate(
+      "input-generalBehaviour",
+      "generalBehaviour" as any,
+      "Alert"
+    );
+    testInputUpdate("input-neuro", "neuro" as any, "Normal reflexes");
+    testInputUpdate("input-pain", "pain" as any, "2/10");
 
-    // 2. Temp
-    testInputUpdate("input-temperature", "temp", "38.5");
-
-    // 3. Pulse
-    testInputUpdate("input-pulse", "pulse", "100");
-
-    // 4. Respiration
-    testInputUpdate("input-respiration", "respiration", "20");
-
-    // 5. Mucous
-    testInputUpdate("input-mucous", "mucousColor", "Pink");
-
-    // 6. Blood Pressure
-    testInputUpdate("input-bloodPressure", "bloodPressure", "120/80");
-
-    // 7. Weight
-    testInputUpdate("input-weight", "weight", "15kg");
-
-    // 8. Hydration
-    testInputUpdate("input-hydration", "hydration", "Adequate");
-
-    // 9. General Behaviour (Inside Vitals grid)
-    testInputUpdate("input-generalBehaviour", "generalBehaviour", "Alert");
-
-    // 10. Neuro
-    testInputUpdate("input-neuro", "neuro", "Normal reflexes");
-
-    // 11. Pain
-    testInputUpdate("input-pain", "pain", "2/10");
-
-    // 12. Musculoskeletal (Textarea)
     const desc = screen.getByTestId("desc-musculoskeletal");
     fireEvent.change(desc, { target: { value: "No limping" } });
     expect(mockSetFormData).toHaveBeenCalledWith(

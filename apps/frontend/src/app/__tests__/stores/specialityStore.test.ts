@@ -4,25 +4,23 @@ import { Speciality } from "@yosemite-crew/types";
 
 // --- Mock Data ---
 
+// Fixed: Removed 'description' from mock data objects
 const mockSpeciality1: Speciality = {
   _id: "spec-1",
   name: "Cardiology",
   organisationId: "org-A",
-  description: "Heart stuff",
 } as Speciality;
 
 const mockSpeciality2: Speciality = {
   _id: "spec-2",
   name: "Neurology",
   organisationId: "org-A",
-  description: "Brain stuff",
 } as Speciality;
 
 const mockSpecialityNoId: Speciality = {
   // Missing _id, should generate one via crypto.randomUUID fallback
   name: "Dermatology",
   organisationId: "org-B",
-  description: "Skin stuff",
 } as Speciality;
 
 // Mock crypto.randomUUID
@@ -138,14 +136,15 @@ describe("useSpecialityStore", () => {
         useSpecialityStore.getState().setSpecialities([mockSpeciality1]);
       });
 
-      const updatedData = { ...mockSpeciality1, description: "Updated Desc" };
+      // Fixed: Updating 'name' instead of 'description'
+      const updatedData = { ...mockSpeciality1, name: "Updated Name" };
 
       act(() => {
         useSpecialityStore.getState().updateSpeciality(updatedData);
       });
 
       const state = useSpecialityStore.getState();
-      expect(state.specialitiesById["spec-1"].description).toBe("Updated Desc");
+      expect(state.specialitiesById["spec-1"].name).toBe("Updated Name");
     });
 
     it("warns and ignores update if speciality does not exist", () => {

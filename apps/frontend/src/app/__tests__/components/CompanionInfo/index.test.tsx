@@ -22,7 +22,10 @@ jest.mock("@/app/components/Modal", () => {
 // Mock Next.js Image
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} alt={props.alt} />,
+  default: (props: any) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img {...props} alt={props.alt} />
+  ),
 }));
 
 // Mock Icons
@@ -42,7 +45,6 @@ jest.mock("@/app/utils/urls", () => ({
 }));
 
 // Mock Labels Component
-// We mock this to simulate the tab switching logic driven by the parent
 jest.mock("@/app/components/Labels/Labels", () => {
   return ({
     labels,
@@ -63,7 +65,6 @@ jest.mock("@/app/components/Labels/Labels", () => {
           {l.name}
         </button>
       ))}
-      {/* Simulate sub-label switching */}
       <button
         data-testid="switch-sub-parent"
         onClick={() => setActiveSubLabel("parent-information")}
@@ -113,7 +114,8 @@ describe("CompanionInfo Component", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (isHttpsImageUrl as jest.Mock).mockReturnValue(true);
+    // Fixed: Double cast to handle Type Guard signature incompatibility
+    (isHttpsImageUrl as unknown as jest.Mock).mockReturnValue(true);
   });
 
   // --- 1. Rendering Section ---
@@ -133,7 +135,8 @@ describe("CompanionInfo Component", () => {
   });
 
   it("renders default image if photoUrl is invalid", () => {
-    (isHttpsImageUrl as jest.Mock).mockReturnValue(false);
+    // Fixed: Double cast
+    (isHttpsImageUrl as unknown as jest.Mock).mockReturnValue(false);
 
     render(
       <CompanionInfo
@@ -151,7 +154,8 @@ describe("CompanionInfo Component", () => {
   });
 
   it("renders provided image if photoUrl is valid", () => {
-    (isHttpsImageUrl as jest.Mock).mockReturnValue(true);
+    // Fixed: Double cast
+    (isHttpsImageUrl as unknown as jest.Mock).mockReturnValue(true);
 
     render(
       <CompanionInfo
@@ -176,8 +180,6 @@ describe("CompanionInfo Component", () => {
       />
     );
 
-    // Note: There are two icons, one opaque (spacer) and one clickable.
-    // The second one typically has the handler in this layout.
     const closeIcons = screen.getAllByTestId("icon-close");
     fireEvent.click(closeIcons[1]);
 
@@ -195,7 +197,6 @@ describe("CompanionInfo Component", () => {
       />
     );
 
-    // Default activeLabel = "info", default subLabel = "companion-information"
     expect(screen.getByTestId("section-companion")).toBeInTheDocument();
     expect(screen.queryByTestId("section-parent")).not.toBeInTheDocument();
   });
@@ -209,7 +210,6 @@ describe("CompanionInfo Component", () => {
       />
     );
 
-    // Simulate changing sub-label via our mock Labels component
     fireEvent.click(screen.getByTestId("switch-sub-parent"));
 
     expect(screen.getByTestId("section-parent")).toBeInTheDocument();
@@ -225,15 +225,10 @@ describe("CompanionInfo Component", () => {
       />
     );
 
-    // 1. Click "Records" tab
     fireEvent.click(screen.getByTestId("tab-records"));
 
-    // 2. Check logic: "info" -> "records"
-    // The useEffect should reset subLabel to "history" (first in records list)
     expect(screen.getByTestId("active-label")).toHaveTextContent("records");
     expect(screen.getByTestId("active-sublabel")).toHaveTextContent("history");
-
-    // 3. Verify content
     expect(screen.getByTestId("section-history")).toBeInTheDocument();
   });
 
@@ -246,10 +241,7 @@ describe("CompanionInfo Component", () => {
       />
     );
 
-    // Switch to Records first
     fireEvent.click(screen.getByTestId("tab-records"));
-
-    // Switch sub-label to Documents
     fireEvent.click(screen.getByTestId("switch-sub-docs"));
 
     expect(screen.getByTestId("section-documents")).toBeInTheDocument();
@@ -258,17 +250,6 @@ describe("CompanionInfo Component", () => {
   // --- 4. Edge Cases ---
 
   it("handles case where content component mapping is missing (defensive)", () => {
-    // This tests the `Content ? <Content /> : null` check.
-    // We can simulate an invalid state if we could force set state, but with type safety
-    // it's hard to pass invalid keys.
-    // However, if we are on 'info' tab but somehow sublabel is 'documents' (mismatch),
-    // it should render null or default.
-    // But the useEffect forces alignment.
-
-    // Let's rely on type safety for valid keys. The existing tests cover the happy paths
-    // for all mapped components which ensures the map is correct.
-    // If activeCompanion is null, it should still render skeleton or empty strings without crashing.
-
     render(
       <CompanionInfo
         showModal={true}
@@ -278,8 +259,5 @@ describe("CompanionInfo Component", () => {
     );
 
     expect(screen.getByTestId("mock-modal")).toBeInTheDocument();
-    // Should not crash accessing properties of null activeCompanion because of optional chaining in source?
-    // Source: {activeCompanion?.companion.name} -> undefined if null.
-    // React renders nothing for undefined.
   });
 });

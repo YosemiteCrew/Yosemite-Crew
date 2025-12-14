@@ -20,7 +20,7 @@ const createMockCompanion = (
   bio: "Good boy",
   profileUrl: "",
   files: [],
-  parentId: parentId || "", // Type definition might vary, casting typically handles this
+  parentId: parentId || "",
 } as unknown as StoredCompanion);
 
 describe("companionStore", () => {
@@ -99,8 +99,12 @@ describe("companionStore", () => {
 
   it("should handle setting companions without parentId", () => {
       const { setCompanions } = useCompanionStore.getState();
-      // Cast as any to omit parentId if types require it strictly, simulates optional
-      const cNoParent = { ...createMockCompanion("c4", "org1"), parentId: undefined };
+
+      // Fixed: Cast to unknown first to bypass Strict Type check for undefined parentId
+      const cNoParent = {
+        ...createMockCompanion("c4", "org1"),
+        parentId: undefined
+      } as unknown as StoredCompanion;
 
       setCompanions([cNoParent]);
 
@@ -195,8 +199,13 @@ describe("companionStore", () => {
 
   it("should handle upsert with undefined parents", () => {
       const { upsertCompanion } = useCompanionStore.getState();
-      // Add with no parent
-      const c1 = { ...createMockCompanion("c1", "org1"), parentId: undefined };
+
+      // Fixed: Cast to unknown first to bypass Strict Type check for undefined parentId
+      const c1 = {
+        ...createMockCompanion("c1", "org1"),
+        parentId: undefined
+      } as unknown as StoredCompanion;
+
       upsertCompanion(c1);
 
       let state = useCompanionStore.getState();
@@ -244,15 +253,15 @@ describe("companionStore", () => {
   // --- 7. Internal Helpers (Index Logic via store actions) ---
 
   it("should not duplicate ids in indexes (addToIndex logic check)", () => {
-     // This verifies `if (arr.includes(id)) return idx;` inside addToIndex indirectly
-     const { upsertCompanion } = useCompanionStore.getState();
-     const c1 = createMockCompanion("c1", "org1", "p1");
+      // This verifies `if (arr.includes(id)) return idx;` inside addToIndex indirectly
+      const { upsertCompanion } = useCompanionStore.getState();
+      const c1 = createMockCompanion("c1", "org1", "p1");
 
-     upsertCompanion(c1);
-     upsertCompanion(c1); // Call again
+      upsertCompanion(c1);
+      upsertCompanion(c1); // Call again
 
-     const state = useCompanionStore.getState();
-     expect(state.companionsIdsByOrgId["org1"]).toHaveLength(1);
-     expect(state.companionIdsByParentId["p1"]).toHaveLength(1);
+      const state = useCompanionStore.getState();
+      expect(state.companionsIdsByOrgId["org1"]).toHaveLength(1);
+      expect(state.companionIdsByParentId["p1"]).toHaveLength(1);
   });
 });
