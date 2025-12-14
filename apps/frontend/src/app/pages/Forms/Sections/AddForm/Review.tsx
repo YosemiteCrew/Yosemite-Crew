@@ -30,7 +30,7 @@ const DetailsFields = [
   },
 ];
 
-const buildInitialValues = (fields: FormField[]): Record<string, any> => {
+export const buildInitialValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
   items.forEach((field) => {

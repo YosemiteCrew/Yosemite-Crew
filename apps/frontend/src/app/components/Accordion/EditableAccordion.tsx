@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Accordion from "./Accordion";
 import FormInput from "../Inputs/FormInput/FormInput";
 import { Primary, Secondary } from "../Buttons";
@@ -6,13 +6,16 @@ import Dropdown from "../Inputs/Dropdown/Dropdown";
 import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import Datepicker from "../Inputs/Datepicker";
 import { formatDisplayDate } from "@/app/pages/Inventory/utils";
+import { getFormattedDate } from "../Calendar/weekHelpers";
+import { formatTimeLabel } from "@/app/utils/forms";
 
-type FieldConfig = {
+export type FieldConfig = {
   label: string;
   key: string;
   type?: string;
   required?: boolean;
   options?: Array<string | { label: string; value: string }>;
+  editable?: boolean;
 };
 
 type EditableAccordionProps = {
@@ -34,6 +37,8 @@ type EditableAccordionProps = {
     } | null
   ) => void;
 };
+
+const isFieldEditable = (field: FieldConfig) => field.editable !== false;
 
 const FieldComponents: Record<
   string,
@@ -98,14 +103,14 @@ const FieldComponents: Record<
   ),
   country: ({ field, value, onChange }) => (
     <Dropdown
-        placeholder={field.label}
-        value={value || ""}
-        onChange={(e) => onChange(e)}
-        className="min-h-12!"
-        dropdownClassName="top-[55px]! !h-fit"
-        type="country"
-      />
-    ),
+      placeholder={field.label}
+      value={value || ""}
+      onChange={(e) => onChange(e)}
+      className="min-h-12!"
+      dropdownClassName="top-[55px]! !h-fit"
+      type="country"
+    />
+  ),
   date: ({ field, value, onChange }) => {
     const parseDate = (val: any): Date | null => {
       if (!val) return null;
@@ -121,9 +126,13 @@ const FieldComponents: Record<
     return (
       <Datepicker
         currentDate={parseDate(value)}
-        setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
+        setCurrentDate={(
+          next: Date | null | ((prev: Date | null) => Date | null)
+        ) => {
           const resolved =
-            typeof next === "function" ? (next as (prev: Date | null) => Date | null)(parseDate(value)) : next;
+            typeof next === "function"
+              ? (next as (prev: Date | null) => Date | null)(parseDate(value))
+              : next;
           if (resolved) {
             onChange(formatDate(resolved));
           } else {
@@ -135,15 +144,24 @@ const FieldComponents: Record<
       />
     );
   },
+  time: ({ field, value, onChange, error }) => (
+    <FormInput
+      intype={"text"}
+      inname={field.key}
+      value={formatTimeLabel(value)}
+      inlabel={field.label}
+      error={error}
+      onChange={(e) => {}}
+      className="min-h-12!"
+    />
+  ),
 };
 
 const normalizeOptions = (
   options?: Array<string | { label: string; value: string }>
 ) =>
   options?.map((option: any) =>
-    typeof option === "string"
-      ? { label: option, value: option }
-      : option
+    typeof option === "string" ? { label: option, value: option } : option
   ) ?? [];
 
 const resolveLabel = (
@@ -283,7 +301,24 @@ const FieldValueComponents: Record<
           {field.label + ":"}
         </div>
         <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-          {formatDisplayDate(value) || "-"}
+          {typeof value === "string"
+            ? formatDisplayDate(value) || "-"
+            : getFormattedDate(formValues[field.key])}
+        </div>
+      </div>
+    );
+  },
+  time: ({ field, index, fields, formValues }) => {
+    const value = formValues[field.key];
+    return (
+      <div
+        className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      >
+        <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+          {field.label + ":"}
+        </div>
+        <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+          {formatTimeLabel(value)}
         </div>
       </div>
     );
@@ -315,12 +350,16 @@ const buildInitialValues = (
   data: Record<string, any>
 ): FormValues =>
   fields.reduce((acc, field) => {
+    if (!isFieldEditable(field)) return acc;
     const initialValue = data?.[field.key];
     if (field.type === "multiSelect") {
       let value: string | string[] = [];
       if (Array.isArray(initialValue)) {
         value = initialValue;
-      } else if (typeof initialValue === "string" && initialValue.trim() !== "") {
+      } else if (
+        typeof initialValue === "string" &&
+        initialValue.trim() !== ""
+      ) {
         value = [initialValue];
       }
       acc[field.key] = value;
@@ -336,6 +375,7 @@ const getRequiredError = (
   field: FieldConfig,
   value: any
 ): string | undefined => {
+  if (!isFieldEditable(field)) return undefined;
   if (!field.required) return undefined;
   const label = `${field.label} is required`;
 
@@ -440,6 +480,11 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
 
   const effectiveEditing = readOnly ? false : isEditing;
 
+  const displayValues: FormValues = useMemo(
+    () => ({ ...data, ...formValues }),
+    [data, formValues]
+  );
+
   return (
     <div className="flex flex-col gap-6 w-full">
       <Accordion
@@ -454,24 +499,28 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
             !readOnly && effectiveEditing ? "gap-3" : "gap-0"
           }`}
         >
-          {fields.map((field, index) => (
-            <div key={field.key}>
-              {!readOnly && effectiveEditing ? (
-                <div className="flex-1">
-                  {RenderField(
-                    field,
-                    formValues[field.key],
-                    formValuesErrors[field.key],
-                    (value) => handleChange(field.key, value)
-                  )}
-                </div>
-              ) : (
-                <div className="flex-1">
-                  {RenderValue(field, index, fields, formValues)}
-                </div>
-              )}
-            </div>
-          ))}
+          {fields.map((field, index) => {
+            const canEditThisField =
+              !readOnly && effectiveEditing && isFieldEditable(field);
+            return (
+              <div key={field.key}>
+                {canEditThisField ? (
+                  <div className="flex-1">
+                    {RenderField(
+                      field,
+                      formValues[field.key],
+                      formValuesErrors[field.key],
+                      (value) => handleChange(field.key, value)
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    {RenderValue(field, index, fields, displayValues)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </Accordion>
 

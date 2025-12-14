@@ -1,9 +1,22 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import Availability from "@/app/components/Availability/Availability";
+import {
+  AvailabilityState,
+  daysOfWeek,
+  DEFAULT_INTERVAL,
+} from "@/app/components/Availability/utils";
 import Modal from "@/app/components/Modal";
 import { Team } from "@/app/types/team";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
+import PermissionsEditor from "./PermissionsEditor";
+import {
+  Permission,
+  RoleCode,
+  toPermissionArray,
+} from "@/app/utils/permissions";
+import { useOrgStore } from "@/app/stores/orgStore";
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -45,6 +58,37 @@ const ProfessionalFields = [
 ];
 
 const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  const membershipsByOrgId = useOrgStore.getState().membershipsByOrgId;
+
+  const { role, permissions } = useMemo(() => {
+    if (!primaryOrgId) return { role: null, permissions: [] };
+    const membership = membershipsByOrgId[primaryOrgId];
+    console.log(membership)
+    return {
+      role: membership.roleCode.toUpperCase() as RoleCode,
+      permissions: toPermissionArray(membership?.effectivePermissions ?? []),
+    };
+  }, [primaryOrgId, membershipsByOrgId]);
+
+  const [perms, setPerms] = React.useState<Permission[]>(permissions ?? []);
+  const [availability, setAvailability] = useState<AvailabilityState>(
+    daysOfWeek.reduce<AvailabilityState>((acc, day) => {
+      const isWeekday =
+        day === "Monday" ||
+        day === "Tuesday" ||
+        day === "Wednesday" ||
+        day === "Thursday" ||
+        day === "Friday";
+
+      acc[day] = {
+        enabled: isWeekday,
+        intervals: [{ ...DEFAULT_INTERVAL }],
+      };
+      return acc;
+    }, {} as AvailabilityState)
+  );
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
@@ -68,7 +112,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
           <EditableAccordion
             title="Personal details"
             fields={Fields}
-            data={{...activeTeam, speciality: activeTeam.speciality.name}}
+            data={{ ...activeTeam, speciality: activeTeam.speciality.name }}
             defaultOpen={true}
           />
           <EditableAccordion
@@ -85,15 +129,22 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
           />
 
           <Accordion
-            title="Permissions"
+            title="Availability"
             defaultOpen={false}
             showEditIcon={false}
             isEditing={false}
           >
-            <div className="flex flex-col gap-3">
-              Permissions
+            <div className="px-3! py-3!">
+              <Availability
+                availability={availability}
+                setAvailability={setAvailability}
+              />
             </div>
           </Accordion>
+
+          {role && (
+            <PermissionsEditor role={role} onChange={setPerms} value={perms} />
+          )}
         </div>
       </div>
     </Modal>

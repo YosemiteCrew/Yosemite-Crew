@@ -109,14 +109,23 @@ const OrgInvites = ({ invites }: OrgInvitesProps) => {
         />
       </div>
       <div className="card-list">
-        {invites.map((invite, index) => (
-          <InviteCard
-            key={invite._id + index}
-            invite={invite}
-            handleAccept={handleAccept}
-            handleReject={handleReject}
-          />
-        ))}
+        {(() => {
+          if (invites.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return invites.map((invite, index) => (
+            <InviteCard
+              key={invite._id + index}
+              invite={invite}
+              handleAccept={handleAccept}
+              handleReject={handleReject}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

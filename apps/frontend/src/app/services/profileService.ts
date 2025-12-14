@@ -84,3 +84,18 @@ export const updateUserProfile = async (
     throw err;
   }
 };
+
+export const upsertUserProfile = async (formData: UserProfile) => {
+  const { startLoading, updateProfile } = useUserProfileStore.getState();
+  startLoading();
+  try {
+    const res = await putData<UserProfile>(
+      "/fhir/v1/user-profile/" + formData.organizationId + "/profile",
+      formData
+    );
+    updateProfile(res.data);
+  } catch (err: unknown) {
+    console.error("Failed to load orgs:", err);
+    throw err;
+  }
+};

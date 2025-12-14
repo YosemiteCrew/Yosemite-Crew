@@ -1,5 +1,6 @@
 import { Secondary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import { deleteOrg } from "@/app/services/orgService";
 import React, { useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 
@@ -15,15 +16,20 @@ const Delete = () => {
     setConsent(false);
     setEmailError("");
   };
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!email) {
       setEmailError("Email is required");
       return;
     }
-    setDeletePopup(false);
-    setEmail("");
-    setConsent(false);
-    setEmailError("");
+    try {
+      await deleteOrg();
+      setDeletePopup(false);
+      setEmail("");
+      setConsent(false);
+      setEmailError("");
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (

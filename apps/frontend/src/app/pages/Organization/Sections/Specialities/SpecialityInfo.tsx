@@ -1,14 +1,17 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import EditableAccordion, {
+  FieldConfig,
+} from "@/app/components/Accordion/EditableAccordion";
 import ServiceSearchEdit from "@/app/components/Inputs/ServiceSearch/ServiceSearchEdit";
 import Modal from "@/app/components/Modal";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import {
   updateService,
   updateSpeciality,
 } from "@/app/services/specialityService";
 import { SpecialityWeb } from "@/app/types/speciality";
 import { Service, Speciality } from "@yosemite-crew/types";
-import React from "react";
+import React, { useMemo } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 
 type SpecialityInfoProps = {
@@ -34,16 +37,45 @@ const ServiceFields = [
   { label: "Max discount (%)", key: "maxDiscount", type: "number" },
 ];
 
-const BasicFields = [
-  { label: "Name", key: "name", type: "text", required: true },
-  { label: "Head", key: "headName", type: "text" },
-];
+const getBasicFields = ({
+  TeamOptions,
+}: {
+  TeamOptions: { label: string; value: string }[];
+}) =>
+  [
+    { label: "Name", key: "name", type: "text", required: true },
+    { label: "Head", key: "headName", type: "dropdown", options: TeamOptions },
+  ] satisfies FieldConfig[];
 
 const SpecialityInfo = ({
   showModal,
   setShowModal,
-  activeSpeciality
+  activeSpeciality,
 }: SpecialityInfoProps) => {
+  const teams = useTeamForPrimaryOrg();
+
+  const TeamOptions = useMemo(
+    () =>
+      teams?.map((team) => ({
+        label: team.name || team._id,
+        value: team._id,
+      })),
+    [teams]
+  );
+
+  const BasicFields = useMemo(
+    () => getBasicFields({ TeamOptions }),
+    [TeamOptions]
+  );
+
+  const basicInfoData = useMemo(
+    () => ({
+      name: activeSpeciality?.name ?? "",
+      headName: activeSpeciality?.headUserId ?? ""
+    }),
+    [activeSpeciality]
+  );
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
@@ -75,13 +107,15 @@ const SpecialityInfo = ({
             key={activeSpeciality.name + "core-key"}
             title={"Core"}
             fields={BasicFields}
-            data={activeSpeciality}
+            data={basicInfoData}
             defaultOpen={true}
             onSave={async (values) => {
+              const team = TeamOptions.find((t) => t.value === values.headName)
               const payload: Speciality = {
                 ...activeSpeciality,
                 name: values.name ?? activeSpeciality.name,
-                headName: values.headName ?? activeSpeciality.headName,
+                headUserId: values.headName ?? activeSpeciality.headUserId,
+                headName: team?.label ?? activeSpeciality.headName,
                 services: [],
               };
               await updateSpeciality(payload);
@@ -96,12 +130,10 @@ const SpecialityInfo = ({
             isEditing={false}
           >
             <div className="flex flex-col gap-3">
-              <ServiceSearchEdit
-                speciality={activeSpeciality}
-              />
+              <ServiceSearchEdit speciality={activeSpeciality} />
               {activeSpeciality.services?.map((service, i) => (
                 <EditableAccordion
-                  key={service.name+i}
+                  key={service.name + i}
                   title={service.name}
                   fields={ServiceFields}
                   data={service}

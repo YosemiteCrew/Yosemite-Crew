@@ -1,22 +1,28 @@
 import AccordionButton from "@/app/components/Accordion/AccordionButton";
 import RoomTable from "@/app/components/DataTable/RoomTable";
 import React, { useEffect, useState } from "react";
-import { demoRooms } from "../../demo";
 import AddRoom from "./AddRoom";
 import RoomInfo from "./RoomInfo";
+import { useRoomsForPrimaryOrg } from "@/app/hooks/useRooms";
+import { OrganisationRoom } from "@yosemite-crew/types";
 
 const Rooms = () => {
-  const [rooms] = useState(demoRooms);
+  const rooms = useRoomsForPrimaryOrg();
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
-  const [activeRoom, setActiveRoom] = useState<any>(demoRooms[0] ?? null);
+  const [activeRoom, setActiveRoom] = useState<OrganisationRoom | null>(
+    rooms[0] ?? null
+  );
 
   useEffect(() => {
-    if (rooms.length > 0) {
-      setActiveRoom(rooms[0]);
-    } else {
-      setActiveRoom(null);
-    }
+    setActiveRoom((prev) => {
+      if (rooms.length === 0) return null;
+      if (prev?.id) {
+        const updated = rooms.find((s) => s.id === prev.id);
+        if (updated) return updated;
+      }
+      return rooms[0];
+    });
   }, [rooms]);
 
   return (

@@ -6,13 +6,12 @@ import { CompanionParent, StoredCompanion } from "../pages/Companions/types";
 import { useParentStore } from "../stores/parentStore";
 
 export const useLoadCompanionsForPrimaryOrg = () => {
-  const companionStatus = useCompanionStore((s) => s.status);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   useEffect(() => {
-    if (companionStatus === "idle") {
-      void loadCompanionsForPrimaryOrg();
-    }
-  }, [companionStatus]);
+    if (!primaryOrgId) return;
+    void loadCompanionsForPrimaryOrg({force: true});
+  }, [primaryOrgId]);
 };
 
 export const useCompanionsForPrimaryOrg = (): StoredCompanion[] => {

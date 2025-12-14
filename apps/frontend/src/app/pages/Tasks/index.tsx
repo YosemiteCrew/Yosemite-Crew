@@ -10,6 +10,7 @@ import TaskFilters from "@/app/components/Filters/TasksFilters";
 import TitleCalendar from "@/app/components/TitleCalendar";
 import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
 import TaskCalendar from "@/app/components/Calendar/TaskCalendar";
+import OrgGuard from "@/app/components/OrgGuard";
 
 const Tasks = () => {
   const [list] = useState<TasksProps[]>(demoTasks);
@@ -80,7 +81,9 @@ const Tasks = () => {
 const ProtectedTasks = () => {
   return (
     <ProtectedRoute>
-      <Tasks />
+      <OrgGuard>
+        <Tasks />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

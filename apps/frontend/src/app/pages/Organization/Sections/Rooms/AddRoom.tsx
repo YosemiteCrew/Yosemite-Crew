@@ -1,27 +1,73 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
-import { SpecialityOptions, StaffOptions } from "../../types";
+import { RoomsTypes } from "../../types";
 import { Primary } from "@/app/components/Buttons";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
+import { OrganisationRoom } from "@yosemite-crew/types";
+import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { createRoom } from "@/app/services/roomService";
 
 type AddRoomProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+const INITIAL_FORM_DATA: OrganisationRoom = {
+  id: "",
+  organisationId: "",
+  name: "",
+  type: "CONSULTATION",
+  assignedSpecialiteis: [],
+  assignedStaffs: [],
+};
+
 const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
-  const [formData, setFormData] = useState<any>({
-    name: "",
-    type: "",
-    specialities: [],
-    staff: [],
-  });
-  const [formDataErrors] = useState<{
+  const teams = useTeamForPrimaryOrg();
+  const specialities = useSpecialitiesForPrimaryOrg();
+  const [formData, setFormData] = useState<OrganisationRoom>(INITIAL_FORM_DATA);
+  const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
   }>({});
+
+  const TeamOptions = useMemo(
+    () =>
+      teams?.map((team) => ({
+        label: team.name || team._id,
+        value: team.name || team._id,
+      })),
+    [teams]
+  );
+
+  const SpecialitiesOptions = useMemo(
+    () =>
+      specialities?.map((speciality) => ({
+        label: speciality.name,
+        value: speciality.name,
+      })),
+    [specialities]
+  );
+
+  const handleSave = async () => {
+    const errors: { name?: string } = {};
+    if (!formData.name) errors.name = "Name is required";
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    try {
+      await createRoom(formData);
+      setShowModal(false);
+      setFormData(INITIAL_FORM_DATA);
+      setFormDataErrors({});
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -62,30 +108,38 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                 error={formDataErrors.name}
                 className="min-h-12!"
               />
-              <FormInput
-                intype="text"
-                inname="type"
+              <Dropdown
+                placeholder="Type"
                 value={formData.type}
-                inlabel="Type"
                 onChange={(e) =>
-                  setFormData({ ...formData, type: e.target.value })
+                  setFormData({
+                    ...formData,
+                    type: e,
+                  })
                 }
                 className="min-h-12!"
+                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
+                options={RoomsTypes}
+                type="general"
               />
               <MultiSelectDropdown
                 placeholder="Assigned specialities"
-                value={formData.specialities}
-                onChange={(e) => setFormData({ ...formData, specialities: e })}
+                value={formData.assignedSpecialiteis || []}
+                onChange={(e) =>
+                  setFormData({ ...formData, assignedSpecialiteis: e })
+                }
                 className="min-h-12!"
-                options={SpecialityOptions}
+                options={SpecialitiesOptions}
                 dropdownClassName="h-fit!"
               />
               <MultiSelectDropdown
                 placeholder="Assigned staff"
-                value={formData.staff}
-                onChange={(e) => setFormData({ ...formData, staff: e })}
+                value={formData.assignedStaffs || []}
+                onChange={(e) =>
+                  setFormData({ ...formData, assignedStaffs: e })
+                }
                 className="min-h-12!"
-                options={StaffOptions}
+                options={TeamOptions}
                 dropdownClassName="h-fit!"
               />
             </div>
@@ -94,6 +148,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
             href="#"
             text="Save"
             classname="max-h-12! text-lg! tracking-wide!"
+            onClick={handleSave}
           />
         </div>
       </div>

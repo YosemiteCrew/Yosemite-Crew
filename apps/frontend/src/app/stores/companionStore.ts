@@ -16,9 +16,11 @@ type CompanionState = {
   setCompanionsForOrg: (orgId: string, items: StoredCompanion[]) => void;
   upsertCompanion: (item: StoredCompanion) => void;
   removeCompanion: (id: string) => void;
+  clearCompanionsForOrg: (orgId: string) => void;
 
   getCompanionsByOrgId: (orgId: string) => StoredCompanion[];
   getCompanionsByParentId: (parentId: string) => StoredCompanion[];
+  getCompanionById: (id: string) => StoredCompanion | undefined;
 
   clearCompanions: () => void;
   startLoading: () => void;
@@ -200,6 +202,33 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
       };
     }),
 
+  clearCompanionsForOrg: (orgId: string) =>
+    set((state) => {
+      const ids = state.companionsIdsByOrgId[orgId] ?? [];
+      if (!ids.length) {
+        const { [orgId]: _, ...restOrgIdx } = state.companionsIdsByOrgId;
+        return { companionsIdsByOrgId: restOrgIdx };
+      }
+      const companionsById = { ...state.companionsById };
+      for (const id of ids) delete companionsById[id];
+      const companionIdsByParentId: Record<string, string[]> = {};
+      for (const [parentId, parentIds] of Object.entries(
+        state.companionIdsByParentId
+      )) {
+        const next = parentIds.filter((cid) => !ids.includes(cid));
+        if (next.length) companionIdsByParentId[parentId] = next;
+      }
+      const { [orgId]: _, ...restOrgIdx } = state.companionsIdsByOrgId;
+      return {
+        companionsById,
+        companionsIdsByOrgId: restOrgIdx,
+        companionIdsByParentId,
+        status: "loaded",
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
+    }),
+
   getCompanionsByOrgId: (orgId: string) => {
     const { companionsById, companionsIdsByOrgId } = get();
     const ids = companionsIdsByOrgId[orgId] ?? [];
@@ -210,6 +239,11 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
     const { companionsById, companionIdsByParentId } = get();
     const ids = companionIdsByParentId[parentId] ?? [];
     return ids.map((id) => companionsById[id]).filter(Boolean);
+  },
+
+  getCompanionById: (id: string) => {
+    const { companionsById } = get();
+    return companionsById[id];
   },
 
   clearCompanions: () =>

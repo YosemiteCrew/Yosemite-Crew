@@ -1,4 +1,4 @@
-import { getData, postData, putData } from "@/app/services/axios";
+import { deleteData, getData, postData, putData } from "@/app/services/axios";
 import { useOrgStore } from "@/app/stores/orgStore";
 import {
   OrganizationRequestDTO,
@@ -11,6 +11,14 @@ import {
 } from "@yosemite-crew/types";
 import axios from "axios";
 import { useAuthStore } from "../stores/authStore";
+import { useAvailabilityStore } from "../stores/availabilityStore";
+import { useCompanionStore } from "../stores/companionStore";
+import { useOrganizationDocumentStore } from "../stores/documentStore";
+import { useOrganisationRoomStore } from "../stores/roomStore";
+import { useServiceStore } from "../stores/serviceStore";
+import { useSpecialityStore } from "../stores/specialityStore";
+import { useTeamStore } from "../stores/teamStore";
+import { useUserProfileStore } from "../stores/profileStore";
 
 type MappingResponse = {
   mapping: UserOrganizationRequestDTO;
@@ -125,11 +133,10 @@ export const createOrg = async (formData: Organisation) => {
 };
 
 export const updateOrg = async (formData: Organisation) => {
-  const { startLoading, setError, updateOrg } =
-    useOrgStore.getState();
+  const { startLoading, setError, updateOrg } = useOrgStore.getState();
   startLoading();
   try {
-    const _id = formData._id?.toString()
+    const _id = formData._id?.toString();
     if (!_id) {
       setError("You don't have permission to update organizations.");
       return;
@@ -141,6 +148,46 @@ export const updateOrg = async (formData: Organisation) => {
     );
     const newOrg = fromOrganizationRequestDTO(res.data);
     updateOrg(_id, newOrg);
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 403) {
+        setError("You don't have permission to update organizations.");
+      } else if (status === 404) {
+        setError("Organization service not found. Please contact support.");
+      } else {
+        setError(
+          err.response?.data?.message ??
+            err.message ??
+            "Failed to load organizations"
+        );
+      }
+    } else {
+      setError("Unexpected error while updating organization");
+    }
+    console.error("Failed to load orgs:", err);
+    throw err;
+  }
+};
+
+export const deleteOrg = async () => {
+  const { removeOrg, setError } = useOrgStore.getState();
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn("No primary organization selected. Cannot load specialities.");
+    return;
+  }
+  try {
+    await deleteData("/fhir/v1/organization/" + primaryOrgId);
+    useCompanionStore.getState().clearCompanionsForOrg(primaryOrgId);
+    useAvailabilityStore.getState().clearAvailabilitiesForOrg(primaryOrgId);
+    useOrganizationDocumentStore.getState().clearDocumentsForOrg(primaryOrgId);
+    useOrganisationRoomStore.getState().clearRoomsForOrg(primaryOrgId);
+    useServiceStore.getState().clearServicesForOrg(primaryOrgId);
+    useSpecialityStore.getState().clearSpecialitiesForOrg(primaryOrgId);
+    useTeamStore.getState().clearTeamsForOrg(primaryOrgId);
+    useUserProfileStore.getState().clearProfileForOrg(primaryOrgId);
+    removeOrg(primaryOrgId);
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;

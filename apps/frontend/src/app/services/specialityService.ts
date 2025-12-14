@@ -20,8 +20,9 @@ export const loadSpecialitiesForOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, setSpecialities, status } = useSpecialityStore.getState();
-  const { setServices } = useServiceStore.getState();
+  const { startLoading, status, setSpecialitiesForOrg } =
+    useSpecialityStore.getState();
+  const { setServicesForOrg } = useServiceStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn("No primary organization selected. Cannot load specialities.");
@@ -29,20 +30,25 @@ export const loadSpecialitiesForOrg = async (opts?: {
   }
   if (!shouldFetchSpecialities(status, opts)) return;
   if (!opts?.silent) startLoading();
-
   try {
     const payload = await fetchSpecialities(primaryOrgId);
-    const { normalSpecialities, normalServices } = normalizeSpecialities(payload);
-    setSpecialities(normalSpecialities);
-    setServices(normalServices);
+    const { normalSpecialities, normalServices } =
+      normalizeSpecialities(payload);
+
+    setSpecialitiesForOrg(primaryOrgId, normalSpecialities);
+    setServicesForOrg(primaryOrgId, normalServices);
   } catch (err) {
     console.error("Failed to load specialities:", err);
     throw err;
   }
 };
 
-const fetchSpecialities = async (orgId: string): Promise<SpecialityWithServices[]> => {
-  const res = await getData<SpecialityWithServices[]>(`/fhir/v1/speciality/${orgId}`);
+const fetchSpecialities = async (
+  orgId: string
+): Promise<SpecialityWithServices[]> => {
+  const res = await getData<SpecialityWithServices[]>(
+    `/fhir/v1/speciality/${orgId}`
+  );
   if (!Array.isArray(res.data)) {
     console.warn("Specialities response is not an array.", res.data);
     return [];
@@ -87,7 +93,10 @@ const addServices = (bucket: Service[], item: SpecialityWithServices) => {
   const services = item.services;
   if (services == null) return;
   if (!Array.isArray(services)) {
-    console.warn("Services field is not an array in SpecialityWithServices item:", item);
+    console.warn(
+      "Services field is not an array in SpecialityWithServices item:",
+      item
+    );
     return;
   }
 

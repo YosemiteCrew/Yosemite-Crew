@@ -13,6 +13,8 @@ import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import { formatDateLocal } from "@/app/utils/date";
 
 import "./Step.css";
+import { useAuthStore } from "@/app/stores/authStore";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 type PersonalStepProps = {
   nextStep: () => void;
@@ -27,6 +29,7 @@ const PersonalStep = ({
   setFormData,
   orgIdFromQuery,
 }: PersonalStepProps) => {
+  const attributes = useAuthStore((s) => s.attributes);
   const [formDataErrors, setFormDataErrors] = useState<{
     dob?: string;
     country?: string;
@@ -36,6 +39,7 @@ const PersonalStep = ({
     city?: string;
     state?: string;
     postalCode?: string;
+    dateOfBirth?: string;
   }>({});
   const [currentDate, setCurrentDate] = useState<Date | null>(
     formData.personalDetails?.dateOfBirth
@@ -63,11 +67,14 @@ const PersonalStep = ({
       city?: string;
       state?: string;
       postalCode?: string;
+      dateOfBirth?: string;
     } = {};
     if (!formData.personalDetails?.dateOfBirth)
       errors.dob = "Date of birth is required";
     if (!formData.personalDetails?.phoneNumber)
       errors.number = "Number is required";
+    if (!formData.personalDetails?.dateOfBirth)
+      errors.dateOfBirth = "Date of birth is required";
     if (!formData.personalDetails?.gender) errors.gender = "Gender is required";
     if (!formData.personalDetails?.address?.country)
       errors.country = "Country is required";
@@ -102,13 +109,15 @@ const PersonalStep = ({
     }
   };
 
+  if (!attributes) return null;
+
   return (
     <div className="team-container">
       <div className="team-title">Personal details</div>
 
       <LogoUploader
         title="Add profile picture (optional)"
-        apiUrl="/api/profile-logo"
+        apiUrl={`/fhir/v1/user-profile/${orgIdFromQuery}/${attributes.sub}/profile-picture`}
         setImageUrl={(url) => {
           setFormData((prev) => ({
             ...prev,
@@ -121,14 +130,23 @@ const PersonalStep = ({
       />
 
       <div className="team-personal-container">
-        <Datepicker
-          currentDate={currentDate}
-          setCurrentDate={setCurrentDate}
-          type="input"
-          className="h-12! xl:h-[60px]!"
-          containerClassName="w-full"
-          placeholder="Date of birth"
-        />
+        <div className="flex flex-col gap-1">
+          <Datepicker
+            currentDate={currentDate}
+            setCurrentDate={setCurrentDate}
+            type="input"
+            className="h-12! xl:h-[60px]!"
+            containerClassName="w-full"
+            placeholder="Date of birth"
+          />
+          {formDataErrors.dateOfBirth && (
+            <div className="Errors">
+              <Icon icon="mdi:error" width="16" height="16" />
+              {formDataErrors.dateOfBirth}
+            </div>
+          )}
+        </div>
+
         <div className="team-personal-two">
           <Dropdown
             placeholder="Select country"
