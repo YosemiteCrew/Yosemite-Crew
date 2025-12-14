@@ -6,8 +6,7 @@ export type StockHealthStatus =
   | "HEALTHY"
   | "LOW_STOCK"
   | "EXPIRED"
-  | "EXPIRING_SOON"
-  | string;
+  | "EXPIRING_SOON";
 
 export type InventoryBatchApi = {
   batchNumber?: string;
@@ -555,7 +554,7 @@ export interface InventoryItem {
   organisationId?: string;
   businessType?: BusinessType;
   stockHealth?: StockHealthStatus;
-  status?: InventoryStatus | string;
+  status?: InventoryStatus;
   attributes?: Record<string, any>;
   sku?: string;
   imageUrl?: string;
@@ -598,5 +597,5 @@ export interface InventoryTurnoverItem {
   totalPurchased?: number;
   turnsPerYear: number;
   daysOnShelf: number;
-  status?: "Excellent" | "Healthy" | "Moderate" | "Low" | "Out of stock" | string;
+  status?: "Excellent" | "Healthy" | "Moderate" | "Low" | "Out of stock";
 }

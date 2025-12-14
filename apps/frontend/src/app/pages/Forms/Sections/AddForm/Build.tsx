@@ -484,6 +484,76 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   );
 };
 
+const renderMedicineField = (
+  medField: FormField,
+  nested: FormField & { fields?: FormField[] },
+  updateNestedField: (id: string, updated: FormField) => void,
+  createField: (t: OptionKey) => FormField
+) => {
+  const Component = builderComponentMap[medField.type];
+  if (!Component) return null;
+
+  return (
+    <div key={medField.id} className="relative">
+      <Component
+        field={medField}
+        onChange={(updated) => {
+          const updatedNested = {
+            ...nested,
+            fields: (nested.fields ?? []).map((f: FormField) =>
+              f.id === medField.id ? updated : f
+            ),
+          };
+          updateNestedField(nested.id, updatedNested);
+        }}
+        createField={createField}
+      />
+      {(medField as any).meta?.readonly && (
+        <div className="absolute top-2 right-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+          Read-only
+        </div>
+      )}
+    </div>
+  );
+};
+
+const renderNestedField = (
+  nested: FormField,
+  updateNestedField: (id: string, updated: FormField) => void,
+  removeMedicine: (id: string) => void,
+  createField: (t: OptionKey) => FormField
+) => {
+  if (nested.type === "group") {
+    const groupField = nested as FormField & { fields?: FormField[] };
+    return (
+      <BuilderWrapper
+        key={nested.id}
+        field={nested}
+        onDelete={() => removeMedicine(nested.id)}
+      >
+        <div className="flex flex-col gap-3 border border-grey-light rounded-2xl p-3">
+          <div className="font-grotesk text-black-text text-[16px] font-medium">
+            {nested.label}
+          </div>
+          {(groupField.fields ?? []).map((medField) =>
+            renderMedicineField(medField, groupField, updateNestedField, createField)
+          )}
+        </div>
+      </BuilderWrapper>
+    );
+  }
+
+  return (
+    <FieldBuilder
+      key={nested.id}
+      field={nested}
+      onChange={(updated) => updateNestedField(nested.id, updated)}
+      onDelete={() => removeMedicine(nested.id)}
+      createField={createField}
+    />
+  );
+};
+
 type MedicationGroupBuilderProps = {
   field: FormField & { type: "group"; fields?: FormField[] };
   onChange: (f: FormField) => void;
@@ -565,8 +635,8 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         id: `${fieldPrefix}_price`,
         type: "number",
         label: "Price",
-        placeholder: medicine.sellingPrice != null ? String(medicine.sellingPrice) : "",
-        defaultValue: medicine.sellingPrice != null ? String(medicine.sellingPrice) : "",
+        placeholder: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
+        defaultValue: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
         meta: { readonly: true } as any,
       },
       {
@@ -647,62 +717,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         disabled={loadingMedicines}
       />
 
-      {(field.fields ?? []).map((nested) => {
-        // Each medicine is a group
-        if (nested.type === "group") {
-          return (
-            <BuilderWrapper
-              key={nested.id}
-              field={nested}
-              onDelete={() => removeMedicine(nested.id)}
-            >
-              <div className="flex flex-col gap-3 border border-grey-light rounded-2xl p-3">
-                <div className="font-grotesk text-black-text text-[16px] font-medium">
-                  {nested.label}
-                </div>
-                {(nested.fields ?? []).map((medField) => {
-                  const Component = builderComponentMap[medField.type];
-                  if (!Component) return null;
-
-                  return (
-                    <div key={medField.id} className="relative">
-                      <Component
-                        field={medField}
-                        onChange={(updated) => {
-                          // Update the field within the medicine group
-                          const updatedNested = {
-                            ...nested,
-                            fields: (nested.fields ?? []).map((f) =>
-                              f.id === medField.id ? updated : f
-                            ),
-                          };
-                          updateNestedField(nested.id, updatedNested);
-                        }}
-                        createField={createField}
-                      />
-                      {(medField as any).meta?.readonly && (
-                        <div className="absolute top-2 right-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          Read-only
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </BuilderWrapper>
-          );
-        }
-
-        return (
-          <FieldBuilder
-            key={nested.id}
-            field={nested}
-            onChange={(updated) => updateNestedField(nested.id, updated)}
-            onDelete={() => removeMedicine(nested.id)}
-            createField={createField}
-          />
-        );
-      })}
+      {(field.fields ?? []).map((nested) => renderNestedField(nested, updateNestedField, removeMedicine, createField))}
     </div>
   );
 };

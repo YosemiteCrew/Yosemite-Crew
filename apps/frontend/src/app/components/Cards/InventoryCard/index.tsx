@@ -1,7 +1,6 @@
 import React from "react";
 import { getStatusStyle } from "../../DataTable/InventoryTable";
-import { displayStatusLabel } from "@/app/pages/Inventory/utils";
-import { formatDisplayDate } from "@/app/pages/Inventory/utils";
+import { displayStatusLabel, formatDisplayDate } from "@/app/pages/Inventory/utils";
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
   const displayValue = (val?: string | number | null) => {

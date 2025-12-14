@@ -1,11 +1,10 @@
 "use client";
 import React from "react";
+import { IoEye } from "react-icons/io5";
 import GenericTable from "../GenericTable/GenericTable";
 import InventoryCard from "../Cards/InventoryCard";
 import { InventoryItem } from "@/app/pages/Inventory/types";
-import { IoEye } from "react-icons/io5";
-import { displayStatusLabel, getStatusBadgeStyle } from "@/app/pages/Inventory/utils";
-import { formatDisplayDate } from "@/app/pages/Inventory/utils";
+import { displayStatusLabel, formatDisplayDate, getStatusBadgeStyle } from "@/app/pages/Inventory/utils";
 
 import "./DataTable.css";
 

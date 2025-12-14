@@ -164,17 +164,20 @@ const FormSection: React.FC<FormSectionProps> = ({
     }
 
     if (component === "multiSelect") {
-      const arrayValue = Array.isArray(value)
-        ? value
-        : value
-          ? String(value).split(",").map((v) => v.trim())
-          : [];
+      let arrayValue: string[];
+      if (Array.isArray(value)) {
+        arrayValue = value;
+      } else if (value) {
+        arrayValue = String(value).split(",").map((v) => v.trim());
+      } else {
+        arrayValue = [];
+      }
       return (
         <MultiSelectDropdown
           key={key ?? field.name}
           placeholder={placeholder || ""}
           value={arrayValue}
-          onChange={(vals) => handleChange(field, vals as string[], index)}
+          onChange={(vals) => handleChange(field, vals, index)}
           className="min-h-12!"
           options={options || []}
           dropdownClassName="h-fit!"
@@ -235,8 +238,8 @@ const FormSection: React.FC<FormSectionProps> = ({
               {(formData.batches && formData.batches.length > 0
                 ? formData.batches
                 : [formData.batch]
-              ).map((_, batchIdx) => (
-                <div key={batchIdx} className="flex flex-col gap-3 border border-grey-light rounded-xl p-3">
+              ).map((batch, batchIdx) => (
+                <div key={batch._id ?? `batch-${batchIdx}`} className="flex flex-col gap-3 border border-grey-light rounded-xl p-3">
                   <div className="flex items-center justify-between">
                     <div className="font-satoshi font-semibold text-black-text">
                       Batch {batchIdx + 1}

@@ -1,19 +1,17 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { IoIosCloseCircleOutline } from "react-icons/io";
 import { BatchValues, InventoryItem } from "@/app/pages/Inventory/types";
 import { BusinessType } from "@/app/types/org";
-import { IoIosCloseCircleOutline } from "react-icons/io";
-import Modal from "../Modal";
-import SubLabels from "../Labels/SubLabels";
-import InfoSection from "./InfoSection";
+import { formatDisplayDate, toStringSafe } from "@/app/pages/Inventory/utils";
+import { ConfigItem, InventoryFormConfig, InventorySectionKey } from "@/app/components/AddInventory/InventoryConfig";
+import Accordion from "../Accordion/Accordion";
 import { Primary, Secondary } from "../Buttons";
-import { InventorySectionKey } from "@/app/components/AddInventory/InventoryConfig";
-import FormInput from "../Inputs/FormInput/FormInput";
 import Datepicker from "../Inputs/Datepicker";
 import Dropdown from "../Inputs/Dropdown/Dropdown";
-import Accordion from "../Accordion/Accordion";
-import { ConfigItem, InventoryFormConfig } from "../AddInventory/InventoryConfig";
-import { useRef } from "react";
-import { calculateBatchTotals, toStringSafe, formatDisplayDate } from "@/app/pages/Inventory/utils";
+import FormInput from "../Inputs/FormInput/FormInput";
+import SubLabels from "../Labels/SubLabels";
+import Modal from "../Modal";
+import InfoSection from "./InfoSection";
 
 const emptyBatch: BatchValues = {
   batch: "",
@@ -230,39 +228,51 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     );
   };
 
+  const getFieldDisplay = (component: string, value: any, normalizedOptions: any[]): string | string[] => {
+    if (component === "multiSelect") {
+      if (Array.isArray(value)) return value;
+      if (typeof value === "string" && value.trim() !== "") {
+        return value.split(",").map((v: string) => v.trim());
+      }
+      return [];
+    }
+
+    if (component === "dropdown") {
+      if (value !== undefined && value !== "") {
+        return resolveLabel(normalizedOptions, String(value));
+      }
+      return "—";
+    }
+
+    if (component === "date") {
+      return formatDateValue(String(value ?? ""));
+    }
+
+    return String(value ?? "");
+  };
+
+  const formatFinalValue = (display: string | string[]): string => {
+    if (Array.isArray(display)) {
+      return display.length > 0 ? display.join(", ") : "—";
+    }
+    if (display !== undefined && display !== "") {
+      return String(display);
+    }
+    return "—";
+  };
+
   const renderPreviewField = (
     field: any,
     batchData: BatchValues,
     key?: React.Key
   ) => {
     const { placeholder, label, component, options, name } = field;
-    const value = (batchData as any)?.[name] as any;
+    const value = batchData[name as keyof BatchValues];
     const displayLabel = placeholder || label || name;
     const normalizedOptions = normalizeOptions(options);
 
-    let display: string | string[] = value;
-    if (component === "multiSelect") {
-      if (Array.isArray(value)) {
-        display = value;
-      } else if (typeof value === "string" && value.trim() !== "") {
-        display = value.split(",").map((v: string) => v.trim());
-      }
-    } else if (component === "dropdown") {
-      display =
-        value !== undefined && value !== ""
-          ? resolveLabel(normalizedOptions, value)
-          : "—";
-    } else if (component === "date") {
-      display = formatDateValue(value);
-    }
-
-    const finalValue = Array.isArray(display)
-      ? display.length
-        ? display.join(", ")
-        : "—"
-      : display !== undefined && display !== ""
-        ? String(display)
-        : "—";
+    const display = getFieldDisplay(component, value, normalizedOptions);
+    const finalValue = formatFinalValue(display);
 
     return (
       <div key={key ?? name} className="flex flex-col gap-1">
@@ -356,9 +366,9 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
               <div className="font-satoshi font-semibold text-black-text">
                 Add new batches
               </div>
-              {newBatches.map((_, batchIdx) => (
+              {newBatches.map((batch, batchIdx) => (
                 <div
-                  key={`new-${batchIdx}`}
+                  key={batch._id ?? `new-batch-${batchIdx}`}
                   className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
                 >
                   <div className="flex items-center justify-between">
@@ -419,6 +429,21 @@ const modalSections: { key: InventorySectionKey; name: string }[] = [
   { key: "batch", name: "Batch / Lot details" },
 ];
 
+const getPrimaryButtonText = (
+  inEditMode: boolean,
+  isUpdating: boolean,
+  isHiding: boolean,
+  isHidden: boolean
+): string => {
+  if (inEditMode) {
+    return isUpdating ? "Saving..." : "Save";
+  }
+  if (isHiding) {
+    return isHidden ? "Unhiding..." : "Hiding...";
+  }
+  return isHidden ? "Unhide item" : "Hide item";
+};
+
 const InventoryInfo = ({
   showModal,
   setShowModal,
@@ -465,7 +490,8 @@ const InventoryInfo = ({
     const logValidation = (msg: string, details?: Record<string, any>) => {
       console.error(`[Inventory] ${msg}`, details ? JSON.stringify(details) : "");
     };
-    const basicValidation = () => {
+
+    const validateBasicInfo = (): Record<string, string> => {
       const errs: Record<string, string> = {};
       if (!values.name && !activeInventory.basicInfo.name) {
         errs.name = "Name is required";
@@ -478,24 +504,38 @@ const InventoryInfo = ({
       }
       return errs;
     };
-    const pricingValidation = () => {
+
+    const validatePricing = (): Record<string, string> => {
       const errs: Record<string, string> = {};
       const purchase = values.purchaseCost ?? activeInventory.pricing.purchaseCost;
       const selling = values.selling ?? activeInventory.pricing.selling;
-      if (purchase === "" || purchase === undefined) errs.purchaseCost = "Purchase cost is required";
-      else if (Number.isNaN(Number(purchase))) errs.purchaseCost = "Enter a valid number";
-      if (selling === "" || selling === undefined) errs.selling = "Selling price is required";
-      else if (Number.isNaN(Number(selling))) errs.selling = "Enter a valid number";
+      if (purchase === "" || purchase === undefined) {
+        errs.purchaseCost = "Purchase cost is required";
+      } else if (Number.isNaN(Number(purchase))) {
+        errs.purchaseCost = "Enter a valid number";
+      }
+      if (selling === "" || selling === undefined) {
+        errs.selling = "Selling price is required";
+      } else if (Number.isNaN(Number(selling))) {
+        errs.selling = "Enter a valid number";
+      }
       return errs;
     };
-    const stockValidation = () => {
+
+    const validateStock = (): Record<string, string> => {
       const errs: Record<string, string> = {};
       const current = values.current ?? activeInventory.stock.current;
       const reorder = values.reorderLevel ?? activeInventory.stock.reorderLevel;
-      if (current === "" || current === undefined) errs.current = "On hand quantity is required";
-      else if (Number.isNaN(Number(current))) errs.current = "Enter a valid number";
-      if (reorder === "" || reorder === undefined) errs.reorderLevel = "Reorder level is required";
-      else if (Number.isNaN(Number(reorder))) errs.reorderLevel = "Enter a valid number";
+      if (current === "" || current === undefined) {
+        errs.current = "On hand quantity is required";
+      } else if (Number.isNaN(Number(current))) {
+        errs.current = "Enter a valid number";
+      }
+      if (reorder === "" || reorder === undefined) {
+        errs.reorderLevel = "Reorder level is required";
+      } else if (Number.isNaN(Number(reorder))) {
+        errs.reorderLevel = "Enter a valid number";
+      }
       return errs;
     };
 
@@ -518,11 +558,11 @@ const InventoryInfo = ({
         return;
       } else {
         const sectionErrors: Record<InventorySectionKey, Record<string, string>> = {
-          basicInfo: basicValidation(),
+          basicInfo: validateBasicInfo(),
           classification: {},
-          pricing: pricingValidation(),
+          pricing: validatePricing(),
           vendor: {},
-          stock: stockValidation(),
+          stock: validateStock(),
           batch: {},
         };
         const errs = sectionErrors[section];
@@ -635,31 +675,35 @@ const InventoryInfo = ({
         />
 
         <div className="flex overflow-y-auto flex-1">
-          {activeInventory ? activeLabel === "batch" ? (
-            <BatchEditor
-              businessType={businessType}
-              inventory={activeInventory}
-              onSave={(vals) => handleSectionSave("batch", vals)}
-              disableEditing={isUpdating || isHiding}
-              onEditingChange={setIsSectionEditing}
-              onRegisterActions={(actions) => {
-                batchActions.current = actions;
-              }}
-            />
-          ) : (
-            <InfoSection
-              businessType={businessType}
-              sectionKey={activeLabel}
-              sectionTitle={currentLabelConfig.name}
-              inventory={activeInventory}
-              onSaveSection={handleSectionSave}
-              disableEditing={isUpdating || isHiding}
-              onEditingChange={setIsSectionEditing}
-              onRegisterActions={(actions) => {
-                sectionActions.current = actions;
-              }}
-            />
-          ) : null}
+          {activeInventory && (
+            <>
+              {activeLabel === "batch" ? (
+                <BatchEditor
+                  businessType={businessType}
+                  inventory={activeInventory}
+                  onSave={(vals) => handleSectionSave("batch", vals)}
+                  disableEditing={isUpdating || isHiding}
+                  onEditingChange={setIsSectionEditing}
+                  onRegisterActions={(actions) => {
+                    batchActions.current = actions;
+                  }}
+                />
+              ) : (
+                <InfoSection
+                  businessType={businessType}
+                  sectionKey={activeLabel}
+                  sectionTitle={currentLabelConfig.name}
+                  inventory={activeInventory}
+                  onSaveSection={handleSectionSave}
+                  disableEditing={isUpdating || isHiding}
+                  onEditingChange={setIsSectionEditing}
+                  onRegisterActions={(actions) => {
+                    sectionActions.current = actions;
+                  }}
+                />
+              )}
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -672,19 +716,7 @@ const InventoryInfo = ({
           />
           <Primary
             href="#"
-            text={
-              inEditMode
-                ? isUpdating
-                  ? "Saving..."
-                  : "Save"
-                : isHiding
-                  ? isHidden
-                    ? "Unhiding..."
-                    : "Hiding..."
-                  : isHidden
-                    ? "Unhide item"
-                    : "Hide item"
-            }
+            text={getPrimaryButtonText(inEditMode, isUpdating, isHiding, isHidden)}
             onClick={handlePrimaryAction}
             isDisabled={
               (inEditMode && isUpdating) ||

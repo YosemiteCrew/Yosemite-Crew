@@ -65,12 +65,14 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   const toEditableField = (field: FieldDef<any>): EditableField => {
     const label = field.label || field.placeholder || field.name;
-    const type: EditableField["type"] =
-      field.component === "dropdown"
-        ? "select"
-        : field.component === "date"
-          ? "date"
-          : "text";
+    let type: EditableField["type"];
+    if (field.component === "dropdown") {
+      type = "select";
+    } else if (field.component === "date") {
+      type = "date";
+    } else {
+      type = "text";
+    }
     return {
       label,
       key: field.name,

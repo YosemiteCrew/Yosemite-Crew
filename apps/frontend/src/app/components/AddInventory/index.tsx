@@ -153,7 +153,8 @@ const AddInventory = ({
       setFormData((prev) => {
         const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
         const targetIndex = index ?? 0;
-        batches[targetIndex] = { ...(batches[targetIndex] ?? {}), ...patch };
+        const currentBatch = batches[targetIndex] ?? emptyInventoryItem.batch;
+        batches[targetIndex] = { ...currentBatch, ...patch };
         const totals = calculateBatchTotals(batches);
         const stock = { ...prev.stock };
         if (totals.onHand !== undefined) stock.current = String(totals.onHand);
@@ -174,6 +175,47 @@ const AddInventory = ({
     }));
   };
 
+  const validateBasicInfo = (): Partial<Record<keyof typeof formData.basicInfo, string>> => {
+    const basic = formData.basicInfo;
+    const errors: Partial<Record<keyof typeof formData.basicInfo, string>> = {};
+    if (!basic.name) errors.name = "Name is required";
+    if (!basic.category) errors.category = "Category is required";
+    if (!basic.subCategory) errors.subCategory = "Sub category is required";
+    return errors;
+  };
+
+  const validatePricing = (): Partial<Record<keyof typeof formData.pricing, string>> => {
+    const pricing = formData.pricing;
+    const errors: Partial<Record<keyof typeof formData.pricing, string>> = {};
+    if (!pricing.purchaseCost) {
+      errors.purchaseCost = "Purchase cost is required";
+    } else if (Number.isNaN(Number(pricing.purchaseCost))) {
+      errors.purchaseCost = "Enter a valid number";
+    }
+    if (!pricing.selling) {
+      errors.selling = "Selling price is required";
+    } else if (Number.isNaN(Number(pricing.selling))) {
+      errors.selling = "Enter a valid number";
+    }
+    return errors;
+  };
+
+  const validateStock = (): Partial<Record<keyof typeof formData.stock, string>> => {
+    const stock = formData.stock;
+    const errors: Partial<Record<keyof typeof formData.stock, string>> = {};
+    if (!stock.current) {
+      errors.current = "On hand quantity is required";
+    } else if (Number.isNaN(Number(stock.current))) {
+      errors.current = "Enter a valid number";
+    }
+    if (!stock.reorderLevel) {
+      errors.reorderLevel = "Reorder level is required";
+    } else if (Number.isNaN(Number(stock.reorderLevel))) {
+      errors.reorderLevel = "Enter a valid number";
+    }
+    return errors;
+  };
+
   const validateSection = (section: InventorySectionKey): boolean => {
     const nextErrors: InventoryErrors = { ...errors };
     const updateStatus = (valid: boolean) => {
@@ -181,15 +223,11 @@ const AddInventory = ({
     };
 
     if (section === "basicInfo") {
-      const basic = formData.basicInfo;
-      const be: InventoryErrors["basicInfo"] = {};
-      if (!basic.name) be.name = "Name is required";
-      if (!basic.category) be.category = "Category is required";
-      if (!basic.subCategory) be.subCategory = "Sub category is required";
-      if (Object.keys(be).length > 0) {
-        nextErrors.basicInfo = be;
+      const sectionErrors = validateBasicInfo();
+      if (Object.keys(sectionErrors).length > 0) {
+        nextErrors.basicInfo = sectionErrors;
         setErrors(nextErrors);
-        logValidationFailure(section, be);
+        logValidationFailure(section, sectionErrors);
         updateStatus(false);
         return false;
       }
@@ -200,7 +238,6 @@ const AddInventory = ({
     }
 
     if (section === "classification") {
-      // Classification is optional for cleaning supplies and other non-drug items.
       delete nextErrors.classification;
       setErrors(nextErrors);
       updateStatus(true);
@@ -208,20 +245,11 @@ const AddInventory = ({
     }
 
     if (section === "pricing") {
-      const pricing = formData.pricing;
-      const pe: InventoryErrors["pricing"] = {};
-      if (!pricing.purchaseCost) pe.purchaseCost = "Purchase cost is required";
-      else if (Number.isNaN(Number(pricing.purchaseCost))) {
-        pe.purchaseCost = "Enter a valid number";
-      }
-      if (!pricing.selling) pe.selling = "Selling price is required";
-      else if (Number.isNaN(Number(pricing.selling))) {
-        pe.selling = "Enter a valid number";
-      }
-      if (Object.keys(pe).length > 0) {
-        nextErrors.pricing = pe;
+      const sectionErrors = validatePricing();
+      if (Object.keys(sectionErrors).length > 0) {
+        nextErrors.pricing = sectionErrors;
         setErrors(nextErrors);
-        logValidationFailure(section, pe);
+        logValidationFailure(section, sectionErrors);
         updateStatus(false);
         return false;
       }
@@ -232,20 +260,11 @@ const AddInventory = ({
     }
 
     if (section === "stock") {
-      const stock = formData.stock;
-      const se: InventoryErrors["stock"] = {};
-      if (!stock.current) se.current = "On hand quantity is required";
-      else if (Number.isNaN(Number(stock.current))) {
-        se.current = "Enter a valid number";
-      }
-      if (!stock.reorderLevel) se.reorderLevel = "Reorder level is required";
-      else if (Number.isNaN(Number(stock.reorderLevel))) {
-        se.reorderLevel = "Enter a valid number";
-      }
-      if (Object.keys(se).length > 0) {
-        nextErrors.stock = se;
+      const sectionErrors = validateStock();
+      if (Object.keys(sectionErrors).length > 0) {
+        nextErrors.stock = sectionErrors;
         setErrors(nextErrors);
-        logValidationFailure(section, se);
+        logValidationFailure(section, sectionErrors);
         updateStatus(false);
         return false;
       }
@@ -255,7 +274,6 @@ const AddInventory = ({
       return true;
     }
 
-    // Optional sections
     setErrors(nextErrors);
     updateStatus(true);
     return true;
@@ -325,12 +343,13 @@ const AddInventory = ({
     await handleSaveAll();
   };
 
-  const ctaLabel =
-    activeLabel === labels[labels.length - 1].key
-      ? isSaving
-        ? "Saving..."
-        : "Save"
-      : "Next";
+  const isLastSection = activeLabel === labels.at(-1)?.key;
+  let ctaLabel: string;
+  if (isLastSection) {
+    ctaLabel = isSaving ? "Saving..." : "Save";
+  } else {
+    ctaLabel = "Next";
+  }
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>

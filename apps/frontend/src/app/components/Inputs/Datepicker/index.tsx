@@ -123,18 +123,7 @@ const Datepicker = ({
   return (
     <div className={`relative ${containerClassName}`} ref={containerRef}>
       {type === "input" ? (
-        <div
-          className={`SignInput floating-input relative ${className}`}
-          onClick={() => setIsOpen((prev) => !prev)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setIsOpen((prev) => !prev);
-            }
-          }}
-        >
+        <div className={`SignInput floating-input relative ${className}`}>
           <input
             type={"text"}
             name={"date-input"}
@@ -150,12 +139,14 @@ const Datepicker = ({
           <label htmlFor={"date-input"} className="sr-only">
             {placeholder || "Select date"}
           </label>
-          <IoCalendarClear
-            size={20}
-            color="#302f2e"
+          <button
+            type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
-          />
+            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer bg-transparent border-0 p-0"
+            aria-label="Toggle calendar"
+          >
+            <IoCalendarClear size={20} color="#302f2e" />
+          </button>
         </div>
       ) : (
         <button

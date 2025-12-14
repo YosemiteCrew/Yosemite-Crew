@@ -1,3 +1,4 @@
+
 import { BusinessType } from "@/app/types/org";
 import {
   InventoryApiItem,
@@ -5,6 +6,7 @@ import {
   InventoryFiltersState,
   InventoryItem,
   InventoryRequestPayload,
+  InventoryStatus,
   StockHealthStatus,
   BatchValues,
 } from "./types";
@@ -82,10 +84,14 @@ export const calculateBatchTotals = (
     }
   });
 
-  const available =
-    hasOnHand || hasAllocated
-      ? (hasOnHand ? onHand : 0) - (hasAllocated ? allocated : 0)
-      : undefined;
+  let available: number | undefined;
+  if (hasOnHand || hasAllocated) {
+    const onHandValue = hasOnHand ? onHand : 0;
+    const allocatedValue = hasAllocated ? allocated : 0;
+    available = onHandValue - allocatedValue;
+  } else {
+    available = undefined;
+  }
 
   return {
     onHand: hasOnHand ? onHand : undefined,
@@ -93,6 +99,7 @@ export const calculateBatchTotals = (
     available,
   };
 };
+
 
 export const formatStatusLabel = (status?: string): string => {
   const key = (status || "").toString().trim().toUpperCase();
@@ -103,6 +110,20 @@ export const formatStatusLabel = (status?: string): string => {
       return "Hidden";
     default:
       return status || "Active";
+  }
+};
+
+const normalizeStatus = (status?: string): InventoryStatus | undefined => {
+  if (!status) return undefined;
+  const normalized = status.trim().toUpperCase();
+  switch (normalized) {
+    case "ACTIVE":
+      return "ACTIVE";
+    case "HIDDEN":
+      return "HIDDEN";
+    default:
+      // For any unrecognized status, default to ACTIVE
+      return "ACTIVE";
   }
 };
 
@@ -130,21 +151,16 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
     case "low stock":
       return { color: "#F68523", backgroundColor: "#FEF3E9" };
     case "expired":
+    case "out of stock":
       return { color: "#EA3729", backgroundColor: "#FDEBEA" };
     case "hidden":
       return { color: "#302f2e", backgroundColor: "#eaeaea" };
-    case "out of stock":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
     case "expiring soon":
       return { color: "#C47F00", backgroundColor: "#FEF7E5" };
     case "healthy":
       return { color: "#247AED", backgroundColor: "#EAF3FF" };
     case "active":
       return { color: "#54B492", backgroundColor: "#E6F4EF" };
-    case "hidden":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
-    case "expired":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
     default:
       return { color: "#247AED", backgroundColor: "#EAF3FF" };
   }
@@ -211,7 +227,8 @@ export const mapApiItemToInventoryItem = (
       .filter((entry) => entry.date !== null) as { batch: BatchValues; date: Date }[];
     if (withExpiry.length) {
       return withExpiry.reduce((earliest, current) =>
-        current.date.getTime() < earliest.date.getTime() ? current : earliest
+        current.date.getTime() < earliest.date.getTime() ? current : earliest,
+        withExpiry[0]
       ).batch;
     }
     return batchList[0];
@@ -240,12 +257,13 @@ export const mapApiItemToInventoryItem = (
 
   const primaryBatch = selectPrimaryBatch(batches);
 
+
   return {
     id: apiItem._id,
     organisationId: apiItem.organisationId,
     businessType: apiItem.businessType,
     stockHealth: apiItem.stockHealth,
-    status: apiItem.status,
+    status: normalizeStatus(apiItem.status),
     attributes,
     sku: apiItem.sku,
     imageUrl: apiItem.imageUrl,
@@ -370,7 +388,7 @@ const normalizeStatusForApi = (
 ) => {
   const value = (status || "").toString().trim();
   if (!value) return "ACTIVE";
-  return value.replace(/\s+/g, "_").toUpperCase();
+  return value.replaceAll(/\s+/g, "_").toUpperCase();
 };
 
 export const buildBatchPayload = (
@@ -470,10 +488,7 @@ export const buildInventoryPayload = (
     stockType: formData.stock.stockType,
     minStockAlert: formData.stock.minStockAlert,
     reorderQuantity: formData.stock.reorderQuantity,
-    available:
-      batchTotals.available !== undefined
-        ? batchTotals.available
-        : toNumberSafe(formData.stock.available),
+    available: batchTotals.available ?? toNumberSafe(formData.stock.available),
     serial: firstBatch?.serial,
     tracking: firstBatch?.tracking,
     litterId: firstBatch?.litterId,
@@ -494,14 +509,8 @@ export const buildInventoryPayload = (
       species: formData.classification.species,
       unitofMeasure: formData.classification.unitofMeasure,
     },
-    onHand:
-      batchTotals.onHand !== undefined
-        ? batchTotals.onHand
-        : toNumberSafe(formData.stock.current),
-    allocated:
-      batchTotals.allocated !== undefined
-        ? batchTotals.allocated
-        : toNumberSafe(formData.stock.allocated),
+    onHand: batchTotals.onHand ?? toNumberSafe(formData.stock.current),
+    allocated: batchTotals.allocated ?? toNumberSafe(formData.stock.allocated),
     reorderLevel: toNumberSafe(formData.stock.reorderLevel),
     unitCost: toNumberSafe(formData.pricing.purchaseCost),
     sellingPrice: toNumberSafe(formData.pricing.selling),
