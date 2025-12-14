@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  render,
-  screen,
-  fireEvent,
-  createEvent,
-} from "@testing-library/react";
+import { render, screen, fireEvent, createEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import UploadImage from "@/app/components/UploadImage/UploadImage";
 
@@ -15,6 +10,7 @@ jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: any) => {
     // We render a standard img tag to allow firing 'load' events
+    // eslint-disable-next-line @next/next/no-img-element
     return <img {...props} alt={props.alt || "mock-img"} />;
   },
 }));
@@ -106,7 +102,6 @@ describe("UploadImage Component", () => {
     mockCreateObjectURL.mockReturnValue("blob:test-url");
 
     // Select the hidden input by selector
-    // eslint-disable-next-line testing-library/no-node-access
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement;
@@ -127,7 +122,6 @@ describe("UploadImage Component", () => {
       type: "application/x-msdownload",
     });
 
-    // eslint-disable-next-line testing-library/no-node-access
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement;
@@ -154,7 +148,6 @@ describe("UploadImage Component", () => {
     const smallFile = new File(["b"], "small.pdf", { type: "application/pdf" });
     Object.defineProperty(smallFile, "size", { value: 1 * 1024 * 1024 }); // 1MB
 
-    // eslint-disable-next-line testing-library/no-node-access
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement;
@@ -208,7 +201,6 @@ describe("UploadImage Component", () => {
 
     // Add file first
     const file = new File(["c"], "delete-me.pdf", { type: "application/pdf" });
-    // eslint-disable-next-line testing-library/no-node-access
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement;
@@ -253,7 +245,6 @@ describe("UploadImage Component", () => {
     ];
 
     render(<UploadImage {...defaultProps} />);
-    // eslint-disable-next-line testing-library/no-node-access
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement;
@@ -276,7 +267,6 @@ describe("UploadImage Component", () => {
   it("triggers click on hidden input when main button is clicked", () => {
     render(<UploadImage {...defaultProps} />);
     const btn = screen.getByText("Upload Documents").closest("button")!;
-    // eslint-disable-next-line testing-library/no-node-access
     const input = document.querySelector(
       'input[type="file"]'
     ) as HTMLInputElement;

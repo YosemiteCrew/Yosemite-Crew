@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+// Use absolute import for the component under test
 import Companion from "@/app/components/AddCompanion/Sections/Companion";
 import {
   createCompanion,
@@ -22,7 +23,21 @@ jest.mock("@/app/services/companionService", () => ({
   getCompanionForParent: jest.fn(() => Promise.resolve([])),
 }));
 
-// Mock Complex UI Components
+// Mock UI Components using Absolute Paths (@/app/...) to fix "Cannot find module" errors
+
+jest.mock("@/app/components/Buttons", () => ({
+  Primary: ({ text, onClick }: any) => (
+    <button data-testid="save-btn" onClick={onClick}>
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick }: any) => (
+    <button data-testid="back-btn" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
+
 jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
   return ({ inlabel, onChange, value, error }: any) => (
     <div>
@@ -44,7 +59,8 @@ jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => {
       <select
         data-testid={`dropdown-${placeholder}`}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        // Fixed: Added type ': any' to 'e' to solve ts(7006)
+        onChange={(e: any) => onChange(e.target.value)}
       >
         <option value="">Select</option>
         <option value="Dog">Dog</option>
@@ -52,6 +68,24 @@ jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => {
         <option value="Golden Retriever">Golden Retriever</option>
       </select>
       {error && <span role="alert">{error}</span>}
+    </div>
+  );
+});
+
+jest.mock("@/app/components/Inputs/SelectLabel", () => {
+  // Fixed: Added type ': any' to props
+  return ({ title, options, activeOption, setOption }: any) => (
+    <div data-testid={`select-label-${title}`}>
+      <span>{title}</span>
+      {options.map((opt: any) => (
+        <button
+          key={opt.value}
+          data-testid={`select-option-${opt.value}`}
+          onClick={() => setOption(opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 });
@@ -73,6 +107,19 @@ jest.mock("@/app/components/Accordion/Accordion", () => {
     <div data-testid="accordion">
       <h2>{title}</h2>
       {children}
+    </div>
+  );
+});
+
+jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => {
+  return ({ inlabel, onChange, value }: any) => (
+    <div>
+      <label>{inlabel}</label>
+      <textarea
+        data-testid={`desc-${inlabel}`}
+        value={value}
+        onChange={onChange}
+      />
     </div>
   );
 });
@@ -170,6 +217,7 @@ describe("Companion Component", () => {
         name: "Buddy",
         type: "Dog" as any,
         breed: "Golden Retriever",
+        dateOfBirth: new Date(),
       },
     };
 
