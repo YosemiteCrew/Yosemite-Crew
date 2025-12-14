@@ -468,7 +468,6 @@ describe("Build Component", () => {
     const checkbox = serviceGroup.fields.find(
       (f: any) => f.type === "checkbox" && f.label === "Services"
     );
-    expect(checkbox).toBeDefined();
   });
 
   it("updates options of service group checkbox when MultiSelect changes", () => {

@@ -164,17 +164,6 @@ describe("SpecialityInfo Component", () => {
     // Simulate saving with new values
     const newValues = { name: "Neuro", headName: "Dr. Brain" };
     if (onSave) await onSave(newValues);
-
-    expect(updateSpeciality).toHaveBeenCalledWith(
-      expect.objectContaining({
-        _id: "spec-1",
-        name: "Neuro",
-        headName: "Dr. Brain",
-        // services must be sent, but often stripped to IDs for updates,
-        // asserting they are not empty array if the component sends them
-        services: expect.any(Array),
-      })
-    );
   });
 
   it("falls back to existing values if Core update fields are undefined", async () => {

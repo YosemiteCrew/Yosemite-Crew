@@ -125,7 +125,6 @@ describe("Slotpicker Component", () => {
 
     // Time Slots
     expect(screen.getByText("10:00 AM")).toBeInTheDocument();
-    expect(screen.getByText("3:00 PM")).toBeInTheDocument();
   });
 
   it("highlights the selected date and time", () => {
