@@ -76,7 +76,8 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
 
         const Component = runtimeComponentMap[field.type];
         const existingValue = values[field.id];
-        const value = existingValue ?? getFallbackValue(field);
+        const defaultValue = (field as any).defaultValue;
+        const value = existingValue ?? defaultValue ?? getFallbackValue(field);
         return (
           <Component
             key={field.id}

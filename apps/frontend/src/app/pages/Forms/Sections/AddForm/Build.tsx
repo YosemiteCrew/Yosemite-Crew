@@ -2,6 +2,7 @@ import { Primary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { FormField, FormFieldType, FormsProps, buildMedicationFields } from "@/app/types/forms";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
+import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { IoIosAddCircleOutline } from "react-icons/io";
 import TextBuilder from "./components/Text/TextBuilder";
@@ -11,6 +12,9 @@ import SignatureBuilder from "./components/Signature/SignatureBuilder";
 import BuilderWrapper from "./components/BuildWrapper";
 import BooleanBuilder from "./components/Boolean/BooleanBuilder";
 import DateBuilder from "./components/Date/DateBuilder";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { fetchInventoryItems } from "@/app/services/inventoryService";
+import { InventoryApiItem } from "@/app/pages/Inventory/types";
 
 type BuildProps = {
   formData: FormsProps;
@@ -112,6 +116,7 @@ const fieldFactory: Record<OptionKey, (id: string, serviceOptions?: { label: str
     id,
     type: "group",
     label: "Medication",
+    meta: { medicationGroup: true } as any,
     fields: buildMedicationFields(`${id}-med`, "-"),
   }),
   textarea: (id) => ({ id, type: "textarea", label: "Text area", placeholder: "" }),
@@ -192,8 +197,8 @@ const isTreatmentPlanGroup = (
 ): field is FormField & { type: "group" } =>
   field.id === "treatment_plan" && field.type === "group";
 
-const isMedicationGroup = (field: FormField) =>
-  field.type === "group" && (field.label || "").toLowerCase().includes("medication");
+const isMedicationGroup = (field: FormField): field is FormField & { type: "group" } =>
+  field.type === "group" && Boolean((field as any).meta?.medicationGroup);
 
 const isServiceGroup = (field: FormField): field is FormField & { type: "group" } =>
   field.type === "group" && Boolean((field as any).meta?.serviceGroup);
@@ -216,7 +221,7 @@ const ensureServiceCheckbox = (
   const checkbox: FormField = {
     id: existingCheckbox?.id || `${field.id}_services`,
     type: "checkbox",
-    label: "Services",
+    label: "", // Empty label to avoid duplicate "Services" text
     options: selected.map((val) => {
       const match = serviceOptions.find((o) => o.value === val);
       return match ?? { label: val, value: val };
@@ -429,21 +434,43 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
         className="min-h-12!"
       />
 
-      {(groupField.fields ?? []).map((nested) =>
-        nested.type === "group" ? (
-          <BuilderWrapper
-            key={nested.id}
-            field={nested}
-            onDelete={() => removeNestedField(nested.id)}
-          >
-            <GroupBuilder
-              field={nested as FormField & { type: "group" }}
-              onChange={(updated) => updateNestedField(nested.id, updated)}
-              createField={createField}
-              serviceOptions={serviceOptions}
-            />
-          </BuilderWrapper>
-        ) : (
+      {(groupField.fields ?? []).map((nested) => {
+        if (nested.type === "group") {
+          // Check if this is a medication group
+          if (isMedicationGroup(nested)) {
+            return (
+              <BuilderWrapper
+                key={nested.id}
+                field={nested}
+                onDelete={() => removeNestedField(nested.id)}
+              >
+                <MedicationGroupBuilder
+                  field={nested}
+                  onChange={(updated) => updateNestedField(nested.id, updated)}
+                  createField={createField}
+                />
+              </BuilderWrapper>
+            );
+          }
+
+          // Regular nested groups
+          return (
+            <BuilderWrapper
+              key={nested.id}
+              field={nested}
+              onDelete={() => removeNestedField(nested.id)}
+            >
+              <GroupBuilder
+                field={nested}
+                onChange={(updated) => updateNestedField(nested.id, updated)}
+                createField={createField}
+                serviceOptions={serviceOptions}
+              />
+            </BuilderWrapper>
+          );
+        }
+
+        return (
           <FieldBuilder
             key={nested.id}
             field={nested}
@@ -451,8 +478,231 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
             onDelete={() => removeNestedField(nested.id)}
             createField={createField}
           />
-        )
-      )}
+        );
+      })}
+    </div>
+  );
+};
+
+type MedicationGroupBuilderProps = {
+  field: FormField & { type: "group"; fields?: FormField[] };
+  onChange: (f: FormField) => void;
+  createField: (t: OptionKey) => FormField;
+};
+
+const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
+  field,
+  onChange,
+  createField,
+}) => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const [medicines, setMedicines] = useState<InventoryApiItem[]>([]);
+  const [selectedMedicines, setSelectedMedicines] = useState<string[]>([]);
+  const [loadingMedicines, setLoadingMedicines] = useState(false);
+
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    setLoadingMedicines(true);
+    fetchInventoryItems(primaryOrgId, { category: "Medicine" })
+      .then((items) => setMedicines(items))
+      .catch((err) => console.error("Failed to load medicines:", err))
+      .finally(() => setLoadingMedicines(false));
+  }, [primaryOrgId]);
+
+  const medicineOptions = medicines.map((med) => ({
+    label: med.name,
+    value: med._id,
+  }));
+
+  const handleMedicineSelect = (medicineId: string) => {
+    if (!medicineId || selectedMedicines.includes(medicineId)) return;
+
+    const medicine = medicines.find((m) => m._id === medicineId);
+    if (!medicine) return;
+
+    // Create individual medication fields directly (not a nested group)
+    const medicineCount = (field.fields ?? []).length + 1;
+    const fieldPrefix = `${field.id}_med_${medicineCount}`;
+
+    const medicationFields: FormField[] = [
+      {
+        id: `${fieldPrefix}_name`,
+        type: "input",
+        label: "Name",
+        placeholder: medicine.name,
+        defaultValue: medicine.name,
+        meta: { readonly: true } as any,
+      },
+      {
+        id: `${fieldPrefix}_dosage`,
+        type: "input",
+        label: "Dosage",
+        placeholder: medicine.attributes?.strength || "Enter dosage",
+        defaultValue: medicine.attributes?.strength || "",
+        meta: { readonly: true } as any,
+      },
+      {
+        id: `${fieldPrefix}_route`,
+        type: "input",
+        label: "Route / Administration",
+        placeholder: medicine.attributes?.administration || "N/A",
+        defaultValue: medicine.attributes?.administration || "",
+        meta: { readonly: true } as any,
+      },
+      {
+        id: `${fieldPrefix}_frequency`,
+        type: "input",
+        label: "Frequency",
+        placeholder: "Enter frequency",
+      },
+      {
+        id: `${fieldPrefix}_duration`,
+        type: "input",
+        label: "Duration",
+        placeholder: "Enter duration",
+      },
+      {
+        id: `${fieldPrefix}_price`,
+        type: "number",
+        label: "Price",
+        placeholder: medicine.sellingPrice != null ? String(medicine.sellingPrice) : "",
+        defaultValue: medicine.sellingPrice != null ? String(medicine.sellingPrice) : "",
+        meta: { readonly: true } as any,
+      },
+      {
+        id: `${fieldPrefix}_remark`,
+        type: "textarea",
+        label: "Remark",
+        placeholder: "Add remark",
+      },
+    ];
+
+    // Create a group for this specific medicine
+    const newMedicineGroup: FormField = {
+      id: `${fieldPrefix}_group`,
+      type: "group",
+      label: medicine.name,
+      fields: medicationFields,
+      meta: {
+        medicineId: medicineId,
+        medicineName: medicine.name,
+      } as any,
+    };
+
+    setSelectedMedicines([...selectedMedicines, medicineId]);
+    onChange({
+      ...field,
+      fields: [...(field.fields ?? []), newMedicineGroup],
+    });
+  };
+
+  const removeMedicine = (medFieldId: string) => {
+    const medField = (field.fields ?? []).find((f) => f.id === medFieldId);
+    if (medField) {
+      const medicineId = (medField as any).meta?.medicineId;
+      if (medicineId) {
+        setSelectedMedicines(selectedMedicines.filter((id) => id !== medicineId));
+      }
+    }
+    onChange({
+      ...field,
+      fields: (field.fields ?? []).filter((f) => f.id !== medFieldId),
+    });
+  };
+
+  const updateNestedField = (id: string, updatedField: FormField) => {
+    onChange({
+      ...field,
+      fields: (field.fields ?? []).map((f) =>
+        f.id === id ? updatedField : f
+      ),
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="font-grotesk text-black-text text-[18px] font-medium">
+          {field.label || "Medication"}
+        </div>
+      </div>
+
+      <FormInput
+        intype="text"
+        inname={`group-${field.id}-label`}
+        value={field.label || ""}
+        inlabel="Group name"
+        onChange={(e) => onChange({ ...field, label: e.target.value })}
+        className="min-h-12!"
+      />
+
+      <Dropdown
+        placeholder="Select medicine from inventory"
+        value=""
+        onChange={handleMedicineSelect}
+        options={medicineOptions.filter((opt) => !selectedMedicines.includes(opt.value))}
+        search={true}
+        className="min-h-12!"
+        dropdownClassName="!h-fit max-h-[300px] overflow-y-auto"
+        disabled={loadingMedicines}
+      />
+
+      {(field.fields ?? []).map((nested) => {
+        // Each medicine is a group
+        if (nested.type === "group") {
+          return (
+            <BuilderWrapper
+              key={nested.id}
+              field={nested}
+              onDelete={() => removeMedicine(nested.id)}
+            >
+              <div className="flex flex-col gap-3 border border-grey-light rounded-2xl p-3">
+                <div className="font-grotesk text-black-text text-[16px] font-medium">
+                  {nested.label}
+                </div>
+                {(nested.fields ?? []).map((medField) => {
+                  const Component = builderComponentMap[medField.type];
+                  if (!Component) return null;
+
+                  return (
+                    <div key={medField.id} className="relative">
+                      <Component
+                        field={medField}
+                        onChange={(updated) => {
+                          // Update the field within the medicine group
+                          const updatedNested = {
+                            ...nested,
+                            fields: (nested.fields ?? []).map((f) =>
+                              f.id === medField.id ? updated : f
+                            ),
+                          };
+                          updateNestedField(nested.id, updatedNested);
+                        }}
+                        createField={createField}
+                      />
+                      {(medField as any).meta?.readonly && (
+                        <div className="absolute top-2 right-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          Read-only
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </BuilderWrapper>
+          );
+        }
+
+        return (
+          <FieldBuilder
+            key={nested.id}
+            field={nested}
+            onChange={(updated) => updateNestedField(nested.id, updated)}
+            onDelete={() => removeMedicine(nested.id)}
+            createField={createField}
+          />
+        );
+      })}
     </div>
   );
 };
@@ -558,22 +808,66 @@ const Build = ({
         </div>
 
         {formData.schema?.map((field) => {
+          const fieldId = field.id; // Store ID to avoid TypeScript narrowing issues
+
           if (field.type === "group") {
-            const ensured = isServiceGroup(field)
-              ? ensureServiceCheckbox(field, serviceOptions).group
-              : field;
+            // Handle medication groups separately
+            if (isMedicationGroup(field)) {
+              return (
+                <BuilderWrapper
+                  key={fieldId}
+                  field={field}
+                  onDelete={() =>
+                    setFormData((prev) => removeFieldById(prev, fieldId))
+                  }
+                >
+                  <MedicationGroupBuilder
+                    field={field}
+                    onChange={(updatedField) =>
+                      handleFieldChange(fieldId, updatedField)
+                    }
+                    createField={createField}
+                  />
+                </BuilderWrapper>
+              );
+            }
+
+            // Handle service groups and regular groups
+            if (isServiceGroup(field)) {
+              const ensured = ensureServiceCheckbox(field, serviceOptions).group;
+              return (
+                <BuilderWrapper
+                  key={ensured.id}
+                  field={ensured}
+                  onDelete={() =>
+                    setFormData((prev) => removeFieldById(prev, fieldId))
+                  }
+                >
+                  <GroupBuilder
+                    field={ensured}
+                    onChange={(updatedField) =>
+                      handleFieldChange(fieldId, updatedField)
+                    }
+                    createField={createField}
+                    serviceOptions={serviceOptions}
+                  />
+                </BuilderWrapper>
+              );
+            }
+
+            // Regular groups
             return (
               <BuilderWrapper
-                key={ensured.id}
-                field={ensured}
+                key={fieldId}
+                field={field}
                 onDelete={() =>
-                  setFormData((prev) => removeFieldById(prev, field.id))
+                  setFormData((prev) => removeFieldById(prev, fieldId))
                 }
               >
                 <GroupBuilder
-                  field={ensured}
+                  field={field}
                   onChange={(updatedField) =>
-                    handleFieldChange(field.id, updatedField)
+                    handleFieldChange(fieldId, updatedField)
                   }
                   createField={createField}
                   serviceOptions={serviceOptions}
@@ -583,13 +877,13 @@ const Build = ({
           }
           return (
             <FieldBuilder
-              key={field.id}
+              key={fieldId}
               field={field}
               onChange={(updatedField) =>
-                handleFieldChange(field.id, updatedField)
+                handleFieldChange(fieldId, updatedField)
               }
               onDelete={() =>
-                setFormData((prev) => removeFieldById(prev, field.id))
+                setFormData((prev) => removeFieldById(prev, fieldId))
               }
               createField={createField}
             />
