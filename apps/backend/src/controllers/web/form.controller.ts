@@ -195,6 +195,21 @@ export const FormController = {
     }
   },
 
+  submitFormFromPMS: async (req: Request, res: Response) => {
+    try {
+      const submissionRequest = req.body as FormSubmissionRequestDTO;
+
+      const submission = await FormService.submitFHIR(submissionRequest);
+      return res.status(201).json(submission);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Unexpected error in submitForm:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
   getFormSubmissions: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.formId;

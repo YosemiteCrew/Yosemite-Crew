@@ -104,6 +104,31 @@ export const UserProfileController = {
     }
   },
 
+  getUserProfileById: async(req: Request, res: Response) => {
+    try {
+      const userId = req.params.userId
+      const organizationId = req.params.organizationId;
+
+      const profile = await UserProfileService.getByUserId(
+        userId,
+        organizationId,
+      );
+
+      if (!profile) {
+        return res.status(404).json({ message: "User profile not found." });
+      }
+
+      res.status(200).json(profile);
+    } catch (error: unknown) {
+      if (error instanceof UserProfileServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      logger.error("Failed to retrieve user profile", error);
+      res.status(500).json({ message: "Unable to retrieve user profile." });
+    }
+  },
+
   getProfilePictureUploadUrl: async (req: Request, res: Response) => {
     try {
       const { organizationId } = req.params;

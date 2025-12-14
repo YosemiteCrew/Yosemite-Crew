@@ -43,6 +43,11 @@ router.post(
   authorizeCognito,
   FormController.archiveForm,
 );
+router.post(
+  "/admin/:formId/submit",
+  authorizeCognito,
+  FormController.submitFormFromPMS
+)
 
 //Router to get SOAP notes for appointment
 router.get(

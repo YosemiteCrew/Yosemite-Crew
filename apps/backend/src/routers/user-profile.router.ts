@@ -16,6 +16,11 @@ router.get(
   UserProfileController.getByUserId,
 );
 router.get(
+  "/:userId/:organizationId/profile",
+  authorizeCognito,
+  UserProfileController.getUserProfileById,
+)
+router.get(
   "/:organizationId/profile-picture",
   authorizeCognito,
   UserProfileController.getProfilePictureUploadUrl,
