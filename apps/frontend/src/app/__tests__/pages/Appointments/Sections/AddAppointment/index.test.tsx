@@ -32,7 +32,6 @@ jest.mock("@/app/components/Accordion/Accordion", () => {
 });
 
 // 3. Mock Icons
-// FIX 1 & 2: Use <button> instead of <div> for interactive elements (S6848, S1082)
 jest.mock("react-icons/io", () => ({
   IoIosCloseCircleOutline: ({ onClick, className }: any) => (
     <button
@@ -47,8 +46,6 @@ jest.mock("react-icons/io", () => ({
 }));
 
 // 4. Mock Inputs & Dropdowns
-// We safeguard onChange handlers to prevent "value without onChange" warnings from React
-
 jest.mock("@/app/components/Inputs/SearchDropdown", () => {
   return ({ onSelect, placeholder, query, setQuery }: any) => (
     <div data-testid="search-dropdown">
@@ -61,7 +58,6 @@ jest.mock("@/app/components/Inputs/SearchDropdown", () => {
       <button
         type="button"
         data-testid="select-buddy"
-        // FIX 3: Use optional chaining (S6582)
         onClick={() => onSelect?.("1")}
       >
         Select Buddy
@@ -69,7 +65,6 @@ jest.mock("@/app/components/Inputs/SearchDropdown", () => {
       <button
         type="button"
         data-testid="select-invalid"
-        // FIX 4: Use optional chaining (S6582)
         onClick={() => onSelect?.("999")}
       >
         Select Invalid
@@ -85,7 +80,6 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
       <input
         data-testid={`input-${inname}`}
         value={value || ""}
-        // Pass the event directly as the parent expects (e) => ...
         onChange={onChange || jest.fn()}
       />
     </div>
@@ -93,15 +87,15 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
 });
 
 jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => {
-  return ({ placeholder, value, onChange }: any) => (
+  return ({ placeholder, value, onChange, inname }: any) => (
     <div>
       <label>{placeholder}</label>
       <input
-        data-testid={`dropdown-${placeholder?.toLowerCase()}`}
+        // Use inname if available, fallback to placeholder
+        data-testid={`dropdown-${(inname || placeholder)?.toLowerCase()}`}
         value={value || ""}
-        // Dropdown usually passes the value directly, but our mock simulates an input event
-        // The parent AddAppointment expects (val) => setFormData...
-        // So we adapt the event to the value
+        type="text" // Added type="text" for controlled input stability
+        // Dropdown usually passes the value directly, but our mock adapts the event to the value
         onChange={(e) => (onChange ? onChange(e.target.value) : jest.fn())}
       />
     </div>
@@ -309,6 +303,7 @@ describe("AddAppointment Component", () => {
     // Lead
     const leadInput = screen.getByTestId("dropdown-lead");
     fireEvent.change(leadInput, { target: { value: "Dr.Smith" } });
+    // This is the line that confirms if the AddAppointment component is binding the value correctly.
     expect(leadInput).toHaveValue("Dr.Smith");
 
     // Support (MultiSelect mock receives string, splits by comma)
