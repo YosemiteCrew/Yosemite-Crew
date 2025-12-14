@@ -14,13 +14,12 @@ import {
   InventoryItem,
   InventoryTurnoverItem,
 } from "./types";
-import {
-  defaultFilters,
-} from "./utils";
+import { defaultFilters } from "./utils";
 import { BusinessType, BusinessTypes } from "@/app/types/org";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useInventoryModule } from "@/app/hooks/useInventory";
+import OrgGuard from "@/app/components/OrgGuard";
 
 const Inventory = () => {
   useLoadOrg();
@@ -45,8 +44,12 @@ const Inventory = () => {
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
-  const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
-  const [filteredTurnoverList, setFilteredTurnoverList] = useState<InventoryTurnoverItem[]>([]);
+  const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>(
+    []
+  );
+  const [filteredTurnoverList, setFilteredTurnoverList] = useState<
+    InventoryTurnoverItem[]
+  >([]);
   const [addPopup, setAddPopup] = useState(false);
   const [viewInventory, setViewInventory] = useState(false);
   const [activeInventory, setActiveInventory] = useState<InventoryItem | null>(
@@ -85,7 +88,11 @@ const Inventory = () => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
     const statusFilter = filters.status.toUpperCase();
     const nextFiltered = inventory.filter((item) => {
-      const statusKey = (item.status || item.basicInfo.status || "").toUpperCase();
+      const statusKey = (
+        item.status ||
+        item.basicInfo.status ||
+        ""
+      ).toUpperCase();
       const stockHealthKey = (item.stockHealth || "").toUpperCase();
       const isStockHealthFilter =
         statusFilter !== "ALL" &&
@@ -93,7 +100,8 @@ const Inventory = () => {
         statusFilter !== "HIDDEN";
       const categoryMatch =
         filters.category === "all" ||
-        item.basicInfo.category?.toLowerCase() === filters.category.toLowerCase();
+        item.basicInfo.category?.toLowerCase() ===
+          filters.category.toLowerCase();
       const statusMatch =
         statusFilter === "ALL" ||
         (isStockHealthFilter
@@ -283,7 +291,9 @@ const Inventory = () => {
 const ProtectedInventory = () => {
   return (
     <ProtectedRoute>
-      <Inventory />
+      <OrgGuard>
+        <Inventory />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

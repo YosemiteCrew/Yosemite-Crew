@@ -8,6 +8,7 @@ import { StoredParent } from "@/app/pages/Companions/types";
 import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import SearchDropdown from "../../Inputs/SearchDropdown";
 import { searchParent } from "@/app/services/companionService";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 type OptionProp = {
   key: string;
@@ -25,6 +26,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
     firstName?: string;
     email?: string;
     phoneNumber?: string;
+    dateOfBirth?: string;
     country?: string;
     addressLine?: string;
     city?: string;
@@ -79,6 +81,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
       firstName?: string;
       email?: string;
       phoneNumber?: string;
+      dateOfBirth?: string;
       country?: string;
       addressLine?: string;
       city?: string;
@@ -88,6 +91,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
     if (!formData.firstName) errors.firstName = "First name is required";
     if (!formData.email) errors.email = "Email is required";
     if (!formData.phoneNumber) errors.phoneNumber = "Number is required";
+    if (!formData.birthDate) errors.dateOfBirth = "Date of birth is required";
     if (!formData.address.country) errors.country = "Country is required";
     if (!formData.address.addressLine)
       errors.addressLine = "Address is required";
@@ -120,7 +124,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
     const selected = results.find((p) => p.id === parentId);
     if (!selected) return;
     setFormData(selected);
-    setCurrentDate(new Date(selected.birthDate || "2025-10-23"))
+    setCurrentDate(new Date(selected.birthDate || "2025-10-23"));
     const lastName = selected.lastName ? ` ${selected.lastName}` : "";
     setQuery(`${selected.firstName}${lastName}`);
   };
@@ -192,14 +196,22 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
               error={formDataErrors.phoneNumber}
               className="min-h-12!"
             />
-            <Datepicker
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              type="input"
-              className="min-h-12!"
-              containerClassName="w-full"
-              placeholder="Date of birth"
-            />
+            <div className="flex flex-col gap-1">
+              <Datepicker
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                type="input"
+                className="min-h-12!"
+                containerClassName="w-full"
+                placeholder="Date of birth"
+              />
+              {formDataErrors.dateOfBirth && (
+                <div className="Errors">
+                  <Icon icon="mdi:error" width="16" height="16" />
+                  {formDataErrors.dateOfBirth}
+                </div>
+              )}
+            </div>
             <Dropdown
               placeholder="Choose country"
               value={formData.address.country || ""}

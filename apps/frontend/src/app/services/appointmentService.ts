@@ -90,7 +90,10 @@ export const updateAppointment = async (payload: Appointment) => {
     const fhirAppointment = toAppointmentResponseDTO(payload);
     const res = await patchData<{
       data: { appointment: AppointmentResponseDTO };
-    }>("/fhir/v1/appointment/pms/" + payload.id, fhirAppointment);
+    }>(
+      "/fhir/v1/appointment/pms/" + payload.organisationId + "/" + payload.id,
+      fhirAppointment
+    );
     const data = res.data.data.appointment;
     const normalAppointment = fromAppointmentRequestDTO(data);
     upsertAppointment(normalAppointment);

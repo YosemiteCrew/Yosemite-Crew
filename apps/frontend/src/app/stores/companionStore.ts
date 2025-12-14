@@ -20,6 +20,7 @@ type CompanionState = {
 
   getCompanionsByOrgId: (orgId: string) => StoredCompanion[];
   getCompanionsByParentId: (parentId: string) => StoredCompanion[];
+  getCompanionById: (id: string) => StoredCompanion | undefined;
 
   clearCompanions: () => void;
   startLoading: () => void;
@@ -238,6 +239,11 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
     const { companionsById, companionIdsByParentId } = get();
     const ids = companionIdsByParentId[parentId] ?? [];
     return ids.map((id) => companionsById[id]).filter(Boolean);
+  },
+
+  getCompanionById: (id: string) => {
+    const { companionsById } = get();
+    return companionsById[id];
   },
 
   clearCompanions: () =>

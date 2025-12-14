@@ -68,7 +68,7 @@ const AppointmentFilters = ({
   setFilteredList,
 }: AppointmentFiltersProps) => {
   const [activeType, setActiveType] = useState("all");
-  const [activeStatus, setActiveStatus] = useState("requested");
+  const [activeStatus, setActiveStatus] = useState("upcoming");
   const [search, setSearch] = useState("");
 
   const filteredList = useMemo(() => {

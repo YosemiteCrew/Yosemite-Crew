@@ -21,8 +21,8 @@ import Documents from "./Prescription/Documents";
 import Discharge from "./Prescription/Discharge";
 import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
-import { ServiceWeb } from "@/app/types/org";
-import { Appointment } from "@yosemite-crew/types";
+import { Appointment, Service } from "@yosemite-crew/types";
+import { FormsProps } from "@/app/types/forms";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
@@ -30,35 +30,69 @@ type AppoitmentInfoProps = {
   activeAppointment: Appointment | null;
 };
 
-export type ServiceEdit = ServiceWeb & {
+export type ServiceEdit = Service & {
   discount: string;
 };
 
-export type formDataProps = {
-  desc: string;
-  general: string;
-  musculoskeletal: string;
-  neuro: string;
-  pain: string;
-  temp: string;
-  pulse: string;
-  respiration: string;
-  mucousColor: string;
-  bloodPressure: string;
-  weight: string;
-  hydration: string;
-  generalBehaviour: string;
-  tentatve: string;
-  differential: string;
-  prognosis: string;
-  subtotal: string;
-  tax: string;
-  total: string;
-  notes: string;
-  services: ServiceEdit[];
-  suggestions: ServiceEdit[];
-  followUp: boolean;
+export type FormDataProps = {
+  subjective: {
+    active: FormsProps | null;
+    values: Record<string, any>;
+  };
+  objective: {
+    active: FormsProps | null;
+    values: Record<string, any>;
+  };
+  assessment: {
+    active: FormsProps | null;
+    values: Record<string, any>;
+  };
+  discharge: {
+    template: {
+      active: FormsProps | null;
+      values: Record<string, any>;
+    };
+  };
+  plan: {
+    template: {
+      active: FormsProps | null;
+      values: Record<string, any>;
+    };
+    total: string;
+    subTotal: string;
+    tax: string;
+  };
 };
+
+export const createEmptyFormData = (): FormDataProps => ({
+  subjective: {
+    active: null,
+    values: {},
+  },
+  objective: {
+    active: null,
+    values: {},
+  },
+  assessment: {
+    active: null,
+    values: {},
+  },
+  discharge: {
+    template: {
+      active: null,
+      values: {},
+    },
+  },
+  plan: {
+    template: {
+      active: null,
+      values: {},
+    },
+    total: "",
+    subTotal: "",
+    tax: "",
+  },
+});
 
 type LabelKey = (typeof labels)[number]["key"];
 type SubLabelKey = (typeof labels)[number]["labels"][number]["key"];
@@ -149,31 +183,9 @@ const AppoitmentInfo = ({
     labels[0].labels[0].key
   );
   const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
-  const [formData, setFormData] = useState<formDataProps>({
-    desc: "",
-    general: "",
-    musculoskeletal: "",
-    neuro: "",
-    pain: "",
-    temp: "",
-    pulse: "",
-    respiration: "",
-    mucousColor: "",
-    bloodPressure: "",
-    weight: "",
-    hydration: "",
-    generalBehaviour: "",
-    tentatve: "",
-    differential: "",
-    prognosis: "",
-    subtotal: "",
-    tax: "",
-    total: "",
-    notes: "",
-    services: [],
-    suggestions: [],
-    followUp: false,
-  });
+  const [formData, setFormData] = useState<FormDataProps>(
+    createEmptyFormData()
+  );
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);

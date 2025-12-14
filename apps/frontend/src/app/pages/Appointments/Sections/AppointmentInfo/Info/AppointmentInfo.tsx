@@ -13,7 +13,7 @@ const getAppointmentFields = ({
   RoomOptions: { label: string; value: string }[];
 }) =>
   [
-    { label: "Reason", key: "concern", type: "text", required: true },
+    { label: "Reason", key: "concern", type: "text" },
     {
       label: "Room",
       key: "room",
@@ -36,7 +36,7 @@ const getAppointmentFields = ({
     {
       label: "Time",
       key: "time",
-      type: "date",
+      type: "time",
       editable: false,
     },
     {
@@ -57,7 +57,7 @@ const getStaffFields = ({
     {
       label: "Staff",
       key: "staff",
-      type: "multi",
+      type: "multiSelect",
       options: TeamOptions,
       required: true,
     },
@@ -121,10 +121,17 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
 
   const handleAppointmentUpdate = async (values: any) => {
     try {
+      const roomId = values.room;
+      const foundRoom = rooms.find((r) => r.id === roomId);
+      const room = foundRoom
+        ? { id: foundRoom.id, name: foundRoom.name }
+        : undefined;
       const formData: Appointment = {
         ...activeAppointment,
         concern: values.concern,
+        room,
       };
+      console.log(formData)
       await updateAppointment(formData);
     } catch (error) {
       console.log(error);
@@ -133,8 +140,19 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
 
   const handleStaffUpdate = async (values: any) => {
     try {
+      const teamIds = values.staff;
+      const team =
+        teamIds?.length > 0
+          ? teams
+              .filter((member) => teamIds.includes(member._id))
+              .map((member) => ({
+                id: member._id,
+                name: member.name || member._id,
+              }))
+          : [];
       const formData: Appointment = {
         ...activeAppointment,
+        supportStaff: team,
       };
       await updateAppointment(formData);
     } catch (error) {
