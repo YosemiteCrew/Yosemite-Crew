@@ -224,4 +224,24 @@ export const FormController = {
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
+  getSOAPNotesByAppointment: async (req: Request, res: Response) => {
+    try {
+      const { appointmentId } = req.params;
+      const latestOnly = req.query.latestOnly === "true";
+
+      const result = await FormService.getSOAPNotesByAppointment(
+        appointmentId,
+        { latestOnly }
+      );
+
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+  
 };

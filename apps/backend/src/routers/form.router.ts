@@ -44,6 +44,13 @@ router.post(
   FormController.archiveForm,
 );
 
+//Router to get SOAP notes for appointment
+router.get(
+  "/appointments/:appointmentId/soap-notes",
+  authorizeCognito,
+  FormController.getSOAPNotesByAppointment
+);
+
 // PUBLIC ROUTES
 router.get("/public/:formId", FormController.getFormForClient);
 

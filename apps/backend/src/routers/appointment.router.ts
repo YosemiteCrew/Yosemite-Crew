@@ -85,7 +85,7 @@ router.get(
 
 // Accept requested appointment
 router.patch(
-  "/pms/:appointmentId/accept",
+  "/pms/:organisationId/:appointmentId/accept",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
@@ -94,7 +94,7 @@ router.patch(
 
 // Reject appointment
 router.patch(
-  "/pms/:appointmentId/reject",
+  "/pms/:organisationId/:appointmentId/reject",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
@@ -103,7 +103,7 @@ router.patch(
 
 // Hard cancel (PMS)
 router.patch(
-  "/pms/:appointmentId/cancel",
+  "/pms/:organisationId/:appointmentId/cancel",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
@@ -112,7 +112,7 @@ router.patch(
 
 // Update appointment details
 router.patch(
-  "/pms/:appointmentId",
+  "/pms/:organisationId/:appointmentId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
@@ -121,7 +121,7 @@ router.patch(
 
 // Get appointment detail (PMS)
 router.get(
-  "/pms/:appointmentId",
+  "/pms/:organisationId/:appointmentId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission([

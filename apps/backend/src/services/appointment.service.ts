@@ -661,48 +661,66 @@ export const AppointmentService = {
   // Update appointment from PMS
 
   async updateAppointmentPMS(
-    appointmentId: string,
-    dto: AppointmentRequestDTO,
-  ) {
-    if (appointmentId) {
-      throw new AppointmentServiceError(
-        "Appointment ID missing in FHIR payload",
-        400,
+  appointmentId: string,
+  dto: AppointmentRequestDTO,
+) {
+  if (!appointmentId) {
+    throw new AppointmentServiceError(
+      "Appointment ID missing in FHIR payload",
+      400,
+    );
+  }
+
+  const extracted = fromAppointmentRequestDTO(dto);
+
+  if (!extracted.lead?.id) {
+    throw new AppointmentServiceError(
+      "Lead vet (Practitioner with code=PPRF) is required",
+      400,
+    );
+  }
+
+  const appointment = await AppointmentModel.findOne({
+    _id: appointmentId,
+    status: "UPCOMING",
+  });
+
+  if (!appointment) {
+    throw new AppointmentServiceError(
+      "Requested appointment not found or already processed",
+      404,
+    );
+  }
+
+  const organisationId = appointment.organisationId;
+
+  const sameVet = appointment.lead?.id === extracted.lead?.id;
+  const sameSlot =
+    appointment.startTime.getTime() === extracted.startTime?.getTime() &&
+    appointment.endTime.getTime() === extracted.endTime?.getTime();
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    /**
+     * 🔁 ONLY touch occupancy if something actually changed
+     */
+    if (!sameVet || !sameSlot) {
+      // Remove old occupancy (if exists)
+      await OccupancyModel.deleteMany(
+        {
+          organisationId,
+          sourceType: "APPOINTMENT",
+          referenceId: appointment._id.toString(),
+        },
+        { session },
       );
-    }
 
-    const extracted = extractApprovalFieldsFromFHIR(dto);
-
-    if (!extracted.leadVetId) {
-      throw new AppointmentServiceError(
-        "Lead vet (Practitioner with code=PPRF) is required",
-        400,
-      );
-    }
-
-    const appointment = await AppointmentModel.findOne({
-      _id: appointmentId,
-      status: "UPCOMING",
-    });
-
-    if (!appointment) {
-      throw new AppointmentServiceError(
-        "Requested appointment not found or already processed",
-        404,
-      );
-    }
-
-    const organisationId = appointment.organisationId;
-
-    // Atomic operation (vet availability check + occupancy create)
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      // Check overlapping occupancy for lead vet
+      // Check availability for new vet + slot
       const overlapping = await OccupancyModel.findOne({
-        userId: extracted.leadVetId,
-        organisationId: organisationId,
+        userId: extracted.lead?.id,
+        organisationId,
         startTime: { $lt: appointment.endTime },
         endTime: { $gt: appointment.startTime },
       }).session(session);
@@ -714,11 +732,11 @@ export const AppointmentService = {
         );
       }
 
-      // Create occupancy
+      // Create new occupancy
       await OccupancyModel.create(
         [
           {
-            userId: extracted.leadVetId,
+            userId: extracted.lead?.id,
             organisationId,
             startTime: appointment.startTime,
             endTime: appointment.endTime,
@@ -728,31 +746,30 @@ export const AppointmentService = {
         ],
         { session },
       );
-
-      // Apply changes from PMS
-      appointment.lead = {
-        id: extracted.leadVetId,
-        name: extracted.leadVetName ?? "Vet",
-      };
-
-      appointment.supportStaff = extracted.supportStaff ?? [];
-      appointment.room = extracted.room ?? undefined;
-
-      appointment.status = "UPCOMING";
-      appointment.updatedAt = new Date();
-
-      await appointment.save({ session });
-      await session.commitTransaction();
-      await session.endSession();
-
-      // Convert final domain → FHIR appointment
-      return toAppointmentResponseDTO(toDomain(appointment));
-    } catch (err) {
-      await session.abortTransaction();
-      await session.endSession();
-      throw err;
     }
-  },
+
+    // Apply PMS updates
+    appointment.lead = {
+      id: extracted.lead?.id,
+      name: extracted.lead?.name ?? "Vet",
+    };
+
+    appointment.supportStaff = extracted.supportStaff ?? [];
+    appointment.room = extracted.room ?? undefined;
+    appointment.updatedAt = new Date();
+
+    await appointment.save({ session });
+
+    await session.commitTransaction();
+    await session.endSession();
+
+    return toAppointmentResponseDTO(toDomain(appointment));
+  } catch (err) {
+    await session.abortTransaction();
+    await session.endSession();
+    throw err;
+  }
+},
 
   async checkInAppointmentParent(appointmentId: string, parentId: string) {
     const appointment = await AppointmentModel.findById(appointmentId);
