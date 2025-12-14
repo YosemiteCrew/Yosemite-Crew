@@ -25,12 +25,22 @@ chatRouter.get(
 );
 
 // PMS endpoints
-chatRouter.post("/pms/token", authorizeCognito, ChatController.generateToken);
+chatRouter.post(
+  "/pms/token",
+  authorizeCognito,
+  ChatController.generateTokenForPMS,
+);
 
 chatRouter.post(
   "/pms/sessions/:appointmentId",
   authorizeCognito,
   ChatController.ensureSession,
+);
+
+chatRouter.get(
+  "/pms/sessions/list",
+  authorizeCognito,
+  ChatController.getSessionByUserId,
 );
 
 chatRouter.get(

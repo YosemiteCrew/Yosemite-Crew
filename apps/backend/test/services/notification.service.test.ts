@@ -73,10 +73,7 @@ describe("NotificationService", () => {
       sendMock.mockResolvedValueOnce("ok");
 
       const payload = { title: "Hello", body: "World", type: "CHAT_MESSAGE" };
-      const result = await NotificationService.sendToDevice(
-        "token-1",
-        payload,
-      );
+      const result = await NotificationService.sendToDevice("token-1", payload);
 
       expect(sendMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -90,12 +87,15 @@ describe("NotificationService", () => {
 
     it("cleans up invalid tokens", async () => {
       const sendMock = mockedAdmin.messaging().send as jest.Mock;
-      sendMock.mockRejectedValueOnce({ code: "messaging/invalid-registration-token" });
+      sendMock.mockRejectedValueOnce({
+        code: "messaging/invalid-registration-token",
+      });
 
-      const result = await NotificationService.sendToDevice(
-        "bad-token",
-        { title: "t", body: "b", type: "CHAT_MESSAGE" },
-      );
+      const result = await NotificationService.sendToDevice("bad-token", {
+        title: "t",
+        body: "b",
+        type: "CHAT_MESSAGE",
+      });
 
       expect(mockedDeviceTokenService.removeToken).toHaveBeenCalledWith(
         "bad-token",
@@ -108,7 +108,11 @@ describe("NotificationService", () => {
   describe("sendToUser", () => {
     it("throws when userId is missing", async () => {
       await expect(
-        NotificationService.sendToUser("", { title: "t", body: "b", type: "CHAT_MESSAGE" }),
+        NotificationService.sendToUser("", {
+          title: "t",
+          body: "b",
+          type: "CHAT_MESSAGE",
+        }),
       ).rejects.toThrow("userId is required");
     });
 
@@ -130,9 +134,9 @@ describe("NotificationService", () => {
       expect(mockedDeviceTokenService.getTokensForUser).toHaveBeenCalledWith(
         "user-1",
       );
-      expect((mockedAdmin.messaging().send as jest.Mock).mock.calls.length).toBe(
-        2,
-      );
+      expect(
+        (mockedAdmin.messaging().send as jest.Mock).mock.calls.length,
+      ).toBe(2);
       expect(mockedNotificationModel.insertOne).toHaveBeenCalledTimes(2);
       expect(results).toHaveLength(2);
       expect(mockedLogger.info).toHaveBeenCalledWith(
@@ -148,10 +152,11 @@ describe("NotificationService", () => {
         .mockResolvedValueOnce([{ token: "a", success: true }])
         .mockResolvedValueOnce([{ token: "b", success: false, error: "x" }]);
 
-      const summary = await NotificationService.sendToUsers(
-        ["u1", "u2"],
-        { title: "t", body: "b", type: "CHAT_MESSAGE" },
-      );
+      const summary = await NotificationService.sendToUsers(["u1", "u2"], {
+        title: "t",
+        body: "b",
+        type: "CHAT_MESSAGE",
+      });
 
       expect(summary).toEqual({
         u1: [{ token: "a", success: true }],
@@ -174,7 +179,9 @@ describe("NotificationService", () => {
 
       const result = await NotificationService.listNotificationsForUser("u1");
 
-      expect(mockedNotificationModel.find).toHaveBeenCalledWith({ userId: "u1" });
+      expect(mockedNotificationModel.find).toHaveBeenCalledWith({
+        userId: "u1",
+      });
       expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
       expect(result).toEqual([{ id: "1" }]);
     });

@@ -4,7 +4,7 @@ import { authorizeCognito } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/", authorizeCognito, UserProfileController.create);
+router.post("/:orgnizationId/profile", authorizeCognito, UserProfileController.create);
 router.put(
   "/:organizationId/profile",
   authorizeCognito,
@@ -19,8 +19,8 @@ router.get(
   "/:userId/:organizationId/profile",
   authorizeCognito,
   UserProfileController.getUserProfileById,
-)
-router.get(
+);
+router.post(
   "/:organizationId/profile-picture",
   authorizeCognito,
   UserProfileController.getProfilePictureUploadUrl,

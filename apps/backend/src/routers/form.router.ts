@@ -46,14 +46,14 @@ router.post(
 router.post(
   "/admin/:formId/submit",
   authorizeCognito,
-  FormController.submitFormFromPMS
-)
+  FormController.submitFormFromPMS,
+);
 
 //Router to get SOAP notes for appointment
 router.get(
   "/appointments/:appointmentId/soap-notes",
   authorizeCognito,
-  FormController.getSOAPNotesByAppointment
+  FormController.getSOAPNotesByAppointment,
 );
 
 // PUBLIC ROUTES

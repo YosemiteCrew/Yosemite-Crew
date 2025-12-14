@@ -104,9 +104,9 @@ export const UserProfileController = {
     }
   },
 
-  getUserProfileById: async(req: Request, res: Response) => {
+  getUserProfileById: async (req: Request, res: Response) => {
     try {
-      const userId = req.params.userId
+      const userId = req.params.userId;
       const organizationId = req.params.organizationId;
 
       const profile = await UserProfileService.getByUserId(
