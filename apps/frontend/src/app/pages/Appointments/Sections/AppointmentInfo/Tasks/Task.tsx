@@ -27,7 +27,7 @@ const Task = () => {
     to: "",
     reminders: [],
   });
-  const [due, setDue] = useState(new Date());
+  const [due, setDue] = useState<Date | null>(new Date());
   const [formDataErrors] = useState<{
     task?: string;
     to?: string;

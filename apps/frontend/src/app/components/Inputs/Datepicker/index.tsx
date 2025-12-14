@@ -24,8 +24,10 @@ const monthNames = [
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
 
 type DatepickerProps = {
-  currentDate: Date;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  currentDate: Date | null;
+  setCurrentDate:
+    | React.Dispatch<React.SetStateAction<Date | null>>
+    | React.Dispatch<React.SetStateAction<Date>>;
   minYear?: number;
   maxYear?: number;
   type?: string;
@@ -44,15 +46,21 @@ const Datepicker = ({
   containerClassName,
   placeholder
 }: DatepickerProps) => {
+  const updateDate =
+    setCurrentDate as React.Dispatch<React.SetStateAction<Date | null>>;
   const [isOpen, setIsOpen] = useState(false);
-  const [viewYear, setViewYear] = useState(currentDate.getFullYear());
-  const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const today = new Date();
+  const initialYear = currentDate?.getFullYear() ?? today.getFullYear();
+  const initialMonth = currentDate?.getMonth() ?? today.getMonth();
+  const [viewYear, setViewYear] = useState(initialYear);
+  const [viewMonth, setViewMonth] = useState(initialMonth);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setViewYear(currentDate.getFullYear());
-    setViewMonth(currentDate.getMonth());
+    if (currentDate) {
+      setViewYear(currentDate.getFullYear());
+      setViewMonth(currentDate.getMonth());
+    }
   }, [currentDate]);
 
   useEffect(() => {
@@ -100,7 +108,7 @@ const Datepicker = ({
   };
 
   const handleSelectDate = (day: Date) => {
-    setCurrentDate(day);
+    updateDate(day);
     setIsOpen(false);
   };
 
@@ -115,23 +123,30 @@ const Datepicker = ({
   return (
     <div className={`relative ${containerClassName}`} ref={containerRef}>
       {type === "input" ? (
-        <div className={`SignInput floating-input focused relative ${className}`}>
+        <div className={`SignInput floating-input relative ${className}`}>
           <input
             type={"text"}
             name={"date-input"}
             id={"date-input"}
-            value={getFormattedDate(currentDate)}
+            value={currentDate ? getFormattedDate(currentDate) : ""}
             autoComplete="off"
-            disabled
+            readOnly
+            placeholder={placeholder || "Select date"}
             className={`min-h-12!`}
-          />
-          <label htmlFor={"date-input"}>{placeholder}</label>
-          <IoCalendarClear
-            size={20}
-            color="#302f2e"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+            onFocus={() => setIsOpen(true)}
           />
+          <label htmlFor={"date-input"} className="sr-only">
+            {placeholder || "Select date"}
+          </label>
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer bg-transparent border-0 p-0"
+            aria-label="Toggle calendar"
+          >
+            <IoCalendarClear size={20} color="#302f2e" />
+          </button>
         </div>
       ) : (
         <button

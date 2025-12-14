@@ -203,7 +203,7 @@ const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
           <h6>App Store</h6>
         </div>
       </Link>
-      <Link href="#">
+      <Link href="https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share">
         <Icon icon="ion:logo-google-playstore" width="29" height="29" />
         <div>
           <p>Get it on</p>
