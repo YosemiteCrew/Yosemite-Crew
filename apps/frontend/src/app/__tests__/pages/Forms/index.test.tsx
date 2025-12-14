@@ -18,141 +18,139 @@ import { FormsProps } from "@/app/types/forms";
 
 // Mock Router (passthrough not shown, assuming correctly mocked elsewhere)
 
-// Mock Protected Route (passthrough)
-jest.mock("../../../components/ProtectedRoute", () => ({
-  // FIX: Use relative path
+// Mock Protected Route (FIX: Using absolute path for consistency and stability)
+jest.mock("@/app/components/ProtectedRoute", () => ({
   __esModule: true,
   default: ({ children }: any) => (
     <div data-testid="protected-route">{children}</div>
   ),
 }));
 
-// Mock Services
-jest.mock("../../../services/formService", () => ({
-  // FIX: Use relative path
+// Mock Services (FIX: Using absolute path for consistency and stability)
+jest.mock("@/app/services/formService", () => ({
   loadForms: jest.fn(),
 }));
 
-// Mock Hooks
-jest.mock("../../../hooks/useSpecialities", () => ({
-  // FIX: Use relative path
+// Mock Hooks (FIX: Using absolute path for consistency and stability)
+jest.mock("@/app/hooks/useSpecialities", () => ({
   useLoadSpecialitiesForPrimaryOrg: jest.fn(),
   useServicesForPrimaryOrgSpecialities: jest.fn(),
 }));
 
-// Mock Store
-jest.mock("../../../stores/formsStore", () => ({
-  // FIX: Use relative path
+// Mock Store (FIX: Using absolute path for consistency and stability)
+jest.mock("@/app/stores/formsStore", () => ({
   useFormsStore: jest.fn(),
 }));
 
 // Mock Child Components
-jest.mock("../../../components/Buttons", () => ({
-  // FIX: Use relative path
+// Mock Buttons (FIX: Using absolute path for consistency and stability)
+jest.mock("@/app/components/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
     <button data-testid="primary-btn" onClick={onClick}>
-                  {text}       {" "}
+                        {text}           {" "}
     </button>
   ),
 }));
 
-jest.mock("../../../components/Filters/FormsFilters", () => ({
-  // FIX: Use relative path
+// Mock FormsFilters (FIX: Using absolute path for consistency and stability)
+jest.mock("@/app/components/Filters/FormsFilters", () => ({
   __esModule: true,
   default: ({ list, setFilteredList }: any) => (
     <div data-testid="forms-filters">
-                 {" "}
+                             {" "}
       <button onClick={() => setFilteredList(list)}>Reset Filter</button>       
-               {" "}
+                           {" "}
       <button data-testid="filter-empty" onClick={() => setFilteredList([])}>
-                Filter Empty      {" "}
+                        Filter Empty            {" "}
       </button>
-                       {" "}
+                                   {" "}
       <button
         data-testid="filter-single"
         onClick={() => setFilteredList([list[0]])}
       >
-                Filter Single      {" "}
+                        Filter Single            {" "}
       </button>
-                   {" "}
+                             {" "}
     </div>
   ),
 }));
 
-jest.mock("../../../components/DataTable/FormsTable", () => ({
-  // FIX: Use relative path
+// Mock FormsTable (FIX: Using absolute path for consistency and stability)
+jest.mock("@/app/components/DataTable/FormsTable", () => ({
   __esModule: true,
   default: ({ filteredList, setActiveForm, setViewPopup }: any) => (
     <div data-testid="forms-table">
-                       {" "}
+                                   {" "}
       {filteredList.map((f: any) => (
         <div key={f._id} data-testid={`form-row-${f._id}`}>
-                              {f.name}                   {" "}
+                                        {f.name}                             {" "}
           <button onClick={() => setActiveForm(f._id)}>Select</button>          {" "}
-          {/* Use f._id string */}                   {" "}
+                    {/* Use f._id string */}                             {" "}
           <button
             onClick={() => {
               setActiveForm(f._id);
               setViewPopup(true);
             }}
           >
-                        View          {" "}
+                                    View                    {" "}
           </button>{" "}
-                    {/* Use f._id string */}               {" "}
+                              {/* Use f._id string */}                     
+           {" "}
         </div>
       ))}
-                   {" "}
+                             {" "}
     </div>
   ),
 }));
 
-jest.mock("../Sections/AddForm", () => ({
-  // FIX: Use relative path (one level up)
+jest.mock("@/app/pages/Forms/Sections/AddForm", () => ({
+  // Path already absolute
   __esModule: true,
   default: ({ showModal, onClose, onDraftChange, initialForm }: any) => {
     if (!showModal) return null;
     return (
       <div data-testid="add-form-modal">
-                        <span>{initialForm ? "Edit Mode" : "Add Mode"}</span>   
-                    <button onClick={onClose}>Close</button>               {" "}
+                               {" "}
+        <span>{initialForm ? "Edit Mode" : "Add Mode"}</span>                   
+            <button onClick={onClose}>Close</button>                       {" "}
         <button onClick={() => onDraftChange({ name: "Draft Form" })}>
-                    Update Draft        {" "}
+                              Update Draft                {" "}
         </button>
-                           {" "}
+                                         {" "}
       </div>
     );
   },
 }));
 
-jest.mock("../Sections/FormInfo", () => ({
-  // FIX: Use relative path (one level up)
+jest.mock("@/app/pages/Forms/Sections/FormInfo", () => ({
+  // Path already absolute
   __esModule: true,
   default: ({ showModal, onEdit, activeForm }: any) => {
     if (!showModal) return null;
     return (
       <div data-testid="form-info-modal">
-                       {" "}
+                                       {" "}
         <span>Info: {activeForm ? activeForm.name : "N/A"}</span>               {" "}
-        <button onClick={() => onEdit(activeForm)}>Edit</button>           {" "}
+                <button onClick={() => onEdit(activeForm)}>Edit</button>       
+                 {" "}
       </div>
     );
   },
 }));
 
-// Mock FormsHeader to ensure 'Forms' text is present
-jest.mock("../../../components/Headers/FormsHeader", () => ({
-  // FIX: Use relative path
+// Mock FormsHeader (FIX: Changed path from relative to absolute)
+jest.mock("@/app/components/Headers/FormsHeader", () => ({
   __esModule: true,
   default: ({ showAddForm, setShowAddForm }: any) => (
     <div data-testid="forms-header">
-            <h1>Forms</h1>     {" "}
-      <button onClick={() => setShowAddForm(true)}>Add</button>   {" "}
+                  <h1>Forms</h1>           {" "}
+      <button onClick={() => setShowAddForm(true)}>Add</button>       {" "}
     </div>
   ),
 }));
 
 describe("Forms Page", () => {
-  // ... (Rest of the tests remain unchanged)
+  // ... (Rest of the test suite remains unchanged)
   const mockSetActiveForm = jest.fn();
 
   const mockForms: FormsProps[] = [
@@ -349,6 +347,7 @@ describe("Forms Page", () => {
     fireEvent.click(screen.getByText("Close")); // 4. Re-open. (Implicitly ensures coverage of the branch that checks for existing draft)
 
     fireEvent.click(screen.getByTestId("primary-btn"));
+
     await waitFor(() => {
       expect(screen.getByTestId("add-form-modal")).toBeInTheDocument(); // State should hold the draft form name
       // This implicitly confirms the draft persists

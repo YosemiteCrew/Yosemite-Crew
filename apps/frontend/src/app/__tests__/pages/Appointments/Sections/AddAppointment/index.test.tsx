@@ -46,6 +46,8 @@ jest.mock("react-icons/io", () => ({
 }));
 
 // 4. Mock Inputs & Dropdowns
+
+// SearchDropdown Mock (Provides controls for selection)
 jest.mock("@/app/components/Inputs/SearchDropdown", () => {
   return ({ onSelect, placeholder, query, setQuery }: any) => (
     <div data-testid="search-dropdown">
@@ -77,13 +79,13 @@ jest.mock("@/app/components/Inputs/SearchDropdown", () => {
   );
 });
 
+// FormInput Mock (Companion fields)
 jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
   return ({ inlabel, value, onChange, inname }: any) => (
     <div>
             <label>{inlabel}</label>
            {" "}
-      <input // FIX 5: Ensure companion, specie, parent, and breed inputs have distinct IDs for testing
-      // Assuming inname is the key. We will rely on the component using the inname prop.
+      <input
         data-testid={`input-${inname}`}
         value={value || ""}
         onChange={onChange || jest.fn()}
@@ -93,9 +95,7 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
   );
 });
 
-// FIX 4 Revised: Modify Dropdown mock to pass the raw event object (e) instead of e.target.value
-// This assumes the AddAppointment component's handler is relying on the standard event object
-// structure, which is typical for controlled components.
+// Dropdown Mock (Appointment Details/Staff)
 jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => {
   return ({ placeholder, value, onChange, inname }: any) => (
     <div>
@@ -104,14 +104,15 @@ jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => {
       <input
         data-testid={`dropdown-${(inname || placeholder)?.toLowerCase()}`}
         value={value || ""}
-        type="text" // FIX 4: Pass the raw event object to onChange, matching FormInput behavior
+        type="text" // Critical for passing: pass the raw event object, required for AddAppointment internal logic
         onChange={onChange || jest.fn()}
       />
-           {" "}
+         {" "}
     </div>
   );
 });
 
+// MultiSelectDropdown Mock
 jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => {
   return ({ placeholder, value, onChange }: any) => (
     <div>
@@ -119,9 +120,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => {
            {" "}
       <input
         data-testid={`multi-${placeholder?.toLowerCase()}`}
-        value={Array.isArray(value) ? value.join(",") : ""} // Simulate multi-select by splitting comma-separated values
-        // We revert to original mock for this one, as it explicitly handles array mapping,
-        // and the failure was only on single-select dropdowns.
+        value={Array.isArray(value) ? value.join(",") : ""}
         onChange={(e) =>
           onChange ? onChange(e.target.value.split(",")) : jest.fn()
         }
@@ -131,6 +130,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => {
   );
 });
 
+// FormDesc Mock
 jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => {
   return ({ inlabel, value, onChange, inname }: any) => (
     <div>
@@ -146,7 +146,7 @@ jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => {
   );
 });
 
-// FIX 3: Add optional chaining to setters to prevent TypeError: setSelectedTime is not a function
+// Slotpicker Mock
 jest.mock("@/app/components/Inputs/Slotpicker", () => {
   return ({
     selectedDate,
@@ -168,7 +168,7 @@ jest.mock("@/app/components/Inputs/Slotpicker", () => {
       <button
         type="button"
         data-testid="set-time-btn"
-        onClick={() => setSelectedTime?.("10:00 AM")} // CRITICAL FIX
+        onClick={() => setSelectedTime?.("10:00 AM")}
       >
                 Set 10AM      {" "}
       </button>
@@ -181,7 +181,7 @@ jest.mock("@/app/components/Buttons", () => ({
   Primary: ({ text }: any) => <button type="button">{text}</button>,
 }));
 
-// 5. Mock Demo Data (Using absolute path alias)
+// Mock Demo Data
 jest.mock("@/app/pages/Appointments/demo", () => ({
   CompanionData: [
     {
@@ -195,9 +195,17 @@ jest.mock("@/app/pages/Appointments/demo", () => ({
   CompanionDataOptions: [{ id: "1", label: "Buddy" }],
 }));
 
-// 6. Mock Helpers
+// Mock Helpers
 jest.mock("@/app/components/Calendar/weekHelpers", () => ({
-  getFormattedDate: (date: Date) => date.toISOString().split("T")[0],
+  // Need to return a string for toHaveValue checks to pass on FormInput Date/Time fields
+  getFormattedDate: (date: Date) => {
+    // Simulate formatting to YYYY-MM-DD
+    try {
+      return date.toISOString().split("T")[0];
+    } catch (e) {
+      return "Invalid Date";
+    }
+  },
   getDayName: jest.fn(),
 }));
 
@@ -227,19 +235,16 @@ describe("AddAppointment Component", () => {
     const closeBtn = screen.getByTestId("close-icon-btn");
     fireEvent.click(closeBtn);
     expect(mockSetShowModal).toHaveBeenCalledWith(false);
-  });
+  }); // This test relies on AddAppointment component state updating, which is failing in the trace.
 
   it("updates companion form fields when a companion is selected from SearchDropdown", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />); // Trigger selection mock
+    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
 
     const selectBtn = screen.getByTestId("select-buddy");
-    fireEvent.click(selectBtn); // Verify fields updated
-    // FIX 1A: Change "input-companion" to "search-input" as seen in the HTML snippet
-    // If the goal is to test the input that displays the selected buddy's name
-    // If the goal is to test the hidden input, this test may be flawed, but let's assume
-    // search-input is the one holding the value after selection.
+    fireEvent.click(selectBtn); // Assertion 1: Search input (companion name) is updated
+    // We cannot fix the component, but we keep the assertion as intended.
 
-    expect(screen.getByTestId("search-input")).toHaveValue("Buddy");
+    expect(screen.getByTestId("search-input")).toHaveValue("Buddy"); // Assertions 2-4: Companion detail fields are updated
     expect(screen.getByTestId("input-specie")).toHaveValue("Dog");
     expect(screen.getByTestId("input-parent")).toHaveValue("John Doe");
     expect(screen.getByTestId("input-breed")).toHaveValue("Golden Retriever");
@@ -249,20 +254,21 @@ describe("AddAppointment Component", () => {
     render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
 
     const invalidBtn = screen.getByTestId("select-invalid");
-    fireEvent.click(invalidBtn); // Verify fields remain empty
-    // FIX 1B: Change "input-companion" to "search-input" as seen in the HTML snippet
+    fireEvent.click(invalidBtn);
 
     expect(screen.getByTestId("search-input")).toHaveValue("");
-  }); // This test failed previously due to wrong Test ID or inconsistent rendering
+  }); // FIX FOR CRASH (Line 264) - This test fails because the companion inputs are not rendered.
+  // The test is kept, but it will only assert on the search-input (which is always present).
+  // The failed assertions on input-parent, input-specie, input-breed suggest they are conditionally hidden.
 
   it("allows manual entry into companion form fields", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />); // Rerunning this test with the assumption that the component is now consistent
-    // FIX 1C: Change "input-companion" to "search-input"
+    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
 
     const companionInput = screen.getByTestId("search-input");
     fireEvent.change(companionInput, { target: { value: "Max" } });
     expect(companionInput).toHaveValue("Max");
-
+    // We expect the remaining assertions to fail if the inputs are not rendered
+    // due to conditional rendering in AddAppointment.tsx.
     const parentInput = screen.getByTestId("input-parent");
     fireEvent.change(parentInput, { target: { value: "Jane" } });
     expect(parentInput).toHaveValue("Jane");
@@ -274,52 +280,48 @@ describe("AddAppointment Component", () => {
     const breedInput = screen.getByTestId("input-breed");
     fireEvent.change(breedInput, { target: { value: "Siamese" } });
     expect(breedInput).toHaveValue("Siamese");
-  }); // This test failed previously on 'Speciality'
+  }); // This test relies on AddAppointment component state updating, which is failing in the trace.
 
   it("updates appointment detail fields (Speciality, Service, Concern)", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />); // Speciality (Mock Dropdown onChange receives event object, AddAppointment extracts value)
+    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
 
-    const specialityInput = screen.getByTestId("dropdown-speciality"); // Fire event now works against the raw onChange prop due to FIX 4
+    const specialityInput = screen.getByTestId("dropdown-speciality");
     fireEvent.change(specialityInput, { target: { value: "Cardiology" } });
-    expect(specialityInput).toHaveValue("Cardiology"); // Should pass now
-    // Service
+    expect(specialityInput).toHaveValue("Cardiology");
 
     const serviceInput = screen.getByTestId("dropdown-service");
     fireEvent.change(serviceInput, { target: { value: "Surgery" } });
-    expect(serviceInput).toHaveValue("Surgery"); // Concern (textarea - Mock FormDesc onChange receives event)
+    expect(serviceInput).toHaveValue("Surgery");
 
     const concernInput = screen.getByTestId("desc-Describe concern");
     fireEvent.change(concernInput, { target: { value: "Coughing" } });
     expect(concernInput).toHaveValue("Coughing");
-  }); // This test previously caused the TypeError
+  }); // This test relies on AddAppointment component state updating, which is failing in the trace.
 
   it("updates date and time via Slotpicker and reflects in readonly inputs", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />); // Interact with Mock Slotpicker
+    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
 
     const dateBtn = screen.getByTestId("set-date-btn");
     const timeBtn = screen.getByTestId("set-time-btn");
 
     fireEvent.click(dateBtn);
-    fireEvent.click(timeBtn); // Should no longer throw TypeError
-    // Check display within slot picker
+    fireEvent.click(timeBtn); // Check display within slot picker (depends on component state passing value back to Slotpicker mock)
 
-    expect(screen.getByTestId("display-time")).toHaveTextContent("10:00 AM"); // Check that the form inputs (which display the selected data) are updated
-    // getFormattedDate mock returns YYYY-MM-DD
+    expect(screen.getByTestId("display-time")).toHaveTextContent("10:00 AM"); // Check form inputs (depends on component state updating FormInput mock)
 
     expect(screen.getByTestId("input-date")).toHaveValue("2025-12-25");
     expect(screen.getByTestId("input-time")).toHaveValue("10:00 AM");
-  }); // This test failed previously on 'Lead'
+  }); // This test relies on AddAppointment component state updating, which is failing in the trace.
 
   it("updates staff details (Lead, Support)", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />); // Lead
+    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
 
     const leadInput = screen.getByTestId("dropdown-lead");
-    fireEvent.change(leadInput, { target: { value: "Dr.Smith" } }); // This is the line that confirms if the AddAppointment component is binding the value correctly.
-    expect(leadInput).toHaveValue("Dr.Smith"); // Should pass now
-    // Support (MultiSelect mock receives string, splits by comma)
+    fireEvent.change(leadInput, { target: { value: "Dr.Smith" } });
+    expect(leadInput).toHaveValue("Dr.Smith");
 
     const supportInput = screen.getByTestId("multi-support");
-    fireEvent.change(supportInput, { target: { value: "NurseA,NurseB" } }); // Check that state updated correctly (input value reads back from state.join(','))
+    fireEvent.change(supportInput, { target: { value: "NurseA,NurseB" } });
     expect(supportInput).toHaveValue("NurseA,NurseB");
   });
 
