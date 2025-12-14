@@ -43,7 +43,7 @@ const SpecialitySearchWeb = ({
       if (!q) return true;
       return name.includes(q);
     });
-  }, [query, selectedNames]);
+  }, [query, selectedNames, currentNames]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

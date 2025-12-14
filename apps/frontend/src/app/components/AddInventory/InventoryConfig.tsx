@@ -32,9 +32,20 @@ import {
 } from "../../pages/Inventory/types";
 import { BusinessType } from "@/app/types/org";
 
-export type FieldComponentType = "text" | "dropdown" | "textarea" | "date";
+export type FieldComponentType =
+  | "text"
+  | "dropdown"
+  | "textarea"
+  | "date"
+  | "multiSelect";
 
-export type InventorySectionKey = keyof InventoryItem;
+export type InventorySectionKey =
+  | "basicInfo"
+  | "classification"
+  | "pricing"
+  | "vendor"
+  | "stock"
+  | "batch";
 
 export type FieldNameForSection<S extends InventorySectionKey> =
   keyof InventoryItem[S] & string;
@@ -66,7 +77,7 @@ export const InventoryFormConfig: Record<
         kind: "field",
         field: {
           name: "name",
-          placeholder: "Item type",
+          placeholder: "Item name",
           component: "text",
         },
       },
@@ -115,7 +126,7 @@ export const InventoryFormConfig: Record<
           },
           {
             name: "regulationType",
-            placeholder: "Reglation type",
+            placeholder: "Regulation type",
             component: "dropdown",
             options: RegulationTypeOptions,
           },
@@ -179,7 +190,7 @@ export const InventoryFormConfig: Record<
           {
             name: "species",
             placeholder: "Species",
-            component: "dropdown",
+            component: "multiSelect",
             options: SpeciesOptions,
           },
           {
@@ -388,11 +399,26 @@ export const InventoryFormConfig: Record<
         },
       },
       {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
+      },
+      {
         kind: "field",
         field: {
           name: "manufactureDate",
           placeholder: "Manufacture date",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -400,7 +426,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "expiryDate",
           placeholder: "Expiry date",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -408,7 +434,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "nextRefillDate",
           placeholder: "Next refill date",
-          component: "text",
+          component: "date",
         },
       },
     ],
@@ -419,7 +445,7 @@ export const InventoryFormConfig: Record<
         kind: "field",
         field: {
           name: "name",
-          placeholder: "Item type",
+          placeholder: "Item name",
           component: "text",
         },
       },
@@ -517,7 +543,7 @@ export const InventoryFormConfig: Record<
           {
             name: "species",
             placeholder: "Species",
-            component: "dropdown",
+            component: "multiSelect",
             options: SpeciesOptions,
           },
           {
@@ -710,11 +736,26 @@ export const InventoryFormConfig: Record<
         },
       },
       {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
+      },
+      {
         kind: "field",
         field: {
           name: "manufactureDate",
           placeholder: "Manufacture date",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -722,7 +763,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "expiryDate",
           placeholder: "Expiry date",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -730,7 +771,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "nextRefillDate",
           placeholder: "Next refill date",
-          component: "text",
+          component: "date",
         },
       },
     ],
@@ -863,7 +904,7 @@ export const InventoryFormConfig: Record<
           {
             name: "species",
             placeholder: "Species",
-            component: "dropdown",
+            component: "multiSelect",
             options: SpeciesOptions,
           },
           {
@@ -1047,6 +1088,21 @@ export const InventoryFormConfig: Record<
         },
       },
       {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
+      },
+      {
         kind: "field",
         field: {
           name: "litterId",
@@ -1059,7 +1115,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "manufactureDate",
           placeholder: "Associated litter ID",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -1067,7 +1123,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "expiryDate",
           placeholder: "Expiry date",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -1075,7 +1131,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "nextRefillDate",
           placeholder: "Next refill date",
-          component: "text",
+          component: "date",
         },
       },
     ],
@@ -1086,7 +1142,7 @@ export const InventoryFormConfig: Record<
         kind: "field",
         field: {
           name: "name",
-          placeholder: "Item type",
+          placeholder: "Item name",
           component: "text",
         },
       },
@@ -1167,7 +1223,7 @@ export const InventoryFormConfig: Record<
           {
             name: "species",
             placeholder: "Species",
-            component: "dropdown",
+            component: "multiSelect",
             options: SpeciesOptions,
           },
           {
@@ -1352,11 +1408,26 @@ export const InventoryFormConfig: Record<
         },
       },
       {
+        kind: "row",
+        fields: [
+          {
+            name: "quantity",
+            placeholder: "Quantity",
+            component: "text",
+          },
+          {
+            name: "allocated",
+            placeholder: "Allocated",
+            component: "text",
+          },
+        ],
+      },
+      {
         kind: "field",
         field: {
           name: "manufactureDate",
           placeholder: "Manufacture date",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -1364,7 +1435,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "expiryDate",
           placeholder: "Expiry date",
-          component: "text",
+          component: "date",
         },
       },
       {
@@ -1372,7 +1443,7 @@ export const InventoryFormConfig: Record<
         field: {
           name: "nextRefillDate",
           placeholder: "Next refill date",
-          component: "text",
+          component: "date",
         },
       },
     ],

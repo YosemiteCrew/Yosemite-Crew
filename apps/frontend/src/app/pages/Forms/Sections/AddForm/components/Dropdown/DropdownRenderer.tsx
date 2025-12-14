@@ -6,7 +6,12 @@ const DropdownRenderer: React.FC<{
   field: FormField & { type: "dropdown" | "radio" | "checkbox" };
   value: any;
   onChange: (v: any) => void;
-}> = ({ field, value, onChange }) => {
+  readOnly?: boolean;
+}> = ({ field, value, onChange, readOnly = false }) => {
+  const isReadOnly = readOnly || (field as any).meta?.readonly;
+  const defaultValue = (field as any).defaultValue;
+  const displayValue = value ?? defaultValue;
+
   const options = useMemo(
     () => field.options ?? [],
     [field.options]
@@ -19,12 +24,13 @@ const DropdownRenderer: React.FC<{
 
   if (field.type === "checkbox") {
     let selected: string[] = [];
-    if (Array.isArray(value)) {
-      selected = value;
-    } else if (value) {
-      selected = [value];
+    if (Array.isArray(displayValue)) {
+      selected = displayValue;
+    } else if (displayValue) {
+      selected = [displayValue];
     }
     const toggle = (optValue: string) => {
+      if (isReadOnly) return;
       const isSelected = selected.includes(optValue);
       const next = isSelected
         ? selected.filter((v: string) => v !== optValue)
@@ -42,7 +48,8 @@ const DropdownRenderer: React.FC<{
             <button
               key={opt.value}
               onClick={() => toggle(opt.value)}
-              className={`px-3 py-2 rounded-2xl border ${selected.includes(opt.value) ? "border-blue-text bg-blue-light text-blue-text" : "border-grey-light"}`}
+              disabled={isReadOnly}
+              className={`px-3 py-2 rounded-2xl border ${selected.includes(opt.value) ? "border-blue-text bg-blue-light text-blue-text" : "border-grey-light"} ${isReadOnly ? "opacity-70 cursor-not-allowed" : ""}`}
             >
               {opt.label}
             </button>
@@ -53,7 +60,7 @@ const DropdownRenderer: React.FC<{
   }
 
   if (field.type === "radio") {
-    const selected = typeof value === "string" ? value : "";
+    const selected = typeof displayValue === "string" ? displayValue : "";
     return (
       <div className="flex flex-col gap-2">
         <div className="font-grotesk text-black-text text-[16px] font-medium">
@@ -63,8 +70,9 @@ const DropdownRenderer: React.FC<{
           {options.map((opt) => (
             <button
               key={opt.value}
-              onClick={() => onChange(opt.value)}
-              className={`px-3 py-2 rounded-2xl border ${selected === opt.value ? "border-blue-text bg-blue-light text-blue-text" : "border-grey-light"}`}
+              onClick={() => !isReadOnly && onChange(opt.value)}
+              disabled={isReadOnly}
+              className={`px-3 py-2 rounded-2xl border ${selected === opt.value ? "border-blue-text bg-blue-light text-blue-text" : "border-grey-light"} ${isReadOnly ? "opacity-70 cursor-not-allowed" : ""}`}
             >
               {opt.label}
             </button>
@@ -78,10 +86,11 @@ const DropdownRenderer: React.FC<{
     <div className="flex flex-col gap-3">
       <Dropdown
         placeholder={field.label || ""}
-        value={value}
-        onChange={(e) => onChange(e)}
+        value={displayValue}
+        onChange={(e) => !isReadOnly && onChange(e)}
         className="min-h-12!"
         dropdownClassName="top-[55px]! !h-fit"
+        disabled={isReadOnly}
         options={options.map((opt) => ({
           label: opt.label,
           value: opt.value,

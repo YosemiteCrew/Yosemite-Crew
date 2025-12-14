@@ -54,8 +54,8 @@ const Companion = ({
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date>(
-    new Date(formData.dateOfBirth || "2025-10-23")
+  const [currentDate, setCurrentDate] = useState<Date | null>(
+    formData.dateOfBirth ? new Date(formData.dateOfBirth) : null
   );
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StoredCompanion[]>([]);
@@ -94,7 +94,7 @@ const Companion = ({
   useEffect(() => {
     setFormData({
       ...formData,
-      dateOfBirth: currentDate,
+      dateOfBirth: currentDate ?? new Date(),
     });
   }, [currentDate]);
 

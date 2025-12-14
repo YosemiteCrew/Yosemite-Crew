@@ -31,8 +31,8 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
     postalCode?: string;
     state?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date>(
-    new Date(formData.birthDate || "2025-10-23")
+  const [currentDate, setCurrentDate] = useState<Date | null>(
+    formData.birthDate ? new Date(formData.birthDate) : null
   );
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StoredParent[]>([]);
@@ -70,7 +70,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
   useEffect(() => {
     setFormData({
       ...formData,
-      birthDate: currentDate,
+      birthDate: currentDate ?? undefined,
     });
   }, [currentDate]);
 
