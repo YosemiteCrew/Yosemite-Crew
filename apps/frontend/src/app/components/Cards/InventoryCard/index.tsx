@@ -1,7 +1,27 @@
 import React from "react";
 import { getStatusStyle } from "../../DataTable/InventoryTable";
+import { displayStatusLabel, formatDisplayDate } from "@/app/pages/Inventory/utils";
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
+  const displayValue = (val?: string | number | null) => {
+    if (val === undefined || val === null) return "—";
+    if (typeof val === "string" && val.trim() === "") return "—";
+    return val;
+  };
+
+  const formatCurrency = (value: string | number | undefined) => {
+    const num = Number(value ?? 0);
+    if (!Number.isFinite(num)) return "—";
+    return `$ ${num}`;
+  };
+
+  const totalValue = () => {
+    const price = Number(item.pricing?.selling ?? 0);
+    const onHand = Number(item.stock?.current ?? 0);
+    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return "—";
+    return `$ ${Math.round(price * onHand)}`;
+  };
+
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
       <div className="flex gap-1">
@@ -22,7 +42,9 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Stock:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.stock.current + " units"}
+          {displayValue(item.stock.current || "") === "—"
+            ? "—"
+            : `${item.stock.current} units`}
         </div>
       </div>
       <div className="flex gap-1">
@@ -30,7 +52,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Unit cost:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {"$ " + item.pricing.purchaseCost}
+          {formatCurrency(item.pricing.purchaseCost)}
         </div>
       </div>
       <div className="flex gap-1">
@@ -38,7 +60,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Selling price:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {"$ " + item.pricing.selling}
+          {formatCurrency(item.pricing.selling)}
         </div>
       </div>
       <div className="flex gap-1">
@@ -46,7 +68,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Total value:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {"$ " + Number(item.pricing.selling) * Number(item.pricing.selling)}
+          {totalValue()}
         </div>
       </div>
       <div className="flex gap-1">
@@ -54,7 +76,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Expiry:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.batch.expiryDate}
+          {formatDisplayDate(item.batch.expiryDate) || "—"}
         </div>
       </div>
       <div className="flex gap-1">
@@ -62,14 +84,14 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           Location:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.stock.stockLocation}
+          {displayValue(item.stock.stockLocation)}
         </div>
       </div>
       <div
-        style={getStatusStyle(item.status)}
+        style={getStatusStyle(displayStatusLabel(item))}
         className="w-full rounded-lg h-9 flex items-center justify-center text-[15px] font-satoshi font-bold"
       >
-        {item.basicInfo.status}
+        {displayStatusLabel(item)}
       </div>
       <div className="flex gap-3 w-full">
         <button

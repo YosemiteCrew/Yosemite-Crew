@@ -2,7 +2,8 @@ import { AppointmentsProps } from "@/app/types/appointments";
 import { LaidOutEvent } from "@/app/types/calendar";
 import { TasksProps } from "@/app/types/tasks";
 
-export function isSameDay(a: Date, b: Date) {
+export function isSameDay(a?: Date | null, b?: Date | null) {
+  if (!a || !b) return false;
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -10,8 +11,11 @@ export function isSameDay(a: Date, b: Date) {
   );
 }
 
-export const isSameMonth = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+export const isSameMonth = (a?: Date | null, b?: Date | null) =>
+  !!a &&
+  !!b &&
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth();
 
 export const getMonthYear = (date: Date) => {
   return date.toLocaleDateString("en-US", {

@@ -25,23 +25,26 @@ const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
       walk(field.fields ?? []);
       return;
     }
+    // Check for defaultValue first (for readonly fields from inventory)
+    const defaultValue = (field as any).defaultValue;
+
     if (field.type === "checkbox") {
-      acc[field.id] = [];
+      acc[field.id] = defaultValue ?? [];
       return;
     }
     if (field.type === "boolean") {
-      acc[field.id] = false;
+      acc[field.id] = defaultValue ?? false;
       return;
     }
     if (field.type === "date") {
-      acc[field.id] = "";
+      acc[field.id] = defaultValue ?? "";
       return;
     }
     if (field.type === "number") {
-        acc[field.id] = "";
+        acc[field.id] = defaultValue ?? field.placeholder ?? "";
         return;
       }
-      acc[field.id] = field.placeholder || "";
+      acc[field.id] = defaultValue ?? field.placeholder ?? "";
     });
   };
   walk(fields);

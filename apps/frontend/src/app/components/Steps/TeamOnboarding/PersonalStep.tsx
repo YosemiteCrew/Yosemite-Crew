@@ -37,8 +37,10 @@ const PersonalStep = ({
     state?: string;
     postalCode?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date>(
-    new Date(formData.personalDetails?.dateOfBirth || "2025-10-23")
+  const [currentDate, setCurrentDate] = useState<Date | null>(
+    formData.personalDetails?.dateOfBirth
+      ? new Date(formData.personalDetails.dateOfBirth)
+      : null
   );
 
   useEffect(() => {
@@ -46,7 +48,7 @@ const PersonalStep = ({
       ...formData,
       personalDetails: {
         ...formData.personalDetails,
-        dateOfBirth: formatDateLocal(currentDate),
+        dateOfBirth: currentDate ? formatDateLocal(currentDate) : "",
       },
     });
   }, [currentDate]);

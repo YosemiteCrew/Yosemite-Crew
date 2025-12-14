@@ -2,6 +2,9 @@ import React from "react";
 import { getStatusStyle } from "../../DataTable/InventoryTurnoverTable";
 
 const InventoryTurnoverCard = ({ item }: any) => {
+  const averageInventory = item.averageInventory ?? item.avgInventory ?? 0;
+  const totalPurchased = item.totalPurchases ?? item.totalPurchased ?? 0;
+
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
       <div className="flex gap-1">
@@ -38,7 +41,7 @@ const InventoryTurnoverCard = ({ item }: any) => {
           Avg inventory:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.averageInventory}
+          {averageInventory}
         </div>
       </div>
       <div className="flex gap-1">
@@ -46,7 +49,7 @@ const InventoryTurnoverCard = ({ item }: any) => {
           Total purchases:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {"$ " + item.totalPurchases}
+          {totalPurchased}
         </div>
       </div>
       <div className="flex gap-1">
@@ -69,7 +72,7 @@ const InventoryTurnoverCard = ({ item }: any) => {
         style={getStatusStyle(item.status)}
         className="w-full rounded-lg h-9 flex items-center justify-center text-[15px] font-satoshi font-bold"
       >
-        {item.status}
+        {item.status || "—"}
       </div>
     </div>
   );
