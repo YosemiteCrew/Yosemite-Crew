@@ -8,6 +8,7 @@ import { useAuthStore } from "../stores/authStore";
 import Sidebar from "./Sidebar/Sidebar";
 import { usePathname } from "next/navigation";
 import { publicRoutes } from "../utils/const";
+import "@stripe/connect-js";
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname() || "";

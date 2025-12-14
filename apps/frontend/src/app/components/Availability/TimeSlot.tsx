@@ -73,7 +73,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
         {getTimeLabelFromValue(interval[field]) || "Select"}
       </button>
       {open && (
-        <div className="availability-interval-dropdown">
+        <div className="availability-interval-dropdown scrollbar-hidden">
           {timeOptions.map((opt: TimeOption) => (
             <button
               key={opt.value}

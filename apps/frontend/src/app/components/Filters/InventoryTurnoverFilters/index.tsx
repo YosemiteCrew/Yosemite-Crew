@@ -34,7 +34,7 @@ const InventoryTurnoverFilters = ({
     return list.filter((item: any) => {
       const matchesCategory =
         activeCategory === "all" ||
-        item.category.toLowerCase() === activeCategory.toLowerCase();
+        (item.category || "").toLowerCase() === activeCategory.toLowerCase();
       return matchesCategory;
     });
   }, [list, activeCategory]);

@@ -1,28 +1,26 @@
-import Accordion from "@/app/components/Accordion/Accordion";
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
-import { AppointmentsProps } from "@/app/types/appointments";
-import React from "react";
-import { formDataProps } from "..";
-import ServiceCard from "./ServiceCard";
+import React, { useMemo, useState } from "react";
+import { FormDataProps } from "..";
+import { Appointment } from "@yosemite-crew/types";
+import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
+import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
+import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
+import { FormsProps } from "@/app/types/forms";
+import Build from "@/app/pages/Forms/Sections/AddForm/Build";
 
 const AppointmentFields = [
   { label: "Service", key: "service", type: "text" },
-  { label: "Reason", key: "reason", type: "text" },
-  { label: "Date", key: "date", type: "text" },
-  { label: "Time", key: "time", type: "text" },
+  { label: "Reason", key: "concern", type: "text" },
+  { label: "Date", key: "date", type: "date" },
+  { label: "Time", key: "time", type: "date" },
   { label: "Lead", key: "lead", type: "text" },
 ];
 
-const DiagonisisFields = [
-  { label: "Differential", key: "differential", type: "text" },
-  { label: "Prognosis", key: "prognosis", type: "text" },
-];
-
 type DischargeSummaryProps = {
-  formData: formDataProps;
-  setFormData: React.Dispatch<React.SetStateAction<formDataProps>>;
-  activeAppointment: AppointmentsProps;
+  formData: FormDataProps;
+  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
+  activeAppointment: Appointment;
 };
 
 const Discharge = ({
@@ -30,6 +28,45 @@ const Discharge = ({
   formData,
   setFormData,
 }: DischargeSummaryProps) => {
+  const forms = useFormsForPrimaryOrgByCategory("Discharge");
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState<FormsProps | null>(null);
+  const [values, setValues] = React.useState<Record<string, any>>(() =>
+    buildInitialValues(active?.schema ?? [])
+  );
+
+  const FormOptions = useMemo(
+    () =>
+      forms?.map((form) => ({
+        key: form._id || form.name,
+        value: form.name,
+      })),
+    [forms]
+  );
+
+  const handleDischargeSelect = (id: string) => {
+    const selected = forms.find((item) => item._id === id);
+    if (!selected) return;
+    const initialValues = buildInitialValues(selected.schema);
+    setValues(initialValues);
+    setActive(selected);
+  };
+
+  const handleSave = () => {
+    console.log(values, active)
+  };
+
+  const AppointmentInfoData = useMemo(
+    () => ({
+      concern: activeAppointment.concern ?? "",
+      service: activeAppointment.appointmentType?.name ?? "",
+      date: activeAppointment.appointmentDate ?? "",
+      time: activeAppointment.startTime ?? "",
+      lead: activeAppointment.lead?.name ?? "",
+    }),
+    [activeAppointment]
+  );
+
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
       <div className="flex flex-col gap-6">
@@ -40,66 +77,32 @@ const Discharge = ({
           key={"Appointments-key"}
           title={"Appointments details"}
           fields={AppointmentFields}
-          data={activeAppointment}
+          data={AppointmentInfoData}
           defaultOpen={true}
           showEditIcon={false}
         />
-        <EditableAccordion
-          key={"diagonisis-key"}
-          title={"Diagnosis"}
-          fields={DiagonisisFields}
-          data={activeAppointment}
-          defaultOpen={true}
-          showEditIcon={false}
-        />
-        <Accordion
-          title="Procedures & treatments"
-          defaultOpen={true}
-          showEditIcon={false}
-          isEditing={true}
-        >
-          {formData.services.length > 0 && (
-            <div className="flex flex-col gap-1 px-2">
-              {formData.services.map((service, i) => (
-                <ServiceCard
-                  service={service}
-                  key={service.name + i}
-                  setFormData={setFormData}
-                  edit={false}
-                />
-              ))}
-            </div>
-          )}
-        </Accordion>
-        <Accordion
-          title="Medications"
-          defaultOpen={true}
-          showEditIcon={false}
-          isEditing={true}
-        ></Accordion>
-        <Accordion
-          title="Important note"
-          defaultOpen={true}
-          showEditIcon={false}
-          isEditing={true}
-        >
-          {formData.notes && (
-            <div className="px-4! py-2.5! rounded-2xl border border-grey-light font-satoshi text-black-text text-[15px] font-semibold">
-              {formData.notes}
-            </div>
-          )}
-        </Accordion>
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={formData.followUp}
-            onChange={() =>
-              setFormData((prev) => ({ ...prev, followUp: !prev.followUp }))
-            }
+        <div className="flex flex-col gap-3">
+          <SearchDropdown
+            placeholder="Search"
+            options={FormOptions}
+            onSelect={handleDischargeSelect}
+            query={query}
+            setQuery={setQuery}
+            minChars={0}
           />
-          <div className="font-satoshi text-black-text text-[16px] font-semibold">
-            Require a follow-up appointment
-          </div>
+          {active && (
+            <Build
+              formData={active}
+              setFormData={(next) =>
+                setActive((prev) => {
+                  const base = prev ?? active;
+                  return typeof next === "function" ? next(base) : next;
+                })
+              }
+              onNext={() => {}}
+              serviceOptions={[]}
+            />
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-3">
@@ -107,8 +110,14 @@ const Discharge = ({
           href="#"
           text="Save and share with parents"
           classname="h-13!"
+          onClick={handleSave}
         />
-        <Secondary href="#" text="Save" className="h-13!" />
+        <Secondary
+          href="#"
+          text="Save"
+          className="h-13!"
+          onClick={handleSave}
+        />
       </div>
     </div>
   );

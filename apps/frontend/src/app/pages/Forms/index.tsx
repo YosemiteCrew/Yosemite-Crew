@@ -9,7 +9,11 @@ import AddForm from "./Sections/AddForm";
 import FormInfo from "./Sections/FormInfo";
 import { useFormsStore } from "@/app/stores/formsStore";
 import { loadForms } from "@/app/services/formService";
-import { loadServicesForOrg } from "@/app/services/serviceService";
+import {
+  useLoadSpecialitiesForPrimaryOrg,
+  useServicesForPrimaryOrgSpecialities,
+} from "@/app/hooks/useSpecialities";
+import OrgGuard from "@/app/components/OrgGuard";
 
 const Forms = () => {
   const { formsById, formIds, activeFormId, setActiveForm, loading } =
@@ -19,25 +23,19 @@ const Forms = () => {
   const [viewPopup, setViewPopup] = useState(false);
   const [editingForm, setEditingForm] = useState<FormsProps | null>(null);
   const [draftForm, setDraftForm] = useState<FormsProps | null>(null);
-  const [serviceOptions, setServiceOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
+  useLoadSpecialitiesForPrimaryOrg();
+  const services = useServicesForPrimaryOrgSpecialities();
   const fetchedRef = useRef(false);
 
   const list = useMemo<FormsProps[]>(
-    () =>
-      formIds
-        .map((id) => formsById[id])
-        .filter((f): f is FormsProps => Boolean(f)),
+    () => formIds.map((id) => formsById[id]).filter(Boolean),
     [formIds, formsById]
   );
 
   const activeForm: FormsProps | null = useMemo(() => {
     const current = activeFormId ? formsById[activeFormId] : null;
     if (current) {
-      const presentInFilter = filteredList.some(
-        (f) => f._id === current._id
-      );
+      const presentInFilter = filteredList.some((f) => f._id === current._id);
       if (presentInFilter) return current;
     }
     return filteredList[0] ?? null;
@@ -46,6 +44,15 @@ const Forms = () => {
   useEffect(() => {
     setFilteredList(list);
   }, [list]);
+
+  const serviceOptions = useMemo(
+    () =>
+      services.map((s) => ({
+        label: s.name,
+        value: s.id || (s as any)._id || s.name,
+      })),
+    [services]
+  );
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -58,16 +65,6 @@ const Forms = () => {
       } catch (err) {
         console.error("Failed to load forms", err);
       }
-      try {
-        const services = await loadServicesForOrg();
-        const opts = services.map((s) => ({
-          label: s.name,
-          value: s.id || (s as any)._id || s.name,
-        }));
-        setServiceOptions(opts);
-      } catch (err) {
-        console.error("Failed to load services", err);
-      }
     })();
   }, [list.length]);
 
@@ -77,8 +74,7 @@ const Forms = () => {
       return;
     }
     const isActiveInFilter =
-      activeFormId &&
-      filteredList.some((item) => item._id === activeFormId);
+      activeFormId && filteredList.some((item) => item._id === activeFormId);
     if (!isActiveInFilter) {
       const first = filteredList[0];
       if (first?._id) setActiveForm(first._id);
@@ -161,7 +157,9 @@ const Forms = () => {
 const ProtectedForms = () => {
   return (
     <ProtectedRoute>
-      <Forms />
+      <OrgGuard>
+        <Forms />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

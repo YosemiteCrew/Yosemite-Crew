@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Primary, Secondary } from "@/app/components/Buttons";
+import { Primary } from "@/app/components/Buttons";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { updateOrg } from "@/app/services/orgService";
 import { Organisation } from "@yosemite-crew/types";
@@ -111,13 +111,7 @@ const AddressStep = ({
         />
       </div>
 
-      <div className="step-buttons">
-        <Secondary
-          href="#"
-          text="Back"
-          style={{ width: "160px" }}
-          onClick={() => prevStep()}
-        />
+      <div className="step-buttons w-full justify-end!">
         <Primary
           href="#"
           text="Next"

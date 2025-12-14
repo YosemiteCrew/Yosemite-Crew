@@ -1,8 +1,9 @@
-import { AppointmentsProps } from "@/app/types/appointments";
 import { LaidOutEvent } from "@/app/types/calendar";
 import { TasksProps } from "@/app/types/tasks";
+import { Appointment } from "@yosemite-crew/types";
 
-export function isSameDay(a: Date, b: Date) {
+export function isSameDay(a?: Date | null, b?: Date | null) {
+  if (!a || !b) return false;
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -10,8 +11,11 @@ export function isSameDay(a: Date, b: Date) {
   );
 }
 
-export const isSameMonth = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+export const isSameMonth = (a?: Date | null, b?: Date | null) =>
+  !!a &&
+  !!b &&
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth();
 
 export const getMonthYear = (date: Date) => {
   return date.toLocaleDateString("en-US", {
@@ -47,9 +51,9 @@ export function snapToStep(mins: number, step = MINUTES_PER_STEP) {
   return Math.round(mins / step) * step;
 }
 
-export function computeVerticalPositionPx(event: AppointmentsProps) {
-  let start = minutesSinceStartOfDay(event.start);
-  let end = minutesSinceStartOfDay(event.end);
+export function computeVerticalPositionPx(event: Appointment) {
+  let start = minutesSinceStartOfDay(event.startTime);
+  let end = minutesSinceStartOfDay(event.endTime);
   start = snapToStep(start);
   end = snapToStep(end);
   const startSteps = start / MINUTES_PER_STEP;
@@ -59,11 +63,11 @@ export function computeVerticalPositionPx(event: AppointmentsProps) {
   return { topPx, heightPx };
 }
 
-export function layoutDayEvents(events: AppointmentsProps[]): LaidOutEvent[] {
+export function layoutDayEvents(events: Appointment[]): LaidOutEvent[] {
   if (events.length === 0) return [];
   // Sort events by start time (sweep line from top to bottom)
   const sorted = [...events].sort(
-    (a, b) => a.start.getTime() - b.start.getTime()
+    (a, b) => a.startTime.getTime() - b.endTime.getTime()
   );
   type TmpEvent = LaidOutEvent & { clusterId: number };
   const result: TmpEvent[] = [];
@@ -72,7 +76,7 @@ export function layoutDayEvents(events: AppointmentsProps[]): LaidOutEvent[] {
   for (const ev of sorted) {
     const { topPx, heightPx } = computeVerticalPositionPx(ev);
     // 1) Remove finished events from "active"
-    active = active.filter((a) => a.end > ev.start);
+    active = active.filter((a) => a.endTime > ev.startTime);
     // 2) If no events are active, we start a new overlapping cluster
     if (active.length === 0) {
       clusterId++;
@@ -124,12 +128,12 @@ export function getNowTopPxForDay(day: Date): number | null {
   return stepsFromStart * PIXELS_PER_STEP;
 }
 
-export function isAllDayForDate(ev: AppointmentsProps, day: Date): boolean {
+export function isAllDayForDate(ev: Appointment, day: Date): boolean {
   const startOfDay = new Date(day);
   startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(day);
   endOfDay.setHours(23, 59, 59, 999);
-  return ev.start <= startOfDay && ev.end >= endOfDay;
+  return ev.startTime <= startOfDay && ev.endTime >= endOfDay;
 }
 
 export function eventsForDay(events: TasksProps[], day: Date): TasksProps[] {

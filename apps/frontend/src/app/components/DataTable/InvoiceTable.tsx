@@ -16,8 +16,8 @@ type Column<T> = {
 
 type InvoiceTableProps = {
   filteredList: InvoiceProps[];
-  setActiveInvoice: (inventory: InvoiceProps) => void;
-  setViewInvoice: (open: boolean) => void;
+  setActiveInvoice?: (inventory: InvoiceProps) => void;
+  setViewInvoice?: (open: boolean) => void;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -47,8 +47,8 @@ const InvoiceTable = ({
   setViewInvoice,
 }: InvoiceTableProps) => {
   const handleViewInvoice = (inventory: InvoiceProps) => {
-    setActiveInvoice(inventory);
-    setViewInvoice(true);
+    setActiveInvoice?.(inventory);
+    setViewInvoice?.(true);
   };
 
   const columns: Column<InvoiceProps>[] = [
@@ -160,13 +160,22 @@ const InvoiceTable = ({
         <GenericTable data={filteredList} columns={columns} bordered={false} />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((item, i) => (
-          <InvoiceCard
-            key={item.metadata.appointmentId + i}
-            invoice={item}
-            handleViewInvoice={handleViewInvoice}
-          />
-        ))}
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item, i) => (
+            <InvoiceCard
+              key={item.metadata.appointmentId + i}
+              invoice={item}
+              handleViewInvoice={handleViewInvoice}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

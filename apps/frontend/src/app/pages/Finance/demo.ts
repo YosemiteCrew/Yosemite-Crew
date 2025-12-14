@@ -7,7 +7,7 @@ export const demoInvoices: InvoiceProps[] = [
       pet: "Bella",
       parent: "John Smith",
       petImage:
-        "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=300&h=300&fit=crop",
+        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
       service: "Full Grooming",
       appointmentId: "APT-1001",
     },
@@ -23,7 +23,7 @@ export const demoInvoices: InvoiceProps[] = [
       pet: "Max",
       parent: "Emily Johnson",
       petImage:
-        "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=300&h=300&fit=crop",
+        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
       service: "Bath & Brush",
       appointmentId: "APT-1002",
     },
@@ -39,7 +39,7 @@ export const demoInvoices: InvoiceProps[] = [
       pet: "Charlie",
       parent: "Michael Green",
       petImage:
-        "https://images.unsplash.com/photo-1517423440428-a5a00ad493e8?w=300&h=300&fit=crop",
+        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
       service: "Nail Trim",
       appointmentId: "APT-1003",
     },
@@ -55,7 +55,7 @@ export const demoInvoices: InvoiceProps[] = [
       pet: "Luna",
       parent: "Sarah Williams",
       petImage:
-        "https://images.unsplash.com/photo-1507149833265-60c372daea22?w=300&h=300&fit=crop",
+        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
       service: "Flea Treatment",
       appointmentId: "APT-1004",
     },
@@ -71,7 +71,7 @@ export const demoInvoices: InvoiceProps[] = [
       pet: "Cooper",
       parent: "David Miller",
       petImage:
-        "https://images.unsplash.com/photo-1504208434309-cb69f4fe52b0?w=300&h=300&fit=crop",
+        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
       service: "Teeth Cleaning",
       appointmentId: "APT-1005",
     },
@@ -87,7 +87,7 @@ export const demoInvoices: InvoiceProps[] = [
       pet: "Daisy",
       parent: "Laura Brown",
       petImage:
-        "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&h=300&fit=crop",
+        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png",
       service: "Full Grooming",
       appointmentId: "APT-1006",
     },

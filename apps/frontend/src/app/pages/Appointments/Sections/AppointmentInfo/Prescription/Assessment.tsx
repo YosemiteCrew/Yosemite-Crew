@@ -1,29 +1,53 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
-import React, { useState } from "react";
-import { DemoSubjectiveOptions } from "./demo";
-import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import { formDataProps } from "..";
-import { AppointmentsProps } from "@/app/types/appointments";
+import React, { useMemo, useState } from "react";
+import { Appointment } from "@yosemite-crew/types";
+import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
+import { FormsProps } from "@/app/types/forms";
+import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
+import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import { FormDataProps } from "..";
 
 type AssessmentProps = {
-  formData: formDataProps;
-  setFormData: React.Dispatch<React.SetStateAction<formDataProps>>;
-  activeAppointment: AppointmentsProps;
+  activeAppointment: Appointment;
+  formData: FormDataProps;
+  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
 };
 
 const Assessment = ({
+  activeAppointment,
   formData,
   setFormData,
-  activeAppointment,
 }: AssessmentProps) => {
-  const [formDataErrors] = useState<{
-    prognosis?: string;
-  }>({});
+  const [query, setQuery] = useState("");
+  const forms = useFormsForPrimaryOrgByCategory("SOAP-Assessment");
+  const [active, setActive] = useState<FormsProps | null>(null);
+  const [values, setValues] = React.useState<Record<string, any>>(() =>
+    buildInitialValues(active?.schema ?? [])
+  );
 
-  const handleAssessmentSelect = (id: string) => {};
+  const FormOptions = useMemo(
+    () =>
+      forms?.map((form) => ({
+        key: form._id || form.name,
+        value: form.name,
+      })),
+    [forms]
+  );
+
+  const handleAssessmentSelect = (id: string) => {
+    const selected = forms.find((item) => item._id === id);
+    if (!selected) return;
+    setActive(selected);
+  };
+
+  const handleValueChange = (id: string, value: any) => {
+    setValues((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
 
   const handleSave = () => {};
 
@@ -38,40 +62,20 @@ const Assessment = ({
         <div className="flex flex-col gap-3">
           <SearchDropdown
             placeholder="Search"
-            options={DemoSubjectiveOptions}
+            options={FormOptions}
             onSelect={handleAssessmentSelect}
+            query={query}
+            setQuery={setQuery}
+            minChars={0}
           />
-          <FormInput
-            intype="text"
-            inname="tentative"
-            value={formData.tentatve}
-            inlabel="Tentative diagnosis"
-            onChange={(e) =>
-              setFormData({ ...formData, tentatve: e.target.value })
-            }
-            className="min-h-12!"
-          />
-          <FormDesc
-            intype="text"
-            inname="differential"
-            value={formData.differential}
-            inlabel="Differential diagnosis"
-            onChange={(e) =>
-              setFormData({ ...formData, differential: e.target.value })
-            }
-            className="min-h-[120px]!"
-          />
-          <FormInput
-            intype="text"
-            inname="prognosis"
-            value={formData.prognosis}
-            inlabel="Prognosis"
-            onChange={(e) =>
-              setFormData({ ...formData, prognosis: e.target.value })
-            }
-            error={formDataErrors.prognosis}
-            className="min-h-12!"
-          />
+          {active && (
+            <FormRenderer
+              fields={active.schema ?? []}
+              values={values}
+              onChange={handleValueChange}
+              readOnly
+            />
+          )}
         </div>
       </Accordion>
       <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />

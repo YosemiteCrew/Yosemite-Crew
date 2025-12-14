@@ -6,6 +6,32 @@ const DropdownBuilder: React.FC<{
   onChange: (f: FormField) => void;
 }> = ({ field, onChange }) => {
   const options = field.options ?? [];
+  const isReadOnly = (field as any).meta?.readonly;
+  const defaultValue = (field as any).defaultValue;
+
+  if (isReadOnly) {
+    // For readonly dropdowns, show both label and value as readonly (from inventory)
+    return (
+      <div className="flex flex-col gap-3">
+        <FormInput
+          intype="text"
+          inname="Label"
+          value={field.label || ""}
+          inlabel="Label (from inventory)"
+          readonly={true}
+          className="min-h-12!"
+        />
+        <FormInput
+          intype="text"
+          inname="value"
+          value={defaultValue || ""}
+          inlabel="Value (from inventory)"
+          readonly={true}
+          className="min-h-12!"
+        />
+      </div>
+    );
+  }
 
   const updateOption = (idx: number, value: string) => {
     const next = [...options];

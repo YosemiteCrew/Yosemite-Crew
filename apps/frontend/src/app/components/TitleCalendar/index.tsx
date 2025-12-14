@@ -22,18 +22,18 @@ const TitleCalendar = ({
   setCurrentDate,
 }: TitleCalendarProps) => {
   return (
-    <div className="flex justify-between items-center w-full">
+    <div className="flex justify-between items-center w-full flex-wrap">
       <div className="font-grotesk font-medium text-black-text text-[33px]">
         {title}
       </div>
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-3 items-center flex-wrap">
         <Primary
           href="#"
           text="Add"
           classname="w-[140px] sm:w-40"
           onClick={() => setAddPopup(true)}
         />
-        <Datepicker currentDate={currentDate} setCurrentDate={setCurrentDate} />
+        <Datepicker currentDate={currentDate} setCurrentDate={setCurrentDate} placeholder="Select Date" />
         <div className="flex items-center rounded-2xl">
           <button
             onClick={() => setActiveCalendar("vet")}

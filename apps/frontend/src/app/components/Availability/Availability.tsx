@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   daysOfWeek,
   timeIndex,
@@ -15,23 +15,15 @@ import Dublicate from "./Dublicate";
 
 import "./Availability.css";
 
-const Availability: React.FC = () => {
-  const [availability, setAvailability] = useState<AvailabilityState>(
-    daysOfWeek.reduce<AvailabilityState>((acc, day) => {
-      const isWeekday =
-        day === "Monday" ||
-        day === "Tuesday" ||
-        day === "Wednesday" ||
-        day === "Thursday" ||
-        day === "Friday";
-      acc[day] = {
-        enabled: isWeekday,
-        intervals: [{ ...DEFAULT_INTERVAL }],
-      };
-      return acc;
-    }, {})
-  );
+type AvailabilityProps = {
+  availability: AvailabilityState;
+  setAvailability: SetAvailability;
+};
 
+const Availability: React.FC<AvailabilityProps> = ({
+  availability,
+  setAvailability,
+}) => {
   const toggleDay = (day: string) => {
     setAvailability((prev: AvailabilityState) => ({
       ...prev,
@@ -96,7 +88,7 @@ const Availability: React.FC = () => {
                       <TimeSlot
                         interval={interval}
                         timeOptions={timeOptions}
-                        setAvailability={setAvailability as SetAvailability}
+                        setAvailability={setAvailability}
                         day={day}
                         intervalIndex={i}
                         field="start"
@@ -104,7 +96,7 @@ const Availability: React.FC = () => {
                       <TimeSlot
                         interval={interval}
                         timeOptions={endOptions}
-                        setAvailability={setAvailability as SetAvailability}
+                        setAvailability={setAvailability}
                         day={day}
                         intervalIndex={i}
                         field="end"

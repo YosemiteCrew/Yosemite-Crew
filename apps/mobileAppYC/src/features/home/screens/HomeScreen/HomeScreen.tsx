@@ -18,7 +18,7 @@ import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
-import {SearchBar, YearlySpendCard} from '@/shared/components/common';
+import {SearchBar, YearlySpendCard, Loading} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -130,6 +130,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasNotificationsHydrated = useSelector(
     selectNotificationsHydrated('default-companion'),
   );
+  const [isInitialLoad, setIsInitialLoad] = React.useState(true);
   useFocusEffect(
     React.useCallback(() => {
       setBusinessSearch('');
@@ -371,6 +372,24 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       }
     }, [dispatch, selectedCompanionIdRedux]),
   );
+
+  // Handle initial loading state - wait for data to be hydrated
+  React.useEffect(() => {
+    if (isInitialLoad) {
+      // Check if we have the essential data loaded
+      const hasEssentialData =
+        hasNotificationsHydrated &&
+        (companions.length === 0 || (selectedCompanionIdRedux && hasExpenseHydrated));
+
+      if (hasEssentialData) {
+        // Add a small delay to ensure smooth transition
+        const timer = setTimeout(() => {
+          setIsInitialLoad(false);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isInitialLoad, hasNotificationsHydrated, companions.length, selectedCompanionIdRedux, hasExpenseHydrated]);
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -754,6 +773,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       />
     );
   };
+
+  // Show loading screen during initial data hydration
+  if (isInitialLoad) {
+    return <Loading />;
+  }
 
   return (
       <SafeAreaView style={styles.container}>

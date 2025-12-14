@@ -11,6 +11,7 @@ import {
   Delete,
 } from "./Sections/index";
 import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
+import OrgGuard from "@/app/components/OrgGuard";
 
 const Organization = () => {
   const primaryorg = usePrimaryOrg();
@@ -39,7 +40,9 @@ const Organization = () => {
 const ProtectedOrganizations = () => {
   return (
     <ProtectedRoute>
-      <Organization />
+      <OrgGuard>
+        <Organization />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

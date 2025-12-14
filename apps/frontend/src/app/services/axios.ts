@@ -133,4 +133,19 @@ export const deleteData = async <T>(
   }
 };
 
+export const patchData = async <T, D = unknown>(
+  endpoint: string,
+  data?: D,
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> => {
+  try {
+    return await api.patch<T>(endpoint, data, {
+      ...config,
+    });
+  } catch (error: unknown) {
+    console.error("API patchData error:", error);
+    throw error;
+  }
+};
+
 export default api;

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import React from "react";
 import Personal from "./Sections/Personal";

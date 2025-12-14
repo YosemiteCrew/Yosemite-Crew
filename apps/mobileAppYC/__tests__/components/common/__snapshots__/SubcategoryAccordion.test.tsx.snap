@@ -1,0 +1,140 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SubcategoryAccordion does NOT render the icon when not provided 1`] = `
+<View
+  style={
+    [
+      {
+        "backgroundColor": "#fff",
+        "borderColor": "#eee",
+        "borderRadius": 8,
+        "borderWidth": 1,
+        "marginBottom": 12,
+        "overflow": "hidden",
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    accessibilityState={
+      {
+        "busy": undefined,
+        "checked": undefined,
+        "disabled": undefined,
+        "expanded": undefined,
+        "selected": undefined,
+      }
+    }
+    accessibilityValue={
+      {
+        "max": undefined,
+        "min": undefined,
+        "now": undefined,
+        "text": undefined,
+      }
+    }
+    accessible={true}
+    collapsable={false}
+    focusable={true}
+    onClick={[Function]}
+    onResponderGrant={[Function]}
+    onResponderMove={[Function]}
+    onResponderRelease={[Function]}
+    onResponderTerminate={[Function]}
+    onResponderTerminationRequest={[Function]}
+    onStartShouldSetResponder={[Function]}
+    style={
+      {
+        "alignItems": "center",
+        "backgroundColor": "#fff",
+        "flexDirection": "row",
+        "justifyContent": "space-between",
+        "opacity": 1,
+        "padding": 16,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "flex": 1,
+          "gap": 4,
+          "marginRight": 12,
+        }
+      }
+    >
+      <Text
+        numberOfLines={2}
+        style={
+          {
+            "color": "#000",
+            "fontSize": 16,
+          }
+        }
+      >
+        Test Title
+      </Text>
+      <Text
+        numberOfLines={1}
+        style={
+          {
+            "color": "#666",
+            "fontSize": 12,
+          }
+        }
+      >
+        Test Subtitle
+      </Text>
+    </View>
+    <Image
+      source={
+        {
+          "uri": "dropdown-icon-uri",
+        }
+      }
+      style={
+        [
+          {
+            "height": 16,
+            "resizeMode": "contain",
+            "tintColor": "#666",
+            "width": 16,
+          },
+          {
+            "transform": [
+              {
+                "rotate": "100deg",
+              },
+            ],
+          },
+        ]
+      }
+    />
+  </View>
+  <View
+    style={
+      [
+        {
+          "maxHeight": 100,
+          "overflow": "hidden",
+        },
+      ]
+    }
+  >
+    <View
+      style={
+        {
+          "gap": 8,
+          "padding": 16,
+          "paddingTop": 8,
+        }
+      }
+    >
+      <Text>
+        Accordion Content
+      </Text>
+    </View>
+  </View>
+</View>
+`;

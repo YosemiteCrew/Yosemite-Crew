@@ -4,7 +4,27 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Loading} from '@/shared/components/common/Loading/Loading';
 import {themeReducer} from '@/features/theme';
-import { ActivityIndicator, Text } from 'react-native';
+
+// Fix: Require View inside the mock to avoid ReferenceError
+jest.mock('@/shared/components/common/GifLoader/GifLoader', () => {
+  const {View} = require('react-native');
+  return {
+    GifLoader: ({size}: {size: string}) => (
+      <View testID="gif-loader" data-size={size} />
+    ),
+  };
+});
+
+// Mock hooks
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({
+    theme: {
+      colors: {
+        background: '#ffffff',
+      },
+    },
+  }),
+}));
 
 describe('Loading', () => {
   const createTestStore = () => {
@@ -19,72 +39,39 @@ describe('Loading', () => {
     <Provider store={createTestStore()}>{children}</Provider>
   );
 
-  it('should render with default text', () => {
+  it('should render GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading />));
     });
-    expect(tree.root.findByType(Text).props.children).toBe('Loading...');
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader).toBeTruthy();
   });
 
-  it('should render with custom text', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Loading text="Please wait" />));
-    });
-    expect(tree.root.findByType(Text).props.children).toBe('Please wait');
-  });
-
-  it('should not render text when text prop is empty', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Loading text="" />));
-    });
-    const texts = tree.root.findAllByType(Text);
-    expect(texts.length).toBe(0);
-  });
-
-  it('should render ActivityIndicator', () => {
+  it('should pass default size "medium" to GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading />));
     });
-    expect(tree.root.findByType(ActivityIndicator)).toBeTruthy();
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader.props['data-size']).toBe('medium');
   });
 
-  it('should render with small size', () => {
+  it('should pass small size to GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading size="small" />));
     });
-    const indicator = tree.root.findByType(ActivityIndicator);
-    expect(indicator.props.size).toBe('small');
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader.props['data-size']).toBe('small');
   });
 
-  it('should render with large size', () => {
+  it('should pass large size to GifLoader', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(wrap(<Loading size="large" />));
     });
-    const indicator = tree.root.findByType(ActivityIndicator);
-    expect(indicator.props.size).toBe('large');
-  });
-
-  it('should use custom color', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Loading color="#FF0000" />));
-    });
-    const indicator = tree.root.findByType(ActivityIndicator);
-    expect(indicator.props.color).toBe('#FF0000');
-  });
-
-  it('should use theme color when no custom color provided', () => {
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(wrap(<Loading />));
-    });
-    const indicator = tree.root.findByType(ActivityIndicator);
-    expect(indicator.props.color).toBeDefined();
+    const loader = tree.root.findByProps({testID: 'gif-loader'});
+    expect(loader.props['data-size']).toBe('large');
   });
 });

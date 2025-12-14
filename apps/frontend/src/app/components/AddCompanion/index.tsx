@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 import Parent from "./Sections/Parent";
 import Companion from "./Sections/Companion";
-import Allergies from "./Sections/Allergies";
 import Modal from "../Modal";
 import SubLabels from "../Labels/SubLabels";
+import { EMPTY_STORED_COMPANION, EMPTY_STORED_PARENT } from "./type";
+import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
 
 const Labels = [
   {
@@ -15,10 +16,6 @@ const Labels = [
     name: "Companion information",
     key: "companion",
   },
-  {
-    name: "Allergies / Restrictions",
-    key: "allergies",
-  },
 ];
 
 type AddCompanionProps = {
@@ -27,7 +24,12 @@ type AddCompanionProps = {
 };
 
 const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
-  const [activeLabel, setActiveLabel] = useState("parents");
+  const [activeLabel, setActiveLabel] = useState<string>("parents");
+  const [parentFormData, setParentFormData] =
+    useState<StoredParent>(EMPTY_STORED_PARENT);
+  const [companionFormData, setCompanionFormData] = useState<StoredCompanion>(
+    EMPTY_STORED_COMPANION
+  );
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -53,12 +55,27 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
           labels={Labels}
           activeLabel={activeLabel}
           setActiveLabel={setActiveLabel}
+          disableClicking
         />
 
         <div className="flex overflow-y-auto flex-1">
-          {activeLabel === "parents" && <Parent />}
-          {activeLabel === "companion" && <Companion />}
-          {activeLabel === "allergies" && <Allergies />}
+          {activeLabel === "parents" && (
+            <Parent
+              setActiveLabel={setActiveLabel}
+              formData={parentFormData}
+              setFormData={setParentFormData}
+            />
+          )}
+          {activeLabel === "companion" && (
+            <Companion
+              setActiveLabel={setActiveLabel}
+              formData={companionFormData}
+              setFormData={setCompanionFormData}
+              parentFormData={parentFormData}
+              setParentFormData={setParentFormData}
+              setShowModal={setShowModal}
+            />
+          )}
         </div>
       </div>
     </Modal>

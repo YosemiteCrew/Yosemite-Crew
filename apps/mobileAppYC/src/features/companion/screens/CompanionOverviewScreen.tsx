@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   Alert,
   BackHandler,
@@ -15,6 +14,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {useTheme} from '@/hooks';
 import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/shared/utils/commonHelpers';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
@@ -278,7 +278,7 @@ export const CompanionOverviewScreen: React.FC<
         <Header title="Overview" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <GifLoader />
           ) : (
             <Text style={styles.muted}>Companion not found.</Text>
           )}

@@ -1,44 +1,55 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
-import React, { useState } from "react";
-import { DemoSubjective, DemoSubjectiveOptions } from "./demo";
-import { formDataProps } from "..";
-import { AppointmentsProps } from "@/app/types/appointments";
+import React, { useMemo, useState } from "react";
+import { Appointment } from "@yosemite-crew/types";
+import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
+import { FormsProps } from "@/app/types/forms";
+import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
+import { FormDataProps } from "..";
 
 type SubjectiveProps = {
-  formData: formDataProps;
-  setFormData: React.Dispatch<React.SetStateAction<formDataProps>>;
-  activeAppointment: AppointmentsProps;
+  activeAppointment: Appointment;
+  formData: FormDataProps;
+  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
 };
 
 const Subjective = ({
+  activeAppointment,
   formData,
   setFormData,
-  activeAppointment,
 }: SubjectiveProps) => {
-  const [formDataErrors] = useState<{
-    desc?: string;
-  }>({});
+  const [query, setQuery] = useState("");
+  const forms = useFormsForPrimaryOrgByCategory("SOAP-Subjective");
+  const [active, setActive] = useState<FormsProps | null>(null);
+  const [values, setValues] = React.useState<Record<string, any>>(() =>
+    buildInitialValues(active?.schema ?? [])
+  );
+
+  const FormOptions = useMemo(
+    () =>
+      forms?.map((form) => ({
+        key: form._id || form.name,
+        value: form.name,
+      })),
+    [forms]
+  );
 
   const handleSubjectiveSelect = (id: string) => {
-    const selected = DemoSubjective.find((item) => item.id === id);
+    const selected = forms.find((item) => item._id === id);
     if (!selected) return;
-    setFormData((prev: any) => ({
+    setActive(selected);
+  };
+
+  const handleValueChange = (id: string, value: any) => {
+    setValues((prev) => ({
       ...prev,
-      desc: selected.description,
+      [id]: value,
     }));
   };
 
-  const handleSave = () => {
-    if (!formData.desc) {
-      formDataErrors.desc = "Subjective description is required";
-    }
-    if (Object.keys(formData).length > 0) {
-      return;
-    }
-  };
+  const handleSave = () => {};
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
@@ -48,21 +59,23 @@ const Subjective = ({
         showEditIcon={false}
         isEditing={true}
       >
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <SearchDropdown
             placeholder="Search"
-            options={DemoSubjectiveOptions}
+            options={FormOptions}
             onSelect={handleSubjectiveSelect}
+            query={query}
+            setQuery={setQuery}
+            minChars={0}
           />
-          <FormDesc
-            intype="text"
-            inname="desc"
-            value={formData.desc}
-            inlabel="Description"
-            onChange={(e) => setFormData({ ...formData, desc: e.target.value })}
-            error={formDataErrors.desc}
-            className="min-h-[120px]!"
-          />
+          {active && (
+            <FormRenderer
+              fields={active.schema ?? []}
+              values={values}
+              onChange={handleValueChange}
+              readOnly
+            />
+          )}
         </div>
       </Accordion>
       <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />

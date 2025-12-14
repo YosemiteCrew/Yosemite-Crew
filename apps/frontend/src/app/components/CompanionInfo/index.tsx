@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { FaCalendar } from "react-icons/fa";
 import { IoEye, IoDocumentTextSharp } from "react-icons/io5";
 import { IoIosCloseCircleOutline } from "react-icons/io";
-import { CompanionProps } from "../../pages/Companions/types";
+import { CompanionParent } from "../../pages/Companions/types";
 import Labels from "../Labels/Labels";
 import Modal from "../Modal";
 import {
@@ -15,11 +14,12 @@ import {
   AddAppointment,
   AddTask,
 } from "./Sections";
+import { isHttpsImageUrl } from "@/app/utils/urls";
 
 type CompanionInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeCompanion: CompanionProps | null;
+  activeCompanion: CompanionParent | null;
 };
 type LabelKey = (typeof labels)[number]["key"];
 type SubLabelKey = (typeof labels)[number]["labels"][number]["key"];
@@ -33,7 +33,6 @@ const labels = [
     labels: [
       { key: "companion-information", name: "Companion information" },
       { key: "parent-information", name: "Parent information" },
-      { key: "core-information", name: "Core information" },
     ],
   },
   {
@@ -44,16 +43,6 @@ const labels = [
     labels: [
       { key: "history", name: "History" },
       { key: "documents", name: "Documents" },
-    ],
-  },
-  {
-    key: "actions",
-    name: "Actions",
-    icon: FaCalendar,
-    iconSize: 24,
-    labels: [
-      { key: "add-appointment", name: "Add appointment" },
-      { key: "add-task", name: "Add task" },
     ],
   },
 ];
@@ -105,8 +94,12 @@ const CompanionInfo = ({
             <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
               <Image
                 alt="pet image"
-                src={activeCompanion?.image || ""}
-                className="rounded-full"
+                src={
+                  isHttpsImageUrl(activeCompanion?.companion.photoUrl)
+                    ? activeCompanion?.companion.photoUrl
+                    : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                }
+                className="rounded-full min-w-20 max-h-20 object-cover"
                 height={80}
                 width={80}
               />
@@ -119,10 +112,12 @@ const CompanionInfo = ({
             />
           </div>
           <div className="flex justify-center font-grotesk font-medium text-[23px] text-black-text">
-            {activeCompanion?.name}
+            {activeCompanion?.companion.name}
           </div>
           <div className="flex justify-center font-satoshi font-medium text-[14px] text-black-text">
-            {activeCompanion?.breed + " / " + activeCompanion?.species}
+            {activeCompanion?.companion.breed +
+              " / " +
+              activeCompanion?.companion.type}
           </div>
         </div>
 

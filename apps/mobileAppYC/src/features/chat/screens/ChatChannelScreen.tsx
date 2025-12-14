@@ -8,7 +8,6 @@
 import React, {useEffect, useState, useMemo, useCallback} from 'react';
 import {
   StyleSheet,
-  ActivityIndicator,
   View,
   Text,
   Alert,
@@ -32,6 +31,7 @@ import {
 } from '../services/streamChatService';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {CustomAttachment} from '../components/CustomAttachment';
 import type {TabParamList} from '@/navigation/types';
@@ -176,8 +176,7 @@ export const ChatChannelScreen: React.FC = () => {
           onBack={() => navigation.goBack()}
         />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading chat...</Text>
+          <GifLoader />
         </View>
       </SafeAreaView>
     );

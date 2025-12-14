@@ -32,7 +32,10 @@ export const FormsStatusFilters: Array<FormsStatus | "All"> = [
 ];
 
 export type FormFieldType = FieldType;
-export type FormField = BackendFormField & { defaultValue?: any };
+
+export type FormField = BackendFormField & {
+  defaultValue?: any;
+};
 
 export type FormsProps = {
   _id?: string;
@@ -54,9 +57,21 @@ const makeOption = (label: string, value?: string): FieldOption => ({
   value: value ?? label,
 });
 
-export const medicationRouteOptions = ["PO", "IM", "IV", "SC"].map((label) =>
-  makeOption(label)
-);
+export const medicationRouteOptions = [
+  "Oral",
+  "Topical",
+  "Injectable",
+  "Rectal",
+  "Ophthalmic",
+  "Inhalation",
+  "Otic",
+  "Sublingual",
+  "Buccal",
+  "Intranasal",
+  "IV",
+  "IM",
+  "SC",
+].map((label) => makeOption(label));
 
 export const buildMedicationFields = (
   prefix: string,
@@ -113,7 +128,24 @@ const buildMedicationGroup = (suffix: string, label: string): FormField => ({
   id: `medication_${suffix}`,
   type: "group",
   label,
+  meta: { medicationGroup: true } as any,
   fields: buildMedicationFields(`medication_${suffix}`),
+});
+
+const buildServicesGroup = (): FormField => ({
+  id: "services_group",
+  type: "group",
+  label: "Services",
+  meta: { serviceGroup: true } as any,
+  fields: [
+    {
+      id: "services_group_services",
+      type: "checkbox",
+      label: "", // Empty label to avoid duplicate "Services" text
+      options: [],
+      multiple: true,
+    } as BackendFormField,
+  ],
 });
 
 export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
@@ -276,8 +308,14 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       type: "group",
       label: "Treatment / Plan",
       fields: [
-        buildMedicationGroup("1", "Medication 1"),
-        buildMedicationGroup("2", "Medication 2"),
+        {
+          id: "medications",
+          type: "group",
+          label: "Medications",
+          meta: { medicationGroup: true } as any,
+          fields: [],
+        },
+        buildServicesGroup(),
       ],
     },
     {

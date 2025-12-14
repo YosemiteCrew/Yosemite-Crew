@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Accordion from "./Accordion";
 import FormInput from "../Inputs/FormInput/FormInput";
 import { Primary, Secondary } from "../Buttons";
 import Dropdown from "../Inputs/Dropdown/Dropdown";
 import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import Datepicker from "../Inputs/Datepicker";
+import { formatDisplayDate } from "@/app/pages/Inventory/utils";
 import { getFormattedDate } from "../Calendar/weekHelpers";
+import { formatTimeLabel } from "@/app/utils/forms";
 
-type FieldConfig = {
+export type FieldConfig = {
   label: string;
   key: string;
   type?: string;
   required?: boolean;
   options?: Array<string | { label: string; value: string }>;
+  editable?: boolean;
 };
 
 type EditableAccordionProps = {
@@ -22,7 +25,20 @@ type EditableAccordionProps = {
   defaultOpen?: boolean;
   showEditIcon?: boolean;
   readOnly?: boolean;
+  onSave?: (values: FormValues) => void | Promise<void>;
+  hideInlineActions?: boolean;
+  onEditingChange?: (isEditing: boolean) => void;
+  onRegisterActions?: (
+    actions: {
+      save: () => Promise<void>;
+      cancel: () => void;
+      startEditing: () => void;
+      isEditing: () => boolean;
+    } | null
+  ) => void;
 };
+
+const isFieldEditable = (field: FieldConfig) => field.editable !== false;
 
 const FieldComponents: Record<
   string,
@@ -34,6 +50,17 @@ const FieldComponents: Record<
   }>
 > = {
   text: ({ field, value, onChange, error }) => (
+    <FormInput
+      intype={field.type || "text"}
+      inname={field.key}
+      value={value}
+      inlabel={field.label}
+      error={error}
+      onChange={(e) => onChange(e.target.value)}
+      className="min-h-12!"
+    />
+  ),
+  number: ({ field, value, onChange, error }) => (
     <FormInput
       intype={field.type || "text"}
       inname={field.key}
@@ -84,8 +111,49 @@ const FieldComponents: Record<
       type="country"
     />
   ),
-  date: ({ field, value, onChange }) => (
-    <Datepicker currentDate={value} setCurrentDate={onChange} type="input" />
+  date: ({ field, value, onChange }) => {
+    const parseDate = (val: any): Date | null => {
+      if (!val) return null;
+      if (typeof val === "string" && val.includes("/")) {
+        const [dd, mm, yyyy] = val.split("/");
+        const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+      const parsed = new Date(val);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+    const formatDate = (date: Date) => date.toISOString().split("T")[0];
+    return (
+      <Datepicker
+        currentDate={parseDate(value)}
+        setCurrentDate={(
+          next: Date | null | ((prev: Date | null) => Date | null)
+        ) => {
+          const resolved =
+            typeof next === "function"
+              ? (next as (prev: Date | null) => Date | null)(parseDate(value))
+              : next;
+          if (resolved) {
+            onChange(formatDate(resolved));
+          } else {
+            onChange("");
+          }
+        }}
+        type="input"
+        placeholder={field.label}
+      />
+    );
+  },
+  time: ({ field, value, onChange, error }) => (
+    <FormInput
+      intype={"text"}
+      inname={field.key}
+      value={formatTimeLabel(value)}
+      inlabel={field.label}
+      error={error}
+      onChange={(e) => {}}
+      className="min-h-12!"
+    />
   ),
 };
 
@@ -93,9 +161,7 @@ const normalizeOptions = (
   options?: Array<string | { label: string; value: string }>
 ) =>
   options?.map((option: any) =>
-    typeof option === "string"
-      ? { label: option, value: option }
-      : option
+    typeof option === "string" ? { label: option, value: option } : option
   ) ?? [];
 
 const resolveLabel = (
@@ -126,6 +192,20 @@ const FieldValueComponents: Record<
   }>
 > = {
   text: ({ field, index, fields, formValues }) => (
+    <div
+      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+    >
+      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+        {field.label + ":"}
+      </div>
+      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        {Array.isArray(formValues[field.key])
+          ? (formValues[field.key] as string[]).join(", ")
+          : formValues[field.key] || "-"}
+      </div>
+    </div>
+  ),
+  number: ({ field, index, fields, formValues }) => (
     <div
       className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
     >
@@ -211,18 +291,38 @@ const FieldValueComponents: Record<
       </div>
     </div>
   ),
-  date: ({ field, index, fields, formValues }) => (
-    <div
-      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
-    >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+  date: ({ field, index, fields, formValues }) => {
+    const value = formValues[field.key];
+    return (
+      <div
+        className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      >
+        <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+          {field.label + ":"}
+        </div>
+        <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+          {typeof value === "string"
+            ? formatDisplayDate(value) || "-"
+            : getFormattedDate(formValues[field.key])}
+        </div>
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-        {getFormattedDate(formValues[field.key])}
+    );
+  },
+  time: ({ field, index, fields, formValues }) => {
+    const value = formValues[field.key];
+    return (
+      <div
+        className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      >
+        <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
+          {field.label + ":"}
+        </div>
+        <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+          {formatTimeLabel(value)}
+        </div>
       </div>
-    </div>
-  ),
+    );
+  },
 };
 
 const RenderValue = (
@@ -245,6 +345,49 @@ const RenderValue = (
 
 type FormValues = Record<string, any>;
 
+const buildInitialValues = (
+  fields: FieldConfig[],
+  data: Record<string, any>
+): FormValues =>
+  fields.reduce((acc, field) => {
+    if (!isFieldEditable(field)) return acc;
+    const initialValue = data?.[field.key];
+    if (field.type === "multiSelect") {
+      let value: string | string[] = [];
+      if (Array.isArray(initialValue)) {
+        value = initialValue;
+      } else if (
+        typeof initialValue === "string" &&
+        initialValue.trim() !== ""
+      ) {
+        value = [initialValue];
+      }
+      acc[field.key] = value;
+    } else if (field.type === "date") {
+      acc[field.key] = initialValue ?? "";
+    } else {
+      acc[field.key] = initialValue ?? "";
+    }
+    return acc;
+  }, {} as FormValues);
+
+const getRequiredError = (
+  field: FieldConfig,
+  value: any
+): string | undefined => {
+  if (!isFieldEditable(field)) return undefined;
+  if (!field.required) return undefined;
+  const label = `${field.label} is required`;
+
+  if (Array.isArray(value)) {
+    return value.length === 0 ? label : undefined;
+  }
+  if (field.type === "number") {
+    return value ? undefined : label;
+  }
+  return (value || "").toString().trim() ? undefined : label;
+};
+
 const EditableAccordion: React.FC<EditableAccordionProps> = ({
   title,
   fields,
@@ -252,53 +395,21 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   defaultOpen = false,
   showEditIcon = true,
   readOnly = false,
+  onSave,
+  hideInlineActions = false,
+  onEditingChange,
+  onRegisterActions,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(() =>
-    fields.reduce((acc, field) => {
-      const initialValue = data?.[field.key];
-      if (field.type === "multiSelect") {
-        let value: string | string[] = [];
-        if (Array.isArray(initialValue)) {
-          value = initialValue;
-        } else if (
-          typeof initialValue === "string" &&
-          initialValue.trim() !== ""
-        ) {
-          value = [initialValue];
-        }
-        acc[field.key] = value;
-      } else {
-        acc[field.key] = initialValue ?? "";
-      }
-      return acc;
-    }, {} as FormValues)
+    buildInitialValues(fields, data)
   );
   const [formValuesErrors, setFormValuesErrors] = useState<
     Record<string, string | undefined>
   >({});
 
   useEffect(() => {
-    setFormValues(
-      fields.reduce((acc, field) => {
-        const initialValue = data?.[field.key];
-        if (field.type === "multiSelect") {
-          let value: string | string[] = [];
-          if (Array.isArray(initialValue)) {
-            value = initialValue;
-          } else if (
-            typeof initialValue === "string" &&
-            initialValue.trim() !== ""
-          ) {
-            value = [initialValue];
-          }
-          acc[field.key] = value;
-        } else {
-          acc[field.key] = initialValue ?? "";
-        }
-        return acc;
-      }, {} as FormValues)
-    );
+    setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
   }, [data, fields]);
 
@@ -307,63 +418,72 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setFormValuesErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
-  const validate = () => {
+  const validate = useCallback(() => {
     const errors: Record<string, string> = {};
     for (const field of fields) {
-      if (!field.required) continue;
-      const value = formValues[field.key];
-      if (Array.isArray(value)) {
-        if (value.length === 0) {
-          errors[field.key] = `${field.label} is required`;
-        }
-      } else {
-        const str = (value || "").trim();
-        if (!str) {
-          errors[field.key] = `${field.label} is required`;
-        }
+      const error = getRequiredError(field, formValues[field.key]);
+      if (error) {
+        errors[field.key] = error;
       }
     }
     setFormValuesErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [fields, formValues]);
 
-  const handleCancel = () => {
-    setFormValues(
-      fields.reduce((acc, field) => {
-        const initialValue = data?.[field.key];
-        if (field.type === "multiSelect") {
-          let value: string | string[] = [];
-          if (Array.isArray(initialValue)) {
-            value = initialValue;
-          } else if (
-            typeof initialValue === "string" &&
-            initialValue.trim() !== ""
-          ) {
-            value = [initialValue];
-          }
-          acc[field.key] = value;
-        } else {
-          acc[field.key] = initialValue ?? "";
-        }
-        return acc;
-      }, {} as FormValues)
-    );
+  const handleCancel = useCallback(() => {
+    setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
     setIsEditing(false);
-  };
+  }, [fields, data]);
 
   useEffect(() => {
     if (readOnly && isEditing) {
       setIsEditing(false);
+      onEditingChange?.(false);
     }
-  }, [readOnly, isEditing]);
+  }, [readOnly, isEditing, onEditingChange]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(async () => {
     if (!validate()) return;
-    setIsEditing(false);
-  };
+
+    try {
+      await onSave?.(formValues);
+      setIsEditing(false);
+    } catch (e) {
+      console.error("Failed to save accordion data:", e);
+    }
+  }, [formValues, onSave, validate]);
+
+  useEffect(() => {
+    onEditingChange?.(isEditing);
+  }, [isEditing, onEditingChange]);
+
+  useEffect(() => {
+    onRegisterActions?.({
+      save: handleSave,
+      cancel: handleCancel,
+      startEditing: () => {
+        setIsEditing(true);
+      },
+      isEditing: () => isEditing,
+    });
+    return () => onRegisterActions?.(null);
+  }, [
+    onRegisterActions,
+    handleSave,
+    handleCancel,
+    isEditing,
+    onEditingChange,
+    fields,
+    data,
+  ]);
 
   const effectiveEditing = readOnly ? false : isEditing;
+
+  const displayValues: FormValues = useMemo(
+    () => ({ ...data, ...formValues }),
+    [data, formValues]
+  );
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -379,28 +499,32 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
             !readOnly && effectiveEditing ? "gap-3" : "gap-0"
           }`}
         >
-          {fields.map((field, index) => (
-            <div key={field.key}>
-              {!readOnly && effectiveEditing ? (
-                <div className="flex-1">
-                  {RenderField(
-                    field,
-                    formValues[field.key],
-                    formValuesErrors[field.key],
-                    (value) => handleChange(field.key, value)
-                  )}
-                </div>
-              ) : (
-                <div className="flex-1">
-                  {RenderValue(field, index, fields, formValues)}
-                </div>
-              )}
-            </div>
-          ))}
+          {fields.map((field, index) => {
+            const canEditThisField =
+              !readOnly && effectiveEditing && isFieldEditable(field);
+            return (
+              <div key={field.key}>
+                {canEditThisField ? (
+                  <div className="flex-1">
+                    {RenderField(
+                      field,
+                      formValues[field.key],
+                      formValuesErrors[field.key],
+                      (value) => handleChange(field.key, value)
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    {RenderValue(field, index, fields, displayValues)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </Accordion>
 
-      {isEditing && (
+      {isEditing && !hideInlineActions && (
         <div className="grid grid-cols-2 gap-3">
           <Secondary
             href="#"

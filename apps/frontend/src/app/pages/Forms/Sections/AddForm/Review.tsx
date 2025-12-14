@@ -30,24 +30,27 @@ const DetailsFields = [
   },
 ];
 
-const buildInitialValues = (fields: FormField[]): Record<string, any> => {
+export const buildInitialValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
-    items.forEach((field) => {
-      if (field.type === "group") {
-        walk(field.fields ?? []);
-        return;
-      }
-      if (field.type === "checkbox") {
-        acc[field.id] = [];
-      } else if (field.type === "boolean") {
-        acc[field.id] = false;
-      } else if (field.type === "date") {
-        acc[field.id] = "";
-      } else if (field.type === "number") {
-        acc[field.id] = "";
-      } else {
-        acc[field.id] = field.placeholder ?? "";
+  items.forEach((field) => {
+    if (field.type === "group") {
+      walk(field.fields ?? []);
+      return;
+    }
+    // Check for defaultValue first (for readonly fields from inventory)
+    const defaultValue = (field as any).defaultValue;
+
+    if (field.type === "checkbox") {
+      acc[field.id] = defaultValue ?? [];
+    } else if (field.type === "boolean") {
+      acc[field.id] = defaultValue ?? false;
+    } else if (field.type === "date") {
+      acc[field.id] = defaultValue ?? "";
+    } else if (field.type === "number") {
+      acc[field.id] = defaultValue ?? field.placeholder ?? "";
+    } else {
+        acc[field.id] = defaultValue ?? field.placeholder ?? "";
       }
     });
   };

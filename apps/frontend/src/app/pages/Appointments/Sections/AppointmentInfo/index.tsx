@@ -1,6 +1,5 @@
 import Labels from "@/app/components/Labels/Labels";
 import Modal from "@/app/components/Modal";
-import { AppointmentsProps } from "@/app/types/appointments";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { BsChatHeartFill } from "react-icons/bs";
@@ -9,7 +8,7 @@ import { IoDocumentText, IoEye } from "react-icons/io5";
 import { PiMoneyWavyFill } from "react-icons/pi";
 import Summary from "./Finance/Summary";
 import Task from "./Tasks/Task";
-import Appointment from "./Info/Appointment";
+import AppointmentInfo from "./Info/AppointmentInfo";
 import Companion from "./Info/Companion";
 import History from "./Info/History";
 import Subjective from "./Prescription/Subjective";
@@ -22,43 +21,78 @@ import Documents from "./Prescription/Documents";
 import Discharge from "./Prescription/Discharge";
 import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
-import { ServiceWeb } from "@/app/types/org";
+import { Appointment, Service } from "@yosemite-crew/types";
+import { FormsProps } from "@/app/types/forms";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeAppointment: AppointmentsProps | null;
+  activeAppointment: Appointment | null;
 };
 
-export type ServiceEdit = ServiceWeb & {
+export type ServiceEdit = Service & {
   discount: string;
 };
 
-export type formDataProps = {
-  desc: string;
-  general: string;
-  musculoskeletal: string;
-  neuro: string;
-  pain: string;
-  temp: string;
-  pulse: string;
-  respiration: string;
-  mucousColor: string;
-  bloodPressure: string;
-  weight: string;
-  hydration: string;
-  generalBehaviour: string;
-  tentatve: string;
-  differential: string;
-  prognosis: string;
-  subtotal: string;
-  tax: string;
-  total: string;
-  notes: string;
-  services: ServiceEdit[];
-  suggestions: ServiceEdit[];
-  followUp: boolean;
+export type FormDataProps = {
+  subjective: {
+    active: FormsProps | null;
+    values: Record<string, any>;
+  };
+  objective: {
+    active: FormsProps | null;
+    values: Record<string, any>;
+  };
+  assessment: {
+    active: FormsProps | null;
+    values: Record<string, any>;
+  };
+  discharge: {
+    template: {
+      active: FormsProps | null;
+      values: Record<string, any>;
+    };
+  };
+  plan: {
+    template: {
+      active: FormsProps | null;
+      values: Record<string, any>;
+    };
+    total: string;
+    subTotal: string;
+    tax: string;
+  };
 };
+
+export const createEmptyFormData = (): FormDataProps => ({
+  subjective: {
+    active: null,
+    values: {},
+  },
+  objective: {
+    active: null,
+    values: {},
+  },
+  assessment: {
+    active: null,
+    values: {},
+  },
+  discharge: {
+    template: {
+      active: null,
+      values: {},
+    },
+  },
+  plan: {
+    template: {
+      active: null,
+      values: {},
+    },
+    total: "",
+    subTotal: "",
+    tax: "",
+  },
+});
 
 type LabelKey = (typeof labels)[number]["key"];
 type SubLabelKey = (typeof labels)[number]["labels"][number]["key"];
@@ -108,14 +142,14 @@ const labels = [
     iconSize: 24,
     labels: [
       { key: "summary", name: "Summary" },
-      { key: "payment-details", name: "Payment details" }
+      { key: "payment-details", name: "Payment details" },
     ],
   },
 ];
 
 const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   info: {
-    appointment: Appointment,
+    appointment: AppointmentInfo,
     companion: Companion,
     history: History,
   },
@@ -135,7 +169,7 @@ const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   },
   finance: {
     summary: Summary,
-    "payment-details": Details
+    "payment-details": Details,
   },
 };
 
@@ -149,31 +183,9 @@ const AppoitmentInfo = ({
     labels[0].labels[0].key
   );
   const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
-  const [formData, setFormData] = useState<formDataProps>({
-    desc: "",
-    general: "",
-    musculoskeletal: "",
-    neuro: "",
-    pain: "",
-    temp: "",
-    pulse: "",
-    respiration: "",
-    mucousColor: "",
-    bloodPressure: "",
-    weight: "",
-    hydration: "",
-    generalBehaviour: "",
-    tentatve: "",
-    differential: "",
-    prognosis: "",
-    subtotal: "",
-    tax: "",
-    total: "",
-    notes: "",
-    services: [],
-    suggestions: [],
-    followUp: false
-  });
+  const [formData, setFormData] = useState<FormDataProps>(
+    createEmptyFormData()
+  );
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);
@@ -195,7 +207,7 @@ const AppoitmentInfo = ({
             <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
               <Image
                 alt="pet image"
-                src={activeAppointment?.image || ""}
+                src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
                 className="rounded-full"
                 height={80}
                 width={80}
@@ -209,10 +221,12 @@ const AppoitmentInfo = ({
             />
           </div>
           <div className="flex justify-center font-grotesk font-medium text-[23px] text-black-text">
-            {activeAppointment?.name}
+            {activeAppointment?.companion?.name}
           </div>
           <div className="flex justify-center font-satoshi font-medium text-[14px] text-black-text">
-            {activeAppointment?.breed + " / " + activeAppointment?.species}
+            {activeAppointment?.companion?.breed +
+              " / " +
+              activeAppointment?.companion?.species}
           </div>
         </div>
 

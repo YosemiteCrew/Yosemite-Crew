@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   BackHandler,
 } from 'react-native';
@@ -14,6 +13,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
@@ -320,7 +320,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         <Header title="Parent" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <GifLoader />
           ) : (
             <Text style={styles.muted}>User not found.</Text>
           )}

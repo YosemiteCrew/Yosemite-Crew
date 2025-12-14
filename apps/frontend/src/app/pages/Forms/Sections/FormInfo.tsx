@@ -21,27 +21,30 @@ const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
     items.forEach((field) => {
-      if (field.type === "group") {
-        walk(field.fields ?? []);
+    if (field.type === "group") {
+      walk(field.fields ?? []);
+      return;
+    }
+    // Check for defaultValue first (for readonly fields from inventory)
+    const defaultValue = (field as any).defaultValue;
+
+    if (field.type === "checkbox") {
+      acc[field.id] = defaultValue ?? [];
+      return;
+    }
+    if (field.type === "boolean") {
+      acc[field.id] = defaultValue ?? false;
+      return;
+    }
+    if (field.type === "date") {
+      acc[field.id] = defaultValue ?? "";
+      return;
+    }
+    if (field.type === "number") {
+        acc[field.id] = defaultValue ?? field.placeholder ?? "";
         return;
       }
-      if (field.type === "checkbox") {
-        acc[field.id] = [];
-        return;
-      }
-      if (field.type === "boolean") {
-        acc[field.id] = false;
-        return;
-      }
-      if (field.type === "date") {
-        acc[field.id] = "";
-        return;
-      }
-      if (field.type === "number") {
-        acc[field.id] = "";
-        return;
-      }
-      acc[field.id] = field.placeholder || "";
+      acc[field.id] = defaultValue ?? field.placeholder ?? "";
     });
   };
   walk(fields);
