@@ -172,13 +172,17 @@ describe("Build Component", () => {
     { label: "Service B", value: "Service B" },
   ];
 
-  // Fix: Removed createdAt/updatedAt to match FormsProps type definition
+  // Fix: Added missing properties (category, updatedBy, lastUpdated) to match FormsProps
   const defaultFormData: FormsProps = {
     _id: "form-1",
     name: "Test Form",
     status: "Draft",
     usage: "Internal",
     schema: [],
+    // FIX: Changed "General" to "Custom" to match the strict union type
+    category: "Custom",
+    updatedBy: "test-user-id",
+    lastUpdated: new Date().toISOString(),
   };
 
   beforeEach(() => {

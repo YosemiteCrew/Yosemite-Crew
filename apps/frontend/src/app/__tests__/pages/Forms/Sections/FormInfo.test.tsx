@@ -76,19 +76,17 @@ const mockForm: FormsProps = {
   _id: "form-123",
   name: "Test Form",
   description: "A test form",
-  category: "Custom", // Changed from 'Medical' to a valid FormsCategory literal
+  category: "Custom",
   status: "Draft",
   usage: "Internal",
   services: ["Service A"],
   species: ["Dog"],
   schema: [
-    // Type 'text' is not valid for FormField, changed to 'input'
     { id: "f1", type: "input", label: "Field 1", placeholder: "Enter text" },
     {
       id: "f2",
       type: "checkbox",
       label: "Field 2",
-      // Options must be objects with label/value if FieldOption expects that structure
       options: [{ label: "Option 1", value: "opt1" }],
     },
     { id: "f3", type: "boolean", label: "Field 3" },
@@ -98,12 +96,12 @@ const mockForm: FormsProps = {
       id: "g1",
       type: "group",
       label: "Group 1",
-      fields: [{ id: "gf1", type: "input", label: "Group Field" }], // Changed type to 'input'
+      fields: [{ id: "gf1", type: "input", label: "Group Field" }],
     },
   ],
-  createdAt: "2023-01-01",
-  updatedAt: "2023-01-01",
-  orgId: "org-123",
+  // FIX: Replaced createdAt/updatedAt/orgId with new required props
+  updatedBy: "test-user-id",
+  lastUpdated: "2023-01-01",
 };
 
 const mockServiceOptions = [{ label: "Service A", value: "Service A" }];
