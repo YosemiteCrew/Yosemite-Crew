@@ -81,11 +81,18 @@ describe("InventoryService", () => {
       });
 
       mockedBatchModel.insertMany.mockResolvedValueOnce(undefined);
+      // First call: recomputeStockFromBatches (uses .find().lean())
       mockedBatchModel.find.mockReturnValueOnce({
         lean: jest.fn().mockResolvedValue([
           { quantity: 4, allocated: 1 },
           { quantity: 3, allocated: 0 },
         ]),
+      });
+      // Second call: fetch batches for return (uses .find().sort().exec())
+      mockedBatchModel.find.mockReturnValueOnce({
+        sort: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
       });
 
       const result = await InventoryService.createItem({
