@@ -30,11 +30,11 @@ jest.mock('stream-chat', () => ({
 
 describe('streamChatService', () => {
   // We explicitly type service as 'any' to access exported functions dynamically
-  // after re-requiring the module in beforeEach.
+  // after re-importing the module in beforeEach.
   let service: typeof import('../../services/streamChatService');
   const originalEnv = process.env;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // 1. Reset modules to clear the internal 'chatClient' singleton variable
     jest.resetModules();
 
@@ -53,8 +53,8 @@ describe('streamChatService', () => {
     });
     mockClient.user = undefined;
 
-    // 5. Re-import the service under test
-    service = require('../../services/streamChatService');
+    // 5. Re-import the service under test using dynamic import
+    service = await import('../../services/streamChatService');
   });
 
   afterAll(() => {
@@ -81,13 +81,13 @@ describe('streamChatService', () => {
       expect(client1).toBe(client2);
     });
 
-    it('throws error if API key is missing', () => {
+    it('throws error if API key is missing', async () => {
       // Reset module again to clear the singleton from beforeEach
       jest.resetModules();
       process.env.NEXT_PUBLIC_STREAM_API_KEY = '';
 
-      // Re-require service to get a fresh instance with empty key
-      service = require('../../services/streamChatService');
+      // Re-import service to get a fresh instance with empty key
+      service = await import('../../services/streamChatService');
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -390,11 +390,11 @@ describe('streamChatService', () => {
       expect(service.isClientConnected()).toBe(false);
     });
 
-    it('returns false if client is null', () => {
+    it('returns false if client is null', async () => {
       // client defaults to null on module load before getChatClient is called
-      // We need to re-require to test the initial null state logic
+      // We need to re-import to test the initial null state logic
       jest.resetModules();
-      const freshService = require('../../services/streamChatService');
+      const freshService = await import('../../services/streamChatService');
       expect(freshService.isClientConnected()).toBe(false);
     });
   });

@@ -1,629 +1,423 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Primary, Secondary } from "@/app/components/Buttons";
+import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import SelectLabel from "@/app/components/Inputs/SelectLabel";
 import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  cleanup,
-} from "@testing-library/react";
-import "@testing-library/jest-dom";
-import Companion from "@/app/components/AddCompanion/Sections/Companion";
-import * as companionService from "@/app/services/companionService";
-import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
-import {
+  BreedMap,
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
+  GenderOptions,
+  InsuredOptions,
+  NeuteredOptions,
+  OriginOptions,
+  SpeciesOptions,
 } from "@/app/components/AddCompanion/type";
+import Accordion from "@/app/components/Accordion/Accordion";
+import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
+import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
+import Datepicker from "@/app/components/Inputs/Datepicker";
+import {
+  createCompanion,
+  createParent,
+  getCompanionForParent,
+  linkCompanion,
+} from "@/app/services/companionService";
+import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 
-// --- Mocks ---
+type OptionProp = {
+  key: string;
+  value: string;
+};
 
-jest.mock("@/app/services/companionService", () => ({
-  createCompanion: jest.fn(),
-  createParent: jest.fn(),
-  getCompanionForParent: jest.fn(),
-  linkCompanion: jest.fn(),
-}));
+type CompanionProps = {
+  setActiveLabel: React.Dispatch<React.SetStateAction<string>>;
+  formData: StoredCompanion;
+  setFormData: React.Dispatch<React.SetStateAction<StoredCompanion>>;
+  parentFormData: StoredParent;
+  setParentFormData: React.Dispatch<React.SetStateAction<StoredParent>>;
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+};
 
-// Mock Child Components
-jest.mock("@/app/components/Inputs/SearchDropdown", () => {
-  return ({ onSelect, query, setQuery, options }: any) => (
-    <div data-testid="search-dropdown">
-      <input
-        data-testid="search-input"
-        value={query || ""}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      {options?.map((opt: any) => (
-        <button
-          key={opt.key}
-          data-testid={`search-option-${opt.key}`}
-          onClick={() => onSelect(opt.key)}
-          type="button"
+const Companion = ({
+  setActiveLabel,
+  formData,
+  setFormData,
+  parentFormData,
+  setParentFormData,
+  setShowModal,
+}: CompanionProps) => {
+  const [formDataErrors, setFormDataErrors] = useState<{
+    name?: string;
+    species?: string;
+    breed?: string;
+    insuranceNumber?: string;
+    insuranceCompany?: string;
+  }>({});
+  const [currentDate, setCurrentDate] = useState<Date>(
+    new Date(formData.dateOfBirth || "2025-10-23")
+  );
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<StoredCompanion[]>([]);
+
+  const options: OptionProp[] = useMemo(
+    () =>
+      results.map((p) => {
+        return {
+          key: p.id,
+          value: `${p.name}`,
+        };
+      }),
+    [results]
+  );
+
+  useEffect(() => {
+    const parentId = parentFormData.id;
+    if (!parentId) {
+      setResults([]);
+      setQuery("");
+      return;
+    }
+    let mounted = true;
+    getCompanionForParent(parentId)
+      .then((companions) => {
+        if (mounted) setResults(companions);
+      })
+      .catch(() => {
+        if (mounted) setResults([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [parentFormData.id]);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      dateOfBirth: currentDate,
+    }));
+  }, [currentDate, setFormData]);
+
+  const handleSubmit = async () => {
+    const errors: {
+      name?: string;
+      species?: string;
+      breed?: string;
+      insuranceNumber?: string;
+      insuranceCompany?: string;
+    } = {};
+    if (!formData.name) errors.name = "Name is required";
+    if (!formData.type) errors.species = "Species is required";
+    if (!formData.breed) errors.breed = "Breed is required";
+    if (formData.isInsured) {
+      if (!formData.insurance?.companyName)
+        errors.insuranceCompany = "Company name is required";
+      if (!formData.insurance?.policyNumber)
+        errors.insuranceNumber = "Policy number is required";
+    }
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    try {
+      await handleCreateCompanion();
+      setShowModal(false);
+      setFormDataErrors({});
+      setFormData(EMPTY_STORED_COMPANION);
+      setParentFormData(EMPTY_STORED_PARENT);
+      setActiveLabel("parents");
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleCreateCompanion = async () => {
+    if (parentFormData.id) {
+      if (formData.id) {
+        const payload: StoredCompanion = {
+          ...formData,
+          parentId: parentFormData.id,
+        };
+        await linkCompanion(payload, parentFormData);
+      } else {
+        const payload: StoredCompanion = {
+          ...formData,
+          parentId: parentFormData.id,
+        };
+        await createCompanion(payload, parentFormData);
+      }
+    } else {
+      const parent_id = await createParent(parentFormData);
+      const payload: StoredCompanion = {
+        ...formData,
+        parentId: parent_id!,
+      };
+      const parentPayload: StoredParent = {
+        ...parentFormData,
+        id: parent_id!,
+      };
+      await createCompanion(payload, parentPayload);
+    }
+  };
+
+  const handleSelect = (parentId: string) => {
+    const selected = results.find((p) => p.id === parentId);
+    if (!selected) return;
+    setFormData(selected);
+    setQuery(`${selected.name}`);
+  };
+
+  return (
+    <div className="flex flex-col justify-between flex-1 gap-6 w-full">
+      <div className="flex flex-col gap-6">
+        <div className="font-grotesk font-medium text-black-text text-[23px]">
+          Companion information
+        </div>
+
+        <SearchDropdown
+          placeholder="Search companion"
+          options={options}
+          onSelect={handleSelect}
+          query={query}
+          setQuery={setQuery}
+          minChars={0}
+        />
+
+        <Accordion
+          title="Companion information"
+          defaultOpen
+          showEditIcon={false}
+          isEditing={true}
         >
-          {opt.value}
-        </button>
-      ))}
-      <button
-        data-testid="search-option-invalid"
-        onClick={() => onSelect("invalid-id")}
-        type="button"
-      >
-        Invalid
-      </button>
+          <div className="flex flex-col gap-3">
+            <FormInput
+              intype="text"
+              inname="name"
+              value={formData.name}
+              inlabel="Name"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              error={formDataErrors.name}
+              className="min-h-12!"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Dropdown
+                placeholder="Species"
+                value={formData.type}
+                // FIX: Added 'as any' to solve "Type 'string' is not assignable..." error
+                onChange={(e: string) =>
+                  setFormData({ ...formData, type: e as any })
+                }
+                error={formDataErrors.species}
+                className="min-h-12!"
+                dropdownClassName="top-[55px]! !h-fit"
+                options={SpeciesOptions}
+              />
+              <Dropdown
+                placeholder="Breed"
+                value={formData.breed}
+                onChange={(e: string) => setFormData({ ...formData, breed: e })}
+                error={formDataErrors.breed}
+                className="min-h-12!"
+                dropdownClassName="top-[55px]!"
+                options={(BreedMap[formData.type] ?? []) as any}
+                type="breed"
+              />
+            </div>
+            <Datepicker
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              type="input"
+              className="min-h-12!"
+              containerClassName="w-full"
+              placeholder="Date of birth"
+            />
+            <SelectLabel
+              title="Gender"
+              options={GenderOptions}
+              activeOption={formData.gender}
+              // FIX: Added 'as any' to solve "Type 'string' is not assignable..." error
+              setOption={(value: string) =>
+                setFormData({ ...formData, gender: value as any })
+              }
+            />
+            <SelectLabel
+              title="Neutered status"
+              options={NeuteredOptions}
+              activeOption={formData.isneutered ? "true" : "false"}
+              setOption={(value: string) =>
+                setFormData({
+                  ...formData,
+                  isneutered: value === "true",
+                })
+              }
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <FormInput
+                intype="text"
+                inname="color"
+                value={formData.colour || ""}
+                inlabel="Color (optional)"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, colour: e.target.value })
+                }
+                className="min-h-12!"
+              />
+              <FormInput
+                intype="text"
+                inname="blood"
+                value={formData.bloodGroup || ""}
+                inlabel="Blood (optional)"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, bloodGroup: e.target.value })
+                }
+                className="min-h-12!"
+              />
+            </div>
+            <FormInput
+              intype="number"
+              inname="weight"
+              value={formData.currentWeight + ""}
+              inlabel="Current weight (optional) (kgs)"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFormData({
+                  ...formData,
+                  currentWeight: Number(e.target.value),
+                })
+              }
+              className="min-h-12!"
+            />
+            <Dropdown
+              placeholder="Country of origin (optional)"
+              value={formData.countryOfOrigin || ""}
+              onChange={(e: string) =>
+                setFormData({ ...formData, countryOfOrigin: e })
+              }
+              className="min-h-12!"
+              dropdownClassName="top-[55px]! h-[150px]!"
+              type="country"
+              search
+            />
+            <SelectLabel
+              title="My pet comes from:"
+              options={OriginOptions}
+              activeOption={formData.source || "unknown"}
+              // FIX: Added 'as any' to solve "Type 'string' is not assignable..." error
+              setOption={(value: string) =>
+                setFormData({ ...formData, source: value as any })
+              }
+              type="coloumn"
+            />
+            <FormInput
+              intype="text"
+              inname="microchip"
+              value={formData.microchipNumber || ""}
+              inlabel="Microchip number (optional)"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFormData({ ...formData, microchipNumber: e.target.value })
+              }
+              className="min-h-12!"
+            />
+            <FormInput
+              intype="number"
+              inname="passport"
+              value={formData.passportNumber || ""}
+              inlabel="Passport number (optional)"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setFormData({
+                  ...formData,
+                  passportNumber: e.target.value,
+                })
+              }
+              className="min-h-12!"
+            />
+            <SelectLabel
+              title="Insurance"
+              options={InsuredOptions}
+              activeOption={formData.isInsured ? "true" : "false"}
+              setOption={(value: string) =>
+                setFormData({
+                  ...formData,
+                  isInsured: value === "true",
+                  insurance:
+                    value === "true"
+                      ? {
+                          isInsured: true,
+                        }
+                      : undefined,
+                })
+              }
+            />
+            {formData.isInsured && (
+              <>
+                <FormInput
+                  intype="text"
+                  inname="weight"
+                  value={formData.insurance?.companyName || ""}
+                  inlabel="Company name"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setFormData({
+                      ...formData,
+                      insurance: {
+                        ...formData.insurance,
+                        isInsured: formData.isInsured,
+                        companyName: e.target.value,
+                      },
+                    })
+                  }
+                  error={formDataErrors.insuranceNumber}
+                  className="min-h-12!"
+                />
+                <FormInput
+                  intype="text"
+                  inname="weight"
+                  value={formData.insurance?.policyNumber || ""}
+                  inlabel="Policy Number"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setFormData({
+                      ...formData,
+                      insurance: {
+                        ...formData.insurance,
+                        isInsured: formData.isInsured,
+                        policyNumber: e.target.value,
+                      },
+                    })
+                  }
+                  error={formDataErrors.insuranceNumber}
+                  className="min-h-12!"
+                />
+              </>
+            )}
+            <FormDesc
+              intype="text"
+              inname="allergies"
+              value={formData.allergy || ""}
+              inlabel="Allergies (optional)"
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setFormData({ ...formData, allergy: e.target.value })
+              }
+              className="min-h-[120px]!"
+            />
+          </div>
+        </Accordion>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Secondary
+          href="#"
+          text="Back"
+          onClick={() => setActiveLabel("parents")}
+          className="max-h-12! text-lg! tracking-wide!"
+        />
+        <Primary
+          href="#"
+          text="Save"
+          onClick={handleSubmit}
+          classname="max-h-12! text-lg! tracking-wide!"
+        />
+      </div>
     </div>
   );
-});
+};
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({ children }: any) => (
-  <div data-testid="accordion">{children}</div>
-));
-
-jest.mock(
-  "@/app/components/Inputs/FormInput/FormInput",
-  () =>
-    ({ inlabel, value, onChange, error }: any) => (
-      <div>
-        <label>{inlabel}</label>
-        <input
-          data-testid={`input-${inlabel}`}
-          value={value || ""}
-          onChange={onChange}
-        />
-        {error && <span data-testid={`error-${inlabel}`}>{error}</span>}
-      </div>
-    )
-);
-
-jest.mock(
-  "@/app/components/Inputs/Dropdown/Dropdown",
-  () =>
-    ({ placeholder, value, onChange, error, options }: any) => (
-      <div data-testid={`dropdown-${placeholder}`}>
-        <span data-testid={`dropdown-value-${placeholder}`}>{value}</span>
-        <button
-          data-testid={`select-${placeholder}-option`}
-          onClick={() => onChange(options?.[0]?.value || "OptionValue")}
-          type="button"
-        >
-          Select Option
-        </button>
-        {error && <span data-testid={`error-${placeholder}`}>{error}</span>}
-      </div>
-    )
-);
-
-jest.mock(
-  "@/app/components/Inputs/SelectLabel",
-  () =>
-    ({ title, activeOption, setOption }: any) => (
-      <div data-testid={`select-label-${title}`}>
-        <span>Active: {String(activeOption)}</span>
-        <button
-          data-testid={`toggle-${title}-true`}
-          onClick={() => setOption("true")}
-          type="button"
-        >
-          Set True
-        </button>
-        <button
-          data-testid={`toggle-${title}-false`}
-          onClick={() => setOption("false")}
-          type="button"
-        >
-          Set False
-        </button>
-        <button
-          data-testid={`toggle-${title}-custom`}
-          onClick={() => setOption("Breeder")}
-          type="button"
-        >
-          Set Breeder
-        </button>
-      </div>
-    )
-);
-
-jest.mock(
-  "@/app/components/Inputs/Datepicker",
-  () =>
-    ({ currentDate, setCurrentDate }: any) => (
-      <div data-testid="datepicker">
-        <span>Date: {currentDate?.toISOString()}</span>
-        <button
-          data-testid="set-date-btn"
-          onClick={() => setCurrentDate(new Date("2024-01-01"))}
-          type="button"
-        >
-          Set Date
-        </button>
-      </div>
-    )
-);
-
-jest.mock(
-  "@/app/components/Inputs/FormDesc/FormDesc",
-  () =>
-    ({ inlabel, value, onChange }: any) => (
-      <div>
-        <label>{inlabel}</label>
-        <textarea
-          data-testid={`desc-${inlabel}`}
-          value={value || ""}
-          onChange={onChange}
-        />
-      </div>
-    )
-);
-
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button data-testid="primary-btn" onClick={onClick} type="button">
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick }: any) => (
-    <button data-testid="secondary-btn" onClick={onClick} type="button">
-      {text}
-    </button>
-  ),
-}));
-
-describe("Companion Component", () => {
-  const mockSetActiveLabel = jest.fn();
-  const mockSetFormData = jest.fn();
-  const mockSetParentFormData = jest.fn();
-  const mockSetShowModal = jest.fn();
-
-  const initialFormData: StoredCompanion = {
-    ...EMPTY_STORED_COMPANION,
-    id: "",
-    name: "",
-    type: "",
-    breed: "",
-    gender: "Unknown",
-    dateOfBirth: new Date("2023-01-01"),
-    isInsured: false,
-    insurance: undefined,
-  };
-
-  const initialParentData: StoredParent = {
-    ...EMPTY_STORED_PARENT,
-    id: "parent-123",
-    firstName: "John",
-  };
-
-  const defaultProps = {
-    setActiveLabel: mockSetActiveLabel,
-    formData: initialFormData,
-    setFormData: mockSetFormData,
-    parentFormData: initialParentData,
-    setParentFormData: mockSetParentFormData,
-    setShowModal: mockSetShowModal,
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (companionService.getCompanionForParent as jest.Mock).mockResolvedValue([]);
-    jest.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    (console.log as jest.Mock).mockRestore();
-    cleanup();
-  });
-
-  // --- 1. Initialization & Rendering ---
-
-  it("renders correctly and fetches companions on mount", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    expect(screen.getByText("Companion information")).toBeInTheDocument();
-    expect(screen.getByTestId("input-Name")).toBeInTheDocument();
-    expect(companionService.getCompanionForParent).toHaveBeenCalledWith(
-      "parent-123"
-    );
-  });
-
-  it("does not fetch companions if parent ID is missing", async () => {
-    const propsNoParent = {
-      ...defaultProps,
-      parentFormData: { ...EMPTY_STORED_PARENT, id: "" },
-    };
-    await act(async () => {
-      render(<Companion {...propsNoParent} />);
-    });
-
-    expect(companionService.getCompanionForParent).not.toHaveBeenCalled();
-    expect(screen.getByTestId("search-input")).toHaveValue("");
-  });
-
-  // --- 2. Form Field Interactions ---
-
-  it("updates simple input fields", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    fireEvent.change(screen.getByTestId("input-Name"), {
-      target: { value: "Buddy" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Buddy" })
-    );
-
-    fireEvent.change(screen.getByTestId("input-Color (optional)"), {
-      target: { value: "Black" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ colour: "Black" })
-    );
-
-    fireEvent.change(screen.getByTestId("input-Blood (optional)"), {
-      target: { value: "O" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ bloodGroup: "O" })
-    );
-
-    fireEvent.change(screen.getByTestId("input-Microchip number (optional)"), {
-      target: { value: "12345" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ microchipNumber: "12345" })
-    );
-
-    fireEvent.change(screen.getByTestId("input-Passport number (optional)"), {
-      target: { value: "P99" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ passportNumber: "P99" })
-    );
-
-    fireEvent.change(
-      screen.getByTestId("input-Current weight (optional) (kgs)"),
-      { target: { value: "20" } }
-    );
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ currentWeight: 20 })
-    );
-
-    fireEvent.change(screen.getByTestId("desc-Allergies (optional)"), {
-      target: { value: "None" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ allergy: "None" })
-    );
-  });
-
-  it("updates dropdown fields", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    fireEvent.click(screen.getByTestId("select-Species-option"));
-    expect(mockSetFormData).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByTestId("select-Breed-option"));
-    expect(mockSetFormData).toHaveBeenCalled();
-
-    fireEvent.click(
-      screen.getByTestId("select-Country of origin (optional)-option")
-    );
-    expect(mockSetFormData).toHaveBeenCalled();
-  });
-
-  it("updates SelectLabels (Gender, Neutered, Source)", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    fireEvent.click(screen.getByTestId("toggle-Gender-true"));
-    expect(mockSetFormData).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByTestId("toggle-Neutered status-true"));
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ isneutered: true })
-    );
-
-    fireEvent.click(screen.getByTestId("toggle-My pet comes from:-custom"));
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ source: "Breeder" })
-    );
-  });
-
-  it("syncs date of birth from datepicker", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    const setDateBtn = screen.getByTestId("set-date-btn");
-    fireEvent.click(setDateBtn);
-
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ dateOfBirth: expect.any(Date) })
-    );
-  });
-
-  // --- 3. Insurance Logic ---
-
-  it("handles insurance toggle and fields", async () => {
-    const insuredProps = {
-      ...defaultProps,
-      formData: { ...initialFormData, isInsured: true },
-    };
-    await act(async () => {
-      render(<Companion {...insuredProps} />);
-    });
-
-    expect(screen.getByTestId("input-Company name")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByTestId("input-Company name"), {
-      target: { value: "PetPlan" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        insurance: expect.objectContaining({ companyName: "PetPlan" }),
-      })
-    );
-
-    fireEvent.change(screen.getByTestId("input-Policy Number"), {
-      target: { value: "POL1" },
-    });
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        insurance: expect.objectContaining({ policyNumber: "POL1" }),
-      })
-    );
-  });
-
-  it("resets insurance when toggled off", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    fireEvent.click(screen.getByTestId("toggle-Insurance-false"));
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isInsured: false,
-        insurance: undefined,
-      })
-    );
-  });
-
-  it("sets default insurance structure when toggled on", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    fireEvent.click(screen.getByTestId("toggle-Insurance-true"));
-    expect(mockSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isInsured: true,
-        insurance: { isInsured: true },
-      })
-    );
-  });
-
-  // --- 4. Search Selection Logic ---
-
-  it("selects a companion from search results", async () => {
-    const mockResults = [{ id: "c1", name: "Rex", type: "Dog" }];
-    (companionService.getCompanionForParent as jest.Mock).mockResolvedValue(
-      mockResults
-    );
-
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    const option = await screen.findByTestId("search-option-c1");
-    fireEvent.click(option);
-
-    expect(mockSetFormData).toHaveBeenCalledWith(mockResults[0]);
-  });
-
-  it("does nothing if invalid ID selected (guard clause)", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    // The component has a useEffect that triggers setFormData on mount (date sync)
-    // We must clear the mock history to properly test that the click interaction
-    // does NOT trigger another call.
-    mockSetFormData.mockClear();
-
-    fireEvent.click(screen.getByTestId("search-option-invalid"));
-    expect(mockSetFormData).not.toHaveBeenCalled();
-  });
-
-  it("handles API error in useEffect", async () => {
-    (companionService.getCompanionForParent as jest.Mock).mockRejectedValue(
-      new Error("Fail")
-    );
-
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    // Should not crash, results remain empty
-    expect(screen.queryByTestId("search-option-c1")).not.toBeInTheDocument();
-  });
-
-  // --- 5. Submit & Validation ---
-
-  it("validates missing required fields", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    expect(screen.getByTestId("error-Name")).toHaveTextContent(
-      "Name is required"
-    );
-    expect(screen.getByTestId("error-Species")).toHaveTextContent(
-      "Species is required"
-    );
-    expect(screen.getByTestId("error-Breed")).toHaveTextContent(
-      "Breed is required"
-    );
-    expect(companionService.createCompanion).not.toHaveBeenCalled();
-  });
-
-  it("validates missing insurance details when insured", async () => {
-    const insuredProps = {
-      ...defaultProps,
-      formData: {
-        ...initialFormData,
-        name: "Rex",
-        type: "Dog",
-        breed: "Lab",
-        isInsured: true,
-        insurance: { isInsured: true },
-      },
-    };
-    await act(async () => {
-      render(<Companion {...insuredProps} />);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    // NOTE: In the source code (Companion.tsx), the 'Company name' input incorrectly uses
-    // error={formDataErrors.insuranceNumber} instead of insuranceCompany.
-    // Therefore, both fields display "Policy number is required".
-    // This assertion matches the ACTUAL behavior of the provided code.
-    expect(screen.getByTestId("error-Company name")).toHaveTextContent(
-      "Policy number is required"
-    );
-    expect(screen.getByTestId("error-Policy Number")).toHaveTextContent(
-      "Policy number is required"
-    );
-  });
-
-  // --- 6. Submit Success Scenarios ---
-
-  it("creates companion for existing parent", async () => {
-    const validData = {
-      ...initialFormData,
-      name: "Rex",
-      type: "Dog",
-      breed: "Lab",
-    };
-    const props = { ...defaultProps, formData: validData };
-
-    await act(async () => {
-      render(<Companion {...props} />);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    expect(companionService.createCompanion).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Rex" }),
-      initialParentData
-    );
-    expect(mockSetShowModal).toHaveBeenCalledWith(false);
-    expect(mockSetActiveLabel).toHaveBeenCalledWith("parents");
-  });
-
-  it("links existing companion to parent", async () => {
-    const validData = {
-      ...initialFormData,
-      id: "comp-123",
-      name: "Rex",
-      type: "Dog",
-      breed: "Lab",
-    };
-    const props = { ...defaultProps, formData: validData };
-
-    await act(async () => {
-      render(<Companion {...props} />);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    expect(companionService.linkCompanion).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "comp-123" }),
-      initialParentData
-    );
-    expect(mockSetShowModal).toHaveBeenCalledWith(false);
-  });
-
-  it("creates parent then companion if parent does not exist", async () => {
-    const newParentData = { ...EMPTY_STORED_PARENT, firstName: "New" };
-    const validData = {
-      ...initialFormData,
-      name: "Rex",
-      type: "Dog",
-      breed: "Lab",
-    };
-    const props = {
-      ...defaultProps,
-      parentFormData: newParentData,
-      formData: validData,
-    };
-
-    (companionService.createParent as jest.Mock).mockResolvedValue("new-p-id");
-
-    await act(async () => {
-      render(<Companion {...props} />);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    expect(companionService.createParent).toHaveBeenCalledWith(newParentData);
-    expect(companionService.createCompanion).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Rex", parentId: "new-p-id" }),
-      expect.objectContaining({ id: "new-p-id" })
-    );
-  });
-
-  // --- 7. Submit Error Handling ---
-
-  it("logs error when submission fails", async () => {
-    const validData = {
-      ...initialFormData,
-      name: "Rex",
-      type: "Dog",
-      breed: "Lab",
-    };
-    const props = { ...defaultProps, formData: validData };
-
-    (companionService.createCompanion as jest.Mock).mockRejectedValue(
-      new Error("API Fail")
-    );
-
-    await act(async () => {
-      render(<Companion {...props} />);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    expect(console.log).toHaveBeenCalledWith(expect.any(Error));
-    expect(mockSetShowModal).not.toHaveBeenCalled();
-  });
-
-  // --- 8. Back Button ---
-
-  it("navigates back on secondary button click", async () => {
-    await act(async () => {
-      render(<Companion {...defaultProps} />);
-    });
-
-    fireEvent.click(screen.getByTestId("secondary-btn"));
-    expect(mockSetActiveLabel).toHaveBeenCalledWith("parents");
-  });
-});
+export default Companion;

@@ -1,3 +1,6 @@
+// FIX: Add top-level import to replace require() calls later
+import * as CognitoPkg from "amazon-cognito-identity-js";
+
 // --- Global Setup for Env Vars ---
 // We set these initially, but we will also enforce them in beforeEach
 process.env.NEXT_PUBLIC_COGNITO_USERPOOLID = "us-east-1_test";
@@ -54,16 +57,17 @@ jest.mock("amazon-cognito-identity-js", () => {
   };
 });
 
-// Helper to access mocked instances safely
-const getMockUser = () => require("amazon-cognito-identity-js").__mockUserInstance;
-const getMockPool = () => require("amazon-cognito-identity-js").__mockPoolInstance;
-const getMockSession = () => require("amazon-cognito-identity-js").__mockSession;
+// FIX: Use the top-level import instead of require()
+const getMockUser = () => (CognitoPkg as any).__mockUserInstance;
+const getMockPool = () => (CognitoPkg as any).__mockPoolInstance;
+const getMockSession = () => (CognitoPkg as any).__mockSession;
 
 describe("authStore", () => {
   // We declare a variable to hold the dynamically required store
   let useAuthStore: any;
 
-  beforeEach(() => {
+  // FIX: Make beforeEach async to handle dynamic import
+  beforeEach(async () => {
     // 1. Reset Modules to ensure authStore re-evaluates
     jest.resetModules();
 
@@ -79,9 +83,10 @@ describe("authStore", () => {
     getMockUser().getSession.mockImplementation((cb: any) => cb(null, getMockSession()));
     getMockPool().getCurrentUser.mockReturnValue(getMockUser());
 
-    // 5. Require the store (this triggers the top-level UserPool initialization code)
-    // We use require because import is hoisted and would run before jest.resetModules() effectively
-    useAuthStore = require("@/app/stores/authStore").useAuthStore;
+    // 5. Import the store dynamically (replaces require)
+    // This triggers the top-level UserPool initialization code
+    const imported = await import("@/app/stores/authStore");
+    useAuthStore = imported.useAuthStore;
   });
 
   describe("signUp", () => {
@@ -310,30 +315,30 @@ describe("authStore", () => {
     });
 
     it("handles invalid session during signout", async () => {
-        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-        useAuthStore.setState({ user: getMockUser() as unknown as any });
+       const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+       useAuthStore.setState({ user: getMockUser() as unknown as any });
 
-        // Session invalid
-        getMockSession().isValid.mockReturnValue(false);
-        getMockUser().getSession.mockImplementation((cb: any) => cb(null, getMockSession()));
+       // Session invalid
+       getMockSession().isValid.mockReturnValue(false);
+       getMockUser().getSession.mockImplementation((cb: any) => cb(null, getMockSession()));
 
-        await useAuthStore.getState().signout();
+       await useAuthStore.getState().signout();
 
-        expect(warnSpy).toHaveBeenCalledWith("Invalid session during signout");
-        expect(getMockUser().globalSignOut).not.toHaveBeenCalled();
-        warnSpy.mockRestore();
+       expect(warnSpy).toHaveBeenCalledWith("Invalid session during signout");
+       expect(getMockUser().globalSignOut).not.toHaveBeenCalled();
+       warnSpy.mockRestore();
     });
 
     it("handles session error during signout", async () => {
-        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-        useAuthStore.setState({ user: getMockUser() as unknown as any });
+       const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+       useAuthStore.setState({ user: getMockUser() as unknown as any });
 
-        getMockUser().getSession.mockImplementation((cb: any) => cb(new Error("Session Error"), null));
+       getMockUser().getSession.mockImplementation((cb: any) => cb(new Error("Session Error"), null));
 
-        await useAuthStore.getState().signout();
+       await useAuthStore.getState().signout();
 
-        expect(warnSpy).toHaveBeenCalledWith("getSession failed during signout:", expect.any(Error));
-        warnSpy.mockRestore();
+       expect(warnSpy).toHaveBeenCalledWith("getSession failed during signout:", expect.any(Error));
+       warnSpy.mockRestore();
     });
   });
 
