@@ -86,7 +86,7 @@ const DashboardProfile = () => {
               <FaClock color="#F68523" size={20} />
               <span>Verification in progress</span>
             </div>
-            <Primary text="Book onboarding call" href="/book-demo" />
+            <Primary text="Book onboarding call" href="/book-onboarding" />
           </>
         )}
       </div>

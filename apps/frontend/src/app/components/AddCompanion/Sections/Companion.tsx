@@ -24,6 +24,7 @@ import {
   linkCompanion,
 } from "@/app/services/companionService";
 import SearchDropdown from "../../Inputs/SearchDropdown";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 type OptionProp = {
   key: string;
@@ -51,6 +52,7 @@ const Companion = ({
     name?: string;
     species?: string;
     breed?: string;
+    dateOfBirth?: string;
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
@@ -105,10 +107,12 @@ const Companion = ({
       breed?: string;
       insuranceNumber?: string;
       insuranceCompany?: string;
+      dateOfBirth?: string;
     } = {};
     if (!formData.name) errors.name = "Name is required";
     if (!formData.type) errors.species = "Species is required";
     if (!formData.breed) errors.breed = "Breed is required";
+    if (!formData.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
     if (formData.isInsured) {
       if (!formData.insurance?.companyName)
         errors.insuranceCompany = "Company name is required";
@@ -222,14 +226,22 @@ const Companion = ({
                 type="breed"
               />
             </div>
-            <Datepicker
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              type="input"
-              className="min-h-12!"
-              containerClassName="w-full"
-              placeholder="Date of birth"
-            />
+            <div className="flex flex-col gap-1">
+              <Datepicker
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                type="input"
+                className="min-h-12!"
+                containerClassName="w-full"
+                placeholder="Date of birth"
+              />
+              {formDataErrors.dateOfBirth && (
+                <div className="Errors">
+                  <Icon icon="mdi:error" width="16" height="16" />
+                  {formDataErrors.dateOfBirth}
+                </div>
+              )}
+            </div>
             <SelectLabel
               title="Gender"
               options={GenderOptions}

@@ -63,6 +63,7 @@ const InventoryFilters = ({
         <Search
           value={filters.search}
           setSearch={(value: string) => updateFilters({ search: value })}
+          className="h-12 min-h-12 py-3"
         />
       </div>
       <div className="flex items-center gap-2 flex-wrap md:justify-start min-[1520px]:justify-end">

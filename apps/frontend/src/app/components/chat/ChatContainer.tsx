@@ -29,6 +29,8 @@ import {
   connectStreamUser,
 } from "@/app/services/streamChatService";
 import { getMockVetUser } from "@/app/utils/mockStreamBackend";
+import ProtectedRoute from "../ProtectedRoute";
+import OrgGuard from "../OrgGuard";
 
 interface ChatContainerProps {
   appointmentId?: string;
@@ -403,4 +405,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   );
 };
 
-export default ChatContainer;
+const ProtectedChatContainer = () => {
+  return (
+    <ProtectedRoute>
+      <OrgGuard>
+        <ChatContainer />
+      </OrgGuard>
+    </ProtectedRoute>
+  );
+};
+
+export default ProtectedChatContainer;

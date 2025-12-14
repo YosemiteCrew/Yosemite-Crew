@@ -7,15 +7,15 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { computeOrgOnboardingStep } from "@/app/utils/orgOnboarding";
 import type { Organisation, Speciality } from "@yosemite-crew/types";
-import { useLoadOrg } from "../hooks/useLoadOrg";
-import { useLoadSpecialitiesForPrimaryOrg } from "../hooks/useSpecialities";
 import { useLoadTeam } from "../hooks/useTeam";
-import { useLoadProfiles } from "../hooks/useProfiles";
 import { useUserProfileStore } from "../stores/profileStore";
 import { computeTeamOnboardingStep } from "../utils/teamOnboarding";
-import { useLoadAvailabilities } from "../hooks/useAvailabiities";
 import { useAvailabilityStore } from "../stores/availabilityStore";
 import { ApiDayAvailability } from "./Availability/utils";
+import { useLoadRoomsForPrimaryOrg } from "../hooks/useRooms";
+import { useLoadAppointmentsForPrimaryOrg } from "../hooks/useAppointments";
+import { useLoadCompanionsForPrimaryOrg } from "../hooks/useCompanion";
+import { useLoadDocumentsForPrimaryOrg } from "../hooks/useDocuments";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -39,6 +39,10 @@ type OrgGuardProps = {
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadTeam();
+  useLoadRoomsForPrimaryOrg()
+  useLoadCompanionsForPrimaryOrg()
+  useLoadAppointmentsForPrimaryOrg()
+  useLoadDocumentsForPrimaryOrg()
 
   const router = useRouter();
   const pathname = usePathname();
@@ -103,11 +107,12 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
         if (step < 3) {
           // onboarding step < 3 → force /create-org
           redirectTo = "/create-org?orgId=" + primaryOrgId;
-        } else if (step === 3 && pathname === "/organization") {
-          redirectTo = "/organization";
-        } else {
-          // onboarding step === 3 → /dashboard
-          redirectTo = "/dashboard";
+        } else if (step === 3) {
+          if (pathname === "/organization" || pathname === "/book-onboarding") {
+            redirectTo = "";
+          } else {
+            redirectTo = "/dashboard";
+          }
         }
       }
     } else {
@@ -135,7 +140,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     orgStatus,
     getAvailabilitiesByOrgId,
     specialityStatus,
-    availabilityStatus
+    availabilityStatus,
   ]);
 
   if (!checked) return null;

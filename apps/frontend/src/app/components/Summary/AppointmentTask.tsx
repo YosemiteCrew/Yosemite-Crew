@@ -6,10 +6,9 @@ import classNames from "classnames";
 import Link from "next/link";
 
 import "./Summary.css";
-import { AppointmentsProps } from "@/app/types/appointments";
-import { demoAppointments } from "@/app/pages/Appointments/demo";
 import { TasksProps } from "@/app/types/tasks";
 import { demoTasks } from "@/app/pages/Tasks/demo";
+import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 
 const AppointmentLabels = [
   {
@@ -26,13 +25,13 @@ const AppointmentLabels = [
   },
   {
     name: "Checked-in",
-    key: "checked-in",
+    key: "checked_in",
     bg: "#FEF3E9",
     text: "#F68523",
   },
   {
     name: "In progress",
-    key: "in-progress",
+    key: "in_progress",
     bg: "#E6F4EF",
     text: "#54B492",
   },
@@ -65,7 +64,7 @@ const TasksLabels = [
 ];
 
 const AppointmentTask = () => {
-  const [list] = useState<AppointmentsProps[]>(demoAppointments);
+  const appointments = useAppointmentsForPrimaryOrg();
   const [taskList] = useState<TasksProps[]>(demoTasks);
   const [activeTable, setActiveTable] = useState("Appointments");
   const activeLabels = useMemo(() => {
@@ -87,14 +86,14 @@ const AppointmentTask = () => {
 
   const filteredList = useMemo(() => {
     if (activeTable === "Appointments") {
-      return list.filter((item) => {
+      return appointments.filter((item) => {
         const matchesStatus =
           item.status.toLowerCase() === activeSubLabel.toLowerCase();
         return matchesStatus;
       });
     }
     return [];
-  }, [list, activeTable, activeSubLabel]);
+  }, [appointments, activeTable, activeSubLabel]);
 
   const filteredTaskList = useMemo(() => {
     if (activeTable === "Tasks") {
@@ -112,7 +111,11 @@ const AppointmentTask = () => {
       <div className="summary-title">
         Schedule{" "}
         <span>
-          ({activeTable === "Appointments" ? list.length : taskList.length})
+          (
+          {activeTable === "Appointments"
+            ? appointments.length
+            : taskList.length}
+          )
         </span>
       </div>
       <div className="summary-labels">

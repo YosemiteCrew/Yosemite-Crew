@@ -31,7 +31,7 @@ const BasicFields = [
     key: "country",
     required: true,
     editable: true,
-    type: "text",
+    type: "country",
   },
   {
     label: "DUNS number",

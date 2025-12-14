@@ -53,11 +53,11 @@ const ServiceCard = ({
         </div>
         <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
           <div>Duration: </div>
-          <div>{service.duration + " mins"}</div>
+          <div>{service.durationMinutes + " mins"}</div>
         </div>
         <div className={`px-3! py-2! flex items-center gap-2 justify-between ${!edit && "border-b border-grey-light"}`}>
           <div>Charges: </div>
-          <div>${service.charge}</div>
+          <div>${service.cost}</div>
         </div>
         {edit ? (
           <div className="px-2 py-3">
