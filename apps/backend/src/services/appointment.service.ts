@@ -797,6 +797,27 @@ export const AppointmentService = {
     return toAppointmentResponseDTO(toDomain(appointment));
   },
 
+  async checkInAppointment(appointmentId: string) {
+    const appointment = await AppointmentModel.findById(appointmentId);
+    if (!appointment) {
+      throw new AppointmentServiceError("Appointment not found", 404);
+    }
+    
+    // Only UPCOMING appointments can be checked in
+    if (appointment.status !== "UPCOMING") {
+      throw new AppointmentServiceError(
+        "Only upcoming appointments can be checked in",
+        400,
+      );
+    }
+
+    appointment.status = "CHECKED_IN";
+    appointment.updatedAt = new Date();
+    await appointment.save();
+
+    return toAppointmentResponseDTO(toDomain(appointment));
+  },
+
   async rescheduleFromParent(
     appointmentId: string,
     parentId: string,

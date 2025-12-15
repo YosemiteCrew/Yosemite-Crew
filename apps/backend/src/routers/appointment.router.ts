@@ -110,6 +110,14 @@ router.patch(
   AppointmentController.cancelFromPMS,
 );
 
+router.patch(
+  "/pms/:organisationId/:appointmentId/checkin",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.checkInAppointmentForPMS
+)
+
 // Update appointment details
 router.patch(
   "/pms/:organisationId/:appointmentId",

@@ -241,6 +241,32 @@ export const AppointmentController = {
     }
   },
 
+  checkInAppointmentForPMS: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const { appointmentId } = req.params;
+
+      const result = await AppointmentService.checkInAppointment(
+        appointmentId,
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Appointment checked in", data: result });
+    } catch (err: unknown) {
+      logger.error("Appiontement check-in error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to check-in appointment",
+      );
+      return res.status(status).json({
+        message,
+      });
+    }
+  },
+
   updateFromPms: async (
     req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
     res: Response,
