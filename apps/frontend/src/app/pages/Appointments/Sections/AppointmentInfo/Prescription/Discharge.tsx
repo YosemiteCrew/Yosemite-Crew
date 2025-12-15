@@ -2,12 +2,15 @@ import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
 import React, { useMemo, useState } from "react";
 import { FormDataProps } from "..";
-import { Appointment } from "@yosemite-crew/types";
+import { Appointment, FormSubmission } from "@yosemite-crew/types";
 import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
 import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 import { FormsProps } from "@/app/types/forms";
-import Build from "@/app/pages/Forms/Sections/AddForm/Build";
+import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import { useAuthStore } from "@/app/stores/authStore";
+import { createSubmission } from "@/app/services/soapService";
+import DischargeSubmissions from "./Submissions/DischargeSubmissions";
 
 const AppointmentFields = [
   { label: "Service", key: "service", type: "text" },
@@ -28,6 +31,7 @@ const Discharge = ({
   formData,
   setFormData,
 }: DischargeSummaryProps) => {
+  const attributes = useAuthStore.getState().attributes;
   const forms = useFormsForPrimaryOrgByCategory("Discharge");
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<FormsProps | null>(null);
@@ -52,8 +56,38 @@ const Discharge = ({
     setActive(selected);
   };
 
-  const handleSave = () => {
-    console.log(values, active)
+  const handleValueChange = (id: string, value: any) => {
+    setValues((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!active?._id || !activeAppointment.id || !attributes) return;
+    try {
+      const submission: FormSubmission = {
+        _id: "",
+        formVersion: 1,
+        submittedAt: new Date(),
+        formId: active._id,
+        appointmentId: activeAppointment.id,
+        companionId: activeAppointment?.companion?.id ?? "",
+        parentId: activeAppointment?.companion?.parent?.id ?? "",
+        answers: values,
+        submittedBy: attributes.sub,
+      };
+      const created = await createSubmission(submission);
+      setFormData((prev) => ({
+        ...prev,
+        discharge: [created, ...(prev.discharge ?? [])],
+      }));
+      setActive(null);
+      setQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to save subjective submission:", e);
+    }
   };
 
   const AppointmentInfoData = useMemo(
@@ -91,32 +125,30 @@ const Discharge = ({
             minChars={0}
           />
           {active && (
-            <Build
-              formData={active}
-              setFormData={(next) =>
-                setActive((prev) => {
-                  const base = prev ?? active;
-                  return typeof next === "function" ? next(base) : next;
-                })
-              }
-              onNext={() => {}}
-              serviceOptions={[]}
+            <FormRenderer
+              fields={active.schema ?? []}
+              values={values}
+              onChange={handleValueChange}
+              readOnly
             />
           )}
+          <DischargeSubmissions formData={formData} />
         </div>
       </div>
       <div className="flex flex-col gap-3">
+        {active && (
+          <Secondary
+            href="#"
+            text="Save"
+            className="h-13!"
+            onClick={handleSave}
+          />
+        )}
         <Primary
           href="#"
-          text="Save and share with parents"
+          text="Share with parents"
           classname="h-13!"
-          onClick={handleSave}
-        />
-        <Secondary
-          href="#"
-          text="Save"
-          className="h-13!"
-          onClick={handleSave}
+          onClick={() => {}}
         />
       </div>
     </div>

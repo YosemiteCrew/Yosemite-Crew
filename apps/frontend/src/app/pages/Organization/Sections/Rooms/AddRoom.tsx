@@ -38,7 +38,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
     () =>
       teams?.map((team) => ({
         label: team.name || team._id,
-        value: team.name || team._id,
+        value: team._id,
       })),
     [teams]
   );
@@ -47,7 +47,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
     () =>
       specialities?.map((speciality) => ({
         label: speciality.name,
-        value: speciality.name,
+        value: speciality._id || speciality.name,
       })),
     [specialities]
   );

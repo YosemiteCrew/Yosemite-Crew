@@ -60,6 +60,16 @@ const AppointmentCalendar = ({
           setCurrentDate={setCurrentDate}
         />
       )}
+      {activeCalendar === "vet" && (
+        <WeekCalendar
+          events={filteredList}
+          date={currentDate}
+          handleViewAppointment={handleViewAppointment}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+          setCurrentDate={setCurrentDate}
+        />
+      )}
     </div>
   );
 };

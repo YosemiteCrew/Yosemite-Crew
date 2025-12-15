@@ -109,7 +109,7 @@ export const createOrg = async (formData: Organisation) => {
       active: false,
     };
     upsertUserOrgMapping(ownerMapping);
-    console.log(newExtendedOrg);
+    return _id;
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;

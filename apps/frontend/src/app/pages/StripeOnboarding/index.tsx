@@ -3,7 +3,6 @@ import OrgGuard from "@/app/components/OrgGuard";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { useStripeOnboarding } from "@/app/hooks/useStripeOnboarding";
 import {
-  checkStatus,
   createConnectedAccount,
   onBoardConnectedAccount,
 } from "@/app/services/stripeService";
@@ -31,11 +30,6 @@ const StripeOnboarding = () => {
 
   const createAccount = async () => {
     try {
-      const status: any = await checkStatus(orgIdFromQuery);
-      if (status?.chargesEnabled || status?.payoutsEnabled) {
-        router.push("/dashboard");
-        return;
-      }
       const account_id = await createConnectedAccount(orgIdFromQuery);
       if (!account_id) {
         router.push("/dashboard");

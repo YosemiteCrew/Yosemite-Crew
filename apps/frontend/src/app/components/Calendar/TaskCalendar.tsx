@@ -60,6 +60,16 @@ const TaskCalendar = ({
           setCurrentDate={setCurrentDate}
         />
       )}
+      {activeCalendar === "vet" && (
+        <WeekCalendar
+          events={filteredList}
+          date={currentDate}
+          handleViewTask={handleViewTask}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+          setCurrentDate={setCurrentDate}
+        />
+      )}
     </div>
   );
 };

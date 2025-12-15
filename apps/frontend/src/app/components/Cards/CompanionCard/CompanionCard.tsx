@@ -8,11 +8,13 @@ import { isHttpsImageUrl } from "@/app/utils/urls";
 type CompanionCardProps = {
   companion: CompanionParent;
   handleViewCompanion: (companion: CompanionParent) => void;
+  handleBookAppointment: (companion: CompanionParent) => void;
 };
 
 const CompanionCard = ({
   companion,
   handleViewCompanion,
+  handleBookAppointment,
 }: CompanionCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
@@ -85,7 +87,10 @@ const CompanionCard = ({
         >
           View
         </button>
-        <button className="w-1/2 border border-black-text! rounded-2xl! h-12 flex items-center justify-center cursor-pointer">
+        <button
+          onClick={() => handleBookAppointment(companion)}
+          className="w-1/2 border border-black-text! rounded-2xl! h-12 flex items-center justify-center cursor-pointer"
+        >
           Schedule
         </button>
         <button className="w-1/2 border border-black-text! rounded-2xl! h-12 flex items-center justify-center cursor-pointer">

@@ -226,9 +226,6 @@ const GoogleSearchDropDown = ({
     const address = details.formattedAddress || "";
     const countryCode = getAddr(comps, "country", "shortText");
     const country = countries.find((c) => c.code === countryCode);
-    const combinedCountry = country
-      ? `${country.flag ?? ""} ${country.name ?? ""}`.trim()
-      : "";
     const city =
       getAddr(comps, "locality") ||
       getAddr(comps, "postal_town") ||
@@ -263,7 +260,7 @@ const GoogleSearchDropDown = ({
         website,
         googlePlacesId: details.id,
         address: {
-          country: combinedCountry,
+          country: country?.name,
           addressLine: address,
           city: city,
           state: state,

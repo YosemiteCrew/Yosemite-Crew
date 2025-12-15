@@ -25,6 +25,7 @@ type CompanionsTableProps = {
   activeCompanion: CompanionParent | null;
   setActiveCompanion: (companion: CompanionParent) => void;
   setViewCompanion: (open: boolean) => void;
+  setBookAppointment: (open: boolean) => void;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -45,10 +46,16 @@ const CompanionsTable = ({
   activeCompanion,
   setActiveCompanion,
   setViewCompanion,
+  setBookAppointment,
 }: CompanionsTableProps) => {
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
     setViewCompanion(true);
+  };
+
+  const handleBookAppointment = (companion: CompanionParent) => {
+    setActiveCompanion(companion);
+    setBookAppointment(true);
   };
 
   const columns: Column<CompanionParent>[] = [
@@ -155,7 +162,10 @@ const CompanionsTable = ({
           >
             <IoEye size={20} color="#302F2E" />
           </button>
-          <button className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer">
+          <button
+            onClick={() => handleBookAppointment(item)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          >
             <FaCalendar size={14} color="#302F2E" />
           </button>
           <button className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer">
@@ -185,6 +195,7 @@ const CompanionsTable = ({
               key={index + companion.companion.name}
               companion={companion}
               handleViewCompanion={handleViewCompanion}
+              handleBookAppointment={handleBookAppointment}
             />
           ));
         })()}

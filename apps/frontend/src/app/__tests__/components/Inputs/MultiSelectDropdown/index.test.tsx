@@ -11,7 +11,7 @@ jest.mock("react-icons/fa", () => ({
 }));
 jest.mock("react-icons/io", () => ({
   IoIosClose: ({ onClick }: any) => (
-    <span data-testid="icon-close" onClick={onClick} />
+    <button data-testid="icon-close" onClick={onClick} />
   ),
 }));
 

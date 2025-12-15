@@ -57,7 +57,7 @@ export const createDocument = async (document: OrganizationDocument) => {
     const res = await postData<OrganisationDocumentResponse>(url, payload);
     const data = res.data?.data;
     const newDocument: OrganizationDocument = {
-      id: data._id,
+      _id: data._id,
       title: data.title,
       category: data.category,
       description: data.description,
@@ -79,14 +79,11 @@ export const updateDocument = async (document: OrganizationDocument) => {
     return;
   }
   try {
-    const url =
-      document.category === "GENERAL"
-        ? "/v1/organisation-document/pms/" + primaryOrgId + "/documents"
-        : "/v1/organisation-document/pms/" + primaryOrgId + "/documents/policy";
+    const url = "/v1/organisation-document/pms/" + primaryOrgId + "/documents/" + document._id;
     const res = await patchData<OrganisationDocumentResponse>(url, document);
     const data = res.data?.data;
     const newDocument: OrganizationDocument = {
-      id: data._id,
+      _id: data._id,
       title: data.title,
       category: data.category,
       description: data.description,
