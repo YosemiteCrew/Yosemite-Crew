@@ -27,9 +27,21 @@ jobs:
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Run tests with coverage
         working-directory: apps/frontend
-        run: npm test -- --coverage
+        run: pnpm test -- --coverage
 
       - name: SonarQube Scan Frontend
         uses: SonarSource/sonarqube-scan-action@v6
@@ -52,9 +64,21 @@ jobs:
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Run tests with coverage
         working-directory: apps/backend
-        run: npm test -- --coverage
+        run: pnpm test -- --coverage
 
       - name: SonarQube Scan Backend
         uses: SonarSource/sonarqube-scan-action@v6
@@ -77,9 +101,21 @@ jobs:
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Run tests with coverage
         working-directory: apps/mobileAppYC
-        run: npm test -- --coverage
+        run: pnpm test -- --coverage
 
       - name: SonarQube Scan MobileApp
         uses: SonarSource/sonarqube-scan-action@v6
