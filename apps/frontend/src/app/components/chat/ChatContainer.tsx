@@ -27,8 +27,11 @@ import "./ChatContainer.css";
 import {
   getChatClient,
   connectStreamUser,
+  endChatChannel,
 } from "@/app/services/streamChatService";
-import { getMockVetUser } from "@/app/utils/mockStreamBackend";
+import { useAuthStore } from "@/app/stores/authStore";
+import { useUserProfileStore } from "@/app/stores/profileStore";
+import { useOrgStore } from "@/app/stores/orgStore";
 import ProtectedRoute from "../ProtectedRoute";
 import OrgGuard from "../OrgGuard";
 
@@ -119,12 +122,103 @@ const ChannelHeaderWithCounterpart: React.FC<{
   currentUserId?: string | null;
 }> = ({ currentUserId }) => {
   const { channel } = useChannelStateContext();
+  const [closingSession, setClosingSession] = useState(false);
+  const [sessionClosed, setSessionClosed] = useState(false);
   const { title } = getChannelDisplayInfo(
     channel as StreamChannel | null,
     currentUserId
   );
 
-  return <ChannelHeader title={title} />;
+  // Check if session is already closed
+  useEffect(() => {
+    if (channel) {
+      const status = (channel.data as any)?.status;
+      const frozen = (channel.data as any)?.frozen;
+      setSessionClosed(status === 'ended' || frozen === true);
+    }
+  }, [channel]);
+
+  const handleCloseSession = async () => {
+    if (!channel) return;
+
+    // Prevent duplicate calls if already closing or already closed
+    if (closingSession || sessionClosed) return;
+
+    if (!confirm("Are you sure you want to close this chat session? The client will no longer be able to send messages.")) {
+      return;
+    }
+
+    setClosingSession(true);
+    try {
+      const appointmentId = (channel.data as any)?.appointmentId;
+      if (appointmentId) {
+        await endChatChannel(appointmentId);
+        setSessionClosed(true);
+        alert("Chat session closed successfully");
+      }
+    } catch (error) {
+      console.error("Failed to close chat session:", error);
+      alert("Failed to close chat session. Please try again.");
+    } finally {
+      setClosingSession(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', gap: '12px' }}>
+      <ChannelHeader title={title} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {sessionClosed && (
+          <div style={{
+            padding: '6px 12px',
+            backgroundColor: 'var(--grey-light)',
+            border: '1px solid var(--grey-border)',
+            borderRadius: '8px',
+          }}>
+            <p className="font-satoshi" style={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'var(--grey-text)',
+              margin: 0,
+            }}>
+              Session Closed
+            </p>
+          </div>
+        )}
+        {!sessionClosed && (
+          <button
+            onClick={handleCloseSession}
+            disabled={closingSession}
+            className="font-satoshi"
+            style={{
+              padding: '8px 16px',
+              backgroundColor: 'var(--black-bg)',
+              color: 'var(--white-text)',
+              border: '1px solid var(--black-bg)',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: closingSession ? 'not-allowed' : 'pointer',
+              opacity: closingSession ? 0.6 : 1,
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!closingSession) {
+                e.currentTarget.style.backgroundColor = 'var(--black-hover)';
+                e.currentTarget.style.boxShadow = '0 0 16px 0 rgba(0, 0, 0, 0.16)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--black-bg)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            {closingSession ? 'Closing...' : 'Close Session'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
@@ -132,7 +226,7 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   currentUserId,
   ...previewProps
 }) => {
-  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (
+  const handlePreviewSelect: React.MouseEventHandler<HTMLDivElement> = (
     event
   ) => {
     previewProps.onSelect?.(
@@ -141,13 +235,13 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
     onPreviewSelect?.(previewProps.channel ?? null);
   };
 
-  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event
   ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handlePreviewSelect(
-        event as unknown as React.MouseEvent<HTMLButtonElement>
+        event as unknown as React.MouseEvent<HTMLDivElement>
       );
     }
   };
@@ -158,18 +252,20 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   );
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className="chat-preview-trigger"
       onClick={handlePreviewSelect}
       onKeyDown={handleKeyDown}
+      style={{ cursor: 'pointer' }}
     >
       <ChannelPreviewMessenger
         {...previewProps}
         displayTitle={title}
         displayImage={image}
       />
-    </button>
+    </div>
   );
 };
 
@@ -191,29 +287,122 @@ const createPreviewComponent = (
   return PreviewComponent;
 };
 
+const ChatClosedFooter: React.FC<{ closedAt?: string }> = ({ closedAt }) => {
+  const formatClosedTime = (timestamp?: string) => {
+    if (!timestamp) return '';
+
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  };
+
+  return (
+    <div style={{
+      padding: '16px',
+      backgroundColor: 'var(--grey-light)',
+      borderTop: '1px solid var(--grey-border)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '8px'
+    }}>
+      <p className="font-satoshi" style={{
+        fontSize: '14px',
+        fontWeight: 500,
+        color: 'var(--grey-text)',
+        margin: 0,
+      }}>
+        Chat session closed
+      </p>
+      {closedAt && (
+        <p className="font-satoshi" style={{
+          fontSize: '12px',
+          color: 'var(--grey-noti)',
+          margin: 0,
+        }}>
+          {formatClosedTime(closedAt)}
+        </p>
+      )}
+    </div>
+  );
+};
+
+const ChatWindowContent: React.FC<{ currentUserId?: string | null }> = ({ currentUserId }) => {
+  const { channel } = useChannelStateContext();
+  const [frozen, setFrozen] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (channel) {
+      const channelData = channel.data as any;
+      setFrozen(channelData?.frozen === true);
+      setUpdatedAt(channelData?.updated_at);
+
+      // Listen for channel updates
+      const handleChannelUpdate = () => {
+        const updatedData = channel.data as any;
+        setFrozen(updatedData?.frozen === true);
+        setUpdatedAt(updatedData?.updated_at);
+      };
+
+      channel.on('channel.updated', handleChannelUpdate);
+
+      return () => {
+        channel.off('channel.updated', handleChannelUpdate);
+      };
+    }
+  }, [channel]);
+
+  return (
+    <div className="str-chat__window">
+      <Window>
+        <ChannelHeaderWithCounterpart currentUserId={currentUserId} />
+        <MessageList />
+        {frozen ? (
+          <ChatClosedFooter closedAt={updatedAt} />
+        ) : (
+          <MessageInput />
+        )}
+      </Window>
+    </div>
+  );
+};
+
 const ChatWindow: React.FC<ChatWindowProps> = ({
   showBackButton,
   onBack,
   currentUserId,
-}) => (
-  <>
-    {showBackButton && (
-      <button type="button" className="chat-back-button" onClick={onBack}>
-        ← Back
-      </button>
-    )}
-    <Channel>
-      <div className="str-chat__window">
-        <Window>
-          <ChannelHeaderWithCounterpart currentUserId={currentUserId} />
-          <MessageList />
-          <MessageInput />
-        </Window>
-      </div>
-      <Thread />
-    </Channel>
-  </>
-);
+}) => {
+  return (
+    <>
+      {showBackButton && (
+        <button type="button" className="chat-back-button" onClick={onBack}>
+          ← Back
+        </button>
+      )}
+      <Channel>
+        <ChatWindowContent currentUserId={currentUserId} />
+        <Thread />
+      </Channel>
+    </>
+  );
+};
 
 const ChatMainPanel: React.FC<ChatMainPanelProps> = ({
   isMobile,
@@ -295,21 +484,49 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
   // Initialize chat
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
       try {
-        const vetUser = getMockVetUser();
+        const { attributes } = useAuthStore.getState();
+        const { primaryOrgId } = useOrgStore.getState();
+
+        if (!attributes || !primaryOrgId) {
+          if (!cancelled) {
+            setError("User profile not loaded");
+            setLoading(false);
+          }
+          return;
+        }
+
+        const userId = attributes.sub || attributes.email;
+        const userName = `${attributes.given_name || ''} ${attributes.family_name || ''}`.trim() || attributes.email;
+        const userImage = attributes.picture;
+
         const chatClient = getChatClient();
-        await connectStreamUser(vetUser.id, vetUser.name, vetUser.image);
-        setClient(chatClient);
-        setLoading(false);
+
+        // Only connect if not already connected to this user
+        if (chatClient.userID !== userId) {
+          await connectStreamUser(userId, userName, userImage);
+        }
+
+        if (!cancelled) {
+          setClient(chatClient);
+          setLoading(false);
+        }
       } catch (err: any) {
-        console.error("Chat init error:", err);
-        setError(err.message || "Failed to load chat");
-        setLoading(false);
+        if (!cancelled) {
+          setError(err.message || "Failed to load chat");
+          setLoading(false);
+        }
       }
     };
 
     init();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handlePreviewSelect = useCallback(
@@ -368,17 +585,52 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     presence: true,
   };
 
-  const renderAppointmentChannel = appointmentId ? (
-    <Channel
-      channel={client.channel("messaging", `appointment-${appointmentId}`)}
-    >
+  const AppointmentChannelContent = () => {
+    const { channel } = useChannelStateContext();
+    const [frozen, setFrozen] = useState(false);
+    const [updatedAt, setUpdatedAt] = useState<string | undefined>();
+
+    useEffect(() => {
+      if (channel) {
+        const channelData = channel.data as any;
+        setFrozen(channelData?.frozen === true);
+        setUpdatedAt(channelData?.updated_at);
+
+        // Listen for channel updates
+        const handleChannelUpdate = () => {
+          const updatedData = channel.data as any;
+          setFrozen(updatedData?.frozen === true);
+          setUpdatedAt(updatedData?.updated_at);
+        };
+
+        channel.on('channel.updated', handleChannelUpdate);
+
+        return () => {
+          channel.off('channel.updated', handleChannelUpdate);
+        };
+      }
+    }, [channel]);
+
+    return (
       <div className="str-chat__window">
         <Window>
           <ChannelHeaderWithCounterpart currentUserId={client.userID} />
           <MessageList />
-          <MessageInput />
+          {frozen ? (
+            <ChatClosedFooter closedAt={updatedAt} />
+          ) : (
+            <MessageInput />
+          )}
         </Window>
       </div>
+    );
+  };
+
+  const renderAppointmentChannel = appointmentId ? (
+    <Channel
+      channel={client.channel("messaging", `appointment-${appointmentId}`)}
+    >
+      <AppointmentChannelContent />
       <Thread />
     </Channel>
   ) : null;

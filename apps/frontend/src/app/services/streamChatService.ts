@@ -6,6 +6,7 @@
  */
 
 import {StreamChat, OwnUserResponse} from 'stream-chat';
+import { getChatToken, createChatSession, closeChatSession as apiCloseChatSession } from './chatService';
 
 let chatClient: StreamChat | null = null;
 
@@ -16,7 +17,6 @@ const getStreamApiKey = (): string => {
   const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 
   if (!apiKey) {
-    console.error('[Stream] API Key not found. Please set NEXT_PUBLIC_STREAM_API_KEY in .env.local');
     throw new Error('Stream API Key not configured');
   }
 
@@ -32,8 +32,6 @@ const getStreamApiKey = (): string => {
 export const getChatClient = (): StreamChat => {
   if (!chatClient) {
     const apiKey = getStreamApiKey();
-
-    console.log('[Stream] Initializing chat client');
     chatClient = StreamChat.getInstance(apiKey);
   }
 
@@ -46,54 +44,58 @@ export const getChatClient = (): StreamChat => {
  * @param userId - Unique user ID
  * @param userName - Display name for the user
  * @param userImage - Optional avatar URL
- * @param token - Optional authentication token (from backend)
  * @returns Promise<StreamChat> - Connected client instance
  */
+let connectionPromise: Promise<StreamChat> | null = null;
+
 export const connectStreamUser = async (
   userId: string,
   userName: string,
   userImage?: string,
-  token?: string,
 ): Promise<StreamChat> => {
   const client = getChatClient();
 
   // Check if already connected to avoid duplicate connections
   if (client.userID === userId) {
-    console.log('[Stream] User already connected:', userId);
     return client;
+  }
+
+  // If connection is in progress, wait for it
+  if (connectionPromise) {
+    return connectionPromise;
   }
 
   // Disconnect existing user if any
   if (client.userID) {
-    console.log('[Stream] Disconnecting existing user:', client.userID);
     await client.disconnectUser();
   }
 
-  try {
-    console.log('[Stream] Connecting user:', userId);
+  connectionPromise = (async () => {
+    try {
+      // User data to send to Stream
+      const userData: {id: string; name: string; image?: string} = {
+        id: userId,
+        name: userName,
+      };
 
-    // User data to send to Stream
-    const userData: {id: string; name: string; image?: string} = {
-      id: userId,
-      name: userName,
-    };
+      if (userImage) {
+        userData.image = userImage;
+      }
 
-    if (userImage) {
-      userData.image = userImage;
+      // Get token from backend API
+      const { token } = await getChatToken();
+
+      await client.connectUser(userData, token);
+
+      return client;
+    } catch (error) {
+      throw new Error('Failed to connect to chat. Please try again.');
+    } finally {
+      connectionPromise = null;
     }
+  })();
 
-    // Use provided token or generate development token
-    // IMPORTANT: In production, always use backend-generated tokens!
-    const userToken = token || client.devToken(userId);
-
-    await client.connectUser(userData, userToken);
-
-    console.log('[Stream] User connected successfully:', userId);
-    return client;
-  } catch (error) {
-    console.error('[Stream] Failed to connect user:', error);
-    throw new Error('Failed to connect to chat. Please try again.');
-  }
+  return connectionPromise;
 };
 
 /**
@@ -104,11 +106,9 @@ export const connectStreamUser = async (
 export const disconnectStreamUser = async (): Promise<void> => {
   if (chatClient?.userID) {
     try {
-      console.log('[Stream] Disconnecting user:', chatClient.userID);
       await chatClient.disconnectUser();
-      console.log('[Stream] User disconnected successfully');
     } catch (error) {
-      console.error('[Stream] Failed to disconnect user:', error);
+      // Silent fail on disconnect
     }
   }
 };
@@ -117,19 +117,11 @@ export const disconnectStreamUser = async (): Promise<void> => {
  * Get or create a channel for an appointment
  *
  * @param appointmentId - Unique appointment ID
- * @param petOwnerId - Pet owner user ID
- * @param appointmentData - Additional appointment data
  * @returns Promise<Channel> - The appointment channel
  * @throws Error if user is not connected
  */
 export const getAppointmentChannel = async (
   appointmentId: string,
-  petOwnerId: string,
-  appointmentData?: {
-    petOwnerName?: string;
-    appointmentTime?: string;
-    petName?: string;
-  },
 ) => {
   const client = getChatClient();
 
@@ -137,30 +129,20 @@ export const getAppointmentChannel = async (
     throw new Error('User must be connected before accessing channels');
   }
 
-  const channelId = `appointment-${appointmentId}`;
+  try {
+    // Create or get existing channel via backend API
+    const { channelId } = await createChatSession(appointmentId);
 
-  console.log('[Stream] Getting/creating channel:', channelId);
+    // Get channel reference from Stream
+    const channel = client.channel('messaging', channelId);
 
-  // Create or get existing channel
-  const channelData: Record<string, unknown> = {
-    name: `Chat with ${appointmentData?.petOwnerName || 'Pet Owner'}`,
-    members: [client.userID, petOwnerId],
-    // Custom metadata
-    appointmentId,
-    appointmentTime: appointmentData?.appointmentTime,
-    petName: appointmentData?.petName,
-    activationMinutes: 5,
-    status: 'active',
-  };
+    // Watch the channel to receive real-time updates
+    await channel.watch();
 
-  const channel = client.channel('messaging', channelId, channelData);
-
-  // Watch the channel to receive real-time updates
-  await channel.watch();
-
-  console.log('[Stream] Channel ready:', channelId);
-
-  return channel;
+    return channel;
+  } catch (error) {
+    throw new Error('Failed to access chat for this appointment');
+  }
 };
 
 /**
@@ -173,9 +155,8 @@ export const markChannelAsRead = async (channelId: string): Promise<void> => {
     const client = getChatClient();
     const channel = client.channel('messaging', channelId);
     await channel.markRead();
-    console.log('[Stream] Channel marked as read:', channelId);
   } catch (error) {
-    console.error('[Stream] Failed to mark channel as read:', error);
+    // Silent fail
   }
 };
 
@@ -193,7 +174,6 @@ export const getUnreadCount = async (): Promise<number> => {
       ((client.user as OwnUserResponse | undefined)?.total_unread_count) || 0;
     return unreadCount;
   } catch (error) {
-    console.error('[Stream] Failed to get unread count:', error);
     return 0;
   }
 };
@@ -216,10 +196,7 @@ export const sendMessage = async (
     await channel.sendMessage({
       text,
     });
-
-    console.log('[Stream] Message sent to channel:', channelId);
   } catch (error) {
-    console.error('[Stream] Failed to send message:', error);
     throw error;
   }
 };
@@ -227,30 +204,14 @@ export const sendMessage = async (
 /**
  * End a chat channel (PMS only)
  *
- * @param channelId - Channel ID to end
+ * @param sessionId - Session ID to end
  * @returns Promise<void>
  */
-export const endChatChannel = async (channelId: string): Promise<void> => {
+export const endChatChannel = async (sessionId: string): Promise<void> => {
   try {
-    const client = getChatClient();
-    const channel = client.channel('messaging', channelId);
-
-    // Send system message
-    await channel.sendMessage({
-      text: 'This chat has been ended by the veterinary practice. Thank you!',
-      user_id: 'system',
-    });
-
-    // Update channel metadata
-    await channel.updatePartial({
-      set: {
-        status: 'ended',
-      },
-    } as any);
-
-    console.log('[Stream] Channel ended:', channelId);
+    // Call backend API to close the session
+    await apiCloseChatSession(sessionId);
   } catch (error) {
-    console.error('[Stream] Failed to end channel:', error);
     throw error;
   }
 };
