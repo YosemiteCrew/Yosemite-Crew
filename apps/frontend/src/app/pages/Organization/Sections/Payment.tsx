@@ -1,10 +1,9 @@
 import AccordionButton from "@/app/components/Accordion/AccordionButton";
 import SmallAccordionButton from "@/app/components/Accordion/SmallAccordionButton";
 import InvoiceDataTable from "@/app/components/DataTable/InvoiceTable";
-import React, { useState } from "react";
+import React from "react";
 import ProfileCard from "./ProfileCard";
-import { InvoiceProps } from "@/app/types/invoice";
-import { demoInvoices } from "../../Finance/demo";
+import { useInvoicesForPrimaryOrg } from "@/app/hooks/useInvoices";
 
 const BasicFields = [
   {
@@ -90,7 +89,7 @@ const BillingFields = [
 ];
 
 const Payment = () => {
-  const [filteredList] = useState<InvoiceProps[]>(demoInvoices);
+  const invoices = useInvoicesForPrimaryOrg();
 
   return (
     <AccordionButton title="Payment" showButton={false}>
@@ -119,7 +118,7 @@ const Payment = () => {
           }}
         />
         <SmallAccordionButton title="Invoices" showButton={false}>
-          <InvoiceDataTable filteredList={filteredList} />
+          <InvoiceDataTable filteredList={invoices} />
         </SmallAccordionButton>
       </div>
     </AccordionButton>

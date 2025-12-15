@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Search from "../../Inputs/Search";
-import { InvoiceProps } from "@/app/types/invoice";
+import { Invoice } from "@yosemite-crew/types";
 
 const Category = [
   {
@@ -17,14 +17,14 @@ const Statuses = [
     text: "#302f2e",
   },
   {
-    name: "Draft",
-    key: "draft",
+    name: "Pending",
+    key: "pending",
     bg: "#FEF3E9",
     text: "#F68523",
   },
   {
-    name: "Open",
-    key: "open",
+    name: "Awaiting payment",
+    key: "awaiting_payment",
     bg: "#EAF3FF",
     text: "#247AED",
   },
@@ -35,28 +35,28 @@ const Statuses = [
     text: "#54B492",
   },
   {
-    name: "Uncollectible",
-    key: "uncollectible",
+    name: "Failed",
+    key: "failed",
     bg: "#FDEBEA",
     text: "#EA3729",
   },
   {
-    name: "Deleted",
-    key: "deleted",
+    name: "Cancelled",
+    key: "cancelled",
     bg: "#FDEBEA",
     text: "#EA3729",
   },
   {
-    name: "Void",
-    key: "void",
+    name: "Refunded",
+    key: "refunded",
     bg: "#EAEAEA",
     text: "#302F2E",
   },
 ];
 
 type InvoicesFiltersProps = {
-  list: InvoiceProps[];
-  setFilteredList: React.Dispatch<React.SetStateAction<InvoiceProps[]>>;
+  list: Invoice[];
+  setFilteredList: React.Dispatch<React.SetStateAction<Invoice[]>>;
 };
 
 const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
@@ -65,14 +65,14 @@ const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
   const [search, setSearch] = useState("");
 
   const filteredList = useMemo(() => {
-    return list.filter((item: InvoiceProps) => {
+    return list.filter((item: Invoice) => {
       const matchesStatus =
         activeStatus === "all" ||
         item.status.toLowerCase() === activeStatus.toLowerCase();
       const matchesCategory = activeCategory === "all";
       const matchesSearch =
-        item.metadata.pet.toLowerCase().includes(search.toLowerCase()) ||
-        item.metadata.parent.toLowerCase().includes(search.toLowerCase());
+        item.parentId?.toLowerCase().includes(search.toLowerCase()) ||
+        item.companionId?.toLowerCase().includes(search.toLowerCase());
       return matchesStatus && matchesCategory && matchesSearch;
     });
   }, [list, activeCategory, activeStatus, search]);

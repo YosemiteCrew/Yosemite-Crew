@@ -62,7 +62,7 @@ const DashboardProfile = () => {
               </div>
               <Secondary
                 text="Add services"
-                href="/orgnanization"
+                href="/organization"
                 className="w-[200px]!"
               />
             </div>
@@ -72,7 +72,7 @@ const DashboardProfile = () => {
               </div>
               <Secondary
                 text="Invite team"
-                href="/orgnanization"
+                href="/organization"
                 className="w-[200px]!"
               />
             </div>
