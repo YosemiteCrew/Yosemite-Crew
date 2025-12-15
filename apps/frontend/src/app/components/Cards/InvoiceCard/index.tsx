@@ -1,32 +1,19 @@
-import Image from "next/image";
 import React from "react";
-import { InvoiceProps } from "@/app/types/invoice";
 import { getStatusStyle } from "../../DataTable/InvoiceTable";
+import { Invoice } from "@yosemite-crew/types";
+import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 
 type InvoiceCardProps = {
-  invoice: InvoiceProps;
+  invoice: Invoice;
   handleViewInvoice: any;
 };
 
 const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
-      <div className="flex gap-2 items-center">
-        <Image
-          alt={invoice.metadata.pet}
-          src={invoice.metadata.petImage}
-          height={40}
-          width={40}
-          style={{ borderRadius: "50%" }}
-          className="h-10 w-10 rounded-full"
-        />
-        <div className="flex flex-col gap-0">
-          <div className="text-[13px] font-satoshi font-bold text-black-text">
-            {invoice.metadata.pet}
-          </div>
-          <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-            {invoice.metadata.parent}
-          </div>
+      <div className="flex gap-1">
+        <div className="text-[23px] font-satoshi font-bold text-black-text">
+          {invoice?.companionId || "-"}
         </div>
       </div>
       <div className="flex gap-1">
@@ -34,7 +21,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           Appointment ID:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {invoice.metadata.appointmentId}
+          {invoice?.id || "-"}
         </div>
       </div>
       <div className="flex gap-1">
@@ -42,7 +29,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           Service:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {invoice.metadata.service}
+          {invoice?.id || "-"}
         </div>
       </div>
       <div className="flex gap-1">
@@ -50,7 +37,9 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           Date / Time:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {invoice.date + " / " + invoice.time}
+          {formatDateLabel(invoice.createdAt) +
+            " / " +
+            formatTimeLabel(invoice.createdAt)}
         </div>
       </div>
       <div className="flex gap-1">
@@ -58,7 +47,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           Sub-total:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {"$ " + invoice.subtotal}
+          {"$ " + invoice?.subtotal}
         </div>
       </div>
       <div className="flex gap-1">
@@ -66,7 +55,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           Tax:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {"$ " + invoice.tax}
+          {"$ " + invoice?.taxTotal}
         </div>
       </div>
       <div className="flex gap-1">
@@ -74,7 +63,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           Total:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {invoice.total}
+          {invoice?.totalAmount}
         </div>
       </div>
       <div
