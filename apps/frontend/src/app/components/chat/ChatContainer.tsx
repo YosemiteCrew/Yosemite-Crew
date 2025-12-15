@@ -30,7 +30,6 @@ import {
   endChatChannel,
 } from "@/app/services/streamChatService";
 import { useAuthStore } from "@/app/stores/authStore";
-import { useUserProfileStore } from "@/app/stores/profileStore";
 import { useOrgStore } from "@/app/stores/orgStore";
 import ProtectedRoute from "../ProtectedRoute";
 import OrgGuard from "../OrgGuard";
@@ -76,6 +75,11 @@ interface ChannelDisplayInfo {
   image?: string;
 }
 
+interface ChannelState {
+  frozen: boolean;
+  updatedAt?: string;
+}
+
 const getChannelDisplayInfo = (
   channel: StreamChannel | null | undefined,
   currentUserId?: string | null
@@ -103,7 +107,7 @@ const getChannelDisplayInfo = (
   const counterpartImage = counterpart?.user?.image;
 
   const title =
-    (petName && petOwnerName ? `${petName} (${petOwnerName})` : undefined) ||
+    (petName && petOwnerName ? `${petName}{' '}(${petOwnerName})` : undefined) ||
     petOwnerName ||
     petName ||
     counterpartName ||
@@ -116,6 +120,41 @@ const getChannelDisplayInfo = (
     counterpartImage;
 
   return { title, image };
+};
+
+// Custom hook for channel state management
+const useChannelState = () => {
+  const { channel } = useChannelStateContext();
+  const [state, setState] = useState<ChannelState>({
+    frozen: false,
+    updatedAt: undefined,
+  });
+
+  useEffect(() => {
+    if (channel) {
+      const channelData = channel.data as any;
+      const isFrozen = channelData?.frozen === true;
+      const updatedAt = channelData?.updated_at;
+
+      setState({ frozen: isFrozen, updatedAt });
+
+      // Listen for channel updates
+      const handleChannelUpdate = () => {
+        const updatedData = channel.data as any;
+        const newFrozen = updatedData?.frozen === true;
+        const newUpdatedAt = updatedData?.updated_at;
+        setState({ frozen: newFrozen, updatedAt: newUpdatedAt });
+      };
+
+      channel.on('channel.updated', handleChannelUpdate);
+
+      return () => {
+        channel.off('channel.updated', handleChannelUpdate);
+      };
+    }
+  }, [channel]);
+
+  return state;
 };
 
 const ChannelHeaderWithCounterpart: React.FC<{
@@ -134,7 +173,8 @@ const ChannelHeaderWithCounterpart: React.FC<{
     if (channel) {
       const status = (channel.data as any)?.status;
       const frozen = (channel.data as any)?.frozen;
-      setSessionClosed(status === 'ended' || frozen === true);
+      const isSessionClosed = status === 'ended' || frozen === true;
+      setSessionClosed(isSessionClosed);
     }
   }, [channel]);
 
@@ -144,7 +184,8 @@ const ChannelHeaderWithCounterpart: React.FC<{
     // Prevent duplicate calls if already closing or already closed
     if (closingSession || sessionClosed) return;
 
-    if (!confirm("Are you sure you want to close this chat session? The client will no longer be able to send messages.")) {
+    const confirmed = confirm("Are you sure you want to close this chat session? The client will no longer be able to send messages.");
+    if (!confirmed) {
       return;
     }
 
@@ -164,11 +205,13 @@ const ChannelHeaderWithCounterpart: React.FC<{
     }
   };
 
+  const hasSessionClosed = sessionClosed;
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', gap: '12px' }}>
       <ChannelHeader title={title} />
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {sessionClosed && (
+        {hasSessionClosed && (
           <div style={{
             padding: '6px 12px',
             backgroundColor: 'var(--grey-light)',
@@ -185,7 +228,7 @@ const ChannelHeaderWithCounterpart: React.FC<{
             </p>
           </div>
         )}
-        {!sessionClosed && (
+        {!hasSessionClosed && (
           <button
             onClick={handleCloseSession}
             disabled={closingSession}
@@ -226,7 +269,7 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   currentUserId,
   ...previewProps
 }) => {
-  const handlePreviewSelect: React.MouseEventHandler<HTMLDivElement> = (
+  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (
     event
   ) => {
     previewProps.onSelect?.(
@@ -235,13 +278,13 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
     onPreviewSelect?.(previewProps.channel ?? null);
   };
 
-  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
+  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (
     event
   ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handlePreviewSelect(
-        event as unknown as React.MouseEvent<HTMLDivElement>
+        event as unknown as React.MouseEvent<HTMLButtonElement>
       );
     }
   };
@@ -252,20 +295,28 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   );
 
   return (
-    <div
-      role="button"
+    <button
+      type="button"
       tabIndex={0}
       className="chat-preview-trigger"
       onClick={handlePreviewSelect}
       onKeyDown={handleKeyDown}
-      style={{ cursor: 'pointer' }}
+      style={{ 
+        cursor: 'pointer',
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        margin: 0,
+        textAlign: 'left',
+        width: '100%'
+      }}
     >
       <ChannelPreviewMessenger
         {...previewProps}
         displayTitle={title}
         displayImage={image}
       />
-    </div>
+    </button>
   );
 };
 
@@ -306,11 +357,14 @@ const ChatClosedFooter: React.FC<{ closedAt?: string }> = ({ closedAt }) => {
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      // show year only when it's different from current year
+      year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
       hour: 'numeric',
       minute: '2-digit'
     });
   };
+
+  const formattedClosedTime = formatClosedTime(closedAt);
 
   return (
     <div style={{
@@ -330,52 +384,39 @@ const ChatClosedFooter: React.FC<{ closedAt?: string }> = ({ closedAt }) => {
       }}>
         Chat session closed
       </p>
-      {closedAt && (
+      {formattedClosedTime && (
         <p className="font-satoshi" style={{
           fontSize: '12px',
           color: 'var(--grey-noti)',
           margin: 0,
         }}>
-          {formatClosedTime(closedAt)}
+          {formattedClosedTime}
         </p>
       )}
     </div>
   );
 };
 
-const ChatWindowContent: React.FC<{ currentUserId?: string | null }> = ({ currentUserId }) => {
-  const { channel } = useChannelStateContext();
-  const [frozen, setFrozen] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<string | undefined>();
+// Shared component for channel window content with different header components
+interface ChannelWindowContentProps {
+  currentUserId?: string | null;
+  headerComponent: React.ComponentType<{ currentUserId?: string | null }>;
+}
 
-  useEffect(() => {
-    if (channel) {
-      const channelData = channel.data as any;
-      setFrozen(channelData?.frozen === true);
-      setUpdatedAt(channelData?.updated_at);
-
-      // Listen for channel updates
-      const handleChannelUpdate = () => {
-        const updatedData = channel.data as any;
-        setFrozen(updatedData?.frozen === true);
-        setUpdatedAt(updatedData?.updated_at);
-      };
-
-      channel.on('channel.updated', handleChannelUpdate);
-
-      return () => {
-        channel.off('channel.updated', handleChannelUpdate);
-      };
-    }
-  }, [channel]);
+const ChannelWindowContent: React.FC<ChannelWindowContentProps> = ({ 
+  currentUserId, 
+  headerComponent: HeaderComponent 
+}) => {
+  const channelState = useChannelState();
+  const HeaderComponentTyped = HeaderComponent;
 
   return (
     <div className="str-chat__window">
       <Window>
-        <ChannelHeaderWithCounterpart currentUserId={currentUserId} />
+        <HeaderComponentTyped currentUserId={currentUserId} />
         <MessageList />
-        {frozen ? (
-          <ChatClosedFooter closedAt={updatedAt} />
+        {channelState.frozen ? (
+          <ChatClosedFooter closedAt={channelState.updatedAt} />
         ) : (
           <MessageInput />
         )}
@@ -384,20 +425,33 @@ const ChatWindowContent: React.FC<{ currentUserId?: string | null }> = ({ curren
   );
 };
 
+
+// Specialized components for different use cases with distinct implementations
+// Reuse ChannelWindowContent for both appointment and regular channels
+const AppointmentChannelWindow: React.FC<{ currentUserId?: string | null }> = ({ currentUserId }) => (
+  <ChannelWindowContent headerComponent={ChannelHeaderWithCounterpart} currentUserId={currentUserId} />
+);
+
+const RegularChannelWindow: React.FC<{ currentUserId?: string | null }> = ({ currentUserId }) => (
+  <ChannelWindowContent headerComponent={ChannelHeaderWithCounterpart} currentUserId={currentUserId} />
+);
+
 const ChatWindow: React.FC<ChatWindowProps> = ({
   showBackButton,
   onBack,
   currentUserId,
 }) => {
+  const shouldShowBackButton = showBackButton;
+
   return (
     <>
-      {showBackButton && (
+      {shouldShowBackButton && (
         <button type="button" className="chat-back-button" onClick={onBack}>
           ← Back
         </button>
       )}
       <Channel>
-        <ChatWindowContent currentUserId={currentUserId} />
+        <RegularChannelWindow currentUserId={currentUserId} />
         <Thread />
       </Channel>
     </>
@@ -410,22 +464,27 @@ const ChatMainPanel: React.FC<ChatMainPanelProps> = ({
   showBackButton,
   onBack,
   currentUserId,
-}) => (
-  <div
-    className="str-chat__main-panel"
-    style={{
-      display: isMobile && !isChannelSelected ? "none" : "flex",
-      flex: 1,
-      minHeight: 0,
-    }}
-  >
-    <ChatWindow
-      showBackButton={showBackButton && isMobile && isChannelSelected}
-      onBack={onBack}
-      currentUserId={currentUserId}
-    />
-  </div>
-);
+}) => {
+  const shouldShowChat = isMobile ? isChannelSelected : true;
+
+  return (
+    <div
+      className="str-chat__main-panel"
+      style={{
+        display: shouldShowChat ? "flex" : "none",
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
+      <ChatWindow
+        showBackButton={showBackButton && isMobile && isChannelSelected}
+        onBack={onBack}
+        currentUserId={currentUserId}
+      />
+    </div>
+  );
+};
+
 
 const ChatLayout: React.FC<ChatLayoutProps> = ({
   filters,
@@ -436,29 +495,34 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   previewComponent,
   onBack,
   currentUserId,
-}) => (
-  <div className="str-chat__container">
-    <div
-      className="str-chat__channel-list-wrapper"
-      style={{ display: isMobile && isChannelSelected ? "none" : "flex" }}
-    >
-      <ChannelList
-        filters={filters}
-        sort={sort}
-        options={options}
-        Preview={previewComponent}
+
+}) => {
+  const shouldShowChannelList = !isMobile || !isChannelSelected;
+
+  return (
+    <div className="str-chat__container">
+      <div
+        className="str-chat__channel-list-wrapper"
+        style={{ display: shouldShowChannelList ? "flex" : "none" }}
+      >
+        <ChannelList
+          filters={filters}
+          sort={sort}
+          options={options}
+          Preview={previewComponent}
+        />
+      </div>
+
+      <ChatMainPanel
+        isMobile={isMobile}
+        isChannelSelected={isChannelSelected}
+        showBackButton
+        onBack={onBack}
+        currentUserId={currentUserId}
       />
     </div>
-
-    <ChatMainPanel
-      isMobile={isMobile}
-      isChannelSelected={isChannelSelected}
-      showBackButton
-      onBack={onBack}
-      currentUserId={currentUserId}
-    />
-  </div>
-);
+  );
+};
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({
   appointmentId,
@@ -500,7 +564,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         }
 
         const userId = attributes.sub || attributes.email;
-        const userName = `${attributes.given_name || ''} ${attributes.family_name || ''}`.trim() || attributes.email;
+        const userName = `${attributes.given_name || ''}{' '}${attributes.family_name || ''}`.trim() || attributes.email;
         const userImage = attributes.picture;
 
         const chatClient = getChatClient();
@@ -542,7 +606,11 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     [handlePreviewSelect, client?.userID]
   );
 
-  if (loading) {
+  // Extract conditional rendering logic
+  const isLoading = loading;
+  const hasError = error || !client;
+
+  if (isLoading) {
     return (
       <div
         style={{
@@ -557,7 +625,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     );
   }
 
-  if (error || !client) {
+  if (hasError) {
+    const errorMessage = error || "Unable to load chat";
     return (
       <div
         style={{
@@ -567,7 +636,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
           height: "400px",
         }}
       >
-        <p style={{ color: "#d32f2f" }}>{error || "Unable to load chat"}</p>
+        <p style={{ color: "#d32f2f" }}>{errorMessage}</p>
       </div>
     );
   }
@@ -585,73 +654,34 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     presence: true,
   };
 
-  const AppointmentChannelContent = () => {
-    const { channel } = useChannelStateContext();
-    const [frozen, setFrozen] = useState(false);
-    const [updatedAt, setUpdatedAt] = useState<string | undefined>();
-
-    useEffect(() => {
-      if (channel) {
-        const channelData = channel.data as any;
-        setFrozen(channelData?.frozen === true);
-        setUpdatedAt(channelData?.updated_at);
-
-        // Listen for channel updates
-        const handleChannelUpdate = () => {
-          const updatedData = channel.data as any;
-          setFrozen(updatedData?.frozen === true);
-          setUpdatedAt(updatedData?.updated_at);
-        };
-
-        channel.on('channel.updated', handleChannelUpdate);
-
-        return () => {
-          channel.off('channel.updated', handleChannelUpdate);
-        };
-      }
-    }, [channel]);
-
-    return (
-      <div className="str-chat__window">
-        <Window>
-          <ChannelHeaderWithCounterpart currentUserId={client.userID} />
-          <MessageList />
-          {frozen ? (
-            <ChatClosedFooter closedAt={updatedAt} />
-          ) : (
-            <MessageInput />
-          )}
-        </Window>
-      </div>
-    );
-  };
-
   const renderAppointmentChannel = appointmentId ? (
     <Channel
       channel={client.channel("messaging", `appointment-${appointmentId}`)}
     >
-      <AppointmentChannelContent />
+      <AppointmentChannelWindow currentUserId={client.userID} />
       <Thread />
     </Channel>
   ) : null;
 
+  const chatContent = appointmentId ? (
+    renderAppointmentChannel
+  ) : (
+    <ChatLayout
+      filters={filters}
+      sort={sort}
+      options={options}
+      isMobile={isMobile}
+      isChannelSelected={isChannelSelected}
+      previewComponent={previewComponent}
+      onBack={() => setIsChannelSelected(false)}
+      currentUserId={client.userID}
+    />
+  );
+
   return (
     <div className={className}>
       <Chat client={client} theme="str-chat__theme-light">
-        {appointmentId ? (
-          renderAppointmentChannel
-        ) : (
-          <ChatLayout
-            filters={filters}
-            sort={sort}
-            options={options}
-            isMobile={isMobile}
-            isChannelSelected={isChannelSelected}
-            previewComponent={previewComponent}
-            onBack={() => setIsChannelSelected(false)}
-            currentUserId={client.userID}
-          />
-        )}
+        {chatContent}
       </Chat>
     </div>
   );
