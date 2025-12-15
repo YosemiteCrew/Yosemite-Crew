@@ -4,6 +4,11 @@ import { ApiDayAvailability } from "../../components/Availability/utils";
 
 // --- Mock Data Helpers ---
 
+// Helper to create a partial structure that matches the deep shape of UserProfile
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
 const createValidProfile = (overrides?: DeepPartial<UserProfile>): UserProfile => {
   const baseProfile: any = {
     personalDetails: {
@@ -37,11 +42,6 @@ const createValidProfile = (overrides?: DeepPartial<UserProfile>): UserProfile =
   return baseProfile;
 };
 
-// Type helper for the mock function
-type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-};
-
 const mockSlots: ApiDayAvailability[] = [
   { day: "Monday", slots: [{ start: "09:00", end: "17:00" }] } as any,
 ];
@@ -72,7 +72,8 @@ describe("computeTeamOnboardingStep", () => {
   });
 
   it("returns 0 if 'gender' is missing", () => {
-    const profile = createValidProfile({ personalDetails: { gender: "" } });
+    // FIX: Cast "" to any to bypass strict Gender type checking for this negative test
+    const profile = createValidProfile({ personalDetails: { gender: "" as any } });
     expect(computeTeamOnboardingStep(profile, mockSlots)).toBe(0);
   });
 
@@ -131,8 +132,6 @@ describe("computeTeamOnboardingStep", () => {
 
   it("returns 1 if 'yearsOfExperience' is missing (or zero/falsy)", () => {
     // Assuming 0 experience might be treated as falsy in your logic (!!0 is false).
-    // If 0 is valid, the source code should check "!= null".
-    // Based on current source "!!yearsOfExperience", 0 fails.
     const profile = createValidProfile({ professionalDetails: { yearsOfExperience: 0 } });
     expect(computeTeamOnboardingStep(profile, mockSlots)).toBe(1);
   });
