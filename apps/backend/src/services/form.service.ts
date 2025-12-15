@@ -325,7 +325,7 @@ export const FormService = {
       formId: Types.ObjectId | string;
     };
 
-    type SoapNoteType = "Subjective" | "Objective" | "Assessment" | "Plan";
+    type SoapNoteType = "Subjective" | "Objective" | "Assessment" | "Plan" | "Discharge";
 
     type SoapNoteEntry = {
       submissionId: string;
@@ -380,6 +380,7 @@ export const FormService = {
       Objective: [],
       Assessment: [],
       Plan: [],
+      Discharge: [],
     };
 
     for (const sub of submissions) {
@@ -387,15 +388,17 @@ export const FormService = {
       if (!form) continue;
 
       const soapType =
-        form.category === "SOAP_SUBJECTIVE"
+        form.category === "SOAP-Subjective"
           ? "Subjective"
-          : form.category === "SOAP_OBJECTIVE"
+          : form.category === "SOAP-Objective"
             ? "Objective"
-            : form.category === "SOAP_ASSESSMENT"
+            : form.category === "SOAP-Assessment"
               ? "Assessment"
-              : form.category === "SOAP_PLAN"
+              : form.category === "SOAP-Plan"
                 ? "Plan"
-                : undefined;
+                : form.category === "Discharge"
+                  ? "Discharge"
+                  : undefined;
 
       if (!soapType) continue;
 
