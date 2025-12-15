@@ -6,7 +6,7 @@ export type OrgDocumentCategory =
   | "GENERAL";
 
 export type OrganizationDocument = {
-  id: string;
+  _id: string;
   organisationId: string;
   title: string;
   description?: string;

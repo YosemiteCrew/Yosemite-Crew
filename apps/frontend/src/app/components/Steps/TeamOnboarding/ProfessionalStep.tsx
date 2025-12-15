@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Primary } from "../../Buttons";
 import FormInput from "../../Inputs/FormInput/FormInput";
-import FileInput from "../../Inputs/FileInput/FileInput";
 import { UserProfile } from "@/app/types/profile";
 import { updateUserProfile } from "@/app/services/profileService";
 
@@ -151,7 +150,6 @@ const ProfessionalStep = ({
             })
           }
         />
-        <FileInput />
       </div>
 
       <div className="team-buttons justify-end! w-full">

@@ -99,3 +99,24 @@ export const acceptInvite = async (invite: Invite) => {
   await loadTeam({ silent: true });
   setPrimaryOrg(invite.organisationId);
 };
+
+export const getProfileForUserForPrimaryOrg = async (userId: string) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) {
+    console.warn("No primary organization selected. Cannot load companions.");
+    return [];
+  }
+  try {
+    if (!userId) {
+      return [];
+    }
+    const res = await getData(
+      "/fhir/v1/user-profile/" + userId + "/" + primaryOrgId + "/profile"
+    );
+    const data = res.data;
+    return data;
+  } catch (err) {
+    console.error("Failed to create service:", err);
+    throw err;
+  }
+};

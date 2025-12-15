@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import RoomCard from "../Cards/RoomCard";
 import { IoEye } from "react-icons/io5";
-import { OrganisationRoom } from "@yosemite-crew/types";
+import { OrganisationRoom, Speciality } from "@yosemite-crew/types";
 
 import "./DataTable.css";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { Team } from "@/app/types/team";
 
 type Column<T> = {
   label: string;
@@ -23,7 +26,32 @@ export const getStringified = (services: string[] = []): string => {
   return services.join(", ");
 };
 
+export const joinNames = (byId: Record<string, string>, ids: string[] = []) => {
+  const names = ids.map((id) => byId[id]).filter(Boolean);
+  return names.length ? names.join(", ") : "-";
+};
+
 const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
+  const teams = useTeamForPrimaryOrg();
+  const specialities = useSpecialitiesForPrimaryOrg();
+
+  const staffNameById = useMemo(() => {
+    return teams?.reduce((acc: Record<string, string>, s: Team) => {
+      acc[s._id] = s.name ?? "";
+      return acc;
+    }, {});
+  }, [teams]);
+
+  const specialityNameById = useMemo(() => {
+    return specialities?.reduce(
+      (acc: Record<string, string>, sp: Speciality) => {
+        acc[sp._id || sp.name] = sp.name ?? "";
+        return acc;
+      },
+      {}
+    );
+  }, [specialities]);
+
   const handleViewRoom = (team: OrganisationRoom) => {
     setActive?.(team);
     setView?.(true);
@@ -52,7 +80,7 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
       width: "25%",
       render: (item: OrganisationRoom) => (
         <div className="appointment-profile-title">
-          {getStringified(item.assignedSpecialiteis)}
+          {joinNames(specialityNameById, item.assignedSpecialiteis)}
         </div>
       ),
     },
@@ -62,7 +90,7 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
       width: "25%",
       render: (item: OrganisationRoom) => (
         <div className="appointment-profile-title">
-          {getStringified(item.assignedStaffs)}
+          {joinNames(staffNameById, item.assignedStaffs)}
         </div>
       ),
     },
@@ -108,6 +136,8 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
               key={item.name + i}
               room={item}
               handleViewRoom={handleViewRoom}
+              staffNameById={staffNameById}
+              specialityNameById={specialityNameById}
             />
           ));
         })()}

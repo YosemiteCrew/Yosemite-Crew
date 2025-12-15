@@ -31,6 +31,7 @@ const DashboardProfile = () => {
           alt="logo"
           height={40}
           width={40}
+          className="rounded-full object-cover h-10 min-w-10 max-h-10"
         />
         <div className="dashboard-profile-heading">
           {(attributes?.given_name || "") +

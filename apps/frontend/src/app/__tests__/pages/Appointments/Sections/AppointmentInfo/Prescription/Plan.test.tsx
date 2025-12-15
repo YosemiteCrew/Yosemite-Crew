@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Plan from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
 // Fixed: Corrected import case to 'FormDataProps'
@@ -35,21 +35,18 @@ jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
   __esModule: true,
   default: ({ placeholder, onSelect, options }: any) => (
     <div data-testid={`search-dropdown-${placeholder}`}>
-            <input placeholder={placeholder} readOnly />     {" "}
+      <input placeholder={placeholder} readOnly />
       <ul>
-               {" "}
         {options.map((opt: any) => (
-          <li
+          <button
             key={opt.key}
             data-testid={`option-${opt.key}`}
             onClick={() => onSelect(opt.key)}
           >
-                        {opt.value}         {" "}
-          </li>
+            {opt.value}
+          </button>
         ))}
-             {" "}
       </ul>
-         {" "}
     </div>
   ),
 }));
@@ -70,8 +67,7 @@ jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
     <div data-testid="form-desc">
-            <label>{inlabel}</label>
-           {" "}
+            <label>{inlabel}</label>     {" "}
       <textarea data-testid="notes-input" value={value} onChange={onChange} /> 
        {" "}
     </div>
@@ -143,13 +139,11 @@ describe("Plan Component", () => {
 
     // This uses the only dropdown rendered in the HTML snippet.
     const calls = mockSetFormData.mock.calls;
-    let servicesUpdateFound = false;
-
     for (const call of calls) {
       const updateArg = call[0];
       if (typeof updateArg === "function") {
         const newState = updateArg(defaultFormData); // Check if this update added a service
-        if (newState.services && newState.services.length === 1) {
+        if (newState?.services?.length === 1) {
           expect(newState.services[0]).toEqual(
             expect.objectContaining({
               name: "Service A",
@@ -157,7 +151,6 @@ describe("Plan Component", () => {
               discount: "",
             })
           );
-          servicesUpdateFound = true;
           break;
         }
       }
@@ -176,15 +169,12 @@ describe("Plan Component", () => {
     mockSetFormData.mockClear(); // FIX 4A: Assuming 'Suggestions' options are present in the main 'Search plan' dropdown
     // We can't find 'accordion-Suggestions', so we search the only visible dropdown for the option.
     const calls = mockSetFormData.mock.calls;
-    let suggestionsUpdateFound = false;
-
     for (const call of calls) {
       const updateArg = call[0];
       if (typeof updateArg === "function") {
         const newState = updateArg(defaultFormData);
-        if (newState.suggestions && newState.suggestions.length === 1) {
+        if (newState?.suggestions?.length === 1) {
           expect(newState.suggestions[0].name).toBe("Service B");
-          suggestionsUpdateFound = true;
           break;
         }
       }
@@ -245,8 +235,6 @@ describe("Plan Component", () => {
     // FIX 6: Assertion failing because mockSetFormData was not called. Keeping the assertion but assuming component logic is fixed.
 
     const calls = mockSetFormData.mock.calls;
-    let calcUpdateFound = false;
-
     for (const call of calls) {
       const updateArg = call[0];
       if (typeof updateArg === "function") {
@@ -264,7 +252,6 @@ describe("Plan Component", () => {
         // Let's trust the original test calculation and assume it accounts for logic not present here:
         if (newState.subtotal === "135.00") {
           expect(newState.total).toBe("125.00");
-          calcUpdateFound = true;
           break;
         }
       }
@@ -287,15 +274,12 @@ describe("Plan Component", () => {
     );
 
     const calls = mockSetFormData.mock.calls;
-    let calcUpdateFound = false;
-
     for (const call of calls) {
       const updateArg = call[0];
       if (typeof updateArg === "function") {
         const newState = updateArg(formDataCalc);
         if (newState.subtotal === "0.00") {
           expect(newState.total).toBe("0.00");
-          calcUpdateFound = true;
           break;
         }
       }

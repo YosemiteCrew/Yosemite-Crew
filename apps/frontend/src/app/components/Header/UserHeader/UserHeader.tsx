@@ -1,11 +1,11 @@
-import React, {useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MdNotificationsActive } from "react-icons/md";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import classNames from "classnames";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useSignOut } from "@/app/hooks/useAuth";
 
 import "./UserHeader.css";
 
@@ -34,11 +34,11 @@ const devRoutes = [
 ];
 
 const UserHeader = () => {
+  const { signOut } = useSignOut();
   const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`;
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { signout } = useAuthStore();
   const isDev = pathname.startsWith("/developers");
   const routes = isDev ? devRoutes : appRoutes;
 
@@ -50,7 +50,7 @@ const UserHeader = () => {
 
   const handleLogout = async () => {
     try {
-      signout();
+      await signOut();
       console.log("✅ Signed out using Cognito signout");
       router.replace(logoutRedirect);
     } catch (error) {

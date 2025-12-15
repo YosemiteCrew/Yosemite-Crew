@@ -11,10 +11,9 @@ import { createUserProfile } from "@/app/services/profileService";
 import Datepicker from "../../Inputs/Datepicker";
 import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import { formatDateLocal } from "@/app/utils/date";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 import "./Step.css";
-import { useAuthStore } from "@/app/stores/authStore";
-import { Icon } from "@iconify/react/dist/iconify.js";
 
 type PersonalStepProps = {
   nextStep: () => void;
@@ -29,7 +28,6 @@ const PersonalStep = ({
   setFormData,
   orgIdFromQuery,
 }: PersonalStepProps) => {
-  const attributes = useAuthStore((s) => s.attributes);
   const [formDataErrors, setFormDataErrors] = useState<{
     dob?: string;
     country?: string;
@@ -109,15 +107,13 @@ const PersonalStep = ({
     }
   };
 
-  if (!attributes) return null;
-
   return (
     <div className="team-container">
       <div className="team-title">Personal details</div>
 
       <LogoUploader
         title="Add profile picture (optional)"
-        apiUrl={`/fhir/v1/user-profile/${orgIdFromQuery}/${attributes.sub}/profile-picture`}
+        apiUrl={`/fhir/v1/user-profile/${orgIdFromQuery}/profile-picture`}
         setImageUrl={(url) => {
           setFormData((prev) => ({
             ...prev,
@@ -130,7 +126,7 @@ const PersonalStep = ({
       />
 
       <div className="team-personal-container">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 w-full">
           <Datepicker
             currentDate={currentDate}
             setCurrentDate={setCurrentDate}

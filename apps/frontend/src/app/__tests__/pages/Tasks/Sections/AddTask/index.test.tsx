@@ -108,9 +108,9 @@ jest.mock("@/app/components/Buttons", () => ({
 // Mock Icons
 jest.mock("react-icons/io", () => ({
   IoIosCloseCircleOutline: ({ onClick, className }: any) => (
-    <div data-testid="icon-close" onClick={onClick} className={className}>
+    <button data-testid="icon-close" onClick={onClick} className={className}>
       Icon
-    </div>
+    </button>
   ),
 }));
 

@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Details from "@/app/pages/Forms/Sections/AddForm/Details";
-import { FormsProps, FormsCategory } from "@/app/types/forms";
+import { FormsProps } from "@/app/types/forms";
 import * as formUtils from "@/app/utils/forms";
 
 // --- Mocks ---
@@ -223,7 +223,7 @@ describe("Details Component", () => {
 
     fireEvent.click(screen.getByTestId("dropdown-select-Category"));
 
-    const updateFn = mockSetFormData.mock.calls.slice(-1)[0][0];
+    const updateFn = mockSetFormData.mock.calls.at(-1)?.[0];
     let newState: FormsProps = newForm; // Initialize newState
     act(() => {
       const updateResult = updateFn(newForm);
@@ -263,7 +263,7 @@ describe("Details Component", () => {
 
     fireEvent.click(screen.getByTestId("dropdown-select-Category"));
 
-    const updateFn = mockSetFormData.mock.calls.slice(-1)[0][0];
+    const updateFn = mockSetFormData.mock.calls.at(-1)?.[0];
     let newState: FormsProps = existingForm; // Initialize newState
     act(() => {
       const updateResult = updateFn(existingForm);

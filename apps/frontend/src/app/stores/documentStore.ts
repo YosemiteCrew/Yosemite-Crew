@@ -43,9 +43,9 @@ export const useOrganizationDocumentStore = create<DocumentState>()(
         const documentsById: Record<string, OrganizationDocument> = {};
         const documentIdsByOrgId: Record<string, string[]> = {};
         for (const doc of docs) {
-          const id = doc.id;
+          const id = doc._id;
           const orgId = doc.organisationId;
-          documentsById[id] = { ...doc, id };
+          documentsById[id] = { ...doc, _id: id };
           if (!documentIdsByOrgId[orgId]) {
             documentIdsByOrgId[orgId] = [];
           }
@@ -67,8 +67,8 @@ export const useOrganizationDocumentStore = create<DocumentState>()(
         for (const id of existingIds) delete documentsById[id];
         const newIds: string[] = [];
         for (const doc of docs) {
-          documentsById[doc.id] = doc;
-          newIds.push(doc.id);
+          documentsById[doc._id] = doc;
+          newIds.push(doc._id);
         }
         return {
           documentsById,
@@ -84,7 +84,7 @@ export const useOrganizationDocumentStore = create<DocumentState>()(
 
     upsertDocument: (doc) =>
       set((state) => {
-        const id = doc.id;
+        const id = doc._id;
         const orgId = doc.organisationId;
         if (!id || !orgId) {
           console.warn("upsertDocument: invalid document", doc);

@@ -35,7 +35,7 @@ jest.mock("react-icons/io5", () => ({
 }));
 jest.mock("react-icons/io", () => ({
   IoIosCloseCircleOutline: ({ onClick }: any) => (
-    <div data-testid="icon-close" onClick={onClick} />
+    <button data-testid="icon-close" onClick={onClick} />
   ),
 }));
 

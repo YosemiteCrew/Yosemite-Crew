@@ -220,7 +220,7 @@ const toDateOrNull = (raw: any): Date | null => {
   if (typeof raw === "string") {
     const s = raw.trim();
     if (!s) return null;
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
     if (m) {
       const y = Number(m[1]);
       const mo = Number(m[2]) - 1;
@@ -353,7 +353,7 @@ const ProfileCard = ({
               alt="Logo"
               height={60}
               width={60}
-              className="rounded-full"
+              className="rounded-full object-cover h-[60px] min-w-[60px] max-h-[60px]"
             />
             <div className="font-grotesk font-medium text-black-text text-[28px]">
               {(attributes?.given_name || "") +
@@ -374,7 +374,7 @@ const ProfileCard = ({
                   alt="Logo"
                   height={60}
                   width={60}
-                  className="rounded-full"
+                  className="rounded-full object-cover h-[60px] min-w-[60px] max-h-[60px]"
                 />
                 <div className="flex flex-col">
                   <div className="font-grotesk font-medium text-black-text text-[28px]">

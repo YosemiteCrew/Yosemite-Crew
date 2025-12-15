@@ -48,7 +48,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
     () =>
       teams?.map((team) => ({
         label: team.name || team._id,
-        value: team.name || team._id,
+        value: team._id,
       })),
     [teams]
   );
@@ -57,7 +57,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
     () =>
       specialities?.map((speciality) => ({
         label: speciality.name,
-        value: speciality.name,
+        value: speciality._id || speciality.name,
       })),
     [specialities]
   );
@@ -65,6 +65,16 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
   const fields = useMemo(
     () => getFields({ TeamOptions, SpecialitiesOptions }),
     [TeamOptions, SpecialitiesOptions]
+  );
+
+  const roomInfoData = useMemo(
+    () => ({
+      name: activeRoom?.name ?? "",
+      type: activeRoom?.type ?? "",
+      assignedSpecialiteis: activeRoom?.assignedSpecialiteis ?? "",
+      assignedStaffs: activeRoom?.assignedStaffs ?? "",
+    }),
+    [activeRoom]
   );
 
   const handleUpdate = async (values: any) => {
@@ -107,7 +117,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
         <EditableAccordion
           title="Room details"
           fields={fields}
-          data={activeRoom}
+          data={roomInfoData}
           defaultOpen={true}
           onSave={handleUpdate}
         />

@@ -81,7 +81,20 @@ const Slotpicker = ({
     });
   };
 
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const isPastDay = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
+  };
+
   const handleClickdate = (date: Date) => {
+    if (isPastDay(date)) return;
     setSelectedDate(date);
     setSelectedSlot(null);
   };

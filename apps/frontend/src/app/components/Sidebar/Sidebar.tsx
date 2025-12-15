@@ -4,15 +4,16 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { FaCaretDown } from "react-icons/fa6";
 
-import { useAuthStore } from "@/app/stores/authStore";
+import { useSignOut } from "@/app/hooks/useAuth";
 import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useLoadProfiles } from "@/app/hooks/useProfiles";
 import { useLoadAvailabilities } from "@/app/hooks/useAvailabiities";
+import { useLoadSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 
 import "./Sidebar.css";
-import { useLoadSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { isHttpsImageUrl } from "@/app/utils/urls";
 
 type RouteItem = {
   name: string;
@@ -46,13 +47,13 @@ const devRoutes: RouteItem[] = [
 ];
 
 const Sidebar = () => {
-  useLoadOrg()
-  useLoadProfiles()
-  useLoadAvailabilities()
-  useLoadSpecialitiesForPrimaryOrg()
+  useLoadOrg();
+  useLoadProfiles();
+  useLoadAvailabilities();
+  useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const { signout } = useAuthStore();
+  const { signOut } = useSignOut();
   const [selectOrg, setSelectOrg] = useState(false);
 
   const isDevPortal = pathname?.startsWith("/developers") || false;
@@ -71,7 +72,7 @@ const Sidebar = () => {
 
   const handleLogout = async () => {
     try {
-      signout();
+      await signOut();
       console.log("✅ Signed out using Cognito signout");
       router.replace(isDevPortal ? "/developers/signin" : "/signin");
     } catch (error) {
@@ -104,13 +105,14 @@ const Sidebar = () => {
           >
             <Image
               src={
-                primaryOrg.imageURL ||
-                "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                isHttpsImageUrl(primaryOrg.imageURL)
+                  ? primaryOrg.imageURL
+                  : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
               }
               alt="Logo"
               height={42}
               width={42}
-              className="rounded-full"
+              className="rounded-full min-w-[42px] max-h-[42px] h-[42px] object-cover"
             />
             <div className="font-grotesk font-medium text-black-text text-[19px] tracking-tight leading-6">
               {primaryOrg.name}
@@ -149,7 +151,8 @@ const Sidebar = () => {
         {routes.map((route) => {
           const needsVerifiedOrg = route.verify;
           const isDisabled =
-            route.name !== "Sign out" && route.name !== "Settings" &&
+            route.name !== "Sign out" &&
+            route.name !== "Settings" &&
             (orgMissing || (needsVerifiedOrg && !orgVerified));
 
           const isActive = pathname === route.href;

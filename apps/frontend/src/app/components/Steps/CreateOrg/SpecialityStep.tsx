@@ -61,9 +61,9 @@ const SpecialityStep = ({
       )}
 
       <div className="specialities-container">
-        {specialities.map((speciality: any) => (
+        {specialities.map((speciality: Speciality, i: number) => (
           <SpecialityCard
-            key={speciality.key}
+            key={speciality.name + i}
             speciality={speciality}
             setSpecialities={setSpecialities}
           />
