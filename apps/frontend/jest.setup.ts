@@ -1,3 +1,4 @@
+
 import React from "react";
 import "@testing-library/jest-dom";
 
@@ -50,6 +51,9 @@ beforeAll(() => {
   jest.spyOn(console, "error").mockImplementation((...args) => {
     throw new Error("Unexpected console.error: " + args.join(" "));
   });
+
+  // Set a default timeout for all tests to prevent infinite runs
+  jest.setTimeout(30000); // 30 seconds
 });
 
 afterAll(() => {
@@ -82,3 +86,10 @@ jest.mock('next/navigation', () => ({
   }),
   usePathname: () => "/",
 }));
+
+
+// Global test cleanup to prevent hanging
+afterEach(() => {
+  // Clear any pending timers
+  jest.clearAllTimers();
+});

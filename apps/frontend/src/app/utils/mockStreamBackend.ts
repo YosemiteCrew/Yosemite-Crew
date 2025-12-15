@@ -100,6 +100,8 @@ export const mockEndChatChannel = async (
  * @param activationMinutes - Minutes before appointment when chat unlocks (default: 5)
  * @returns boolean - Whether chat is currently active
  */
+
+
 export const isChatActive = (
   appointmentTime: string,
   activationMinutes: number = 5,
@@ -178,6 +180,8 @@ export const formatAppointmentTime = (appointmentTime: string): string => {
  * @param activationMinutes - Minutes before appointment when chat unlocks
  * @returns Object with minutes and seconds remaining, or null if already active
  */
+
+
 export const getTimeUntilChatActivation = (
   appointmentTime: string,
   activationMinutes: number = 5,
