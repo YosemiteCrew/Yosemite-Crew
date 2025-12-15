@@ -698,6 +698,7 @@ export const UserProfileService = {
     return {
       profile: buildDomainProfile(document, { statusOverride: status }),
       mapping: userOrganisation,
+      baseAvailability: availability
     };
   },
 };
