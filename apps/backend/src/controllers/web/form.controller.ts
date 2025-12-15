@@ -247,7 +247,7 @@ export const FormController = {
 
       const result = await FormService.getSOAPNotesByAppointment(
         appointmentId,
-        { latestOnly }
+        { latestOnly },
       );
 
       res.status(200).json(result);
@@ -258,5 +258,4 @@ export const FormController = {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
-  
 };

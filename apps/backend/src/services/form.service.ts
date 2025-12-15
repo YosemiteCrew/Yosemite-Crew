@@ -318,14 +318,19 @@ export const FormService = {
 
   async getSOAPNotesByAppointment(
     appointmentId: string,
-    options?: { latestOnly?: boolean }
+    options?: { latestOnly?: boolean },
   ) {
     type SubmissionLean = Omit<FormSubmissionDocument, "formId"> & {
       _id: Types.ObjectId | string;
       formId: Types.ObjectId | string;
     };
 
-    type SoapNoteType = "Subjective" | "Objective" | "Assessment" | "Plan";
+    type SoapNoteType =
+      | "Subjective"
+      | "Objective"
+      | "Assessment"
+      | "Plan"
+      | "Discharge";
 
     type SoapNoteEntry = {
       submissionId: string;
@@ -380,6 +385,7 @@ export const FormService = {
       Objective: [],
       Assessment: [],
       Plan: [],
+      Discharge: [],
     };
 
     for (const sub of submissions) {
@@ -387,15 +393,17 @@ export const FormService = {
       if (!form) continue;
 
       const soapType =
-        form.category === "SOAP_SUBJECTIVE"
+        form.category === "SOAP-Subjective"
           ? "Subjective"
-          : form.category === "SOAP_OBJECTIVE"
-          ? "Objective"
-          : form.category === "SOAP_ASSESSMENT"
-          ? "Assessment"
-          : form.category === "SOAP_PLAN"
-          ? "Plan"
-          : undefined;
+          : form.category === "SOAP-Objective"
+            ? "Objective"
+            : form.category === "SOAP-Assessment"
+              ? "Assessment"
+              : form.category === "SOAP-Plan"
+                ? "Plan"
+                : form.category === "Discharge"
+                  ? "Discharge"
+                  : undefined;
 
       if (!soapType) continue;
 
@@ -411,8 +419,9 @@ export const FormService = {
 
     if (options?.latestOnly) {
       Object.keys(grouped).forEach((k) => {
-        grouped[k as keyof typeof grouped] =
-          grouped[k as keyof typeof grouped].slice(0, 1);
+        grouped[k as keyof typeof grouped] = grouped[
+          k as keyof typeof grouped
+        ].slice(0, 1);
       });
     }
 

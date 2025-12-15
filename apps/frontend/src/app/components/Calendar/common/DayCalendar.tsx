@@ -2,10 +2,11 @@ import React, { useMemo, useRef } from "react";
 import {
   EVENT_HORIZONTAL_GAP_PX,
   EVENT_VERTICAL_GAP_PX,
+  getDayWindow,
   getDayWithDate,
+  getTotalWindowHeightPx,
   isAllDayForDate,
   layoutDayEvents,
-  TOTAL_DAY_HEIGHT_PX,
 } from "../helpers";
 import { LaidOutEvent } from "@/app/types/calendar";
 import TimeLabels from "./TimeLabels";
@@ -43,9 +44,19 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     return { allDayEvents: allDay, timedEvents: timed };
   }, [events, date]);
 
-  const laidOut: LaidOutEvent[] = useMemo(
-    () => layoutDayEvents(timedEvents),
+  const { windowStart, windowEnd } = useMemo(
+    () => getDayWindow(timedEvents),
     [timedEvents]
+  );
+
+  const totalHeightPx = useMemo(
+    () => getTotalWindowHeightPx(windowStart, windowEnd),
+    [windowStart, windowEnd]
+  );
+
+  const laidOut: LaidOutEvent[] = useMemo(
+    () => layoutDayEvents(timedEvents, windowStart, windowEnd),
+    [timedEvents, windowStart, windowEnd]
   );
 
   const handleNextDay = () => {
@@ -98,7 +109,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 style={getStatusStyle(ev.status)}
               >
                 <Image
-                  src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+                  src={
+                    "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                  }
                   height={20}
                   width={20}
                   className="rounded-full"
@@ -122,12 +135,17 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         <div
           className="grid grid-cols-[60px_1fr]"
           style={{
-            height: TOTAL_DAY_HEIGHT_PX,
+            height: totalHeightPx,
           }}
         >
-          <TimeLabels />
+          <TimeLabels windowStart={windowStart} windowEnd={windowEnd} />
           <div className="relative h-full">
-            <HorizontalLines date={date} scrollRef={scrollRef} />
+            <HorizontalLines
+              date={date}
+              scrollRef={scrollRef}
+              windowStart={windowStart}
+              windowEnd={windowEnd}
+            />
             {laidOut.map((ev, i) => {
               const widthPercent = 100 / ev.columnsCount;
               const leftPercent = widthPercent * ev.columnIndex;
@@ -154,7 +172,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   </div>
                   <div className="flex items-center gap-1">
                     <Image
-                      src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+                      src={
+                        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                      }
                       height={30}
                       width={30}
                       className="rounded-full"

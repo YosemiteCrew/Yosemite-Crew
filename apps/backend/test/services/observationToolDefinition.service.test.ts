@@ -84,7 +84,9 @@ describe("ObservationToolDefinitionService", () => {
 
   describe("update", () => {
     it("throws when tool is missing", async () => {
-      mockedModel.findById.mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) });
+      mockedModel.findById.mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValue(null),
+      });
 
       await expect(
         ObservationToolDefinitionService.update("missing", {
@@ -112,9 +114,7 @@ describe("ObservationToolDefinitionService", () => {
         name: "New",
         description: "New desc",
         category: "New cat",
-        fields: [
-          { key: "b", label: "B", type: "BOOLEAN", required: false },
-        ],
+        fields: [{ key: "b", label: "B", type: "BOOLEAN", required: false }],
         scoringRules: { sumFields: ["b"] },
         isActive: false,
       });
@@ -154,7 +154,9 @@ describe("ObservationToolDefinitionService", () => {
     });
 
     it("throws when definition is missing", async () => {
-      mockedModel.findById.mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) });
+      mockedModel.findById.mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValue(null),
+      });
 
       await expect(
         ObservationToolDefinitionService.archive("missing"),

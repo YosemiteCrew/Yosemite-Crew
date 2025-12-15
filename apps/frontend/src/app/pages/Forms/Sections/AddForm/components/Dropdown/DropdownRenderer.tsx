@@ -89,7 +89,7 @@ const DropdownRenderer: React.FC<{
         value={displayValue}
         onChange={(e) => !isReadOnly && onChange(e)}
         className="min-h-12!"
-        dropdownClassName="top-[55px]! !h-fit"
+        dropdownClassName="top-[55px]! !h-fit max-h-[200px]!"
         disabled={isReadOnly}
         options={options.map((opt) => ({
           label: opt.label,

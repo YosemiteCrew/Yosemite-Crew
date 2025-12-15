@@ -94,7 +94,9 @@ describe("ObservationToolDefinitionController", () => {
 
     await ObservationToolDefinitionController.create(req as any, res as any);
 
-    expect(mockedDefinitionService.create).toHaveBeenCalledWith({ name: "Tool" });
+    expect(mockedDefinitionService.create).toHaveBeenCalledWith({
+      name: "Tool",
+    });
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ id: "tool-1" });
   });

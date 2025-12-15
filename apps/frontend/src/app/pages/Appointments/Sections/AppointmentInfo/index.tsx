@@ -92,7 +92,7 @@ const labels = [
     icon: BsChatHeartFill,
     iconSize: 24,
     labels: [
-      { key: "parent-chat", name: "Parent chat" },
+      { key: "parent-chat", name: "Companion parent chat" },
       { key: "task", name: "Task" },
       { key: "parent-task", name: "Parent task" },
     ],

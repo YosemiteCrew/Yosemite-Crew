@@ -161,7 +161,7 @@ const Details = ({
               onChange={(e) => setFormData({ ...formData, services: e })}
               className="min-h-12!"
               options={serviceOptions}
-              dropdownClassName="h-fit!"
+              dropdownClassName="h-fit! max-h-[150px]!"
             />
             <MultiSelectDropdown
               placeholder="Species"

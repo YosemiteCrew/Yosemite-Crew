@@ -26,8 +26,11 @@ const Inventory = () => {
 
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
+  const primaryOrg = primaryOrgId ? orgsById[primaryOrgId] : null;
 
-  const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+  const [businessType, setBusinessType] = useState<BusinessType | null>(
+    primaryOrg?.type as BusinessType
+  );
   const resolvedBusinessType: BusinessType = businessType ?? "GROOMER";
 
   const {
