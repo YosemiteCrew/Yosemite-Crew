@@ -102,7 +102,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const AppointmentInfoData = useMemo(
     () => ({
       concern: activeAppointment.concern ?? "",
-      room: activeAppointment.room?.name ?? "",
+      room: activeAppointment.room?.id ?? "",
       service: activeAppointment.appointmentType?.name ?? "",
       date: activeAppointment.appointmentDate ?? "",
       time: activeAppointment.startTime ?? "",
@@ -131,7 +131,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         concern: values.concern,
         room,
       };
-      console.log(formData)
       await updateAppointment(formData);
     } catch (error) {
       console.log(error);

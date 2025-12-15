@@ -89,12 +89,12 @@ export const updateAppointment = async (payload: Appointment) => {
   try {
     const fhirAppointment = toAppointmentResponseDTO(payload);
     const res = await patchData<{
-      data: { appointment: AppointmentResponseDTO };
+      data: AppointmentResponseDTO;
     }>(
       "/fhir/v1/appointment/pms/" + payload.organisationId + "/" + payload.id,
       fhirAppointment
     );
-    const data = res.data.data.appointment;
+    const data = res.data.data;
     const normalAppointment = fromAppointmentRequestDTO(data);
     upsertAppointment(normalAppointment);
   } catch (err) {

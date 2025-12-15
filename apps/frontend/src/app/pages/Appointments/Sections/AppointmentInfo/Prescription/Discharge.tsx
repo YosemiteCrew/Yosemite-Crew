@@ -1,4 +1,3 @@
-import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
 import React, { useMemo, useState } from "react";
 import { FormDataProps } from "..";
@@ -11,14 +10,6 @@ import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRend
 import { useAuthStore } from "@/app/stores/authStore";
 import { createSubmission } from "@/app/services/soapService";
 import DischargeSubmissions from "./Submissions/DischargeSubmissions";
-
-const AppointmentFields = [
-  { label: "Service", key: "service", type: "text" },
-  { label: "Reason", key: "concern", type: "text" },
-  { label: "Date", key: "date", type: "date" },
-  { label: "Time", key: "time", type: "date" },
-  { label: "Lead", key: "lead", type: "text" },
-];
 
 type DischargeSummaryProps = {
   formData: FormDataProps;
@@ -90,31 +81,12 @@ const Discharge = ({
     }
   };
 
-  const AppointmentInfoData = useMemo(
-    () => ({
-      concern: activeAppointment.concern ?? "",
-      service: activeAppointment.appointmentType?.name ?? "",
-      date: activeAppointment.appointmentDate ?? "",
-      time: activeAppointment.startTime ?? "",
-      lead: activeAppointment.lead?.name ?? "",
-    }),
-    [activeAppointment]
-  );
-
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
       <div className="flex flex-col gap-6">
         <div className="font-grotesk font-medium text-black-text text-[23px]">
           Discharge summary
         </div>
-        <EditableAccordion
-          key={"Appointments-key"}
-          title={"Appointments details"}
-          fields={AppointmentFields}
-          data={AppointmentInfoData}
-          defaultOpen={true}
-          showEditIcon={false}
-        />
         <div className="flex flex-col gap-3">
           <SearchDropdown
             placeholder="Search"

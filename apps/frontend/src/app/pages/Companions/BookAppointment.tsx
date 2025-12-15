@@ -175,7 +175,7 @@ const BookAppointment = ({
         breed: activeCompanion.companion.breed,
         parent: {
           id: activeCompanion.parent.id,
-          name: activeCompanion.parent.id,
+          name: activeCompanion.parent.firstName,
         },
       },
     }));

@@ -78,7 +78,7 @@ const labels = [
     iconSize: 32,
     labels: [
       { key: "subjective", name: "Subjective" },
-      { key: "obective", name: "Objecive" },
+      { key: "objective", name: "Objective" },
       { key: "assessment", name: "Assessment" },
       { key: "plan", name: "Plan" },
       { key: "audit-trail", name: "Audit trail" },
@@ -117,7 +117,7 @@ const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   },
   prescription: {
     subjective: Subjective,
-    obective: Objective,
+    objective: Objective,
     assessment: Assessment,
     plan: Plan,
     "audit-trail": Audit,
@@ -169,12 +169,12 @@ const AppoitmentInfo = ({
         if (cancelled) return;
         setFormData((prev) => ({
           ...prev,
-          subjective: soap.Subjective ?? [],
-          objective: soap.Objective ?? [],
-          assessment: soap.Assessment ?? [],
-          plan: soap.Plan ?? [],
+          subjective: soap?.soapNotes?.Subjective ?? [],
+          objective: soap?.soapNotes?.Objective ?? [],
+          assessment: soap?.soapNotes?.Assessment ?? [],
+          plan: soap?.soapNotes?.Plan ?? [],
+          discharge: soap?.soapNotes?.Discharge ?? [],
           // not present in GetSOAPResponse, keep as-is / empty
-          discharge: prev.discharge ?? [],
           total: prev.total ?? "",
           subTotal: prev.subTotal ?? "",
           tax: prev.tax ?? "",

@@ -102,20 +102,6 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
           )}
           <PlanSubmissions formData={formData} />
         </div>
-        <div className="flex flex-col px-4! py-2.5! rounded-2xl border border-grey-light">
-          <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-            <div>SubTotal: </div>
-            <div>${formData.subTotal}</div>
-          </div>
-          <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-            <div>Tax: </div>
-            <div>${formData.tax || "0.00"}</div>
-          </div>
-          <div className="px-3! py-2! flex items-center gap-2 justify-between">
-            <div>Estimatted total: </div>
-            <div>${formData.total || "0.00"}</div>
-          </div>
-        </div>
       </div>
       {active && (
         <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
