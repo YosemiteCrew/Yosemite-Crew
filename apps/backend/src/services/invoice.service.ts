@@ -92,6 +92,29 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
   };
 };
 
+const recalculateTotals = (invoice: InvoiceDocument) => {
+  invoice.subtotal = invoice.items.reduce(
+    (sum, i) => sum + i.quantity * i.unitPrice,
+    0,
+  );
+
+  invoice.discountTotal = invoice.items.reduce(
+    (sum, i) =>
+      sum +
+      (i.discountPercent
+        ? (i.discountPercent / 100) * i.unitPrice * i.quantity
+        : 0),
+    0,
+  );
+
+  invoice.taxPercent = invoice.taxPercent ?? 0;
+  invoice.taxTotal =
+    (invoice.taxPercent / 100) * (invoice.subtotal - invoice.discountTotal);
+
+  invoice.totalAmount =
+    invoice.subtotal - invoice.discountTotal + invoice.taxTotal;
+};
+
 export const InvoiceService = {
   async createDraftForAppointment(
     input: {
@@ -171,6 +194,49 @@ export const InvoiceService = {
     await NotificationService.sendToUser(input.parentId, notificationPayload);
 
     return invoice;
+  },
+
+  async createExtraInvoiceForAppointment(input: {
+    appointmentId: string;
+    items: InvoiceItem[];
+    metadata?: Record<string, string | number | boolean | undefined>;
+    currency: string;
+  }) {
+    const appointment = await AppointmentModel.findById(input.appointmentId);
+    if (!appointment) {
+      throw new InvoiceServiceError("Appointment not found", 404);
+    }
+
+    const invoice = new InvoiceModel({
+      appointmentId: appointment._id,
+      parentId: appointment.companion.parent.id,
+      companionId: appointment.companion.id,
+      organisationId: appointment.organisationId,
+      currency: input.currency,
+
+      purpose: "APPOINTMENT_EXTRA",
+      status: "AWAITING_PAYMENT",
+
+      items: input.items.map((item) => ({
+        ...item,
+        name: item.description,
+        total: item.quantity * item.unitPrice,
+      })),
+      metadata: {
+        ...input.metadata,
+        source: "EXTRA_CHARGES",
+      },
+    });
+
+    recalculateTotals(invoice);
+    await invoice.save();
+
+    await NotificationService.sendToUser(
+      appointment.companion.parent.id,
+      NotificationTemplates.Payment.PAYMENT_PENDING(invoice.totalAmount),
+    );
+
+    return toDomain(invoice);
   },
 
   async attachStripeDetails(invoiceId: string, updates: Partial<Invoice>) {
@@ -289,16 +355,15 @@ export const InvoiceService = {
     return docs.map((d) => toInvoiceResponseDTO(toDomain(d)));
   },
 
-  async addItemsToInvoice(invoiceId: string, newItems: InvoiceItem[]) {
+  async addItemsToInvoice(invoiceId: string, items: InvoiceItem[]) {
     const invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) throw new InvoiceServiceError("Invoice not found", 404);
 
     if (invoice.status === "PAID") {
-      throw new InvoiceServiceError("Cannot modify a paid invoice.", 409);
+      throw new InvoiceServiceError("Cannot modify a paid invoice", 409);
     }
 
-    // 1. Add each item
-    for (const item of newItems) {
+    for (const item of items) {
       invoice.items.push({
         ...item,
         total:
@@ -309,16 +374,38 @@ export const InvoiceService = {
       });
     }
 
-    // 2. Recalculate totals
-    invoice.subtotal = invoice.items.reduce((sum, it) => sum + it.total, 0);
-    invoice.taxPercent = invoice.taxPercent ?? 0;
-    invoice.totalAmount =
-      invoice.subtotal + (invoice.taxPercent / 100) * invoice.subtotal;
-
+    recalculateTotals(invoice);
     invoice.updatedAt = new Date();
     await invoice.save();
 
-    return invoice;
+    return toDomain(invoice);
+  },
+
+  async addChargesToAppointment(
+    appointmentId: string,
+    items: InvoiceItem[],
+    currency: string,
+  ) {
+    const invoice = await this.findOpenInvoiceForAppointment(appointmentId);
+
+    // No open invoice → create EXTRA invoice
+    if (!invoice) {
+      return this.createExtraInvoiceForAppointment({
+        appointmentId,
+        items,
+        currency,
+      });
+    }
+
+    // Open invoice exists → append
+    return this.addItemsToInvoice(invoice._id.toString(), items);
+  },
+
+  async findOpenInvoiceForAppointment(appointmentId: string) {
+    return InvoiceModel.findOne({
+      appointmentId,
+      status: { $in: ["AWAITING_PAYMENT", "PENDING"] },
+    }).sort({ createdAt: -1 });
   },
 
   async handleAppointmentCancellation(appointmentId: string, reason: string) {

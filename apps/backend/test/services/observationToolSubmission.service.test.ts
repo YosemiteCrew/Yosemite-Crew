@@ -118,11 +118,10 @@ describe("ObservationToolSubmissionService", () => {
         exec: jest.fn().mockResolvedValue(doc),
       });
 
-      const updated =
-        await ObservationToolSubmissionService.linkToAppointment({
-          submissionId: "sub-1",
-          appointmentId: "apt-1",
-        });
+      const updated = await ObservationToolSubmissionService.linkToAppointment({
+        submissionId: "sub-1",
+        appointmentId: "apt-1",
+      });
 
       expect(doc.evaluationAppointmentId).toBe("apt-1");
       expect(save).toHaveBeenCalled();

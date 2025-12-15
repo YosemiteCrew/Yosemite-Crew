@@ -741,13 +741,14 @@ export const InventoryService = {
 
       // Beginning inventory = ending - net purchases + net consumption
       // Instead of guessing, we reconstruct from batches at `from`
-      const batchesAtStart =
-        await InventoryBatchModel.aggregate<{ qty: number }>([
-          {
-            $match: {
-              organisationId,
-              itemId: itemId,
-              createdAt: { $lte: from },
+      const batchesAtStart = await InventoryBatchModel.aggregate<{
+        qty: number;
+      }>([
+        {
+          $match: {
+            organisationId,
+            itemId: itemId,
+            createdAt: { $lte: from },
           },
         },
         {
@@ -780,7 +781,7 @@ export const InventoryService = {
         totalPurchased,
         turnsPerYear: Number(turnsPerYear.toFixed(2)),
         daysOnShelf: Number(daysOnShelf.toFixed(1)),
-        status: computeTurnoverStatus(turnsPerYear)
+        status: computeTurnoverStatus(turnsPerYear),
       });
     }
 

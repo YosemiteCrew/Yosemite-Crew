@@ -10,6 +10,7 @@ import {
 } from "../../services/adverse-event.service";
 import logger from "src/utils/logger";
 import { RegulatoryAuthorityModel } from "src/models/regulatory-authority";
+import escapeStringRegexp from "escape-string-regexp";
 
 export const AdverseEventController = {
   createFromMobile: async (
@@ -98,7 +99,11 @@ export const AdverseEventController = {
       const filters = [];
 
       if (iso2) filters.push({ iso2: iso2.toUpperCase() });
-      if (country) filters.push({ country: new RegExp(`^${country}$`, "i") });
+      if (country) {
+        const safe = escapeStringRegexp(country.trim());
+        const countryRegex = new RegExp(safe, "i");
+        filters.push({ country: countryRegex });
+      }
 
       if (filters.length === 0) {
         return res.status(400).json({ message: "country or iso2 is required" });

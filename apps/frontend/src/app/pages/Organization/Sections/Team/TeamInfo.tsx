@@ -134,8 +134,9 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
   const { role } = useMemo(() => {
     const role_code = profile?.mapping?.roleCode ?? null;
     const permissions = profile?.mapping?.effectivePermissions ?? [];
-    const availability = profile?.baseAvailability
+    const availability = profile?.baseAvailability ?? []
     const normalAvailabilty = convertFromGetApi(availability)
+    console.log(availability, normalAvailabilty)
     setAvailability(normalAvailabilty)
     setPerms(toPermissionArray(permissions));
     return {
