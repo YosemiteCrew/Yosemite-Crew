@@ -440,6 +440,7 @@ const buildFHIRResponse = (
     animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
     googlePlacesId: rest.googlePlacesId,
+    stripeAccountId: rest.stripeAccountId,
   };
 
   const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined);
@@ -739,6 +740,8 @@ export const OrganizationService = {
             $maxDistance: radius,
           },
         },
+        isVerified: true,
+        isActive: true,
       },
       {
         _id: 1,

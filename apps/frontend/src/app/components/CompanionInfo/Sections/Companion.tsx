@@ -46,6 +46,7 @@ const Companion = ({ companion }: CompanionType) => {
         fields={Fields}
         data={{ ...companion.companion, ...companion.companion.insurance }}
         defaultOpen={true}
+        showEditIcon={false}
       />
     </div>
   );

@@ -22,7 +22,6 @@ export const useOrgOnboarding = (
     orgId ? (s.membershipsByOrgId[orgId] ?? null) : null
   );
 
-  const specialitityStatus = useSpecialityStore((s) => s.status);
   const specialitiesById = useSpecialityStore((s) => s.specialitiesById);
   const specialityIdsByOrgId = useSpecialityStore(
     (s) => s.specialityIdsByOrgId
@@ -36,12 +35,7 @@ export const useOrgOnboarding = (
         effectiveOrg: null as Organisation | null,
       };
     }
-    if (
-      orgStatus === "loading" ||
-      orgStatus === "idle" ||
-      specialitityStatus === "loading" ||
-      specialitityStatus === "idle"
-    ) {
+    if (orgStatus === "loading" || orgStatus === "idle") {
       return {
         step: 0 as OnboardingStep,
         specialities: [] as Speciality[],
@@ -84,7 +78,6 @@ export const useOrgOnboarding = (
     specialitiesById,
     specialityIdsByOrgId,
     membership,
-    specialitityStatus,
     orgStatus,
   ]);
 

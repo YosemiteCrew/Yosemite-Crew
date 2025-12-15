@@ -1,43 +1,84 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
-import React, { useState } from "react";
-import { DemoSubjective, DemoSubjectiveOptions } from "./demo";
-import { formDataProps } from "..";
-import { AppointmentsProps } from "@/app/types/appointments";
+import React, { useMemo, useState } from "react";
+import { Appointment, FormSubmission } from "@yosemite-crew/types";
+import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
+import { FormsProps } from "@/app/types/forms";
+import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
+import { FormDataProps } from "..";
+import { createSubmission } from "@/app/services/soapService";
+import { useAuthStore } from "@/app/stores/authStore";
+import SubjectiveSubmissions from "./Submissions/SubjectiveSubmissions";
 
 type SubjectiveProps = {
-  formData: formDataProps;
-  setFormData: React.Dispatch<React.SetStateAction<formDataProps>>;
-  activeAppointment: AppointmentsProps;
+  activeAppointment: Appointment;
+  formData: FormDataProps;
+  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
 };
 
 const Subjective = ({
+  activeAppointment,
   formData,
   setFormData,
-  activeAppointment,
 }: SubjectiveProps) => {
-  const [formDataErrors] = useState<{
-    desc?: string;
-  }>({});
+  const attributes = useAuthStore.getState().attributes;
   const [query, setQuery] = useState("");
+  const forms = useFormsForPrimaryOrgByCategory("SOAP-Subjective");
+  const [active, setActive] = useState<FormsProps | null>(null);
+  const [values, setValues] = React.useState<Record<string, any>>(() =>
+    buildInitialValues(active?.schema ?? [])
+  );
+
+  const FormOptions = useMemo(
+    () =>
+      forms?.map((form) => ({
+        key: form._id || form.name,
+        value: form.name,
+      })),
+    [forms]
+  );
 
   const handleSubjectiveSelect = (id: string) => {
-    const selected = DemoSubjective.find((item) => item.id === id);
+    const selected = forms.find((item) => item._id === id);
     if (!selected) return;
-    setFormData((prev: any) => ({
+    const initialValues = buildInitialValues(selected.schema);
+    setValues(initialValues);
+    setActive(selected);
+  };
+
+  const handleValueChange = (id: string, value: any) => {
+    setValues((prev) => ({
       ...prev,
-      desc: selected.description,
+      [id]: value,
     }));
   };
 
-  const handleSave = () => {
-    if (!formData.desc) {
-      formDataErrors.desc = "Subjective description is required";
-    }
-    if (Object.keys(formData).length > 0) {
-      return;
+  const handleSave = async () => {
+    if (!active?._id || !activeAppointment.id || !attributes) return;
+    try {
+      const submission: FormSubmission = {
+        _id: "",
+        formVersion: 1,
+        submittedAt: new Date(),
+        formId: active._id,
+        appointmentId: activeAppointment.id,
+        companionId: activeAppointment?.companion?.id ?? "",
+        parentId: activeAppointment?.companion?.parent?.id ?? "",
+        answers: values,
+        submittedBy: attributes.sub,
+      };
+      const created = await createSubmission(submission);
+      setFormData((prev) => ({
+        ...prev,
+        subjective: [created, ...(prev.subjective ?? [])],
+      }));
+      setActive(null);
+      setQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to save subjective submission:", e);
     }
   };
 
@@ -49,26 +90,29 @@ const Subjective = ({
         showEditIcon={false}
         isEditing={true}
       >
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <SearchDropdown
             placeholder="Search"
-            options={DemoSubjectiveOptions}
+            options={FormOptions}
             onSelect={handleSubjectiveSelect}
             query={query}
             setQuery={setQuery}
+            minChars={0}
           />
-          <FormDesc
-            intype="text"
-            inname="desc"
-            value={formData.desc}
-            inlabel="Description"
-            onChange={(e) => setFormData({ ...formData, desc: e.target.value })}
-            error={formDataErrors.desc}
-            className="min-h-[120px]!"
-          />
+          {active && (
+            <FormRenderer
+              fields={active.schema ?? []}
+              values={values}
+              onChange={handleValueChange}
+              readOnly
+            />
+          )}
+          <SubjectiveSubmissions formData={formData} />
         </div>
       </Accordion>
-      <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      {active && (
+        <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      )}
     </div>
   );
 };

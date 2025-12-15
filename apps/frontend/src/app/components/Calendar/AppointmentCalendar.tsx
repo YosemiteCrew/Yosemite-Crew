@@ -1,13 +1,13 @@
-import { AppointmentsProps } from "@/app/types/appointments";
 import React, { useMemo } from "react";
 import { isSameDay } from "./helpers";
 import DayCalendar from "./common/DayCalendar";
 import Header from "./common/Header";
 import WeekCalendar from "./common/WeekCalendar";
+import { Appointment } from "@yosemite-crew/types";
 
 type AppointmentCalendarProps = {
-  filteredList: AppointmentsProps[];
-  setActiveAppointment?: (inventory: AppointmentsProps) => void;
+  filteredList: Appointment[];
+  setActiveAppointment?: (inventory: Appointment) => void;
   setViewPopup?: (open: boolean) => void;
   activeCalendar: string;
   currentDate: Date;
@@ -26,7 +26,7 @@ const AppointmentCalendar = ({
   weekStart,
   setWeekStart
 }: AppointmentCalendarProps) => {
-  const handleViewAppointment = (appointment: AppointmentsProps) => {
+  const handleViewAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setViewPopup?.(true);
   };
@@ -34,7 +34,7 @@ const AppointmentCalendar = ({
   const dayEvents = useMemo(
     () =>
       filteredList.filter((event) =>
-        isSameDay(new Date(event.start), currentDate)
+        isSameDay(new Date(event.startTime), currentDate)
       ),
     [filteredList, currentDate]
   );
@@ -51,6 +51,16 @@ const AppointmentCalendar = ({
         />
       )}
       {activeCalendar === "week" && (
+        <WeekCalendar
+          events={filteredList}
+          date={currentDate}
+          handleViewAppointment={handleViewAppointment}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+          setCurrentDate={setCurrentDate}
+        />
+      )}
+      {activeCalendar === "vet" && (
         <WeekCalendar
           events={filteredList}
           date={currentDate}

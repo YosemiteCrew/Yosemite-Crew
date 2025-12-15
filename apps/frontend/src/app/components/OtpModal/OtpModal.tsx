@@ -2,13 +2,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button, Modal } from "react-bootstrap";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { useAuthStore } from "@/app/stores/authStore";
 import { postData } from "@/app/services/axios";
+import { useSignOut } from "@/app/hooks/useAuth";
 
 import "./OtpModal.css";
-import { useRouter } from "next/navigation";
 
 const OtpModal = ({
   email,
@@ -17,8 +18,9 @@ const OtpModal = ({
   showVerifyModal,
   setShowVerifyModal,
 }: any) => {
-  const { confirmSignUp, resendCode, signIn, signout } = useAuthStore();
-  const router = useRouter()
+  const { signOut } = useSignOut();
+  const { confirmSignUp, resendCode, signIn } = useAuthStore();
+  const router = useRouter();
   const [code, setCode] = useState(new Array(6).fill(""));
   const [activeInput, setActiveInput] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -72,7 +74,7 @@ const OtpModal = ({
     try {
       await postData("/fhir/v1/user");
     } catch (error) {
-      await signout();
+      await signOut();
       throw error;
     }
   };
@@ -102,7 +104,7 @@ const OtpModal = ({
         setShowVerifyModal(false);
         try {
           await signIn(email, password);
-          await afterAuthSuccess()
+          await afterAuthSuccess();
           router.push("/organizations");
         } catch (error) {
           console.log(error);

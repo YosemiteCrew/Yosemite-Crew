@@ -1,32 +1,86 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
-import React, { useState } from "react";
-import { DemoSubjectiveOptions } from "./demo";
-import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import { formDataProps } from "..";
-import { AppointmentsProps } from "@/app/types/appointments";
+import React, { useMemo, useState } from "react";
+import { Appointment, FormSubmission } from "@yosemite-crew/types";
+import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
+import { FormsProps } from "@/app/types/forms";
+import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
+import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import { FormDataProps } from "..";
+import { createSubmission } from "@/app/services/soapService";
+import { useAuthStore } from "@/app/stores/authStore";
+import ObjectiveSubmissions from "./Submissions/ObjectiveSubmissions";
 
 type ObjectiveProps = {
-  formData: formDataProps;
-  setFormData: React.Dispatch<React.SetStateAction<formDataProps>>;
-  activeAppointment: AppointmentsProps;
+  formData: FormDataProps;
+  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
+  activeAppointment: Appointment;
 };
 
 const Objective = ({
+  activeAppointment,
   formData,
   setFormData,
-  activeAppointment,
 }: ObjectiveProps) => {
+  const attributes = useAuthStore.getState().attributes;
   const [query, setQuery] = useState("");
-  const [formDataErrors] = useState<{
-    general?: string;
-  }>({});
+  const forms = useFormsForPrimaryOrgByCategory("SOAP-Objective");
+  const [active, setActive] = useState<FormsProps | null>(null);
+  const [values, setValues] = React.useState<Record<string, any>>(() =>
+    buildInitialValues(active?.schema ?? [])
+  );
 
-  const handleObjectiveSelect = (id: string) => {};
+  const FormOptions = useMemo(
+    () =>
+      forms?.map((form) => ({
+        key: form._id || form.name,
+        value: form.name,
+      })),
+    [forms]
+  );
 
-  const handleSave = () => {};
+  const handleObjectiveSelect = (id: string) => {
+    const selected = forms.find((item) => item._id === id);
+    if (!selected) return;
+    const initialValues = buildInitialValues(selected.schema);
+    setValues(initialValues);
+    setActive(selected);
+  };
+
+  const handleValueChange = (id: string, value: any) => {
+    setValues((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!active?._id || !activeAppointment.id || !attributes) return;
+    try {
+      const submission: FormSubmission = {
+        _id: "",
+        formVersion: 1,
+        submittedAt: new Date(),
+        formId: active._id,
+        appointmentId: activeAppointment.id,
+        companionId: activeAppointment?.companion?.id ?? "",
+        parentId: activeAppointment?.companion?.parent?.id ?? "",
+        answers: values,
+        submittedBy: attributes.sub,
+      };
+      const created = await createSubmission(submission);
+      setFormData((prev) => ({
+        ...prev,
+        objective: [created, ...(prev.objective ?? [])],
+      }));
+      setActive(null);
+      setQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to save subjective submission:", e);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
@@ -39,146 +93,26 @@ const Objective = ({
         <div className="flex flex-col gap-3">
           <SearchDropdown
             placeholder="Search"
-            options={DemoSubjectiveOptions}
+            options={FormOptions}
             onSelect={handleObjectiveSelect}
             query={query}
             setQuery={setQuery}
+            minChars={0}
           />
-          <FormInput
-            intype="text"
-            inname="general"
-            value={formData.general}
-            inlabel="General behavior"
-            onChange={(e) =>
-              setFormData({ ...formData, general: e.target.value })
-            }
-            error={formDataErrors.general}
-            className="min-h-12!"
-          />
-          <div className="flex flex-col gap-2">
-            <div className="font-grotesk text-[19px] font-medium text-black-text ml-1!">
-              Vitals
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                intype="text"
-                inname="temperature"
-                value={formData.temp}
-                inlabel="Temperature"
-                onChange={(e) =>
-                  setFormData({ ...formData, temp: e.target.value })
-                }
-                className="min-h-12!"
-              />
-              <FormInput
-                intype="text"
-                inname="pulse"
-                value={formData.pulse}
-                inlabel="Pulse"
-                onChange={(e) =>
-                  setFormData({ ...formData, pulse: e.target.value })
-                }
-                className="min-h-12!"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                intype="text"
-                inname="respiration"
-                value={formData.respiration}
-                inlabel="Respiration"
-                onChange={(e) =>
-                  setFormData({ ...formData, respiration: e.target.value })
-                }
-                className="min-h-12!"
-              />
-              <FormInput
-                intype="text"
-                inname="mucous"
-                value={formData.mucousColor}
-                inlabel="Mucous color"
-                onChange={(e) =>
-                  setFormData({ ...formData, mucousColor: e.target.value })
-                }
-                className="min-h-12!"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                intype="text"
-                inname="bloodPressure"
-                value={formData.bloodPressure}
-                inlabel="Blood pressure"
-                onChange={(e) =>
-                  setFormData({ ...formData, bloodPressure: e.target.value })
-                }
-                className="min-h-12!"
-              />
-              <FormInput
-                intype="text"
-                inname="weight"
-                value={formData.weight}
-                inlabel="Body weight"
-                onChange={(e) =>
-                  setFormData({ ...formData, weight: e.target.value })
-                }
-                className="min-h-12!"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                intype="text"
-                inname="hydration"
-                value={formData.hydration}
-                inlabel="Hydration status"
-                onChange={(e) =>
-                  setFormData({ ...formData, hydration: e.target.value })
-                }
-                className="min-h-12!"
-              />
-              <FormInput
-                intype="text"
-                inname="generalBehaviour"
-                value={formData.generalBehaviour}
-                inlabel="General behavior"
-                onChange={(e) =>
-                  setFormData({ ...formData, generalBehaviour: e.target.value })
-                }
-                className="min-h-12!"
-              />
-            </div>
-          </div>
-          <FormDesc
-            intype="text"
-            inname="musculoskeletal"
-            value={formData.musculoskeletal}
-            inlabel="Musculoskeletal Exam"
-            onChange={(e) =>
-              setFormData({ ...formData, musculoskeletal: e.target.value })
-            }
-            className="min-h-[120px]!"
-          />
-          <FormInput
-            intype="text"
-            inname="neuro"
-            value={formData.neuro}
-            inlabel="Neuro"
-            onChange={(e) =>
-              setFormData({ ...formData, neuro: e.target.value })
-            }
-            className="min-h-12!"
-          />
-          <FormInput
-            intype="text"
-            inname="pain"
-            value={formData.pain}
-            inlabel="Pain Score"
-            onChange={(e) => setFormData({ ...formData, pain: e.target.value })}
-            className="min-h-12!"
-          />
+          {active && (
+            <FormRenderer
+              fields={active.schema ?? []}
+              values={values}
+              onChange={handleValueChange}
+              readOnly
+            />
+          )}
+          <ObjectiveSubmissions formData={formData} />
         </div>
       </Accordion>
-      <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      {active && (
+        <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      )}
     </div>
   );
 };

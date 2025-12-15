@@ -7,15 +7,16 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { computeOrgOnboardingStep } from "@/app/utils/orgOnboarding";
 import type { Organisation, Speciality } from "@yosemite-crew/types";
-import { useLoadOrg } from "../hooks/useLoadOrg";
-import { useLoadSpecialitiesForPrimaryOrg } from "../hooks/useSpecialities";
 import { useLoadTeam } from "../hooks/useTeam";
-import { useLoadProfiles } from "../hooks/useProfiles";
 import { useUserProfileStore } from "../stores/profileStore";
 import { computeTeamOnboardingStep } from "../utils/teamOnboarding";
-import { useLoadAvailabilities } from "../hooks/useAvailabiities";
 import { useAvailabilityStore } from "../stores/availabilityStore";
 import { ApiDayAvailability } from "./Availability/utils";
+import { useLoadRoomsForPrimaryOrg } from "../hooks/useRooms";
+import { useLoadAppointmentsForPrimaryOrg } from "../hooks/useAppointments";
+import { useLoadCompanionsForPrimaryOrg } from "../hooks/useCompanion";
+import { useLoadDocumentsForPrimaryOrg } from "../hooks/useDocuments";
+import { useLoadFormsForPrimaryOrg } from "../hooks/useForms";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -39,6 +40,11 @@ type OrgGuardProps = {
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadTeam();
+  useLoadRoomsForPrimaryOrg();
+  useLoadCompanionsForPrimaryOrg();
+  useLoadAppointmentsForPrimaryOrg();
+  useLoadDocumentsForPrimaryOrg();
+  useLoadFormsForPrimaryOrg()
 
   const router = useRouter();
   const pathname = usePathname();
@@ -71,9 +77,18 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    if (orgStatus === "idle" || orgStatus === "loading") {
+      return;
+    }
+    if (!primaryOrgId) {
+      if (pathname !== "/organizations") {
+        router.replace("/organizations");
+        return;
+      }
+      setChecked(true);
+      return;
+    }
     if (
-      orgStatus === "idle" ||
-      orgStatus === "loading" ||
       availabilityStatus === "loading" ||
       availabilityStatus === "idle" ||
       specialityStatus === "loading" ||
@@ -82,7 +97,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
-    if (!primaryOrgId || !primaryOrg || !membership) {
+    if (!primaryOrg || !membership) {
       if (pathname !== "/organizations") {
         router.replace("/organizations");
       }
@@ -103,11 +118,12 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
         if (step < 3) {
           // onboarding step < 3 → force /create-org
           redirectTo = "/create-org?orgId=" + primaryOrgId;
-        } else if (step === 3 && pathname === "/organization") {
-          redirectTo = "/organization";
-        } else {
-          // onboarding step === 3 → /dashboard
-          redirectTo = "/dashboard";
+        } else if (step === 3) {
+          if (pathname === "/organization" || pathname === "/book-onboarding") {
+            redirectTo = "";
+          } else {
+            redirectTo = "/dashboard";
+          }
         }
       }
     } else {
@@ -135,7 +151,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     orgStatus,
     getAvailabilitiesByOrgId,
     specialityStatus,
-    availabilityStatus
+    availabilityStatus,
   ]);
 
   if (!checked) return null;

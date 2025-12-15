@@ -46,3 +46,16 @@ export const EmploymentTypes = [
   { name: "Part time", key: "PART_TIME" },
   { name: "Contract", key: "CONTRACTOR" },
 ];
+export const RoomsTypes = [
+  { label: "CONSULTATION", value: "CONSULTATION" },
+  { label: "WAITING_AREA", value: "WAITING_AREA" },
+  { label: "SURGERY", value: "SURGERY" },
+  { label: "ICU", value: "ICU" },
+];
+export const OrgDocumentCategoryOptions = [
+  { label: "TERMS AND CONDITIONS", value: "TERMS_AND_CONDITIONS" },
+  { label: "PRIVACY POLICY", value: "PRIVACY_POLICY" },
+  { label: "CANCELLATION POLICY", value: "CANCELLATION_POLICY" },
+  { label: "FIRE SAFETY", value: "FIRE_SAFETY" },
+  { label: "GENERAL", value: "GENERAL" },
+];

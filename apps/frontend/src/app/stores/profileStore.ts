@@ -11,6 +11,7 @@ type UserProfileState = {
 
   setProfiles: (profiles: UserProfile[]) => void;
   addProfile: (profile: UserProfile) => void;
+  clearProfileForOrg: (orgId: string) => void;
   updateProfile: (profile: UserProfile) => void;
   getProfileById: (orgId: string) => UserProfile | undefined;
   clearProfiles: () => void;
@@ -53,6 +54,7 @@ export const useUserProfileStore = create<UserProfileState>()((set, get) => ({
           ...state.profilesByOrgId,
           [profile.organizationId]: profile,
         },
+        status: "loaded"
       };
     }),
 
@@ -81,6 +83,18 @@ export const useUserProfileStore = create<UserProfileState>()((set, get) => ({
             ...profile,
           },
         },
+        status: "loaded"
+      };
+    }),
+
+  clearProfileForOrg: (orgId) =>
+    set((state) => {
+      if (!state.profilesByOrgId[orgId]) return state;
+      const { [orgId]: _, ...rest } = state.profilesByOrgId;
+      return {
+        profilesByOrgId: rest,
+        status: "loaded",
+        error: null,
       };
     }),
 

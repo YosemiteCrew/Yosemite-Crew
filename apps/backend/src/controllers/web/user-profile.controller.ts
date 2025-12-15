@@ -7,21 +7,7 @@ import {
   type UpdateUserProfilePayload,
 } from "../../services/user-profile.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
-
-// type CreateUserProfileRequest = Request<
-//   Record<string, never>,
-//   unknown,
-//   unknown
-// >;
-// type UpdateUserProfileRequest = Request<
-//   { organizationId: string; userId: string },
-//   unknown,
-//   unknown
-// >;
-// type GetUserProfileRequest = Request<{
-//   organizationId: string;
-//   userId: string;
-// }>;
+import { generatePresignedUrl } from "src/middlewares/upload";
 
 function ensurePlainObjectBody(
   body: unknown,
@@ -115,6 +101,65 @@ export const UserProfileController = {
 
       logger.error("Failed to retrieve user profile", error);
       res.status(500).json({ message: "Unable to retrieve user profile." });
+    }
+  },
+
+  getUserProfileById: async(req: Request, res: Response) => {
+    try {
+      const userId = req.params.userId
+      const organizationId = req.params.organizationId;
+
+      const profile = await UserProfileService.getByUserId(
+        userId,
+        organizationId,
+      );
+
+      if (!profile) {
+        return res.status(404).json({ message: "User profile not found." });
+      }
+
+      res.status(200).json(profile);
+    } catch (error: unknown) {
+      if (error instanceof UserProfileServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      logger.error("Failed to retrieve user profile", error);
+      res.status(500).json({ message: "Unable to retrieve user profile." });
+    }
+  },
+
+  getProfilePictureUploadUrl: async (req: Request, res: Response) => {
+    try {
+      const { organizationId } = req.params;
+      const userId = resolveUserIdFromRequest(req);
+      if (!organizationId) {
+        return res.status(400).json({
+          message: "organizationId and userId are required in params",
+        });
+      }
+
+      const rawBody: unknown = req.body;
+      const mimeType =
+        typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
+          ? (rawBody as { mimeType?: unknown }).mimeType
+          : undefined;
+
+      if (typeof mimeType !== "string" || !mimeType) {
+        res
+          .status(400)
+          .json({ message: "MIME type is required in the request body." });
+        return;
+      }
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "user-org",
+        `${userId}-${organizationId}`,
+      );
+      res.status(200).json({ uploadUrl: url, s3Key: key });
+    } catch (error) {
+      logger.error("Failed to generate logo upload URL", error);
+      res.status(500).json({ message: "Unable to generate logo upload URL." });
     }
   },
 };

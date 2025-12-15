@@ -1,9 +1,13 @@
-import { Room } from "@/app/pages/Organization/types";
-import React from "react";
+import React, { useMemo } from "react";
 import GenericTable from "../GenericTable/GenericTable";
+import RoomCard from "../Cards/RoomCard";
+import { IoEye } from "react-icons/io5";
+import { OrganisationRoom, Speciality } from "@yosemite-crew/types";
 
 import "./DataTable.css";
-import { IoEye } from "react-icons/io5";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { Team } from "@/app/types/team";
 
 type Column<T> = {
   label: string;
@@ -13,23 +17,52 @@ type Column<T> = {
 };
 
 type RoomTableProps = {
-  filteredList: Room[];
+  filteredList: OrganisationRoom[];
   setActive?: (team: any) => void;
   setView?: (open: boolean) => void;
 };
 
+export const getStringified = (services: string[] = []): string => {
+  return services.join(", ");
+};
+
+export const joinNames = (byId: Record<string, string>, ids: string[] = []) => {
+  const names = ids.map((id) => byId[id]).filter(Boolean);
+  return names.length ? names.join(", ") : "-";
+};
+
 const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
-  const handleViewRoom = (team: any) => {
+  const teams = useTeamForPrimaryOrg();
+  const specialities = useSpecialitiesForPrimaryOrg();
+
+  const staffNameById = useMemo(() => {
+    return teams?.reduce((acc: Record<string, string>, s: Team) => {
+      acc[s._id] = s.name ?? "";
+      return acc;
+    }, {});
+  }, [teams]);
+
+  const specialityNameById = useMemo(() => {
+    return specialities?.reduce(
+      (acc: Record<string, string>, sp: Speciality) => {
+        acc[sp._id || sp.name] = sp.name ?? "";
+        return acc;
+      },
+      {}
+    );
+  }, [specialities]);
+
+  const handleViewRoom = (team: OrganisationRoom) => {
     setActive?.(team);
     setView?.(true);
   };
 
-  const columns: Column<Room>[] = [
+  const columns: Column<OrganisationRoom>[] = [
     {
       label: "Name",
       key: "name",
       width: "20%",
-      render: (item: Room) => (
+      render: (item: OrganisationRoom) => (
         <div className="appointment-profile-title">{item.name}</div>
       ),
     },
@@ -37,7 +70,7 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
       label: "Type",
       key: "type",
       width: "20%",
-      render: (item: Room) => (
+      render: (item: OrganisationRoom) => (
         <div className="appointment-profile-title">{item.type}</div>
       ),
     },
@@ -45,9 +78,9 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
       label: "Assigned specialities",
       key: "Assigned specialities",
       width: "25%",
-      render: (item: Room) => (
+      render: (item: OrganisationRoom) => (
         <div className="appointment-profile-title">
-          {item.assignedSpeciality}
+          {joinNames(specialityNameById, item.assignedSpecialiteis)}
         </div>
       ),
     },
@@ -55,15 +88,17 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
       label: "Assigned staff",
       key: "Assigned staff",
       width: "25%",
-      render: (item: Room) => (
-        <div className="appointment-profile-title">{item.assignedStaff}</div>
+      render: (item: OrganisationRoom) => (
+        <div className="appointment-profile-title">
+          {joinNames(staffNameById, item.assignedStaffs)}
+        </div>
       ),
     },
     {
       label: "Actions",
       key: "actions",
       width: "10%",
-      render: (item: Room) => (
+      render: (item: OrganisationRoom) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewRoom(item)}
@@ -86,6 +121,26 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
           pagination
           pageSize={5}
         />
+      </div>
+      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item, i) => (
+            <RoomCard
+              key={item.name + i}
+              room={item}
+              handleViewRoom={handleViewRoom}
+              staffNameById={staffNameById}
+              specialityNameById={specialityNameById}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

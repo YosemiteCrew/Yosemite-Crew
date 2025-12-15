@@ -1,9 +1,11 @@
 import React from "react";
-import { Document } from "@/app/pages/Organization/types";
 import GenericTable from "../GenericTable/GenericTable";
 
-import "./DataTable.css";
 import { IoEye } from "react-icons/io5";
+import DocumentsCard from "../Cards/DocumentsCard";
+import { OrganizationDocument } from "@/app/types/document";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -13,7 +15,7 @@ type Column<T> = {
 };
 
 type DocumentsTableProps = {
-  filteredList: Document[];
+  filteredList: OrganizationDocument[];
   setActive?: (document: any) => void;
   setView?: (open: boolean) => void;
 };
@@ -28,44 +30,36 @@ const DocumentsTable = ({
     setView?.(true);
   };
 
-  const columns: Column<Document>[] = [
+  const columns: Column<OrganizationDocument>[] = [
     {
       label: "Title",
       key: "title",
       width: "20%",
-      render: (item: Document) => (
+      render: (item: OrganizationDocument) => (
         <div className="appointment-profile-title">{item.title}</div>
       ),
     },
     {
       label: "Description",
       key: "description",
-      width: "40%",
-      render: (item: Document) => (
+      width: "35%",
+      render: (item: OrganizationDocument) => (
         <div className="appointment-profile-title">{item.description}</div>
       ),
     },
     {
-      label: "Date",
-      key: "date",
-      width: "15%",
-      render: (item: Document) => (
-        <div className="appointment-profile-title">{item.date}</div>
-      ),
-    },
-    {
-      label: "Last updated",
-      key: "Last updated",
-      width: "15%",
-      render: (item: Document) => (
-        <div className="appointment-profile-title">{item.lastUpdated}</div>
+      label: "Category",
+      key: "category",
+      width: "20%",
+      render: (item: OrganizationDocument) => (
+        <div className="appointment-profile-title">{item.category}</div>
       ),
     },
     {
       label: "Actions",
       key: "actions",
       width: "10%",
-      render: (item: Document) => (
+      render: (item: OrganizationDocument) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewDocument(item)}
@@ -88,6 +82,24 @@ const DocumentsTable = ({
           pagination
           pageSize={5}
         />
+      </div>
+      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item, i) => (
+            <DocumentsCard
+              key={item.title + i}
+              document={item}
+              handleViewDocument={handleViewDocument}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

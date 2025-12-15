@@ -20,6 +20,7 @@ export interface Organisation {
     animalWelfareComplianceCertNo?: string
     fireAndEmergencyCertNo?: string
     googlePlacesId?: string
+    stripeAccountId?: string;
 }
 
 export type Organization = Organisation
@@ -44,6 +45,8 @@ const FIRE_EMERGENCY_CERT_EXTENSION_URL =
     'http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
 const TYPE_SYSTEM = 'http://example.org/fhir/CodeSystem/organisation-type'
 const GOOGLE_PLACE_ID_EXTENSION_URL = 'http://example.com/fhir/StructureDefinition/google-place-id'
+const STRIPE_ACCOUNT_ID_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/stripe-account-id'
 
 const ORGANISATION_TYPE_CODING_MAP: Record<Organisation['type'], { code: string; display: string }> = {
     HOSPITAL: { code: 'hospital', display: 'Hospital' },
@@ -168,6 +171,13 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
         })
     }
 
+    if (organisation.stripeAccountId) {
+        extensions.push({
+            url: STRIPE_ACCOUNT_ID_EXTENSION_URL,
+            valueString: organisation.stripeAccountId,
+        })
+    }
+
     return extensions.length ? extensions : undefined
 }
 
@@ -276,6 +286,7 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
         animalWelfareComplianceCertNo: extractStringExtension(extensions, ANIMAL_WELFARE_CERT_EXTENSION_URL),
         fireAndEmergencyCertNo: extractStringExtension(extensions, FIRE_EMERGENCY_CERT_EXTENSION_URL),
         googlePlacesId: extractStringExtension(extensions, GOOGLE_PLACE_ID_EXTENSION_URL),
+        stripeAccountId: extractStringExtension(extensions, STRIPE_ACCOUNT_ID_EXTENSION_URL),
     }
 }
 

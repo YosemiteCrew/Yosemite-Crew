@@ -6,13 +6,17 @@ import { getData, postData } from "./axios";
 import { loadOrgs } from "./orgService";
 import { loadProfiles } from "./profileService";
 
-export const loadTeam = async (opts?: { silent?: boolean }) => {
-  const { setTeams, startLoading } = useTeamStore.getState();
+export const loadTeam = async (opts?: {
+  silent?: boolean;
+  force?: boolean;
+}) => {
+  const { startLoading, status, setTeamsForOrg } = useTeamStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn("No primary organization selected. Cannot send invite.");
     return [];
   }
+  if (!shouldFetchTeam(status, opts)) return;
   if (!opts?.silent) {
     startLoading();
   }
@@ -36,11 +40,19 @@ export const loadTeam = async (opts?: { silent?: boolean }) => {
       };
       temp.push(teamObject);
     }
-    setTeams(temp);
+    setTeamsForOrg(primaryOrgId, temp);
   } catch (err: any) {
     console.error("Failed to load invites:", err);
     throw err;
   }
+};
+
+const shouldFetchTeam = (
+  status: ReturnType<typeof useTeamStore.getState>["status"],
+  opts?: { force?: boolean }
+) => {
+  if (opts?.force) return true;
+  return status === "idle" || status === "error";
 };
 
 export const sendInvite = async (invite: TeamFormDataType) => {
@@ -86,4 +98,25 @@ export const acceptInvite = async (invite: Invite) => {
   await loadProfiles({ silent: true });
   await loadTeam({ silent: true });
   setPrimaryOrg(invite.organisationId);
+};
+
+export const getProfileForUserForPrimaryOrg = async (userId: string) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) {
+    console.warn("No primary organization selected. Cannot load companions.");
+    return [];
+  }
+  try {
+    if (!userId) {
+      return [];
+    }
+    const res = await getData(
+      "/fhir/v1/user-profile/" + userId + "/" + primaryOrgId + "/profile"
+    );
+    const data = res.data;
+    return data;
+  } catch (err) {
+    console.error("Failed to create service:", err);
+    throw err;
+  }
 };

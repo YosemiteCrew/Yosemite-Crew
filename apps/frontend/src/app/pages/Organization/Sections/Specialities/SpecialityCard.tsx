@@ -1,9 +1,12 @@
 import Accordion from "@/app/components/Accordion/Accordion";
+import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { SpecialityWeb } from "@/app/types/speciality";
 import { Service } from "@yosemite-crew/types";
-import React from "react";
+import React, { useMemo } from "react";
 
 type SpecialityCardProps = {
   setFormData: React.Dispatch<React.SetStateAction<SpecialityWeb[]>>;
@@ -16,6 +19,17 @@ const SpecialityCard = ({
   speciality,
   index,
 }: SpecialityCardProps) => {
+  const teams = useTeamForPrimaryOrg();
+
+  const TeamOptions = useMemo(
+    () =>
+      teams?.map((team) => ({
+        label: team.name || team._id,
+        value: team._id,
+      })),
+    [teams]
+  );
+
   const updateServiceList = (
     serviceIndex: number,
     key: string,
@@ -24,6 +38,31 @@ const SpecialityCard = ({
   ): Service[] => {
     return services.map((srv, srvIndex) =>
       srvIndex === serviceIndex ? { ...srv, [key]: value } : srv
+    );
+  };
+
+  const updateStaff = (ids: string[]) => {
+    setFormData((prev) =>
+      prev.map((sp, spIndex) => {
+        if (spIndex !== index) return sp;
+        return {
+          ...sp,
+          teamMemberIds: ids,
+        };
+      })
+    );
+  };
+
+  const updateLead = (lead: any) => {
+    setFormData((prev) =>
+      prev.map((sp, spIndex) => {
+        if (spIndex !== index) return sp;
+        return {
+          ...sp,
+          headName: lead.label,
+          headUserId: lead.value,
+        };
+      })
     );
   };
 
@@ -61,6 +100,23 @@ const SpecialityCard = ({
 
   return (
     <div className="flex flex-col gap-3">
+      <Dropdown
+        placeholder="Lead"
+        value={speciality.headUserId || ""}
+        onChange={(e) => updateLead(e)}
+        className="min-h-12!"
+        options={TeamOptions}
+        dropdownClassName="h-fit! max-h-[150px]!"
+        returnObject
+      />
+      <MultiSelectDropdown
+        placeholder="Assigned staff"
+        value={speciality.teamMemberIds || []}
+        onChange={(e) => updateStaff(e)}
+        className="min-h-12!"
+        options={TeamOptions}
+        dropdownClassName="h-fit!"
+      />
       <ServiceSearch speciality={speciality} setSpecialities={setFormData} />
       {speciality?.services?.map((service, i) => (
         <Accordion
@@ -99,9 +155,7 @@ const SpecialityCard = ({
                 inname="charge"
                 value={String(service.cost)}
                 inlabel="Service charge ($)"
-                onChange={(e) =>
-                  updateServiceField(i, "cost", e.target.value)
-                }
+                onChange={(e) => updateServiceField(i, "cost", e.target.value)}
                 className="min-h-12!"
               />
               <FormInput

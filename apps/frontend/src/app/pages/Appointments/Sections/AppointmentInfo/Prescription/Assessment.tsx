@@ -1,32 +1,86 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
-import React, { useState } from "react";
-import { DemoSubjectiveOptions } from "./demo";
-import FormInput from "@/app/components/Inputs/FormInput/FormInput";
-import { formDataProps } from "..";
-import { AppointmentsProps } from "@/app/types/appointments";
+import React, { useMemo, useState } from "react";
+import { Appointment, FormSubmission } from "@yosemite-crew/types";
+import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
+import { FormsProps } from "@/app/types/forms";
+import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
+import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import { FormDataProps } from "..";
+import AssessmentSubmissions from "./Submissions/AssessmentSubmissions";
+import { createSubmission } from "@/app/services/soapService";
+import { useAuthStore } from "@/app/stores/authStore";
 
 type AssessmentProps = {
-  formData: formDataProps;
-  setFormData: React.Dispatch<React.SetStateAction<formDataProps>>;
-  activeAppointment: AppointmentsProps;
+  activeAppointment: Appointment;
+  formData: FormDataProps;
+  setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
 };
 
 const Assessment = ({
+  activeAppointment,
   formData,
   setFormData,
-  activeAppointment,
 }: AssessmentProps) => {
+  const attributes = useAuthStore.getState().attributes;
   const [query, setQuery] = useState("");
-  const [formDataErrors] = useState<{
-    prognosis?: string;
-  }>({});
+  const forms = useFormsForPrimaryOrgByCategory("SOAP-Assessment");
+  const [active, setActive] = useState<FormsProps | null>(null);
+  const [values, setValues] = React.useState<Record<string, any>>(() =>
+    buildInitialValues(active?.schema ?? [])
+  );
 
-  const handleAssessmentSelect = (id: string) => {};
+  const FormOptions = useMemo(
+    () =>
+      forms?.map((form) => ({
+        key: form._id || form.name,
+        value: form.name,
+      })),
+    [forms]
+  );
 
-  const handleSave = () => {};
+  const handleAssessmentSelect = (id: string) => {
+    const selected = forms.find((item) => item._id === id);
+    if (!selected) return;
+    const initialValues = buildInitialValues(selected.schema);
+    setValues(initialValues);
+    setActive(selected);
+  };
+
+  const handleValueChange = (id: string, value: any) => {
+    setValues((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!active?._id || !activeAppointment.id || !attributes) return;
+    try {
+      const submission: FormSubmission = {
+        _id: "",
+        formVersion: 1,
+        submittedAt: new Date(),
+        formId: active._id,
+        appointmentId: activeAppointment.id,
+        companionId: activeAppointment?.companion?.id ?? "",
+        parentId: activeAppointment?.companion?.parent?.id ?? "",
+        answers: values,
+        submittedBy: attributes.sub,
+      };
+      const created = await createSubmission(submission);
+      setFormData((prev) => ({
+        ...prev,
+        assessment: [created, ...(prev.assessment ?? [])],
+      }));
+      setActive(null);
+      setQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to save subjective submission:", e);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
@@ -39,45 +93,26 @@ const Assessment = ({
         <div className="flex flex-col gap-3">
           <SearchDropdown
             placeholder="Search"
-            options={DemoSubjectiveOptions}
+            options={FormOptions}
             onSelect={handleAssessmentSelect}
             query={query}
             setQuery={setQuery}
+            minChars={0}
           />
-          <FormInput
-            intype="text"
-            inname="tentative"
-            value={formData.tentatve}
-            inlabel="Tentative diagnosis"
-            onChange={(e) =>
-              setFormData({ ...formData, tentatve: e.target.value })
-            }
-            className="min-h-12!"
-          />
-          <FormDesc
-            intype="text"
-            inname="differential"
-            value={formData.differential}
-            inlabel="Differential diagnosis"
-            onChange={(e) =>
-              setFormData({ ...formData, differential: e.target.value })
-            }
-            className="min-h-[120px]!"
-          />
-          <FormInput
-            intype="text"
-            inname="prognosis"
-            value={formData.prognosis}
-            inlabel="Prognosis"
-            onChange={(e) =>
-              setFormData({ ...formData, prognosis: e.target.value })
-            }
-            error={formDataErrors.prognosis}
-            className="min-h-12!"
-          />
+          {active && (
+            <FormRenderer
+              fields={active.schema ?? []}
+              values={values}
+              onChange={handleValueChange}
+              readOnly
+            />
+          )}
+          <AssessmentSubmissions formData={formData} />
         </div>
       </Accordion>
-      <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      {active && (
+        <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      )}
     </div>
   );
 };

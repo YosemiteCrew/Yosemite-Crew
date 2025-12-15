@@ -2,9 +2,9 @@ import { EmploymentTypesProps } from "./team";
 
 export type Status = "DRAFT" | "COMPLETED";
 
-export type Gender = "MALE" | "FEMALE" | "OTHERS";
+export type Gender = "MALE" | "FEMALE" | "OTHER";
 
-export const GenderOptions: Gender[] = ["MALE", "FEMALE", "OTHERS"];
+export const GenderOptions: Gender[] = ["MALE", "FEMALE", "OTHER"];
 
 export type DocumentType = "LICENSE" | "CERTIFICATE" | "OTHERS";
 

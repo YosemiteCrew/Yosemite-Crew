@@ -15,7 +15,7 @@ export type SetAvailability = React.Dispatch<
   React.SetStateAction<AvailabilityState>
 >;
 
-const formatUtcTimeToLocalLabel = (value: string): string => {
+export const formatUtcTimeToLocalLabel = (value: string): string => {
   if (!value) return value;
   const date = new Date(`1970-01-01T${value}:00Z`);
   if (Number.isNaN(date.getTime())) {

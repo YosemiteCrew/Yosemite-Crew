@@ -31,6 +31,7 @@ const DashboardProfile = () => {
           alt="logo"
           height={40}
           width={40}
+          className="rounded-full object-cover h-10 min-w-10 max-h-10"
         />
         <div className="dashboard-profile-heading">
           {(attributes?.given_name || "") +
@@ -86,7 +87,7 @@ const DashboardProfile = () => {
               <FaClock color="#F68523" size={20} />
               <span>Verification in progress</span>
             </div>
-            <Primary text="Book onboarding call" href="/book-demo" />
+            <Primary text="Book onboarding call" href="/book-onboarding" />
           </>
         )}
       </div>

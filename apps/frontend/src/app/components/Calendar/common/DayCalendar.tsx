@@ -10,13 +10,13 @@ import {
 import { LaidOutEvent } from "@/app/types/calendar";
 import TimeLabels from "./TimeLabels";
 import HorizontalLines from "./HorizontalLines";
-import { AppointmentsProps } from "@/app/types/appointments";
 import { getStatusStyle } from "../../DataTable/Appointments";
 import Image from "next/image";
 import { GrNext, GrPrevious } from "react-icons/gr";
+import { Appointment } from "@yosemite-crew/types";
 
 type DayCalendarProps = {
-  events: AppointmentsProps[];
+  events: Appointment[];
   date: Date;
   handleViewAppointment: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
@@ -31,8 +31,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const { allDayEvents, timedEvents } = useMemo(() => {
-    const allDay: AppointmentsProps[] = [];
-    const timed: AppointmentsProps[] = [];
+    const allDay: Appointment[] = [];
+    const timed: Appointment[] = [];
     for (const ev of events) {
       if (isAllDayForDate(ev, date)) {
         allDay.push(ev);
@@ -91,24 +91,24 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
           <div className="flex flex-wrap gap-2">
             {allDayEvents.map((ev) => (
               <button
-                key={`${ev.name}-${ev.start.toISOString()}`}
+                key={`${ev.companion.name}-${ev.startTime.toISOString()}`}
                 type="button"
                 onClick={() => handleViewAppointment(ev)}
                 className="flex items-center gap-2 rounded-full! px-3 py-1 text-xs font-satoshi"
                 style={getStatusStyle(ev.status)}
               >
                 <Image
-                  src={ev.image}
+                  src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
                   height={20}
                   width={20}
                   className="rounded-full"
-                  alt={ev.name}
+                  alt={""}
                 />
                 <span className="font-medium truncate max-w-40">
-                  {ev.name}
+                  {ev.companion.name}
                 </span>
                 <span className="opacity-70 truncate max-w-[120px]">
-                  {ev.reason}
+                  {ev.concern || ""}
                 </span>
               </button>
             ))}
@@ -135,7 +135,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               const verticalGapPx = EVENT_VERTICAL_GAP_PX;
               return (
                 <button
-                  key={ev.name + i}
+                  key={ev.companion.name + i}
                   className="absolute rounded-2xl! p-2 overflow-auto scrollbar-hidden whitespace-nowrap text-ellipsis flex flex-col items-start cursor-pointer"
                   style={{
                     top: ev.topPx,
@@ -147,33 +147,33 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   onClick={() => handleViewAppointment(ev)}
                 >
                   <div className="font-satoshi text-[18px] font-medium">
-                    {ev.reason}
+                    {ev.concern}
                   </div>
                   <div className="font-satoshi text-[15px] font-medium">
-                    {ev.lead}
+                    {ev.lead?.name}
                   </div>
                   <div className="flex items-center gap-1">
                     <Image
-                      src={ev.image}
+                      src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
                       height={30}
                       width={30}
                       className="rounded-full"
                       alt=""
                     />
                     <div className="font-satoshi text-[15px] font-medium">
-                      {ev.name}
+                      {ev.companion.name}
                     </div>
                     <div className="font-satoshi text-[15px] font-medium opacity-70">
-                      {ev.parentName}
+                      {ev.companion.parent.name}
                     </div>
                   </div>
                   <div className="font-satoshi text-[15px] font-medium">
-                    {ev.start.toLocaleTimeString("en-US", {
+                    {ev.startTime.toLocaleTimeString("en-US", {
                       hour: "numeric",
                       minute: "2-digit",
                     })}
                     {" - "}
-                    {ev.end.toLocaleTimeString("en-US", {
+                    {ev.endTime.toLocaleTimeString("en-US", {
                       hour: "numeric",
                       minute: "2-digit",
                     })}

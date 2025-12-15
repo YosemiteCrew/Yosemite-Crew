@@ -9,6 +9,8 @@ import {
   getWeekDays,
 } from "../../Calendar/weekHelpers";
 import { isSameDay } from "../../Calendar/helpers";
+import { Slot } from "@/app/types/appointments";
+import { formatUtcTimeToLocalLabel } from "../../Availability/utils";
 
 const monthNames = [
   "January",
@@ -25,28 +27,21 @@ const monthNames = [
   "December",
 ];
 
-const timeSlots = [
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "12:00 PM",
-  "12:30 PM",
-  "1:00 PM",
-  "1:30 PM",
-  "2:00 PM",
-  "2:30 PM",
-  "3:00 PM",
-];
-
 type SlotpickerProps = {
   selectedDate: Date;
   setSelectedDate: React.Dispatch<React.SetStateAction<Date>>;
-  selectedTime: string;
-  setSelectedTime: React.Dispatch<React.SetStateAction<string>>;
+  selectedSlot: Slot | null;
+  setSelectedSlot: React.Dispatch<React.SetStateAction<Slot | null>>;
+  timeSlots: Slot[];
 };
 
-const Slotpicker = ({ selectedDate, setSelectedDate, selectedTime, setSelectedTime }: SlotpickerProps) => {
+const Slotpicker = ({
+  selectedDate,
+  setSelectedDate,
+  selectedSlot,
+  setSelectedSlot,
+  timeSlots,
+}: SlotpickerProps) => {
   const [weekStart, setWeekStart] = useState(getStartOfWeek(selectedDate));
   const [viewYear, setViewYear] = useState(weekStart.getFullYear());
   const [viewMonth, setViewMonth] = useState(weekStart.getMonth());
@@ -86,9 +81,26 @@ const Slotpicker = ({ selectedDate, setSelectedDate, selectedTime, setSelectedTi
     });
   };
 
-  const handleClickdate = (date: Date) => {
-    setSelectedDate(date);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const isPastDay = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
   };
+
+  const handleClickdate = (date: Date) => {
+    if (isPastDay(date)) return;
+    setSelectedDate(date);
+    setSelectedSlot(null);
+  };
+
+  const isSameSlot = (a: Slot | null, b: Slot) =>
+    !!a && a.startTime === b.startTime && a.endTime === b.endTime;
 
   return (
     <div className="flex flex-col gap-3">
@@ -139,15 +151,19 @@ const Slotpicker = ({ selectedDate, setSelectedDate, selectedTime, setSelectedTi
         />
       </div>
       <div className="flex flex-wrap gap-2 px-2">
-        {timeSlots.map((slot) => (
-          <button
-            key={slot}
-            onClick={() => setSelectedTime(slot)}
-            className={`${selectedTime === slot ? "text-[#247AED] bg-[#E9F2FD] border-[#247AED]!" : "border-[#747473]! bg-white"} px-3 py-2 flex items-center justify-center border rounded-xl! text-[13px]! font-grotesk font-medium`}
-          >
-            {slot}
-          </button>
-        ))}
+        {timeSlots?.length > 0 &&
+          timeSlots.map((slot, i) => {
+            const selected = isSameSlot(selectedSlot, slot);
+            return (
+              <button
+                key={slot.startTime + i}
+                onClick={() => setSelectedSlot(slot)}
+                className={`${selected ? "text-[#247AED] bg-[#E9F2FD] border-[#247AED]!" : "border-[#747473]! bg-white"} px-3 py-2 flex items-center justify-center border rounded-xl! text-[13px]! font-grotesk font-medium`}
+              >
+                {formatUtcTimeToLocalLabel(slot.startTime)}
+              </button>
+            );
+          })}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { FormService, FormServiceError } from "src/services/form.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { FormRequestDTO, FormSubmissionRequestDTO } from "@yosemite-crew/types";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import logger from "src/utils/logger";
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;
@@ -32,7 +33,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in createForm:", error);
+      logger.error("Unexpected error in createForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -48,7 +49,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormForAdmin:", error);
+      logger.error("Unexpected error in getFormForAdmin:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -63,7 +64,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormForAdmin:", error);
+      logger.error("Unexpected error in getFormForAdmin:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -78,7 +79,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormForClient:", error);
+      logger.error("Unexpected error in getFormForClient:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -86,6 +87,7 @@ export const FormController = {
   updateForm: async (req: Request, res: Response) => {
     try {
       const formId = req.params.formId;
+      const orgId = req.params.orgId;
       const userId = resolveUserIdFromRequest(req);
       if (!userId) {
         return res
@@ -95,13 +97,13 @@ export const FormController = {
 
       const formRequest = req.body as FormRequestDTO;
 
-      const form = await FormService.update(formId, formRequest, userId);
+      const form = await FormService.update(formId, formRequest, userId, orgId);
       return res.status(200).json(form);
     } catch (error) {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in updateForm:", error);
+      logger.error("Unexpected error in updateForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -122,7 +124,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in publishForm:", error);
+      logger.error("Unexpected error in publishForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -143,7 +145,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in unpublishForm:", error);
+      logger.error("Unexpected error in unpublishForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -164,7 +166,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in archiveForm:", error);
+      logger.error("Unexpected error in archiveForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -188,7 +190,22 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in submitForm:", error);
+      logger.error("Unexpected error in submitForm:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  submitFormFromPMS: async (req: Request, res: Response) => {
+    try {
+      const submissionRequest = req.body as FormSubmissionRequestDTO;
+
+      const submission = await FormService.submitFHIR(submissionRequest);
+      return res.status(201).json(submission);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Unexpected error in submitForm:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -203,7 +220,7 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in getFormSubmissions:", error);
+      logger.error("Unexpected error in getFormSubmissions:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
@@ -218,8 +235,28 @@ export const FormController = {
       if (error instanceof FormServiceError) {
         return res.status(error.statusCode).json({ message: error.message });
       }
-      console.error("Unexpected error in listFormSubmissions:", error);
+      logger.error("Unexpected error in listFormSubmissions:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
+  getSOAPNotesByAppointment: async (req: Request, res: Response) => {
+    try {
+      const { appointmentId } = req.params;
+      const latestOnly = req.query.latestOnly === "true";
+
+      const result = await FormService.getSOAPNotesByAppointment(
+        appointmentId,
+        { latestOnly }
+      );
+
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+  
 };

@@ -6,6 +6,7 @@ import { InvoiceProps } from "@/app/types/invoice";
 import InvoiceDataTable from "@/app/components/DataTable/InvoiceTable";
 import { demoInvoices } from "./demo";
 import InvoiceInfo from "./Sections/InvoiceInfo";
+import OrgGuard from "@/app/components/OrgGuard";
 
 const Finance = () => {
   const [list, setList] = useState<InvoiceProps[]>(demoInvoices);
@@ -91,7 +92,9 @@ const Finance = () => {
 const ProtectedFinance = () => {
   return (
     <ProtectedRoute>
-      <Finance />
+      <OrgGuard>
+        <Finance />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

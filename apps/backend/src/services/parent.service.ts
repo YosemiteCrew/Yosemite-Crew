@@ -35,7 +35,7 @@ const ensureMongoId = (id: string): Types.ObjectId => {
 };
 
 /** Convert Mongo → Domain → FHIR DTO */
-const toFHIR = (doc: ParentDocument) => {
+export const toFHIR = (doc: ParentDocument) => {
   const json = doc.toObject();
 
   const parent: Parent = {
@@ -278,7 +278,11 @@ export const ParentService = {
     const searchRegex = new RegExp(name.trim(), "i");
 
     const documents = await ParentModel.find({
-      name: searchRegex,
+      $or: [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+      ],
     });
 
     return {

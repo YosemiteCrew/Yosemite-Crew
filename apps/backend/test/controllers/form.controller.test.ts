@@ -166,7 +166,11 @@ describe("FormController", () => {
       const res = mockResponse();
 
       await FormController.updateForm(
-        { params: { formId: "form-1" }, body: {}, headers: {} } as any,
+        {
+          params: { formId: "form-1", orgId: "org-1" },
+          body: {},
+          headers: {},
+        } as any,
         res as any,
       );
 
@@ -182,7 +186,7 @@ describe("FormController", () => {
 
       await FormController.updateForm(
         {
-          params: { formId: "form-1" },
+          params: { formId: "form-1", orgId: "org-1" },
           body: {},
           userId: "user-1",
           headers: {},
@@ -190,7 +194,12 @@ describe("FormController", () => {
         res as any,
       );
 
-      expect(mockedService.update).toHaveBeenCalledWith("form-1", {}, "user-1");
+      expect(mockedService.update).toHaveBeenCalledWith(
+        "form-1",
+        {},
+        "user-1",
+        "org-1",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ id: "f1" });
     });
