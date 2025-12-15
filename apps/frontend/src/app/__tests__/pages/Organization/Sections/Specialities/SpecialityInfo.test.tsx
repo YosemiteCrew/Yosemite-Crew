@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SpecialityInfo from "@/app/pages/Organization/Sections/Specialities/SpecialityInfo";
 import {

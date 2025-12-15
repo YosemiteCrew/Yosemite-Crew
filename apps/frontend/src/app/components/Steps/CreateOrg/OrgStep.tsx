@@ -12,6 +12,7 @@ import { createOrg } from "@/app/services/orgService";
 import { Organisation } from "@yosemite-crew/types";
 
 import "./Step.css";
+import { useRouter } from "next/navigation";
 
 type OrgStepProps = {
   nextStep: () => void;
@@ -20,6 +21,7 @@ type OrgStepProps = {
 };
 
 const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
+  const router = useRouter()
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     country?: string;
@@ -53,7 +55,8 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
       return;
     }
     try {
-      await createOrg(formData);
+      const orgId = await createOrg(formData);
+      router.replace(`/create-org?orgId=${orgId}`);
       nextStep();
     } catch (error: any) {
       console.error("Error creating organization:", error);
@@ -112,7 +115,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
             onChange={(e) =>
               setFormData({
                 ...formData,
-                address: { ...formData.address, postalCode: e },
+                address: { ...formData.address, country: e },
               })
             }
             error={formDataErrors.country}

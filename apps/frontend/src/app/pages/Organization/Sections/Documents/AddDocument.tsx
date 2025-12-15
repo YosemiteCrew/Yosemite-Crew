@@ -19,7 +19,7 @@ type AddDocumentProps = {
 };
 
 const INITIAL_FORM_DATA: OrganizationDocument = {
-  id: "",
+  _id: "",
   organisationId: "",
   title: "",
   description: "",

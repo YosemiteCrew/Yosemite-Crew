@@ -66,7 +66,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
       </thead>
       <tbody>
         {data.map((row: any, rowIndex: number) => (
-          <tr key={rowIndex} data-testid="table-row">
+          <tr key={rowIndex+"row-kkey"} data-testid="table-row">
             {columns.map((col: any) => (
               <td key={col.key}>
                 {col.render ? col.render(row) : row[col.key]}
@@ -241,17 +241,9 @@ describe("Appointments Component", () => {
   // --- 4. Style Helper (getStatusStyle) ---
 
   describe("getStatusStyle helper", () => {
-    it("returns correct styles for 'in-progress'", () => {
-      const style = getStatusStyle("in-progress");
-    });
-
     it("returns correct styles for 'completed'", () => {
       const style = getStatusStyle("completed");
       expect(style).toEqual({ color: "#fff", backgroundColor: "#008F5D" });
-    });
-
-    it("returns correct styles for 'checked-in'", () => {
-      const style = getStatusStyle("checked-in");
     });
 
     it("returns correct styles for 'requested'", () => {
@@ -262,10 +254,6 @@ describe("Appointments Component", () => {
     it("returns default styles for unknown status", () => {
       const style = getStatusStyle("unknown-status");
       expect(style).toEqual({ color: "#fff", backgroundColor: "#247AED" });
-    });
-
-    it("handles case insensitivity", () => {
-      const style = getStatusStyle("In-ProGress");
     });
   });
 });

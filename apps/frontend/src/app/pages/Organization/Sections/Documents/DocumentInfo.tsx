@@ -6,7 +6,7 @@ import { IoIosCloseCircleOutline } from "react-icons/io";
 import { OrgDocumentCategoryOptions } from "../../types";
 import { updateDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
-import { Primary } from "@/app/components/Buttons";
+import { Primary, Secondary } from "@/app/components/Buttons";
 
 type DocumentInfoProps = {
   showModal: boolean;
@@ -31,13 +31,13 @@ const DocumentInfo = ({
   activeDocument,
 }: DocumentInfoProps) => {
   const [file, setFile] = useState<File | null>(null);
-  const [fileUrl, setFileUrl] = useState<string>(activeDocument.fileUrl);
+  const [fileUrl, setFileUrl] = useState<string>("");
 
   const handleUpdate = async (values: any) => {
     try {
       const formData: OrganizationDocument = {
-        id: activeDocument.id,
-        organisationId: activeDocument.id,
+        _id: activeDocument._id,
+        organisationId: activeDocument.organisationId,
         fileUrl: activeDocument.fileUrl,
         title: values.title,
         description: values.description,
@@ -57,10 +57,15 @@ const DocumentInfo = ({
         fileUrl,
       };
       await updateDocument(formData);
+      setFile(null);
       setShowModal(false);
     } catch (error) {
       console.log(error);
     }
+  };
+
+  const handleDownload = () => {
+    window.open(activeDocument.fileUrl, "_blank");
   };
 
   return (
@@ -100,14 +105,24 @@ const DocumentInfo = ({
               setFile={setFile}
             />
           </div>
-          {fileUrl && (
-            <Primary
-              href="#"
-              text="Save"
-              classname="max-h-12! text-lg! tracking-wide!"
-              onClick={handleUpdateFile}
-            />
-          )}
+          <div className="flex flex-col gap-3">
+            {activeDocument.fileUrl && (
+              <Secondary
+                href={activeDocument.fileUrl}
+                text="Download document"
+                className="max-h-12! text-lg! tracking-wide!"
+                onClick={handleDownload}
+              />
+            )}
+            {fileUrl && (
+              <Primary
+                href="#"
+                text="Save"
+                classname="max-h-12! text-lg! tracking-wide!"
+                onClick={handleUpdateFile}
+              />
+            )}
+          </div>
         </div>
       </div>
     </Modal>

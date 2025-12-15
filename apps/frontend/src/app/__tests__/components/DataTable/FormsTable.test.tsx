@@ -21,7 +21,7 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => {
       </thead>
       <tbody>
         {data.map((item: any, i: number) => (
-          <tr key={i} data-testid={`row-${i}`}>
+          <tr key={i+"forms-key"} data-testid={`row-${i}`}>
             {columns.map((col: any) => (
               <td key={col.key}>
                 {col.render ? col.render(item) : item[col.key]}

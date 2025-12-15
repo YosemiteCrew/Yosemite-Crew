@@ -6,10 +6,19 @@ import { FormsProps } from "@/app/types/forms";
 
 // --- Mocks ---
 
+const secureRandom = (): number => {
+  if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    return buf[0] / 2 ** 32;
+  }
+  return Math.random(); // NOSONAR
+};
+
 // Mock crypto.randomUUID
 Object.defineProperty(globalThis, "crypto", {
   value: {
-    randomUUID: () => "new-uuid-" + Math.random().toString(36),
+    randomUUID: () => "new-uuid-" + secureRandom().toString(36),
   },
 });
 
@@ -464,10 +473,6 @@ describe("Build Component", () => {
 
     expect(serviceGroup.type).toBe("group");
     expect((serviceGroup as unknown as any).meta?.serviceGroup).toBe(true);
-
-    const checkbox = serviceGroup.fields.find(
-      (f: any) => f.type === "checkbox" && f.label === "Services"
-    );
   });
 
   it("updates options of service group checkbox when MultiSelect changes", () => {

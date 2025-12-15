@@ -65,15 +65,15 @@ const Summary = ({
           </div>
           <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
             <div>SubTotal: </div>
-            <div>${formData.plan.subTotal}</div>
+            <div>${formData.subTotal}</div>
           </div>
           <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
             <div>Tax: </div>
-            <div>${formData.plan.tax || "0.00"}</div>
+            <div>${formData.tax || "0.00"}</div>
           </div>
           <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
             <div>Estimatted total: </div>
-            <div>${formData.plan.total || "0.00"}</div>
+            <div>${formData.total || "0.00"}</div>
           </div>
           <div className="font-satoshi font-semibold text-[15px] text-grey-noti px-3 py-2">
             <span className="text-[#247AED]">Note : </span>Yosemite Crew uses

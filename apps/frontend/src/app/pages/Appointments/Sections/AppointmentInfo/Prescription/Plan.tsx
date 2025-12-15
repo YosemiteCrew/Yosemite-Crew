@@ -2,11 +2,14 @@ import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 import React, { useMemo, useState } from "react";
 import { Primary } from "@/app/components/Buttons";
 import { FormDataProps } from "..";
-import { Appointment, Service } from "@yosemite-crew/types";
+import { Appointment, FormSubmission } from "@yosemite-crew/types";
 import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
 import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
 import { FormsProps } from "@/app/types/forms";
-import Build from "@/app/pages/Forms/Sections/AddForm/Build";
+import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRenderer";
+import { useAuthStore } from "@/app/stores/authStore";
+import { createSubmission } from "@/app/services/soapService";
+import PlanSubmissions from "./Submissions/PlanSubmissions";
 
 type PlanProps = {
   formData: FormDataProps;
@@ -14,30 +17,14 @@ type PlanProps = {
   activeAppointment: Appointment;
 };
 
-export type ServiceEdit = Service & {
-  discount: string;
-};
-
-type TempFormData = {
-  total: string;
-  subTotal: string;
-  tax: string;
-};
-
-const EMPTY_TempFormData = {
-  total: "",
-  subTotal: "",
-  tax: "",
-};
-
 const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
+  const attributes = useAuthStore.getState().attributes;
+  const [planQuery, setPlanQuery] = useState("");
   const forms = useFormsForPrimaryOrgByCategory("SOAP-Plan");
   const [active, setActive] = useState<FormsProps | null>(null);
   const [values, setValues] = React.useState<Record<string, any>>(() =>
     buildInitialValues(active?.schema ?? [])
   );
-  const [planQuery, setPlanQuery] = useState("");
-  const [tempFormData] = useState<TempFormData>(EMPTY_TempFormData);
 
   const FormOptions = useMemo(
     () =>
@@ -56,9 +43,38 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
     setActive(selected);
   };
 
-  const handleSave = () => {
-    console.log(values);
-    console.log(active);
+  const handleValueChange = (id: string, value: any) => {
+    setValues((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!active?._id || !activeAppointment.id || !attributes) return;
+    try {
+      const submission: FormSubmission = {
+        _id: "",
+        formVersion: 1,
+        submittedAt: new Date(),
+        formId: active._id,
+        appointmentId: activeAppointment.id,
+        companionId: activeAppointment?.companion?.id ?? "",
+        parentId: activeAppointment?.companion?.parent?.id ?? "",
+        answers: values,
+        submittedBy: attributes.sub,
+      };
+      const created = await createSubmission(submission);
+      setFormData((prev) => ({
+        ...prev,
+        plan: [created, ...(prev.plan ?? [])],
+      }));
+      setActive(null);
+      setPlanQuery("");
+      setValues(buildInitialValues([]));
+    } catch (e) {
+      console.error("Failed to save subjective submission:", e);
+    }
   };
 
   return (
@@ -77,35 +93,19 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
             minChars={0}
           />
           {active && (
-            <Build
-              formData={active}
-              setFormData={(next) =>
-                setActive((prev) => {
-                  const base = prev ?? active;
-                  return typeof next === "function" ? next(base) : next;
-                })
-              }
-              onNext={() => {}}
-              serviceOptions={[]}
+            <FormRenderer
+              fields={active.schema ?? []}
+              values={values}
+              onChange={handleValueChange}
+              readOnly
             />
           )}
-        </div>
-        <div className="flex flex-col px-4! py-2.5! rounded-2xl border border-grey-light">
-          <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-            <div>SubTotal: </div>
-            <div>${tempFormData.subTotal}</div>
-          </div>
-          <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-            <div>Tax: </div>
-            <div>${tempFormData.tax || "0.00"}</div>
-          </div>
-          <div className="px-3! py-2! flex items-center gap-2 justify-between">
-            <div>Estimatted total: </div>
-            <div>${tempFormData.total || "0.00"}</div>
-          </div>
+          <PlanSubmissions formData={formData} />
         </div>
       </div>
-      <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      {active && (
+        <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
+      )}
     </div>
   );
 };

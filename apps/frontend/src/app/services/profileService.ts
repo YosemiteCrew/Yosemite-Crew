@@ -17,10 +17,11 @@ export const loadProfiles = async (opts?: { silent?: boolean }) => {
     await Promise.allSettled(
       orgIds.map(async (orgId) => {
         try {
-          const res = await getData<UserProfile>(
+          const res = await getData<any>(
             `/fhir/v1/user-profile/${orgId}/profile`
           );
-          temp.push(res.data);
+          const pro = res.data;
+          temp.push(pro.profile);
         } catch (err) {
           console.error(`Failed to fetch profile for orgId: ${orgId}`, err);
         }
@@ -46,7 +47,7 @@ export const createUserProfile = async (
       organizationId: orgIdFromQuery,
     };
     const res = await postData<UserProfileResponse>(
-      "/fhir/v1/user-profile/" + orgIdFromQuery,
+      "/fhir/v1/user-profile/" + orgIdFromQuery + "/profile",
       payload
     );
     const data = res.data;

@@ -11,7 +11,7 @@ export const getCountryCode = (country: string | undefined) => {
   if (!country) {
     return null;
   }
-  const temp = countries.filter((c) => c.flag + " " + c.name === country);
+  const temp = countries.filter((c) => c.name === country);
   if (temp.length > 0) return temp[0];
   return null;
 };

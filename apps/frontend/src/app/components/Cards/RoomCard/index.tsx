@@ -1,13 +1,20 @@
 import React from "react";
 import { OrganisationRoom } from "@yosemite-crew/types";
-import { getStringified } from "../../DataTable/RoomTable";
+import { joinNames } from "../../DataTable/RoomTable";
 
 type RoomCardProps = {
   room: OrganisationRoom;
   handleViewRoom: any;
+  specialityNameById: Record<string, string>;
+  staffNameById: Record<string, string>;
 };
 
-const RoomCard = ({ room, handleViewRoom }: RoomCardProps) => {
+const RoomCard = ({
+  room,
+  handleViewRoom,
+  staffNameById,
+  specialityNameById,
+}: RoomCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
       <div className="flex gap-1">
@@ -28,7 +35,7 @@ const RoomCard = ({ room, handleViewRoom }: RoomCardProps) => {
           Assigned specialities:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {getStringified(room.assignedSpecialiteis)}
+          {joinNames(specialityNameById, room.assignedSpecialiteis)}
         </div>
       </div>
       <div className="flex gap-1">
@@ -36,7 +43,7 @@ const RoomCard = ({ room, handleViewRoom }: RoomCardProps) => {
           Assigned staff:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {getStringified(room.assignedStaffs)}
+          {joinNames(staffNameById, room.assignedStaffs)}
         </div>
       </div>
       <div className="flex gap-3 w-full">

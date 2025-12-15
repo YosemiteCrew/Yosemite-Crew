@@ -36,7 +36,7 @@ jest.mock("@/app/components/Steps/TeamOnboarding/PersonalStep", () => ({
   __esModule: true,
   default: ({ nextStep }: any) => (
     <div data-testid="personal-step">
-      Personal Details
+      Personal Details{" "}
       <button onClick={nextStep}>Next</button>
     </div>
   ),
@@ -46,7 +46,7 @@ jest.mock("@/app/components/Steps/TeamOnboarding/ProfessionalStep", () => ({
   __esModule: true,
   default: ({ nextStep, prevStep }: any) => (
     <div data-testid="professional-step">
-      Professional Details
+      Professional Details{" "}
       <button onClick={prevStep}>Prev</button>
       <button onClick={nextStep}>Next</button>
     </div>
@@ -57,7 +57,7 @@ jest.mock("@/app/components/Steps/TeamOnboarding/AvailabilityStep", () => ({
   __esModule: true,
   default: ({ prevStep }: any) => (
     <div data-testid="availability-step">
-      Availability Details
+      Availability Details{" "}
       <button onClick={prevStep}>Prev</button>
     </div>
   ),

@@ -101,13 +101,17 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
               />
               <Dropdown
                 placeholder="Speciality"
-                value={formData.speciality.name}
+                value={formData.speciality.key}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    speciality: e,
+                    speciality: {
+                      name: e.label,
+                      key: e.value
+                    },
                   })
                 }
+                returnObject
                 error={formDataErrors.speciality}
                 className="min-h-12!"
                 dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"

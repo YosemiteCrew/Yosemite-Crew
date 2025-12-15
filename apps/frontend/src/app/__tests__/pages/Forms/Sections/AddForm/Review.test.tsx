@@ -182,13 +182,13 @@ describe("Review Component", () => {
 
     const valuesEl = screen.getByTestId("renderer-values");
     // Initial State
-    expect(JSON.parse(valuesEl.textContent!)).toEqual({ test_text: "Initial" });
+    expect(JSON.parse(valuesEl.textContent || "{}")).toEqual({ test_text: "Initial" });
 
     // Trigger Change (Mock simulates changing "test_text" to "updated value")
     fireEvent.click(screen.getByTestId("trigger-change"));
 
     // Verify Update
-    expect(JSON.parse(valuesEl.textContent!)).toEqual({
+    expect(JSON.parse(valuesEl.textContent || "{}")).toEqual({
       test_text: "updated value",
     });
   });

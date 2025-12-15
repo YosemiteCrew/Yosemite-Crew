@@ -22,32 +22,22 @@ jest.mock("@/app/services/teamService", () => ({
 jest.mock("@/app/components/GenericTable/GenericTable", () => {
   return ({ data, columns }: any) => (
     <div data-testid="generic-table">
-           {" "}
       <div data-testid="table-headers">
-               {" "}
         {columns.map((col: any) => (
           <span key={col.key}>{col.label}</span>
         ))}
-             {" "}
       </div>
-           {" "}
       <div data-testid="table-body">
-               {" "}
         {data.map((item: any, i: number) => (
-          <div key={i} data-testid={`row-${i}`}>
-                       {" "}
+          <div key={i+"invites-key"} data-testid={`row-${i}`}>
             {columns.map((col: any) => (
               <div key={col.key} data-testid={`cell-${col.key}`}>
-                                {col.render ? col.render(item) : item[col.key]} 
-                           {" "}
+                {col.render ? col.render(item) : item[col.key]} {" "}
               </div>
             ))}
-                     {" "}
           </div>
         ))}
-             {" "}
       </div>
-         {" "}
     </div>
   );
 });

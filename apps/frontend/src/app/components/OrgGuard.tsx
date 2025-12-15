@@ -16,6 +16,7 @@ import { useLoadRoomsForPrimaryOrg } from "../hooks/useRooms";
 import { useLoadAppointmentsForPrimaryOrg } from "../hooks/useAppointments";
 import { useLoadCompanionsForPrimaryOrg } from "../hooks/useCompanion";
 import { useLoadDocumentsForPrimaryOrg } from "../hooks/useDocuments";
+import { useLoadFormsForPrimaryOrg } from "../hooks/useForms";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -39,10 +40,11 @@ type OrgGuardProps = {
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadTeam();
-  useLoadRoomsForPrimaryOrg()
-  useLoadCompanionsForPrimaryOrg()
-  useLoadAppointmentsForPrimaryOrg()
-  useLoadDocumentsForPrimaryOrg()
+  useLoadRoomsForPrimaryOrg();
+  useLoadCompanionsForPrimaryOrg();
+  useLoadAppointmentsForPrimaryOrg();
+  useLoadDocumentsForPrimaryOrg();
+  useLoadFormsForPrimaryOrg()
 
   const router = useRouter();
   const pathname = usePathname();
@@ -75,9 +77,18 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    if (orgStatus === "idle" || orgStatus === "loading") {
+      return;
+    }
+    if (!primaryOrgId) {
+      if (pathname !== "/organizations") {
+        router.replace("/organizations");
+        return;
+      }
+      setChecked(true);
+      return;
+    }
     if (
-      orgStatus === "idle" ||
-      orgStatus === "loading" ||
       availabilityStatus === "loading" ||
       availabilityStatus === "idle" ||
       specialityStatus === "loading" ||
@@ -86,7 +97,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
-    if (!primaryOrgId || !primaryOrg || !membership) {
+    if (!primaryOrg || !membership) {
       if (pathname !== "/organizations") {
         router.replace("/organizations");
       }

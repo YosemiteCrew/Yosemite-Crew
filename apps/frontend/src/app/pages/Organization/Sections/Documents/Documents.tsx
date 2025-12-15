@@ -17,8 +17,8 @@ const Documents = () => {
   useEffect(() => {
     setActiveDocument((prev) => {
       if (documents.length === 0) return null;
-      if (prev?.id) {
-        const updated = documents.find((s) => s.id === prev.id);
+      if (prev?._id) {
+        const updated = documents.find((s) => s._id === prev._id);
         if (updated) return updated;
       }
       return documents[0];

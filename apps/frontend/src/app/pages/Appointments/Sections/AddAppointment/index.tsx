@@ -87,10 +87,8 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
     specialityId?: string;
     serviceId?: string;
     leadId?: string;
-    appointmentDate?: string;
-    startTime?: string;
-    endTime?: string;
     duration?: string;
+    slot?: string;
   }>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
@@ -267,10 +265,8 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
       specialityId?: string;
       serviceId?: string;
       leadId?: string;
-      appointmentDate?: string;
-      startTime?: string;
-      endTime?: string;
       duration?: string;
+      slot?: string;
     } = {};
     if (!formData.companion.id)
       errors.companionId = "Please select a companion";
@@ -279,10 +275,8 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
     if (!formData.appointmentType?.id)
       errors.serviceId = "Please select a service";
     if (!formData.lead?.id) errors.leadId = "Please select a lead";
-    if (!formData.startTime) errors.startTime = "Please select a slot";
-    if (!formData.endTime) errors.endTime = "Please select a slot";
     if (!formData.durationMinutes) errors.duration = "Please select a duration";
-    if (!formData.appointmentDate) errors.appointmentDate = "Please select a duration";
+    if (!selectedSlot) errors.slot = "Please select a slot";
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -445,6 +439,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
                           : ""
                       }
                       onChange={(e) => {}}
+                      error={formDataErrors.slot}
                       inlabel="Time"
                       className="min-h-12!"
                     />

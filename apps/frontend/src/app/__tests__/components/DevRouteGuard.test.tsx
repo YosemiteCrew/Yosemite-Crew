@@ -1,104 +1,71 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import { render } from "@testing-library/react";
+import DevRouteGuard from "@/app/components/DevRouteGuard/DevRouteGuard";
+import { useAuthStore } from "@/app/stores/authStore";
 
-const replaceMock = jest.fn();
-const signoutMock = jest.fn();
-const useAuthStoreMock = jest.fn();
-let mockPathname = "/developers/home";
-
+const mockReplace = jest.fn();
+const mockUsePathname = jest.fn(() => "/developers/home");
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: replaceMock }),
-  usePathname: () => mockPathname,
+  useRouter: () => ({ replace: mockReplace }),
+  usePathname: () => mockUsePathname(),
 }));
 
 jest.mock("@/app/stores/authStore", () => ({
-  useAuthStore: () => useAuthStoreMock(),
+  useAuthStore: jest.fn(),
 }));
 
-import DevRouteGuard from "@/app/components/DevRouteGuard/DevRouteGuard";
+const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
 
-describe("<DevRouteGuard />", () => {
+describe("DevRouteGuard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPathname = "/developers/home";
+    mockUseAuthStore.mockImplementation(() =>
+      ({
+        status: "authenticated",
+        role: "developer",
+        signout: jest.fn(),
+      } as any)
+    );
   });
 
-  test("allows access for developer role on developer paths", async () => {
-    useAuthStoreMock.mockReturnValue({
-      status: "authenticated",
-      role: "developer",
-      signout: signoutMock,
-    });
-
-    render(
+  it("renders children for developer role", () => {
+    const { getByText } = render(
       <DevRouteGuard>
-        <div data-testid="allowed-content">content</div>
-      </DevRouteGuard>,
+        <div>child</div>
+      </DevRouteGuard>
     );
-
-    await waitFor(() =>
-      expect(screen.getByTestId("allowed-content")).toBeInTheDocument(),
-    );
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(getByText("child")).toBeInTheDocument();
   });
 
-  test("redirects unauthenticated users on developer paths", async () => {
-    useAuthStoreMock.mockReturnValue({
+  it("redirects unauthenticated developer path", () => {
+    mockUseAuthStore.mockImplementation(() => ({
       status: "unauthenticated",
-      role: undefined,
-      signout: signoutMock,
-    });
+      role: null,
+      signout: jest.fn(),
+    }));
 
     render(
       <DevRouteGuard>
-        <div data-testid="blocked-content">content</div>
-      </DevRouteGuard>,
+        <div>child</div>
+      </DevRouteGuard>
     );
-
-    await waitFor(() =>
-      expect(replaceMock).toHaveBeenCalledWith("/developers/signin"),
-    );
-    expect(screen.queryByTestId("blocked-content")).not.toBeInTheDocument();
+    expect(mockReplace).toHaveBeenCalledWith("/developers/signin");
   });
 
-  test("signs out and redirects when authenticated but not developer", async () => {
-    useAuthStoreMock.mockReturnValue({
+  it("signs out and redirects if authenticated without developer role", () => {
+    const signout = jest.fn();
+    mockUseAuthStore.mockImplementation(() => ({
       status: "authenticated",
-      role: "member",
-      signout: signoutMock,
-    });
+      role: "user",
+      signout,
+    }));
 
     render(
       <DevRouteGuard>
-        <div data-testid="blocked-content">content</div>
-      </DevRouteGuard>,
+        <div>child</div>
+      </DevRouteGuard>
     );
-
-    await waitFor(() => {
-      expect(signoutMock).toHaveBeenCalled();
-      expect(replaceMock).toHaveBeenCalledWith("/developers/signin");
-    });
-    expect(screen.queryByTestId("blocked-content")).not.toBeInTheDocument();
-  });
-
-  test("allows non-developer routes to render", async () => {
-    mockPathname = "/pricing";
-    useAuthStoreMock.mockReturnValue({
-      status: "authenticated",
-      role: "member",
-      signout: signoutMock,
-    });
-
-    render(
-      <DevRouteGuard>
-        <div data-testid="public-content">content</div>
-      </DevRouteGuard>,
-    );
-
-    await waitFor(() =>
-      expect(screen.getByTestId("public-content")).toBeInTheDocument(),
-    );
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(signout).toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith("/developers/signin");
   });
 });

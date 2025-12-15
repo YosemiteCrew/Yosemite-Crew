@@ -21,8 +21,8 @@ import Documents from "./Prescription/Documents";
 import Discharge from "./Prescription/Discharge";
 import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
-import { Appointment, Service } from "@yosemite-crew/types";
-import { FormsProps } from "@/app/types/forms";
+import { Appointment, FormSubmission, Service } from "@yosemite-crew/types";
+import { fetchSubmissions } from "@/app/services/soapService";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
@@ -35,63 +35,25 @@ export type ServiceEdit = Service & {
 };
 
 export type FormDataProps = {
-  subjective: {
-    active: FormsProps | null;
-    values: Record<string, any>;
-  };
-  objective: {
-    active: FormsProps | null;
-    values: Record<string, any>;
-  };
-  assessment: {
-    active: FormsProps | null;
-    values: Record<string, any>;
-  };
-  discharge: {
-    template: {
-      active: FormsProps | null;
-      values: Record<string, any>;
-    };
-  };
-  plan: {
-    template: {
-      active: FormsProps | null;
-      values: Record<string, any>;
-    };
-    total: string;
-    subTotal: string;
-    tax: string;
-  };
+  subjective: FormSubmission[];
+  objective: FormSubmission[];
+  assessment: FormSubmission[];
+  discharge: FormSubmission[];
+  plan: FormSubmission[];
+  total: string;
+  subTotal: string;
+  tax: string;
 };
 
 export const createEmptyFormData = (): FormDataProps => ({
-  subjective: {
-    active: null,
-    values: {},
-  },
-  objective: {
-    active: null,
-    values: {},
-  },
-  assessment: {
-    active: null,
-    values: {},
-  },
-  discharge: {
-    template: {
-      active: null,
-      values: {},
-    },
-  },
-  plan: {
-    template: {
-      active: null,
-      values: {},
-    },
-    total: "",
-    subTotal: "",
-    tax: "",
-  },
+  subjective: [],
+  objective: [],
+  assessment: [],
+  discharge: [],
+  plan: [],
+  total: "",
+  subTotal: "",
+  tax: "",
 });
 
 type LabelKey = (typeof labels)[number]["key"];
@@ -116,7 +78,7 @@ const labels = [
     iconSize: 32,
     labels: [
       { key: "subjective", name: "Subjective" },
-      { key: "obective", name: "Objecive" },
+      { key: "objective", name: "Objective" },
       { key: "assessment", name: "Assessment" },
       { key: "plan", name: "Plan" },
       { key: "audit-trail", name: "Audit trail" },
@@ -155,7 +117,7 @@ const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   },
   prescription: {
     subjective: Subjective,
-    obective: Objective,
+    objective: Objective,
     assessment: Assessment,
     plan: Plan,
     "audit-trail": Audit,
@@ -193,6 +155,41 @@ const AppoitmentInfo = ({
       setActiveSubLabel(current.labels[0].key);
     }
   }, [activeLabel]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const appointmentId = activeAppointment?.id;
+      if (!appointmentId) {
+        setFormData(createEmptyFormData());
+        return;
+      }
+      try {
+        const soap = await fetchSubmissions(appointmentId);
+        if (cancelled) return;
+        setFormData((prev) => ({
+          ...prev,
+          subjective: soap?.soapNotes?.Subjective ?? [],
+          objective: soap?.soapNotes?.Objective ?? [],
+          assessment: soap?.soapNotes?.Assessment ?? [],
+          plan: soap?.soapNotes?.Plan ?? [],
+          discharge: soap?.soapNotes?.Discharge ?? [],
+          // not present in GetSOAPResponse, keep as-is / empty
+          total: prev.total ?? "",
+          subTotal: prev.subTotal ?? "",
+          tax: prev.tax ?? "",
+        }));
+      } catch (e) {
+        if (cancelled) return;
+        console.error("Failed to fetch submissions:", e);
+        setFormData(createEmptyFormData());
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAppointment?.id]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>

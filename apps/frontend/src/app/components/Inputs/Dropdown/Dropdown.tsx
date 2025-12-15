@@ -151,7 +151,6 @@ const Dropdown = ({
             )}
             {filteredList.length > 0 &&
               filteredList.map((option: any, index: number) => {
-                const key: React.Key = option.key ?? index;
                 const label: string = option.label ?? option.value ?? "";
                 const valueToSend: string = option.value ?? option.label ?? "";
                 const handleClick = () => {
