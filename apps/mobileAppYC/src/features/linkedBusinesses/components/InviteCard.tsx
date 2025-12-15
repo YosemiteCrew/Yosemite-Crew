@@ -40,7 +40,7 @@ export const InviteCard: React.FC<InviteCardProps> = ({
         <Text style={styles.title}>Invite from {businessName}</Text>
 
         <Text style={styles.description}>
-          Hey Sky! It seems like you already have an account at {businessName} Organisation. Please
+          Hey {companionName}! It seems like you already have an account at {businessName} Organisation. Please
           confirm if its you or not?
         </Text>
 
