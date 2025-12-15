@@ -21,7 +21,7 @@ const BookOnboarding = () => {
       </div>
       <Cal
         namespace="30min"
-        calLink="yosemitecrew/demo"
+        calLink="yosemitecrew/onboarding"
         style={{ width: "100%", height: "100%", overflow: "scroll" }}
         config={{ theme: "light", layout: "month_view" }}
       />
