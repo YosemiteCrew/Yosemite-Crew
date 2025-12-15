@@ -380,7 +380,7 @@ export const AppointmentService = {
       // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
       if (createPayment === true) {
         paymentIntentData = await StripeService.createPaymentIntentForInvoice(
-          invoice._id.toString()
+          invoice._id.toString(),
         );
       }
 
@@ -661,115 +661,115 @@ export const AppointmentService = {
   // Update appointment from PMS
 
   async updateAppointmentPMS(
-  appointmentId: string,
-  dto: AppointmentRequestDTO,
-) {
-  if (!appointmentId) {
-    throw new AppointmentServiceError(
-      "Appointment ID missing in FHIR payload",
-      400,
-    );
-  }
-
-  const extracted = fromAppointmentRequestDTO(dto);
-
-  if (!extracted.lead?.id) {
-    throw new AppointmentServiceError(
-      "Lead vet (Practitioner with code=PPRF) is required",
-      400,
-    );
-  }
-
-  const appointment = await AppointmentModel.findOne({
-    _id: appointmentId,
-    status: "UPCOMING",
-  });
-
-  if (!appointment) {
-    throw new AppointmentServiceError(
-      "Requested appointment not found or already processed",
-      404,
-    );
-  }
-
-  const organisationId = appointment.organisationId;
-
-  const sameVet = appointment.lead?.id === extracted.lead?.id;
-  const sameSlot =
-    appointment.startTime.getTime() === extracted.startTime?.getTime() &&
-    appointment.endTime.getTime() === extracted.endTime?.getTime();
-
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    /**
-     * 🔁 ONLY touch occupancy if something actually changed
-     */
-    if (!sameVet || !sameSlot) {
-      // Remove old occupancy (if exists)
-      await OccupancyModel.deleteMany(
-        {
-          organisationId,
-          sourceType: "APPOINTMENT",
-          referenceId: appointment._id.toString(),
-        },
-        { session },
-      );
-
-      // Check availability for new vet + slot
-      const overlapping = await OccupancyModel.findOne({
-        userId: extracted.lead?.id,
-        organisationId,
-        startTime: { $lt: appointment.endTime },
-        endTime: { $gt: appointment.startTime },
-      }).session(session);
-
-      if (overlapping) {
-        throw new AppointmentServiceError(
-          "Selected vet is not available for this slot",
-          409,
-        );
-      }
-
-      // Create new occupancy
-      await OccupancyModel.create(
-        [
-          {
-            userId: extracted.lead?.id,
-            organisationId,
-            startTime: appointment.startTime,
-            endTime: appointment.endTime,
-            sourceType: "APPOINTMENT",
-            referenceId: appointment._id.toString(),
-          },
-        ],
-        { session },
+    appointmentId: string,
+    dto: AppointmentRequestDTO,
+  ) {
+    if (!appointmentId) {
+      throw new AppointmentServiceError(
+        "Appointment ID missing in FHIR payload",
+        400,
       );
     }
 
-    // Apply PMS updates
-    appointment.lead = {
-      id: extracted.lead?.id,
-      name: extracted.lead?.name ?? "Vet",
-    };
+    const extracted = fromAppointmentRequestDTO(dto);
 
-    appointment.supportStaff = extracted.supportStaff ?? [];
-    appointment.room = extracted.room ?? undefined;
-    appointment.updatedAt = new Date();
+    if (!extracted.lead?.id) {
+      throw new AppointmentServiceError(
+        "Lead vet (Practitioner with code=PPRF) is required",
+        400,
+      );
+    }
 
-    await appointment.save({ session });
+    const appointment = await AppointmentModel.findOne({
+      _id: appointmentId,
+      status: "UPCOMING",
+    });
 
-    await session.commitTransaction();
-    await session.endSession();
+    if (!appointment) {
+      throw new AppointmentServiceError(
+        "Requested appointment not found or already processed",
+        404,
+      );
+    }
 
-    return toAppointmentResponseDTO(toDomain(appointment));
-  } catch (err) {
-    await session.abortTransaction();
-    await session.endSession();
-    throw err;
-  }
-},
+    const organisationId = appointment.organisationId;
+
+    const sameVet = appointment.lead?.id === extracted.lead?.id;
+    const sameSlot =
+      appointment.startTime.getTime() === extracted.startTime?.getTime() &&
+      appointment.endTime.getTime() === extracted.endTime?.getTime();
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      /**
+       * 🔁 ONLY touch occupancy if something actually changed
+       */
+      if (!sameVet || !sameSlot) {
+        // Remove old occupancy (if exists)
+        await OccupancyModel.deleteMany(
+          {
+            organisationId,
+            sourceType: "APPOINTMENT",
+            referenceId: appointment._id.toString(),
+          },
+          { session },
+        );
+
+        // Check availability for new vet + slot
+        const overlapping = await OccupancyModel.findOne({
+          userId: extracted.lead?.id,
+          organisationId,
+          startTime: { $lt: appointment.endTime },
+          endTime: { $gt: appointment.startTime },
+        }).session(session);
+
+        if (overlapping) {
+          throw new AppointmentServiceError(
+            "Selected vet is not available for this slot",
+            409,
+          );
+        }
+
+        // Create new occupancy
+        await OccupancyModel.create(
+          [
+            {
+              userId: extracted.lead?.id,
+              organisationId,
+              startTime: appointment.startTime,
+              endTime: appointment.endTime,
+              sourceType: "APPOINTMENT",
+              referenceId: appointment._id.toString(),
+            },
+          ],
+          { session },
+        );
+      }
+
+      // Apply PMS updates
+      appointment.lead = {
+        id: extracted.lead?.id,
+        name: extracted.lead?.name ?? "Vet",
+      };
+
+      appointment.supportStaff = extracted.supportStaff ?? [];
+      appointment.room = extracted.room ?? undefined;
+      appointment.updatedAt = new Date();
+
+      await appointment.save({ session });
+
+      await session.commitTransaction();
+      await session.endSession();
+
+      return toAppointmentResponseDTO(toDomain(appointment));
+    } catch (err) {
+      await session.abortTransaction();
+      await session.endSession();
+      throw err;
+    }
+  },
 
   async checkInAppointmentParent(appointmentId: string, parentId: string) {
     const appointment = await AppointmentModel.findById(appointmentId);
@@ -780,6 +780,27 @@ export const AppointmentService = {
     // Verify parent is owner of companion
     if (appointment.companion.parent.id !== parentId) {
       throw new AppointmentServiceError("Not your appointment", 403);
+    }
+
+    // Only UPCOMING appointments can be checked in
+    if (appointment.status !== "UPCOMING") {
+      throw new AppointmentServiceError(
+        "Only upcoming appointments can be checked in",
+        400,
+      );
+    }
+
+    appointment.status = "CHECKED_IN";
+    appointment.updatedAt = new Date();
+    await appointment.save();
+
+    return toAppointmentResponseDTO(toDomain(appointment));
+  },
+
+  async checkInAppointment(appointmentId: string) {
+    const appointment = await AppointmentModel.findById(appointmentId);
+    if (!appointment) {
+      throw new AppointmentServiceError("Appointment not found", 404);
     }
 
     // Only UPCOMING appointments can be checked in

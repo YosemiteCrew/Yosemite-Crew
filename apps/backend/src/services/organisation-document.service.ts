@@ -4,6 +4,7 @@ import OrganizationDocumentModel, {
   OrganizationDocumentMongo,
   OrgDocumentCategory,
 } from "../models/organisation-document";
+import { getURLForKey } from "src/middlewares/upload";
 
 export class OrgDocumentServiceError extends Error {
   constructor(
@@ -63,6 +64,8 @@ export const OrganizationDocumentService = {
       throw new OrgDocumentServiceError("title is required", 400);
     }
 
+    if (input.fileUrl) input.fileUrl = getURLForKey(input.fileUrl);
+
     const doc = await OrganizationDocumentModel.create({
       organisationId: input.organisationId,
       title: input.title,
@@ -106,7 +109,8 @@ export const OrganizationDocumentService = {
     if (updates.visibility !== undefined)
       existing.visibility = updates.visibility;
 
-    if (updates.fileUrl !== undefined) existing.fileUrl = updates.fileUrl;
+    if (updates.fileUrl !== undefined)
+      existing.fileUrl = getURLForKey(updates.fileUrl);
     if (updates.fileName !== undefined) existing.fileName = updates.fileName;
     if (updates.fileType !== undefined) existing.fileType = updates.fileType;
     if (updates.fileSize !== undefined) existing.fileSize = updates.fileSize;

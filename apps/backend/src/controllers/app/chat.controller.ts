@@ -59,6 +59,29 @@ export const ChatController = {
     }
   },
 
+  generateTokenForPMS: (req: Request, res: Response) => {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Not authenticated: userId is missing." });
+      }
+
+      const tokenInfo = ChatService.generateToken(userId);
+      return res.status(200).json(tokenInfo);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Error generating chat token", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to generate chat token." });
+    }
+  },
+
   /**
    * Ensure chat session exists for an appointment.
    * Creates Stream channel + ChatSession document if needed.
@@ -120,6 +143,25 @@ export const ChatController = {
       }
 
       return res.status(200).json(session);
+    } catch (err) {
+      logger.error("Error fetching chat session", err);
+      return res.status(500).json({ message: "Failed to fetch chat session." });
+    }
+  },
+
+  async getSessionByUserId(this: void, req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+
+      if (!userId) {
+        return res.status(400).json({ message: "Not Authenticated" });
+      }
+
+      const sessions = await ChatSessionModel.find({
+        vetId: userId,
+      });
+
+      return res.status(200).json(sessions);
     } catch (err) {
       logger.error("Error fetching chat session", err);
       return res.status(500).json({ message: "Failed to fetch chat session." });

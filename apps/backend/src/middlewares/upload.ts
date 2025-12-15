@@ -230,6 +230,11 @@ async function moveFile(fromKey: string, toKey: string) {
   }
 }
 
+function getURLForKey(key: string) {
+  const CF_BASE = getCloufrontBaeUrl();
+  return `https://${CF_BASE}/${key}`;
+}
+
 // Delete File from S3
 async function deleteFromS3(s3Key: string) {
   const bucket = getBucketName();
@@ -377,5 +382,6 @@ export {
   mimeTypeToExtension,
   setupLifecyclePolicy,
   generatePresignedDownloadUrl,
+  getURLForKey,
 };
 export type { FileUploadResult, UploadedFile };

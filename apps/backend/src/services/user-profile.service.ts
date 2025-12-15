@@ -14,6 +14,8 @@ import {
   BaseAvailabilityService,
   BaseAvailabilityServiceError,
 } from "./base-availability.service";
+import UserOrganizationModel from "src/models/user-organization";
+import { getURLForKey } from "src/middlewares/upload";
 
 export class UserProfileServiceError extends Error {
   constructor(
@@ -258,10 +260,10 @@ const sanitizeDocuments = (
       );
     }
 
-    const fileUrl = requireString(
-      record.fileUrl,
-      `Professional document[${index}].fileUrl`,
+    const fileUrl = getURLForKey(
+      requireString(record.fileUrl, `Professional document[${index}].fileUrl`),
     );
+
     const uploadedAt = optionalDate(
       record.uploadedAt,
       `Professional document[${index}].uploadedAt`,
@@ -591,6 +593,10 @@ export const UserProfileService = {
       );
     }
 
+    attributes.personalDetails!.profilePictureUrl = getURLForKey(
+      attributes.personalDetails!.profilePictureUrl!,
+    );
+
     const document = await UserProfileModel.create(attributes);
 
     let availability: UserAvailability[] = [];
@@ -655,10 +661,7 @@ export const UserProfileService = {
     return buildDomainProfile(document, { statusOverride: status });
   },
 
-  async getByUserId(
-    userId: unknown,
-    organizationId: unknown,
-  ): Promise<UserProfileType | null> {
+  async getByUserId(userId: unknown, organizationId: unknown) {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
 
@@ -686,6 +689,15 @@ export const UserProfileService = {
 
     const status = await applyProfileStatus(document, availability);
 
-    return buildDomainProfile(document, { statusOverride: status });
+    const userOrganisation = await UserOrganizationModel.findOne({
+      practitionerReference: userId,
+      organizationReference: organizationId,
+    });
+
+    return {
+      profile: buildDomainProfile(document, { statusOverride: status }),
+      mapping: userOrganisation,
+      baseAvailability: availability,
+    };
   },
 };

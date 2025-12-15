@@ -349,7 +349,13 @@ export const CompanionOrganisationService = {
     const links = await CompanionOrganisationModel.find({
       companionId: id,
       organisationType: type,
-      status: { $in: ["ACTIVE", "PENDING"] },
+      $or: [
+        { status: "ACTIVE" },
+        {
+          status: "PENDING",
+          organisationId: { $ne: null }, // <-- key line
+        },
+      ],
     }).populate(
       "organisationId",
       "name imageURL phoneNo address googlePlacesId",
