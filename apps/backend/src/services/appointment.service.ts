@@ -802,7 +802,7 @@ export const AppointmentService = {
     if (!appointment) {
       throw new AppointmentServiceError("Appointment not found", 404);
     }
-    
+
     // Only UPCOMING appointments can be checked in
     if (appointment.status !== "UPCOMING") {
       throw new AppointmentServiceError(

@@ -115,8 +115,8 @@ router.patch(
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
-  AppointmentController.checkInAppointmentForPMS
-)
+  AppointmentController.checkInAppointmentForPMS,
+);
 
 // Update appointment details
 router.patch(

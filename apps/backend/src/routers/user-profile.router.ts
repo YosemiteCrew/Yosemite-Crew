@@ -4,7 +4,11 @@ import { authorizeCognito } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/:organizationId/profile", authorizeCognito, UserProfileController.create);
+router.post(
+  "/:organizationId/profile",
+  authorizeCognito,
+  UserProfileController.create,
+);
 router.put(
   "/:organizationId/profile",
   authorizeCognito,

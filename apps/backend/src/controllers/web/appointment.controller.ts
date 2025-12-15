@@ -248,9 +248,7 @@ export const AppointmentController = {
     try {
       const { appointmentId } = req.params;
 
-      const result = await AppointmentService.checkInAppointment(
-        appointmentId,
-      );
+      const result = await AppointmentService.checkInAppointment(appointmentId);
 
       return res
         .status(200)

@@ -260,11 +260,10 @@ const sanitizeDocuments = (
       );
     }
 
-    const fileUrl = getURLForKey(requireString(
-      record.fileUrl,
-      `Professional document[${index}].fileUrl`,
-    ));
-    
+    const fileUrl = getURLForKey(
+      requireString(record.fileUrl, `Professional document[${index}].fileUrl`),
+    );
+
     const uploadedAt = optionalDate(
       record.uploadedAt,
       `Professional document[${index}].uploadedAt`,
@@ -698,7 +697,7 @@ export const UserProfileService = {
     return {
       profile: buildDomainProfile(document, { statusOverride: status }),
       mapping: userOrganisation,
-      baseAvailability: availability
+      baseAvailability: availability,
     };
   },
 };

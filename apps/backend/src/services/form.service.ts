@@ -325,7 +325,12 @@ export const FormService = {
       formId: Types.ObjectId | string;
     };
 
-    type SoapNoteType = "Subjective" | "Objective" | "Assessment" | "Plan" | "Discharge";
+    type SoapNoteType =
+      | "Subjective"
+      | "Objective"
+      | "Assessment"
+      | "Plan"
+      | "Discharge";
 
     type SoapNoteEntry = {
       submissionId: string;

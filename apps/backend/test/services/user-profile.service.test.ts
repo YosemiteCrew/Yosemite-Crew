@@ -4,6 +4,8 @@ import {
   UserProfileServiceError,
 } from "../../src/services/user-profile.service";
 import { BaseAvailabilityService } from "../../src/services/base-availability.service";
+import UserOrganizationModel from "src/models/user-organization";
+import { getURLForKey } from "src/middlewares/upload";
 
 jest.mock("../../src/models/user-profile", () => ({
   __esModule: true,
@@ -28,6 +30,18 @@ jest.mock("../../src/services/base-availability.service", () => {
   };
 });
 
+jest.mock("src/models/user-organization", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+  },
+}));
+
+jest.mock("src/middlewares/upload", () => ({
+  __esModule: true,
+  getURLForKey: jest.fn((key: string) => `https://cf-base/${key ?? ""}`),
+}));
+
 const mockedModel = UserProfileModel as unknown as {
   findOne: jest.Mock;
   create: jest.Mock;
@@ -40,9 +54,15 @@ const mockedAvailabilityService = BaseAvailabilityService as unknown as {
   getByUserId: jest.Mock;
 };
 
+const mockedUserOrganizationModel = UserOrganizationModel as unknown as {
+  findOne: jest.Mock;
+};
+
+const mockedGetURLForKey = getURLForKey as jest.Mock;
+
 describe("UserProfileService", () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
   });
 
   describe("create", () => {
@@ -67,6 +87,7 @@ describe("UserProfileService", () => {
             postalCode: "NW1 6XE",
             country: "UK",
           },
+          profilePictureUrl: "https://cf-base/avatar.jpg",
         },
         professionalDetails: {
           medicalLicenseNumber: "LIC-123",
@@ -111,6 +132,7 @@ describe("UserProfileService", () => {
             postalCode: "NW1 6XE",
             country: "UK",
           },
+          profilePictureUrl: "avatar.jpg",
         },
         professionalDetails: {
           medicalLicenseNumber: "LIC-123",
@@ -124,7 +146,13 @@ describe("UserProfileService", () => {
         null,
         { sanitizeFilter: true },
       );
-      expect(mockedModel.create).toHaveBeenCalledWith({
+      expect(mockedGetURLForKey).toHaveBeenCalledWith("avatar.jpg");
+      expect(mockedModel.create).toHaveBeenCalledTimes(1);
+      const createPayload = mockedModel.create.mock.calls[0][0];
+      expect(createPayload.personalDetails.profilePictureUrl).toBe(
+        "https://cf-base/avatar.jpg",
+      );
+      expect(createPayload).toMatchObject({
         userId: "user-1",
         organizationId: "org-1",
         personalDetails: {
@@ -164,6 +192,7 @@ describe("UserProfileService", () => {
             postalCode: "NW1 6XE",
             country: "UK",
           },
+          profilePictureUrl: "https://cf-base/avatar.jpg",
         },
         professionalDetails: {
           medicalLicenseNumber: "LIC-123",
@@ -352,6 +381,10 @@ describe("UserProfileService", () => {
           slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: false }],
         },
       ]);
+      mockedUserOrganizationModel.findOne.mockResolvedValueOnce({
+        practitionerReference: "user-1",
+        organizationReference: "org-1",
+      });
 
       const result = await UserProfileService.getByUserId("user-1", "org-1");
 
@@ -363,14 +396,34 @@ describe("UserProfileService", () => {
       expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith(
         "user-1",
       );
+      expect(mockedUserOrganizationModel.findOne).toHaveBeenCalledWith({
+        practitionerReference: "user-1",
+        organizationReference: "org-1",
+      });
       expect(result).toEqual({
-        _id: "profile-id",
-        userId: "user-1",
-        organizationId: "org-1",
-        personalDetails: {},
-        status: "DRAFT",
-        createdAt,
-        updatedAt: createdAt,
+        profile: {
+          _id: "profile-id",
+          userId: "user-1",
+          organizationId: "org-1",
+          personalDetails: {},
+          status: "DRAFT",
+          createdAt,
+          updatedAt: createdAt,
+        },
+        mapping: {
+          practitionerReference: "user-1",
+          organizationReference: "org-1",
+        },
+        baseAvailability: [
+          {
+            _id: "avail-1",
+            userId: "user-1",
+            dayOfWeek: "MONDAY",
+            slots: [
+              { startTime: "09:00", endTime: "17:00", isAvailable: false },
+            ],
+          },
+        ],
       });
     });
 
