@@ -17,6 +17,29 @@ jest.mock("@/app/components/chat/ChatContainer", () => ({
   default: () => <div data-testid="route-chat">Chat container</div>,
 }));
 
+jest.mock("@/app/components/ProtectedRoute", () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock("@/app/components/OrgGuard", () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock("next/navigation", () => ({
+  useSearchParams: () => ({
+    get: () => null,
+  }),
+  useRouter: () => ({
+    push: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+}));
+
 jest.mock("@/app/pages/SignIn/SignIn", () => ({
   __esModule: true,
   default: () => <div data-testid="route-signin">Sign In</div>,
