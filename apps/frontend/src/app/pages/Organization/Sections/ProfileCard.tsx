@@ -368,8 +368,9 @@ const ProfileCard = ({
               <div className="flex items-center gap-3">
                 <Image
                   src={
-                    org.imageURL ||
-                    "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                    isHttpsImageUrl(org?.imageURL)
+                      ? org?.imageURL
+                      : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
                   }
                   alt="Logo"
                   height={60}

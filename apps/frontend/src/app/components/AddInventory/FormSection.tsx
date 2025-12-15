@@ -157,7 +157,7 @@ const FormSection: React.FC<FormSectionProps> = ({
           onChange={(v) => handleChange(field, v, index)}
           error={error}
           className="min-h-12!"
-          dropdownClassName="top-[55px]! !h-fit"
+          dropdownClassName="top-[55px]! !h-fit max-h-[180px]!"
           options={options || []}
         />
       );

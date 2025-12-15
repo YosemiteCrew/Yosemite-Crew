@@ -165,8 +165,9 @@ const BookAppointment = ({
     [services]
   );
 
-  const CompanionInfoData = useMemo(() => {
-    setFormData((prev) => ({
+  useEffect(() => {
+    if (!showModal) return;
+    setFormData({
       ...EMPTY_APPOINTMENT,
       companion: {
         name: activeCompanion.companion.name,
@@ -178,8 +179,11 @@ const BookAppointment = ({
           name: activeCompanion.parent.firstName,
         },
       },
-    }));
-    setFormDataErrors({})
+    });
+    setFormDataErrors({});
+  }, [showModal, activeCompanion]);
+
+  const CompanionInfoData = useMemo(() => {
     return {
       name: activeCompanion.companion.name ?? "",
       species: activeCompanion.companion.type ?? "",
@@ -220,7 +224,7 @@ const BookAppointment = ({
   }, [formData.appointmentType]);
 
   const handleCreate = async () => {
-    console.log(formData)
+    console.log(formData);
     const errors: {
       specialityId?: string;
       serviceId?: string;
@@ -243,6 +247,7 @@ const BookAppointment = ({
       await createAppointment(formData);
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
+      setSelectedSlot(null);
       setFormDataErrors({});
     } catch (error) {
       console.log(error);

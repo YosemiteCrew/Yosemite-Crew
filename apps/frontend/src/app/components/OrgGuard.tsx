@@ -17,6 +17,8 @@ import { useLoadAppointmentsForPrimaryOrg } from "../hooks/useAppointments";
 import { useLoadCompanionsForPrimaryOrg } from "../hooks/useCompanion";
 import { useLoadDocumentsForPrimaryOrg } from "../hooks/useDocuments";
 import { useLoadFormsForPrimaryOrg } from "../hooks/useForms";
+import { useInventoryModule } from "../hooks/useInventory";
+import { BusinessType } from "../types/org";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -44,7 +46,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadCompanionsForPrimaryOrg();
   useLoadAppointmentsForPrimaryOrg();
   useLoadDocumentsForPrimaryOrg();
-  useLoadFormsForPrimaryOrg()
+  useLoadFormsForPrimaryOrg();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -56,6 +58,8 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       ? ((s.orgsById[primaryOrgId] as Organisation | undefined) ?? null)
       : null
   );
+  const resolvedBusinessType: BusinessType = primaryOrg?.type ?? "GROOMER";
+  useInventoryModule(resolvedBusinessType);
   const membership = useOrgStore((s) =>
     primaryOrgId ? (s.membershipsByOrgId[primaryOrgId] ?? null) : null
   );

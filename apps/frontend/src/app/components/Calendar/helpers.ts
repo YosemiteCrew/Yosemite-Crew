@@ -50,57 +50,111 @@ export function minutesSinceStartOfDay(date: Date) {
 export function snapToStep(mins: number, step = MINUTES_PER_STEP) {
   return Math.round(mins / step) * step;
 }
-
-export function computeVerticalPositionPx(event: Appointment) {
-  let start = minutesSinceStartOfDay(event.startTime);
-  let end = minutesSinceStartOfDay(event.endTime);
-  start = snapToStep(start);
-  end = snapToStep(end);
-  const startSteps = start / MINUTES_PER_STEP;
-  const durationSteps = (end - start) / MINUTES_PER_STEP;
-  const topPx = startSteps * PIXELS_PER_STEP;
-  const heightPx = durationSteps * PIXELS_PER_STEP;
-  return { topPx, heightPx };
+export function snapDown(mins: number, step = MINUTES_PER_STEP) {
+  return Math.floor(mins / step) * step;
+}
+export function snapUp(mins: number, step = MINUTES_PER_STEP) {
+  return Math.ceil(mins / step) * step;
 }
 
-export function layoutDayEvents(events: Appointment[]): LaidOutEvent[] {
+export function getDayWindow(events: Appointment[]) {
+  const DAY_END = 24 * 60;
+  if (!events.length) {
+    return { windowStart: 0, windowEnd: DAY_END };
+  }
+  let minStart = DAY_END;
+  let maxEnd = 0;
+  for (const ev of events) {
+    const s = minutesSinceStartOfDay(ev.startTime);
+    const eRaw = minutesSinceStartOfDay(ev.endTime);
+    // clamp “midnight end” to 24:00 instead of 0
+    const e = eRaw === 0 ? DAY_END : eRaw;
+    minStart = Math.min(minStart, s);
+    maxEnd = Math.max(maxEnd, e);
+  }
+  // optional padding so it doesn't feel tight
+  const PAD = 30; // minutes
+  const windowStart = Math.max(0, minStart - PAD);
+  const windowEnd = Math.min(DAY_END, maxEnd + PAD);
+  // ensure non-zero window
+  if (windowEnd <= windowStart) {
+    return {
+      windowStart: Math.max(0, windowStart - 60),
+      windowEnd: Math.min(DAY_END, windowStart + 120),
+    };
+  }
+  return { windowStart, windowEnd };
+}
+
+export function computeVerticalPositionPx(
+  event: Appointment,
+  windowStart: number,
+  windowEnd: number
+) {
+  const DAY_END = 24 * 60;
+  let start = minutesSinceStartOfDay(event.startTime);
+  let end = minutesSinceStartOfDay(event.endTime);
+  // treat 12:00 AM as 24:00 for same-day clamping
+  if (end === 0) end = DAY_END;
+  // clamp event to the window
+  start = Math.max(windowStart, Math.min(start, windowEnd));
+  end = Math.max(windowStart, Math.min(end, windowEnd));
+  // if it would collapse, pin to at least one step
+  if (end <= start) end = Math.min(windowEnd, start + MINUTES_PER_STEP);
+  start = snapDown(start);
+  end = snapUp(end);
+  if (end <= start) end = Math.min(windowEnd, start + MINUTES_PER_STEP);
+  const startSteps = (start - windowStart) / MINUTES_PER_STEP;
+  const durationSteps = (end - start) / MINUTES_PER_STEP;
+  return {
+    topPx: startSteps * PIXELS_PER_STEP,
+    heightPx: durationSteps * PIXELS_PER_STEP,
+  };
+}
+
+export function layoutDayEvents(
+  events: Appointment[],
+  windowStart: number,
+  windowEnd: number
+): LaidOutEvent[] {
   if (events.length === 0) return [];
-  // Sort events by start time (sweep line from top to bottom)
+
   const sorted = [...events].sort(
-    (a, b) => a.startTime.getTime() - b.endTime.getTime()
+    (a, b) => a.startTime.getTime() - b.startTime.getTime()
   );
+
   type TmpEvent = LaidOutEvent & { clusterId: number };
   const result: TmpEvent[] = [];
   let active: TmpEvent[] = [];
   let clusterId = 0;
+
   for (const ev of sorted) {
-    const { topPx, heightPx } = computeVerticalPositionPx(ev);
-    // 1) Remove finished events from "active"
+    const { topPx, heightPx } = computeVerticalPositionPx(
+      ev,
+      windowStart,
+      windowEnd
+    );
+
     active = active.filter((a) => a.endTime > ev.startTime);
-    // 2) If no events are active, we start a new overlapping cluster
-    if (active.length === 0) {
-      clusterId++;
-    }
-    // 3) Find the first free column index among active events
+    if (active.length === 0) clusterId++;
+
     const usedCols = new Set(active.map((a) => a.columnIndex));
     let colIndex = 0;
-    while (usedCols.has(colIndex)) {
-      colIndex++;
-    }
-    // 4) Create a temporary event with a cluster and columnIndex
+    while (usedCols.has(colIndex)) colIndex++;
+
     const tmp: TmpEvent = {
       ...ev,
       topPx,
       heightPx,
       columnIndex: colIndex,
-      columnsCount: 1, // temporary, we fill it after knowing cluster width
+      columnsCount: 1,
       clusterId,
     };
-    // 5) Add it to active and to result
+
     active.push(tmp);
     result.push(tmp);
   }
-  // 6) For each cluster, compute how many columns it needs
+
   const clusterMax: Record<number, number> = {};
   for (const ev of result) {
     clusterMax[ev.clusterId] = Math.max(
@@ -108,24 +162,36 @@ export function layoutDayEvents(events: Appointment[]): LaidOutEvent[] {
       ev.columnIndex
     );
   }
-  // 7) Set columnsCount = maxColumnIndex + 1, return LaidOutEvent[]
-  return result.map<LaidOutEvent>((ev) => ({
+
+  return result.map((ev) => ({
     ...ev,
     columnsCount: (clusterMax[ev.clusterId] ?? ev.columnIndex) + 1,
   }));
 }
 
-export function getNowTopPxForDay(day: Date): number | null {
+export function getTotalWindowHeightPx(windowStart: number, windowEnd: number) {
+  return ((windowEnd - windowStart) / MINUTES_PER_STEP) * PIXELS_PER_STEP;
+}
+
+export function getNowTopPxForWindow(
+  date: Date,
+  windowStart: number,
+  windowEnd: number
+) {
   const now = new Date();
-  const isSameDay =
-    now.getFullYear() === day.getFullYear() &&
-    now.getMonth() === day.getMonth() &&
-    now.getDate() === day.getDate();
-  if (!isSameDay) return null;
+
+  // Only show the red line on the same day
+  if (!isSameDay(now, date)) return null;
+
   const mins = minutesSinceStartOfDay(now);
-  if (mins < DAY_START_MINUTES || mins > DAY_END_MINUTES) return null;
-  const stepsFromStart = (mins - DAY_START_MINUTES) / MINUTES_PER_STEP;
-  return stepsFromStart * PIXELS_PER_STEP;
+
+  // Your rule: if now is outside the window, clamp to END
+  const clamped = mins >= windowStart && mins <= windowEnd ? mins : windowEnd;
+
+  const snapped = snapDown(clamped);
+  const steps = (snapped - windowStart) / MINUTES_PER_STEP;
+
+  return steps * PIXELS_PER_STEP;
 }
 
 export function isAllDayForDate(ev: Appointment, day: Date): boolean {

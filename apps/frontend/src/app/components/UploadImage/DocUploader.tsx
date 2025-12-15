@@ -104,9 +104,15 @@ const DocUploader = ({
         >
           <div className="flex flex-col gap-2 items-center">
             <FaFilePdf className="file-icon pdf" />
-            <span className="file-name">{file.name}</span>
+            <span className="max-w-[150px] text-[15px] font-satoshi font-medium text-grey-noti text-center truncate">
+              {file.name}
+            </span>
           </div>
-          <FaTrashAlt className="absolute top-3 right-3 cursor-pointer" onClick={handleRemove} color="#ff3b30" />
+          <FaTrashAlt
+            className="absolute top-3 right-3 cursor-pointer"
+            onClick={handleRemove}
+            color="#ff3b30"
+          />
         </div>
       )}
     </>

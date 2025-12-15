@@ -285,6 +285,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
       await createAppointment(formData);
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
+      setSelectedSlot(null);
       setFormDataErrors({});
     } catch (error) {
       console.log(error);
