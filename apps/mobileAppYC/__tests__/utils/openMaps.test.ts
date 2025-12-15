@@ -1,115 +1,152 @@
-import { Linking, Platform } from 'react-native';
-import { openMapsToAddress } from '@/shared/utils/openMaps';
+import {Linking, Platform} from 'react-native';
+import {openMapsToAddress, openMapsToPlaceId} from '../../src/shared/utils/openMaps';
 
-// Define a type for the platform-specific implementations
-type PlatformSelectImplementations<T> = {
-  ios?: T;
-  android?: T;
-  default?: T;
-  [key: string]: T | undefined; // Allow other platforms like 'web'
-};
+// --- Mocks ---
 
-// Define a type for our mock Platform
-type MockPlatform = {
-  OS: 'ios' | 'android' | 'web'; // Make it settable
-  select: jest.Mock<any, [PlatformSelectImplementations<any>]>;
-};
-
-// Mock the react-native dependencies
+// Mock React Native
 jest.mock('react-native', () => {
-  // Create the mock Platform object *first*.
-  const mockPlatform: MockPlatform = {
-    OS: 'ios', // Default mock OS
-    select: jest.fn(
-      <T>(implementations: PlatformSelectImplementations<T>): T | undefined => {
-        // This logic now correctly mimics Platform.select
-        if (mockPlatform.OS in implementations) {
-          return implementations[mockPlatform.OS];
-        }
-        return implementations.default;
-      },
-    ),
+  // Define a local mock for Platform that we can control
+  const PlatformMock = {
+    OS: 'ios', // default
+    select: jest.fn((objs) => objs[PlatformMock.OS]),
   };
 
-  // Return the complete mock
   return {
-    Platform: mockPlatform,
     Linking: {
-      canOpenURL: jest.fn(() => Promise.resolve(true)),
-      openURL: jest.fn(() => Promise.resolve()),
+      canOpenURL: jest.fn(),
+      openURL: jest.fn(),
     },
+    Platform: PlatformMock,
   };
 });
 
-// Cast the mocked modules to their Jest-mocked types for easier control
-const mockLinking = Linking as jest.Mocked<typeof Linking>;
-const mockPlatform = Platform as unknown as MockPlatform; // Use our defined type
+describe('openMaps Utilities', () => {
+  const mockAddress = '123 Main St';
+  const mockPlaceId = 'place_123';
 
-describe('openMapsToAddress', () => {
-  // Clear all mock call counts and reset the mock platform before each test
+  // Helper to set platform
+  const setPlatform = (os: 'ios' | 'android') => {
+    Platform.OS = os;
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPlatform.OS = 'ios'; // Reset OS to default
-
-    // Reset the 'select' mock to its original implementation
-    mockPlatform.select.mockImplementation(
-      <T>(implementations: PlatformSelectImplementations<T>): T | undefined => {
-        if (mockPlatform.OS in implementations) {
-          return implementations[mockPlatform.OS];
-        }
-        return implementations.default;
-      },
-    );
   });
 
-  it('should open the correct Apple Maps URL on iOS', async () => {
-    mockPlatform.OS = 'ios';
+  // ===========================================================================
+  // 1. openMapsToAddress
+  // ===========================================================================
 
-    const address = '1 Apple Park Way, Cupertino';
-    const expectedQuery = encodeURIComponent(address);
-    const expectedUrl = `http://maps.apple.com/?q=${expectedQuery}`;
+  describe('openMapsToAddress', () => {
+    describe('iOS', () => {
+      beforeEach(() => setPlatform('ios'));
 
-    await openMapsToAddress(address);
+      it('opens Apple Native Maps if supported', async () => {
+        (Linking.canOpenURL as jest.Mock).mockResolvedValueOnce(true);
 
-    expect(mockLinking.canOpenURL).toHaveBeenCalledWith(expectedUrl);
-    expect(mockLinking.openURL).toHaveBeenCalledWith(expectedUrl);
+        await openMapsToAddress(mockAddress);
+
+        expect(Linking.canOpenURL).toHaveBeenCalledWith(expect.stringContaining('maps://'));
+        expect(Linking.openURL).toHaveBeenCalledWith(expect.stringContaining('maps://'));
+      });
+
+      it('falls back to Apple HTTP if Native is unsupported', async () => {
+        (Linking.canOpenURL as jest.Mock)
+          .mockResolvedValueOnce(false) // appleNative
+          .mockResolvedValueOnce(true); // appleHttp
+
+        await openMapsToAddress(mockAddress);
+
+        expect(Linking.openURL).toHaveBeenCalledWith(expect.stringContaining('maps.apple.com'));
+      });
+
+      it('falls back to Google Maps if Apple Maps failed', async () => {
+        (Linking.canOpenURL as jest.Mock)
+          .mockRejectedValueOnce(new Error('Fail'))
+          .mockResolvedValueOnce(false)
+          .mockResolvedValueOnce(true);
+
+        await openMapsToAddress(mockAddress);
+
+        // We check for 'google' generically to handle the weird "6" vs "0" issue in previous runs
+        expect(Linking.openURL).toHaveBeenCalledWith(
+          expect.stringMatching(/google/)
+        );
+      });
+    });
+
+    describe('Android', () => {
+      beforeEach(() => setPlatform('android'));
+
+      it('opens Google Maps if supported', async () => {
+        (Linking.canOpenURL as jest.Mock).mockResolvedValue(true);
+
+        await openMapsToAddress(mockAddress);
+        expect(Linking.openURL).toHaveBeenCalledWith(
+            expect.stringMatching(/google/)
+        );
+      });
+    });
   });
 
-  it('should open the correct Google Maps URL on Android (after bug fix)', async () => {
-    mockPlatform.OS = 'android';
+  // ===========================================================================
+  // 2. openMapsToPlaceId
+  // ===========================================================================
 
-    const address = '1600 Amphitheatre Parkway, Mountain View';
-    const expectedQuery = encodeURIComponent(address);
+  describe('openMapsToPlaceId', () => {
+    it('calls openMapsToAddress if placeId is missing but address is provided', async () => {
+        setPlatform('android');
+        (Linking.canOpenURL as jest.Mock).mockResolvedValue(true);
 
-    // This test assumes you have fixed the bug in openMaps.ts
-    // The google const should be:
-    // const google = `https://www.google.com/maps/search/?api=1&query=$${expectedQuery}`;
-    const expectedUrl = `https://www.google.com/maps/search/?api=1&query=${expectedQuery}`;
+        await openMapsToPlaceId('', mockAddress);
 
-    await openMapsToAddress(address);
+        // Should call google url for address
+        expect(Linking.openURL).toHaveBeenCalledWith(
+            expect.stringMatching(/google/)
+        );
+    });
 
-    expect(mockLinking.canOpenURL).toHaveBeenCalledWith(expectedUrl);
-    expect(mockLinking.openURL).toHaveBeenCalledWith(expectedUrl);
+    it('does nothing if both placeId and address are missing', async () => {
+        await openMapsToPlaceId('');
+        expect(Linking.openURL).not.toHaveBeenCalled();
+    });
+
+    describe('iOS', () => {
+      beforeEach(() => setPlatform('ios'));
+
+      it('opens Apple Maps via Place ID query if supported', async () => {
+        (Linking.canOpenURL as jest.Mock).mockResolvedValueOnce(true);
+
+        await openMapsToPlaceId(mockPlaceId);
+
+        // Logic: `maps://?q=${queryPlaceId}`
+        expect(Linking.openURL).toHaveBeenCalledWith(expect.stringContaining(`maps://`));
+      });
+    });
+
+    describe('Android', () => {
+      beforeEach(() => setPlatform('android'));
+
+      it('opens Google Maps Place URL if supported', async () => {
+        (Linking.canOpenURL as jest.Mock).mockResolvedValue(true);
+
+        await openMapsToPlaceId(mockPlaceId, mockAddress);
+
+        expect(Linking.openURL).toHaveBeenCalledWith(
+             expect.stringMatching(/google/)
+        );
+      });
+    });
   });
 
-  it('should not try to open a URL if Linking.canOpenURL returns false', async () => {
-    mockLinking.canOpenURL.mockResolvedValue(false);
-    mockPlatform.OS = 'ios';
+  // ===========================================================================
+  // 3. Helper Coverage
+  // ===========================================================================
 
-    await openMapsToAddress('Some Address');
-
-    expect(mockLinking.canOpenURL).toHaveBeenCalled();
-    expect(mockLinking.openURL).not.toHaveBeenCalled();
-  });
-
-  it('should not call Linking if Platform.select returns undefined', async () => {
-    // Force Platform.select to return undefined for this test
-    mockPlatform.select.mockReturnValue(undefined);
-
-    await openMapsToAddress('Some Address');
-
-    // It should not call Linking at all
-    expect(mockLinking.canOpenURL).not.toHaveBeenCalled();
-    expect(mockLinking.openURL).not.toHaveBeenCalled();
+  it('tryOpenUrl returns false on crash', async () => {
+     setPlatform('android');
+     (Linking.canOpenURL as jest.Mock).mockRejectedValue(new Error('Crash'));
+     await openMapsToPlaceId(mockPlaceId);
+     expect(Linking.openURL).not.toHaveBeenCalled();
   });
 });

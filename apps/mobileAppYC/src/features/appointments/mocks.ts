@@ -1,107 +1,12 @@
 import {Images} from '@/assets/images';
 import type {
-  VetBusiness,
-  VetEmployee,
   VetService,
   EmployeeAvailability,
   Appointment,
   Invoice,
 } from './types';
 
-export const mockBusinesses: VetBusiness[] = [
-  {
-    id: 'biz_sfamc',
-    name: 'San Francisco Animal Medical Center',
-    category: 'hospital',
-    address: '2343 Fillmore St, San Francisco, CA 94115',
-    distanceMi: 2.5,
-    rating: 4.1,
-    openHours: 'Open 24 Hours',
-    photo: Images.sampleHospital1,
-    specialties: ['Internal Medicine', 'Surgery', 'Oncology'],
-    website: 'sfamc.com',
-    description: '24/7 Emergency Care, Surgery and Operating Rooms, Veterinary ICU, Diagnostic Imaging, Laboratory, Dental services.',
-  },
-  {
-    id: 'biz_oakvet',
-    name: 'OakVet Animal Specialty Hospital',
-    category: 'hospital',
-    address: 'Oakland, CA',
-    distanceMi: 2.8,
-    rating: 4.5,
-    openHours: 'Open 24 Hours',
-    photo: Images.sampleHospital2,
-    description: 'Vaccination, Pain Management, Physical Rehabilitation and Therapy, Isolation Wards for companion animals.',
-  },
-  {
-    id: 'biz_tender_groom',
-    name: 'Tender Loving Care Pet Grooming',
-    category: 'groomer',
-    address: 'San Francisco, CA',
-    distanceMi: 3.6,
-    rating: 4.2,
-    photo: Images.sampleHospital3,
-    description: 'Bathing, Hair Trimming, Ear Cleaning, Paw Pad Care, Specialty Shampoos, Eye Cleaning, De-shedding.',
-  },
-  {
-    id: 'biz_pawpet',
-    name: 'Paw Pet Health Clinic',
-    category: 'hospital',
-    address: 'SFAM Building 30 square D Road San Francisco',
-    distanceMi: 4.2,
-    rating: 4.4,
-    openHours: 'Mon - Sat, 9 AM - 7 PM',
-    photo: Images.sampleHospital5,
-    description:
-      'Pain management programs, orthopedic consultations, post-operative care, rehabilitation and wellness coaching for companion animals.',
-  },
-  {
-    id: 'biz_bay_corgis',
-    name: 'Bay Area Corgis',
-    category: 'breeder',
-    address: 'San Jose, CA',
-    distanceMi: 8.1,
-    rating: 4.3,
-    photo: Images.sampleHospital4,
-    description: 'Health screening, puppy socialization, birthing assistance, registration documentation, temperament training.',
-  },
-];
 
-export const mockEmployees: VetEmployee[] = [
-  {
-    id: 'emp_brown',
-    businessId: 'biz_sfamc',
-    name: 'Dr. David Brown',
-    title: 'DVM, DACVIM',
-    specialization: 'Internal Medicine',
-    experienceYears: 10,
-    consultationFee: 200,
-    avatar: Images.doc1,
-    rating: 4.7,
-  },
-  {
-    id: 'emp_emily',
-    businessId: 'biz_sfamc',
-    name: 'Dr. Emily Johnson',
-    title: 'DVM, DACVIM',
-    specialization: 'Cardiology',
-    experienceYears: 13,
-    consultationFee: 220,
-    avatar: Images.doc2,
-    rating: 4.9,
-  },
-  {
-    id: 'emp_olivia',
-    businessId: 'biz_pawpet',
-    name: 'Dr. Olivia Hernandez',
-    title: 'DVM, DACVAA',
-    specialization: 'Pain Management & Rehabilitation',
-    experienceYears: 9,
-    consultationFee: 180,
-    avatar: Images.doc3,
-    rating: 4.8,
-  },
-];
 
 export const mockServices: VetService[] = [
   {

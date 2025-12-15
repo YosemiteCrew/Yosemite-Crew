@@ -13,19 +13,19 @@ const FormSchema = new Schema<Form>(
 
     visibilityType: {
       type: String,
-      enum: ["Internal", "External"],
+      enum: ["Internal", "External", "Internal_External"],
       required: true,
     },
 
     serviceId: {
       type: [String],
-      default: [],
+      default: undefined,
       required: false,
     },
 
     speciesFilter: {
       type: [String],
-      default: [],
+      default: undefined,
     },
 
     status: {

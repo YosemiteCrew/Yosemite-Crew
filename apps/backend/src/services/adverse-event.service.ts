@@ -6,7 +6,10 @@ import { FilterQuery } from "mongoose";
 import { AdverseEventReport, AdverseEventStatus } from "@yosemite-crew/types";
 
 export class AdverseEventServiceError extends Error {
-  constructor(message: string, public statusCode = 400) {
+  constructor(
+    message: string,
+    public statusCode = 400,
+  ) {
     super(message);
     this.name = "AdverseEventServiceError";
   }
@@ -27,7 +30,9 @@ const toDomain = (doc: AdverseEventReportDocument): AdverseEventReport => ({
 });
 
 export const AdverseEventService = {
-  async createFromMobile(input: AdverseEventReport): Promise<AdverseEventReport> {
+  async createFromMobile(
+    input: AdverseEventReport,
+  ): Promise<AdverseEventReport> {
     if (!input.reporter?.firstName || !input.reporter?.email) {
       throw new AdverseEventServiceError(
         "Reporter firstName and email are required",

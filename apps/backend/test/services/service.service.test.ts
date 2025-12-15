@@ -82,8 +82,6 @@ describe("ServiceService", () => {
         cost: 100,
         maxDiscount: null,
         specialityId: null,
-        headOfServiceId: null,
-        teamMemberIds: [],
         isActive: true,
       });
 
@@ -112,8 +110,6 @@ describe("ServiceService", () => {
         cost: 100,
         maxDiscount: null,
         specialityId: null,
-        headOfServiceId: null,
-        teamMemberIds: [],
         isActive: true,
       });
       expect(result).toMatchObject({
@@ -156,7 +152,7 @@ describe("ServiceService", () => {
 
       expect(existing.name).toBe("New Name");
       expect(existing.durationMinutes).toBe(40);
-      expect(existing.teamMemberIds).toEqual(["abc"]);
+      expect(existing.teamMemberIds).toEqual([]);
       expect(existing.save).toHaveBeenCalled();
       expect(result.name).toBe("New Name");
       expect(mockedTypes.toServiceResponseDTO).toHaveBeenCalledTimes(1);

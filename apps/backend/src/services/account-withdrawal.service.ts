@@ -3,7 +3,10 @@ import { AccountWithdrawalModel } from "../models/account-withdrawal";
 //import { NotificationEmailService } from "../services/notificationEmail.service";
 
 export class AccountWithdrawalServiceError extends Error {
-  constructor(message: string, public statusCode = 400) {
+  constructor(
+    message: string,
+    public statusCode = 400,
+  ) {
     super(message);
     this.name = "AccountWithdrawalServiceError";
   }
@@ -56,7 +59,11 @@ export const AccountWithdrawalService = {
     return AccountWithdrawalModel.find().sort({ createdAt: -1 }).exec();
   },
 
-  async updateStatus(id: string, status: "IN_REVIEW" | "COMPLETED" | "REJECTED", processedByUserId: string) {
+  async updateStatus(
+    id: string,
+    status: "IN_REVIEW" | "COMPLETED" | "REJECTED",
+    processedByUserId: string,
+  ) {
     const doc = await AccountWithdrawalModel.findById(id);
     if (!doc) throw new AccountWithdrawalServiceError("Request not found", 404);
 

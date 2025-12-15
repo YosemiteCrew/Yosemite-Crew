@@ -22,6 +22,7 @@
     "bootstrap": "^5.3.3",
     "classnames": "^2.5.1",
     "framer-motion": "^12.18.1",
+    "libphonenumber-js": "^1.12.31",
     "lodash": "^4.17.21",
     "lodash.isequal": "^4.5.0",
     "next": "15.4.7",

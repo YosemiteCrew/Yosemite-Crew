@@ -82,7 +82,7 @@
   justify-content: center;
   border-radius: 0px 0px 16px 16px;
   border: 1px solid #eaeaea;
-  height: 100px;
+  height: 120px;
   width: 100%;
   color: var(--black-text);
   font-family: var(--satoshi-font);
@@ -91,15 +91,6 @@
   font-weight: 400;
   line-height: 120%;
   letter-spacing: -0.36px;
-}
-@media screen and (max-width: 768px) {
-  .service-search {
-    height: 48px;
-    width: 300px;
-  }
-}
-@media screen and (max-width: 350px) {
-  .service-search {
-    width: 100%;
-  }
+  text-align: center;
+  padding: 0px 20px 0px 20px;
 }

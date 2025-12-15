@@ -200,6 +200,8 @@ export type AuthenticatedRequest<
   userId?: string;
   provider?: string;
   email?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 export const authorizeCognito = async (
@@ -220,8 +222,15 @@ export const authorizeCognito = async (
     const token = authHeader.slice("Bearer ".length).trim();
     const payload = await verifyToken(token);
 
-    (req as AuthenticatedRequest).auth = payload;
-    (req as AuthenticatedRequest).userId = payload.sub;
+    const authReq = req as AuthenticatedRequest;
+    authReq.auth = payload;
+    authReq.userId = payload.sub; // Cognito sub
+    authReq.email = payload.email;
+    authReq.provider = "cognito";
+
+    // Optional for User creation:
+    authReq.firstName = payload.given_name;
+    authReq.lastName = payload.family_name;
 
     next();
   } catch (error) {

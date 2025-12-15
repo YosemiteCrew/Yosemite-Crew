@@ -50,7 +50,7 @@ describe("<InventoryCard />", () => {
     expect(screen.getByText("3 units")).toBeInTheDocument();
     expect(screen.getByText("$ 12")).toBeInTheDocument();
     expect(screen.getByText("$ 15")).toBeInTheDocument();
-    expect(screen.getByText("2025-02-01")).toBeInTheDocument();
+    expect(screen.getByText("01 Feb 2025")).toBeInTheDocument();
     expect(screen.getByText("Pharmacy")).toBeInTheDocument();
     expect(screen.getByText("Low stock")).toBeInTheDocument();
   });

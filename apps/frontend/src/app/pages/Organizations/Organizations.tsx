@@ -2,41 +2,45 @@
 import React, { useEffect, useState } from "react";
 
 import ProtectedRoute from "@/app/components/ProtectedRoute";
-import { getData } from "@/app/services/axios";
 import { Primary } from "@/app/components/Buttons";
 import OrgInvites from "../../components/DataTable/OrgInvites";
 import OrganizationList from "../../components/DataTable/OrganizationList";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useOrgWithMemberships } from "@/app/hooks/useOrgSelectors";
+
+import { getData } from "@/app/services/axios";
+import { Invite } from "@/app/types/team";
 
 import "./Organizations.css";
 
 const Organizations = () => {
-  const [orgs, setOrgs] = useState<any[]>([]);
-  const [invites, setInvites] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const orgs = useOrgWithMemberships();
+  const orgStatus = useOrgStore((s) => s.status);
+  const [invites, setInvites] = useState<Invite[]>([]);
 
-  const fetchOrganizations = async () => {
+  const isLoading = orgStatus === "loading";
+
+  const loadInvites = async () => {
     try {
-      const [orgRes, inviteRes] = await Promise.allSettled([
-        getData<any[]>("/api/v1/organization"),
-        getData<any[]>("/api/v1/invites"),
-      ]);
-
-      if (orgRes.status === "fulfilled" && orgRes.value.status === 200) {
-        setOrgs(orgRes.value.data);
+      const res = await getData<Invite[]>(
+        "/fhir/v1/organisation-invites/me/pending"
+      );
+      const invites: Invite[] = [];
+      for (const invite of res.data as any) {
+        invites.push({ ...invite.invite, ...invite });
       }
-      if (inviteRes.status === "fulfilled" && inviteRes.value.status === 200) {
-        setInvites(inviteRes.value.data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      setInvites(invites);
+    } catch (err: any) {
+      console.error("Failed to load invites:", err);
+      setInvites([]);
     }
   };
 
   useEffect(() => {
-    fetchOrganizations();
+    loadInvites();
   }, []);
+
+  if (isLoading) return null;
 
   return (
     <div className="OperationsWrapper">
@@ -47,12 +51,12 @@ const Organizations = () => {
 
       <div className="OrgaizationsList">
         <div className="InviteTitle">Existing organisations</div>
-        {!loading && <OrganizationList orgs={orgs} />}
+        <OrganizationList orgs={orgs} />
       </div>
 
       <div className="InvitesWrapper">
         <div className="InviteTitle">Invites</div>
-        {!loading && <OrgInvites invites={invites} />}
+        <OrgInvites invites={invites} />
       </div>
     </div>
   );

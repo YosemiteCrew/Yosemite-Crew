@@ -10,6 +10,7 @@ import {
   type SpecialityRequestDTO,
   type SpecialityResponseDTO,
 } from "@yosemite-crew/types";
+import { ServiceService } from "./service.service";
 
 export type SpecialityFHIRPayload = SpecialityRequestDTO;
 
@@ -192,6 +193,7 @@ const buildDomainSpeciality = (document: SpecialityDocument) => {
     headName: rest.headName,
     headProfilePicUrl: rest.headProfilePicUrl,
     services: rest.services,
+    teamMemberIds: rest.memberUserIds,
     createdAt: rest.createdAt,
     updatedAt: rest.updatedAt,
   };
@@ -317,7 +319,20 @@ export const SpecialityService = {
       organisationId: orgId,
     }).exec();
 
-    return documents.map(buildFHIRResponse);
+    const result = [];
+
+    for (const speciality of documents) {
+      const specialityFHIR = buildFHIRResponse(speciality);
+      const services = await ServiceService.listBySpeciality(
+        speciality._id.toString(),
+      );
+      result.push({
+        speciality: specialityFHIR,
+        services: services,
+      });
+    }
+
+    return result;
   },
 
   async deleteAllByOrganizationId(organisationId: string) {

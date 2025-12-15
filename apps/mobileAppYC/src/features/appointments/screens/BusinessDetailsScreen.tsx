@@ -17,6 +17,8 @@ import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertDistance} from '@/shared/utils/measurementSystem';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -26,6 +28,7 @@ export const BusinessDetailsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const dispatch = useDispatch<AppDispatch>();
+  const {distanceUnit} = usePreferences();
   const businessId = route.params?.businessId as string;
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
   const servicesSelector = React.useMemo(() => createSelectServicesForBusiness(), []);
@@ -89,6 +92,18 @@ export const BusinessDetailsScreen: React.FC = () => {
     });
   };
 
+  // Convert distance based on user preference
+  const displayDistance = useMemo(() => {
+    if (!business?.distanceMi) return undefined;
+
+    if (distanceUnit === 'km') {
+      const distanceKm = convertDistance(business.distanceMi, 'mi', 'km');
+      return `${distanceKm.toFixed(1)}km`;
+    }
+
+    return `${business.distanceMi.toFixed(1)}mi`;
+  }, [business?.distanceMi, distanceUnit]);
+
   return (
     <SafeArea>
       <Header title="Book an appointment" showBackButton onBack={() => navigation.goBack()} />
@@ -102,7 +117,7 @@ export const BusinessDetailsScreen: React.FC = () => {
           style={styles.businessCard}
           name={business?.name || ''}
           openHours={business?.openHours}
-          distance={business?.distanceMi ? `${business.distanceMi}mi` : undefined}
+          distance={displayDistance}
           rating={business?.rating ? `${business.rating}` : undefined}
           address={business?.address}
           website={business?.website}

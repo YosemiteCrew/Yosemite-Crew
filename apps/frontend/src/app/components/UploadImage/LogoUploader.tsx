@@ -9,14 +9,12 @@ import "./LogoUploader.css";
 type LogoUploaderProps = {
   title: string;
   apiUrl: string;
-  setFormData: any;
+  setImageUrl: (url: string) => void;
 };
-type GetSignedUrlResponse = { uploadUrl: string; fileUrl: string };
+type GetSignedUrlResponse = { uploadUrl: string; s3Key: string };
 
-const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
-  const [image, setImage] = useState<File | null>(null);
+const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   const [preview, setPreview] = useState<string | null>(null);
-  const [url, setUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,15 +26,14 @@ const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
 
   const getSignedUrl = async (file: File): Promise<GetSignedUrlResponse> => {
     const res = await postData<GetSignedUrlResponse>(apiUrl, {
-      filename: file.name,
-      contentType: file.type,
+      mimeType: file?.type,
     });
     return res.data;
   };
 
   const uploadToS3 = async (uploadUrl: string, file: File) => {
     await axios.put(uploadUrl, file, {
-      headers: { "Content-Type": file.type },
+      headers: { "Content-Type": file?.type },
       withCredentials: false,
     });
   };
@@ -49,13 +46,10 @@ const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
     const localUrl = URL.createObjectURL(file);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(localUrl);
-    setImage(file);
     try {
       const signed = await getSignedUrl(file);
       await uploadToS3(signed.uploadUrl, file);
-      setUrl(signed.fileUrl);
-      setFormData((e: any) => ({ ...e, logoURL: url }));
-      console.log(url, image);
+      setImageUrl(signed.s3Key);
     } catch (err: any) {
       setError(err?.message || "Upload failed");
       handleRemoveImage();
@@ -66,9 +60,7 @@ const LogoUploader = ({ title, apiUrl, setFormData }: LogoUploaderProps) => {
 
   const handleRemoveImage = () => {
     if (preview) URL.revokeObjectURL(preview);
-    setImage(null);
     setPreview(null);
-    setUrl(null);
     setError(null);
   };
 

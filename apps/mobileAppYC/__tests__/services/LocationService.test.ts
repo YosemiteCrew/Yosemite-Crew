@@ -1,7 +1,9 @@
-import LocationService from '@/shared/services/LocationService';
+import LocationService from '../../src/shared/services/LocationService';
 import Geolocation from '@react-native-community/geolocation';
-import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
-import {Alert, Platform} from 'react-native';
+import { Platform, Alert } from 'react-native';
+import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+
+// --- Mocks ---
 
 jest.mock('@react-native-community/geolocation', () => ({
   getCurrentPosition: jest.fn(),
@@ -13,8 +15,8 @@ jest.mock('react-native-permissions', () => ({
   check: jest.fn(),
   request: jest.fn(),
   PERMISSIONS: {
-    IOS: {LOCATION_WHEN_IN_USE: 'ios-location'},
-    ANDROID: {ACCESS_FINE_LOCATION: 'android-location'},
+    IOS: { LOCATION_WHEN_IN_USE: 'ios.permission.LOCATION_WHEN_IN_USE' },
+    ANDROID: { ACCESS_FINE_LOCATION: 'android.permission.ACCESS_FINE_LOCATION' },
   },
   RESULTS: {
     GRANTED: 'granted',
@@ -23,156 +25,337 @@ jest.mock('react-native-permissions', () => ({
   },
 }));
 
-const mockCheck = check as jest.Mock;
-const mockRequest = request as jest.Mock;
-const mockGetCurrentPosition = Geolocation.getCurrentPosition as jest.Mock;
-const mockWatchPosition = Geolocation.watchPosition as jest.Mock;
-const mockClearWatch = Geolocation.clearWatch as jest.Mock;
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn(),
+  },
+  Alert: {
+    alert: jest.fn(),
+  },
+}));
 
 describe('LocationService', () => {
-  let alertSpy: jest.SpyInstance;
-  let consoleErrorSpy: jest.SpyInstance;
+  const mockCoords = {
+    latitude: 37.7749,
+    longitude: -122.4194,
+    altitude: 10,
+    accuracy: 5,
+    altitudeAccuracy: 5,
+    heading: 0,
+    speed: 0,
+  };
+
+  const mockPosition = {
+    coords: mockCoords,
+    timestamp: Date.now(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useRealTimers();
-    Object.defineProperty(Platform, 'OS', {
-      configurable: true,
-      value: 'ios',
-    });
-    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    // Default Platform to iOS
+    Platform.OS = 'ios';
+    // Use fake timers for retry logic
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    alertSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    jest.useRealTimers();
   });
 
-  describe('permission helpers', () => {
-    it('checkLocationPermission returns true when granted', async () => {
-      mockCheck.mockResolvedValueOnce(RESULTS.GRANTED);
-      const granted = await LocationService.checkLocationPermission();
-      expect(granted).toBe(true);
-      expect(mockCheck).toHaveBeenCalledWith(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
+  describe('checkLocationPermission', () => {
+    it('checks iOS permission correctly', async () => {
+      Platform.OS = 'ios';
+      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+
+      const result = await LocationService.checkLocationPermission();
+
+      expect(check).toHaveBeenCalledWith(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
+      expect(result).toBe(true);
     });
 
-    it('checkLocationPermission returns false when denied', async () => {
-      mockCheck.mockResolvedValueOnce(RESULTS.DENIED);
-      const granted = await LocationService.checkLocationPermission();
-      expect(granted).toBe(false);
+    it('checks Android permission correctly', async () => {
+      Platform.OS = 'android';
+      (check as jest.Mock).mockResolvedValue(RESULTS.DENIED);
+
+      const result = await LocationService.checkLocationPermission();
+
+      expect(check).toHaveBeenCalledWith(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('requestLocationPermission', () => {
+    it('requests iOS permission and returns true if granted', async () => {
+      Platform.OS = 'ios';
+      (request as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+
+      const result = await LocationService.requestLocationPermission();
+
+      expect(request).toHaveBeenCalledWith(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
+      expect(result).toBe(true);
     });
 
-    it('requestLocationPermission handles blocked state with alert', async () => {
-      mockRequest.mockResolvedValueOnce(RESULTS.BLOCKED);
-      const granted = await LocationService.requestLocationPermission();
-      expect(granted).toBe(false);
-      expect(alertSpy).toHaveBeenCalledWith(
+    it('requests Android permission and returns false if denied', async () => {
+      Platform.OS = 'android';
+      (request as jest.Mock).mockResolvedValue(RESULTS.DENIED);
+
+      const result = await LocationService.requestLocationPermission();
+
+      expect(request).toHaveBeenCalledWith(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
+      expect(result).toBe(false);
+    });
+
+    it('shows alert and returns false if permission is blocked', async () => {
+      (request as jest.Mock).mockResolvedValue(RESULTS.BLOCKED);
+
+      const result = await LocationService.requestLocationPermission();
+
+      expect(Alert.alert).toHaveBeenCalledWith(
         'Location Permission Required',
-        'Please enable location access in your device settings to use this feature.',
-        [{text: 'OK'}],
+        expect.stringContaining('enable location access'),
+        expect.any(Array),
       );
-    });
-
-    it('requestLocationPermission resolves true when granted', async () => {
-      mockRequest.mockResolvedValueOnce(RESULTS.GRANTED);
-      const granted = await LocationService.requestLocationPermission();
-      expect(granted).toBe(true);
-    });
-
-    it('uses Android permission keys when platform is android', async () => {
-      Object.defineProperty(Platform, 'OS', {configurable: true, value: 'android'});
-      mockCheck.mockResolvedValueOnce(RESULTS.GRANTED);
-      await LocationService.checkLocationPermission();
-      expect(mockCheck).toHaveBeenCalledWith(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
+      expect(result).toBe(false);
     });
   });
 
   describe('getCurrentPosition', () => {
-    it('returns coordinates when permission granted', async () => {
-      const coords = {latitude: 1, longitude: 2, altitude: null, accuracy: 10, altitudeAccuracy: null, heading: null, speed: null};
-      mockCheck.mockResolvedValueOnce(RESULTS.GRANTED);
-      mockGetCurrentPosition.mockImplementation((success: any) => {
-        success({coords});
-      });
+    it('throws error if permission is denied', async () => {
+      // Mock check to fail
+      (check as jest.Mock).mockResolvedValue(RESULTS.DENIED);
+      // Mock request to fail
+      (request as jest.Mock).mockResolvedValue(RESULTS.DENIED);
 
-      await expect(LocationService.getCurrentPosition()).resolves.toEqual(coords);
-      expect(mockGetCurrentPosition).toHaveBeenCalled();
+      await expect(LocationService.getCurrentPosition()).rejects.toThrow(
+        'Location permission denied',
+      );
     });
 
-    it('requests permission when not granted and rejects if still denied', async () => {
-      mockCheck.mockResolvedValueOnce(RESULTS.DENIED);
-      mockRequest.mockResolvedValueOnce(RESULTS.DENIED);
+    it('requests permission if not initially granted, then succeeds', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.DENIED);
+      (request as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
 
-      await expect(LocationService.getCurrentPosition()).rejects.toThrow('Location permission denied');
-      expect(mockRequest).toHaveBeenCalled();
+      (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
+        (success) => success(mockPosition)
+      );
+
+      const coords = await LocationService.getCurrentPosition();
+
+      expect(request).toHaveBeenCalled();
+      expect(coords).toEqual(mockCoords);
     });
 
-    it('passes errors from geolocation to rejection', async () => {
-      const error = new Error('timeout');
-      mockCheck.mockResolvedValueOnce(RESULTS.GRANTED);
-      mockGetCurrentPosition.mockImplementation((_success: any, failure: any) => {
-        failure(error);
-      });
+    it('returns coordinates directly if permission already granted', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+      (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
+        (success) => success(mockPosition)
+      );
 
-      await expect(LocationService.getCurrentPosition()).rejects.toThrow('timeout');
+      const coords = await LocationService.getCurrentPosition();
+
+      expect(request).not.toHaveBeenCalled();
+      expect(coords).toEqual(mockCoords);
+    });
+
+    it('handles geolocation errors via reject', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+      const geoError = { code: 1, message: 'User denied location' };
+
+      (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
+        (_success, error) => error(geoError)
+      );
+
+      // Spy on console error to suppress it in test output
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(LocationService.getCurrentPosition()).rejects.toThrow(
+        'User denied location',
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('handles non-standard geolocation errors (fallback message)', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+
+      (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
+        (_success, error) => error({}) // Empty object error
+      );
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(LocationService.getCurrentPosition()).rejects.toThrow(
+        'Unable to retrieve location',
+      );
+
+      consoleSpy.mockRestore();
     });
   });
 
   describe('watchPosition', () => {
-    it('registers watch and forwards updates', () => {
-      const coords = {latitude: 1, longitude: 2, altitude: null, accuracy: 10, altitudeAccuracy: null, heading: null, speed: null};
-      const success = jest.fn();
-      const error = jest.fn();
+    it('sets watchId and calls onSuccess', () => {
+      (Geolocation.watchPosition as jest.Mock).mockImplementation(
+        (success) => {
+          success(mockPosition);
+          return 123; // return watchId
+        }
+      );
 
-      mockWatchPosition.mockImplementation((onSuccess: any, onError: any) => {
-        onSuccess({coords});
-        onError?.(new Error('fail'));
-        return 42;
-      });
+      const successCallback = jest.fn();
+      LocationService.watchPosition(successCallback);
 
-      LocationService.watchPosition(success, error);
-      expect(success).toHaveBeenCalledWith(coords);
-      expect(error).toHaveBeenCalledWith(expect.any(Error));
-      expect(mockWatchPosition).toHaveBeenCalled();
+      expect(Geolocation.watchPosition).toHaveBeenCalled();
+      expect(successCallback).toHaveBeenCalledWith(mockCoords);
     });
 
-    it('stopWatching clears watch id', () => {
-      mockWatchPosition.mockReturnValue(21);
+    it('calls onError on failure', () => {
+      const geoError = new Error('Watch failed');
+      (Geolocation.watchPosition as jest.Mock).mockImplementation(
+        (_success, error) => {
+          error(geoError);
+          return 123;
+        }
+      );
+
+      const errorCallback = jest.fn();
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      LocationService.watchPosition(jest.fn(), errorCallback);
+
+      expect(errorCallback).toHaveBeenCalledWith(geoError);
+      consoleSpy.mockRestore();
+    });
+
+    it('calls onError on failure with non-error object', () => {
+        // Cover branch: error instanceof Error ? ... : ... inside watchPosition error callback
+        const geoError = { message: 'Watch failed generic' };
+        (Geolocation.watchPosition as jest.Mock).mockImplementation(
+          (_success, error) => {
+            error(geoError);
+            return 123;
+          }
+        );
+
+        const errorCallback = jest.fn();
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+        LocationService.watchPosition(jest.fn(), errorCallback);
+
+        expect(errorCallback).toHaveBeenCalledWith(expect.objectContaining({ message: 'Watch failed generic' }));
+        consoleSpy.mockRestore();
+      });
+  });
+
+  describe('stopWatching', () => {
+    it('clears watch if watchId exists', () => {
+      // First start watching to set the ID
+      (Geolocation.watchPosition as jest.Mock).mockReturnValue(555);
       LocationService.watchPosition(jest.fn());
+
+      // Now stop
       LocationService.stopWatching();
-      expect(mockClearWatch).toHaveBeenCalledWith(21);
+
+      expect(Geolocation.clearWatch).toHaveBeenCalledWith(555);
+    });
+
+    it('does nothing if no watchId is set', () => {
+      // Reset state via stopWatching first just in case
+      LocationService.stopWatching();
+      (Geolocation.clearWatch as jest.Mock).mockClear();
+
+      // Call again
+      LocationService.stopWatching();
+
+      expect(Geolocation.clearWatch).not.toHaveBeenCalled();
     });
   });
 
   describe('getLocationWithRetry', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
+    it('returns coordinates immediately on success', async () => {
+      // Mock success on first try
+      jest.spyOn(LocationService, 'getCurrentPosition').mockResolvedValue(mockCoords);
+
+      const result = await LocationService.getLocationWithRetry();
+      expect(result).toEqual(mockCoords);
     });
 
-    it('resolves immediately when first attempt succeeds', async () => {
-      const coords = {latitude: 3, longitude: 4, altitude: null, accuracy: 5, altitudeAccuracy: null, heading: null, speed: null};
-      mockCheck.mockResolvedValue(RESULTS.GRANTED);
-      mockGetCurrentPosition.mockImplementation((success: any) => success({coords}));
+    it('retries on failure and eventually succeeds', async () => {
+      const mockGetCurrentPosition = jest.spyOn(LocationService, 'getCurrentPosition');
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-      await expect(LocationService.getLocationWithRetry()).resolves.toEqual(coords);
+      // Fail once, then succeed
+      mockGetCurrentPosition
+        .mockRejectedValueOnce(new Error('Timeout'))
+        .mockResolvedValueOnce(mockCoords);
+
+      const promise = LocationService.getLocationWithRetry();
+
+      // Fast-forward time for the retry delay
+      await jest.runAllTimersAsync();
+
+      const result = await promise;
+
+      expect(mockGetCurrentPosition).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(mockCoords);
+
+      consoleSpy.mockRestore();
     });
 
-    it('retries on failure and alerts when all retries exhausted', async () => {
-      const error = new Error('fail');
-      mockCheck.mockResolvedValue(RESULTS.GRANTED);
-      mockGetCurrentPosition.mockImplementation((_success: any, failure: any) => failure(error));
+    it('fails after max retries and shows Alert', async () => {
+      const mockGetCurrentPosition = jest.spyOn(LocationService, 'getCurrentPosition');
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-      const promise = LocationService.getLocationWithRetry(2);
-      await jest.runOnlyPendingTimersAsync();
-      await jest.runOnlyPendingTimersAsync();
+      // Always fail
+      mockGetCurrentPosition.mockRejectedValue(new Error('Timeout'));
 
-      await expect(promise).resolves.toBeNull();
-      expect(alertSpy).toHaveBeenCalledWith(
+      const promise = LocationService.getLocationWithRetry(3);
+
+      // Advance timers through all 3 retry waits
+      await jest.runAllTimersAsync();
+
+      const result = await promise;
+
+      expect(mockGetCurrentPosition).toHaveBeenCalledTimes(3);
+      expect(Alert.alert).toHaveBeenCalledWith(
         'Location Error',
-        'Unable to get your location. Please check your GPS settings.',
-        [{text: 'OK'}],
+        expect.stringContaining('Unable to get your location'),
+        expect.any(Array)
       );
+      expect(result).toBeNull();
+
+      consoleSpy.mockRestore();
     });
+
+    // ** CRITICAL TEST for branch coverage **
+    // This tests line 138 where the error is NOT an instance of Error
+    it('normalizes non-Error objects (string rejection) during retry', async () => {
+        const mockGetCurrentPosition = jest.spyOn(LocationService, 'getCurrentPosition');
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        // Fail with a raw string 'Network failure' which is NOT an Error object
+        // This triggers the `else` branch: new Error(String(error))
+        mockGetCurrentPosition
+          .mockRejectedValueOnce('Network failure')
+          .mockResolvedValueOnce(mockCoords);
+
+        const promise = LocationService.getLocationWithRetry();
+
+        // Advance timer for retry
+        await jest.runAllTimersAsync();
+
+        const result = await promise;
+
+        expect(result).toEqual(mockCoords);
+
+        // Verify that the log contained the string message we passed
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Location attempt 1 failed'),
+          // We check if the second arg is an Error object created from our string
+          expect.objectContaining({ message: 'Network failure' })
+        );
+
+        consoleSpy.mockRestore();
+      });
   });
 });

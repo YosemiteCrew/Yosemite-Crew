@@ -18,7 +18,7 @@ jest.mock('@/hooks', () => ({
 
 // Mock the custom hook
 jest.mock('@/shared/hooks/useConfirmActionSheetRef', () => ({
-  useConfirmActionSheetRef: (ref: any, onConfirm: any) => {
+  useConfirmActionSheetRef: (_ref: any, onConfirm: any) => {
     return {
       sheetRef: {current: {}},
       handleConfirm: onConfirm || jest.fn(),
@@ -31,10 +31,12 @@ jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => {
     const {View, Text, TouchableOpacity} = require('react-native');
-    const ReactModule = require('react');
+
+    // FIX: Alias to avoid shadowing top-level React
+    const ReactMock = require('react');
     return {
-      ConfirmActionBottomSheet: ReactModule.forwardRef(
-        ({title, children, primaryButton}: any) => (
+      ConfirmActionBottomSheet: ReactMock.forwardRef(
+        ({title, children, primaryButton}: any, _ref: any) => (
           <View testID="confirm-sheet">
             <Text testID="sheet-title">{title}</Text>
             {children}
@@ -83,7 +85,6 @@ describe('NotifyBusinessBottomSheet', () => {
 
     expect(screen.getByTestId('btn-primary')).toHaveTextContent('Okay');
 
-    // FIX: Use Regex for partial text matching on the aggregated text content
     expect(screen.getByTestId('sheet-message')).toHaveTextContent(
       /Yosemite Crew have sent an Invite to/,
     );
@@ -95,7 +96,6 @@ describe('NotifyBusinessBottomSheet', () => {
 
   it('renders correctly without optional names (partial props)', () => {
     render(<NotifyBusinessBottomSheet onConfirm={mockOnConfirm} />);
-    // FIX: Use Regex here as well
     expect(screen.getByTestId('sheet-message')).toHaveTextContent(
       /Yosemite Crew have sent an Invite to/,
     );

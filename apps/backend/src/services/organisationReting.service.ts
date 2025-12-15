@@ -61,6 +61,6 @@ export const OrganizationRatingService = {
       isRated: existingRating ? true : false,
       rating: existingRating ? existingRating.rating : null,
       review: existingRating ? existingRating.review : null,
-    }
+    };
   },
 };

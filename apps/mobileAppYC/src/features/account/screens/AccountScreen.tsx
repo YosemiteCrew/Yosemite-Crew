@@ -42,6 +42,8 @@ import {
   deleteFirebaseAccount,
 } from '@/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -70,6 +72,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {logout, provider} = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const authUser = useSelector(selectAuthUser);
+  const {weightUnit} = usePreferences();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
@@ -139,12 +142,22 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           ageString = age > 0 ? `${age}Y` : null;
         }
 
+        // Convert weight from kg (storage) to user's preferred unit
+        let weightDisplay: string | null = null;
+        if (companion.currentWeight) {
+          let weight = companion.currentWeight;
+          if (weightUnit === 'lbs') {
+            weight = convertWeight(weight, 'kg', 'lbs');
+          }
+          weightDisplay = `${weight.toFixed(1)} ${weightUnit}`;
+        }
+
         // Dynamically build the subtitle
         const subtitleParts = [
           companion.breed?.breedName,
           companion.gender,
           ageString, // Use the calculated age string here
-          companion.currentWeight ? `${companion.currentWeight} lbs` : null,
+          weightDisplay,
         ].filter(Boolean) as string[];
 
         const remoteUri = normalizeImageUri(companion.profileImage ?? null);
@@ -161,7 +174,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
     // 3. Combine them: User first, then companions
     return [userProfile, ...companionProfiles];
-  }, [authUser?.profilePicture, authUser?.profileToken, companionsFromStore, displayName]); // Re-run when companions change
+  }, [authUser?.profilePicture, authUser?.profileToken, companionsFromStore, displayName, weightUnit]); // Re-run when companions or weightUnit change
 
   const getInitial = (name: string, fallback: string) => {
     const trimmed = name?.trim();

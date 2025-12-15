@@ -1,31 +1,44 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Primary, Secondary } from "../../Buttons";
 import SpecialitySearch from "../../Inputs/SpecialitySearch/SpecialitySearch";
 import SpecialityCard from "../../Cards/SpecialityCard/SpecialityCard";
 import { useRouter } from "next/navigation";
+import { Speciality } from "@yosemite-crew/types";
+import { createSpeciality } from "@/app/services/specialityService";
 
 import "./Step.css";
 
-const SpecialityStep = ({ prevStep, specialities, setSpecialities }: any) => {
+type SpecialityStepProps = {
+  prevStep: any;
+  specialities: Speciality[];
+  setSpecialities: React.Dispatch<React.SetStateAction<Speciality[]>>;
+};
+
+const SpecialityStep = ({
+  prevStep,
+  specialities,
+  setSpecialities,
+}: SpecialityStepProps) => {
   const router = useRouter();
 
-  const activeSpecialities = useMemo(() => {
-    return specialities.filter((s: any) => s.active);
-  }, [specialities]);
-
-  const hasActiveSpecialityAndService = () => {
-    if (!Array.isArray(specialities)) return false;
-    return specialities.some(
-      (speciality) =>
-        speciality.active &&
-        Array.isArray(speciality.services) &&
-        speciality.services.some((service: any) => service.active)
-    );
+  const hasValidSpecialities = (): boolean => {
+    if (!specialities || specialities.length === 0) return false;
+    return true;
   };
 
-  const handleSubmit = () => {
-    if (hasActiveSpecialityAndService()) {
+  const handleSubmit = async () => {
+    if (!hasValidSpecialities()) return;
+    try {
+      const results = await Promise.allSettled(
+        specialities.map((s) => createSpeciality(s))
+      );
+      const succeeded = results.filter((r) => r.status === "fulfilled");
+      if (succeeded.length === 0) {
+        return;
+      }
       router.push("/dashboard");
+    } catch (err) {
+      console.error("Failed to save specialities:", err);
     }
   };
 
@@ -33,22 +46,24 @@ const SpecialityStep = ({ prevStep, specialities, setSpecialities }: any) => {
     <div className="step-container">
       <div className="step-title-container">
         <div className="step-title">Specialties</div>
-        <SpecialitySearch
-          specialities={specialities}
-          setSpecialities={setSpecialities}
-        />
+        <div className="w-[300px] sm:w-[400px] xl:w-[500px]">
+          <SpecialitySearch
+            specialities={specialities}
+            setSpecialities={setSpecialities}
+          />
+        </div>
       </div>
 
-      {activeSpecialities.length === 0 && (
+      {specialities.length === 0 && (
         <div className="specilities-container-empty">
           Search and add specialities from the search bar above
         </div>
       )}
 
       <div className="specialities-container">
-        {activeSpecialities.map((speciality: any) => (
+        {specialities.map((speciality: Speciality, i: number) => (
           <SpecialityCard
-            key={speciality.key}
+            key={speciality.name + i}
             speciality={speciality}
             setSpecialities={setSpecialities}
           />

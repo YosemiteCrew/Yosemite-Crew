@@ -1,57 +1,38 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Primary } from "@/app/components/Buttons";
 import CompanionFilters from "@/app/components/Filters/CompanionFilters";
 import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
-import { CompanionProps } from "@/app/pages/Companions/types";
-import { demoData } from "./demo";
 import AddCompanion from "@/app/components/AddCompanion";
 import CompanionInfo from "@/app/components/CompanionInfo";
+import OrgGuard from "@/app/components/OrgGuard";
+import { useCompanionsParentsForPrimaryOrg } from "@/app/hooks/useCompanion";
+import { CompanionParent } from "./types";
+import BookAppointment from "./BookAppointment";
 
 const Companions = () => {
-  const [list, setList] = useState<CompanionProps[]>(demoData);
-  const [filteredList, setFilteredList] = useState<CompanionProps[]>(demoData);
-  const [isLoading, setIsLoading] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const companions = useCompanionsParentsForPrimaryOrg();
+  const [filteredList, setFilteredList] =
+    useState<CompanionParent[]>(companions);
   const [addPopup, setAddPopup] = useState(false);
   const [viewCompanion, setViewCompanion] = useState(false);
-  const [activeCompanion, setActiveCompanion] = useState<CompanionProps | null>(
-    demoData[0] ?? null
-  );
+  const [activeCompanion, setActiveCompanion] =
+    useState<CompanionParent | null>(companions[0] ?? null);
+  const [bookAppointment, setBookAppointment] = useState(false);
 
   useEffect(() => {
-    if (filteredList.length > 0) {
-      setActiveCompanion(filteredList[0]);
-    } else {
-      setActiveCompanion(null);
-    }
-  }, [filteredList]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && !isLoading && filteredList.length > 0) {
-          setIsLoading(true);
-          setTimeout(() => {
-            updateList();
-            setIsLoading(false);
-          }, 300);
-        }
-      },
-      { threshold: 1 }
-    );
-    const currentSentinel = sentinelRef.current;
-    if (currentSentinel) observer.observe(currentSentinel);
-    return () => {
-      if (currentSentinel) observer.unobserve(currentSentinel);
-    };
-  }, [isLoading, filteredList]);
-
-  const updateList = () => {
-    setList((prev) => [...prev, ...demoData]);
-  };
+    setActiveCompanion((prev) => {
+      if (companions.length === 0) return null;
+      if (prev?.companion.id) {
+        const updated = companions.find(
+          (s) => s.companion.id === prev.companion.id
+        );
+        if (updated) return updated;
+      }
+      return companions[0];
+    });
+  }, [companions]);
 
   return (
     <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
@@ -67,23 +48,14 @@ const Companions = () => {
         />
       </div>
       <div className="w-full flex flex-col gap-6">
-        <CompanionFilters list={list} setFilteredList={setFilteredList} />
+        <CompanionFilters list={companions} setFilteredList={setFilteredList} />
         <CompanionsTable
           filteredList={filteredList}
           activeCompanion={activeCompanion}
           setActiveCompanion={setActiveCompanion}
           setViewCompanion={setViewCompanion}
+          setBookAppointment={setBookAppointment}
         />
-        <div
-          ref={sentinelRef}
-          className="w-full h-10 flex justify-center items-center"
-        >
-          {isLoading && (
-            <span className="text-gray-500 text-sm">
-              Loading more companions...
-            </span>
-          )}
-        </div>
       </div>
 
       <AddCompanion showModal={addPopup} setShowModal={setAddPopup} />
@@ -94,6 +66,13 @@ const Companions = () => {
           activeCompanion={activeCompanion}
         />
       )}
+      {activeCompanion && (
+        <BookAppointment
+          showModal={bookAppointment}
+          setShowModal={setBookAppointment}
+          activeCompanion={activeCompanion}
+        />
+      )}
     </div>
   );
 };
@@ -101,7 +80,9 @@ const Companions = () => {
 const ProtectedCompanions = () => {
   return (
     <ProtectedRoute>
-      <Companions />
+      <OrgGuard>
+        <Companions />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

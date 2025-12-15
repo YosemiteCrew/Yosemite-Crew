@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { HiShoppingBag } from "react-icons/hi2";
 import { IoLocationSharp } from "react-icons/io5";
 import { FaSuitcaseMedical } from "react-icons/fa6";
@@ -9,7 +9,9 @@ import CreateOrgProgress from "@/app/components/Steps/Progress/Progress";
 import OrgStep from "@/app/components/Steps/CreateOrg/OrgStep";
 import AddressStep from "@/app/components/Steps/CreateOrg/AddressStep";
 import SpecialityStep from "@/app/components/Steps/CreateOrg/SpecialityStep";
-import { specialties } from "@/app/utils/specialities";
+import { Organisation, Speciality } from "@yosemite-crew/types";
+import { useOrgOnboarding } from "@/app/hooks/useOrgOnboarding";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import "./CreateOrg.css";
 
@@ -28,32 +30,66 @@ const OrgSteps = [
   },
 ];
 
-const CreateOrg = () => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [specialities, setSpecialities] = useState(specialties);
-  const [formData, setFormData] = useState({
-    logoURL: "",
-    name: "",
-    latitude: null,
-    longitude: null,
-    businessType: "HOSPITAL",
+const EMPTY_ORG: Organisation = {
+  _id: "",
+  isActive: false,
+  isVerified: false,
+  imageURL: "",
+  name: "",
+  type: "HOSPITAL",
+  DUNSNumber: "",
+  phoneNo: "",
+  taxId: "",
+  website: "",
+  healthAndSafetyCertNo: "",
+  animalWelfareComplianceCertNo: "",
+  fireAndEmergencyCertNo: "",
+  googlePlacesId: "",
+  address: {
+    addressLine: "",
     country: "",
-    duns: "",
-    number: "",
-    taxId: "",
-    website: "",
-    healthCertficate: "",
-    animalWelfareCompliance: "",
-    fireCompliance: "",
-    address: "",
-    area: "",
     city: "",
     state: "",
     postalCode: "",
-  });
+    latitude: 0,
+    longitude: 0,
+  },
+};
 
-  const nextStep = () => setActiveStep((s) => s + 1);
-  const prevStep = () => setActiveStep((s) => s - 1);
+const CreateOrg = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const orgIdFromQuery = searchParams.get("orgId");
+
+  const {
+    org,
+    step: computedStep,
+    specialities: storeSpecialities,
+  } = useOrgOnboarding(orgIdFromQuery);
+
+  const [activeStep, setActiveStep] = useState<number>(computedStep);
+  const [specialities, setSpecialities] = useState<Speciality[]>([]);
+  const [formData, setFormData] = useState<Organisation>(EMPTY_ORG);
+
+  useEffect(() => {
+    if (computedStep === 3) {
+      router.replace("/dashboard");
+      return;
+    }
+    if (computedStep >= 0 && computedStep <= 2) {
+      setActiveStep(computedStep);
+    }
+    if (org) {
+      setFormData(org);
+    }
+    if (storeSpecialities.length > 0) {
+      setSpecialities(storeSpecialities);
+    }
+  }, [org, storeSpecialities, computedStep]);
+
+  const nextStep = () =>
+    setActiveStep((s) => Math.min(s + 1, OrgSteps.length - 1));
+  const prevStep = () => setActiveStep((s) => Math.max(s - 1, 0));
 
   return (
     <div className="create-org-wrapper">

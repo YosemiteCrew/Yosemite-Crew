@@ -9,7 +9,10 @@ import ContactRequestModel, {
 } from "../models/contect-us";
 
 export class ContactServiceError extends Error {
-  constructor(message: string, public statusCode = 400) {
+  constructor(
+    message: string,
+    public statusCode = 400,
+  ) {
     super(message);
     this.name = "ContactServiceError";
   }
@@ -50,10 +53,7 @@ export const ContactService = {
         );
       }
       if (!input.dsarDetails.declarationAccepted) {
-        throw new ContactServiceError(
-          "DSAR declaration must be accepted",
-          400,
-        );
+        throw new ContactServiceError("DSAR declaration must be accepted", 400);
       }
       input.dsarDetails.declarationAcceptedAt =
         input.dsarDetails.declarationAcceptedAt ?? new Date();
@@ -74,9 +74,7 @@ export const ContactService = {
     if (filter.type) query.type = filter.type;
     if (filter.organisationId) query.organisationId = filter.organisationId;
 
-    return ContactRequestModel.find(query)
-      .sort({ createdAt: -1 })
-      .limit(100);
+    return ContactRequestModel.find(query).sort({ createdAt: -1 }).limit(100);
   },
 
   async getById(id: string) {
@@ -84,10 +82,6 @@ export const ContactService = {
   },
 
   async updateStatus(id: string, status: ContactStatus) {
-    return ContactRequestModel.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true },
-    );
+    return ContactRequestModel.findByIdAndUpdate(id, { status }, { new: true });
   },
 };

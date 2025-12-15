@@ -46,7 +46,11 @@ describe("UserProfileController", () => {
 
   describe("create", () => {
     it("rejects invalid body", async () => {
-      const req = { body: null } as any;
+      const req = {
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
+        body: null,
+      } as any;
       const res = createResponse();
 
       await UserProfileController.create(req, res as any);
@@ -60,11 +64,9 @@ describe("UserProfileController", () => {
 
     it("creates profile", async () => {
       const req = {
-        body: {
-          userId: "user-1",
-          organizationId: "org-1",
-          baseAvailability: [],
-        },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
+        body: { baseAvailability: [] },
       } as any;
       const res = createResponse();
       const profile = {
@@ -76,18 +78,20 @@ describe("UserProfileController", () => {
 
       await UserProfileController.create(req, res as any);
 
-      expect(mockedService.create).toHaveBeenCalledWith(req.body);
+      expect(mockedService.create).toHaveBeenCalledWith({
+        ...req.body,
+        userId: "user-1",
+        organizationId: "org-1",
+      });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(profile);
     });
 
     it("maps service errors", async () => {
       const req = {
-        body: {
-          userId: "user-1",
-          organizationId: "org-1",
-          baseAvailability: [],
-        },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
+        body: { baseAvailability: [] },
       } as any;
       const res = createResponse();
       mockedService.create.mockRejectedValueOnce(
@@ -102,11 +106,9 @@ describe("UserProfileController", () => {
 
     it("logs unexpected errors", async () => {
       const req = {
-        body: {
-          userId: "user-1",
-          organizationId: "org-1",
-          baseAvailability: [],
-        },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
+        body: { baseAvailability: [] },
       } as any;
       const res = createResponse();
       const error = new Error("boom");
@@ -128,7 +130,8 @@ describe("UserProfileController", () => {
   describe("update", () => {
     it("updates profile", async () => {
       const req = {
-        params: { userId: "user-1", organizationId: "org-1" },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
         body: { baseAvailability: [] },
       } as any;
       const res = createResponse();
@@ -153,7 +156,8 @@ describe("UserProfileController", () => {
 
     it("returns 404 when missing", async () => {
       const req = {
-        params: { userId: "missing", organizationId: "org-1" },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "missing" },
         body: { baseAvailability: [] },
       } as any;
       const res = createResponse();
@@ -169,7 +173,8 @@ describe("UserProfileController", () => {
 
     it("maps service errors", async () => {
       const req = {
-        params: { userId: "user-1", organizationId: "org-1" },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
         body: {},
       } as any;
       const res = createResponse();
@@ -185,7 +190,8 @@ describe("UserProfileController", () => {
 
     it("logs unexpected errors", async () => {
       const req = {
-        params: { userId: "user-1", organizationId: "org-1" },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
         body: { baseAvailability: [] },
       } as any;
       const res = createResponse();
@@ -208,7 +214,8 @@ describe("UserProfileController", () => {
   describe("getByUserId", () => {
     it("returns profile", async () => {
       const req = {
-        params: { userId: "user-1", organizationId: "org-1" },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
       } as any;
       const res = createResponse();
       const profile = {
@@ -227,7 +234,8 @@ describe("UserProfileController", () => {
 
     it("returns 404 when missing", async () => {
       const req = {
-        params: { userId: "missing", organizationId: "org-1" },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "missing" },
       } as any;
       const res = createResponse();
       mockedService.getByUserId.mockResolvedValueOnce(null);
@@ -241,7 +249,10 @@ describe("UserProfileController", () => {
     });
 
     it("maps service errors", async () => {
-      const req = { params: { userId: "", organizationId: "" } } as any;
+      const req = {
+        params: { organizationId: "" },
+        headers: { "x-user-id": "" },
+      } as any;
       const res = createResponse();
       mockedService.getByUserId.mockRejectedValueOnce(
         new UserProfileServiceError("Invalid", 400),
@@ -255,7 +266,8 @@ describe("UserProfileController", () => {
 
     it("logs unexpected errors", async () => {
       const req = {
-        params: { userId: "user-1", organizationId: "org-1" },
+        params: { organizationId: "org-1" },
+        headers: { "x-user-id": "user-1" },
       } as any;
       const res = createResponse();
       const error = new Error("db");

@@ -8,8 +8,6 @@ export interface ServiceMongo {
   cost: number;
   maxDiscount?: number | null;
   specialityId?: Types.ObjectId | null;
-  headOfServiceId?: string | null;
-  teamMemberIds?: string[];
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -36,10 +34,6 @@ const ServiceSchema = new Schema<ServiceMongo>(
       ref: "Speciality",
       default: null,
     },
-
-    headOfServiceId: { type: String, default: null },
-
-    teamMemberIds: [{ type: String }],
 
     isActive: { type: Boolean, default: true },
   },

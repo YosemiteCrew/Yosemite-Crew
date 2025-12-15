@@ -222,11 +222,13 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
     if (Platform.OS !== 'android') {
       return true;
     }
-    const permission =
-      Platform.Version >= 33
-        ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-        : PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE;
-    const result = await PermissionsAndroid.request(permission);
+    // For API 33+, writing to Downloads does not require legacy storage permission.
+    if (Platform.Version >= 33) {
+      return true;
+    }
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+    );
     return result === PermissionsAndroid.RESULTS.GRANTED;
   };
 

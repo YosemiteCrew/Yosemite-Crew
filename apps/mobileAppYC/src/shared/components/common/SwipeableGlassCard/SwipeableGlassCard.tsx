@@ -61,6 +61,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const hasCustomActionContent = Boolean(renderActionContent);
   const translateX = useRef(new Animated.Value(0)).current;
+  const currentOffset = useRef(0);
 
   const effectiveActionColor = actionBackgroundColor ?? theme.colors.success;
   const effectiveSpringConfig = useMemo<SpringConfig>(
@@ -68,7 +69,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
     [springConfig],
   );
 
-    const swipeableWidth = actionWidth - actionOverlap;
+  const swipeableWidth = actionWidth - actionOverlap;
 
   const clamp = useCallback(
     (dx: number) => Math.max(-swipeableWidth, Math.min(0, dx)),
@@ -77,6 +78,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
 
   const animateTo = useCallback(
     (toValue: number, callback?: () => void) => {
+      currentOffset.current = toValue;
       Animated.spring(translateX, {
         ...effectiveSpringConfig,
         toValue,
@@ -93,7 +95,8 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
           return;
         }
       }
-      translateX.setValue(clamp(gestureState.dx));
+      const nextOffset = clamp(currentOffset.current + gestureState.dx);
+      translateX.setValue(nextOffset);
     };
     const handleRelease = (_: any, gestureState: any) => {
       const isMostlyVertical = Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
@@ -111,11 +114,19 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
         return;
       }
 
-      const shouldOpen = gestureState.dx < -swipeableWidth / 2;
+      const finalOffset = clamp(currentOffset.current + gestureState.dx);
+      const shouldOpen = finalOffset < -swipeableWidth / 2;
       animateTo(shouldOpen ? -swipeableWidth : 0);
     };
 
     return PanResponder.create({
+      onPanResponderGrant: () => {
+        // Stop any running animation and sync the offset so a new gesture does not jump
+        translateX.stopAnimation(value => {
+          currentOffset.current = value;
+          translateX.setValue(value);
+        });
+      },
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         if (enableHorizontalSwipeOnly) {

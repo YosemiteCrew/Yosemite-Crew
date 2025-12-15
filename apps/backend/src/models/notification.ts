@@ -1,6 +1,6 @@
 import { Schema, model, HydratedDocument } from "mongoose";
 
-export type NotificationType = 
+export type NotificationType =
   | "CHAT_MESSAGE"
   | "APPOINTMENTS"
   | "REMINDERS"
@@ -23,16 +23,20 @@ const NotificationSchema = new Schema<NotificationMongo>(
     userId: { type: String, required: true, index: true },
     title: { type: String, required: true },
     body: { type: String, required: true },
-    type: { type: String, enum: ["CHAT_MESSAGE", "APPOINTMENTS", "REMINDERS", "PROMOTIONS"], required: true },
+    type: {
+      type: String,
+      enum: ["CHAT_MESSAGE", "APPOINTMENTS", "REMINDERS", "PROMOTIONS"],
+      required: true,
+    },
     enabled: { type: Boolean, default: true },
     isSeen: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const NotificationModel = model<NotificationMongo>(
   "Notification",
-  NotificationSchema
+  NotificationSchema,
 );
 
-export type NotificationDocument = HydratedDocument<NotificationMongo>; 
+export type NotificationDocument = HydratedDocument<NotificationMongo>;

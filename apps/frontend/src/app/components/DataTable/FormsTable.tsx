@@ -18,9 +18,11 @@ type FormsTableProps = {
   activeForm: FormsProps | null;
   setActiveForm: (companion: FormsProps) => void;
   setViewPopup: (open: boolean) => void;
+  loading?: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
+  if (!status) return { color: "#302F2E", backgroundColor: "#F3F3F3" };
   switch (status.toLowerCase()) {
     case "published":
       return { color: "#54B492", backgroundColor: "#E6F4EF" };
@@ -36,6 +38,7 @@ const FormsTable = ({
   activeForm,
   setActiveForm,
   setViewPopup,
+  loading = false,
 }: FormsTableProps) => {
   const handleViewForm = (companion: FormsProps) => {
     setActiveForm(companion);
@@ -116,16 +119,38 @@ const FormsTable = ({
   return (
     <div className="w-full">
       <div className="hidden xl:flex">
-        <GenericTable data={filteredList} columns={columns} bordered={false} />
+        {loading ? (
+          <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+            Loading forms...
+          </div>
+        ) : (
+          <GenericTable data={filteredList} columns={columns} bordered={false} />
+        )}
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((form, index) => (
-          <FormCard
-            key={index + form.name}
-            form={form}
-            handleViewForm={handleViewForm}
-          />
-        ))}
+        {(() => {
+          if (loading) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                Loading forms...
+              </div>
+            );
+          }
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((form, index) => (
+            <FormCard
+              key={index + form.name}
+              form={form}
+              handleViewForm={handleViewForm}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

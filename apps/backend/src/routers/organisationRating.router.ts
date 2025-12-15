@@ -13,6 +13,6 @@ router.get(
   "/:organisationId/is-rated",
   authorizeCognitoMobile,
   OrganisationRatingController.isUserRatedOrganisation,
-);  
+);
 
 export default router;

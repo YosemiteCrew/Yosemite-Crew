@@ -19,7 +19,7 @@ export interface AppointmentMongo {
     parent: { id: string; name: string };
   };
 
-  lead?: { id: string; name: string, profileUrl?: string };
+  lead?: { id: string; name: string; profileUrl?: string };
 
   supportStaff?: { id: string; name: string }[];
 

@@ -38,11 +38,6 @@ jest.mock("@/app/components/AddCompanion/Sections/Companion", () => ({
   default: () => <div data-testid="section-companion">Companion</div>,
 }));
 
-jest.mock("@/app/components/AddCompanion/Sections/Allergies", () => ({
-  __esModule: true,
-  default: () => <div data-testid="section-allergies">Allergies</div>,
-}));
-
 jest.mock("react-icons/io", () => ({
   IoIosCloseCircleOutline: (props: any) => (
     <button data-testid="close-icon" {...props} />
@@ -61,8 +56,6 @@ describe("<AddCompanion />", () => {
     fireEvent.click(screen.getByText("Companion information"));
     expect(screen.getByTestId("section-companion")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Allergies / Restrictions"));
-    expect(screen.getByTestId("section-allergies")).toBeInTheDocument();
   });
 
   test("closes modal when close icon clicked", () => {

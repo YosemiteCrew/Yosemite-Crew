@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { OrganizationDocumentController } from "src/controllers/web/organisation-document.controller"
+import { OrganizationDocumentController } from "src/controllers/web/organisation-document.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 
 const router = Router();
@@ -8,11 +8,11 @@ const router = Router();
  * PMS ROUTES
  */
 
-router.get(
+router.post(
   "/pms/:orgId/documents/upload",
   authorizeCognito,
-  OrganizationDocumentController.uploadFile
-)
+  OrganizationDocumentController.uploadFile,
+);
 
 router.post(
   "/pms/:orgId/documents",

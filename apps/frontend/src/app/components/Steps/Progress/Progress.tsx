@@ -1,8 +1,17 @@
 import React from "react";
 import classNames from "classnames";
-import { ProgressProps } from "../types";
 
 import "./Progress.css";
+
+export type StepContent = {
+  title: string;
+  logo: React.ReactNode;
+};
+
+type ProgressProps = {
+  activeStep: number;
+  steps: StepContent[];
+};
 
 const Progress: React.FC<ProgressProps> = ({ activeStep, steps }) => {
   return (

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   BackHandler,
 } from 'react-native';
@@ -14,6 +13,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
@@ -139,20 +139,6 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         return;
       }
 
-      if (
-        !nextUser.firstName ||
-        !nextUser.phone ||
-        !nextUser.dateOfBirth ||
-        !nextUser.address?.addressLine ||
-        !nextUser.address?.city ||
-        !nextUser.address?.stateProvince ||
-        !nextUser.address?.postalCode ||
-        !nextUser.address?.country
-      ) {
-        console.warn('[EditParent] Missing required fields for parent update; skipping remote sync.');
-        return;
-      }
-
       try {
         const photoPayload = await preparePhotoPayload({
           imageUri: nextUser.profilePicture ?? null,
@@ -178,20 +164,29 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           existingPhotoUrl = null;
         }
 
+        const hasAddress =
+          nextUser.address?.addressLine ||
+          nextUser.address?.city ||
+          nextUser.address?.stateProvince ||
+          nextUser.address?.postalCode ||
+          nextUser.address?.country;
+
         const payload: ParentProfileUpsertPayload = {
           parentId: nextUser.parentId,
-          firstName: nextUser.firstName.trim(),
+          firstName: (nextUser.firstName ?? '').trim(),
           lastName: nextUser.lastName?.trim(),
-          phoneNumber: nextUser.phone,
+          phoneNumber: nextUser.phone ?? '',
           email: nextUser.email,
-          dateOfBirth: nextUser.dateOfBirth,
-          address: {
-            addressLine: nextUser.address.addressLine ?? '',
-            stateProvince: nextUser.address.stateProvince ?? '',
-            city: nextUser.address.city ?? '',
-            postalCode: nextUser.address.postalCode ?? '',
-            country: nextUser.address.country ?? '',
-          },
+          dateOfBirth: nextUser.dateOfBirth ?? null,
+          address: hasAddress
+            ? {
+                addressLine: nextUser.address?.addressLine?.trim(),
+                stateProvince: nextUser.address?.stateProvince?.trim(),
+                city: nextUser.address?.city?.trim(),
+                postalCode: nextUser.address?.postalCode?.trim(),
+                country: nextUser.address?.country?.trim(),
+              }
+            : undefined,
           isProfileComplete: nextUser.profileCompleted ?? undefined,
           profileImageKey,
           existingPhotoUrl,
@@ -325,7 +320,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         <Header title="Parent" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <GifLoader />
           ) : (
             <Text style={styles.muted}>User not found.</Text>
           )}

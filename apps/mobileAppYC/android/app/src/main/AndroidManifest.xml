@@ -8,11 +8,8 @@
     <!-- Camera Permission -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Storage Permissions -->
+    <!-- Storage/Media Permissions -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
-    <!-- Media Permissions (Core feature for chat) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <!-- Audio Recording -->
@@ -34,8 +31,6 @@
     <!-- Location Permissions -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- Optional: For background location -->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <!-- Optional: Query for Facebook app (improves login if installed) -->
     <queries>

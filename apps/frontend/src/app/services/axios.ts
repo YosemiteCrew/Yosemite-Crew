@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from "axios";
-import { useAuthStore } from '@/app/stores/authStore'; 
+import { useAuthStore } from "@/app/stores/authStore";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -20,11 +20,58 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.warn('No valid Cognito session available from AuthStore', error);
+      console.warn("No valid Cognito session available from AuthStore", error);
     }
     return config;
   },
-  (error) => Promise.reject(error instanceof Error ? error : new Error(String(error)))
+  (error) =>
+    Promise.reject(error instanceof Error ? error : new Error(String(error)))
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If there's no response or it's not 401, just reject
+    if (error.response?.status !== 401) {
+      throw error;
+    }
+
+    // Avoid infinite loop: only retry once
+    if (originalRequest._retry) {
+      // Refresh already tried and failed → logout
+      await useAuthStore.getState().signout();
+      throw error;
+    }
+
+    originalRequest._retry = true;
+
+    try {
+      // Try to refresh Cognito session
+      await useAuthStore.getState().refreshSession();
+
+      const session = useAuthStore.getState().session;
+      if (!session) {
+        await useAuthStore.getState().signout();
+        throw error;
+      }
+
+      const newToken = session.getIdToken().getJwtToken();
+
+      // Update auth header and retry the original request
+      originalRequest.headers = {
+        ...originalRequest.headers,
+        Authorization: `Bearer ${newToken}`,
+      };
+
+      return api(originalRequest);
+    } catch (refreshError) {
+      console.error("Session refresh failed after 401:", refreshError);
+      await useAuthStore.getState().signout();
+      throw error;
+    }
+  }
 );
 
 // GET Request
@@ -82,6 +129,21 @@ export const deleteData = async <T>(
     });
   } catch (error: unknown) {
     console.error("API deleteData error:", error);
+    throw error;
+  }
+};
+
+export const patchData = async <T, D = unknown>(
+  endpoint: string,
+  data?: D,
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> => {
+  try {
+    return await api.patch<T>(endpoint, data, {
+      ...config,
+    });
+  } catch (error: unknown) {
+    console.error("API patchData error:", error);
     throw error;
   }
 };

@@ -7,12 +7,12 @@ export type WithdrawalStatus =
   | "REJECTED";
 
 export interface AccountWithdrawalMongo {
-  userId?: string;           // optional: current logged in user
+  userId?: string; // optional: current logged in user
   fullName: string;
   email: string;
   address?: string;
-  signatureText?: string;    // the text user typed
-  message?: string;          // “I/we hereby withdraw …” + free text if you want
+  signatureText?: string; // the text user typed
+  message?: string; // “I/we hereby withdraw …” + free text if you want
   checkboxConfirmed: boolean;
 
   status: WithdrawalStatus;
@@ -45,7 +45,8 @@ const AccountWithdrawalSchema = new Schema<AccountWithdrawalMongo>(
   { timestamps: true },
 );
 
-export type AccountWithdrawalDocument = HydratedDocument<AccountWithdrawalMongo>;
+export type AccountWithdrawalDocument =
+  HydratedDocument<AccountWithdrawalMongo>;
 
 export const AccountWithdrawalModel = model<AccountWithdrawalMongo>(
   "AccountWithdrawal",

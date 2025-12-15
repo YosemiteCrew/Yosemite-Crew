@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import InvoiceModel, { InvoiceDocument, InvoiceMongo } from "../models/invoice";
 import AppointmentModel from "src/models/appointment";
 import {
@@ -93,22 +93,28 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
 };
 
 export const InvoiceService = {
-  async createDraftForAppointment(input: {
-    appointmentId: string;
-    parentId: string;
-    organisationId: string;
-    companionId: string;
-    currency: string;
-    items: {
-      description: string;
-      quantity: number;
-      unitPrice: number;
-      discountPercent?: number;
-    }[];
-    notes?: string;
-  }) {
+  async createDraftForAppointment(
+    input: {
+      appointmentId: string;
+      parentId: string;
+      organisationId: string;
+      companionId: string;
+      currency: string;
+      items: {
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        discountPercent?: number;
+      }[];
+      notes?: string;
+    },
+    session?: mongoose.ClientSession,
+  ) {
     // 1. Validate appointment exists
-    const appointment = await AppointmentModel.findById(input.appointmentId);
+    const appointment = await AppointmentModel.findById(
+      input.appointmentId,
+    ).session(session ?? null);
+
     if (!appointment) {
       throw new InvoiceServiceError("Appointment not found", 404);
     }
@@ -138,30 +144,31 @@ export const InvoiceService = {
     }));
 
     // 3. Create invoice
-    const invoice = await InvoiceModel.create({
-      appointmentId: input.appointmentId,
-      parentId: input.parentId,
-      organisationId: input.organisationId,
-      currency: input.currency,
+    const invoice = await InvoiceModel.create(
+      [
+        {
+          appointmentId: input.appointmentId,
+          parentId: input.parentId,
+          organisationId: input.organisationId,
+          currency: input.currency,
 
-      status: "AWAITING_PAYMENT",
+          status: "AWAITING_PAYMENT",
 
-      items: itemsDetailed,
-      subtotal,
-      discountTotal,
-      taxTotal,
-      totalAmount: totalPayable,
+          items: itemsDetailed,
+          subtotal,
+          discountTotal,
+          taxTotal,
+          totalAmount: totalPayable,
 
-      notes: input.notes,
-    });
+          notes: input.notes,
+        },
+      ],
+      { session },
+    );
 
-    const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
-      totalPayable,
-    )
-    await NotificationService.sendToUser(
-      input.parentId,
-      notificationPayload
-    )
+    const notificationPayload =
+      NotificationTemplates.Payment.PAYMENT_PENDING(totalPayable);
+    await NotificationService.sendToUser(input.parentId, notificationPayload);
 
     return invoice;
   },
@@ -245,16 +252,16 @@ export const InvoiceService = {
     const doc = await InvoiceModel.findById(_id);
     const org = await OrganizationModel.findById(doc?.organisationId);
 
-    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404); 
+    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
     return {
-      organistion :{
-        name: org?.name || '',
-        placesId: org?.googlePlacesId || '',
-        address: org?.address || '',
-        image: org?.imageURL || ''
+      organistion: {
+        name: org?.name || "",
+        placesId: org?.googlePlacesId || "",
+        address: org?.address || "",
+        image: org?.imageURL || "",
       },
-      invoice: toInvoiceResponseDTO(toDomain(doc))
+      invoice: toInvoiceResponseDTO(toDomain(doc)),
     };
   },
 

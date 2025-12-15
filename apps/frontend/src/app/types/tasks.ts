@@ -7,6 +7,6 @@ export type TasksProps = {
   from: string;
   to: string;
   toLabel: string;
-  due: string;
+  due: Date;
   status: Status;
 };

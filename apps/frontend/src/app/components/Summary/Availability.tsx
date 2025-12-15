@@ -1,11 +1,10 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import AvailabilityTable from "../DataTable/AvailabilityTable";
-import classNames from "classnames";
 import Link from "next/link";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 
 import "./Summary.css";
-import { DemoTeam } from "@/app/pages/Organization/demo";
 
 const AvailabilityLabels = [
   {
@@ -28,28 +27,35 @@ const AvailabilityLabels = [
   },
 
   {
-    name: "Off duty",
-    value: "off",
+    name: "Off-Duty",
+    value: "off-duty",
     background: "#EAEAEA",
     color: "#302F2E",
   },
 ];
 
 const Availability = () => {
+  const teams = useTeamForPrimaryOrg();
   const [selectedLabel, setSelectedLabel] = useState("all");
-  const [team] = useState(DemoTeam);
+
+  const filteredList = useMemo(() => {
+    return teams.filter((item) => {
+      const matchesStatus =
+        selectedLabel === "all" ||
+        item.status.toLowerCase() === selectedLabel.toLowerCase();
+      return matchesStatus;
+    });
+  }, [teams, selectedLabel]);
 
   return (
     <div className="summary-container">
       <div className="summary-title">
-        Availability&nbsp;<span>(55)</span>
+        Availability&nbsp;<span>({teams.length})</span>
       </div>
       <div className="summary-labels-left">
         {AvailabilityLabels?.map((label, i) => (
           <button
-            className={classNames("summary-label-right", {
-              "active-label-availability": selectedLabel === label.value,
-            })}
+            className={`summary-label-right hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${label.value === selectedLabel ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
             key={label.name + i}
             style={{
               color: label.color,
@@ -62,7 +68,7 @@ const Availability = () => {
           </button>
         ))}
       </div>
-      <AvailabilityTable filteredList={team} />
+      <AvailabilityTable filteredList={filteredList.slice(0, 5)} hideActions />
       <div className="see-all-button">
         <Link className="see-all-button-link" href={"/organization"}>
           See all

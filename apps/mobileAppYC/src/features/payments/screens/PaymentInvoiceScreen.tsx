@@ -838,7 +838,8 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const invoiceBusinessImage = invoiceOrganisation?.image;
 
   // Use invoice organization if available, otherwise use appointment/business data
-  const businessName = invoiceBusinessName ?? business?.name ?? apt?.organisationName ?? 'Your clinic';
+  const businessName =
+    (invoiceBusinessName ?? business?.name ?? apt?.organisationName)?.trim() || 'Yosemite Crew';
   const businessAddress = invoiceBusinessAddress ?? business?.address ?? apt?.organisationAddress ?? undefined;
 
   const {guardianName, guardianInitial, guardianAvatar, guardianEmail} = useGuardianInfo(authUser, invoice);

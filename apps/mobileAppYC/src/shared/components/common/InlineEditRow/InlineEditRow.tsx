@@ -45,13 +45,16 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
     setEditing(false);
   };
 
+  const displayValue =
+    value && value.trim().length > 0 ? value : '—';
+
   if (!editing) {
     return (
       <TouchableOpacity style={styles.row} activeOpacity={0.8} onPress={startEdit}>
         <Text style={styles.label}>{label}</Text>
         <View style={styles.valueContainer}>
           <Text style={styles.value} numberOfLines={1}>
-            {value || ' '}
+            {displayValue}
           </Text>
           <Image source={Images.rightArrow} style={styles.rightArrow} />
         </View>

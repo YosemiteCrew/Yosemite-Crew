@@ -18,5 +18,4 @@ notificationRouter.post(
   NotificationController.markAsSeen,
 );
 
-
 export default notificationRouter;

@@ -75,6 +75,7 @@
   .Downlode_Data {
     flex-direction: column;
     gap: 32px;
+    align-items: center;
   }
   .Downlode_Data img {
     width: 100%;

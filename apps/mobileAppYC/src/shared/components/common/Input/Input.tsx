@@ -193,6 +193,10 @@ export const Input: React.FC<InputProps> = ({
         inputRange: [0, 1],
         outputRange: [0, 4],
       }),
+      paddingVertical: animatedValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0],
+      }),
       zIndex: 1,
         pointerEvents: 'none' as const,
     };

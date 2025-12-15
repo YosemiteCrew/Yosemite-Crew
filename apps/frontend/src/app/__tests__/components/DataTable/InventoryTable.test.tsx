@@ -82,13 +82,21 @@ describe("<InventoryTable />", () => {
   });
 
   test("maps status styles correctly", () => {
-    expect(getStatusStyle("this week")).toEqual({
-      color: "#54B492",
-      backgroundColor: "#E6F4EF",
+    expect(getStatusStyle("healthy")).toEqual({
+      color: "#247AED",
+      backgroundColor: "#EAF3FF",
     });
     expect(getStatusStyle("expired")).toEqual({
       color: "#EA3729",
       backgroundColor: "#FDEBEA",
+    });
+    expect(getStatusStyle("low stock")).toEqual({
+      color: "#F68523",
+      backgroundColor: "#FEF3E9",
+    });
+    expect(getStatusStyle("expiring soon")).toEqual({
+      color: "#C47F00",
+      backgroundColor: "#FEF7E5",
     });
     expect(getStatusStyle("unknown").color).toBeTruthy();
   });

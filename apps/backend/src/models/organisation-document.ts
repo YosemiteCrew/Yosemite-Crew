@@ -91,12 +91,12 @@ const OrganisationDocumentSchema = new Schema<OrganizationDocumentMongo>(
       default: 1, // increment whenever file is replaced
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const OrganizationDocumentModel = model<OrganizationDocumentMongo>(
   "OrganizationDocument",
-  OrganisationDocumentSchema
+  OrganisationDocumentSchema,
 );
 
 export default OrganizationDocumentModel;

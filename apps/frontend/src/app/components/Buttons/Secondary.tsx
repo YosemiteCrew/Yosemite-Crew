@@ -9,6 +9,7 @@ type ButtonProps = {
   onClick?: (e: FormEvent<Element>) => void;
   style?: React.CSSProperties;
   className?: string;
+  isDisabled?: boolean;
 };
 
 const Secondary = ({
@@ -17,12 +18,18 @@ const Secondary = ({
   onClick,
   style,
   className,
+  isDisabled = false,
 }: Readonly<ButtonProps>) => {
   return (
     <Link
       href={href}
-      className={`secondary-button ${className}`}
+      aria-disabled={isDisabled}
+      className={`secondary-button ${isDisabled ? "pointer-events-none opacity-60" : ""} ${className ?? ""}`}
       onClick={(e) => {
+        if (isDisabled) {
+          e.preventDefault();
+          return;
+        }
         if (onClick) {
           e.preventDefault();
           onClick(e);

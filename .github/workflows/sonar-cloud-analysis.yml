@@ -27,6 +27,10 @@ jobs:
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
+      - name: Run tests with coverage
+        working-directory: apps/frontend
+        run: npm test -- --coverage
+
       - name: SonarQube Scan Frontend
         uses: SonarSource/sonarqube-scan-action@v6
         with:
@@ -47,6 +51,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Run tests with coverage
+        working-directory: apps/backend
+        run: npm test -- --coverage
+
       - name: SonarQube Scan Backend
         uses: SonarSource/sonarqube-scan-action@v6
         with:
@@ -67,6 +76,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Run tests with coverage
+        working-directory: apps/mobileAppYC
+        run: npm test -- --coverage
+
       - name: SonarQube Scan MobileApp
         uses: SonarSource/sonarqube-scan-action@v6
         with:

@@ -4,6 +4,7 @@ import {
   FormFieldModel,
   FormVersionModel,
   FormSubmissionModel,
+  FormSubmissionDocument,
 } from "../models/form";
 
 import {
@@ -34,6 +35,9 @@ const ensureObjectId = (id: string | Types.ObjectId, label: string) => {
     throw new FormServiceError(`Invalid ${label}`, 400);
   return new Types.ObjectId(id);
 };
+
+const normalizeObjectId = (id: Types.ObjectId | string) =>
+  typeof id === "string" ? id : id.toHexString();
 
 // Helpers
 
@@ -145,11 +149,19 @@ export const FormService = {
     return toFormResponseDTO(fhirForm);
   },
 
-  async update(formId: string, fhir: FormRequestDTO, userId: string) {
+  async update(
+    formId: string,
+    fhir: FormRequestDTO,
+    userId: string,
+    orgId: string,
+  ) {
     const fid = ensureObjectId(formId, "formId");
 
     const existing = await FormModel.findById(fid);
     if (!existing) throw new FormServiceError("Form not found", 404);
+
+    if (existing.orgId !== orgId)
+      throw new FormServiceError("Form is not part of your organisation", 400);
 
     const internal: Form = fromFormRequestDTO(fhir);
 
@@ -295,5 +307,118 @@ export const FormService = {
     if (serviceId) filter.serviceId = { $in: [serviceId] };
 
     return FormModel.find(filter).lean();
+  },
+
+  async listFormsForOrganisation(orgId: string) {
+    const oid = ensureObjectId(orgId, "orgId");
+    const docs = await FormModel.find({ orgId: oid });
+
+    return docs.map((doc) => toFormResponseDTO(doc));
+  },
+
+  async getSOAPNotesByAppointment(
+    appointmentId: string,
+    options?: { latestOnly?: boolean }
+  ) {
+    type SubmissionLean = Omit<FormSubmissionDocument, "formId"> & {
+      _id: Types.ObjectId | string;
+      formId: Types.ObjectId | string;
+    };
+
+    type SoapNoteType = "Subjective" | "Objective" | "Assessment" | "Plan";
+
+    type SoapNoteEntry = {
+      submissionId: string;
+      formId: string;
+      formVersion: number;
+      submittedBy?: string;
+      submittedAt: Date;
+      answers: Record<string, unknown>;
+    };
+
+    type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
+
+    const submissions = (await FormSubmissionModel.find({ appointmentId })
+      .sort({ submittedAt: -1 })
+      .lean()) as unknown as SubmissionLean[];
+
+    if (!submissions.length) {
+      return {
+        appointmentId,
+        soapNotes: {
+          Subjective: [],
+          Objective: [],
+          Assessment: [],
+          Plan: [],
+        },
+      };
+    }
+
+    // Load forms for soapType lookup
+    const formIds: string[] = [
+      ...new Set(
+        submissions.map((submission) => normalizeObjectId(submission.formId)),
+      ),
+    ];
+
+    type FormLean = {
+      _id: Types.ObjectId | string;
+      category: Form["category"];
+      schema: Form["schema"];
+    };
+
+    const forms = (await FormModel.find({ _id: { $in: formIds } })
+      .select({ _id: 1, category: 1, schema: 1 })
+      .lean()) as unknown as FormLean[];
+
+    const formMap = new Map<string, FormLean>(
+      forms.map((f) => [normalizeObjectId(f._id), f]),
+    );
+
+    const grouped: SoapNoteGroup = {
+      Subjective: [],
+      Objective: [],
+      Assessment: [],
+      Plan: [],
+    };
+
+    for (const sub of submissions) {
+      const form = formMap.get(normalizeObjectId(sub.formId));
+      if (!form) continue;
+
+      const soapType =
+        form.category === "SOAP_SUBJECTIVE"
+          ? "Subjective"
+          : form.category === "SOAP_OBJECTIVE"
+          ? "Objective"
+          : form.category === "SOAP_ASSESSMENT"
+          ? "Assessment"
+          : form.category === "SOAP_PLAN"
+          ? "Plan"
+          : undefined;
+
+      if (!soapType) continue;
+
+      grouped[soapType].push({
+        submissionId: sub._id.toString(),
+        formId: normalizeObjectId(sub.formId),
+        formVersion: sub.formVersion,
+        submittedBy: sub.submittedBy,
+        submittedAt: sub.submittedAt,
+        answers: sub.answers,
+      });
+    }
+
+    if (options?.latestOnly) {
+      Object.keys(grouped).forEach((k) => {
+        grouped[k as keyof typeof grouped] =
+          grouped[k as keyof typeof grouped].slice(0, 1);
+      });
+    }
+
+    return {
+      appointmentId,
+      soapNotes: grouped,
+    };
   },
 };

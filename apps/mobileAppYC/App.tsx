@@ -27,6 +27,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '@/features/auth/context/AuthContext';
 import {configureSocialProviders} from '@/features/auth/services/socialAuth';
 import { ErrorBoundary } from '@/shared/components/common/ErrorBoundary';
+import { PreferencesProvider } from '@/features/preferences/PreferencesContext';
 import {
   initializeNotifications,
   type NotificationNavigationIntent,
@@ -44,6 +45,14 @@ Amplify.configure(outputs);
 LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
 ]);
+
+
+  const noop = () => {};
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.trace = noop;
+
 
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
@@ -94,17 +103,18 @@ function App(): React.JSX.Element {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <SafeAreaProvider>
             <AuthProvider>
-              <NotificationBootstrap onNavigate={handleNotificationNavigation}>
-                <StripeProvider
-                  publishableKey={STRIPE_CONFIG.publishableKey}
-                  merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
-                  urlScheme={STRIPE_CONFIG.urlScheme}
-                >
-                  <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-                    <AppContent />
-                  </NavigationContainer>
-                </StripeProvider>
-              </NotificationBootstrap>
+              <PreferencesProvider>
+                <NotificationBootstrap onNavigate={handleNotificationNavigation}>
+                  <StripeProvider
+                    publishableKey={STRIPE_CONFIG.publishableKey}
+                    urlScheme={STRIPE_CONFIG.urlScheme}
+                  >
+                    <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+                      <AppContent />
+                    </NavigationContainer>
+                  </StripeProvider>
+                </NotificationBootstrap>
+              </PreferencesProvider>
             </AuthProvider>
           </SafeAreaProvider>
         </GestureHandlerRootView>

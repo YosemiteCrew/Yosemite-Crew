@@ -1,39 +1,20 @@
 import React, { useState } from "react";
 import AccordionButton from "@/app/components/Accordion/AccordionButton";
 import ProfileCard from "./ProfileCard";
+import { Organisation } from "@yosemite-crew/types";
+import { updateOrg } from "@/app/services/orgService";
 
 const BasicFields = [
   {
-    label: "First name",
-    key: "firstName",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Last name",
-    key: "lastName",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Email address",
-    key: "email",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-  {
     label: "Organization type",
-    key: "orgType",
+    key: "type",
     required: true,
     editable: false,
     type: "text",
   },
   {
     label: "Organization name",
-    key: "orgName",
+    key: "name",
     required: true,
     editable: false,
     type: "text",
@@ -50,18 +31,18 @@ const BasicFields = [
     key: "country",
     required: true,
     editable: true,
-    type: "text",
+    type: "country",
   },
   {
     label: "DUNS number",
-    key: "duns",
-    required: true,
+    key: "DUNSNumber",
+    required: false,
     editable: true,
     type: "text",
   },
   {
     label: "Phone number",
-    key: "phone",
+    key: "phoneNo",
     required: true,
     editable: true,
     type: "text",
@@ -72,13 +53,6 @@ const AddressFields = [
   {
     label: "Address line",
     key: "addressLine",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Area",
-    key: "area",
     required: true,
     editable: true,
     type: "text",
@@ -106,26 +80,45 @@ const AddressFields = [
   },
 ];
 
-const DemoOrg = {
-  status: "Verified",
-  firstName: "Suryansh",
-  lastName: "Sharma",
-  email: "suryansh@yosemitecrew.com",
-  orgType: "HOSPITAL",
-  orgName: "Dog Hospital",
-  taxId: "",
-  country: "India",
-  duns: "",
-  phone: "+91 9315566594",
-  addressLine: "",
-  area: "",
-  state: "",
-  city: "",
-  postalCode: "",
+type ProfileProps = {
+  primaryOrg: Organisation;
 };
 
-const Profile = () => {
-  const [org] = useState(DemoOrg);
+const Profile = ({ primaryOrg }: ProfileProps) => {
+  const [formData, setFormData] = useState<Organisation>(primaryOrg);
+
+  const handleOrgSave = async (values: Record<string, string>) => {
+    const updated: Organisation = {
+      ...formData,
+      ...values,
+      address: {
+        ...formData.address,
+        ...(values.country ? { country: values.country } : {}),
+      },
+    };
+    try {
+      await updateOrg(formData);
+      setFormData(updated);
+    } catch (error: any) {
+      console.error("Error updating organization:", error);
+    }
+  };
+
+  const handleAddressSave = async (values: Record<string, string>) => {
+    const updated: Organisation = {
+      ...formData,
+      address: {
+        ...formData.address,
+        ...values,
+      },
+    };
+    setFormData(updated);
+    try {
+      await updateOrg(formData);
+    } catch (error: any) {
+      console.error("Error updating organization:", error);
+    }
+  };
 
   return (
     <AccordionButton
@@ -134,8 +127,19 @@ const Profile = () => {
       showButton={false}
     >
       <div className="flex flex-col gap-4">
-        <ProfileCard title="Organization" fields={BasicFields} org={org} showProfile />
-        <ProfileCard title="Address" fields={AddressFields} org={org} />
+        <ProfileCard
+          title="Organization"
+          fields={BasicFields}
+          org={{ ...formData, country: formData.address?.country }}
+          showProfile
+          onSave={handleOrgSave}
+        />
+        <ProfileCard
+          title="Address"
+          fields={AddressFields}
+          org={{ ...formData.address }}
+          onSave={handleAddressSave}
+        />
       </div>
     </AccordionButton>
   );

@@ -6,7 +6,6 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet as RNStyleSheet,
   BackHandler,
   Alert,
@@ -18,6 +17,7 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
+import {GifLoader} from '@/shared/components/common';
 import {Images} from '@/assets/images';
 import {
   HomeStackParamList,
@@ -358,7 +358,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         <Header title="Profile" showBackButton onBack={handleBackPress} />
         <View style={styles.centered}>
           {isLoading ? (
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <GifLoader />
           ) : (
             <Text style={styles.emptyStateText}>Companion not found.</Text>
           )}

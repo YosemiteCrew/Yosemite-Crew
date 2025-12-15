@@ -16,6 +16,8 @@ import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
 import type {RouteProp} from '@react-navigation/native';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertDistance} from '@/shared/utils/measurementSystem';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -27,14 +29,23 @@ const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
-const getDistanceText = (business: VetBusiness): string | undefined => {
-  if (business.distanceMi != null) {
-    return `${business.distanceMi.toFixed(1)}mi`;
+const getDistanceText = (business: VetBusiness, distanceUnit: 'km' | 'mi'): string | undefined => {
+  let distanceMi: number | undefined;
+
+  if (business.distanceMi !== null && business.distanceMi !== undefined) {
+    distanceMi = business.distanceMi;
+  } else if (business.distanceMeters !== null && business.distanceMeters !== undefined) {
+    distanceMi = business.distanceMeters / 1609.344;
+  } else {
+    return undefined;
   }
-  if (business.distanceMeters != null) {
-    return `${(business.distanceMeters / 1609.344).toFixed(1)}mi`;
+
+  if (distanceUnit === 'km') {
+    const distanceKm = convertDistance(distanceMi, 'mi', 'km');
+    return `${distanceKm.toFixed(1)}km`;
   }
-  return undefined;
+
+  return `${distanceMi.toFixed(1)}mi`;
 };
 
 const getRatingText = (business: VetBusiness): string | undefined => {
@@ -50,6 +61,7 @@ interface BusinessCardProps {
   resolveDescription: (b: VetBusiness) => string;
   compact?: boolean;
   fallbackPhoto?: string | null;
+  distanceUnit: 'km' | 'mi';
 }
 
 const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
@@ -58,13 +70,14 @@ const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
   resolveDescription,
   compact,
   fallbackPhoto,
+  distanceUnit,
 }) => (
   <BusinessCard
     key={business.id}
     name={business.name}
     openText={business.openHours}
     description={resolveDescription(business)}
-    distanceText={getDistanceText(business)}
+    distanceText={getDistanceText(business, distanceUnit)}
     ratingText={getRatingText(business)}
     photo={business.photo ?? undefined}
     fallbackPhoto={fallbackPhoto ?? undefined}
@@ -78,9 +91,10 @@ interface CategoryBusinessesProps {
   navigation: Nav;
   resolveDescription: (b: VetBusiness) => string;
   fallbacks: Record<string, {photo?: string | null}>;
+  distanceUnit: 'km' | 'mi';
 }
 
-const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navigation, resolveDescription, fallbacks}) => (
+const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navigation, resolveDescription, fallbacks, distanceUnit}) => (
   <>
     {businesses.map(b => (
       <BusinessCardRenderer
@@ -89,6 +103,7 @@ const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navi
         navigation={navigation}
         resolveDescription={resolveDescription}
         fallbackPhoto={fallbacks[b.id]?.photo ?? null}
+        distanceUnit={distanceUnit}
       />
     ))}
   </>
@@ -101,9 +116,10 @@ interface AllCategoriesViewProps {
   navigation: Nav;
   styles: any;
   fallbacks: Record<string, {photo?: string | null}>;
+  distanceUnit: 'km' | 'mi';
 }
 
-const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, resolveDescription, navigation, styles, fallbacks}) => (
+const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, resolveDescription, navigation, styles, fallbacks, distanceUnit}) => (
   <>
     {allCategories.map(cat => {
       const items = businesses.filter(x => x.category === cat);
@@ -128,6 +144,7 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
                 navigation={navigation}
                 resolveDescription={resolveDescription}
                 fallbackPhoto={fallbacks[items[0].id]?.photo ?? null}
+                distanceUnit={distanceUnit}
               />
             </View>
           ) : (
@@ -139,6 +156,7 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
                   navigation={navigation}
                   resolveDescription={resolveDescription}
                   fallbackPhoto={fallbacks[b.id]?.photo ?? null}
+                  distanceUnit={distanceUnit}
                   compact
                 />
               ))}
@@ -156,6 +174,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
   const route = useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
+  const {distanceUnit} = usePreferences();
   const [fallbacks, setFallbacks] = useState<Record<string, {photo?: string | null; phone?: string; website?: string}>>({});
   const requestedDetailsRef = React.useRef<Set<string>>(new Set());
   const lastSearchRef = React.useRef<number>(0);
@@ -307,6 +326,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
                   navigation={navigation}
                   resolveDescription={resolveDescription}
                   fallbacks={fallbacks}
+                  distanceUnit={distanceUnit}
                 />
               );
             }
@@ -319,6 +339,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
                 navigation={navigation}
                 styles={styles}
                 fallbacks={fallbacks}
+                distanceUnit={distanceUnit}
               />
             );
           })()}

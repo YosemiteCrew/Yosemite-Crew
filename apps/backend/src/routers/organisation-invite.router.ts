@@ -10,5 +10,15 @@ router.post(
   authorizeCognito,
   OrganisationInviteController.acceptInvite,
 );
+router.post(
+  "/:token/decline",
+  authorizeCognito,
+  OrganisationInviteController.rejectInvite,
+);
+router.get(
+  "/me/pending",
+  authorizeCognito,
+  OrganisationInviteController.listMyPendingInvites,
+);
 
 export default router;

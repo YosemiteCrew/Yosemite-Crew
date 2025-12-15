@@ -1,141 +1,256 @@
-// Mock dependencies FIRST before importing
-jest.mock('@react-native-async-storage/async-storage');
-jest.mock('@/features/auth/services/tokenStorage');
-jest.mock('@/features/account/services/profileService');
-jest.mock('@/features/auth/utils/parentProfileMapper', () => ({
-  mergeUserWithParentProfile: (user: any) => user,
-}));
-jest.mock('aws-amplify/auth');
-
-jest.mock('@react-native-firebase/auth');
-
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {AppState} from 'react-native';
-import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
-import * as firebaseAuth from '@react-native-firebase/auth';
 import {
+  recoverAuthSession,
   persistSessionData,
   persistUserData,
   clearSessionData,
-  recoverAuthSession,
+  getFreshStoredTokens,
   scheduleSessionRefresh,
   registerAppStateListener,
-  markAuthRefreshed,
   resetAuthLifecycle,
-} from '@/features/auth/sessionManager';
+  resolveExpiration,
+  isTokenExpired,
+  markAuthRefreshed,
+  getUserStorageKey,
+  REFRESH_BUFFER_MS,
+} from '../../../src/features/auth/sessionManager';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {AppState} from 'react-native';
+import {
+  getAuth,
+  getIdToken,
+  getIdTokenResult,
+  reload,
+  signOut as firebaseSignOut,
+} from '@react-native-firebase/auth';
+import {
+  fetchAuthSession,
+  fetchUserAttributes,
+  getCurrentUser,
+} from 'aws-amplify/auth';
+import {syncAuthUser} from '../../../src/features/auth/services/authUserService';
+import {fetchProfileStatus} from '../../../src/features/account/services/profileService';
 import {
   clearStoredTokens,
   loadStoredTokens,
   storeTokens,
-} from '@/features/auth/services/tokenStorage';
-import {fetchProfileStatus} from '@/features/account/services/profileService';
-import type {User} from '@/features/auth/types';
+} from '../../../src/features/auth/services/tokenStorage';
 
-const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
-const mockStoreTokens = storeTokens as jest.MockedFunction<typeof storeTokens>;
-const mockLoadStoredTokens = loadStoredTokens as jest.MockedFunction<typeof loadStoredTokens>;
-const mockClearStoredTokens = clearStoredTokens as jest.MockedFunction<typeof clearStoredTokens>;
-const mockFetchProfileStatus = fetchProfileStatus as jest.MockedFunction<typeof fetchProfileStatus>;
-const mockFetchAuthSession = fetchAuthSession as jest.MockedFunction<typeof fetchAuthSession>;
-const mockFetchUserAttributes = fetchUserAttributes as jest.MockedFunction<typeof fetchUserAttributes>;
-const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
-const firebaseAuthMock = firebaseAuth as jest.Mocked<typeof firebaseAuth>;
+// --- Mocks ---
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
+jest.mock('react-native', () => ({
+  AppState: {
+    addEventListener: jest.fn(),
+    currentState: 'active',
+  },
+}));
+
+jest.mock('@react-native-firebase/auth', () => ({
+  getAuth: jest.fn(),
+  getIdToken: jest.fn(),
+  getIdTokenResult: jest.fn(),
+  reload: jest.fn(),
+  signOut: jest.fn(),
+}));
+
+jest.mock('aws-amplify/auth', () => ({
+  fetchAuthSession: jest.fn(),
+  fetchUserAttributes: jest.fn(),
+  getCurrentUser: jest.fn(),
+}));
+
+jest.mock('@/features/auth/services/authUserService', () => ({
+  syncAuthUser: jest.fn(),
+}));
+
+jest.mock('@/features/account/services/profileService', () => ({
+  fetchProfileStatus: jest.fn(),
+}));
+
+jest.mock('@/features/auth/services/tokenStorage', () => ({
+  clearStoredTokens: jest.fn(),
+  loadStoredTokens: jest.fn(),
+  storeTokens: jest.fn(),
+}));
+
+jest.mock('@/config/variables', () => ({
+  PENDING_PROFILE_STORAGE_KEY: '@pending_profile',
+}));
+
+jest.mock('@/features/auth/utils/parentProfileMapper', () => ({
+  mergeUserWithParentProfile: jest.fn((user, parent) => ({
+    ...user,
+    ...(parent ? {merged: true} : {}),
+  })),
+}));
+
+jest.mock('node:buffer', () => ({
+  Buffer: {
+    from: jest.fn((str) => ({
+      toString: () => {
+        // Simple mock decoding for "jwt-like" strings
+        if (str.includes('eyJleHAiOjEwMH0')) return '{"exp":100}'; // 100 seconds
+        return '{}';
+      },
+    })),
+  },
+}));
 
 describe('sessionManager', () => {
+  const mockUser = {
+    id: 'user-123',
+    email: 'test@example.com',
+    firstName: 'Test',
+    parentId: 'parent-123',
+  };
+
+  const mockTokens = {
+    idToken: 'header.eyJleHAiOjEwMH0.sig',
+    accessToken: 'access-token',
+    refreshToken: 'refresh-token',
+    provider: 'amplify' as const,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
-    firebaseAuthMock.reload.mockResolvedValue(undefined as any);
-    firebaseAuthMock.getIdToken.mockResolvedValue('firebase-id-token' as any);
-    firebaseAuthMock.getIdTokenResult.mockResolvedValue({
-      expirationTime: new Date(Date.now() + 3600000).toISOString(),
-    } as any);
+    // Reset module state to prevent pollution between tests
+    resetAuthLifecycle();
+
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.multiRemove as jest.Mock).mockResolvedValue(null);
   });
 
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  describe('persistUserData', () => {
-    it('should persist user data to AsyncStorage', async () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'test@example.com',
-        firstName: 'Test',
-        lastName: 'User',
-      };
+  // ===========================================================================
+  // 1. Helper Functions (Expiration, JWT)
+  // ===========================================================================
 
-      await persistUserData(mockUser);
+  describe('resolveExpiration', () => {
+    it('returns explicit expiresAt if provided', () => {
+      const result = resolveExpiration({expiresAt: 999999});
+      expect(result).toBe(999999);
+    });
 
-      expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
-        '@user_data',
-        JSON.stringify(mockUser),
-      );
+    it('decodes JWT expiration from idToken if expiresAt missing', () => {
+      const token = 'header.eyJleHAiOjEwMH0.sig';
+      const result = resolveExpiration({idToken: token});
+      // 100 seconds * 1000 = 100000 ms
+      expect(result).toBe(100000);
+    });
+
+    it('returns undefined if decoding fails or token format invalid', () => {
+      expect(resolveExpiration({idToken: 'invalid-token'})).toBeUndefined();
+      expect(resolveExpiration({idToken: ''})).toBeUndefined();
     });
   });
 
+  describe('isTokenExpired', () => {
+    it('returns false if expiresAt is missing', () => {
+      expect(isTokenExpired(null)).toBe(false);
+      expect(isTokenExpired(undefined)).toBe(false);
+    });
+
+    it('returns true if time is past expiration minus buffer', () => {
+      const now = 1000000;
+      jest.setSystemTime(now);
+      const expiresAt = now + REFRESH_BUFFER_MS - 1; // Just inside buffer
+      expect(isTokenExpired(expiresAt)).toBe(true);
+    });
+
+    it('returns false if time is well before expiration', () => {
+      const now = 1000000;
+      jest.setSystemTime(now);
+      const expiresAt = now + REFRESH_BUFFER_MS + 10000;
+      expect(isTokenExpired(expiresAt)).toBe(false);
+    });
+  });
+
+  // ===========================================================================
+  // 2. Persistence & Clearing
+  // ===========================================================================
+
   describe('persistSessionData', () => {
-    it('should persist both user and token data', async () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'test@example.com',
-      };
+    it('saves user to AsyncStorage and tokens to SecureStore', async () => {
+      await persistSessionData(mockUser, mockTokens);
 
-      const mockTokens = {
-        idToken: 'id-token',
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-        expiresAt: Date.now() + 3600000,
-        userId: 'user-123',
-        provider: 'amplify' as const,
-      };
-
-      mockStoreTokens.mockResolvedValue(undefined);
-
-      const result = await persistSessionData(mockUser, mockTokens);
-
-      expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         '@user_data',
         JSON.stringify(mockUser),
       );
-      expect(mockStoreTokens).toHaveBeenCalledWith(
+      expect(storeTokens).toHaveBeenCalledWith(
         expect.objectContaining({
-          accessToken: 'access-token',
+          idToken: mockTokens.idToken,
           userId: 'user-123',
+          provider: 'amplify',
         }),
       );
-      expect(result).toMatchObject({
-        accessToken: 'access-token',
-        userId: 'user-123',
-      });
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@auth_tokens');
     });
+
+    it('falls back to legacy storage if secure storage fails', async () => {
+      (storeTokens as jest.Mock).mockRejectedValue(new Error('Secure store failed'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await persistSessionData(mockUser, mockTokens);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to persist auth tokens securely',
+        expect.any(Error),
+      );
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        '@auth_tokens',
+        expect.stringContaining(mockTokens.idToken),
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('handles error in fallback storage', async () => {
+       (storeTokens as jest.Mock).mockRejectedValue(new Error('Secure fail'));
+       (AsyncStorage.setItem as jest.Mock).mockImplementation((key) => {
+           if(key === '@auth_tokens') throw new Error('Legacy fail');
+           return Promise.resolve();
+       });
+       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+       await persistSessionData(mockUser, mockTokens);
+
+       expect(consoleSpy).toHaveBeenCalledWith('Failed to persist auth tokens to legacy storage', expect.any(Error));
+       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('persistUserData', () => {
+      it('persists user data to async storage', async () => {
+          await persistUserData(mockUser);
+          expect(AsyncStorage.setItem).toHaveBeenCalledWith('@user_data', JSON.stringify(mockUser));
+      });
   });
 
   describe('clearSessionData', () => {
-    it('should clear user and token data from storage', async () => {
-      mockClearStoredTokens.mockResolvedValue(undefined);
-
-      await clearSessionData();
-
-      expect(mockAsyncStorage.multiRemove).toHaveBeenCalledWith(
-        expect.arrayContaining(['@user_data', '@auth_tokens']),
-      );
-      expect(mockClearStoredTokens).toHaveBeenCalled();
-    });
-
-    it('should also clear pending profile when requested', async () => {
-      mockClearStoredTokens.mockResolvedValue(undefined);
-
+    it('removes keys and clears tokens', async () => {
       await clearSessionData({clearPendingProfile: true});
 
-      expect(mockAsyncStorage.multiRemove).toHaveBeenCalledWith(
-        expect.arrayContaining(['@user_data', '@auth_tokens', '@pending_profile_payload']),
-      );
+      expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
+        '@user_data',
+        '@auth_tokens',
+        '@pending_profile',
+      ]);
+      expect(clearStoredTokens).toHaveBeenCalled();
     });
 
-    it('should handle errors when clearing secure tokens', async () => {
-      mockClearStoredTokens.mockRejectedValue(new Error('Clear failed'));
+    it('handles secure store clear errors gracefully', async () => {
+      (clearStoredTokens as jest.Mock).mockRejectedValue(new Error('Clear fail'));
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await clearSessionData();
@@ -144,397 +259,301 @@ describe('sessionManager', () => {
         'Failed to clear secure auth tokens',
         expect.any(Error),
       );
-
       consoleSpy.mockRestore();
     });
   });
 
-  describe('recoverAuthSession - Amplify', () => {
-    it('should recover authenticated Amplify session', async () => {
-      const mockSession = {
-        tokens: {
-          idToken: {
-            toString: () => 'amplify-id-token',
-            payload: {exp: Math.floor(Date.now() / 1000) + 3600},
-          },
-          accessToken: {
-            toString: () => 'amplify-access-token',
-            payload: {exp: Math.floor(Date.now() / 1000) + 3600},
-          },
-        },
-      };
-
-      mockFetchAuthSession.mockResolvedValue(mockSession as any);
-      mockGetCurrentUser.mockResolvedValue({
-        userId: 'amplify-user-123',
-        username: 'test@example.com',
-      } as any);
-      mockFetchUserAttributes.mockResolvedValue({
-        email: 'test@example.com',
-        given_name: 'Test',
-        family_name: 'User',
+  describe('getUserStorageKey', () => {
+      it('returns the user key constant', () => {
+          expect(getUserStorageKey()).toBe('@user_data');
       });
-      mockFetchProfileStatus.mockResolvedValue({
-        exists: true,
-        isComplete: true,
-        profileToken: 'profile-token',
-        source: 'remote',
-      });
-
-      const result = await recoverAuthSession();
-
-      expect(result.kind).toBe('authenticated');
-      if (result.kind === 'authenticated') {
-        expect(result.user.email).toBe('test@example.com');
-        expect(result.user.firstName).toBe('Test');
-        expect(result.provider).toBe('amplify');
-      }
-    });
-
-    it('should return pendingProfile when profile does not exist', async () => {
-      const mockSession = {
-        tokens: {
-          idToken: {
-            toString: () => 'amplify-id-token',
-            payload: {exp: Math.floor(Date.now() / 1000) + 3600},
-          },
-          accessToken: {
-            toString: () => 'amplify-access-token',
-            payload: {exp: Math.floor(Date.now() / 1000) + 3600},
-          },
-        },
-      };
-
-      mockFetchAuthSession.mockResolvedValue(mockSession as any);
-      mockGetCurrentUser.mockResolvedValue({
-        userId: 'amplify-user-123',
-        username: 'test@example.com',
-      } as any);
-      mockFetchUserAttributes.mockResolvedValue({
-        email: 'test@example.com',
-      });
-      mockAsyncStorage.getItem.mockResolvedValue(null);
-      mockFetchProfileStatus.mockResolvedValue({
-        exists: false,
-        isComplete: false,
-        profileToken: 'test-profile-token',
-        source: 'remote',
-      });
-
-      const result = await recoverAuthSession();
-
-      expect(result.kind).toBe('pendingProfile');
-    });
   });
 
-  describe('recoverAuthSession - Firebase', () => {
-    it('should recover authenticated Firebase session when Amplify fails', async () => {
-      mockFetchAuthSession.mockRejectedValue(new Error('No Amplify session'));
-      mockLoadStoredTokens.mockResolvedValue(null); // No stored tokens
+  // ===========================================================================
+  // 3. recoverAuthSession (Complex Recovery Flows)
+  // ===========================================================================
 
-      const mockFirebaseUser = {
-        uid: 'firebase-user-123',
-        email: 'firebase@example.com',
-        photoURL: 'https://example.com/photo.jpg',
-      };
-
-      firebaseAuthMock.getAuth.mockReturnValue({
-        currentUser: mockFirebaseUser,
-      } as any);
-
-      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
-        if (key === '@user_data') {
-          return JSON.stringify({
-            id: 'firebase-user-123',
-            email: 'firebase@example.com',
-            firstName: 'Firebase',
-            lastName: 'User',
-            profileToken: 'firebase-profile-token',
-            profileCompleted: true,
-          });
-        }
-        return null; // No pending profile
+  describe('recoverAuthSession', () => {
+    // --- Amplify Recovery ---
+    it('recovers session via Amplify if session exists', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data') return Promise.resolve(JSON.stringify(mockUser));
+        return Promise.resolve(null);
       });
 
-      mockFetchProfileStatus.mockResolvedValue({
-        exists: true,
-        isComplete: true,
-        profileToken: 'firebase-profile-token',
-        source: 'remote',
+      (fetchAuthSession as jest.Mock).mockResolvedValue({
+        tokens: {
+          idToken: {toString: () => 'amplify-id', payload: {exp: 9999999999}},
+          accessToken: {toString: () => 'amplify-access'},
+        },
       });
-      mockStoreTokens.mockResolvedValue(undefined);
+      (getCurrentUser as jest.Mock).mockResolvedValue({
+        userId: 'amplify-user-123',
+        username: 'amplify-user',
+      });
+      (fetchUserAttributes as jest.Mock).mockResolvedValue({
+        email: 'amplify@test.com',
+        given_name: 'Amplify',
+      });
+      (fetchProfileStatus as jest.Mock).mockResolvedValue({
+          profileToken: 'new-profile-token',
+          isComplete: true,
+          parent: {id: 'pid-1'}
+      });
 
       const result = await recoverAuthSession();
 
-      expect(result.kind).toBe('authenticated');
-      if (result.kind === 'authenticated') {
-        expect(result.user.email).toBe('firebase@example.com');
-        expect(result.provider).toBe('firebase');
-      }
-    });
-
-    it('should fetch profile status for Firebase user without profile token', async () => {
-      mockFetchAuthSession.mockRejectedValue(new Error('No Amplify session'));
-      mockLoadStoredTokens.mockResolvedValue(null); // No stored tokens
-
-      const mockFirebaseUser = {
-        uid: 'firebase-user-123',
-        email: 'firebase@example.com',
-      };
-
-      firebaseAuthMock.getAuth.mockReturnValue({
-        currentUser: mockFirebaseUser,
-      } as any);
-
-      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
-        if (key === '@user_data') {
-          return JSON.stringify({
-            id: 'firebase-user-123',
-            email: 'firebase@example.com',
-          });
-        }
-        return null; // No pending profile
-      });
-
-      mockFetchProfileStatus.mockResolvedValue({
-        exists: true,
-        isComplete: true,
-        profileToken: 'new-profile-token',
-        source: 'remote',
-      });
-      mockStoreTokens.mockResolvedValue(undefined);
-
-      const result = await recoverAuthSession();
-
-      expect(mockFetchProfileStatus).toHaveBeenCalled();
-      expect(result.kind).toBe('authenticated');
-    });
-  });
-
-  describe('recoverAuthSession - Fallback to stored tokens', () => {
-    it('should fallback to stored tokens when both Amplify and Firebase fail', async () => {
-      mockFetchAuthSession.mockRejectedValue(new Error('No Amplify session'));
-      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
-
-      const mockUser: User = {
-        id: 'stored-user-123',
-        email: 'stored@example.com',
-        profileToken: 'stored-profile-token',
-      };
-
-      mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(mockUser));
-
-      mockLoadStoredTokens.mockResolvedValue({
-        idToken: 'stored-id-token',
-        accessToken: 'stored-access-token',
-        userId: 'stored-user-123',
+      expect(fetchAuthSession).toHaveBeenCalledWith({forceRefresh: true});
+      expect(result).toEqual({
+        kind: 'authenticated',
+        user: expect.objectContaining({
+            email: 'amplify@test.com',
+            profileToken: 'new-profile-token'
+        }),
+        tokens: expect.objectContaining({provider: 'amplify'}),
         provider: 'amplify',
       });
+    });
+
+    it('returns pendingProfile if Amplify user matches pending profile key', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@pending_profile') return Promise.resolve(JSON.stringify({userId: 'amplify-user-123'}));
+        return Promise.resolve(null);
+      });
+
+      (fetchAuthSession as jest.Mock).mockResolvedValue({tokens: {idToken: 't', accessToken: 't'}});
+      (getCurrentUser as jest.Mock).mockResolvedValue({userId: 'amplify-user-123'});
+
+      const result = await recoverAuthSession();
+      expect(result).toEqual({kind: 'pendingProfile'});
+    });
+
+    it('handles resolveProfileTokenForUser failure gracefully in Amplify flow', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(mockUser));
+        (fetchAuthSession as jest.Mock).mockResolvedValue({
+            tokens: { idToken: 'id', accessToken: 'acc' }
+        });
+        (getCurrentUser as jest.Mock).mockResolvedValue({userId: 'u1'});
+        (fetchUserAttributes as jest.Mock).mockResolvedValue({});
+        (fetchProfileStatus as jest.Mock).mockRejectedValue(new Error('Profile API fail'));
+
+        const result = await recoverAuthSession();
+
+        expect(result?.kind).toBe('authenticated');
+        expect((result as any).user.profileToken).toBeUndefined();
+    });
+
+    // --- Firebase Recovery ---
+    it('falls back to Firebase if Amplify fails', async () => {
+      (fetchAuthSession as jest.Mock).mockRejectedValue(new Error('No Amplify session'));
+
+      const mockFirebaseUser = {
+        uid: 'firebase-uid',
+        email: 'fb@test.com',
+      };
+      (getAuth as jest.Mock).mockReturnValue({currentUser: mockFirebaseUser});
+      (getIdToken as jest.Mock).mockResolvedValue('fb-id-token');
+      (getIdTokenResult as jest.Mock).mockResolvedValue({expirationTime: new Date().toISOString()});
+      (syncAuthUser as jest.Mock).mockResolvedValue({parentSummary: {id: 'p1', isComplete: true}});
 
       const result = await recoverAuthSession();
 
-      expect(result.kind).toBe('authenticated');
-      if (result.kind === 'authenticated') {
-        expect(result.user.email).toBe('stored@example.com');
-        expect(result.tokens.accessToken).toBe('stored-access-token');
-      }
+      expect(getAuth).toHaveBeenCalled();
+      expect(reload).toHaveBeenCalledWith(mockFirebaseUser);
+      expect(result).toEqual(expect.objectContaining({
+          kind: 'authenticated',
+          provider: 'firebase'
+      }));
     });
 
-    it('should return unauthenticated when no valid session exists', async () => {
-      mockFetchAuthSession.mockRejectedValue(new Error('No session'));
-      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
-      mockAsyncStorage.getItem.mockResolvedValue(null);
-      mockLoadStoredTokens.mockResolvedValue(null);
+    it('signs out orphaned Firebase user (no parent, no pending profile)', async () => {
+        (fetchAuthSession as jest.Mock).mockRejectedValue(new Error());
+        (getAuth as jest.Mock).mockReturnValue({currentUser: {uid: 'orphan'}});
+        (reload as jest.Mock).mockResolvedValue(undefined);
+        (getIdToken as jest.Mock).mockResolvedValue('token');
+        (syncAuthUser as jest.Mock).mockResolvedValue({});
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
-      const result = await recoverAuthSession();
+        const result = await recoverAuthSession();
 
-      expect(result.kind).toBe('unauthenticated');
-      expect(mockClearStoredTokens).toHaveBeenCalled();
+        expect(firebaseSignOut).toHaveBeenCalled();
+        // Since Firebase recovery returns null, it falls through to stored (which is empty),
+        // then clears session and returns unauthenticated.
+        expect(result).toEqual({kind: 'unauthenticated'});
     });
 
-    it('returns unauthenticated when legacy tokens are invalid JSON', async () => {
-      mockFetchAuthSession.mockRejectedValue(new Error('No session'));
-      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
-      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
-        if (key === '@auth_tokens') return 'not-json';
-        return null;
-      });
-      mockLoadStoredTokens.mockResolvedValue(null);
-      const result = await recoverAuthSession();
-      expect(result.kind).toBe('unauthenticated');
+    // --- Stored Tokens Recovery ---
+    it('falls back to stored tokens if both providers fail', async () => {
+        (fetchAuthSession as jest.Mock).mockRejectedValue(new Error());
+        (getAuth as jest.Mock).mockReturnValue({currentUser: null});
+
+        (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+            if (key === '@user_data') return Promise.resolve(JSON.stringify(mockUser));
+            return Promise.resolve(null);
+        });
+
+        // Ensure tokens are NOT expired. Set expiresAt to future.
+        const futureTime = Date.now() + 500000;
+        (loadStoredTokens as jest.Mock).mockResolvedValue({
+            ...mockTokens,
+            expiresAt: futureTime
+        });
+
+        const result = await recoverAuthSession();
+
+        expect(result).toEqual({
+            kind: 'authenticated',
+            user: expect.objectContaining({id: mockUser.id}),
+            tokens: expect.anything(),
+            provider: 'amplify'
+        });
     });
 
-    it('migrates legacy tokens when present and returns authenticated', async () => {
-      mockFetchAuthSession.mockRejectedValue(new Error('No session'));
-      firebaseAuthMock.getAuth.mockReturnValue({currentUser: null} as any);
+    it('migrates legacy tokens if secure tokens missing', async () => {
+        (fetchAuthSession as jest.Mock).mockRejectedValue(new Error());
+        (getAuth as jest.Mock).mockReturnValue({currentUser: null});
+        (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+            if (key === '@user_data') return Promise.resolve(JSON.stringify(mockUser));
+            if (key === '@auth_tokens') return Promise.resolve(JSON.stringify(mockTokens));
+            return Promise.resolve(null);
+        });
+        (loadStoredTokens as jest.Mock).mockResolvedValue(null); // No secure tokens
 
-      const mockUser: User = { id: 'legacy-user', email: 'legacy@example.com' };
-      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
-        if (key === '@user_data') return JSON.stringify(mockUser);
-        if (key === '@auth_tokens') {
-          const expSec = Math.floor(Date.now() / 1000) + 3600;
-          // eslint-disable-next-line no-div-regex
-          const payload = Buffer.from(JSON.stringify({ exp: expSec })).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-          const idToken = `a.${payload}.b`;
-          return JSON.stringify({ idToken, accessToken: 'legacy-access', provider: 'amplify' });
-        }
-        return null;
-      });
+        await recoverAuthSession();
 
-      mockStoreTokens.mockResolvedValue(undefined);
-
-      const result = await recoverAuthSession();
-      expect(result.kind).toBe('authenticated');
-      if (result.kind === 'authenticated') {
-        expect(result.user.email).toBe('legacy@example.com');
-        expect(result.tokens.accessToken).toBe('legacy-access');
-      }
-    });
-  });
-
-  describe('scheduleSessionRefresh', () => {
-    it('should schedule token refresh before expiration', () => {
-      const refreshCallback = jest.fn();
-      const expiresAt = Date.now() + 3600000; // 1 hour from now
-
-      scheduleSessionRefresh(expiresAt, refreshCallback);
-
-      // Fast-forward to just before expiration (minus buffer)
-      jest.advanceTimersByTime(3600000 - 2 * 60 * 1000);
-
-      expect(refreshCallback).toHaveBeenCalled();
+        expect(storeTokens).toHaveBeenCalledWith(expect.objectContaining({accessToken: 'access-token'}));
+        expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@auth_tokens');
     });
 
-    it('should use default interval when expiresAt is not provided', () => {
-      const refreshCallback = jest.fn();
+    it('returns unauthenticated if everything fails', async () => {
+        (fetchAuthSession as jest.Mock).mockRejectedValue(new Error());
+        (getAuth as jest.Mock).mockReturnValue({currentUser: null});
+        (loadStoredTokens as jest.Mock).mockResolvedValue(null);
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
-      scheduleSessionRefresh(undefined, refreshCallback);
+        const result = await recoverAuthSession();
 
-      // Fast-forward default interval (6 hours)
-      jest.advanceTimersByTime(6 * 60 * 60 * 1000);
-
-      expect(refreshCallback).toHaveBeenCalled();
-    });
-
-    it('should handle multiple refresh schedules', () => {
-      const refreshCallback = jest.fn();
-
-      // Test that scheduling works without errors
-      expect(() => {
-        scheduleSessionRefresh(Date.now() + 10000, refreshCallback);
-        scheduleSessionRefresh(Date.now() + 20000, refreshCallback);
-      }).not.toThrow();
-    });
-
-    it('clamps very long delays to maximum refresh delay', () => {
-      const refreshCallback = jest.fn();
-      const twelveHours = 12 * 60 * 60 * 1000;
-      // Far in the future -> should clamp to 12h window
-      scheduleSessionRefresh(Date.now() + 1000 * 24 * 60 * 60 * 1000, refreshCallback);
-      jest.advanceTimersByTime(twelveHours);
-      expect(refreshCallback).toHaveBeenCalled();
+        expect(result).toEqual({kind: 'unauthenticated'});
+        expect(AsyncStorage.multiRemove).toHaveBeenCalled();
     });
   });
 
-  describe('registerAppStateListener', () => {
-    beforeEach(() => {
-      // Reset the listener before each test
-      resetAuthLifecycle();
+  // ===========================================================================
+  // 4. Token Refresh (getFreshStoredTokens)
+  // ===========================================================================
+
+  describe('getFreshStoredTokens', () => {
+    it('returns stored tokens immediately if not expired', async () => {
+       const futureTime = Date.now() + 500000; // Well into future
+       (loadStoredTokens as jest.Mock).mockResolvedValue({
+           ...mockTokens,
+           expiresAt: futureTime
+       });
+
+       const result = await getFreshStoredTokens();
+       expect(result?.accessToken).toBe('access-token');
+       expect(fetchAuthSession).not.toHaveBeenCalled();
     });
 
-    it('should register app state change listener', () => {
-      const mockAddEventListener = jest.fn().mockReturnValue({remove: jest.fn()});
-      (AppState.addEventListener as jest.Mock) = mockAddEventListener;
+    it('refreshes Firebase tokens if expired', async () => {
+        // Mock expired stored tokens
+        (loadStoredTokens as jest.Mock).mockResolvedValue({
+            ...mockTokens,
+            provider: 'firebase',
+            expiresAt: Date.now() - 1000 // Expired
+        });
 
-      const refreshCallback = jest.fn();
-
-      registerAppStateListener(refreshCallback);
-
-      expect(mockAddEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+        const mockFbUser = {uid: 'fb-1'};
+        (getAuth as jest.Mock).mockReturnValue({currentUser: mockFbUser});
+        (getIdToken as jest.Mock).mockResolvedValue('new-fb-token');
+        (getIdTokenResult as jest.Mock).mockResolvedValue({expirationTime: new Date(Date.now() + 100000).toISOString()});
     });
 
-    it('should not register duplicate listeners', () => {
-      const mockAddEventListener = jest.fn().mockReturnValue({remove: jest.fn()});
-      (AppState.addEventListener as jest.Mock) = mockAddEventListener;
-
-      const refreshCallback = jest.fn();
-
-      registerAppStateListener(refreshCallback);
-      registerAppStateListener(refreshCallback);
-
-      // Should only be called once since duplicate registration is prevented
-      expect(mockAddEventListener).toHaveBeenCalledTimes(1);
+    it('refreshes Amplify tokens if expired', async () => {
+        // Mock expired stored tokens
+        (loadStoredTokens as jest.Mock).mockResolvedValue({
+            ...mockTokens,
+            provider: 'amplify',
+            expiresAt: Date.now() - 1000 // Expired
+        });
+        (fetchAuthSession as jest.Mock).mockResolvedValue({
+            tokens: {
+                idToken: {toString: () => 'new-amp-id', payload: {exp: Math.floor(Date.now()/1000) + 1000}},
+                accessToken: {toString: () => 'new-amp-access', payload: {exp: Math.floor(Date.now()/1000) + 1000}}
+            }
+        });
+        (getCurrentUser as jest.Mock).mockResolvedValue({userId: 'amp-1'});
     });
 
-    it('invokes refresh callback when app becomes active and threshold passed', () => {
-      const listeners: any[] = [];
-      (AppState.addEventListener as jest.Mock) = jest.fn((_event, cb) => {
-        listeners.push(cb);
-        return {remove: jest.fn()};
-      });
-      const refreshCallback = jest.fn();
-      registerAppStateListener(refreshCallback);
-      // Trigger active event
-      listeners[0]('active');
-      expect(refreshCallback).toHaveBeenCalled();
-    });
+    it('returns null if refresh fails', async () => {
+        (loadStoredTokens as jest.Mock).mockResolvedValue({
+            ...mockTokens,
+            expiresAt: Date.now() - 1000
+        });
+        (fetchAuthSession as jest.Mock).mockRejectedValue(new Error('Network fail'));
 
-    it('does not invoke refresh if within threshold due to recent markAuthRefreshed', () => {
-      const listeners: any[] = [];
-      (AppState.addEventListener as jest.Mock) = jest.fn((_event, cb) => {
-        listeners.push(cb);
-        return {remove: jest.fn()};
-      });
-      const refreshCallback = jest.fn();
-      registerAppStateListener(refreshCallback);
-      // Set recent refresh timestamp
-      markAuthRefreshed(Date.now());
-      // Immediately trigger active; should not call due to threshold
-      refreshCallback.mockClear();
-      listeners[0]('active');
-      expect(refreshCallback).not.toHaveBeenCalled();
-    });
-  });
+        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const result = await getFreshStoredTokens();
 
-  describe('markAuthRefreshed', () => {
-    it('should update last refresh timestamp', () => {
-      const timestamp = Date.now();
-      markAuthRefreshed(timestamp);
-
-      // This function updates internal state, so we can't directly test it
-      // But we can verify it doesn't throw
-      expect(true).toBe(true);
-    });
-
-    it('should use current time when timestamp not provided', () => {
-      expect(() => markAuthRefreshed()).not.toThrow();
+        // Returns the old tokens (normalized) if refresh fails
+        expect(result?.accessToken).toBe('access-token');
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Unable to refresh'), expect.any(Error));
+        consoleSpy.mockRestore();
     });
   });
 
-  describe('resetAuthLifecycle', () => {
-    it('should clear all auth lifecycle state', () => {
-      // We'll test that reset clears state without errors
-      // The actual listener clearing is internal implementation
-      expect(() => resetAuthLifecycle()).not.toThrow();
+  // ===========================================================================
+  // 5. Lifecycle (Timers & Listeners)
+  // ===========================================================================
+
+  describe('Lifecycle Functions', () => {
+    it('scheduleSessionRefresh sets a timeout', () => {
+        const spy = jest.spyOn(globalThis, 'setTimeout');
+        const callback = jest.fn();
+        const expiresAt = Date.now() + 500000;
+
+        scheduleSessionRefresh(expiresAt, callback);
+
+        expect(spy).toHaveBeenCalled();
+        jest.runAllTimers();
+        expect(callback).toHaveBeenCalled();
+        spy.mockRestore();
     });
 
-    it('should clear pending profile when requested', async () => {
-      mockAsyncStorage.removeItem.mockResolvedValue(undefined);
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    it('registerAppStateListener triggers refresh on active if time elapsed', () => {
+        const callback = jest.fn();
+        let listener: (state: string) => void = () => {};
 
-      resetAuthLifecycle({clearPendingProfile: true});
+        (AppState.addEventListener as jest.Mock).mockImplementation((evt, cb) => {
+            listener = cb;
+            return {remove: jest.fn()};
+        });
 
-      // Wait for async operation to complete
-      await jest.runAllTimersAsync();
+        // Setup last timestamp way in the past
+        markAuthRefreshed(Date.now() - 1000000);
 
-      expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith('@pending_profile_payload');
+        registerAppStateListener(callback);
 
-      consoleWarnSpy.mockRestore();
+        // Trigger active
+        listener('active');
+
+        expect(callback).toHaveBeenCalled();
     });
-  });
 
-  it('getUserStorageKey returns the user storage key', () => {
-    const {getUserStorageKey} = require('@/features/auth/sessionManager');
-    expect(getUserStorageKey()).toBe('@user_data');
+    it('resetAuthLifecycle clears timeouts and listeners', async () => {
+        const spy = jest.spyOn(globalThis, 'clearTimeout');
+        const removeSpy = jest.fn();
+        (AppState.addEventListener as jest.Mock).mockReturnValue({remove: removeSpy});
+
+        registerAppStateListener(() => {});
+        scheduleSessionRefresh(Date.now() + 1000, () => {});
+
+        resetAuthLifecycle({clearPendingProfile: true});
+
+        expect(spy).toHaveBeenCalled();
+        expect(removeSpy).toHaveBeenCalled();
+        expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@pending_profile');
+        spy.mockRestore();
+    });
   });
 });

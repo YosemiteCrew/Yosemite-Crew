@@ -1,76 +1,81 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import SessionInitializer from "@/app/components/SessionInitializer";
+import { useAuthStore } from "@/app/stores/authStore";
 
-const mockUsePathname = jest.fn();
-const mockUseRouter = jest.fn(() => ({
-  push: jest.fn(),
-  replace: jest.fn(),
-  prefetch: jest.fn(),
-}));
+jest.mock("@/app/components/Header/Header", () => () => <div data-testid="header" />);
+jest.mock("@/app/components/Cookies/Cookies", () => () => <div data-testid="cookies" />);
+jest.mock("@/app/components/Github/Github", () => () => <div data-testid="github" />);
+jest.mock("@/app/components/Sidebar/Sidebar", () => () => <div data-testid="sidebar" />);
+
+const mockUsePathname = jest.fn(() => "/dashboard");
 jest.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
-  useRouter: () => mockUseRouter(),
 }));
 
-const mockCheckSession = jest.fn();
 jest.mock("@/app/stores/authStore", () => ({
-  useAuthStore: () => ({
-    checkSession: mockCheckSession,
+  useAuthStore: Object.assign(jest.fn(), {
+    getState: jest.fn(),
   }),
 }));
 
-jest.mock("@/app/components/Header/Header", () => () => (
-  <div data-testid="header" />
-));
-jest.mock("@/app/components/Cookies/Cookies", () => () => (
-  <div data-testid="cookies" />
-));
-jest.mock("@/app/components/Github/Github", () => () => (
-  <div data-testid="github" />
-));
-jest.mock("@/app/components/Sidebar/Sidebar", () => () => (
-  <div data-testid="sidebar" />
-));
-
-import SessionInitializer from "@/app/components/SessionInitializer";
+const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
+const mockGetState = (useAuthStore as any).getState as jest.Mock;
 
 describe("SessionInitializer", () => {
   beforeEach(() => {
-    mockCheckSession.mockClear();
+    jest.clearAllMocks();
+    mockUsePathname.mockReturnValue("/dashboard");
+    mockGetState.mockReturnValue({ checkSession: jest.fn() });
   });
 
-  test("renders public layout for public routes", () => {
-    mockUsePathname.mockReturnValue("/about");
+  it("renders public layout for public routes", () => {
+    mockUsePathname.mockReturnValue("/pricing");
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({ status: "authenticated" })
+    );
 
-    const { container } = render(
+    render(
       <SessionInitializer>
-        <p>Public content</p>
+        <div data-testid="child" />
       </SessionInitializer>
     );
 
-    expect(mockCheckSession).toHaveBeenCalled();
     expect(screen.getByTestId("header")).toBeInTheDocument();
     expect(screen.getByTestId("cookies")).toBeInTheDocument();
     expect(screen.getByTestId("github")).toBeInTheDocument();
-    expect(container.querySelector(".bodywrapper")).toHaveTextContent(
-      "Public content"
-    );
+    expect(screen.getByTestId("child")).toBeInTheDocument();
     expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
   });
 
-  test("renders sidebar layout for protected routes", () => {
-    mockUsePathname.mockReturnValue("/dashboard");
+  it("hides private children while checking session", () => {
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({ status: "checking" })
+    );
 
-    const { container } = render(
+    render(
       <SessionInitializer>
-        <p>Private content</p>
+        <div data-testid="child" />
       </SessionInitializer>
     );
 
     expect(screen.getByTestId("sidebar")).toBeInTheDocument();
-    expect(container.querySelector(".sidebarbodywrapper")).toHaveTextContent(
-      "Private content"
+    expect(screen.queryByTestId("child")).not.toBeInTheDocument();
+    expect(mockGetState).toHaveBeenCalled(); // checkSession triggered via effect
+  });
+
+  it("shows private children once authenticated", () => {
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({ status: "authenticated" })
     );
+
+    render(
+      <SessionInitializer>
+        <div data-testid="child" />
+      </SessionInitializer>
+    );
+
+    expect(screen.getByTestId("sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("child")).toBeInTheDocument();
   });
 });

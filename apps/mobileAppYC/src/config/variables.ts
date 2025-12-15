@@ -42,6 +42,7 @@ export interface StreamChatConfig {
 export interface StripeConfig {
   publishableKey: string;
   merchantIdentifier?: string;
+  merchantDisplayName?: string;
   urlScheme?: string;
 }
 
@@ -82,7 +83,8 @@ const DEFAULT_STREAM_CHAT_CONFIG: StreamChatConfig = {
 
 const DEFAULT_STRIPE_CONFIG: StripeConfig = {
   publishableKey: '',
-  merchantIdentifier: 'merchant.com.yosemitecrew',
+  merchantIdentifier: undefined,
+  merchantDisplayName: undefined,
   urlScheme: 'yosemitecrew',
 };
 

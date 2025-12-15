@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoSearch } from "react-icons/io5";
 import { specialties as SPECIALITIES } from "@/app/utils/specialities";
-import { Speciality } from "@/app/types/org";
+
+import { Speciality } from "@yosemite-crew/types";
+import { useOrgStore } from "@/app/stores/orgStore";
 
 import "./SpecialitySearch.css";
 
@@ -19,6 +21,7 @@ const SpecialitySearch = ({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   const selectedNames = useMemo(
     () => new Set(specialities.map((s: Speciality) => s.name.toLowerCase())),
@@ -50,15 +53,12 @@ const SpecialitySearch = ({
     };
   }, []);
 
-  const buildItemFromSpeciality = (speciality: any): Speciality => ({
-    name: speciality.name,
-    services: [],
-    head: "",
-    staff: [],
-  });
-
   const handleSelectSpeciality = (speciality: Speciality) => {
-    const newItem = buildItemFromSpeciality(speciality);
+    if (!primaryOrgId) return;
+    const newItem = {
+      name: speciality.name,
+      organisationId: primaryOrgId,
+    };
     setSpecialities((prev: Speciality[]) => {
       if (!multiple) {
         return [newItem];
@@ -76,11 +76,10 @@ const SpecialitySearch = ({
   const handleAddSpeciality = () => {
     const name = query.trim();
     if (!name) return;
+    if (!primaryOrgId) return;
     const newItem: Speciality = {
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      services: [],
-      head: "",
-      staff: [],
+      organisationId: primaryOrgId,
     };
     setSpecialities((prev) => {
       if (!multiple) {

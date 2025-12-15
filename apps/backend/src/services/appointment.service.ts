@@ -352,46 +352,46 @@ export const AppointmentService = {
         { session },
       );
 
-      const invoice = await InvoiceService.createDraftForAppointment({
-        appointmentId: doc._id.toString(),
-        parentId: appointment.companion.parent.id,
-        companionId: appointment.companion.id,
-        organisationId: appointment.organisationId,
-        currency: "usd",
-        items: [
-          {
-            description: appointment.appointmentType?.name ?? "Consultation",
-            quantity: 1,
-            unitPrice: pricing.baseCost,
-            discountPercent: pricing.discountPercent,
-          },
-        ],
-        notes: appointment.concern,
-      });
+      const [invoice] = await InvoiceService.createDraftForAppointment(
+        {
+          appointmentId: doc._id.toString(),
+          parentId: appointment.companion.parent.id,
+          companionId: appointment.companion.id,
+          organisationId: appointment.organisationId,
+          currency: "usd",
+          items: [
+            {
+              description: appointment.appointmentType?.name ?? "Consultation",
+              quantity: 1,
+              unitPrice: pricing.baseCost,
+              discountPercent: pricing.discountPercent,
+            },
+          ],
+          notes: appointment.concern,
+        },
+        session,
+      );
 
       let paymentIntentData = null;
-
-      // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
-      if (createPayment === true) {
-        paymentIntentData = await StripeService.createPaymentIntentForInvoice(
-          invoice._id.toString(),
-        );
-      }
 
       await session.commitTransaction();
       await session.endSession();
 
+      // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
+      if (createPayment === true) {
+        paymentIntentData = await StripeService.createPaymentIntentForInvoice(
+          invoice._id.toString()
+        );
+      }
+
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
         appointment.companion.name,
         appointment.startTime.toDateString(),
-      )
+      );
 
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
-      await NotificationService.sendToUser(
-        parentId,
-        notificationPayload
-      )
+      await NotificationService.sendToUser(parentId, notificationPayload);
 
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),
@@ -475,15 +475,17 @@ export const AppointmentService = {
       );
 
       const lead = await UserProfileModel.findOne(
-        { userId: extracted.leadVetId, },
-        { personalDetails: 1 }
-      )
+        { userId: extracted.leadVetId },
+        { personalDetails: 1 },
+      );
 
       // Apply changes from PMS
       appointment.lead = {
         id: extracted.leadVetId,
         name: extracted.leadVetName ?? "Vet",
-        profileUrl: lead?.personalDetails?.profilePictureUrl ?? `https://ui-avatars.com/api/?name=${extracted.leadVetName}`,
+        profileUrl:
+          lead?.personalDetails?.profilePictureUrl ??
+          `https://ui-avatars.com/api/?name=${extracted.leadVetName}`,
       };
 
       appointment.supportStaff = extracted.supportStaff ?? [];
@@ -499,14 +501,11 @@ export const AppointmentService = {
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
         appointment.companion.name,
         appointment.startTime.toDateString(),
-      )
+      );
 
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
-      await NotificationService.sendToUser(
-        parentId,
-        notificationPayload
-      )
+      await NotificationService.sendToUser(parentId, notificationPayload);
 
       // Convert final domain → FHIR appointment
       return toAppointmentResponseDTO(toDomain(appointment));
@@ -560,13 +559,12 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
-      const notificationPayload = NotificationTemplates.Appointment.CANCELLED(appointment.companion.name);
+      const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
+        appointment.companion.name,
+      );
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
-      await NotificationService.sendToUser(
-        parentId,
-        notificationPayload
-      )
+      await NotificationService.sendToUser(parentId, notificationPayload);
     } catch (err) {
       await session.abortTransaction();
       await session.endSession();
@@ -651,14 +649,11 @@ export const AppointmentService = {
 
     const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
       appointment.companion.name,
-    )
+    );
 
     // Send notification to parent
     const parentId = appointment.companion.parent.id;
-    await NotificationService.sendToUser(
-      parentId,
-      notificationPayload
-    )
+    await NotificationService.sendToUser(parentId, notificationPayload);
 
     return toAppointmentResponseDTO(toDomain(appointment));
   },
@@ -666,48 +661,66 @@ export const AppointmentService = {
   // Update appointment from PMS
 
   async updateAppointmentPMS(
-    appointmentId: string,
-    dto: AppointmentRequestDTO,
-  ) {
-    if (appointmentId) {
-      throw new AppointmentServiceError(
-        "Appointment ID missing in FHIR payload",
-        400,
+  appointmentId: string,
+  dto: AppointmentRequestDTO,
+) {
+  if (!appointmentId) {
+    throw new AppointmentServiceError(
+      "Appointment ID missing in FHIR payload",
+      400,
+    );
+  }
+
+  const extracted = fromAppointmentRequestDTO(dto);
+
+  if (!extracted.lead?.id) {
+    throw new AppointmentServiceError(
+      "Lead vet (Practitioner with code=PPRF) is required",
+      400,
+    );
+  }
+
+  const appointment = await AppointmentModel.findOne({
+    _id: appointmentId,
+    status: "UPCOMING",
+  });
+
+  if (!appointment) {
+    throw new AppointmentServiceError(
+      "Requested appointment not found or already processed",
+      404,
+    );
+  }
+
+  const organisationId = appointment.organisationId;
+
+  const sameVet = appointment.lead?.id === extracted.lead?.id;
+  const sameSlot =
+    appointment.startTime.getTime() === extracted.startTime?.getTime() &&
+    appointment.endTime.getTime() === extracted.endTime?.getTime();
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    /**
+     * 🔁 ONLY touch occupancy if something actually changed
+     */
+    if (!sameVet || !sameSlot) {
+      // Remove old occupancy (if exists)
+      await OccupancyModel.deleteMany(
+        {
+          organisationId,
+          sourceType: "APPOINTMENT",
+          referenceId: appointment._id.toString(),
+        },
+        { session },
       );
-    }
 
-    const extracted = extractApprovalFieldsFromFHIR(dto);
-
-    if (!extracted.leadVetId) {
-      throw new AppointmentServiceError(
-        "Lead vet (Practitioner with code=PPRF) is required",
-        400,
-      );
-    }
-
-    const appointment = await AppointmentModel.findOne({
-      _id: appointmentId,
-      status: "UPCOMING",
-    });
-
-    if (!appointment) {
-      throw new AppointmentServiceError(
-        "Requested appointment not found or already processed",
-        404,
-      );
-    }
-
-    const organisationId = appointment.organisationId;
-
-    // Atomic operation (vet availability check + occupancy create)
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      // Check overlapping occupancy for lead vet
+      // Check availability for new vet + slot
       const overlapping = await OccupancyModel.findOne({
-        userId: extracted.leadVetId,
-        organisationId: organisationId,
+        userId: extracted.lead?.id,
+        organisationId,
         startTime: { $lt: appointment.endTime },
         endTime: { $gt: appointment.startTime },
       }).session(session);
@@ -719,11 +732,11 @@ export const AppointmentService = {
         );
       }
 
-      // Create occupancy
+      // Create new occupancy
       await OccupancyModel.create(
         [
           {
-            userId: extracted.leadVetId,
+            userId: extracted.lead?.id,
             organisationId,
             startTime: appointment.startTime,
             endTime: appointment.endTime,
@@ -733,31 +746,30 @@ export const AppointmentService = {
         ],
         { session },
       );
-
-      // Apply changes from PMS
-      appointment.lead = {
-        id: extracted.leadVetId,
-        name: extracted.leadVetName ?? "Vet",
-      };
-
-      appointment.supportStaff = extracted.supportStaff ?? [];
-      appointment.room = extracted.room ?? undefined;
-
-      appointment.status = "UPCOMING";
-      appointment.updatedAt = new Date();
-
-      await appointment.save({ session });
-      await session.commitTransaction();
-      await session.endSession();
-
-      // Convert final domain → FHIR appointment
-      return toAppointmentResponseDTO(toDomain(appointment));
-    } catch (err) {
-      await session.abortTransaction();
-      await session.endSession();
-      throw err;
     }
-  },
+
+    // Apply PMS updates
+    appointment.lead = {
+      id: extracted.lead?.id,
+      name: extracted.lead?.name ?? "Vet",
+    };
+
+    appointment.supportStaff = extracted.supportStaff ?? [];
+    appointment.room = extracted.room ?? undefined;
+    appointment.updatedAt = new Date();
+
+    await appointment.save({ session });
+
+    await session.commitTransaction();
+    await session.endSession();
+
+    return toAppointmentResponseDTO(toDomain(appointment));
+  } catch (err) {
+    await session.abortTransaction();
+    await session.endSession();
+    throw err;
+  }
+},
 
   async checkInAppointmentParent(appointmentId: string, parentId: string) {
     const appointment = await AppointmentModel.findById(appointmentId);

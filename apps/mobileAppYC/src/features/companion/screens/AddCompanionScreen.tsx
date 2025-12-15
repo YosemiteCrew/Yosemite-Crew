@@ -59,6 +59,8 @@ import {useDispatch} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {addCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 
 type AddCompanionScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -123,6 +125,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const styles = createStyles(theme);
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
+  const {weightUnit} = usePreferences();
 
   const breedSheetRef = useRef<BreedBottomSheetRef>(null);
   const bloodGroupSheetRef = useRef<BloodGroupBottomSheetRef>(null);
@@ -193,6 +196,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     maxLength,
     multiline,
     rules,
+    suffix,
+    dynamicSuffix,
   }: {
     label: string;
     placeholder?: string;
@@ -200,6 +205,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     maxLength?: number;
     multiline?: boolean;
     rules?: ControllerProps<FormData, Field>['rules'];
+    suffix?: string;
+    dynamicSuffix?: (value: string) => string;
   },
 ) => (
   <Controller<FormData, Field>
@@ -211,6 +218,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       if (typeof value === 'string' || typeof value === 'number') {
         textValue = String(value ?? '');
       }
+
+      const displaySuffix = dynamicSuffix ? dynamicSuffix(textValue) : suffix;
+
       return (
         <Input
           label={label}
@@ -225,6 +235,11 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           multiline={multiline}
           error={getFieldError(field)}
           containerStyle={styles.inputContainer}
+          icon={
+            displaySuffix && textValue ? (
+              <Text style={styles.suffixText}>{displaySuffix}</Text>
+            ) : undefined
+          }
         />
       );
     }}
@@ -435,13 +450,19 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
     setSubmissionError('');
 
+    // Convert weight to kg (standard storage unit) if user entered in lbs
+    let weightInKg = data.currentWeight ? Number.parseFloat(data.currentWeight) : null;
+    if (weightInKg && weightUnit === 'lbs') {
+      weightInKg = convertWeight(weightInKg, 'lbs', 'kg');
+    }
+
     const companionPayload = {
       category: data.category,
       name: data.name,
       breed: data.breed,
       dateOfBirth: data.dateOfBirth?.toISOString() ?? null,
       gender: data.gender,
-      currentWeight: data.currentWeight ? Number.parseFloat(data.currentWeight) : null,
+      currentWeight: weightInKg,
       color: data.color || null,
       allergies: data.allergies || null,
       neuteredStatus: data.neuteredStatus,
@@ -629,8 +650,9 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
         {renderTextField('currentWeight', {
           label: 'Current weight (optional)',
-          placeholder: 'lbs',
+          placeholder: weightUnit,
           keyboardType: 'decimal-pad',
+          suffix: weightUnit,
         })}
 
         {renderTextField('color', {
@@ -675,6 +697,11 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             label: 'Age when neutered',
             placeholder: 'e.g., 1 Year',
             maxLength: 20,
+            dynamicSuffix: (value) => {
+              const numValue = Number.parseFloat(value);
+              if (Number.isNaN(numValue)) return '';
+              return numValue === 1 ? 'Year' : 'Years';
+            },
           })}
       </View>
     </View>
@@ -971,5 +998,11 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.primary,
       borderRadius: 2,
       marginTop: theme.spacing['1'],
+    },
+    suffixText: {
+      ...theme.typography.input,
+      color: theme.colors.textSecondary,
+      fontSize: 16,
+      marginLeft: theme.spacing['2'],
     },
   });

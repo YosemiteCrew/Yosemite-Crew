@@ -9,6 +9,7 @@ type ButtonProps = {
   onClick?: (e: FormEvent<Element>) => void;
   style?: React.CSSProperties;
   classname?: string;
+  isDisabled?: boolean;
 };
 
 const Primary = ({
@@ -17,12 +18,18 @@ const Primary = ({
   onClick,
   style,
   classname,
+  isDisabled = false,
 }: Readonly<ButtonProps>) => {
   return (
     <Link
       href={href}
-      className={`primary-button ${classname}`}
+      aria-disabled={isDisabled}
+      className={`primary-button ${isDisabled ? "pointer-events-none opacity-60" : ""} ${classname ?? ""}`}
       onClick={(e) => {
+        if (isDisabled) {
+          e.preventDefault();
+          return;
+        }
         if (onClick) {
           e.preventDefault();
           onClick(e);

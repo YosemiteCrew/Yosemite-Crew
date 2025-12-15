@@ -1,7 +1,6 @@
 export type {
   UserOrganizationRequestDTO,
   UserOrganizationResponseDTO,
-  UserOrganizationDTOAttributes,
 } from "./dto/user-organization.dto";
 export {
   fromUserOrganizationRequestDTO,
@@ -17,7 +16,7 @@ export type {
   UserAvailability,
 } from "./baseAvailability";
 
-export { toFHIRUserOrganization } from "./userOrganization";
+export { toFHIRUserOrganization, fromFHIRUserOrganization } from "./userOrganization";
 export { toFHIRRelatedPerson } from "./parent";
 export {
   toFHIROrganisation,

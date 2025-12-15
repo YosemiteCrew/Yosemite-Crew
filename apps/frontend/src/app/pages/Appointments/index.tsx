@@ -2,30 +2,41 @@
 import React, { useEffect, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import AppointmentsTable from "../../components/DataTable/Appointments";
-import { AppointmentsProps } from "@/app/types/appointments";
-import { demoAppointments } from "./demo";
 import AppointmentFilters from "@/app/components/Filters/AppointmentFilters";
 import AddAppointment from "./Sections/AddAppointment";
 import AppoitmentInfo from "./Sections/AppointmentInfo";
 import TitleCalendar from "@/app/components/TitleCalendar";
+import AppointmentCalendar from "@/app/components/Calendar/AppointmentCalendar";
+import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
+import OrgGuard from "@/app/components/OrgGuard";
+import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import { Appointment } from "@yosemite-crew/types";
 
 const Appointments = () => {
-  const [list] = useState<AppointmentsProps[]>(demoAppointments);
-  const [filteredList, setFilteredList] =
-    useState<AppointmentsProps[]>(demoAppointments);
+  const appointments = useAppointmentsForPrimaryOrg();
+  const [filteredList, setFilteredList] = useState<Appointment[]>(appointments);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeAppointment, setActiveAppointment] =
-    useState<AppointmentsProps | null>(demoAppointments[0] ?? null);
-  const [activeCalendar, setActiveCalendar] = useState(2);
+    useState<Appointment | null>(appointments[0] ?? null);
+  const [activeCalendar, setActiveCalendar] = useState("day");
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
 
   useEffect(() => {
-    if (filteredList.length > 0) {
-      setActiveAppointment(filteredList[0]);
-    } else {
-      setActiveAppointment(null);
-    }
-  }, [filteredList]);
+    setWeekStart(getStartOfWeek(currentDate));
+  }, [currentDate, activeCalendar]);
+
+  useEffect(() => {
+    setActiveAppointment((prev) => {
+      if (appointments.length === 0) return null;
+      if (prev?.id) {
+        const updated = appointments.find((s) => s.id === prev.id);
+        if (updated) return updated;
+      }
+      return appointments[0];
+    });
+  }, [appointments]);
 
   return (
     <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
@@ -34,10 +45,22 @@ const Appointments = () => {
         title="Appointments"
         setActiveCalendar={setActiveCalendar}
         setAddPopup={setAddPopup}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
       />
 
       <div className="w-full flex flex-col gap-6">
-        <AppointmentFilters list={list} setFilteredList={setFilteredList} />
+        <AppointmentFilters list={appointments} setFilteredList={setFilteredList} />
+        <AppointmentCalendar
+          filteredList={appointments}
+          setActiveAppointment={setActiveAppointment}
+          setViewPopup={setViewPopup}
+          activeCalendar={activeCalendar}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+        />
         <AppointmentsTable
           filteredList={filteredList}
           setActiveAppointment={setActiveAppointment}
@@ -60,7 +83,9 @@ const Appointments = () => {
 const ProtectedAppoitments = () => {
   return (
     <ProtectedRoute>
-      <Appointments />
+      <OrgGuard>
+        <Appointments />
+      </OrgGuard>
     </ProtectedRoute>
   );
 };

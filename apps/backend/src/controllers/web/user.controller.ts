@@ -1,30 +1,29 @@
 import { Request, Response } from "express";
 import logger from "../../utils/logger";
 import { UserService, UserServiceError } from "../../services/user.service";
-import { User } from "@yosemite-crew/types";
+import { AuthenticatedRequest } from "src/middlewares/auth";
 
-type CreateUserRequest = Request<
-  Record<string, string | undefined>,
-  unknown,
-  unknown
->;
 type GetUserRequest = Request<{ id: string }>;
 
 export const UserController = {
-  create: async (req: CreateUserRequest, res: Response) => {
+  create: async (req: Request, res: Response) => {
     try {
-      const requestBody: unknown = req.body;
+      const authRequest = req as AuthenticatedRequest;
+      const { userId, email, firstName, lastName } = authRequest;
 
-      if (
-        !requestBody ||
-        typeof requestBody !== "object" ||
-        Array.isArray(requestBody)
-      ) {
-        res.status(400).json({ message: "Invalid request body." });
-        return;
+      if (!userId || !email) {
+        return res
+          .status(400)
+          .json({ message: "Missing user identity from token." });
       }
 
-      const user = await UserService.create(requestBody as User);
+      const user = await UserService.create({
+        id: userId,
+        email: email,
+        firstName: firstName!,
+        lastName: lastName!,
+      });
+
       res.status(201).json(user);
     } catch (error: unknown) {
       if (error instanceof UserServiceError) {

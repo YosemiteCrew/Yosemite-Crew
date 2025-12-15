@@ -15,12 +15,28 @@ type InfoSectionProps = {
   sectionKey: InventorySectionKey;
   sectionTitle: string;
   inventory: InventoryItem;
+  onSaveSection?: (
+    section: InventorySectionKey,
+    values: Record<string, any>
+  ) => Promise<void>;
+  disableEditing?: boolean;
+  onEditingChange?: (editing: boolean) => void;
+  onRegisterActions?: (
+    actions:
+      | {
+          save: () => Promise<void>;
+          cancel: () => void;
+          startEditing: () => void;
+          isEditing: () => boolean;
+        }
+      | null
+  ) => void;
 };
 
 type EditableField = {
   label: string;
   key: string;
-  type: "text" | "select";
+  type: "text" | "select" | "date";
   options?: string[];
 };
 
@@ -29,6 +45,10 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   sectionKey,
   sectionTitle,
   inventory,
+  onSaveSection,
+  disableEditing = false,
+  onEditingChange,
+  onRegisterActions,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] || {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -45,8 +65,14 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   const toEditableField = (field: FieldDef<any>): EditableField => {
     const label = field.label || field.placeholder || field.name;
-    const type: EditableField["type"] =
-      field.component === "dropdown" ? "select" : "text";
+    let type: EditableField["type"];
+    if (field.component === "dropdown") {
+      type = "select";
+    } else if (field.component === "date") {
+      type = "date";
+    } else {
+      type = "text";
+    }
     return {
       label,
       key: field.name,
@@ -82,6 +108,11 @@ const InfoSection: React.FC<InfoSectionProps> = ({
         fields={fields}
         data={data}
         defaultOpen={true}
+        readOnly={disableEditing}
+        onSave={(values) => onSaveSection?.(sectionKey, values)}
+        hideInlineActions
+        onEditingChange={onEditingChange}
+        onRegisterActions={onRegisterActions}
       />
     </div>
   );

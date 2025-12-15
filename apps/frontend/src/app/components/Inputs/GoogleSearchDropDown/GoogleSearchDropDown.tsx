@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import countries from "../../../utils/countryList.json";
+import { Organisation } from "@yosemite-crew/types";
+import { UserProfile } from "@/app/types/profile";
 
 import "./GoogleSearchDropDown.css";
 
@@ -18,6 +20,7 @@ type GoogleSearchDropDownProps = {
 };
 
 type PlaceDetails = {
+  id: string;
   displayName?: { text?: string };
   formattedAddress?: string;
   websiteUri?: string;
@@ -201,16 +204,18 @@ const GoogleSearchDropDown = ({
     }, 0);
   };
 
+  const normalizePhoneNumber = (number: string) => {
+    if (!number) return "";
+    let cleaned = number.replaceAll(/\D+/g, "");
+    cleaned = cleaned.replace(/^0+/, "");
+    return cleaned;
+  };
+
   const getAddr = (
     comps: NonNullable<PlaceDetails["addressComponents"]>,
     type: string,
     pref: "longText" | "shortText" = "longText"
   ) => comps.find((c) => c.types?.includes(type))?.[pref] ?? "";
-
-  const pickArea = (comps: NonNullable<PlaceDetails["addressComponents"]>) =>
-    getAddr(comps, "sublocality") ||
-    getAddr(comps, "neighborhood") ||
-    getAddr(comps, "administrative_area_level_2");
 
   const autofillFromPlace = (details: PlaceDetails) => {
     const comps = details.addressComponents ?? [];
@@ -221,9 +226,6 @@ const GoogleSearchDropDown = ({
     const address = details.formattedAddress || "";
     const countryCode = getAddr(comps, "country", "shortText");
     const country = countries.find((c) => c.code === countryCode);
-    const combinedCountry = country
-      ? `${country.flag ?? ""} ${country.name ?? ""}`.trim()
-      : "";
     const city =
       getAddr(comps, "locality") ||
       getAddr(comps, "postal_town") ||
@@ -232,34 +234,40 @@ const GoogleSearchDropDown = ({
       getAddr(comps, "administrative_area_level_1", "shortText") ||
       getAddr(comps, "administrative_area_level_1");
     const postalCode = getAddr(comps, "postal_code");
-    const area = pickArea(comps);
     const latitude = details.location?.latitude ?? null;
     const longitude = details.location?.longitude ?? null;
     if (onlyAddress) {
-      setFormData((prev: any) => ({
+      setFormData?.((prev: UserProfile) => ({
         ...prev,
-        address,
-        area,
-        city,
-        state,
-        postalCode,
-        latitude,
-        longitude,
+        personalDetails: {
+          ...prev.personalDetails,
+          address: {
+            ...prev.personalDetails?.address,
+            addressLine: address,
+            city: city,
+            state: state,
+            postalCode: postalCode,
+            latitude: Number(latitude),
+            longitude: Number(longitude),
+          },
+        },
       }));
     } else {
-      setFormData((prev: any) => ({
+      setFormData?.((prev: Organisation) => ({
         ...prev,
         name,
-        country: combinedCountry,
-        number: phone,
+        phoneNo: normalizePhoneNumber(phone),
         website,
-        address,
-        area,
-        city,
-        state,
-        postalCode,
-        latitude,
-        longitude,
+        googlePlacesId: details.id,
+        address: {
+          country: country?.name,
+          addressLine: address,
+          city: city,
+          state: state,
+          postalCode: postalCode,
+          latitude: Number(latitude),
+          longitude: Number(longitude),
+        },
       }));
     }
   };

@@ -17,8 +17,9 @@ type InventoryTurnoverTableProps = {
   filteredList: InventoryTurnoverItem[];
 };
 
-export const getStatusStyle = (status: string) => {
-  switch (status.toLowerCase()) {
+export const getStatusStyle = (status?: string) => {
+  const key = (status || "").toLowerCase();
+  switch (key) {
     case "excellent":
       return { color: "#54B492", backgroundColor: "#E6F4EF" };
     case "low":
@@ -37,6 +38,12 @@ export const getStatusStyle = (status: string) => {
 const InventoryTurnoverTable = ({
   filteredList,
 }: InventoryTurnoverTableProps) => {
+  const getAverageInventory = (item: InventoryTurnoverItem) =>
+    item.averageInventory ?? item.avgInventory ?? 0;
+
+  const getTotalPurchased = (item: InventoryTurnoverItem) =>
+    item.totalPurchases ?? item.totalPurchased ?? 0;
+
   const columns: Column<InventoryTurnoverItem>[] = [
     {
       label: "Item name",
@@ -77,7 +84,9 @@ const InventoryTurnoverTable = ({
       key: "Avg inventory",
       width: "10%",
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-profile-title">{item.averageInventory}</div>
+        <div className="appointment-profile-title">
+          {getAverageInventory(item)}
+        </div>
       ),
     },
     {
@@ -86,7 +95,7 @@ const InventoryTurnoverTable = ({
       width: "10%",
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">
-          {"$ " + item.totalPurchases}
+          {getTotalPurchased(item)}
         </div>
       ),
     },
@@ -111,8 +120,11 @@ const InventoryTurnoverTable = ({
       key: "status",
       width: "15%",
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-status" style={getStatusStyle(item.status)}>
-          {item.status}
+        <div
+          className="appointment-status"
+          style={getStatusStyle(item.status)}
+        >
+          {item.status || "—"}
         </div>
       ),
     },

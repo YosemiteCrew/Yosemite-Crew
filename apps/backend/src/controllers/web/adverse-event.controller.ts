@@ -1,6 +1,9 @@
 // src/controllers/app/adverseEvent.controller.ts
 import { Request, Response } from "express";
-import type { AdverseEventReport, AdverseEventStatus } from "@yosemite-crew/types";
+import type {
+  AdverseEventReport,
+  AdverseEventStatus,
+} from "@yosemite-crew/types";
 import {
   AdverseEventService,
   AdverseEventServiceError,
@@ -78,11 +81,17 @@ export const AdverseEventController = {
   },
 
   getRegulatoryAuthorityInof: async (
-    req: Request<unknown, unknown, unknown, { country?: string; iso2?: string }>,
+    req: Request<
+      unknown,
+      unknown,
+      unknown,
+      { country?: string; iso2?: string }
+    >,
     res: Response,
   ) => {
     try {
-      const iso2 = typeof req.query.iso2 === "string" ? req.query.iso2 : undefined;
+      const iso2 =
+        typeof req.query.iso2 === "string" ? req.query.iso2 : undefined;
       const country =
         typeof req.query.country === "string" ? req.query.country : undefined;
 
@@ -100,7 +109,9 @@ export const AdverseEventController = {
       });
 
       if (!record) {
-        return res.status(404).json({ message: "No regulatory authority found." });
+        return res
+          .status(404)
+          .json({ message: "No regulatory authority found." });
       }
 
       res.json(record);

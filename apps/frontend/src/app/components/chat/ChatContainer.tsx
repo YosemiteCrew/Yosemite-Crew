@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Chat,
   Channel,
@@ -13,16 +13,24 @@ import {
   Window,
   ChannelPreviewMessenger,
   useChannelStateContext,
-} from 'stream-chat-react';
-import {StreamChat} from 'stream-chat';
-import type {Channel as StreamChannel} from 'stream-chat';
-import type {ChannelPreviewUIComponentProps, ChannelListProps} from 'stream-chat-react';
+} from "stream-chat-react";
+import { StreamChat } from "stream-chat";
+import type { Channel as StreamChannel } from "stream-chat";
+import type {
+  ChannelPreviewUIComponentProps,
+  ChannelListProps,
+} from "stream-chat-react";
 
-import 'stream-chat-react/dist/css/v2/index.css';
-import './ChatContainer.css';
+import "stream-chat-react/dist/css/v2/index.css";
+import "./ChatContainer.css";
 
-import {getChatClient, connectStreamUser} from '@/app/services/streamChatService';
-import {getMockVetUser} from '@/app/utils/mockStreamBackend';
+import {
+  getChatClient,
+  connectStreamUser,
+} from "@/app/services/streamChatService";
+import { getMockVetUser } from "@/app/utils/mockStreamBackend";
+import ProtectedRoute from "../ProtectedRoute";
+import OrgGuard from "../OrgGuard";
 
 interface ChatContainerProps {
   appointmentId?: string;
@@ -36,9 +44,9 @@ interface ChannelPreviewWrapperProps extends ChannelPreviewUIComponentProps {
 }
 
 interface ChatLayoutProps {
-  filters: ChannelListProps['filters'];
-  sort: ChannelListProps['sort'];
-  options: ChannelListProps['options'];
+  filters: ChannelListProps["filters"];
+  sort: ChannelListProps["sort"];
+  options: ChannelListProps["options"];
   isMobile: boolean;
   isChannelSelected: boolean;
   previewComponent: React.ComponentType<ChannelPreviewUIComponentProps>;
@@ -67,20 +75,26 @@ interface ChannelDisplayInfo {
 
 const getChannelDisplayInfo = (
   channel: StreamChannel | null | undefined,
-  currentUserId?: string | null,
+  currentUserId?: string | null
 ): ChannelDisplayInfo => {
   if (!channel) {
-    return {title: 'Chat'};
+    return { title: "Chat" };
   }
 
   const channelData = (channel.data || {}) as Record<string, unknown>;
-  const membersArray = channel.state?.members ? Object.values(channel.state.members) : [];
+  const membersArray = channel.state?.members
+    ? Object.values(channel.state.members)
+    : [];
   const counterpart =
-    membersArray.find((member) => member.user?.id !== currentUserId) || membersArray[0];
+    membersArray.find((member) => member.user?.id !== currentUserId) ??
+    membersArray[0];
 
   const petOwnerName =
-    typeof channelData.petOwnerName === 'string' ? (channelData.petOwnerName as string) : undefined;
-  const petName = typeof channelData.petName === 'string' ? (channelData.petName as string) : undefined;
+    typeof channelData.petOwnerName === "string"
+      ? channelData.petOwnerName
+      : undefined;
+  const petName =
+    typeof channelData.petName === "string" ? channelData.petName : undefined;
 
   const counterpartName = counterpart?.user?.name || counterpart?.user_id;
   const counterpartImage = counterpart?.user?.image;
@@ -90,22 +104,25 @@ const getChannelDisplayInfo = (
     petOwnerName ||
     petName ||
     counterpartName ||
-    (typeof channelData.name === 'string' ? (channelData.name as string) : undefined) ||
+    (typeof channelData.name === "string" ? channelData.name : undefined) ||
     channel.id ||
-    'Chat';
+    "Chat";
 
   const image =
-    (typeof channelData.image === 'string' ? (channelData.image as string) : undefined) ||
+    (typeof channelData.image === "string" ? channelData.image : undefined) ||
     counterpartImage;
 
-  return {title, image};
+  return { title, image };
 };
 
-const ChannelHeaderWithCounterpart: React.FC<{currentUserId?: string | null}> = ({
-  currentUserId,
-}) => {
-  const {channel} = useChannelStateContext();
-  const {title} = getChannelDisplayInfo(channel as StreamChannel | null, currentUserId);
+const ChannelHeaderWithCounterpart: React.FC<{
+  currentUserId?: string | null;
+}> = ({ currentUserId }) => {
+  const { channel } = useChannelStateContext();
+  const { title } = getChannelDisplayInfo(
+    channel as StreamChannel | null,
+    currentUserId
+  );
 
   return <ChannelHeader title={title} />;
 };
@@ -115,19 +132,30 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   currentUserId,
   ...previewProps
 }) => {
-  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-    previewProps.onSelect?.(event as unknown as React.MouseEvent<HTMLDivElement>);
+  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (
+    event
+  ) => {
+    previewProps.onSelect?.(
+      event as unknown as React.MouseEvent<HTMLDivElement>
+    );
     onPreviewSelect?.(previewProps.channel ?? null);
   };
 
-  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (
+    event
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLButtonElement>);
+      handlePreviewSelect(
+        event as unknown as React.MouseEvent<HTMLButtonElement>
+      );
     }
   };
 
-  const {title, image} = getChannelDisplayInfo(previewProps.channel ?? null, currentUserId);
+  const { title, image } = getChannelDisplayInfo(
+    previewProps.channel ?? null,
+    currentUserId
+  );
 
   return (
     <button
@@ -136,24 +164,38 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
       onClick={handlePreviewSelect}
       onKeyDown={handleKeyDown}
     >
-      <ChannelPreviewMessenger {...previewProps} displayTitle={title} displayImage={image} />
+      <ChannelPreviewMessenger
+        {...previewProps}
+        displayTitle={title}
+        displayImage={image}
+      />
     </button>
   );
 };
 
 const createPreviewComponent = (
   onPreviewSelect: (channel: StreamChannel | null) => void,
-  currentUserId?: string | null,
+  currentUserId?: string | null
 ): React.ComponentType<ChannelPreviewUIComponentProps> => {
-  const PreviewComponent: React.FC<ChannelPreviewUIComponentProps> = (props) => (
-    <ChannelPreviewWrapper {...props} onPreviewSelect={onPreviewSelect} currentUserId={currentUserId} />
+  const PreviewComponent: React.FC<ChannelPreviewUIComponentProps> = (
+    props
+  ) => (
+    <ChannelPreviewWrapper
+      {...props}
+      onPreviewSelect={onPreviewSelect}
+      currentUserId={currentUserId}
+    />
   );
 
-  PreviewComponent.displayName = 'ChatChannelPreview';
+  PreviewComponent.displayName = "ChatChannelPreview";
   return PreviewComponent;
 };
 
-const ChatWindow: React.FC<ChatWindowProps> = ({showBackButton, onBack, currentUserId}) => (
+const ChatWindow: React.FC<ChatWindowProps> = ({
+  showBackButton,
+  onBack,
+  currentUserId,
+}) => (
   <>
     {showBackButton && (
       <button type="button" className="chat-back-button" onClick={onBack}>
@@ -183,7 +225,7 @@ const ChatMainPanel: React.FC<ChatMainPanelProps> = ({
   <div
     className="str-chat__main-panel"
     style={{
-      display: isMobile && !isChannelSelected ? 'none' : 'flex',
+      display: isMobile && !isChannelSelected ? "none" : "flex",
       flex: 1,
       minHeight: 0,
     }}
@@ -209,7 +251,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   <div className="str-chat__container">
     <div
       className="str-chat__channel-list-wrapper"
-      style={{display: isMobile && isChannelSelected ? 'none' : 'flex'}}
+      style={{ display: isMobile && isChannelSelected ? "none" : "flex" }}
     >
       <ChannelList
         filters={filters}
@@ -232,7 +274,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
 export const ChatContainer: React.FC<ChatContainerProps> = ({
   appointmentId,
   onChannelSelect,
-  className = '',
+  className = "",
 }) => {
   const [client, setClient] = useState<StreamChat | null>(null);
   const [loading, setLoading] = useState(true);
@@ -247,8 +289,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Initialize chat
@@ -261,8 +303,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         setClient(chatClient);
         setLoading(false);
       } catch (err: any) {
-        console.error('Chat init error:', err);
-        setError(err.message || 'Failed to load chat');
+        console.error("Chat init error:", err);
+        setError(err.message || "Failed to load chat");
         setLoading(false);
       }
     };
@@ -275,17 +317,24 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       setIsChannelSelected(true);
       onChannelSelect?.(channel);
     },
-    [onChannelSelect],
+    [onChannelSelect]
   );
 
   const previewComponent = useMemo(
     () => createPreviewComponent(handlePreviewSelect, client?.userID),
-    [handlePreviewSelect, client?.userID],
+    [handlePreviewSelect, client?.userID]
   );
 
   if (loading) {
     return (
-      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px'}}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "400px",
+        }}
+      >
         <LoadingIndicator size={50} />
       </div>
     );
@@ -293,18 +342,25 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
   if (error || !client) {
     return (
-      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px'}}>
-        <p style={{color: '#d32f2f'}}>{error || 'Unable to load chat'}</p>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "400px",
+        }}
+      >
+        <p style={{ color: "#d32f2f" }}>{error || "Unable to load chat"}</p>
       </div>
     );
   }
 
   const filters = {
-    type: 'messaging',
-    members: {$in: [client.userID!]},
+    type: "messaging",
+    members: { $in: [client.userID!] },
   };
 
-  const sort = [{last_message_at: -1 as const}];
+  const sort = [{ last_message_at: -1 as const }];
 
   const options = {
     state: true,
@@ -313,7 +369,9 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   };
 
   const renderAppointmentChannel = appointmentId ? (
-    <Channel channel={client.channel('messaging', `appointment-${appointmentId}`)}>
+    <Channel
+      channel={client.channel("messaging", `appointment-${appointmentId}`)}
+    >
       <div className="str-chat__window">
         <Window>
           <ChannelHeaderWithCounterpart currentUserId={client.userID} />
@@ -328,23 +386,33 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   return (
     <div className={className}>
       <Chat client={client} theme="str-chat__theme-light">
-      {appointmentId ? (
-        renderAppointmentChannel
-      ) : (
-        <ChatLayout
-          filters={filters}
-          sort={sort}
-          options={options}
-          isMobile={isMobile}
-          isChannelSelected={isChannelSelected}
-          previewComponent={previewComponent}
-          onBack={() => setIsChannelSelected(false)}
-          currentUserId={client.userID}
-        />
-      )}
+        {appointmentId ? (
+          renderAppointmentChannel
+        ) : (
+          <ChatLayout
+            filters={filters}
+            sort={sort}
+            options={options}
+            isMobile={isMobile}
+            isChannelSelected={isChannelSelected}
+            previewComponent={previewComponent}
+            onBack={() => setIsChannelSelected(false)}
+            currentUserId={client.userID}
+          />
+        )}
       </Chat>
     </div>
   );
 };
 
-export default ChatContainer;
+const ProtectedChatContainer = () => {
+  return (
+    <ProtectedRoute>
+      <OrgGuard>
+        <ChatContainer />
+      </OrgGuard>
+    </ProtectedRoute>
+  );
+};
+
+export default ProtectedChatContainer;

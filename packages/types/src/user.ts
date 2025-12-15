@@ -7,7 +7,7 @@ export type User = {
   email: string;
   firstName: string;
   lastName: string;
-  isActive: boolean;
+  isActive?: boolean;
 };
 
 type PractitionerGender = Practitioner["gender"];

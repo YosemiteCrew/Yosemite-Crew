@@ -7,6 +7,12 @@ const router = Router();
 // PMS / ADMIN ROUTES
 router.post("/admin/:orgId", authorizeCognito, FormController.createForm);
 
+router.get(
+  "/admin/:orgId/forms",
+  authorizeCognito,
+  FormController.getFormListForOrganisation,
+);
+
 // Get form for admin
 router.get(
   "/admin/:orgId/:formId",
@@ -15,7 +21,11 @@ router.get(
 );
 
 // Update form
-router.put("/admin/:formId", authorizeCognito, FormController.updateForm);
+router.put(
+  "/admin/:orgId/:formId",
+  authorizeCognito,
+  FormController.updateForm,
+);
 
 // Publish / Unpublish / Archive
 router.post(
@@ -32,6 +42,18 @@ router.post(
   "/admin/:formId/archive",
   authorizeCognito,
   FormController.archiveForm,
+);
+router.post(
+  "/admin/:formId/submit",
+  authorizeCognito,
+  FormController.submitFormFromPMS
+)
+
+//Router to get SOAP notes for appointment
+router.get(
+  "/appointments/:appointmentId/soap-notes",
+  authorizeCognito,
+  FormController.getSOAPNotesByAppointment
 );
 
 // PUBLIC ROUTES

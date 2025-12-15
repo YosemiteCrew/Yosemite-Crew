@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 const showErrorTostMock = jest.fn();
@@ -98,19 +93,19 @@ jest.mock("react-bootstrap", () => {
       {children}
     </form>
   );
-  const Button = ({
-    children,
-    onClick,
-    type = "button",
-  }: {
-    children: React.ReactNode;
-    onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
-    type?: "button" | "submit";
-  }) => (
-    <button type={type} onClick={onClick}>
-      {children}
-    </button>
-  );
+  jest.mock("@/app/components/Buttons", () => ({
+    Primary: ({
+      text,
+      onClick,
+    }: {
+      text: string;
+      onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+    }) => (
+      <button type="button" onClick={(e) => onClick?.(e)}>
+        {text}
+      </button>
+    ),
+  }));
   (MockForm as any).Check = ({
     label,
     onChange,
@@ -132,7 +127,6 @@ jest.mock("react-bootstrap", () => {
     </label>
   );
   return {
-    Button,
     Col: MockContainer,
     Row: MockContainer,
     Form: MockForm,
@@ -165,9 +159,7 @@ describe("SignUp page", () => {
 
   test("validates inputs before submitting", () => {
     render(<SignUp />);
-
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
-
     expect(authStoreMock.signUp).not.toHaveBeenCalled();
     expect(screen.getByText("First name is required")).toBeInTheDocument();
     expect(screen.getByText("Last name is required")).toBeInTheDocument();
@@ -194,9 +186,7 @@ describe("SignUp page", () => {
     setFieldValue("Set up password", "Secret!23");
     setFieldValue("Confirm password", "Secret!23");
     checkAllBoxes();
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
-
+fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
     await waitFor(() =>
       expect(authStoreMock.signUp).toHaveBeenCalledWith(
         "jane@example.com",
@@ -221,9 +211,7 @@ describe("SignUp page", () => {
     setFieldValue("Set up password", "Secret!23");
     setFieldValue("Confirm password", "Secret!23");
     checkAllBoxes();
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
-
+fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
     await waitFor(() => expect(showErrorTostMock).toHaveBeenCalled());
     expect(latestOtpModalProps?.showVerifyModal).toBeFalsy();
   });

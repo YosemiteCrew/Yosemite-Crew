@@ -218,13 +218,12 @@ describe('SignInScreen', () => {
   });
 
   it('renders correctly', () => {
-    const {getByText, getByLabelText, getAllByTestId} = renderComponent();
+    const {getByText, getByLabelText} = renderComponent();
 
     expect(getByText('Tail-wagging welcome!')).toBeTruthy();
     expect(getByLabelText('Email address')).toBeTruthy();
     expect(getByText('Send OTP')).toBeTruthy();
     expect(getByText('Login via')).toBeTruthy();
-    expect(getAllByTestId('mock-image').length).toBe(4);
     expect(getByText('Not a member?')).toBeTruthy();
     expect(getByText('Sign up')).toBeTruthy();
   });

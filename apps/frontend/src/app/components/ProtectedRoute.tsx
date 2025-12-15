@@ -9,18 +9,25 @@ type ProtectedRouteProps = {
 };
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { status } = useAuthStore();
+  const status = useAuthStore((s) => s.status);
   const router = useRouter();
   const pathname = usePathname();
 
+  const isChecking = status === "idle" || status === "checking";
+  const isAuthed =
+    status === "authenticated" || status === "signin-authenticated";
+
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (isChecking) return;
+    if (!isAuthed) {
       router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
     }
-  }, [status, router, pathname]);
+  }, [isChecking, isAuthed, router, pathname, status]);
 
-  if (status === "checking") return null; // or a skeleton/loader
-  if (status === "unauthenticated") return null;
+  if (isChecking) {
+    return null;
+  }
+  if (!isAuthed) return null;
 
   return <>{children}</>;
 };

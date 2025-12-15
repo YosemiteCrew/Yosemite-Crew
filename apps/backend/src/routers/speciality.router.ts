@@ -5,7 +5,7 @@ const router = Router();
 
 router.post("/", authorizeCognito, SpecialityController.create);
 router.get(
-  "/:id",
+  "/:organisationId",
   authorizeCognito,
   SpecialityController.getAllByOrganizationId,
 );

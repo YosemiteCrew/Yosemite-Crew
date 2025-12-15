@@ -8,3 +8,8 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# Keep Stripe push provisioning (Wallet) classes used by react-native-stripe.
+# They are referenced reflectively and can be stripped by R8 otherwise.
+-keep class com.stripe.android.pushProvisioning.** { *; }
+-dontwarn com.stripe.android.pushProvisioning.**

@@ -1,0 +1,366 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
+<View
+  style={
+    [
+      {
+        "gap": 16,
+        "paddingTop": 12,
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    style={
+      {
+        "gap": 8,
+      }
+    }
+  >
+    <View
+      testID="mock-input-wrapper"
+    >
+      <Text>
+        Address
+      </Text>
+      <TextInput
+        containerStyle={
+          {
+            "marginBottom": 0,
+          }
+        }
+        maxLength={200}
+        multiline={true}
+        onChangeText={[Function]}
+        testID="input-Address"
+        value=""
+      />
+    </View>
+    <View
+      style={
+        {
+          "backgroundColor": "#FFFFFF",
+          "borderColor": "#E5E5E5",
+          "borderRadius": 8,
+          "borderWidth": 1,
+          "gap": 8,
+          "padding": 12,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#000000",
+            "fontSize": 12,
+            "fontWeight": "700",
+          }
+        }
+      >
+        Suggestions
+      </Text>
+      <RCTScrollView
+        scrollEnabled={true}
+        showsVerticalScrollIndicator={true}
+        style={
+          {
+            "flex": 0,
+            "maxHeight": 200,
+          }
+        }
+      >
+        <View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "borderBottomColor": "#E5E5E5",
+                "borderBottomWidth": 0.5,
+                "opacity": 1,
+                "paddingVertical": 8,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#000000",
+                  "fontSize": 14,
+                  "fontWeight": "700",
+                }
+              }
+            >
+              1
+            </Text>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "borderBottomColor": "#E5E5E5",
+                "borderBottomWidth": 0.5,
+                "opacity": 1,
+                "paddingVertical": 8,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#000000",
+                  "fontSize": 14,
+                  "fontWeight": "700",
+                }
+              }
+            >
+              2
+            </Text>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "borderBottomColor": "#E5E5E5",
+                "borderBottomWidth": 0.5,
+                "opacity": 1,
+                "paddingVertical": 8,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#000000",
+                  "fontSize": 14,
+                  "fontWeight": "700",
+                }
+              }
+            >
+              3
+            </Text>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "borderBottomColor": "#E5E5E5",
+                "borderBottomWidth": 0,
+                "opacity": 1,
+                "paddingVertical": 8,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#000000",
+                  "fontSize": 14,
+                  "fontWeight": "700",
+                }
+              }
+            >
+              4
+            </Text>
+          </View>
+        </View>
+      </RCTScrollView>
+      <Text
+        style={
+          {
+            "color": "#666666",
+            "fontSize": 12,
+            "fontWeight": "700",
+            "paddingTop": 8,
+            "textAlign": "right",
+          }
+        }
+      >
+        Powered by Google
+      </Text>
+    </View>
+  </View>
+  <View
+    testID="mock-input-wrapper"
+  >
+    <Text>
+      State
+    </Text>
+    <TextInput
+      containerStyle={
+        {
+          "marginBottom": 0,
+        }
+      }
+      onChangeText={[Function]}
+      testID="input-State"
+      value=""
+    />
+  </View>
+  <View
+    style={
+      {
+        "flexDirection": "row",
+        "gap": 12,
+      }
+    }
+  >
+    <View
+      testID="mock-input-wrapper"
+    >
+      <Text>
+        City
+      </Text>
+      <TextInput
+        containerStyle={
+          {
+            "flex": 1,
+          }
+        }
+        onChangeText={[Function]}
+        testID="input-City"
+        value=""
+      />
+    </View>
+    <View
+      testID="mock-input-wrapper"
+    >
+      <Text>
+        Postal code
+      </Text>
+      <TextInput
+        containerStyle={
+          {
+            "flex": 1,
+          }
+        }
+        onChangeText={[Function]}
+        testID="input-Postal code"
+        value=""
+      />
+    </View>
+  </View>
+  <View
+    testID="mock-input-wrapper"
+  >
+    <Text>
+      Country
+    </Text>
+    <TextInput
+      containerStyle={
+        {
+          "marginBottom": 0,
+        }
+      }
+      onChangeText={[Function]}
+      testID="input-Country"
+      value=""
+    />
+  </View>
+</View>
+`;

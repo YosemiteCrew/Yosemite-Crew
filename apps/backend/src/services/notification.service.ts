@@ -16,7 +16,7 @@ export interface DeviceTokenRecord {
 
 export type SendOptions = {
   data?: Record<string, string>; // extra payload (non-PII)
-  dryRun?: boolean;              // for testing
+  dryRun?: boolean; // for testing
 };
 
 export type SendResult = {
@@ -149,7 +149,11 @@ export const NotificationService = {
     for (const record of tokens) {
       if (!record) continue;
 
-      const result = await this.sendToDevice(record.deviceToken, payload, options);
+      const result = await this.sendToDevice(
+        record.deviceToken,
+        payload,
+        options,
+      );
       results.push(result);
 
       NotificationModel.insertOne({
@@ -168,7 +172,6 @@ export const NotificationService = {
           }`,
         );
       });
-
     }
 
     return results;
@@ -194,9 +197,7 @@ export const NotificationService = {
         logger.error(
           `Failed to send notification to user ${userId}: ${message}`,
         );
-        summary[userId] = [
-          { token: "", success: false, error: message },
-        ];
+        summary[userId] = [{ token: "", success: false, error: message }];
       }
     }
 

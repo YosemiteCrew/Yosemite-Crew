@@ -7,10 +7,7 @@ import {
 } from "src/services/contact-us.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import {
-  type ContactType,
-  type ContactStatus,
-} from "src/models/contect-us";
+import { type ContactType, type ContactStatus } from "src/models/contect-us";
 
 const resolveMobileUserId = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
@@ -67,9 +64,8 @@ export const ContactController = {
 
       let parentId: string | undefined;
       if (userId) {
-        const authUser = await AuthUserMobileService.getByProviderUserId(
-          userId,
-        );
+        const authUser =
+          await AuthUserMobileService.getByProviderUserId(userId);
         if (!authUser) {
           return res
             .status(404)
@@ -157,10 +153,7 @@ export const ContactController = {
       if (!status) {
         return res.status(400).json({ message: "Invalid status value" });
       }
-      const updated = await ContactService.updateStatus(
-        req.params.id,
-        status,
-      );
+      const updated = await ContactService.updateStatus(req.params.id, status);
       if (!updated) return res.status(404).json({ message: "Not found" });
       res.json(updated);
     } catch (err) {

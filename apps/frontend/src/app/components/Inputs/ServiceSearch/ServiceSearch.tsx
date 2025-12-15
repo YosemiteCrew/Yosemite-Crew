@@ -1,19 +1,32 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoSearch } from "react-icons/io5";
-import { Service, Speciality } from "@/app/types/org";
 import { specialtiesByKey } from "@/app/utils/specialities";
+import { Service } from "@yosemite-crew/types";
+import { SpecialityWeb } from "@/app/types/speciality";
 
 import "./ServiceSearch.css";
+import { useOrgStore } from "@/app/stores/orgStore";
 
-const ServiceSearch = ({ speciality, setSpecialities }: any) => {
+type SpecialityCardProps = {
+  speciality: SpecialityWeb;
+  setSpecialities: React.Dispatch<React.SetStateAction<SpecialityWeb[]>>;
+};
+
+const ServiceSearch = ({
+  speciality,
+  setSpecialities,
+}: SpecialityCardProps) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const SERVICES = specialtiesByKey[speciality.name].services;
+  const SERVICES = specialtiesByKey[speciality.name]?.services || [];
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId)
 
   const selectedNames = useMemo(
     () =>
-      new Set(speciality.services.map((s: Service) => s.name.toLowerCase())),
+      new Set(
+        (speciality.services || []).map((s: Service) => s.name.toLowerCase())
+      ),
     [speciality]
   );
 
@@ -25,7 +38,7 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
       if (!q) return true;
       return name.includes(q);
     });
-  }, [query, selectedNames]);
+  }, [query, selectedNames, SERVICES]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -43,21 +56,22 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
   }, []);
 
   const handleSelectService = (serviceName: string) => {
-    setSpecialities((prev: Speciality[]) =>
+    setSpecialities((prev: SpecialityWeb[]) =>
       prev.map((sp) => {
         if (sp.name.toLowerCase() !== speciality.name.toLowerCase()) return sp;
-        const exists = checkIfAlready(sp.services || [], serviceName)
+        const exists = checkIfAlready(serviceName, sp.services || []);
         if (exists) return sp;
         return {
           ...sp,
           services: [
-            ...sp.services!,
+            ...(sp.services ?? []),
             {
               name: serviceName,
               description: "",
               maxDiscount: 10,
-              charge: 10,
-              duration: 15,
+              cost: 10,
+              durationMinutes: 15,
+              organisationId: primaryOrgId
             } as Service,
           ],
         };
@@ -70,21 +84,22 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
   const handleAddService = () => {
     const name = query.trim();
     if (!name) return;
-    setSpecialities((prev: Speciality[]) =>
+    setSpecialities((prev: SpecialityWeb[]) =>
       prev.map((sp) => {
         if (sp.name.toLowerCase() !== speciality.name.toLowerCase()) return sp;
-        const exists = checkIfAlready(sp.services || [], name)
+        const exists = checkIfAlready(name, sp.services || []);
         if (exists) return sp;
         return {
           ...sp,
           services: [
-            ...sp.services!,
+            ...(sp.services ?? []),
             {
               name: name.charAt(0).toUpperCase() + name.slice(1),
               description: "",
               maxDiscount: 10,
-              charge: 15,
-              duration: 15,
+              cost: 15,
+              durationMinutes: 15,
+              organisationId: primaryOrgId
             } as Service,
           ],
         };
@@ -94,11 +109,8 @@ const ServiceSearch = ({ speciality, setSpecialities }: any) => {
     setOpen(false);
   };
 
-  const checkIfAlready = (services: Service[], name: string) => {
-    return services?.some(
-      (s: Service) => s.name.toLowerCase() === name.toLowerCase()
-    );
-  };
+  const checkIfAlready = (name: string, services: Service[] = []) =>
+    services.some((s) => s.name.toLowerCase() === name.toLowerCase());
 
   return (
     <div className="service-search" ref={wrapperRef}>

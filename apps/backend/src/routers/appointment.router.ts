@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { AppointmentController } from "../controllers/web/appointment.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -64,45 +65,69 @@ router.get(
 
 router.post("/pms", authorizeCognito, AppointmentController.createFromPms);
 
-// List PMS appointments — static path FIRST
+// Create appointment (PMS)
+router.post(
+  "/pms",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.createFromPms,
+);
+
+// List PMS appointments
 router.get(
   "/pms/organisation/:organisationId",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:view:any"),
   AppointmentController.listByOrganisation,
 );
 
-// Accept & assign vet
+// Accept requested appointment
 router.patch(
-  "/pms/:appointmentId/accept",
+  "/pms/:organisationId/:appointmentId/accept",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
   AppointmentController.acceptRequested,
 );
 
-// Reject requested appointment
+// Reject appointment
 router.patch(
-  "/pms/:appointmentId/reject",
+  "/pms/:organisationId/:appointmentId/reject",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
   AppointmentController.rejectRequested,
 );
 
-// Hard cancel from PMS
+// Hard cancel (PMS)
 router.patch(
-  "/pms/:appointmentId/cancel",
+  "/pms/:organisationId/:appointmentId/cancel",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
   AppointmentController.cancelFromPMS,
 );
 
-// Update details (assign vet/room)
+// Update appointment details
 router.patch(
-  "/pms/:appointmentId",
+  "/pms/:organisationId/:appointmentId",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
   AppointmentController.updateFromPms,
 );
 
-// Get appointment detail (dynamic LAST)
+// Get appointment detail (PMS)
 router.get(
-  "/pms/:appointmentId",
+  "/pms/:organisationId/:appointmentId",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission([
+    "appointments:view:any",
+    "appointments:view:own", // Vet with OWN-only can still access if assigned
+  ]),
   AppointmentController.getById,
 );
 

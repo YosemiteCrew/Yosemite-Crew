@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Platform, Modal, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { Platform, Modal, View, StyleSheet, TouchableOpacity, Text, useColorScheme } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface SimpleDatePickerProps {
@@ -23,6 +23,8 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
 }) => {
   const [internalShow, setInternalShow] = useState(show);
   const [tempDate, setTempDate] = useState(value || new Date());
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
 
   useEffect(() => {
     setInternalShow(show);
@@ -65,6 +67,12 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
     return null;
   }
 
+  const sheetBackground = isDarkMode ? '#1C1C1E' : '#FFFFFF';
+  const dividerColor = isDarkMode ? '#38383A' : '#E5E5EA';
+  const overlayColor = 'rgba(0, 0, 0, 0.35)';
+  const primaryTextColor = '#007AFF'; // iOS system blue
+  const pickerTextColor = isDarkMode ? '#FFFFFF' : '#000000';
+
   // iOS needs a modal container
   if (Platform.OS === 'ios') {
     return (
@@ -74,19 +82,19 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
         visible={internalShow}
         onRequestClose={handleCancel}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, {backgroundColor: overlayColor}]}>
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
             onPress={handleCancel}
           />
-          <View style={styles.modalContent}>
-            <View style={styles.header}>
+          <View style={[styles.modalContent, {backgroundColor: sheetBackground}]}>
+            <View style={[styles.header, {borderBottomColor: dividerColor, backgroundColor: sheetBackground}]}>
               <TouchableOpacity onPress={handleCancel} style={styles.button}>
-                <Text style={styles.buttonText}>Cancel</Text>
+                <Text style={[styles.buttonText, {color: primaryTextColor}]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleConfirm} style={styles.button}>
-                <Text style={[styles.buttonText, styles.confirmText]}>Done</Text>
+                <Text style={[styles.buttonText, styles.confirmText, {color: primaryTextColor}]}>Done</Text>
               </TouchableOpacity>
             </View>
             <DateTimePicker
@@ -96,7 +104,9 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
               onChange={handleDateChange}
               minimumDate={minimumDate}
               maximumDate={maximumDate}
-              style={styles.picker}
+              themeVariant={isDarkMode ? 'dark' : 'light'}
+              textColor={pickerTextColor}
+              style={[styles.picker, {backgroundColor: sheetBackground}]}
             />
           </View>
         </View>
@@ -121,13 +131,13 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
   },
   modalBackdrop: {
     flex: 1,
   },
   modalContent: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingBottom: 34, // Safe area for iOS
@@ -141,8 +151,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#38383A',
-    backgroundColor: '#1C1C1E',
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
     width: '100%',
   },
   button: {
@@ -151,7 +161,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 17,
-    color: '#0A84FF',
+    color: '#007AFF',
     textAlign: 'center',
   },
   confirmText: {
@@ -160,7 +170,7 @@ const styles = StyleSheet.create({
   picker: {
     height: 216,
     width: '100%',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#FFFFFF',
   },
 });
 

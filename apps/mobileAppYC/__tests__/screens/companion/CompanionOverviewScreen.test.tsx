@@ -746,14 +746,14 @@ describe('CompanionOverviewScreen', () => {
     renderWithState({
       ...mockCompanion,
       neuteredStatus: 'neutered' as Companion['neuteredStatus'],
-      ageWhenNeutered: '6 months',
+      ageWhenNeutered: '6',
     } as Companion);
     expect(
       screen.getByTestId('inline-edit-Age-when-neutered'),
     ).toBeOnTheScreen();
     expect(screen.getByTestId('inline-edit-Age-when-neutered')).toHaveProp(
       'value',
-      '6 months',
+      '6 Years',
     );
     fireEvent.press(screen.getByTestId('row-button-Neutered-status'));
     const neuteredSheet = screen.getByTestId('neutered-sheet');

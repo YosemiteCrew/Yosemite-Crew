@@ -5,9 +5,11 @@ import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 export const chatRouter = Router();
 
 // Generate Stream chat token for current user
-chatRouter.post("/mobile/token", 
-  authorizeCognitoMobile, 
-  ChatController.generateToken);
+chatRouter.post(
+  "/mobile/token",
+  authorizeCognitoMobile,
+  ChatController.generateToken,
+);
 
 // Ensure chat session exists for an appointment
 chatRouter.post(
@@ -20,7 +22,7 @@ chatRouter.get(
   "/mobile/sessions/:appointmentId",
   authorizeCognitoMobile,
   ChatController.getSession,
-)
+);
 
 // PMS endpoints
 chatRouter.post("/pms/token", authorizeCognito, ChatController.generateToken);

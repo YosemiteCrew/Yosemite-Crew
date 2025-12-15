@@ -1,14 +1,18 @@
 import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import Image from "next/image";
-import Link from "next/link";
 import { FaCheckCircle } from "react-icons/fa";
 import { IoIosCloseCircle } from "react-icons/io";
-import { AppointmentsProps } from "@/app/types/appointments";
 import { IoEye } from "react-icons/io5";
 import AppointmentCard from "../Cards/AppointmentCard";
+import { Appointment } from "@yosemite-crew/types";
+import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 
 import "./DataTable.css";
+import {
+  acceptAppointment,
+  cancelAppointment,
+} from "@/app/services/appointmentService";
 
 type Column<T> = {
   label: string;
@@ -18,20 +22,25 @@ type Column<T> = {
 };
 
 type AppointmentTableProps = {
-  filteredList: AppointmentsProps[];
-  setActiveAppointment?: (inventory: AppointmentsProps) => void;
+  filteredList: Appointment[];
+  setActiveAppointment?: (appointment: Appointment) => void;
   setViewPopup?: (open: boolean) => void;
+  hideActions?: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case "in-progress":
+    case "no_payment":
+      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+    case "in_progress":
       return { color: "#54B492", backgroundColor: "#E6F4EF" };
     case "completed":
       return { color: "#fff", backgroundColor: "#008F5D" };
-    case "checked-in":
+    case "checked_in":
       return { color: "#F68523", backgroundColor: "#FEF3E9" };
     case "requested":
+      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+    case "cancelled":
       return { color: "#302f2e", backgroundColor: "#eaeaea" };
     default:
       return { color: "#fff", backgroundColor: "#247AED" };
@@ -42,29 +51,49 @@ const Appointments = ({
   filteredList,
   setActiveAppointment,
   setViewPopup,
+  hideActions = false,
 }: AppointmentTableProps) => {
-  const handleViewAppointment = (appointment: AppointmentsProps) => {
+  const handleViewAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setViewPopup?.(true);
   };
-  const columns: Column<AppointmentsProps>[] = [
+
+  const handleAcceptAppointment = async (appointment: Appointment) => {
+    try {
+      await acceptAppointment(appointment);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleCancelAppointment = async (appointment: Appointment) => {
+    try {
+      await cancelAppointment(appointment);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const columns: Column<Appointment>[] = [
     {
       label: "Name",
       key: "name",
-      width: "10%",
-      render: (item: AppointmentsProps) => (
-        <div className="appointment-profile">
+      width: "15%",
+      render: (item: Appointment) => (
+        <div className="appointment-profile truncate">
           <Image
-            src={item.image}
+            src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
             alt=""
             height={40}
             width={40}
             style={{ borderRadius: "50%" }}
           />
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">{item.name}</div>
-            <div className="appointment-profile-sub">
-              {item.parentName.split(" ")[0]}
+            <div className="appointment-profile-title">
+              {item?.companion?.name || "-"}
+            </div>
+            <div className="appointment-profile-sub truncate">
+              {item?.companion?.parent?.name || ""}
             </div>
           </div>
         </div>
@@ -73,11 +102,13 @@ const Appointments = ({
     {
       label: "Reason",
       key: "reason",
-      width: "15%",
-      render: (item: AppointmentsProps) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.reason}</div>
-          <div className="appointment-emergency-label">Emergency</div>
+      width: "10%",
+      render: (item: Appointment) => (
+        <div className="appointment-profile-two truncate">
+          <div className="appointment-profile-title">{item.concern || "-"}</div>
+          {item.isEmergency && (
+            <div className="appointment-emergency-label">Emergency</div>
+          )}
         </div>
       ),
     },
@@ -85,26 +116,34 @@ const Appointments = ({
       label: "Service",
       key: "service",
       width: "10%",
-      render: (item: AppointmentsProps) => (
-        <div className="appointment-profile-title">{item.service}</div>
+      render: (item: Appointment) => (
+        <div className="appointment-profile-title">
+          {item.appointmentType?.name || "-"}
+        </div>
       ),
     },
     {
       label: "Room",
       key: "room",
       width: "10%",
-      render: (item: AppointmentsProps) => (
-        <div className="appointment-profile-title">{item.room}</div>
+      render: (item: Appointment) => (
+        <div className="appointment-profile-title">
+          {item.room?.name || "-"}
+        </div>
       ),
     },
     {
       label: "Date/Time",
       key: "date/time",
       width: "10%",
-      render: (item: AppointmentsProps) => (
+      render: (item: Appointment) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.time}</div>
-          <div className="appointment-profile-sub">{item.date}</div>
+          <div className="appointment-profile-title">
+            {formatTimeLabel(item.startTime)}
+          </div>
+          <div className="appointment-profile-sub">
+            {formatDateLabel(item.appointmentDate)}
+          </div>
         </div>
       ),
     },
@@ -112,13 +151,10 @@ const Appointments = ({
       label: "Lead",
       key: "lead",
       width: "10%",
-      render: (item: AppointmentsProps) => (
+      render: (item: Appointment) => (
         <div className="appointment-profile-two">
           <div className="appointment-profile-title">
-            {item.lead.split(" ")[0] + " " + item.lead.split(" ")[1]}
-          </div>
-          <div className="appointment-profile-sub">
-            {item.leadDepartment.split(" ")[0]}
+            {item.lead?.name || "-"}
           </div>
         </div>
       ),
@@ -127,11 +163,11 @@ const Appointments = ({
       label: "Support",
       key: "support",
       width: "10%",
-      render: (item: AppointmentsProps) => (
+      render: (item: Appointment) => (
         <div className="appointment-profile-two">
-          {item.support.map((sup, i) => (
+          {item.supportStaff?.map((sup, i) => (
             <div key={"sup" + i} className="appointment-profile-sub">
-              {sup.split(" ")[0]}
+              {sup.name}
             </div>
           ))}
         </div>
@@ -141,57 +177,76 @@ const Appointments = ({
       label: "Status",
       key: "status",
       width: "15%",
-      render: (item: AppointmentsProps) => (
+      render: (item: Appointment) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {item.status}
         </div>
       ),
     },
-    {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
-      render: (item: AppointmentsProps) => (
-        <div className="action-btn-col">
-          {item.status === "Requested" ? (
-            <>
-              <Link
-                href={"#"}
-                className="action-btn"
-                style={{ background: "#E6F4EF" }}
-              >
-                <FaCheckCircle size={22} color="#54B492" />
-              </Link>
-              <div className="action-btn" style={{ background: "#FDEBEA" }}>
-                <IoIosCloseCircle size={24} color="#EA3729" />
-              </div>
-            </>
-          ) : (
-            <button
-              onClick={() => handleViewAppointment(item)}
-              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-            >
-              <IoEye size={20} color="#302F2E" />
-            </button>
-          )}
-        </div>
-      ),
-    },
   ];
+  const actionColoumn = {
+    label: "Actions",
+    key: "actions",
+    width: "10%",
+    render: (item: Appointment) => (
+      <div className="action-btn-col">
+        {item.status === "REQUESTED" ? (
+          <>
+            <button
+              className="action-btn"
+              style={{ background: "#E6F4EF" }}
+              onClick={() => handleAcceptAppointment(item)}
+            >
+              <FaCheckCircle size={22} color="#54B492" />
+            </button>
+            <button
+              onClick={() => handleCancelAppointment(item)}
+              className="action-btn"
+              style={{ background: "#FDEBEA" }}
+            >
+              <IoIosCloseCircle size={24} color="#EA3729" />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => handleViewAppointment(item)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          >
+            <IoEye size={20} color="#302F2E" />
+          </button>
+        )}
+      </div>
+    ),
+  };
+
+  const finalColoumns = hideActions ? columns : [...columns, actionColoumn];
 
   return (
     <div className="table-wrapper">
       <div className="table-list">
-        <GenericTable data={filteredList} columns={columns} bordered={false} />
+        <GenericTable
+          data={filteredList}
+          columns={finalColoumns}
+          bordered={false}
+        />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((item: AppointmentsProps) => (
-          <AppointmentCard
-            key={item.name}
-            appointment={item}
-            handleViewAppointment={handleViewAppointment}
-          />
-        ))}
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item, i) => (
+            <AppointmentCard
+              key={"key-appointment" + i}
+              appointment={item}
+              handleViewAppointment={handleViewAppointment}
+            />
+          ));
+        })()}
       </div>
     </div>
   );
