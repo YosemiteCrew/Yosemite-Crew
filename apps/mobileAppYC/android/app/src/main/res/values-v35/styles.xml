@@ -1,10 +1,10 @@
 <resources>
+    <!-- Android 15+ (API 35) specific styles - uses edge-to-edge without deprecated APIs -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
-        <!-- Transparent system bars for edge-to-edge -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Edge-to-edge is enabled by default on Android 15+ -->
+        <!-- Status bar and navigation bar colors are handled by WindowCompat -->
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:enforceNavigationBarContrast">false</item>

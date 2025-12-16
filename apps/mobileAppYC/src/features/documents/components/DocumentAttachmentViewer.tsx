@@ -125,14 +125,17 @@ const DocViewer: React.FC<{uri: string; fallback?: React.ReactNode; fileName?: s
       <WebView
         style={viewerStyles.webview}
         source={{uri: viewerUri}}
-        originWhitelist={['*']}
+        originWhitelist={['https://*']}
         javaScriptEnabled
         domStorageEnabled
         allowsInlineMediaPlayback
-        allowFileAccess
+        allowFileAccess={false}
         startInLoadingState
-        mixedContentMode="always"
+        mixedContentMode="never"
         userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        androidLayerType="hardware"
+        setSupportMultipleWindows={false}
+        geolocationEnabled={false}
         onError={error => {
           console.error('[DocumentAttachmentViewer] Doc viewer error', {
             fileName,
