@@ -1,11 +1,11 @@
-import { InvoiceProps } from "@/app/types/invoice";
 import React from "react";
-
-import "./DataTable.css";
 import GenericTable from "../GenericTable/GenericTable";
-import Image from "next/image";
 import { IoEye } from "react-icons/io5";
 import InvoiceCard from "../Cards/InvoiceCard";
+import { Invoice } from "@yosemite-crew/types";
+import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -15,27 +15,25 @@ type Column<T> = {
 };
 
 type InvoiceTableProps = {
-  filteredList: InvoiceProps[];
-  setActiveInvoice?: (inventory: InvoiceProps) => void;
+  filteredList: Invoice[];
+  setActiveInvoice?: (inventory: Invoice) => void;
   setViewInvoice?: (open: boolean) => void;
 };
 
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case "draft":
+    case "pending":
       return { color: "#F68523", backgroundColor: "#FEF3E9" };
-    case "open":
+    case "awaiting_payment":
       return { color: "#247AED", backgroundColor: "#EAF3FF" };
     case "paid":
       return { color: "#54B492", backgroundColor: "#E6F4EF" };
-    case "uncollectible":
+    case "failed":
       return { color: "#EA3729", backgroundColor: "#FDEBEA" };
-    case "deleted":
+    case "cancelled":
       return { color: "#EA3729", backgroundColor: "#FDEBEA" };
-    case "void":
+    case "refunded":
       return { color: "#302F2E", backgroundColor: "#EAEAEA" };
-    case "all":
-      return { color: "#302F2E", backgroundColor: "#fff" };
     default:
       return { color: "#fff", backgroundColor: "#247AED" };
   }
@@ -46,31 +44,19 @@ const InvoiceTable = ({
   setActiveInvoice,
   setViewInvoice,
 }: InvoiceTableProps) => {
-  const handleViewInvoice = (inventory: InvoiceProps) => {
+  const handleViewInvoice = (inventory: Invoice) => {
     setActiveInvoice?.(inventory);
     setViewInvoice?.(true);
   };
 
-  const columns: Column<InvoiceProps>[] = [
+  const columns: Column<Invoice>[] = [
     {
       label: "Companion",
       key: "companion",
       width: "10%",
-      render: (item: InvoiceProps) => (
-        <div className="appointment-profile">
-          <Image
-            src={item.metadata.petImage}
-            alt=""
-            height={40}
-            width={40}
-            style={{ borderRadius: "50%" }}
-          />
-          <div className="appointment-profile-two">
-            <div className="appointment-profile-title">{item.metadata.pet}</div>
-            <div className="appointment-profile-sub">
-              {item.metadata.parent.split(" ")[0]}
-            </div>
-          </div>
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title truncate">
+          {item?.companionId || "-"}
         </div>
       ),
     },
@@ -78,9 +64,9 @@ const InvoiceTable = ({
       label: "Appointment ID",
       key: "appointment-id",
       width: "10%",
-      render: (item: InvoiceProps) => (
+      render: (item: Invoice) => (
         <div className="appointment-profile-title truncate">
-          {item.metadata.appointmentId}
+          {item?.appointmentId || "-"}
         </div>
       ),
     },
@@ -88,18 +74,24 @@ const InvoiceTable = ({
       label: "Service",
       key: "service",
       width: "10%",
-      render: (item: InvoiceProps) => (
-        <div className="appointment-profile-title">{item.metadata.service}</div>
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title">
+          {item?.companionId || "-"}
+        </div>
       ),
     },
     {
       label: "Date/Time",
       key: "date/time",
       width: "10%",
-      render: (item: InvoiceProps) => (
+      render: (item: Invoice) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.date}</div>
-          <div className="appointment-profile-sub">{item.time}</div>
+          <div className="appointment-profile-title">
+            {formatDateLabel(item.createdAt)}
+          </div>
+          <div className="appointment-profile-sub">
+            {formatTimeLabel(item.createdAt)}
+          </div>
         </div>
       ),
     },
@@ -107,33 +99,38 @@ const InvoiceTable = ({
       label: "Sub-total",
       key: "sub-total",
       width: "7.5%",
-      render: (item: InvoiceProps) => (
-        <div className="appointment-profile-title">{"$ " + item.subtotal}</div>
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title">{"$ " + item?.subtotal}</div>
       ),
     },
     {
       label: "Tax",
       key: "tax",
       width: "7.5%",
-      render: (item: InvoiceProps) => (
-        <div className="appointment-profile-title">{"$ " + item.tax}</div>
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title">{"$ " + item?.taxTotal}</div>
       ),
     },
     {
       label: "Total",
       key: "total",
       width: "7.5%",
-      render: (item: InvoiceProps) => (
-        <div className="appointment-profile-title">{"$ " + item.total}</div>
+      render: (item: Invoice) => (
+        <div className="appointment-profile-title">
+          {"$ " + item?.totalAmount}
+        </div>
       ),
     },
     {
       label: "Status",
       key: "status",
       width: "15%",
-      render: (item: InvoiceProps) => (
-        <div className="appointment-status" style={getStatusStyle(item.status)}>
-          {item.status}
+      render: (item: Invoice) => (
+        <div
+          className="appointment-status"
+          style={getStatusStyle(item?.status)}
+        >
+          {item?.status}
         </div>
       ),
     },
@@ -141,7 +138,7 @@ const InvoiceTable = ({
       label: "Actions",
       key: "actions",
       width: "5%",
-      render: (item: InvoiceProps) => (
+      render: (item: Invoice) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewInvoice(item)}
@@ -170,7 +167,7 @@ const InvoiceTable = ({
           }
           return filteredList.map((item, i) => (
             <InvoiceCard
-              key={item.metadata.appointmentId + i}
+              key={item.id || "invoice-key" + i}
               invoice={item}
               handleViewInvoice={handleViewInvoice}
             />

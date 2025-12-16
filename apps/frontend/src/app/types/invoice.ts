@@ -1,3 +1,5 @@
+import { InvoiceStatus } from "@yosemite-crew/types";
+
 export type InvoicesStatus =
   | "open"
   | "draft"
@@ -32,3 +34,12 @@ export type InvoiceProps = {
   date: string;
   time: string;
 };
+
+export const InvoiceStatusOptions: InvoiceStatus[]  = [
+  "PENDING",
+  "AWAITING_PAYMENT",
+  "PAID",
+  "FAILED",
+  "CANCELLED",
+  "REFUNDED",
+];

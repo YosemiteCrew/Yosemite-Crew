@@ -40,6 +40,9 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
     const companionById = new Map<string, StoredCompanion>();
     const parentById = new Map<string, StoredParent>();
     for (const data of res.data) {
+      if (!data.companion || !data.parent) {
+        continue;
+      }
       const tempCompanion = fromCompanionRequestDTO(data.companion);
       const tempParent = fromParentRequestDTO(data.parent);
       const companionId = tempCompanion.id!;

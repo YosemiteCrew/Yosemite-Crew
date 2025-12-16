@@ -1,7 +1,7 @@
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
 import Modal from "@/app/components/Modal";
-import { InvoiceProps } from "@/app/types/invoice";
+import { Invoice } from "@yosemite-crew/types";
 import React from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 
@@ -23,7 +23,7 @@ const InvoiceFields = [
 type InvoiceInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeInvoice: InvoiceProps | null;
+  activeInvoice: Invoice | null;
 };
 
 const InvoiceInfo = ({
