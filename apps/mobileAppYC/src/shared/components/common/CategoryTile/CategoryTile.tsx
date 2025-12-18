@@ -2,6 +2,7 @@ import React from 'react';
 import {Image, ImageSourcePropType, StyleSheet} from 'react-native';
 import {Images} from '@/assets/images';
 import {IconInfoTile} from '@/shared/components/common/tiles/IconInfoTile';
+import {useTheme} from '@/hooks';
 
 export interface CategoryTileProps {
   icon: ImageSourcePropType;
@@ -20,6 +21,9 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
   onPress,
   containerStyle,
 }) => {
+  const {theme} = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
   return (
     <IconInfoTile
       icon={icon}
@@ -39,11 +43,11 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   rightArrow: {
-    width: 20,
-    height: 20,
+    width: theme.spacing['5'],
+    height: theme.spacing['5'],
     resizeMode: 'contain',
-    tintColor: '#7A7F85',
+    tintColor: theme.colors.textSecondary,
   },
 });

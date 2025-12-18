@@ -556,12 +556,12 @@ const createStyles = (theme: any) => {
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBlock: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBlock: theme.spacing['4'],
     },
     otCtaContainer: {
-      marginBottom: theme.spacing[6],
-      gap: theme.spacing[3],
+      marginBottom: theme.spacing['6'],
+      gap: theme.spacing['3'],
     },
     otCtaFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -589,17 +589,17 @@ const createStyles = (theme: any) => {
     ...formStyles,
     // Input and Label styles - matching DocumentForm
     input: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     dropdownIcon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       resizeMode: 'contain',
       tintColor: theme.colors.textSecondary,
     },
     calendarIcon: {
-      width: 18,
-      height: 18,
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
       resizeMode: 'contain',
       tintColor: theme.colors.textSecondary,
     },
@@ -609,32 +609,32 @@ const createStyles = (theme: any) => {
     },
     // Error styles - matching DocumentForm
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
       marginTop: 3,
-      marginBottom: theme.spacing[3],
-      marginLeft: theme.spacing[1],
+      marginBottom: theme.spacing['3'],
+      marginLeft: theme.spacing['1'],
     },
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
     },
     dosageDisplayContainer: {
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
+      gap: theme.spacing['3'],
+      marginBottom: theme.spacing['4'],
     },
     dosageDisplayRow: {
       flexDirection: 'row',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     dosageDisplayField: {
       flex: 1,
     },
     completedBadge: {
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      backgroundColor: theme.colors.successLight || 'rgba(0, 143, 93, 0.12)',
       borderRadius: theme.borderRadius.md,
-      padding: theme.spacing[3],
-      marginTop: theme.spacing[4],
+      padding: theme.spacing['3'],
+      marginTop: theme.spacing['4'],
       alignItems: 'center',
     },
     completedText: {
@@ -646,7 +646,7 @@ const createStyles = (theme: any) => {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
     },
     errorContainerText: {
       ...theme.typography.bodyMedium,

@@ -996,13 +996,12 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: 3,
       backgroundColor: theme.colors.primary,
-      borderRadius: 2,
+      borderRadius: theme.borderRadius.xs,
       marginTop: theme.spacing['1'],
     },
     suffixText: {
       ...theme.typography.input,
       color: theme.colors.textSecondary,
-      fontSize: 16,
       marginLeft: theme.spacing['2'],
     },
   });

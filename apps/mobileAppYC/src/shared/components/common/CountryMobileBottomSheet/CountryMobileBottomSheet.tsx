@@ -54,7 +54,7 @@ export const CountryMobileBottomSheet = forwardRef<
         },
         countryCodeWrapper: {width: 110},
         countryCodeContainer: {flex: 1},
-        countryCodeInput: {fontSize: 16},
+        countryCodeInput: {...theme.typography.input},
         mobileInputWrapper: {flex: 1},
       }),
     [theme],

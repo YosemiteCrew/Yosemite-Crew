@@ -364,7 +364,7 @@ export const ExpensePreviewScreen: React.FC = () => {
     const badgeTextStyle = isPendingPayment ? styles.pendingText : styles.paidText;
     const badgeLabel = isPendingPayment ? 'Awaiting Payment' : 'Paid';
     return (
-      <View style={[styles.statusBadgeContainer, {marginTop: theme.spacing[2]}]}>
+      <View style={[styles.statusBadgeContainer, {marginTop: theme.spacing['2']}]}>
         <View style={badgeStyle}>
           <Text style={badgeTextStyle}>{badgeLabel}</Text>
         </View>
@@ -432,9 +432,9 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[12],
-      gap: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['12'],
+      gap: theme.spacing['4'],
     },
     errorContainer: {
       flex: 1,
@@ -448,10 +448,10 @@ const createStyles = (theme: any) =>
     summaryCard: {
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     summaryTitle: {
       ...theme.typography.titleLarge,
@@ -469,19 +469,19 @@ const createStyles = (theme: any) =>
       ...theme.typography.bodySmall,
       color: theme.colors.secondary,
       fontStyle: 'italic',
-      marginTop: theme.spacing[1],
+      marginTop: theme.spacing['1'],
     },
     summaryAmount: {
       ...theme.typography.h5,
       color: theme.colors.secondary,
-      marginTop: theme.spacing[2],
+      marginTop: theme.spacing['2'],
     },
     statusBadgeContainer: {
-      marginTop: theme.spacing[3],
+      marginTop: theme.spacing['3'],
     },
     statusBadge: {
-      paddingVertical: theme.spacing[1],
-      paddingHorizontal: theme.spacing[3],
+      paddingVertical: theme.spacing['1'],
+      paddingHorizontal: theme.spacing['3'],
       borderRadius: theme.borderRadius.full,
       alignSelf: 'flex-start',
     },
@@ -509,21 +509,21 @@ const createStyles = (theme: any) =>
     invoiceDetailsCard: {
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
       borderWidth: 1,
       borderColor: theme.colors.border,
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     invoiceDetailsTitle: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
+      marginBottom: theme.spacing['1'],
     },
     detailRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing[2],
+      paddingVertical: theme.spacing['2'],
     },
     detailLabel: {
       ...theme.typography.body14,
@@ -545,16 +545,16 @@ const createStyles = (theme: any) =>
     loadingContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: theme.spacing[6],
-      gap: theme.spacing[2],
+      paddingVertical: theme.spacing['6'],
+      gap: theme.spacing['2'],
     },
     loadingText: {
       ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
     },
     paymentButtonContainer: {
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[4],
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['4'],
     },
     paymentButtonText: {
       ...theme.typography.button,
@@ -563,12 +563,12 @@ const createStyles = (theme: any) =>
       fontWeight: '600',
     },
     previewContainer: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
     fallbackCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[6],
+      padding: theme.spacing['6'],
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
@@ -576,13 +576,13 @@ const createStyles = (theme: any) =>
     fallbackIcon: {
       width: 64,
       height: 64,
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
       tintColor: theme.colors.textSecondary,
     },
     fallbackTitle: {
       ...theme.typography.titleMedium,
       color: theme.colors.textPrimary,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     fallbackText: {
       ...theme.typography.bodySmall,

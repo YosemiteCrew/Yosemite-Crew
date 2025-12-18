@@ -111,7 +111,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     content: {
       flexDirection: 'row',
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
       alignItems: 'center',
     },
     thumbnailContainer: {
@@ -130,10 +130,10 @@ const createStyles = (theme: any) =>
     },
     textContainer: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     infoRow: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.secondary,
     },
     label: {

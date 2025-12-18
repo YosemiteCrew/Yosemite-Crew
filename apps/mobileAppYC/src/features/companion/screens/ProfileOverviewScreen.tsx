@@ -447,12 +447,12 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['10'],
     },
     glassContainer: {
       borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
+      paddingVertical: theme.spacing['2'],
       overflow: 'hidden',
       ...theme.shadows.md,
     },
@@ -462,14 +462,14 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
     },
     listContainer: {
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     row: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
     },
     rowTitle: {
       ...theme.typography.paragraphBold,
@@ -479,7 +479,7 @@ const createStyles = (theme: any) =>
     rowRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     separator: {
       position: 'absolute',
@@ -490,32 +490,29 @@ const createStyles = (theme: any) =>
       borderBottomColor: theme.colors.borderSeperator,
     },
     statusBadge: {
-      paddingHorizontal: theme.spacing[3],
-      paddingVertical: theme.spacing[2],
-      borderRadius: 16,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['2'],
+      borderRadius: theme.borderRadius.lg,
     },
     pendingBadge: {
-      backgroundColor: '#FEF3E9',
+      backgroundColor: theme.colors.warning + '20',
     },
     completeBadge: {
-      backgroundColor: '#E6F4EF',
+      backgroundColor: theme.colors.success + '20',
     },
     statusText: {
-      fontFamily: 'Satoshi',
-      fontSize: 14,
-      fontWeight: '700',
-      lineHeight: 16.8,
+      ...theme.typography.labelSmall,
       textAlign: 'center',
     },
     pendingText: {
-      color: '#F89D4F',
+      color: theme.colors.warning,
     },
     completeText: {
-      color: '#54B492',
+      color: theme.colors.success,
     },
     rightArrow: {
-      width: 16,
-      height: 16,
+      width: theme.spacing['4'],
+      height: theme.spacing['4'],
       resizeMode: 'contain',
     },
   });

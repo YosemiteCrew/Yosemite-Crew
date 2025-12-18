@@ -184,27 +184,27 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     listHeader: {
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[2],
+      paddingTop: theme.spacing['4'],
+      paddingBottom: theme.spacing['2'],
     },
     selector: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     listContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
     },
     separator: {
-      height: theme.spacing[3],
+      height: theme.spacing['3'],
     },
     listHeading: {
       ...theme.typography.h5,
       color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[3],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['3'],
     },
     emptyContainer: {
-      paddingVertical: theme.spacing[10],
+      paddingVertical: theme.spacing['10'],
       alignItems: 'center',
     },
     emptyText: {

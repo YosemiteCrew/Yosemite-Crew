@@ -55,7 +55,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   dayToday: {},
   dayText: {...theme.typography.caption, color: theme.colors.textSecondary},
   dayTextActive: {color: theme.colors.primary},
-  dayNum: {...theme.typography.labelXsBold, color: theme.colors.text},
+  dayNum: {...theme.typography.labelXxsBold, color: theme.colors.text},
 });
 
 export default CalendarRow;

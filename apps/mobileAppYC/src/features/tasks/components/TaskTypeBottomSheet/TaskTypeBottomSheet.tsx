@@ -201,10 +201,10 @@ const createStyles = (theme: any) =>
     categorySection: {
       paddingHorizontal: theme.spacing['2'],
       paddingVertical: theme.spacing['3'],
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: '#EAEAEA',
-      backgroundColor: '#FFFEFE',
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.white,
     },
     categoryHeader: {
       ...theme.typography.bodySmall,
@@ -212,7 +212,6 @@ const createStyles = (theme: any) =>
       fontWeight: '700',
       paddingHorizontal: theme.spacing['1'],
       marginBottom: theme.spacing['2'],
-      fontSize: 14,
     },
     subcategoryGroup: {
       marginBottom: theme.spacing['3'],
@@ -221,7 +220,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelSmall,
       color: theme.colors.textSecondary,
       fontWeight: '600',
-      fontSize: 12,
       paddingHorizontal: theme.spacing['1'],
       marginBottom: theme.spacing['1'],
     },
@@ -230,10 +228,9 @@ const createStyles = (theme: any) =>
       marginLeft: theme.spacing['2'],
     },
     subsubcategoryHeader: {
-      ...theme.typography.labelSmall,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
       fontWeight: '600',
-      fontSize: 11,
       paddingHorizontal: theme.spacing['1'],
       marginBottom: theme.spacing['1'],
     },
@@ -244,19 +241,18 @@ const createStyles = (theme: any) =>
       alignItems: 'flex-start',
     },
     pillButton: {
-      paddingVertical: 8,
+      paddingVertical: theme.spacing['2'],
       paddingHorizontal: theme.spacing['3'],
       borderWidth: 1,
-      borderColor: '#302F2E',
-      borderRadius: 12,
-      backgroundColor: '#FFFEFE',
+      borderColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.white,
       alignSelf: 'flex-start',
     },
     pillButtonText: {
       ...theme.typography.labelSmall,
       color: theme.colors.text,
       fontWeight: '600',
-      fontSize: 13,
     },
   });
 

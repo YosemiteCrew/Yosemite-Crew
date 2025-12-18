@@ -107,8 +107,8 @@ export const createRowStyles = (theme: any) => ({
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'center' as const,
-    paddingVertical: theme.spacing[3],
-    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing['3'],
+    paddingHorizontal: theme.spacing['3'],
   },
   rowLabel: {
     ...theme.typography.paragraphBold,

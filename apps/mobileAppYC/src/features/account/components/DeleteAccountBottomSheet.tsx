@@ -210,7 +210,7 @@ const createStyles = (theme: any) =>
     },
     cancelButton: {
       flex: 1,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.borderMuted,
     },
     deleteButton: {

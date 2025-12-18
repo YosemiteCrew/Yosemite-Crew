@@ -64,8 +64,8 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     profileHeader: {
       alignItems: 'center',
-      marginBottom: theme.spacing[6],
-      marginTop: theme.spacing[4],
+      marginBottom: theme.spacing['6'],
+      marginTop: theme.spacing['4'],
     },
     avatar: {
       backgroundColor: theme.colors.lightBlueBackground,

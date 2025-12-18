@@ -67,12 +67,12 @@ export const CustomAttachment: React.FC = () => {
         {videoPaused && (
           <View style={styles.playOverlay}>
             <View style={styles.playButton}>
-              <Icon name="play-arrow" size={40} color="#fff" />
+              <Icon name="play-arrow" size={40} color={theme.colors.white} />
             </View>
           </View>
         )}
         <View style={styles.videoInfo}>
-          <Icon name="videocam" size={16} color="#fff" />
+          <Icon name="videocam" size={16} color={theme.colors.white} />
           <Text style={styles.videoText}>
             {attachment.title || 'Video'}
           </Text>
@@ -117,14 +117,14 @@ export const CustomAttachment: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     audioContainer: {
-      marginVertical: 4,
+      marginVertical: theme.spacing['1'],
     },
     videoContainer: {
       width: MAX_WIDTH,
       height: MAX_WIDTH * 0.75,
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.md,
       overflow: 'hidden',
-      backgroundColor: '#000',
+      backgroundColor: theme.colors.black,
       position: 'relative',
     },
     video: {
@@ -135,62 +135,61 @@ const createStyles = (theme: any) =>
       ...StyleSheet.absoluteFillObject,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'rgba(0,0,0,0.3)',
+      backgroundColor: theme.colors.overlay,
     },
     playButton: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: theme.spacing['14'],
+      height: theme.spacing['14'],
+      borderRadius: theme.spacing['7'],
       backgroundColor: 'rgba(255,255,255,0.3)',
       justifyContent: 'center',
       alignItems: 'center',
     },
     videoInfo: {
       position: 'absolute',
-      bottom: 8,
-      left: 8,
+      bottom: theme.spacing['2'],
+      left: theme.spacing['2'],
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: theme.spacing['1'],
       backgroundColor: 'rgba(0,0,0,0.6)',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 12,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.md,
     },
     videoText: {
-      color: '#fff',
-      fontSize: 12,
-      fontWeight: '600',
+      color: theme.colors.white,
+      ...theme.typography.labelSmall,
     },
     fileContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 12,
-      backgroundColor: theme.colors.cardBackground || '#f5f5f5',
-      borderRadius: 12,
-      gap: 12,
+      padding: theme.spacing['3'],
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.md,
+      gap: theme.spacing['3'],
       maxWidth: MAX_WIDTH,
     },
     fileIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 8,
-      backgroundColor: theme.colors.primaryTint || '#E6F0FE',
+      width: theme.spacing['12'],
+      height: theme.spacing['12'],
+      borderRadius: theme.borderRadius.base,
+      backgroundColor: theme.colors.primaryTint,
       justifyContent: 'center',
       alignItems: 'center',
     },
     fileInfo: {
       flex: 1,
-      gap: 2,
+      gap: theme.spacing['0'],
     },
     fileName: {
-      fontSize: 14,
+      ...theme.typography.bodySmall,
       fontWeight: '600',
-      color: theme.colors.secondary || '#000',
+      color: theme.colors.secondary,
     },
     fileSize: {
-      fontSize: 12,
-      color: theme.colors.textSecondary || '#666',
+      ...theme.typography.labelSmall,
+      color: theme.colors.textSecondary,
     },
   });
 

@@ -68,14 +68,14 @@ const createStyles = (theme: any) => {
       flex: 1,
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing[6],
+      paddingVertical: theme.spacing['6'],
     },
     scannerPlaceholder: {
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     scannerText: {
-      fontSize: 48,
+      ...theme.typography.h1,
     },
     placeholderTitle: {
       ...theme.typography.h3,
@@ -137,7 +137,7 @@ const createStyles = (theme: any) => {
     },
     mockButtonsContainer: {
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     mockButtonText: {
       ...theme.typography.titleSmall,

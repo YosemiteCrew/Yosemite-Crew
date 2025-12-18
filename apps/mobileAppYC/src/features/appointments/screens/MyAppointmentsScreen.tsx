@@ -343,8 +343,8 @@ export const MyAppointmentsScreen: React.FC = () => {
               companionId: item.companionId,
             })
           }
-          height={48}
-          borderRadius={12}
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}
@@ -491,6 +491,7 @@ export const MyAppointmentsScreen: React.FC = () => {
             orgRating={orgRatings[item.businessId]}
             formatStatus={formatStatus}
             secondaryColor={theme.colors.secondary}
+            theme={theme}
           />
         );
   };
@@ -554,6 +555,7 @@ type PastAppointmentCardProps = {
   orgRating?: OrgRatingState;
   formatStatus: (status: string) => string;
   secondaryColor: string;
+  theme: any;
 };
 
 const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
@@ -571,6 +573,7 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   orgRating,
   formatStatus,
   secondaryColor,
+  theme,
 }) => {
   let ratingContent: React.ReactNode = null;
 
@@ -592,8 +595,8 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
         <LiquidGlassButton
           title="Review"
           onPress={() => navigation.navigate('Review', {appointmentId: item.id})}
-          height={48}
-          borderRadius={12}
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
           tintColor={secondaryColor}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}
@@ -684,46 +687,46 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     sectionList: {flex: 1},
     container: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[10],
+      paddingHorizontal: theme.spacing['4'],
+      paddingTop: theme.spacing['4'],
+      paddingBottom: theme.spacing['10'],
     },
-    listHeader: {gap: theme.spacing[3], marginBottom: theme.spacing[4]},
-    companionSelector: {marginBottom: theme.spacing[2]},
-    sectionHeaderWrapper: {marginTop: theme.spacing[4], marginBottom: theme.spacing[2], gap: theme.spacing[2]},
+    listHeader: {gap: theme.spacing['3'], marginBottom: theme.spacing['4']},
+    companionSelector: {marginBottom: theme.spacing['2']},
+    sectionHeaderWrapper: {marginTop: theme.spacing['4'], marginBottom: theme.spacing['2'], gap: theme.spacing['2']},
     sectionTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
-    pillContainer: {marginBottom: theme.spacing[1]},
-    pillsContent: {gap: 8, paddingRight: 8},
+    pillContainer: {marginBottom: theme.spacing['1']},
+    pillsContent: {gap: theme.spacing['2'], paddingRight: theme.spacing['2']},
     pill: {
-      minWidth: 80,
-      height: 36,
-      paddingHorizontal: 16,
-      borderRadius: 12,
+      minWidth: theme.spacing['20'],
+      height: theme.spacing['9'],
+      paddingHorizontal: theme.spacing['4'],
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: '#302F2E',
+      borderColor: theme.colors.secondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     pillActive: {backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary},
-    pillText: {...theme.typography.pillSubtitleBold15, color: '#302F2E'},
+    pillText: {...theme.typography.pillSubtitleBold15, color: theme.colors.secondary},
     pillTextActive: {color: theme.colors.primary},
-    list: {gap: 16},
-    cardWrapper: {marginBottom: theme.spacing[4]},
+    list: {gap: theme.spacing['4']},
+    cardWrapper: {marginBottom: theme.spacing['4']},
     statusBadgePending: {
       alignSelf: 'flex-start',
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: 6,
-      borderRadius: 12,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['2'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primaryTint,
     },
     statusBadgeText: {
       ...theme.typography.title,
       color: theme.colors.secondary,
     },
-    reviewButtonCard: {marginTop: theme.spacing[1]},
+    reviewButtonCard: {marginTop: theme.spacing['1']},
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
     upcomingFooter: {
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     footerButton: {
       alignSelf: 'flex-start',
@@ -733,18 +736,18 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     pastFooter: {
-      gap: theme.spacing[3],
-      marginTop: theme.spacing[1],
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
     },
     ratingRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[1.5],
+      gap: theme.spacing['2'],
     },
     ratingIcon: {
-      width: 18,
-      height: 18,
-      marginRight: 8,
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
+      marginRight: theme.spacing['2'],
     },
     ratingValueText: {
       ...theme.typography.body14,
@@ -760,21 +763,21 @@ const createStyles = (theme: any) =>
     },
     pastStatusBadge: {
       alignSelf: 'flex-start',
-      paddingHorizontal: theme.spacing[2.5],
-      paddingVertical: 6,
-      borderRadius: 12,
-      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['2'],
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.success,
     },
     pastStatusBadgeText: {
       ...theme.typography.title,
-      color: '#0F5132',
+      color: theme.colors.text,
     },
     pastStatusBadgeCanceled: {
-      backgroundColor: 'rgba(239, 68, 68, 0.12)',
-      color: '#991B1B',
+      backgroundColor: theme.colors.errorSurface,
+      color: theme.colors.error,
     },
     pastStatusBadgeTextCanceled: {
-      color: '#991B1B',
+      color: theme.colors.error,
     },
     pastStatusBadgeRequested: {
       backgroundColor: theme.colors.primaryTint,
@@ -784,22 +787,22 @@ const createStyles = (theme: any) =>
       color: theme.colors.primary,
     },
     pastStatusBadgeFailed: {
-      backgroundColor: 'rgba(251, 191, 36, 0.16)',
-      color: '#92400E',
+      backgroundColor: theme.colors.warning,
+      color: theme.colors.text,
     },
     pastStatusBadgeTextFailed: {
-      color: '#92400E',
+      color: theme.colors.text,
     },
     infoTile: {
       ...baseTileContainer(theme),
-      padding: theme.spacing[5],
-      gap: theme.spacing[2],
+      padding: theme.spacing['5'],
+      gap: theme.spacing['2'],
       overflow: 'hidden',
     },
     tileFallback: sharedTileStyles(theme).tileFallback,
     tileTitle: sharedTileStyles(theme).tileTitle,
     tileSubtitle: sharedTileStyles(theme).tileSubtitle,
-    bottomSpacer: {height: theme.spacing[16]},
+    bottomSpacer: {height: theme.spacing['16']},
   });
 
 export default MyAppointmentsScreen;

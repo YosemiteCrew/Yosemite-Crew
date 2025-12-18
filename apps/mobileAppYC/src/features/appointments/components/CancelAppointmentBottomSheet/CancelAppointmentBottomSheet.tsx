@@ -57,8 +57,8 @@ export const CancelAppointmentBottomSheet = forwardRef<CancelAppointmentBottomSh
     };
 
     const buttonStyles = useMemo(() => ({
-      cancelText: theme.typography.buttonH6Clash19,
-      confirmText: theme.typography.buttonH6Clash19,
+      cancelText: theme.typography.buttonLarge,
+      confirmText: theme.typography.buttonLarge,
     }), [theme.typography]);
 
     return (

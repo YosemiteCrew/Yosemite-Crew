@@ -1,4 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
 // src/components/common/TouchableInput/TouchableInput.tsx
 import React, { useRef, useCallback, useEffect } from 'react';
 import {
@@ -76,12 +75,20 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   const floatingLabelStyle = getFloatingLabelAnimatedStyle({animatedValue, theme});
 
   const getErrorStyle = (): TextStyle => ({
-    ...theme.typography.labelXsBold,
+    ...theme.typography.labelXxsBold,
     color: theme.colors.error,
-    marginTop: 3,
-    marginBottom: theme.spacing?.[3] || 12,
-    marginLeft: theme.spacing?.[1] || 4,
+    marginTop: theme.spacing['1'],
+    marginBottom: theme.spacing['3'],
+    marginLeft: theme.spacing['1'],
   });
+
+  const leftComponentWrapperStyle = {
+    marginRight: theme.spacing['3'],
+  };
+
+  const rightComponentWrapperStyle = {
+    marginLeft: theme.spacing['2'],
+  };
 
   return (
     <View style={containerStyle}>
@@ -99,7 +106,7 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
           )}
 
           {leftComponent && (
-            <View style={{ marginRight: 12 }}>
+            <View style={leftComponentWrapperStyle}>
               {leftComponent}
             </View>
           )}
@@ -109,13 +116,13 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
           </Text>
 
           {rightComponent && (
-            <View style={{ marginLeft: 8 }}>
+            <View style={rightComponentWrapperStyle}>
               {rightComponent}
             </View>
           )}
         </View>
       </TouchableOpacity>
-      
+
       {error && (
         <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>
       )}

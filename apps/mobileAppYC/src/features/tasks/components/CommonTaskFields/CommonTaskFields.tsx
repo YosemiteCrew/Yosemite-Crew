@@ -74,18 +74,18 @@ const createStyles = (theme: any) =>
       gap: 0,
     },
     fieldGroup: {
-      marginBottom: theme.spacing[4],
-      gap: theme.spacing[1],
+      marginBottom: theme.spacing['4'],
+      gap: theme.spacing['1'],
     },
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
       marginTop: 3,
-      marginBottom: theme.spacing[3],
-      marginLeft: theme.spacing[1],
+      marginBottom: theme.spacing['3'],
+      marginLeft: theme.spacing['1'],
     },
   });

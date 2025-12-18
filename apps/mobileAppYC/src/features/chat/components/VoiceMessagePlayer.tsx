@@ -113,9 +113,9 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
         style={styles.playButton}
         disabled={isLoading}>
         {isLoading ? (
-          <ActivityIndicator color="#fff" size="small" />
+          <ActivityIndicator color={theme.colors.white} size="small" />
         ) : (
-          <Icon name={isPlaying ? 'pause' : 'play-arrow'} size={24} color="#fff" />
+          <Icon name={isPlaying ? 'pause' : 'play-arrow'} size={24} color={theme.colors.white} />
         )}
       </TouchableOpacity>
 
@@ -142,42 +142,42 @@ const createStyles = (theme: any) =>
     container: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 12,
-      backgroundColor: theme.colors.cardBackground || '#f5f5f5',
-      borderRadius: 12,
-      gap: 12,
+      padding: theme.spacing['3'],
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.md,
+      gap: theme.spacing['3'],
     },
     playButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.primary || '#007AFF',
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.spacing['5'],
+      backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     progressContainer: {
       flex: 1,
-      gap: 4,
+      gap: theme.spacing['1'],
     },
     progressBar: {
-      height: 4,
-      backgroundColor: '#e0e0e0',
-      borderRadius: 2,
+      height: theme.spacing['1'],
+      backgroundColor: theme.colors.border,
+      borderRadius: theme.borderRadius.xs,
       overflow: 'hidden',
     },
     progressFill: {
       height: '100%',
-      backgroundColor: theme.colors.primary || '#007AFF',
+      backgroundColor: theme.colors.primary,
     },
     timeText: {
-      fontSize: 12,
-      color: theme.colors.textSecondary || '#666',
+      ...theme.typography.labelSmall,
+      color: theme.colors.textSecondary,
     },
     stopButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.colors.errorTint || '#fee',
+      width: theme.spacing['8'],
+      height: theme.spacing['8'],
+      borderRadius: theme.spacing['4'],
+      backgroundColor: theme.colors.errorSurface,
       justifyContent: 'center',
       alignItems: 'center',
     },

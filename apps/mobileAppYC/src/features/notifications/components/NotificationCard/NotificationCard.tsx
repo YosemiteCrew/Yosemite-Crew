@@ -185,7 +185,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       position: 'relative',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
       overflow: 'hidden',
     },
     card: {
@@ -193,7 +193,7 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[3],
+      padding: theme.spacing['3'],
       overflow: 'hidden',
     },
     cardFallback: {
@@ -204,16 +204,16 @@ const createStyles = (theme: any) =>
     content: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     pressable: {
       flex: 1,
     },
     iconContainer: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: '#EAEAEA',
+      width: theme.spacing['11'],
+      height: theme.spacing['11'],
+      borderRadius: theme.spacing['11'] / 2,
+      backgroundColor: theme.colors.border,
       justifyContent: 'center',
       alignItems: 'center',
       flexShrink: 0,
@@ -222,49 +222,49 @@ const createStyles = (theme: any) =>
       opacity: 0.7,
     },
     icon: {
-      width: 24,
-      height: 24,
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
     },
     mainContent: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     title: {
       ...theme.typography.titleSmall,
-      color: '#302F2E',
+      color: theme.colors.secondary,
       flex: 1,
     },
     description: {
       ...theme.typography.bodyExtraSmall,
-      color: '#595958',
-      lineHeight: 15.6,
+      color: theme.colors.placeholder,
+      lineHeight: theme.typography.bodyExtraSmall.lineHeight,
       overflow: 'hidden',
     },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-start',
-      marginTop: theme.spacing[1],
+      marginTop: theme.spacing['1'],
     },
     time: {
       fontFamily: fonts.SATOSHI_BOLD,
-      fontSize: 11,
-      lineHeight: 13.2,
+      fontSize: theme.typography.bodyExtraSmall.fontSize,
+      lineHeight: theme.typography.bodyExtraSmall.fontSize * 1.2,
       fontWeight: '700',
-      color: '#747473',
+      color: theme.colors.textSecondary,
     },
     avatarContainer: {
       flexShrink: 0,
     },
     avatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: theme.spacing['8'],
+      height: theme.spacing['8'],
+      borderRadius: theme.spacing['4'],
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     avatarFallback: {
-      backgroundColor: '#EAEAEA',
+      backgroundColor: theme.colors.border,
       justifyContent: 'center',
       alignItems: 'center',
     },
