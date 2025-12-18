@@ -278,7 +278,6 @@ const buildAcceptInviteUrl = (token: string): string => {
 
   try {
     const url = new URL(trimmedBase);
-    url.searchParams.set("token", token);
     return url.toString();
   } catch {
     const base = trimmedBase.endsWith("/")

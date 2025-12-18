@@ -430,4 +430,62 @@ export const FormService = {
       soapNotes: grouped,
     };
   },
+
+  async getConsentFormForParent(
+    orgId: string,
+    options?: {
+      serviceId?: string;
+      species?: string;
+    },
+  ) {
+    const oid = ensureObjectId(orgId, "orgId");
+
+    const filter: Record<string, unknown> = {
+      orgId: oid,
+      status: "published",
+      visibilityType: "External",
+      category: "Consent",
+    };
+
+    if (options?.serviceId) {
+      filter.serviceId = { $in: [options.serviceId] };
+    }
+
+    if (options?.species) {
+      filter.speciesFilter = { $in: [options.species] };
+    }
+
+    const form = await FormModel.findOne(filter).sort({ updatedAt: -1 });
+    if (!form) {
+      throw new FormServiceError("Consent form not found", 404);
+    }
+
+    const version = await FormVersionModel.findOne({
+      formId: form._id,
+    }).sort({ version: -1 });
+
+    if (!version) {
+      throw new FormServiceError("Consent form is not published", 400);
+    }
+
+    // Build client-safe form payload
+    const clientForm: Form = {
+      _id: form._id.toString(),
+      orgId: "",
+      name: form.name,
+      category: form.category,
+      description: form.description,
+      visibilityType: form.visibilityType,
+      serviceId: form.serviceId,
+      speciesFilter: form.speciesFilter,
+      status: form.status,
+      schema: version.schemaSnapshot,
+      createdBy: "",
+      updatedBy: "",
+      createdAt: form.createdAt,
+      updatedAt: form.updatedAt,
+    };
+
+    return toFormResponseDTO(clientForm);
+  },
 };

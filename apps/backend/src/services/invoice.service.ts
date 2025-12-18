@@ -190,7 +190,7 @@ export const InvoiceService = {
     );
 
     const notificationPayload =
-      NotificationTemplates.Payment.PAYMENT_PENDING(totalPayable);
+      NotificationTemplates.Payment.PAYMENT_PENDING(totalPayable,input.currency);
     await NotificationService.sendToUser(input.parentId, notificationPayload);
 
     return invoice;
@@ -233,7 +233,7 @@ export const InvoiceService = {
 
     await NotificationService.sendToUser(
       appointment.companion.parent.id,
-      NotificationTemplates.Payment.PAYMENT_PENDING(invoice.totalAmount),
+      NotificationTemplates.Payment.PAYMENT_PENDING(invoice.totalAmount,invoice.currency),
     );
 
     return toDomain(invoice);

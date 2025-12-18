@@ -258,4 +258,30 @@ export const FormController = {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
+  getConsentFormForParent: async (req: Request, res: Response) => {
+    try {
+      const orgId = req.params.organizationId;
+      const serviceId = req.params.serivceId;
+
+      const species =
+        typeof req.query.species === "string"
+          ? req.query.species
+          : undefined;
+
+      const form = await FormService.getConsentFormForParent(orgId, {
+        serviceId,
+        species,
+      });
+
+      return res.status(200).json(form);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      console.error("Unexpected error in getConsentFormForParent:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
 };
