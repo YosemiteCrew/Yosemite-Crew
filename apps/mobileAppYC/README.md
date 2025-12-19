@@ -30,15 +30,15 @@ Current production releases:
 
 | Platform | Store Version |
 | --- | --- |
-| Android | 1.0.5 |
-| iOS | 1.0.2 |
+| Android | v1.0.5 |
+| iOS | v1.0.2 |
 
 Release history:
 
 | Platform | Version | Notes |
 | --- | --- | --- |
-| Android | 1.0.5 | Initial production release |
-| iOS | 1.0.2 | Initial production release |
+| Android | v1.0.5 | Initial production release |
+| iOS | v1.0.2 | Initial production release |
 
 ## 🛠️ Getting Started
 
