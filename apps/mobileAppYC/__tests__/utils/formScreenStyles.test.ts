@@ -3,6 +3,7 @@ import { createFormScreenStyles } from '@/shared/utils/formScreenStyles';
 // import { createScreenContainerStyles } from '@/shared/utils/screenStyles';
 // import { createCenteredStyle } from '@/shared/utils/commonHelpers';
 import { StyleSheet } from 'react-native';
+import {mockTheme} from '../setup/mockTheme';
 
 // Mock react-native's StyleSheet.create to be an identity function
 jest.mock('react-native', () => ({
@@ -28,38 +29,7 @@ jest.mock('@/shared/utils/commonHelpers', () => ({
 }));
 
 // Define a comprehensive mock theme
-const mockTheme = {
-  spacing: {
-    1: 4,
-    2: 8,
-    3: 12,
-    4: 16,
-    5: 20,
-    10: 40,
-    20: 80,
-  },
-  borderRadius: {
-    lg: 16,
-  },
-  shadows: {
-    md: { shadowColor: '#000', elevation: 5 },
-  },
-  colors: {
-    cardBackground: '#FFFFFF',
-    borderMuted: '#E0E0E0',
-    textSecondary: '#666666',
-    text: '#111111',
-    error: '#FF0000',
-    background: '#F0F0F0',
-    secondary: '#0000FF',
-    white: '#FFFFFF',
-  },
-  typography: {
-    body: { fontSize: 16 },
-    labelXsBold: { fontSize: 10, fontWeight: 'bold' },
-    paragraphBold: { fontSize: 16, fontWeight: 'bold' },
-  },
-};
+
 
 describe('createFormScreenStyles', () => {
   // Clear mocks before each test
@@ -86,27 +56,26 @@ describe('createFormScreenStyles', () => {
 
       // Styles defined in the function
       content: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
+        paddingHorizontal: mockTheme.spacing['5'],
+        paddingBottom: mockTheme.spacing['10'],
       },
       glassContainer: {
-        borderRadius: 16,
-        paddingVertical: 8,
+        borderRadius: mockTheme.borderRadius.lg,
+        paddingVertical: mockTheme.spacing['2'],
         overflow: 'hidden',
-        shadowColor: '#000',
-        elevation: 5,
+        ...mockTheme.shadows.md,
       },
       glassFallback: {
-        borderRadius: 16,
-        backgroundColor: '#FFFFFF',
-        borderColor: '#E0E0E0',
+        borderRadius: mockTheme.borderRadius.lg,
+        backgroundColor: mockTheme.colors.cardBackground,
+        borderColor: mockTheme.colors.borderMuted,
       },
       listContainer: {
-        gap: 4,
+        gap: mockTheme.spacing['1'],
       },
       muted: {
-        fontSize: 16,
-        color: '#666666',
+        ...mockTheme.typography.body,
+        color: mockTheme.colors.textSecondary,
       },
       keyboardAvoidingView: {
         flex: 1,
@@ -115,51 +84,49 @@ describe('createFormScreenStyles', () => {
         flex: 1,
       },
       scrollContent: {
-        paddingHorizontal: 20,
-        paddingBottom: 80,
+        paddingHorizontal: mockTheme.spacing['5'],
+        paddingBottom: mockTheme.spacing['20'],
       },
       formSection: {
-        marginBottom: 20,
-        gap: 16,
+        marginBottom: mockTheme.spacing['5'],
+        gap: mockTheme.spacing['4'],
       },
       inputContainer: {
         marginBottom: 0,
       },
       fieldGroup: {
-        gap: 12,
-        paddingBottom: 5,
+        gap: mockTheme.spacing['3'],
+        paddingBottom: mockTheme.spacing['1.25'],
       },
       fieldLabel: {
-        fontSize: 16,
-        color: '#111111',
+        ...mockTheme.typography.body,
+        color: mockTheme.colors.text,
         fontWeight: '600',
       },
       dropdownIcon: {
-        width: 12,
-        height: 12,
-        marginLeft: 8,
-        tintColor: '#666666',
+        width: mockTheme.spacing['3'],
+        height: mockTheme.spacing['3'],
+        marginLeft: mockTheme.spacing['2'],
+        tintColor: mockTheme.colors.textSecondary,
       },
       calendarIcon: {
-        width: 20,
-        height: 20,
-        tintColor: '#666666',
+        width: mockTheme.spacing['5'],
+        height: mockTheme.spacing['5'],
+        tintColor: mockTheme.colors.textSecondary,
       },
       errorText: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: '#FF0000',
-        marginTop: 3,
-        marginBottom: 12,
-        marginLeft: 4,
+        ...mockTheme.typography.labelXxsBold,
+        color: mockTheme.colors.error,
+        marginTop: mockTheme.spacing['1'],
+        marginBottom: mockTheme.spacing['3'],
+        marginLeft: mockTheme.spacing['1'],
       },
       submissionError: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#FF0000',
+        ...mockTheme.typography.paragraphBold,
+        color: mockTheme.colors.error,
         textAlign: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 8,
+        paddingHorizontal: mockTheme.spacing['5'],
+        marginBottom: mockTheme.spacing['2'],
       },
       buttonContainer: {
         position: 'absolute',
@@ -169,25 +136,28 @@ describe('createFormScreenStyles', () => {
         paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: 16,
-        backgroundColor: '#F0F0F0',
+        backgroundColor: '#FFFEFE',
       },
       button: {
         width: '100%',
-        backgroundColor: '#0000FF',
+        backgroundColor: '#302F2E',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.35)',
+        borderColor: 'rgba(255, 255, 255, 0.7)',
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 4,
+        shadowRadius: 15,
+        elevation: 8,
       },
-      buttonText: {
+      buttonText: expect.objectContaining({
         color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: 'bold',
-      },
+        fontWeight: '700',
+        lineHeight: 19.2,
+        fontFamily: 'Satoshi-Bold',
+        letterSpacing: -0.32,
+      }),
     });
   });
 });

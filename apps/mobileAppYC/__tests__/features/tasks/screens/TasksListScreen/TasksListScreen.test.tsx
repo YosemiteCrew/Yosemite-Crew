@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 // Path: 5 levels up from __tests__/features/tasks/screens/TasksListScreen/ to project root
 import {TasksListScreen} from '../../../../../src/features/tasks/screens/TasksListScreen/TasksListScreen';
@@ -30,22 +31,7 @@ const mockUseSelector = jest.spyOn(Redux, 'useSelector');
 
 // 3. Hooks & Utils
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        textSecondary: 'grey',
-      },
-      spacing: {
-        4: 16,
-        8: 32,
-        12: 48,
-      },
-      typography: {
-        bodyMedium: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/features/tasks/utils/taskLabels', () => ({

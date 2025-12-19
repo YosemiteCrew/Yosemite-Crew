@@ -12,6 +12,7 @@ import {
   createRowStyles,
   createCenteredStyle,
 } from '@/shared/utils/commonHelpers';
+import {mockTheme} from '../setup/mockTheme';
 
 // Mock Alert.alert
 jest.mock('react-native', () => ({
@@ -235,18 +236,7 @@ describe('commonHelpers', () => {
 
   // --- Style Functions ---
   describe('createRowStyles', () => {
-    const mockTheme = {
-      spacing: [0, 4, 8, 12], // Use an array as implied by spacing[3]
-      typography: {
-        paragraphBold: { fontSize: 16, fontWeight: 'bold' },
-        bodyMedium: { fontSize: 14 },
-      },
-      colors: {
-        secondary: '#555',
-        textSecondary: '#777',
-        borderSeperator: '#eee',
-      },
-    };
+    
 
     it('should create the correct row style object', () => {
       const styles = createRowStyles(mockTheme);
@@ -260,22 +250,27 @@ describe('commonHelpers', () => {
       });
 
       expect(styles.rowLabel).toEqual({
-        fontSize: 16, // from mockTheme.typography.paragraphBold
-        fontWeight: 'bold', // from mockTheme.typography.paragraphBold
-        color: '#555', // from mockTheme.colors.secondary
+        fontSize: 16,
+        fontWeight: '700',
+        lineHeight: 19.2,
+        fontFamily: 'Satoshi-Bold',
+        letterSpacing: -0.32,
+        color: '#302F2E', // from mockTheme.colors.secondary
         flex: 1,
       });
 
       expect(styles.rowValue).toEqual({
-        fontSize: 14, // from mockTheme.typography.bodyMedium
-        color: '#777', // from mockTheme.colors.textSecondary
+        fontSize: 14,
+        fontWeight: '400',
+        fontFamily: 'Satoshi-Regular',
+        color: '#747473', // from mockTheme.colors.textSecondary
         flex: 1,
         textAlign: 'right',
       });
 
       expect(styles.separator).toEqual({
         height: 1,
-        backgroundColor: '#eee', // from mockTheme.colors.borderSeperator
+        backgroundColor: '#c8c8c8ff', // from mockTheme.colors.borderSeparator
       });
     });
   });

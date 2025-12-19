@@ -5,9 +5,9 @@ exports[`SubcategoryAccordion does NOT render the icon when not provided 1`] = `
   style={
     [
       {
-        "backgroundColor": "#fff",
-        "borderColor": "#eee",
-        "borderRadius": 8,
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "rgba(234, 234, 234, 0.9)",
+        "borderRadius": 16,
         "borderWidth": 1,
         "marginBottom": 12,
         "overflow": "hidden",
@@ -47,7 +47,7 @@ exports[`SubcategoryAccordion does NOT render the icon when not provided 1`] = `
     style={
       {
         "alignItems": "center",
-        "backgroundColor": "#fff",
+        "backgroundColor": "#FFFFFF",
         "flexDirection": "row",
         "justifyContent": "space-between",
         "opacity": 1,
@@ -68,8 +68,12 @@ exports[`SubcategoryAccordion does NOT render the icon when not provided 1`] = `
         numberOfLines={2}
         style={
           {
-            "color": "#000",
-            "fontSize": 16,
+            "color": "#302F2E",
+            "fontFamily": "ClashGrotesk-Medium",
+            "fontSize": 18,
+            "fontWeight": "500",
+            "letterSpacing": -0.18,
+            "lineHeight": 21.6,
           }
         }
       >
@@ -79,8 +83,12 @@ exports[`SubcategoryAccordion does NOT render the icon when not provided 1`] = `
         numberOfLines={1}
         style={
           {
-            "color": "#666",
+            "color": "#747473",
+            "fontFamily": "Satoshi-Bold",
             "fontSize": 12,
+            "fontWeight": "700",
+            "letterSpacing": 0,
+            "lineHeight": 14.4,
           }
         }
       >
@@ -98,7 +106,7 @@ exports[`SubcategoryAccordion does NOT render the icon when not provided 1`] = `
           {
             "height": 16,
             "resizeMode": "contain",
-            "tintColor": "#666",
+            "tintColor": "#747473",
             "width": 16,
           },
           {

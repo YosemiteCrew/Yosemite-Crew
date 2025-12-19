@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render} from '@testing-library/react-native';
 import {BottomSheetMessage} from '../../../src/shared/components/common/BottomSheetMessage/BottomSheetMessage';
 import {StyleSheet, Text} from 'react-native';
@@ -7,23 +8,7 @@ import {StyleSheet, Text} from 'react-native';
 
 // Mock useTheme to provide predictable values
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        textSecondary: '#888888', // Default text color
-        secondary: '#0000FF', // Highlight color
-      },
-      spacing: {
-        2: 8,
-      },
-      typography: {
-        body: {
-          fontSize: 14,
-          fontFamily: 'Regular',
-        },
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('BottomSheetMessage Component', () => {
@@ -109,7 +94,7 @@ describe('BottomSheetMessage Component', () => {
     const flatStyle = StyleSheet.flatten(text.props.style);
 
     // Default styles from mock theme
-    expect(flatStyle).toHaveProperty('color', '#0000FF');
+    expect(flatStyle).toHaveProperty('color', mockTheme.colors.secondary);
     expect(flatStyle).toHaveProperty('fontWeight', '600');
     // Custom merged style
     expect(flatStyle).toHaveProperty('textDecorationLine', 'underline');

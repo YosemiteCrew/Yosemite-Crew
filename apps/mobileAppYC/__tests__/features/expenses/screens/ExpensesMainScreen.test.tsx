@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {ExpensesMainScreen} from '@/features/expenses/screens/ExpensesMainScreen/ExpensesMainScreen';
 import {setSelectedCompanion} from '@/features/companion';
@@ -37,24 +38,9 @@ jest.mock('react-redux', () => ({
   useSelector: jest.fn(selector => selector(mockState)),
 }));
 
-const mockTheme = {
-  colors: {
-    background: '#fff',
-    secondary: '#000',
-    primary: '#111',
-    white: '#fff',
-  },
-  spacing: {2: 8, 3: 12, 4: 16, 6: 24, 20: 80},
-  typography: {
-    h3: {},
-    h5: {},
-    paragraph: {},
-    titleSmall: {},
-  },
-  borderRadius: {xl: 20},
-};
+
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme}),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/shared/components/common', () => {

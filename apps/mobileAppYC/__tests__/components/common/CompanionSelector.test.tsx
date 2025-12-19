@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {CompanionSelector} from '../../../src/shared/components/common/CompanionSelector/CompanionSelector';
 import {Platform, ToastAndroid, Alert, Image} from 'react-native';
@@ -20,31 +21,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        primaryTint: 'lightblue',
-        secondary: 'black',
-        cardBackground: 'white',
-        lightBlueBackground: '#E6F7FF',
-        primarySurface: '#EEF',
-        primaryTintStrong: 'blue',
-      },
-      spacing: {
-        '1': 4,
-        '2.5': 10,
-      },
-      borderRadius: {
-        full: 999,
-      },
-      typography: {
-        titleMedium: {fontSize: 16, fontWeight: 'bold'},
-        titleSmall: {fontSize: 14},
-        labelXsBold: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock normalizeImageUri

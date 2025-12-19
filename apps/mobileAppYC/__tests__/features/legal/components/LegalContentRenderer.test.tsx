@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {StyleSheet} from 'react-native';
 import {render} from '@testing-library/react-native';
 import LegalContentRenderer from '../../../../src/features/legal/components/LegalContentRenderer';
@@ -7,32 +8,7 @@ import LegalContentRenderer from '../../../../src/features/legal/components/Lega
 
 // 1. Mock Theme Hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        text: '#000',
-        cardBackground: '#fff',
-        borderMuted: '#ccc',
-      },
-      spacing: {
-        '1': 4,
-        '2': 8,
-        '3': 12,
-        '4': 16,
-      },
-      typography: {
-        subtitleBold14: {fontFamily: 'Bold', fontWeight: '700'},
-        subtitleRegular14: {fontFamily: 'Regular', fontWeight: '400'},
-        paragraphBold: {fontFamily: 'Bold', fontWeight: '700'},
-        labelSmall: {fontSize: 10},
-        SATOSHI_BOLD: 'Satoshi-Bold',
-        SATOSHI_REGULAR: 'Satoshi-Regular',
-      },
-      borderRadius: {
-        lg: 8,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock LiquidGlassCard

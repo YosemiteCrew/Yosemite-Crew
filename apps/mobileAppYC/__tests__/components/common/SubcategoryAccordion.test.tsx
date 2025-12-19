@@ -2,28 +2,13 @@ import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {SubcategoryAccordion} from '../../../src/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
 import {Text} from 'react-native';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
 // 1. Mock Theme
 jest.mock('../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      spacing: {1: 4, 2: 8, 3: 12, 4: 16},
-      colors: {
-        borderMuted: '#eee',
-        cardBackground: '#fff',
-        surface: '#fff',
-        secondary: '#000',
-        textSecondary: '#666',
-      },
-      borderRadius: {lg: 8},
-      typography: {
-        titleMedium: {fontSize: 16},
-        labelXsBold: {fontSize: 12},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Images

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {
   AddressBottomSheet,
@@ -14,30 +15,22 @@ const mockClearSuggestions = jest.fn();
 const mockSelectSuggestion = jest.fn();
 const mockResetError = jest.fn();
 
-jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        surface: '#ffffff',
-        secondary: '#000000',
-        borderMuted: '#e0e0e0',
-      },
-      spacing: {2: 8, 4: 16},
-      borderRadius: {lg: 8, md: 4},
-      typography: {body: {fontSize: 14}},
-      shadows: {md: {}},
-    },
-  }),
-  useAddressAutocomplete: () => ({
-    setQuery: mockSetQuery,
-    suggestions: [],
-    isFetching: false,
-    error: null,
-    clearSuggestions: mockClearSuggestions,
-    selectSuggestion: mockSelectSuggestion,
-    resetError: mockResetError,
-  }),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+    useAddressAutocomplete: jest.fn(() => ({
+      setQuery: mockSetQuery,
+      suggestions: [],
+      isFetching: false,
+      error: null,
+      clearSuggestions: mockClearSuggestions,
+      selectSuggestion: mockSelectSuggestion,
+      resetError: mockResetError,
+    })),
+  };
+});
 
 // 2. Mock Assets
 jest.mock('@/assets/images', () => ({

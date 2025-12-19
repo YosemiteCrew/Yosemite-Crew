@@ -1,25 +1,13 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {AERInfoSection} from '../../../../src/features/adverseEventReporting/components/AERInfoSection';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
 // Mock Hooks
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: '#000',
-        borderMuted: '#ccc',
-        cardBackground: '#fff',
-      },
-      spacing: {2: 8, 4: 16, 6: 24},
-      borderRadius: {lg: 12},
-      typography: {
-        h6Clash: {fontSize: 18, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Assets

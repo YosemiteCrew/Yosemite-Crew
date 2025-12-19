@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {Platform, UIManager} from 'react-native';
 import FAQScreen from '../../../../src/features/support/screens/FAQScreen';
@@ -18,32 +19,7 @@ jest.mock('@react-navigation/native', () => ({
 
 // 2. Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        textSecondary: 'gray',
-        border: '#ddd',
-        secondary: 'blue',
-        white: '#fff',
-      },
-      spacing: {
-        '2': 8,
-        '3': 12,
-        '4': 16,
-        '5': 20,
-        '6': 24,
-        '8': 32,
-      },
-      typography: {
-        paragraph: {fontFamily: 'Arial', fontWeight: '400'},
-        paragraphBold: {fontFamily: 'Arial', fontWeight: '700'},
-        bodySmall: {fontSize: 12},
-        businessTitle16: {fontFamily: 'Arial', fontWeight: '700'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 3. Assets

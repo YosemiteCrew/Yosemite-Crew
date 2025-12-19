@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {
   CoParentInviteBottomSheet,
@@ -9,23 +10,7 @@ import {
 
 // Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        textSecondary: 'grey',
-      },
-      typography: {
-        h4: {fontSize: 20},
-        body: {fontSize: 14},
-      },
-      spacing: {
-        1: 4,
-        2: 8,
-        4: 16,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Components

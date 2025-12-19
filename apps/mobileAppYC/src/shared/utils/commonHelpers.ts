@@ -123,7 +123,11 @@ export const createRowStyles = (theme: any) => ({
   },
   separator: {
     height: 1,
-    backgroundColor: theme.colors.borderSeperator,
+    backgroundColor:
+      theme?.colors?.borderSeparator ??
+      theme?.colors?.borderSeperator ??
+      theme?.colors?.border ??
+      'rgba(0,0,0,0.1)',
   },
 });
 

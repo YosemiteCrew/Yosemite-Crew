@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {CoParentCard} from '../../../../../src/features/coParent/components/CoParentCard/CoParentCard';
 
@@ -6,27 +7,7 @@ import {CoParentCard} from '../../../../../src/features/coParent/components/CoPa
 
 // 1. Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        placeholder: 'gray',
-        lightBlueBackground: 'blue',
-      },
-      typography: {
-        businessSectionTitle20: {fontSize: 20},
-        subtitleBold14: {fontSize: 14},
-        h3: {fontSize: 18},
-      },
-      borderRadius: {
-        full: 100,
-      },
-      spacing: {
-        1: 4,
-        3: 12,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/shared/components/common/cardStyles', () => ({

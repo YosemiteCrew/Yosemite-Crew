@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {Image} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import DocumentAttachmentsSection from '../../../../src/features/documents/components/DocumentAttachmentsSection';
@@ -8,24 +9,7 @@ import {isImageFile} from '../../../../src/features/documents/components/documen
 
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        border: '#ccc',
-        surface: '#fff',
-        secondary: '#000',
-        textSecondary: '#666',
-        white: '#fff',
-        error: '#f00',
-      },
-      borderRadius: {lg: 8, base: 4},
-      spacing: {2: 8, 3: 12, 5: 20, 6: 24},
-      typography: {
-        titleMedium: {fontSize: 16},
-        labelXsBold: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Assets (Inline to avoid hoisting issues)

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import DocumentAttachmentViewer from '../../../../src/features/documents/components/DocumentAttachmentViewer';
 import {Share, Alert, PermissionsAndroid, Platform, Image} from 'react-native';
@@ -20,12 +21,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      spacing: {6: 24},
-      colors: {text: 'black'},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Utils (Styles)

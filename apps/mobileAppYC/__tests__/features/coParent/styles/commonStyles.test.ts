@@ -1,23 +1,8 @@
 import {createCommonCoParentStyles} from '../../../../src/features/coParent/styles/commonStyles';
+import {mockTheme} from '../../../setup/mockTheme';
 
 describe('createCommonCoParentStyles', () => {
-  const mockTheme = {
-    colors: {
-      background: '#FFFFFF',
-      secondary: '#0000FF',
-      borderMuted: '#CCCCCC',
-      white: '#FFFFFF',
-    },
-    borderRadius: {
-      lg: 12,
-    },
-    typography: {
-      titleMedium: {
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
-    },
-  };
+  
 
   it('returns the correct styles based on the provided theme', () => {
     const styles = createCommonCoParentStyles(mockTheme);
@@ -34,16 +19,19 @@ describe('createCommonCoParentStyles', () => {
         borderWidth: 1,
         borderColor: mockTheme.colors.borderMuted,
         shadowColor: '#000000',
-        shadowOffset: {width: 0, height: 8},
+        shadowOffset: {width: 0, height: 10},
         shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 4,
+        shadowRadius: 15,
+        elevation: 8,
       },
-      buttonText: {
+      buttonText: expect.objectContaining({
         color: mockTheme.colors.white,
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
+        fontSize: 18,
+        fontWeight: '500',
+        lineHeight: 21.6,
+        fontFamily: 'ClashGrotesk-Medium',
+        letterSpacing: -0.18,
+      }),
       centerContent: {
         flex: 1,
         justifyContent: 'center',

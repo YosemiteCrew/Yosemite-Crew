@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 // FIX 1: Corrected path depth (5 levels up instead of 6) to reach 'src' from the nested test folder
 import {CategoryDetailScreen} from '../../../../../src/features/documents/screens/CategoryDetailScreen/CategoryDetailScreen';
@@ -34,12 +35,7 @@ jest.mock('@/shared/utils/screenStyles', () => ({
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {primary: 'blue', text: 'black'},
-      spacing: {4: 16},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Helpers

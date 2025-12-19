@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {
   CountryMobileBottomSheet,
@@ -10,15 +11,14 @@ import {useTheme} from '@/hooks';
 // --- Mocks ---
 
 // 1. Mock useTheme
-const mockTheme = {
-  spacing: {'3': 8, '4': 12},
-};
 
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 // 2. Mock Child Components
 

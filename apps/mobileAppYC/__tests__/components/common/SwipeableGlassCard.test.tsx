@@ -2,19 +2,13 @@ import React from 'react';
 import {Animated, PanResponder, Text, Image} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import SwipeableGlassCard from '../../../src/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
 // 1. Mock Theme Hook
 jest.mock('../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        success: '#28a745',
-      },
-      borderRadius: {lg: 8},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock LiquidGlassCard

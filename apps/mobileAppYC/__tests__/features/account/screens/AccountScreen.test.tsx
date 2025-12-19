@@ -29,6 +29,7 @@ import {normalizeImageUri} from '../../../../src/shared/utils/imageUri';
 import {calculateAgeFromDateOfBirth} from '../../../../src/shared/utils/helpers';
 import {setSelectedCompanion} from '../../../../src/features/companion';
 import {isTokenExpired} from '../../../../src/features/auth/sessionManager';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 

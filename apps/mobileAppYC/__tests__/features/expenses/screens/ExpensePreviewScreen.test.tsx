@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 // Fix: Correct import path based on coverage report structure
 import {ExpensePreviewScreen} from '../../../../src/features/expenses/screens/ExpensePreviewScreen/ExpensePreviewScreen';
@@ -29,35 +30,7 @@ jest.mock('@react-navigation/native', () => ({
 
 // 2. Theme Hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        cardBackground: '#ffffff',
-        textSecondary: '#666666',
-        secondary: '#000000',
-        primary: '#0000ff',
-        success: '#00ff00',
-        border: '#cccccc',
-        borderMuted: '#eeeeee',
-        surface: '#f5f5f5',
-        white: '#ffffff',
-      },
-      spacing: {1: 4, 2: 8, 3: 12, 4: 16, 6: 24, 12: 48},
-      typography: {
-        titleLarge: {fontSize: 20},
-        titleSmall: {fontSize: 16},
-        bodySmall: {fontSize: 12},
-        body14: {fontSize: 14},
-        h5: {fontSize: 18},
-        labelSmall: {fontSize: 10},
-        paragraph: {fontSize: 14},
-        button: {fontSize: 14, fontWeight: '600'},
-        titleMedium: {fontSize: 16},
-      },
-      borderRadius: {lg: 8, full: 999},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 3. UI Components

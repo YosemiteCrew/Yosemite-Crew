@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 // Path: 5 levels up from __tests__/features/tasks/screens/EditTaskScreen/ to project root
 import {EditTaskScreen} from '../../../../../src/features/tasks/screens/EditTaskScreen/EditTaskScreen';
@@ -41,19 +42,7 @@ jest.spyOn(Redux, 'useDispatch').mockReturnValue(mockDispatch);
 
 // 3. Hooks & Assets
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        textSecondary: 'grey',
-        surface: 'white',
-      },
-      spacing: new Array(30).fill(8),
-      typography: {
-        bodyMedium: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({

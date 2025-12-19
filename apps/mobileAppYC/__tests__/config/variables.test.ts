@@ -22,8 +22,8 @@ describe('Configuration Variables', () => {
   describe('Default Configuration (Missing variables.local.ts)', () => {
     beforeEach(() => {
       // Mock the require to throw MODULE_NOT_FOUND
-      jest.mock(
-        '../../src/config/variables.local',
+      jest.doMock(
+        '../../src/config/variables.local.ts',
         () => {
           const error: any = new Error(
             "Cannot find module './variables.local'",
@@ -93,7 +93,7 @@ describe('Configuration Variables', () => {
 
     beforeEach(() => {
       // Mock successful load of local config
-      jest.mock('../../src/config/variables.local', () => mockLocalConfig, {
+      jest.doMock('../../src/config/variables.local.ts', () => mockLocalConfig, {
         virtual: true,
       });
     });
@@ -124,8 +124,8 @@ describe('Configuration Variables', () => {
   describe('Error Handling', () => {
     it('re-throws unknown errors during require', () => {
       // Mock an error that is NOT 'MODULE_NOT_FOUND' (e.g. syntax error in local file)
-      jest.mock(
-        '../../src/config/variables.local',
+      jest.doMock(
+        '../../src/config/variables.local.ts',
         () => {
           throw new Error('SyntaxError: Unexpected token');
         },
@@ -140,8 +140,8 @@ describe('Configuration Variables', () => {
     it('handles non-object errors gracefully', () => {
       // Edge case for isMissingLocalVariablesModule helper logic
       // If require throws a string or null (unlikely but typescript guarded)
-      jest.mock(
-        '../../src/config/variables.local',
+      jest.doMock(
+        '../../src/config/variables.local.ts',
         () => {
           throw 'Critical Failure';
         },

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import ContactUsScreen from '../../../../src/features/support/screens/ContactUsScreen';
 
@@ -43,63 +44,31 @@ const mockConfirmDeleteFile = jest.fn();
 const mockOpenSheet = jest.fn();
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        textSecondary: 'gray',
-        border: '#ddd',
-        cardBackground: '#f9f9f9',
-        borderMuted: '#ccc',
-        secondary: 'blue',
-        white: '#fff',
-        error: 'red',
-        primary: 'green',
-        primarySurface: '#eeffee',
-      },
-      spacing: {
-        '0': 0,
-        '1': 4,
-        '2': 8,
-        '3': 12,
-        '4': 16,
-        '5': 20,
-        '6': 24,
-        '10': 40,
-      },
-      typography: {
-        h3: {fontSize: 24},
-        bodySmall: {fontSize: 12},
-        titleSmall: {fontSize: 16, fontFamily: 'Arial'},
-        paragraph: {fontSize: 14},
-        paragraphBold: {fontSize: 14, fontWeight: 'bold'},
-        labelXsBold: {fontSize: 10},
-        subtitleRegular14: {fontSize: 14},
-        subtitleBold14: {fontSize: 14, fontWeight: 'bold'},
-        labelSmall: {fontSize: 12},
-        button: {fontSize: 16},
-      },
-      borderRadius: {lg: 12},
-    },
-  }),
-  useFileOperations: (config: any) => {
+  __esModule: true,
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
+  useFileOperations: jest.fn((config: any) => {
     if (config) {
       capturedSetFiles = config.setFiles;
       capturedClearError = config.clearError;
       capturedCloseSheet = config.closeSheet;
-
-      if (config.openSheet) mockOpenSheet.mockImplementation(config.openSheet);
     }
+
     return {
-      fileToDelete: {id: 'file1', name: 'test.jpg'},
+      fileToDelete: null,
       handleTakePhoto: mockHandleTakePhoto,
       handleChooseFromGallery: mockHandleChooseFromGallery,
       handleUploadFromDrive: mockHandleUploadFromDrive,
-      handleRemoveFile: mockHandleRemoveFile,
-      confirmDeleteFile: mockConfirmDeleteFile,
+      handleRemoveFile: (fileId: string) => {
+        mockHandleRemoveFile(fileId);
+        config?.openSheet?.('delete');
+        config?.deleteSheetRef?.current?.open?.();
+      },
+      confirmDeleteFile: () => {
+        mockConfirmDeleteFile();
+        config?.closeSheet?.();
+      },
     };
-  },
+  }),
 }));
 
 // --- 3. Component Mocks (Scoped Requires) ---

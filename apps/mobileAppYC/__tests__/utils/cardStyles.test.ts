@@ -4,34 +4,10 @@ import {
   createIconContainerStyles,
   createTextContainerStyles,
 } from '@/shared/utils/cardStyles';
+import {mockTheme} from '../setup/mockTheme';
 
 // A mock theme to test against
-const mockTheme = {
-  borderRadius: {
-    lg: 20,
-    base: 10,
-  },
-  spacing: {
-    1: 4,
-    3: 12,
-    4: 16,
-  },
-  colors: {
-    borderMuted: '#E0E0E0',
-    cardBackground: '#FFFFFF',
-    neutralShadow: '#000000',
-    border: '#DDDDDD',
-    surface: '#F5F5F5',
-  },
-  shadows: {
-    md: {
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-  },
-};
+
 
 // An empty theme to test fallbacks
 const emptyTheme = {};
@@ -41,22 +17,22 @@ describe('cardStyles', () => {
     it('should create styles with default config from theme', () => {
       const styles = createGlassCardStyles(mockTheme);
       expect(styles.card).toEqual({
-        borderRadius: 20, // from theme.borderRadius.lg
+        borderRadius: 16, // from theme.borderRadius.lg
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: 'rgba(234, 234, 234, 0.9)', // from theme.colors.borderMuted
         overflow: 'hidden',
         backgroundColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 2 }, // from theme.shadows.md
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 }, // from theme.shadows.md
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
+        shadowColor: 'rgba(71, 56, 39, 0.15)', // from theme.colors.neutralShadow
         padding: 16, // from theme.spacing[4]
       });
       expect(styles.fallback).toEqual({
-        borderRadius: 20,
+        borderRadius: 16,
         backgroundColor: '#FFFFFF',
-        borderColor: '#DDDDDD',
+        borderColor: '#EAEAEA', // from theme.colors.border
         overflow: 'hidden',
       });
     });
@@ -79,17 +55,17 @@ describe('cardStyles', () => {
       expect(styles.card).toEqual({
         borderRadius: 16, // fallback
         borderWidth: 1,
-        borderColor: '#E0E0E0', // fallback
+        borderColor: '#EAEAEA', // fallback
         overflow: 'hidden',
         backgroundColor: '#FFFFFF', // fallback
-        shadowColor: '#000000', // fallback
+        shadowColor: 'rgba(71, 56, 39, 0.15)', // fallback to neutralShadow
         padding: 16, // fallback
         // No shadow properties, as theme.shadows is undefined
       });
       expect(styles.fallback).toEqual({
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
-        borderColor: '#E0E0E0', // Note: fallback uses borderMuted
+        borderColor: '#EAEAEA', // fallback uses border
         overflow: 'hidden',
       });
     });
@@ -122,8 +98,8 @@ describe('cardStyles', () => {
       expect(styles.iconContainer).toEqual({
         width: 48,
         height: 48,
-        borderRadius: 10, // from theme.borderRadius.base
-        backgroundColor: '#F5F5F5',
+        borderRadius: 8, // from theme.borderRadius.base
+        backgroundColor: '#FFFFFF', // from theme.colors.surface
         alignItems: 'center',
         justifyContent: 'center',
       });
@@ -134,8 +110,8 @@ describe('cardStyles', () => {
       expect(styles.iconContainer).toEqual({
         width: 100,
         height: 100,
-        borderRadius: 10, // from theme.borderRadius.base
-        backgroundColor: '#F5F5F5',
+        borderRadius: 8, // from theme.borderRadius.base
+        backgroundColor: '#FFFFFF', // from theme.colors.surface
         alignItems: 'center',
         justifyContent: 'center',
       });
@@ -154,7 +130,7 @@ describe('cardStyles', () => {
         width: 60,
         height: 60,
         borderRadius: 30, // fallback to size / 2
-        backgroundColor: '#F5F5F5', // fallback
+        backgroundColor: '#FFFFFF', // fallback
         alignItems: 'center',
         justifyContent: 'center',
       });

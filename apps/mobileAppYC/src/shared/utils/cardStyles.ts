@@ -10,14 +10,33 @@ export interface CardStyleConfig {
   padding: number;
 }
 
+const fallbackGap = (gapKey: unknown) => {
+  if (typeof gapKey === 'number') return gapKey * 4;
+  const asNumber = Number(gapKey);
+  return Number.isFinite(asNumber) ? asNumber * 4 : 0;
+};
+
+const getSpacing = (theme: any, gapKey: unknown, fallback?: number) =>
+  theme?.spacing?.[gapKey as any] ??
+  theme?.spacing?.[String(gapKey)] ??
+  (fallback ?? fallbackGap(gapKey));
+
+const getBorderRadius = (theme: any, key: string, fallback: number) =>
+  theme?.borderRadius?.[key] ?? fallback;
+
 /**
  * Creates common glass card styles with consistent theming
  */
 export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleConfig>) => {
+  const borderRadiusFallback = 16;
+  const paddingFallback = 16;
+  const colors = (theme as any)?.colors ?? {};
+  const shadows = (theme as any)?.shadows ?? {};
+
   const defaultConfig: CardStyleConfig = {
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: getBorderRadius(theme, 'lg', borderRadiusFallback),
     borderWidth: 1,
-    padding: theme.spacing['4'],
+    padding: getSpacing(theme, '4', paddingFallback),
   };
 
   const finalConfig = {...defaultConfig, ...config};
@@ -26,17 +45,17 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
     card: {
       borderRadius: finalConfig.borderRadius,
       borderWidth: finalConfig.borderWidth,
-      borderColor: theme.colors.borderMuted,
+      borderColor: colors.borderMuted ?? '#EAEAEA',
       overflow: 'hidden' as const,
-      backgroundColor: theme.colors.cardBackground,
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
+      backgroundColor: colors.cardBackground ?? '#FFFFFF',
+      ...(shadows.md || {}),
+      shadowColor: colors.neutralShadow ?? 'rgba(71, 56, 39, 0.15)',
       padding: finalConfig.padding,
     },
     fallback: {
       borderRadius: finalConfig.borderRadius,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
+      backgroundColor: colors.cardBackground ?? '#FFFFFF',
+      borderColor: colors.border ?? '#EAEAEA',
       overflow: 'hidden' as const,
     },
   };
@@ -45,11 +64,11 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
 /**
  * Creates common content container styles for cards
  */
-export const createCardContentStyles = (theme: Theme, gapKey: keyof typeof theme.spacing = '3') => ({
+export const createCardContentStyles = (theme: Theme, gapKey: any = '3') => ({
   content: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: theme.spacing[gapKey],
+    gap: getSpacing(theme, gapKey),
   },
 });
 
@@ -64,8 +83,8 @@ export const createIconContainerStyles = (
   iconContainer: {
     width: size,
     height: size,
-    borderRadius: borderRadius ?? theme.borderRadius.base,
-    backgroundColor: theme.colors.surface,
+    borderRadius: borderRadius ?? (theme as any)?.borderRadius?.base ?? size / 2,
+    backgroundColor: (theme as any)?.colors?.surface ?? '#FFFFFF',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
@@ -74,9 +93,9 @@ export const createIconContainerStyles = (
 /**
  * Creates common text container styles
  */
-export const createTextContainerStyles = (theme: Theme, gapKey: keyof typeof theme.spacing = '1') => ({
+export const createTextContainerStyles = (theme: Theme, gapKey: any = '1') => ({
   textContainer: {
     flex: 1,
-    gap: theme.spacing[gapKey],
+    gap: getSpacing(theme, gapKey),
   },
 });

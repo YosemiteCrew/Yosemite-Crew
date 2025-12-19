@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {PaymentSuccessScreen} from '../../../../src/features/payments/screens/PaymentSuccessScreen';
 // ✅ FIX 2: Remove unused 'useDispatch' from import
@@ -36,25 +37,7 @@ jest.mock('@/features/companion', () => ({
 
 // 4. Mock Theme & Assets
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        textSecondary: 'gray',
-        border: '#ddd',
-        cardBackground: 'white',
-        primary: 'blue',
-        white: '#fff',
-      },
-      spacing: {1: 4, 2: 8, 3: 12, 4: 16},
-      typography: {
-        h2: {fontSize: 24},
-        body14: {fontSize: 14},
-        titleMedium: {fontSize: 18},
-        button: {fontSize: 16},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({
