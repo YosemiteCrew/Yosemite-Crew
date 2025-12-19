@@ -9,8 +9,8 @@
 <div align="center">
 
 [![React Native 0.81.4](https://img.shields.io/badge/React%20Native-0.81.4-61DAFB?logo=react)](https://reactnative.dev)
-[![PNPM](https://img.shields.io/badge/pnpm-F69220?logo=pnpm)](https://pnpm.io)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![PNPM](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
 
@@ -24,10 +24,10 @@ This directory contains the React Native mobile application for the **Yosemite C
 
 <div align="center">
   <a href="https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share">
-    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="60" alt="Get it on Google Play" />
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="190" alt="Get it on Google Play" />
   </a>
   <a href="https://apps.apple.com/in/app/yosemite-crew/id6756180296">
-    <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" height="60" alt="Download on the App Store" />
+    <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" width="190" alt="Download on the App Store" />
   </a>
 </div>
 
