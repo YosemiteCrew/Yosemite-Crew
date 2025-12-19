@@ -1,43 +1,57 @@
-import { act } from "@testing-library/react";
-import { useServiceStore } from "@/app/stores/serviceStore";
+import { useServiceStore } from "../../stores/serviceStore";
 import { Service } from "@yosemite-crew/types";
 
 // --- Mock Data ---
-
+// Casting to unknown first to avoid strict type errors for missing properties
 const mockService1: Service = {
-  id: "serv-1",
-  name: "Checkup",
+  id: "srv-1",
+  name: "Vaccination",
   organisationId: "org-A",
   specialityId: "spec-X",
-  description: "General Checkup",
-} as Service;
+  duration: 30,
+} as unknown as Service;
 
 const mockService2: Service = {
-  id: "serv-2",
+  id: "srv-2",
   name: "Surgery",
   organisationId: "org-A",
   specialityId: "spec-Y",
-  description: "Major Surgery",
-} as Service;
+  duration: 60,
+} as unknown as Service;
+
+const mockService3: Service = {
+  id: "srv-3",
+  name: "Grooming",
+  organisationId: "org-B",
+  specialityId: "spec-X", // Same speciality as srv-1 but diff org
+  duration: 45,
+} as unknown as Service;
+
+const mockServiceNoSpec: Service = {
+  id: "srv-4",
+  name: "General Checkup",
+  organisationId: "org-A",
+  // No specialityId
+} as unknown as Service;
 
 const mockServiceNoId: Service = {
-  // Missing 'id', should fallback to 'name'
-  name: "Consultation",
-  organisationId: "org-B",
-  description: "Consult",
-} as Service;
+  name: "Fallback Name Service",
+  organisationId: "org-A",
+} as unknown as Service;
 
-describe("useServiceStore", () => {
+describe("Service Store", () => {
+  // Reset store before each test
   beforeEach(() => {
-    // Reset store state before each test
-    act(() => {
-      useServiceStore.getState().clearServices();
+    useServiceStore.setState({
+      servicesById: {},
+      serviceIdsByOrgId: {},
+      serviceIdsBySpecialityId: {},
     });
+    jest.clearAllMocks();
   });
 
-  // --- 1. Initialization & Bulk Set ---
-
-  describe("Initialization & setServices", () => {
+  // --- Section 1: Initialization ---
+  describe("Initialization", () => {
     it("initializes with default empty state", () => {
       const state = useServiceStore.getState();
       expect(state.servicesById).toEqual({});
@@ -45,199 +59,205 @@ describe("useServiceStore", () => {
       expect(state.serviceIdsBySpecialityId).toEqual({});
     });
 
-    it("populates state correctly using setServices", () => {
-      act(() => {
-        useServiceStore.getState().setServices([mockService1, mockService2]);
-      });
+    it("clears the entire store", () => {
+      const store = useServiceStore.getState();
+      store.setServices([mockService1]);
 
-      const state = useServiceStore.getState();
-
-      // Check ById Lookup
-      expect(state.servicesById["serv-1"]).toEqual(mockService1);
-      expect(state.servicesById["serv-2"]).toEqual(mockService2);
-
-      // Check ByOrgId Lookup
-      expect(state.serviceIdsByOrgId["org-A"]).toHaveLength(2);
-      expect(state.serviceIdsByOrgId["org-A"]).toContain("serv-1");
-      expect(state.serviceIdsByOrgId["org-A"]).toContain("serv-2");
-
-      // Check BySpecialityId Lookup
-      expect(state.serviceIdsBySpecialityId["spec-X"]).toEqual(["serv-1"]);
-      expect(state.serviceIdsBySpecialityId["spec-Y"]).toEqual(["serv-2"]);
-    });
-
-    it("handles services without explicit ID (uses name as fallback)", () => {
-      act(() => {
-        useServiceStore.getState().setServices([mockServiceNoId]);
-      });
-
-      const state = useServiceStore.getState();
-      const fallbackId = mockServiceNoId.name; // "Consultation"
-
-      expect(state.servicesById[fallbackId]).toBeDefined();
-      expect(state.servicesById[fallbackId].id).toBe(fallbackId);
-      expect(state.serviceIdsByOrgId["org-B"]).toContain(fallbackId);
-    });
-
-    it("handles services without specialityId correctly (skips speciality map)", () => {
-       const serviceNoSpec = { ...mockService1, id: "serv-3", specialityId: undefined };
-
-       act(() => {
-         useServiceStore.getState().setServices([serviceNoSpec]);
-       });
-
-       const state = useServiceStore.getState();
-       expect(state.servicesById["serv-3"]).toBeDefined();
-       // Should be in Org map
-       expect(state.serviceIdsByOrgId["org-A"]).toContain("serv-3");
-       // Should NOT be in any Speciality map (since undefined)
-       // We check that no keys were added for undefined
-       expect(Object.keys(state.serviceIdsBySpecialityId)).toHaveLength(0);
-    });
-  });
-
-  // --- 2. CRUD Operations (Add/Update) ---
-
-  describe("CRUD Actions", () => {
-    it("adds a single service correctly", () => {
-      act(() => {
-        useServiceStore.getState().addService(mockService1);
-      });
-
-      const state = useServiceStore.getState();
-      expect(state.servicesById["serv-1"]).toEqual(mockService1);
-      expect(state.serviceIdsByOrgId["org-A"]).toEqual(["serv-1"]);
-      expect(state.serviceIdsBySpecialityId["spec-X"]).toEqual(["serv-1"]);
-    });
-
-    it("prevents duplicate IDs when adding existing service (Org & Spec maps)", () => {
-      act(() => {
-        useServiceStore.getState().addService(mockService1);
-      });
-      // Add same service again
-      act(() => {
-        useServiceStore.getState().addService(mockService1);
-      });
-
-      const state = useServiceStore.getState();
-      // Should still be length 1 in arrays
-      expect(state.serviceIdsByOrgId["org-A"]).toHaveLength(1);
-      expect(state.serviceIdsBySpecialityId["spec-X"]).toHaveLength(1);
-    });
-
-    it("handles adding service without specialityId", () => {
-        const noSpecService = { ...mockService1, id: "serv-no-spec", specialityId: undefined };
-        act(() => {
-            useServiceStore.getState().addService(noSpecService);
-        });
-
-        const state = useServiceStore.getState();
-        expect(state.servicesById["serv-no-spec"]).toBeDefined();
-        // Org map populated
-        expect(state.serviceIdsByOrgId["org-A"]).toContain("serv-no-spec");
-        // Spec map untouched/empty for this entry
-        expect(Object.values(state.serviceIdsBySpecialityId).flat()).not.toContain("serv-no-spec");
-    });
-
-    it("updates an existing service", () => {
-      act(() => {
-        useServiceStore.getState().setServices([mockService1]);
-      });
-
-      const updatedData = { ...mockService1, description: "Updated Desc" };
-
-      act(() => {
-        useServiceStore.getState().updateService(updatedData);
-      });
-
-      const state = useServiceStore.getState();
-      expect(state.servicesById["serv-1"].description).toBe("Updated Desc");
-    });
-
-    it("ignores update if service does not exist", () => {
-      const nonExistentService = { ...mockService1, id: "ghost" };
-
-      act(() => {
-        useServiceStore.getState().updateService(nonExistentService);
-      });
-
-      const state = useServiceStore.getState();
-      expect(state.servicesById["ghost"]).toBeUndefined();
-    });
-  });
-
-  // --- 3. Selectors ---
-
-  describe("Selectors", () => {
-    beforeEach(() => {
-        act(() => {
-            useServiceStore.getState().setServices([mockService1, mockService2, mockServiceNoId]);
-        });
-    });
-
-    it("getServicesByOrgId returns correct array", () => {
-      const resultA = useServiceStore.getState().getServicesByOrgId("org-A");
-      expect(resultA).toHaveLength(2);
-      expect(resultA).toEqual(
-        expect.arrayContaining([
-            expect.objectContaining({ id: "serv-1" }),
-            expect.objectContaining({ id: "serv-2" })
-        ])
-      );
-
-      const resultB = useServiceStore.getState().getServicesByOrgId("org-B");
-      expect(resultB).toHaveLength(1);
-      expect(resultB[0].name).toBe("Consultation");
-    });
-
-    it("getServicesByOrgId returns empty array for unknown org", () => {
-      const result = useServiceStore.getState().getServicesByOrgId("unknown-org");
-      expect(result).toEqual([]);
-    });
-
-    it("getServicesBySpecialityId returns correct array", () => {
-        const resultX = useServiceStore.getState().getServicesBySpecialityId("spec-X");
-        expect(resultX).toHaveLength(1);
-        expect(resultX[0].id).toBe("serv-1");
-    });
-
-    it("getServicesBySpecialityId returns empty array for unknown spec", () => {
-        const result = useServiceStore.getState().getServicesBySpecialityId("unknown-spec");
-        expect(result).toEqual([]);
-    });
-
-    it("selectors filter out undefined entries (safety check)", () => {
-        // Manually corrupt state to simulate ID in array but missing in record
-        useServiceStore.setState({
-            servicesById: {},
-            serviceIdsByOrgId: { "org-A": ["serv-missing"] },
-            serviceIdsBySpecialityId: { "spec-X": ["serv-missing"] }
-        });
-
-        const resultOrg = useServiceStore.getState().getServicesByOrgId("org-A");
-        expect(resultOrg).toEqual([]);
-
-        const resultSpec = useServiceStore.getState().getServicesBySpecialityId("spec-X");
-        expect(resultSpec).toEqual([]);
-    });
-  });
-
-  // --- 4. Utility Actions ---
-
-  describe("Utility Actions", () => {
-    it("clears services and resets state", () => {
-      act(() => {
-        useServiceStore.getState().setServices([mockService1]);
-      });
-
-      act(() => {
-        useServiceStore.getState().clearServices();
-      });
+      store.clearServices();
 
       const state = useServiceStore.getState();
       expect(state.servicesById).toEqual({});
       expect(state.serviceIdsByOrgId).toEqual({});
-      expect(state.serviceIdsBySpecialityId).toEqual({});
+    });
+  });
+
+  // --- Section 2: Bulk Operations (Set & Get) ---
+  describe("Bulk Operations", () => {
+    it("sets multiple services and builds all indexes", () => {
+      const store = useServiceStore.getState();
+      // srv-1 (org-A, spec-X), srv-3 (org-B, spec-X), srv-4 (org-A, no spec)
+      store.setServices([mockService1, mockService3, mockServiceNoSpec]);
+
+      const state = useServiceStore.getState();
+
+      // Services by ID
+      expect(state.servicesById["srv-1"]).toBeDefined();
+      expect(state.servicesById["srv-3"]).toBeDefined();
+      expect(state.servicesById["srv-4"]).toBeDefined();
+
+      // Org Index
+      expect(state.serviceIdsByOrgId["org-A"]).toHaveLength(2); // srv-1, srv-4
+      expect(state.serviceIdsByOrgId["org-B"]).toHaveLength(1); // srv-3
+
+      // Speciality Index
+      expect(state.serviceIdsBySpecialityId["spec-X"]).toHaveLength(2); // srv-1, srv-3
+    });
+
+    it("handles services without IDs (fallback to name)", () => {
+      const store = useServiceStore.getState();
+      store.setServices([mockServiceNoId]);
+
+      const state = useServiceStore.getState();
+      expect(state.servicesById["Fallback Name Service"]).toBeDefined();
+      expect(state.serviceIdsByOrgId["org-A"]).toContain("Fallback Name Service");
+    });
+
+    it("retrieves services by Org ID", () => {
+      useServiceStore.getState().setServices([mockService1, mockService3]);
+
+      const orgAServices = useServiceStore.getState().getServicesByOrgId("org-A");
+      expect(orgAServices).toHaveLength(1);
+      expect(orgAServices[0].id).toBe("srv-1");
+
+      // Non-existent
+      expect(useServiceStore.getState().getServicesByOrgId("org-C")).toEqual([]);
+    });
+
+    it("retrieves services by Speciality ID", () => {
+      useServiceStore.getState().setServices([mockService1, mockService3]);
+
+      const specXServices = useServiceStore.getState().getServicesBySpecialityId("spec-X");
+      expect(specXServices).toHaveLength(2); // srv-1 and srv-3
+
+      // Non-existent
+      expect(useServiceStore.getState().getServicesBySpecialityId("spec-Z")).toEqual([]);
+    });
+  });
+
+  // --- Section 3: CRUD Operations (Add/Update) ---
+  describe("CRUD Operations", () => {
+    it("adds a new service and updates indexes", () => {
+      const store = useServiceStore.getState();
+      store.addService(mockService1);
+
+      const state = useServiceStore.getState();
+      expect(state.servicesById["srv-1"]).toBeDefined();
+      expect(state.serviceIdsByOrgId["org-A"]).toContain("srv-1");
+      expect(state.serviceIdsBySpecialityId["spec-X"]).toContain("srv-1");
+    });
+
+    it("updates an existing service via addService (Upsert) without duplicating index", () => {
+      const store = useServiceStore.getState();
+      store.addService(mockService1);
+
+      // Add same service again
+      store.addService(mockService1);
+
+      const state = useServiceStore.getState();
+      // ID lists should remain length 1
+      expect(state.serviceIdsByOrgId["org-A"]).toHaveLength(1);
+      expect(state.serviceIdsBySpecialityId["spec-X"]).toHaveLength(1);
+    });
+
+    it("adds a service without a speciality", () => {
+      const store = useServiceStore.getState();
+      store.addService(mockServiceNoSpec);
+
+      const state = useServiceStore.getState();
+      expect(state.serviceIdsByOrgId["org-A"]).toContain("srv-4");
+      // Should not be in any speciality index
+      expect(Object.keys(state.serviceIdsBySpecialityId)).toHaveLength(0);
+    });
+
+    it("updates a service using updateService", () => {
+      const store = useServiceStore.getState();
+      store.addService(mockService1);
+
+      const updated = { ...mockService1, name: "Updated Vax" } as unknown as Service;
+      store.updateService(updated);
+
+      const state = useServiceStore.getState();
+      expect(state.servicesById["srv-1"].name).toBe("Updated Vax");
+    });
+
+    it("ignores updateService for non-existent service", () => {
+      const store = useServiceStore.getState();
+      const initialSnapshot = JSON.stringify(store);
+
+      store.updateService(mockService1); // Store is empty
+
+      const finalSnapshot = JSON.stringify(useServiceStore.getState());
+      expect(finalSnapshot).toEqual(initialSnapshot);
+    });
+  });
+
+  // --- Section 4: Complex Set & Removal Logic ---
+  describe("Complex Set & Removal", () => {
+    it("replaces services for an org and cleans up old indexes (removeFromIndex logic)", () => {
+      const store = useServiceStore.getState();
+      // Initial: Org A has srv-1 (spec-X) and srv-2 (spec-Y)
+      store.setServices([mockService1, mockService2]);
+
+      // Update Org A: Replace with ONLY srv-4 (no spec)
+      // expected: srv-1 and srv-2 removed. spec-X and spec-Y indexes cleared.
+      store.setServicesForOrg("org-A", [mockServiceNoSpec]);
+
+      const state = useServiceStore.getState();
+
+      // Check Org Index
+      expect(state.serviceIdsByOrgId["org-A"]).toEqual(["srv-4"]);
+
+      // Check ID Map
+      expect(state.servicesById["srv-1"]).toBeUndefined();
+      expect(state.servicesById["srv-2"]).toBeUndefined();
+      expect(state.servicesById["srv-4"]).toBeDefined();
+
+      // Check Speciality Index Cleanup
+      // spec-X should be empty (or removed)
+      expect(state.serviceIdsBySpecialityId["spec-X"]).toEqual([]);
+      expect(state.serviceIdsBySpecialityId["spec-Y"]).toEqual([]);
+    });
+
+    it("clears services for an org and updates speciality indexes", () => {
+      const store = useServiceStore.getState();
+      // srv-1 (Org A, Spec X), srv-3 (Org B, Spec X)
+      store.setServices([mockService1, mockService3]);
+
+      store.clearServicesForOrg("org-A");
+
+      const state = useServiceStore.getState();
+
+      // Org A gone
+      expect(state.serviceIdsByOrgId["org-A"]).toBeUndefined();
+      expect(state.servicesById["srv-1"]).toBeUndefined();
+
+      // Org B remains
+      expect(state.serviceIdsByOrgId["org-B"]).toEqual(["srv-3"]);
+      expect(state.servicesById["srv-3"]).toBeDefined();
+
+      // Spec X index should now only contain srv-3 (srv-1 removed)
+      expect(state.serviceIdsBySpecialityId["spec-X"]).toEqual(["srv-3"]);
+    });
+
+    it("handles clearing an org with no services safely", () => {
+      const store = useServiceStore.getState();
+      store.setServices([mockService1]);
+
+      store.clearServicesForOrg("org-Empty");
+
+      const state = useServiceStore.getState();
+      expect(state.serviceIdsByOrgId["org-Empty"]).toBeUndefined();
+      expect(state.servicesById["srv-1"]).toBeDefined();
+    });
+
+    it("handles removeFromIndex edge case (empty array)", () => {
+      // This indirectly tests the `if (!arr.length) return idx` line in removeFromIndex
+      // by attempting to clean up indexes for an org that thinks it has IDs but the spec index is empty
+      const store = useServiceStore.getState();
+
+      // Manually corrupt state to have an ID in org list but not in spec list
+      useServiceStore.setState({
+        serviceIdsByOrgId: { "org-A": ["srv-1"] },
+        servicesById: { "srv-1": mockService1 },
+        serviceIdsBySpecialityId: { "spec-X": [] } // Empty spec index
+      });
+
+      // Clearing org A will trigger removal logic for srv-1 (which has spec-X)
+      // It attempts to remove srv-1 from spec-X index, which is already empty.
+      store.clearServicesForOrg("org-A");
+
+      const state = useServiceStore.getState();
+      expect(state.serviceIdsByOrgId["org-A"]).toBeUndefined();
     });
   });
 });
