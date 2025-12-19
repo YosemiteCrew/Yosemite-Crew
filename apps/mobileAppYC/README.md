@@ -16,9 +16,9 @@
 
 </div>
 
----
-
+<div align="center">
 This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for companion owners to connect with veterinary clinics and manage their companion's health.
+</div>
 
 ## 📲 Store Links
 
@@ -27,7 +27,7 @@ This directory contains the React Native mobile application for the **Yosemite C
     <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="180" alt="Get it on Google Play" />
   </a>
   <a href="https://apps.apple.com/in/app/yosemite-crew/id6756180296">
-    <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" width="170" alt="Download on the App Store" />
+    <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" width="180" alt="Download on the App Store" />
   </a>
 </div>
 
