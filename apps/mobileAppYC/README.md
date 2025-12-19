@@ -20,6 +20,27 @@
 
 This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for companion owners to connect with veterinary clinics and manage their companion's health.
 
+## 📲 Store Links
+
+-   [![Get it on Google Play](https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share)
+-   [![Download on the App Store](https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83)](https://apps.apple.com/in/app/yosemite-crew/id6756180296)
+
+## 📦 Release Versioning
+
+Current production releases:
+
+| Platform | Store Version |
+| --- | --- |
+| Android | 1.0.5 |
+| iOS | 1.0.2 |
+
+Release history:
+
+| Platform | Version | Notes |
+| --- | --- | --- |
+| Android | 1.0.5 | Initial production release |
+| iOS | 1.0.2 | Initial production release |
+
 ## 🛠️ Getting Started
 
 This guide will walk you through setting up the mobile app on your local machine for development.
