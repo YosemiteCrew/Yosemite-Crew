@@ -165,7 +165,7 @@ const buildInviteResponse = (
     _id: _id.toString(),
     organisationId: rest.organisationId,
     invitedByUserId: rest.invitedByUserId,
-    departmentId: rest.departmentId,
+    departmentIds: rest.departmentIds,
     inviteeEmail: rest.inviteeEmail,
     inviteeName: rest.inviteeName,
     role: rest.role,
@@ -317,9 +317,15 @@ export const OrganisationInviteService = {
       payload.organisationId,
       "Organisation identifier",
     );
-    const departmentId = normalizeIdentifier(
-      payload.departmentId,
-      "Department identifier",
+    if (!Array.isArray(payload.departmentIds) || payload.departmentIds.length === 0) {
+      throw new OrganisationInviteServiceError(
+        "At least one department must be specified.",
+        400,
+      );
+    }
+
+    const departmentIds = payload.departmentIds.map((id, index) =>
+      normalizeIdentifier(id, `Department identifier at index ${index}`),
     );
     const invitedByUserId = requireString(
       payload.invitedByUserId,
@@ -333,11 +339,15 @@ export const OrganisationInviteService = {
     const employmentType = validateEmploymentType(payload.employmentType);
 
     const organisation = await findOrganisationOrThrow(organisationId);
-    await ensureDepartmentBelongsToOrganisation(departmentId, organisationId);
+    await Promise.all(
+      departmentIds.map((departmentId) =>
+        ensureDepartmentBelongsToOrganisation(departmentId, organisationId),
+      ),
+    );
 
     const invite = await OrganisationInviteModel.createOrReplaceInvite({
       organisationId,
-      departmentId,
+      departmentIds,
       invitedByUserId,
       inviteeEmail,
       inviteeName,
@@ -455,9 +465,13 @@ export const OrganisationInviteService = {
     }
 
     await findOrganisationOrThrow(invite.organisationId);
-    const department = await ensureDepartmentBelongsToOrganisation(
-      invite.departmentId,
-      invite.organisationId,
+    const departments = await Promise.all(
+      invite.departmentIds.map((departmentId) =>
+        ensureDepartmentBelongsToOrganisation(
+          departmentId,
+          invite.organisationId,
+        ),
+      ),
     );
 
     invite.status = "ACCEPTED";
@@ -484,7 +498,11 @@ export const OrganisationInviteService = {
       );
     }
 
-    await addUserToDepartment(department, safeUserId);
+    await Promise.all(
+      departments.map((department) =>
+        addUserToDepartment(department, safeUserId),
+      ),
+    );
 
     logger.info("Organisation invite accepted.", {
       inviteId: invite._id?.toString(),

@@ -153,4 +153,29 @@ export const SpecialityController = {
       res.status(500).json({ message: "Unable to retrieve specialities." });
     }
   },
+
+  deleteSpeciality: async(req: Request, res: Response) => {
+    try {
+      const { organisationId, specialityId } = req.params;
+
+      if (!organisationId || !specialityId) {
+        res
+          .status(400)
+          .json({ message: "Organization identifier and Speciality identifier is required." });
+        return;
+      }
+
+      const resources =
+        await SpecialityService.deleteSpeciality(specialityId, organisationId)
+
+      res.status(200).json(resources);
+    } catch (error) {
+      if (error instanceof SpecialityServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+      logger.error("Failed to delete speciality", error);
+      res.status(500).json({ message: "Unable to delete speciality." });
+    }
+  }
 };

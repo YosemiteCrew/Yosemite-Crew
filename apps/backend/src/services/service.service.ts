@@ -146,6 +146,12 @@ export const ServiceService = {
     return true;
   },
 
+  async deleteAllBySpecialityId(specialityId: string) {
+    await ServiceModel.deleteMany({
+      specialityId: specialityId,
+    }).exec();
+  },
+
   async search(query: string, organisationId?: string) {
     const filter: FilterQuery<ServiceMongo> = { isActive: true };
 

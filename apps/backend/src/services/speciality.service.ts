@@ -340,4 +340,27 @@ export const SpecialityService = {
 
     await SpecialityModel.deleteMany({ organisationId: orgId }).exec();
   },
+
+  async deleteSpeciality(specialityId: string, organisationId: string) {
+
+    const query = resolveIdQuery(specialityId);
+    const orgId = requireOrganizationId(organisationId);
+
+    const document = await SpecialityModel.findOneAndDelete(
+      {
+        ...query,
+        organisationId: orgId,
+      },
+      { sanitizeFilter: true },
+    );
+
+    if (!document) {
+      throw new SpecialityServiceError(
+        "Speciality not found for the organisation.",
+        404,
+      );
+    }
+
+    await ServiceService.deleteAllBySpecialityId(document._id.toString());
+  }
 };
