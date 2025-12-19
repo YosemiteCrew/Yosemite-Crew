@@ -22,7 +22,7 @@ This directory contains the React Native mobile application for the **Yosemite C
 
 ## 📲 Store Links
 
-<div align="center"><a href="https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="60" alt="Get it on Google Play" align="middle" /></a>&nbsp;<a href="https://apps.apple.com/in/app/yosemite-crew/id6756180296"><img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" height="60" alt="Download on the App Store" align="middle" /></a></div>
+<div align="center"><a href="https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="80" alt="Get it on Google Play" align="middle" /></a>&nbsp;<a href="https://apps.apple.com/in/app/yosemite-crew/id6756180296"><img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" height="80" alt="Download on the App Store" align="middle" /></a></div>
 
 ## 📦 Release Versioning
 
