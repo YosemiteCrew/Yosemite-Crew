@@ -24,10 +24,10 @@ This directory contains the React Native mobile application for the **Yosemite C
 
 <div align="center">
   <a href="https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share">
-    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="64" alt="Get it on Google Play" style="display:inline-block; vertical-align:middle;" />
+    <img src="https://img.shields.io/badge/Google%20Play-34A853?logo=googleplay&logoColor=white" width="190" alt="Google Play" />
   </a>
   <a href="https://apps.apple.com/in/app/yosemite-crew/id6756180296">
-    <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" height="64" alt="Download on the App Store" style="display:inline-block; vertical-align:middle;" />
+    <img src="https://img.shields.io/badge/App%20Store-0D96F6?logo=appstore&logoColor=white" width="190" alt="App Store" />
   </a>
 </div>
 
