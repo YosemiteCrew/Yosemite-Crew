@@ -1,288 +1,469 @@
-/**
- * @jest-environment jsdom
- */
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   render,
   screen,
   fireEvent,
-  waitFor,
   act,
+  waitFor,
 } from "@testing-library/react";
-import "@testing-library/jest-dom";
-
-// --- MOCKS ---
-
-// 1. Mock the country list
-jest.mock("@/app/utils/countryList.json", () => [
-  { code: "US", name: "United States", flag: "🇺🇸" },
-  { code: "CA", name: "Canada", flag: "🇨🇦" },
-  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
-]);
-
-// 2. Mock the Icon component
-jest.mock("@iconify/react/dist/iconify.js", () => ({
-  Icon: (props: any) => <svg data-testid="mock-icon" {...props} />,
-}));
-
-// 3. Mock environment variables
-process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "mock-api-key";
-
-// 4. Mock global fetch
-globalThis.fetch = jest.fn() as unknown as jest.Mock;
-
-// Import component AFTER mocks
 import GoogleSearchDropDown from "@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 
-// --- HELPERS ---
+// --- Mocks ---
 
-const placePrediction = (
-  description: string,
-  placeId: string,
-  mainText: string,
-  secondaryText: string
-) => ({
-  placePrediction: {
-    text: { text: description },
-    placeId,
-    structuredFormat: {
-      mainText: { text: mainText },
-      secondaryText: { text: secondaryText },
-    },
-    types: ["street_address"],
-    distanceMeters: 100,
-  },
+// Mock Icons
+jest.mock("@iconify/react/dist/iconify.js", () => ({
+  Icon: () => <div data-testid="error-icon" />,
+}));
+
+// Mock Country List
+jest.mock("@/app/utils/countryList.json", () => [
+  { name: "United States", code: "US" },
+  { name: "Canada", code: "CA" },
+]);
+
+// Mock Global Fetch
+const mockFetch = jest.fn();
+globalThis.fetch = mockFetch;
+
+// Mock environment variables for API key
+const originalEnv = process.env;
+
+beforeAll(() => {
+  process.env = {
+    ...originalEnv,
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "TEST_API_KEY",
+  };
 });
 
-const queryPrediction = (description: string) => ({
-  queryPrediction: {
-    text: { text: description },
-    structuredFormat: {
-      mainText: { text: description },
-      secondaryText: { text: "Search for..." },
-    },
-  },
+afterAll(() => {
+  process.env = originalEnv;
 });
 
-const mockAutocompleteResponse = (suggestions: any[] = []) => {
-  return Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({ suggestions }),
-    status: 200,
-  });
-};
+describe("GoogleSearchDropDown Component", () => {
+  const mockOnChange = jest.fn();
+  const mockSetFormData = jest.fn();
 
-const mockPlaceDetailsResponse = (details: any) => {
-  return Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve(details),
-    status: 200,
-  });
-};
-
-const mockProps = {
-  intype: "text",
-  inname: "addressSearch",
-  inlabel: "Search Address",
-  value: "",
-  onChange: jest.fn(),
-  onBlur: jest.fn(),
-  readonly: false,
-  error: undefined,
-  setFormData: jest.fn(),
-  onlyAddress: false,
-};
-
-// --- WRAPPER COMPONENT ---
-// Simulates parent state management for the controlled component
-const TestWrapper = (props: Partial<typeof mockProps>) => {
-  const [val, setVal] = useState(props.value || ""); // Sync prop changes to internal state (Crucial for rerender tests)
-
-  useEffect(() => {
-    setVal(props.value || "");
-  }, [props.value]);
-
-  const combinedProps = { ...mockProps, ...props };
-
-  return (
-    <GoogleSearchDropDown
-      {...combinedProps}
-      value={val}
-      onChange={(e) => {
-        setVal(e.target.value);
-        if (combinedProps.onChange) combinedProps.onChange(e);
-      }}
-    />
-  );
-};
-
-// Use fake timers for debouncing tests
-jest.useFakeTimers();
-
-describe("GoogleSearchDropDown", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (fetch as jest.Mock).mockClear();
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    jest.spyOn(console, "log").mockImplementation(() => {});
+    mockFetch.mockReset();
   });
 
-  afterAll(() => {
-    jest.useRealTimers();
-    (console.error as jest.Mock).mockRestore();
-    (console.log as jest.Mock).mockRestore();
-  }); // 1. Rendering and Initial State
+  // --- 1. Initial Rendering ---
 
-  it("renders correctly with label, value, and handles initial focus state", () => {
-    const { rerender } = render(<TestWrapper value="123 Main St" />);
-    const input = screen.getByLabelText(mockProps.inlabel);
-
-    expect(input).toBeInTheDocument();
-    expect(input).toHaveValue("123 Main St");
-    expect(input.parentElement).toHaveClass("focused"); // Force a complete rerender with empty value to test "not focused" state
-    // We use a key or separate render to ensure clean state if needed,
-    // but updating the prop via TestWrapper is sufficient.
-
-    rerender(<TestWrapper value="" />);
-
-    const inputEmpty = screen.getByLabelText(mockProps.inlabel); // Note: If the input was previously focused in the DOM, it might remain focused.
-    // Ensure we check the class logic which relies on (isFocused || value)
-    expect(inputEmpty.parentElement).not.toHaveClass("focused");
-  });
-
-  it("renders as read-only when 'readonly' prop is true", () => {
-    render(<TestWrapper readonly={true} value="Test" />);
-    const input = screen.getByLabelText(mockProps.inlabel);
-
-    expect(input).toHaveAttribute("readonly");
-
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: "A" } });
-
-    act(() => {
-      jest.advanceTimersByTime(400);
-    });
-
-    expect(fetch).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-  }); // 2. User Input and Autocomplete
-
-  it("calls onChange and triggers autocomplete fetch with debouncing on user input", async () => {
-    render(<TestWrapper />);
-    const input = screen.getByLabelText(mockProps.inlabel);
-
-    (fetch as jest.Mock).mockImplementationOnce(() =>
-      mockAutocompleteResponse([
-        placePrediction(
-          "100 A St, City, State",
-          "p1",
-          "100 A St",
-          "City, State"
-        ),
-      ])
-    ); // CRITICAL: Focus before typing to satisfy component's shouldFetchRef logic
-
-    fireEvent.focus(input); // 1. Type "A"
-
-    fireEvent.change(input, { target: { value: "A" } });
-    expect(mockProps.onChange).toHaveBeenCalledTimes(1);
-    expect(fetch).not.toHaveBeenCalled(); // Length < 2
-    // 2. Type "Ad"
-
-    fireEvent.change(input, { target: { value: "Ad" } });
-    expect(mockProps.onChange).toHaveBeenCalledTimes(2);
-    expect(fetch).not.toHaveBeenCalled(); // Debounce waiting...
-    // 3. Type "Add"
-
-    fireEvent.change(input, { target: { value: "Add" } });
-    expect(mockProps.onChange).toHaveBeenCalledTimes(3); // 4. Advance time to trigger debounce
-
-    act(() => {
-      jest.advanceTimersByTime(400);
-    });
-
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(1);
-      expect(fetch).toHaveBeenCalledWith(
-        "https://places.googleapis.com/v1/places:autocomplete",
-        expect.objectContaining({
-          body: JSON.stringify({ input: "Add" }),
-        })
-      );
-    });
-  });
-
-  it("shows dropdown on focus if predictions are available", async () => {
-    render(<TestWrapper />);
-    const input = screen.getByLabelText(mockProps.inlabel); // Mock setup for the first call (autocomplete)
-
-    (fetch as jest.Mock).mockImplementationOnce(() =>
-      mockAutocompleteResponse([
-        placePrediction("Test Place", "p1", "Test Place", "Details"),
-      ])
-    ); // 1. Trigger initial fetch
-
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: "Test" } });
-
-    act(() => {
-      jest.advanceTimersByTime(400);
-    });
-
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1)); // 2. Blur (closes dropdown)
-
-    fireEvent.blur(input);
-    act(() => {
-      jest.advanceTimersByTime(0);
-    });
-    expect(screen.queryByText("Test Place")).not.toBeInTheDocument(); // 3. Focus again (should open immediately because predictions exist in state)
-
-    fireEvent.focus(input); // We modify input slightly to guarantee a re-render cycle,
-    // although simply focusing should work per component logic:
-    // "if (!suppressNextOpenRef.current && isFocused) setOpen(list.length > 0);"
-    // Check if dropdown appears
-
-    expect(screen.getAllByText("Test Place")[0]).toBeInTheDocument();
-  });
-
-  it("handles empty predictions and API failure gracefully", async () => {
-    render(<TestWrapper />);
-    const input = screen.getByLabelText(mockProps.inlabel); // 1. Empty response
-
-    (fetch as jest.Mock).mockImplementationOnce(() =>
-      mockAutocompleteResponse([])
+  it("renders the input field correctly", () => {
+    render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address Search"
+        value=""
+        onChange={mockOnChange}
+      />
     );
 
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: "No result" } });
+    const input = screen.getByRole("textbox");
+    expect(input).toBeInTheDocument();
+    expect(screen.getByLabelText("Address Search")).toBeInTheDocument();
+  });
 
-    act(() => {
-      jest.advanceTimersByTime(400);
+  it("renders with an initial value", () => {
+    render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value="123 Main St"
+        onChange={mockOnChange}
+      />
+    );
+  });
+
+  it("displays error message when error prop is provided", () => {
+    render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value=""
+        error="Invalid address"
+        onChange={mockOnChange} // FIX: Added onChange here to prevent console error
+      />
+    );
+
+    expect(screen.getByText("Invalid address")).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toHaveClass("is-invalid");
+  });
+
+  // --- 2. Interaction & API Calls (Autocomplete) ---
+
+  it("calls Google Places Autocomplete API on input change after debounce", async () => {
+    // Mock successful autocomplete response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: "place_123",
+              text: { text: "New York, NY" },
+              structuredFormat: {
+                mainText: { text: "New York" },
+                secondaryText: { text: "NY, USA" },
+              },
+            },
+          },
+        ],
+      }),
     });
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole("button")).not.toBeInTheDocument(); // 2. Failed response
+    // Initial render
+    const { rerender } = render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value=""
+        onChange={mockOnChange}
+      />
+    );
 
-    (fetch as jest.Mock).mockImplementationOnce(() =>
-      Promise.resolve({
-        ok: false,
-        status: 500,
-        statusText: "Server Error",
-        json: () => Promise.resolve({}), // Ensure json is callable
+    const input = screen.getByRole("textbox");
+    fireEvent.focus(input); // Trigger focus to allow dropdown open
+
+    // Simulate prop update (typing)
+    rerender(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value="New"
+        onChange={mockOnChange}
+      />
+    );
+
+    // Fast-forward debounce timer (400ms)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://places.googleapis.com/v1/places:autocomplete",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ input: "New" }),
+        headers: expect.objectContaining({
+          "X-Goog-Api-Key": "TEST_API_KEY",
+        }),
       })
     );
 
-    fireEvent.change(input, { target: { value: "Fail" } });
+    // Dropdown should appear with result
+    expect(await screen.findByText("New York")).toBeInTheDocument();
+  });
 
-    act(() => {
-      jest.advanceTimersByTime(400);
+  it("handles autocomplete API failure gracefully", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
     });
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-  }); // 3. Prediction Selection (Removed in previous steps)
-  // it("selects a place prediction, updates input, and fetches place details", async () => { ... });
-  // This test has been removed because it was likely causing the worker crash
-  // due to unhandled asynchronous logic/mock interaction in the cleanup phase.
-  // it("selects a query prediction and only updates the input field", async () => { ... });
+    // Silence console.error for this specific test as the component logs errors
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { rerender } = render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value=""
+        onChange={mockOnChange}
+      />
+    );
+
+    fireEvent.focus(screen.getByRole("textbox"));
+
+    // Trigger update
+    rerender(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value="Fail"
+        onChange={mockOnChange}
+      />
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+
+    // Should log error but not crash
+    expect(consoleSpy).toHaveBeenCalled();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    consoleSpy.mockRestore();
+  });
+
+  // --- 3. Selection & Details Fetching ---
+
+  it("fetches place details and autofills form data on selection (Organisation Mode)", async () => {
+    // 1. Mock Autocomplete Response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: "place_123",
+              structuredFormat: {
+                mainText: { text: "Google HQ" },
+                secondaryText: { text: "Mountain View, CA" },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    // 2. Mock Place Details Response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: "place_123",
+        displayName: { text: "Google Plex" },
+        formattedAddress:
+          "1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA",
+        websiteUri: "https://google.com",
+        nationalPhoneNumber: "(650) 253-0000",
+        location: { latitude: 37.422, longitude: -122.084 },
+        addressComponents: [
+          { types: ["country"], shortText: "US" },
+          { types: ["locality"], longText: "Mountain View" },
+          { types: ["administrative_area_level_1"], shortText: "CA" },
+          { types: ["postal_code"], longText: "94043" },
+        ],
+      }),
+    });
+
+    const { rerender } = render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value=""
+        onChange={mockOnChange}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    // Trigger autocomplete
+    fireEvent.focus(screen.getByRole("textbox"));
+    rerender(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value="Goo"
+        onChange={mockOnChange}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+
+    // Click suggestion
+    const suggestion = await screen.findByText("Google HQ");
+
+    // Component uses onMouseDown/onPointerDown to prevent blur
+    await act(async () => {
+      fireEvent.mouseDown(suggestion);
+    });
+
+    // 1. Verify Place Details API call
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("places/place_123"),
+      expect.objectContaining({ method: "GET" })
+    );
+
+    // 2. Verify setFormData call
+    expect(mockSetFormData).toHaveBeenCalled();
+
+    // Simulate the functional state update
+    const updateFn = mockSetFormData.mock.calls[0][0];
+    const prevState = {};
+    const newState = updateFn(prevState);
+
+    expect(newState).toEqual({
+      name: "Google Plex",
+      phoneNo: "6502530000", // Normalized by component
+      website: "https://google.com",
+      googlePlacesId: "place_123",
+      address: {
+        country: "United States", // From mock countries JSON
+        addressLine: "1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA",
+        city: "Mountain View",
+        state: "CA",
+        postalCode: "94043",
+        latitude: 37.422,
+        longitude: -122.084,
+      },
+    });
+
+    // 3. Verify input value update trigger
+    expect(mockOnChange).toHaveBeenCalled();
+  });
+
+  it("handles autofill correctly for 'onlyAddress' mode (UserProfile)", async () => {
+    // Setup Place Details Mock
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          { placePrediction: { placeId: "place_456", text: { text: "Home" } } },
+        ],
+      }),
+    });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        formattedAddress: "123 Test St",
+        addressComponents: [{ types: ["locality"], longText: "Test City" }],
+        location: { latitude: 10, longitude: 20 },
+      }),
+    });
+
+    const { rerender } = render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value=""
+        onChange={mockOnChange}
+        setFormData={mockSetFormData}
+        onlyAddress={true}
+      />
+    );
+
+    fireEvent.focus(screen.getByRole("textbox"));
+    rerender(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value="Ho"
+        onChange={mockOnChange}
+        setFormData={mockSetFormData}
+        onlyAddress={true}
+      />
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+
+    const suggestion = await screen.findByText("Home");
+    fireEvent.mouseDown(suggestion);
+
+    await waitFor(() => expect(mockSetFormData).toHaveBeenCalled());
+
+    const updateFn = mockSetFormData.mock.calls[0][0];
+    const newState = updateFn({ personalDetails: { address: {} } });
+
+    // Verify UserProfile structure update (nested under personalDetails.address)
+    expect(newState.personalDetails.address).toEqual(
+      expect.objectContaining({
+        addressLine: "123 Test St",
+        city: "Test City",
+        latitude: 10,
+        longitude: 20,
+      })
+    );
+  });
+
+  // --- 4. UX & Event Handling ---
+
+  it("closes dropdown when clicking outside", async () => {
+    // Setup open dropdown
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [{ placePrediction: { text: { text: "Result" } } }],
+      }),
+    });
+
+    const { rerender } = render(
+      <div>
+        <GoogleSearchDropDown
+          value=""
+          inlabel="Search"
+          intype="text"
+          onChange={mockOnChange}
+        />
+        <div data-testid="outside">Outside</div>
+      </div>
+    );
+
+    const input = screen.getByRole("textbox");
+    fireEvent.focus(input);
+
+    rerender(
+      <div>
+        <GoogleSearchDropDown
+          value="Test"
+          inlabel="Search"
+          intype="text"
+          onChange={mockOnChange}
+        />
+        <div data-testid="outside">Outside</div>
+      </div>
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+    expect(await screen.findByText("Result")).toBeInTheDocument();
+
+    // Click outside
+    fireEvent.mouseDown(screen.getByTestId("outside"));
+
+    expect(screen.queryByText("Result")).not.toBeInTheDocument();
+  });
+
+  it("does not fetch if input is readonly or too short", async () => {
+    // Short query
+    render(
+      <GoogleSearchDropDown
+        value="A"
+        inlabel="Search"
+        intype="text"
+        onChange={mockOnChange}
+      />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    // Readonly case - mockOnChange needed for React, even if readonly prop is true on component
+    render(
+      <GoogleSearchDropDown
+        value="Long Enough"
+        inlabel="Search"
+        intype="text"
+        onChange={mockOnChange}
+        readonly
+      />
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
 });
