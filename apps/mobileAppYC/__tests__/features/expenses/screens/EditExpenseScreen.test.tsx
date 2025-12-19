@@ -126,7 +126,6 @@ jest.mock('@/shared/components/common/Header/Header', () => {
   };
 });
 import {Header} from '@/shared/components/common/Header/Header';
-import {mockTheme} from '../../../setup/mockTheme';
 const MockedHeader = Header as jest.MockedFunction<typeof Header>;
 
 jest.mock('@/features/expenses/components', () => {

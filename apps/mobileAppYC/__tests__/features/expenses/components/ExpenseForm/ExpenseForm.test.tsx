@@ -1,5 +1,4 @@
 import React from 'react';
-import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 
 const mockHandleTakePhoto = jest.fn();

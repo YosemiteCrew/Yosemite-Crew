@@ -1,5 +1,4 @@
 import React from 'react';
-import {mockTheme} from '../../../setup/mockTheme';
 import {render, act} from '@testing-library/react-native'; // Removed unused fireEvent
 import {Provider} from 'react-redux';
 import configureStore from 'redux-mock-store';

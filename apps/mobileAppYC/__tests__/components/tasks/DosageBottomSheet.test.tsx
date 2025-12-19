@@ -1,5 +1,4 @@
 import React from 'react';
-import {mockTheme} from '../setup/mockTheme';
 import {TextInput, Image} from 'react-native';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {

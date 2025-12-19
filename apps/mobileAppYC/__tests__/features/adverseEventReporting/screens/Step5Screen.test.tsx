@@ -6,7 +6,6 @@ import {useAdverseEventReport} from '../../../../src/features/adverseEventReport
 // Import hooks from the root or wherever they are defined
 import {useFormBottomSheets, useTheme} from '../../../../src/hooks';
 import {useFileOperations} from '../../../../src/shared/hooks/useFileOperations';
-import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 

@@ -1,7 +1,7 @@
 import React from 'react';
-import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import ContactUsScreen from '../../../../src/features/support/screens/ContactUsScreen';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- 1. Setup & Global Mocks ---
 
@@ -41,7 +41,6 @@ const mockHandleChooseFromGallery = jest.fn();
 const mockHandleUploadFromDrive = jest.fn();
 const mockHandleRemoveFile = jest.fn();
 const mockConfirmDeleteFile = jest.fn();
-const mockOpenSheet = jest.fn();
 
 jest.mock('@/hooks', () => ({
   __esModule: true,

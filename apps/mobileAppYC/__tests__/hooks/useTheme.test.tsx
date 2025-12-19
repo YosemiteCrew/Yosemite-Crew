@@ -3,7 +3,6 @@ import {useTheme} from '../../src/shared/hooks/useTheme';
 import {setTheme, toggleTheme} from '../../src/features/theme';
 import * as hooks from '../../src/app/hooks';
 import {lightTheme} from '../../src/theme';
-import {mockTheme} from '../setup/mockTheme';
 
 // --- Mocks ---
 

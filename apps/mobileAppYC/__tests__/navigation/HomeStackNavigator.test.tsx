@@ -4,7 +4,6 @@ import {HomeStackNavigator} from '@/navigation/HomeStackNavigator';
 import {NavigationContainer} from '@react-navigation/native';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
-import {mockTheme} from '../setup/mockTheme';
 
 // Avoid pulling native Firebase modules during tests
 jest.mock('@/shared/services/firebaseNotifications', () => ({
