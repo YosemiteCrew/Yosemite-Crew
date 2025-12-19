@@ -4,6 +4,17 @@ describe('Configuration Variables', () => {
     .spyOn(console, 'warn')
     .mockImplementation(() => {});
 
+  const mockLocalModule = (
+    factory: Parameters<typeof jest.doMock>[1],
+    options: Parameters<typeof jest.doMock>[2],
+  ) => {
+    // `src/config/variables.ts` loads local config via `require('./variables.local')`.
+    // Depending on Jest resolver and TS transforms, the resolved module id can be either
+    // `variables.local` or `variables.local.ts`. Mock both to keep CI and local consistent.
+    jest.doMock('../../src/config/variables.local', factory, options);
+    jest.doMock('../../src/config/variables.local.ts', factory, options);
+  };
+
   beforeEach(() => {
     jest.resetModules();
     process.env = {...originalEnv};
@@ -22,8 +33,7 @@ describe('Configuration Variables', () => {
   describe('Default Configuration (Missing variables.local.ts)', () => {
     beforeEach(() => {
       // Mock the require to throw MODULE_NOT_FOUND
-      jest.doMock(
-        '../../src/config/variables.local.ts',
+      mockLocalModule(
         () => {
           const error: any = new Error(
             "Cannot find module './variables.local'",
@@ -93,9 +103,7 @@ describe('Configuration Variables', () => {
 
     beforeEach(() => {
       // Mock successful load of local config
-      jest.doMock('../../src/config/variables.local.ts', () => mockLocalConfig, {
-        virtual: true,
-      });
+      mockLocalModule(() => mockLocalConfig, {virtual: true});
     });
 
     it('merges local overrides with defaults', () => {
@@ -124,8 +132,7 @@ describe('Configuration Variables', () => {
   describe('Error Handling', () => {
     it('re-throws unknown errors during require', () => {
       // Mock an error that is NOT 'MODULE_NOT_FOUND' (e.g. syntax error in local file)
-      jest.doMock(
-        '../../src/config/variables.local.ts',
+      mockLocalModule(
         () => {
           throw new Error('SyntaxError: Unexpected token');
         },
@@ -140,8 +147,7 @@ describe('Configuration Variables', () => {
     it('handles non-object errors gracefully', () => {
       // Edge case for isMissingLocalVariablesModule helper logic
       // If require throws a string or null (unlikely but typescript guarded)
-      jest.doMock(
-        '../../src/config/variables.local.ts',
+      mockLocalModule(
         () => {
           throw 'Critical Failure';
         },
