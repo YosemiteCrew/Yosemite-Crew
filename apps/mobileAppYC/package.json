@@ -13,7 +13,7 @@
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.10",
     "@aws-amplify/ui-react-native": "^2.6.2",
-    "@callstack/liquid-glass": "^0.4.1",
+    "@callstack/liquid-glass": "^0.7.0",
     "@d11/react-native-fast-image": "^8.13.0",
     "@gorhom/bottom-sheet": "^5",
     "@hookform/resolvers": "^5.2.2",
