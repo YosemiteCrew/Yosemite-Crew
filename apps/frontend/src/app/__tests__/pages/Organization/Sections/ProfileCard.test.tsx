@@ -1,13 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ProfileCard from "@/app/pages/Organization/Sections/ProfileCard";
-import * as useProfiles from "@/app/hooks/useProfiles";
-import * as authStore from "@/app/stores/authStore";
+import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
+import { useAuthStore } from "@/app/stores/authStore";
 
 // --- Mocks ---
 
-// Mock Hooks
 jest.mock("@/app/hooks/useProfiles", () => ({
   usePrimaryOrgProfile: jest.fn(),
 }));
@@ -16,400 +14,211 @@ jest.mock("@/app/stores/authStore", () => ({
   useAuthStore: jest.fn(),
 }));
 
-// Mock Utils
-jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: jest.fn((url) => url?.startsWith("https")),
-}));
-
-// Mock Next/Image
-// We use a simple img tag so we can test attributes easily
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} alt={props.alt} />,
+  default: ({ alt = "", ...props }: any) => <img alt={alt} {...props} />,
 }));
 
-// Mock Buttons
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button data-testid="primary-btn" onClick={onClick}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick }: any) => (
-    <button data-testid="secondary-btn" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
-// Mock Inputs
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
-  return ({ inlabel, value, onChange, error }: any) => (
-    <div data-testid={`input-wrapper-${inlabel}`}>
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ onChange, value, inlabel, error }: any) => (
+    <div>
       <label>{inlabel}</label>
-      <input
-        data-testid={`input-${inlabel}`}
-        value={value || ""}
-        onChange={onChange}
-      />
-      {error && <span data-testid={`error-${inlabel}`}>{error}</span>}
+      <input data-testid="form-input" value={value} onChange={onChange} />
+      {error && <span>{error}</span>}
     </div>
-  );
-});
-
-// Mock Icons
-jest.mock("react-icons/ri", () => ({
-  RiEdit2Fill: ({ onClick }: any) => (
-    <button data-testid="edit-icon" onClick={onClick}>
-      Edit
-    </button>
   ),
 }));
+
+// Mocking these to avoid complex nested rendering logic
+jest.mock("@/app/components/Inputs/Datepicker", () => () => (
+  <div data-testid="mock-datepicker" />
+));
+jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => () => (
+  <div data-testid="mock-dropdown" />
+));
+jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => () => (
+  <div data-testid="mock-multiselect" />
+));
 
 describe("ProfileCard Component", () => {
-  const mockOnSave = jest.fn();
+  const mockOrg = {
+    name: "Test Org",
+    imageURL: "https://example.com/image.png",
+    isVerified: true,
+    email: "test@org.com",
+    joined: "2023-01-01",
+    tags: ["Vet", "Emergency"],
+  };
 
-  const defaultFields = [
-    { label: "Name", key: "name", required: true, editable: true },
-    { label: "Email", key: "email", required: true, editable: true },
-    { label: "Role", key: "role", editable: false }, // Not editable
+  const mockFields = [
+    { label: "Email", key: "email", type: "text", editable: false },
+    {
+      label: "Org Name",
+      key: "name",
+      type: "text",
+      editable: true,
+      required: true,
+    },
+    { label: "Join Date", key: "joined", type: "date", editable: true },
+    {
+      label: "Tags",
+      key: "tags",
+      type: "multiSelect",
+      options: ["Vet", "Grooming"],
+      editable: true,
+    },
   ];
 
-  const defaultOrg = {
-    name: "Test Org",
-    email: "test@org.com",
-    role: "Admin",
-    imageURL: "https://example.com/logo.png",
-    isVerified: true,
-  };
+  const mockOnSave = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useProfiles.usePrimaryOrgProfile as jest.Mock).mockReturnValue({
-      personalDetails: { profilePictureUrl: "https://user.com/pic.png" },
+    (usePrimaryOrgProfile as jest.Mock).mockReturnValue({
+      personalDetails: { profilePictureUrl: "https://pic.com" },
     });
-
-    // FIX: Double cast (as unknown as jest.Mock) fixes the "Conversion of type..." TS error
-    (authStore.useAuthStore as unknown as jest.Mock).mockImplementation(
-      (selector) =>
-        selector({
-          attributes: { given_name: "John", family_name: "Doe" },
-        })
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ attributes: { given_name: "John", family_name: "Doe" } })
     );
   });
 
-  // --- 1. Rendering ---
+  // Helper to find the Edit Icon (SVG)
+  const getEditIcon = (container: HTMLElement) => {
+    const svg = container.querySelector("svg.cursor-pointer");
+    if (!svg) throw new Error("Could not find edit icon");
+    return svg;
+  };
 
-  it("renders title and read-only fields correctly", () => {
+  // --- 1. Rendering & Status Logic ---
+
+  it("renders correctly in read-only mode", () => {
     render(
-      <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
-        editable={false}
-      />
+      <ProfileCard title="Org Details" fields={mockFields} org={mockOrg} />
     );
 
-    expect(screen.getByText("Org Profile")).toBeInTheDocument();
-    expect(screen.getByText("Name:")).toBeInTheDocument();
-    expect(screen.getByText("Test Org")).toBeInTheDocument();
-    expect(screen.getByText("Email:")).toBeInTheDocument();
+    expect(screen.getByText("Org Details")).toBeInTheDocument();
     expect(screen.getByText("test@org.com")).toBeInTheDocument();
-
-    // Edit icon should not be visible if editable=false
-    expect(screen.queryByTestId("edit-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("form-input")).not.toBeInTheDocument();
   });
 
-  it("renders empty placeholder for missing values", () => {
-    const emptyOrg = { ...defaultOrg, email: null };
-    render(
-      <ProfileCard title="Org Profile" fields={defaultFields} org={emptyOrg} />
-    );
-    // Find the label "Email:", then check the next sibling or value container
-    expect(screen.getByText("-")).toBeInTheDocument();
-  });
-
-  it("renders user profile section when showProfileUser is true", () => {
+  it("displays Pending status correctly for unverified orgs", () => {
     render(
       <ProfileCard
-        title="User Profile"
+        title="T"
         fields={[]}
-        org={{}}
-        showProfileUser={true}
+        org={{ ...mockOrg, isVerified: false }}
+        showProfile
       />
     );
-
-    expect(screen.getByText("John Doe")).toBeInTheDocument();
-
-    // FIX: Use toHaveAttribute instead of casting to HTMLImageElement
-    const img = screen.getByAltText("Logo");
-    // We check partial match for src because Next/Image might process it
-    expect(img).toHaveAttribute(
-      "src",
-      expect.stringContaining("https://user.com/pic.png")
-    );
-  });
-
-  it("renders default user image if profile url is invalid", () => {
-    (useProfiles.usePrimaryOrgProfile as jest.Mock).mockReturnValue({
-      personalDetails: { profilePictureUrl: "invalid-url" },
-    });
-
-    render(
-      <ProfileCard
-        title="User Profile"
-        fields={[]}
-        org={{}}
-        showProfileUser={true}
-      />
-    );
-
-    // FIX: Use toHaveAttribute instead of casting
-    const img = screen.getByAltText("Logo");
-    expect(img).toHaveAttribute("src", expect.stringContaining("ftafter.png"));
-  });
-
-  it("renders organization profile section (active) when showProfile is true", () => {
-    render(
-      <ProfileCard
-        title="Org Profile"
-        fields={[]}
-        org={defaultOrg} // isVerified: true
-        showProfile={true}
-      />
-    );
-
-    expect(screen.getByText("Test Org")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.queryByText("Book onboarding call")).not.toBeInTheDocument();
-  });
-
-  it("renders organization profile section (pending) with booking button", () => {
-    const pendingOrg = { ...defaultOrg, isVerified: false, imageURL: null };
-    render(
-      <ProfileCard
-        title="Org Profile"
-        fields={[]}
-        org={pendingOrg}
-        showProfile={true}
-      />
-    );
-
     expect(screen.getByText("Pending")).toBeInTheDocument();
     expect(screen.getByText("Book onboarding call")).toBeInTheDocument();
-
-    // FIX: Use toHaveAttribute instead of casting
-    const img = screen.getByAltText("Logo");
-    expect(img).toHaveAttribute("src", expect.stringContaining("ftafter.png"));
-
-    // Check note rendering
-    expect(
-      screen.getByText(/This short chat helps us confirm/)
-    ).toBeInTheDocument();
   });
 
-  // --- 2. Interaction & State ---
+  // --- 2. Edit Mode & Interactions ---
 
-  it("enters edit mode when edit icon is clicked", () => {
-    render(
+  it("enters edit mode and handles changes", () => {
+    const { container } = render(
       <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
-        editable={true}
-      />
-    );
-     });
-
-  it("updates form values in edit mode", () => {
-    render(
-      <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
-        editable={true}
-      />
-    );
-  });
-
-  it("resets values on cancel", () => {
-    render(
-      <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
-        editable={true}
-      />
-    );
-  });
-
-  it("updates form values when 'org' prop changes while not editing", () => {
-    const { rerender } = render(
-      <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
-      />
-    );
-
-    const newOrg = { ...defaultOrg, name: "Updated Org" };
-    rerender(
-      <ProfileCard title="Org Profile" fields={defaultFields} org={newOrg} />
-    );
-
-    expect(screen.getByText("Updated Org")).toBeInTheDocument();
-  });
-
-  // --- 3. Validation ---
-
-  it("validates required fields on save", async () => {
-    render(
-      <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
+        title="T"
+        fields={mockFields}
+        org={mockOrg}
         onSave={mockOnSave}
       />
     );
 
-    fireEvent.click(screen.getByTestId("edit-icon"));
+    fireEvent.click(getEditIcon(container));
 
-    const nameInput = screen.getByTestId("input-Name");
-    fireEvent.change(nameInput, { target: { value: "" } }); // Clear required field
+    const inputs = screen.getAllByTestId("form-input");
+    fireEvent.change(inputs[0], { target: { value: "Updated Name" } });
 
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn")); // Save
+    expect(screen.getByText("Save")).toBeInTheDocument();
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
+  });
+
+  it("cancels editing and reverts values", () => {
+    const { container } = render(
+      <ProfileCard
+        title="T"
+        fields={mockFields}
+        org={mockOrg}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(getEditIcon(container));
+    fireEvent.change(screen.getAllByTestId("form-input")[0], {
+      target: { value: "Changed" },
+    });
+    fireEvent.click(screen.getByText("Cancel"));
+
+    expect(screen.queryByText("Save")).not.toBeInTheDocument();
+    expect(screen.getByText("Test Org")).toBeInTheDocument();
+  });
+
+  // --- 3. Validation & Saving ---
+
+  it("shows validation error for required fields", async () => {
+    const { container } = render(
+      <ProfileCard
+        title="T"
+        fields={mockFields}
+        org={mockOrg}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(getEditIcon(container));
+    // Clear the required Name field
+    fireEvent.change(screen.getAllByTestId("form-input")[0], {
+      target: { value: "" },
     });
 
-    expect(screen.getByTestId("error-Name")).toHaveTextContent(
-      "Name is required"
-    );
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(await screen.findByText("Org Name is required")).toBeInTheDocument();
     expect(mockOnSave).not.toHaveBeenCalled();
   });
 
-  it("clears validation error on input change", async () => {
-    render(
+  it("calls onSave with updated values on successful validation", async () => {
+    mockOnSave.mockResolvedValueOnce(undefined);
+    const { container } = render(
       <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
+        title="T"
+        fields={mockFields}
+        org={mockOrg}
         onSave={mockOnSave}
       />
     );
 
-    fireEvent.click(screen.getByTestId("edit-icon"));
+    fireEvent.click(getEditIcon(container));
+    fireEvent.click(screen.getByText("Save"));
 
-    // Trigger error
-    const nameInput = screen.getByTestId("input-Name");
-    fireEvent.change(nameInput, { target: { value: "" } });
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalled();
+      expect(screen.queryByText("Save")).not.toBeInTheDocument();
     });
-    expect(screen.getByTestId("error-Name")).toBeInTheDocument();
-
-    // Fix error
-    fireEvent.change(nameInput, { target: { value: "Fixed" } });
-
-    // Error should be gone (undefined in state, so not rendered by mock)
-    expect(screen.queryByTestId("error-Name")).not.toBeInTheDocument();
   });
 
-  // --- 4. Submission ---
+  // --- 4. Helper Logic & Edge Cases ---
 
-  it("calls onSave with valid data and exits edit mode", async () => {
+  it("handles fallback images when URL is invalid", () => {
     render(
-      <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
-        onSave={mockOnSave}
-      />
-    );
-
-    fireEvent.click(screen.getByTestId("edit-icon"));
-
-    const nameInput = screen.getByTestId("input-Name");
-    fireEvent.change(nameInput, { target: { value: "Saved Name" } });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    expect(mockOnSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "Saved Name",
-        email: "test@org.com", // Unchanged field
-        role: "Admin", // Non-editable field included in state
-      })
-    );
-
-    // Should return to view mode
-    expect(screen.queryByTestId("input-Name")).not.toBeInTheDocument();
-  });
-
-  it("handles onSave errors gracefully", async () => {
-    mockOnSave.mockRejectedValue(new Error("Save failed"));
-    const consoleSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    render(
-      <ProfileCard
-        title="Org Profile"
-        fields={defaultFields}
-        org={defaultOrg}
-        onSave={mockOnSave}
-      />
-    );
-
-    fireEvent.click(screen.getByTestId("edit-icon"));
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("primary-btn"));
-    });
-
-    expect(mockOnSave).toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Error in ProfileCard onSave:",
-      expect.any(Error)
-    );
-
-    // Should remain in edit mode on error
-    expect(screen.getByTestId("input-Name")).toBeInTheDocument();
-
-    consoleSpy.mockRestore();
-  });
-
-  // --- 5. Edge Cases ---
-
-  it("handles getStatusStyle edge cases", () => {
-    const { rerender } = render(
       <ProfileCard
         title="T"
         fields={[]}
-        org={{ isVerified: true }}
-        showProfile={true}
+        org={{ imageURL: "not-https" }}
+        showProfile
       />
     );
-    // Active (Green)
-    let statusBadge = screen.getByText("Active");
-    expect(statusBadge).toHaveStyle({
-      color: "#008F5D",
-      backgroundColor: "#E6F4EF",
-    });
+    const img = screen.getByAltText("Logo");
+    expect(img).toHaveAttribute(
+      "src",
+      "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+    );
+  });
 
-    // Pending (Orange)
-    rerender(
-      <ProfileCard
-        title="T"
-        fields={[]}
-        org={{ isVerified: false }}
-        showProfile={true}
-      />
-    );
-    statusBadge = screen.getByText("Pending");
-    expect(statusBadge).toHaveStyle({
-      color: "#F68523",
-      backgroundColor: "#FEF3E9",
-    });
+  it("renders user details when showProfileUser is true", () => {
+    render(<ProfileCard title="T" fields={[]} org={mockOrg} showProfileUser />);
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
   });
 });

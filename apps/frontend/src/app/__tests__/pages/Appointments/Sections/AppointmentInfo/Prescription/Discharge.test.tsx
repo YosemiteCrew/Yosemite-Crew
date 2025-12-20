@@ -6,7 +6,7 @@ import {
   act,
 } from "@testing-library/react";
 // Import Path: Go up 6 levels to 'src/app', then down to 'pages'
-import Plan from "../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
+import Discharge from "../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge";
 import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
 import { createSubmission } from "@/app/services/soapService";
 import { useAuthStore } from "@/app/stores/authStore";
@@ -32,6 +32,11 @@ jest.mock("@/app/stores/authStore", () => ({
 // Mock UI Components
 jest.mock("@/app/components/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
+    <button data-testid="share-btn" onClick={onClick}>
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick }: any) => (
     <button data-testid="save-btn" onClick={onClick}>
       {text}
     </button>
@@ -46,7 +51,7 @@ jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
         data-testid="search-dropdown"
         onChange={(e) => onSelect(e.target.value)}
       >
-        <option value="">Select Plan</option>
+        <option value="">Select Form</option>
         {options.map((opt: any) => (
           <option key={opt.key} value={opt.key}>
             {opt.value}
@@ -71,14 +76,16 @@ jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
 }));
 
 jest.mock(
-  "../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/PlanSubmissions",
+  "../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/DischargeSubmissions",
   () => ({
     __esModule: true,
-    default: () => <div data-testid="plan-submissions">Submissions List</div>,
+    default: () => (
+      <div data-testid="discharge-submissions">Submissions List</div>
+    ),
   })
 );
 
-describe("Plan Section", () => {
+describe("Discharge Section", () => {
   // --- Test Data ---
   const mockSetFormData = jest.fn();
   const mockActiveAppointment: Appointment = {
@@ -90,12 +97,16 @@ describe("Plan Section", () => {
   } as unknown as Appointment;
 
   const mockFormData = {
-    plan: [],
+    discharge: [],
   } as any;
 
   const mockForms = [
-    { _id: "form-1", name: "Surgery Plan", schema: [{ id: "field1" }] },
-    { _id: "form-2", name: "Medication Plan", schema: [] },
+    {
+      _id: "form-1",
+      name: "Discharge Instructions",
+      schema: [{ id: "field1" }],
+    },
+    { _id: "form-2", name: "Care Plan", schema: [] },
   ];
 
   const mockAuthAttributes = { sub: "user-123" };
@@ -117,16 +128,19 @@ describe("Plan Section", () => {
 
   it("renders the basic layout correctly", () => {
     render(
-      <Plan
+      <Discharge
         activeAppointment={mockActiveAppointment}
         formData={mockFormData}
         setFormData={mockSetFormData}
       />
     );
 
-    expect(screen.getByText("Treatment/Plan")).toBeInTheDocument();
+    expect(screen.getByText("Discharge summary")).toBeInTheDocument();
     expect(screen.getByTestId("search-dropdown")).toBeInTheDocument();
-    expect(screen.getByTestId("plan-submissions")).toBeInTheDocument();
+    expect(screen.getByTestId("discharge-submissions")).toBeInTheDocument();
+    expect(screen.getByTestId("share-btn")).toHaveTextContent(
+      "Share with parents"
+    );
 
     // Save button and Form Renderer should NOT be visible initially
     expect(screen.queryByTestId("save-btn")).not.toBeInTheDocument();
@@ -137,7 +151,7 @@ describe("Plan Section", () => {
 
   it("renders form and save button when a form is selected", () => {
     render(
-      <Plan
+      <Discharge
         activeAppointment={mockActiveAppointment}
         formData={mockFormData}
         setFormData={mockSetFormData}
@@ -156,7 +170,7 @@ describe("Plan Section", () => {
 
   it("does nothing if invalid form ID is selected (edge case)", () => {
     render(
-      <Plan
+      <Discharge
         activeAppointment={mockActiveAppointment}
         formData={mockFormData}
         setFormData={mockSetFormData}
@@ -173,7 +187,7 @@ describe("Plan Section", () => {
 
   it("updates values and submits the form successfully", async () => {
     render(
-      <Plan
+      <Discharge
         activeAppointment={mockActiveAppointment}
         formData={mockFormData}
         setFormData={mockSetFormData}
@@ -187,7 +201,7 @@ describe("Plan Section", () => {
 
     // 2. Change Value (simulated via FormRenderer mock)
     const input = screen.getByTestId("form-input");
-    fireEvent.change(input, { target: { value: "Scheduled for Monday" } });
+    fireEvent.change(input, { target: { value: "Take medication daily" } });
 
     // 3. Save
     await act(async () => {
@@ -203,7 +217,7 @@ describe("Plan Section", () => {
       appointmentId: "appt-1",
       companionId: "comp-1",
       parentId: "parent-1",
-      answers: { field1: "Scheduled for Monday" },
+      answers: { field1: "Take medication daily" },
       submittedBy: "user-123",
     };
 
@@ -219,7 +233,7 @@ describe("Plan Section", () => {
   it("uses default empty strings for IDs if companion/parent are missing", async () => {
     const minimalAppt = { id: "appt-1" } as any; // No companion/parent
     render(
-      <Plan
+      <Discharge
         activeAppointment={minimalAppt}
         formData={mockFormData}
         setFormData={mockSetFormData}
@@ -238,13 +252,27 @@ describe("Plan Section", () => {
     expect(payload.parentId).toBe("");
   });
 
+  it("clicking share button does nothing (placeholder functionality)", () => {
+    render(
+      <Discharge
+        activeAppointment={mockActiveAppointment}
+        formData={mockFormData}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    const shareBtn = screen.getByTestId("share-btn");
+    fireEvent.click(shareBtn);
+    // Just verify no crash, function is empty in source
+  });
+
   // --- Section 4: Edge Cases & Error Handling ---
 
   it("prevents submission if auth attributes are missing", async () => {
     (useAuthStore.getState as jest.Mock).mockReturnValue({ attributes: null });
 
     render(
-      <Plan
+      <Discharge
         activeAppointment={mockActiveAppointment}
         formData={mockFormData}
         setFormData={mockSetFormData}
@@ -269,7 +297,7 @@ describe("Plan Section", () => {
     (createSubmission as jest.Mock).mockRejectedValue(new Error("API Error"));
 
     render(
-      <Plan
+      <Discharge
         activeAppointment={mockActiveAppointment}
         formData={mockFormData}
         setFormData={mockSetFormData}
