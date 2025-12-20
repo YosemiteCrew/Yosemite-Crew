@@ -108,7 +108,7 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
@@ -119,26 +119,26 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
       backgroundColor: theme.colors.surface,
     },
     icon: {
       width: 40,
       height: 40,
       resizeMode: 'contain',
-      marginRight: theme.spacing[3],
+      marginRight: theme.spacing['3'],
     },
     headerContent: {
       flex: 1,
-      gap: theme.spacing[1],
-      marginRight: theme.spacing[3],
+      gap: theme.spacing['1'],
+      marginRight: theme.spacing['3'],
     },
     title: {
       ...theme.typography.titleMedium,
       color: theme.colors.secondary,
     },
     subtitle: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
     },
     chevron: {
@@ -148,8 +148,8 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.textSecondary,
     },
     content: {
-      padding: theme.spacing[4],
-      paddingTop: theme.spacing[2],
-      gap: theme.spacing[2],
+      padding: theme.spacing['4'],
+      paddingTop: theme.spacing['2'],
+      gap: theme.spacing['2'],
     },
   });

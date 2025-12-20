@@ -324,13 +324,13 @@ const createStyles = (theme: any) =>
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: 20,
+      paddingHorizontal: theme.spacing['5'],
     },
     content: {
       flex: 1,
       justifyContent: 'flex-start',
       alignItems: 'center',
-      paddingBottom: 20,
+      paddingBottom: theme.spacing['5'],
     },
     illustration: {
       width: '100%',
@@ -339,23 +339,23 @@ const createStyles = (theme: any) =>
     title: {
       ...theme.typography.h3,
       color: theme.colors.secondary,
-      marginBottom: 24,
+      marginBottom: theme.spacing['6'],
       textAlign: 'center',
     },
     formContainer: {
       width: '100%',
     },
     inputContainer: {
-      minHeight: 70, // Changed from height: 70
-      marginBottom: 20,
+      minHeight: 70,
+      marginBottom: theme.spacing['5'],
     },
     input: {
       flex: 1,
     },
     sendButton: {
-      marginBottom: 24,
+      marginBottom: theme.spacing['6'],
       height: 52,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
     },
     sendButtonText: {
       ...theme.typography.cta,
@@ -365,12 +365,12 @@ const createStyles = (theme: any) =>
       ...theme.typography.paragraph,
       color: theme.colors.success,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: theme.spacing['4'],
     },
     demoBox: {
       backgroundColor: theme.colors.cardBackground,
-      borderRadius: 12,
-      padding: 16,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing['4'],
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
@@ -383,7 +383,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     demoButton: {
-      marginTop: 4,
+      marginTop: theme.spacing['1'],
       backgroundColor: theme.colors.white,
     },
     demoButtonText: {
@@ -394,7 +394,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 30,
+      marginBottom: theme.spacing['7'],
     },
     footerText: {
       ...theme.typography.paragraphBold,
@@ -404,17 +404,16 @@ const createStyles = (theme: any) =>
       ...theme.typography.paragraphBold,
       color: theme.colors.primary,
     },
-    // Bottom Section Styles
     bottomSection: {
-      paddingHorizontal: 55,
-      paddingBottom: 40,
-      paddingTop: 20,
+      paddingHorizontal: theme.spacing['14'],
+      paddingBottom: theme.spacing['10'],
+      paddingTop: theme.spacing['5'],
       backgroundColor: theme.colors.background,
     },
     divider: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 25,
+      marginBottom: theme.spacing['6'],
     },
     dividerLine: {
       flex: 1,
@@ -422,7 +421,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.border,
     },
     dividerText: {
-      marginHorizontal: 16,
+      marginHorizontal: theme.spacing['4'],
       ...theme.typography.screenTitle,
       color: theme.colors.textSecondary,
     },
@@ -430,7 +429,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 12,
+      gap: theme.spacing['3'],
     },
     socialButton: {
       justifyContent: 'center',
@@ -438,8 +437,8 @@ const createStyles = (theme: any) =>
     },
     socialErrorText: {
       ...theme.typography.paragraph,
-      color: theme.colors.error ?? '#D64545',
+      color: theme.colors.error,
       textAlign: 'center',
-      marginTop: 16,
+      marginTop: theme.spacing['4'],
     },
   });

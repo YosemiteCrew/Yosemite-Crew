@@ -326,15 +326,15 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-      gap: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['4'],
     },
     statusCard: {
       borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
       backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -348,21 +348,21 @@ const createStyles = (theme: any) =>
     },
     statusContent: {
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     statusRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     statusEmojiLeft: {
-      fontSize: 32,
+      ...theme.typography.h1,
       flex: 0.12,
       textAlign: 'right',
     },
     statusEmojiRight: {
-      fontSize: 32,
+      ...theme.typography.h1,
       flex: 0.12,
       textAlign: 'left',
     },
@@ -378,8 +378,8 @@ const createStyles = (theme: any) =>
       height: 52,
     },
     buttonContainer: {
-      marginTop: theme.spacing[6],
-      marginBottom: theme.spacing[4],
+      marginTop: theme.spacing['6'],
+      marginBottom: theme.spacing['4'],
     },
     buttonText: {
       ...theme.typography.cta,

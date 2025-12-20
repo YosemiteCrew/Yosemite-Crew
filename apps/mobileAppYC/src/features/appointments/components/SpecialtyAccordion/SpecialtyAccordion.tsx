@@ -94,14 +94,14 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
               <LiquidGlassButton
                 title="Select service"
                 onPress={() => onSelectService(service.id, specialty.name)}
-                height={44}
-                borderRadius={12}
+                height={theme.spacing['11']}
+                borderRadius={theme.borderRadius.md}
                 style={styles.selectButton}
                 textStyle={styles.selectButtonText}
                 tintColor={theme.colors.white}
                 shadowIntensity="none"
                 forceBorder
-                borderColor="#302F2E"
+                borderColor={theme.colors.secondary}
               />
             </View>
           ))}
@@ -144,30 +144,30 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     parentHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
-      paddingHorizontal: theme.spacing[1],
-      marginBottom: theme.spacing[3],
+      gap: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['1'],
+      marginBottom: theme.spacing['3'],
     },
     parentIcon: {
-      width: 28,
-      height: 28,
+      width: theme.spacing['7'],
+      height: theme.spacing['7'],
       resizeMode: 'contain',
     },
     parentTitle: {
       ...theme.typography.h6Clash,
-      color: '#302F2E',
+      color: theme.colors.secondary,
     },
     specialtiesList: {
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     specialtyItem: {
       backgroundColor: theme.colors.cardBackground,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       overflow: 'hidden',
@@ -176,7 +176,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
       backgroundColor: theme.colors.surface,
     },
     specialtyHeaderContent: {
@@ -184,57 +184,57 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingRight: theme.spacing[3],
+      paddingRight: theme.spacing['3'],
     },
     specialtyName: {
       ...theme.typography.paragraphBold,
-      color: '#595958',
+      color: theme.colors.textSecondary,
     },
     doctorCount: {
       ...theme.typography.paragraphBold,
-      color: '#302F2E',
+      color: theme.colors.secondary,
       textAlign: 'right',
     },
     chevronIcon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       tintColor: theme.colors.textSecondary,
     },
     servicesList: {
-      padding: theme.spacing[3],
+      padding: theme.spacing['3'],
       paddingTop: 0,
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     serviceCard: {
       backgroundColor: theme.colors.white,
-      borderRadius: 12,
-      padding: theme.spacing[5],
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing['5'],
       borderWidth: 1,
       borderColor: theme.colors.border,
-      gap: theme.spacing[1.75],
+      gap: 7,
     },
     serviceTopRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[2],
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['2'],
     },
     serviceName: {
       ...theme.typography.h6Clash,
-      color: '#090A0A',
+      color: theme.colors.text,
       flex: 1,
     },
     serviceDescription: {
       ...theme.typography.subtitleBold14,
-      color: '#302f2e9a',
-      marginTop: theme.spacing[1],
-            marginBottom: theme.spacing[3],
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['3'],
     },
     priceChip: {
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: theme.spacing[1],
-      borderRadius: 999,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primaryTint,
     },
     priceChipText: {
@@ -247,14 +247,12 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       backgroundColor: theme.colors.white,
       borderWidth: 1,
-      borderColor: '#302F2E',
-      borderRadius: 12,
+      borderColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
     },
     selectButtonText: {
-      ...theme.typography.businessTitle16,
-      color: '#302F2E',
-      lineHeight: 19.2,
-      letterSpacing: -0.16,
+      ...theme.typography.titleSmall,
+      color: theme.colors.secondary,
     },
   });
 

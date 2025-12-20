@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, screen, act} from '@testing-library/react-native';
+import {render, screen, act} from '../../setup/testUtils';
 import {useSelector} from 'react-redux';
 // FIX 1: Update component import path
 import {
@@ -13,6 +13,7 @@ import type {RootState} from '@/app/store';
 import type {User} from '@/features/auth/types';
 // FIX 3: Update shared component type import path
 import type {SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -49,10 +50,15 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Redux & Hooks
-jest.mock('react-redux');
+// Redux Provider is handled by renderWithProviders from testUtils
 // FIX 4: Update hook mock path
 jest.mock('@/shared/hooks');
 jest.mock('@/features/auth/selectors');
+
+jest.mock('react-redux', () => ({
+  ...jest.requireActual('react-redux'),
+  useSelector: jest.fn(),
+}));
 
 // Mock child component: GenericSelectBottomSheet
 const mockSheetRef = {
@@ -108,17 +114,6 @@ const mockUserMinimal: User = {
   profilePicture: undefined,
 } as any;
 
-const testTheme = {
-  colors: {
-    lightBlueBackground: '#f0f8ff',
-    primary: '#007bff',
-    white: '#ffffff',
-  },
-  typography: {
-    bodyMedium: {fontSize: 16},
-  },
-};
-
 let mockReduxState: Partial<RootState>;
 
 // Helper to render the component with specific mock state
@@ -130,7 +125,7 @@ const renderComponent = (
     auth: {user: user} as any,
   };
 
-  mockedUseTheme.mockReturnValue({theme: testTheme});
+  mockedUseTheme.mockReturnValue({theme: mockTheme});
   mockedSelectAuthUser.mockImplementation(
     (state: RootState) => state.auth.user,
   );
@@ -271,30 +266,30 @@ describe('AssignTaskBottomSheet', () => {
     ) => React.ReactElement;
 
     beforeEach(() => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      mockedUseTheme.mockReturnValue({theme: mockTheme});
       renderComponent(mockUserFull);
       const sheet = screen.getByTestId('mock-generic-sheet');
       renderItem = sheet.props.renderItem;
     });
 
     it('renders avatar image when avatar URL is present', () => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      mockedUseTheme.mockReturnValue({theme: mockTheme});
     });
 
     it('renders initials when avatar URL is missing', () => {
       const item: SelectItem = {id: 'user-1', label: 'Test', avatar: undefined};
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      mockedUseTheme.mockReturnValue({theme: mockTheme});
       const {getByText, queryByTestId} = render(renderItem(item, false));
       expect(getByText('T')).toBeTruthy(); // First char of 'Test'
       expect(queryByTestId('mock-image')).toBeNull();
     });
 
     it('renders a checkmark when item is selected', () => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      mockedUseTheme.mockReturnValue({theme: mockTheme});
     });
 
     it('does not render a checkmark when item is not selected', () => {
-      mockedUseTheme.mockReturnValue({theme: testTheme});
+      mockedUseTheme.mockReturnValue({theme: mockTheme});
     });
   });
 });

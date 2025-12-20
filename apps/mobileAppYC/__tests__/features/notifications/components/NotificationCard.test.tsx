@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {NotificationCard} from '../../../../src/features/notifications/components/NotificationCard/NotificationCard';
 // FIX 1 & 2: Removed the unused 'Images' import which was causing the module error.
@@ -9,22 +10,7 @@ import {PanResponder, Animated, Image} from 'react-native';
 
 // 1. Mock Theme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        border: 'mock-border',
-        cardBackground: 'mock-card-bg',
-        text: 'mock-text',
-      },
-      spacing: {1: 4, 3: 12},
-      borderRadius: {lg: 8},
-      typography: {
-        titleSmall: {fontSize: 16},
-        bodyExtraSmall: {fontSize: 12},
-        labelSmallBold: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Image Utils

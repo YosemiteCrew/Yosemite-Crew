@@ -247,15 +247,15 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-      paddingTop: theme.spacing[3],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+      paddingTop: theme.spacing['3'],
     },
     heroImage: {
       width: '100%',
       height: 220,
       resizeMode: 'contain',
-      marginTop: theme.spacing[20],
+      marginTop: theme.spacing['20'],
     },
     absoluteSearchLoadingContainer: {
       display: 'none',
@@ -263,9 +263,9 @@ const createStyles = (theme: any) =>
     dividerContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
       marginInline:40,
-        marginVertical: theme.spacing[10],
+        marginVertical: theme.spacing['10'],
     },
     dividerLine: {
       flex: 1,
@@ -277,16 +277,16 @@ const createStyles = (theme: any) =>
       color: theme.colors.text,
     },
     formContainer: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
     formSection: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
     inputContainer: {
       marginBottom: 0,
     },
     saveButton: {
-      marginTop: theme.spacing[5],
+      marginTop: theme.spacing['5'],
     },
     button: {
       width: '100%',
@@ -294,11 +294,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
+      ...theme.shadows.lg,
     },
     buttonText: {
       color: theme.colors.white,
@@ -307,7 +303,7 @@ const createStyles = (theme: any) =>
     centerContent: {
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: theme.spacing[4],
+      paddingVertical: theme.spacing['4'],
     },
   });
 

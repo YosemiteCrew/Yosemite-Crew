@@ -23,11 +23,6 @@ const LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
 const DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
-const SHADOW_MAP = {
-  light: {shadowOpacity: 0.1, shadowRadius: 4, elevation: 1},
-  medium: {shadowOpacity: 0.15, shadowRadius: 8, elevation: 3},
-  strong: {shadowOpacity: 0.25, shadowRadius: 12, elevation: 5},
-} as const;
 
 const WHITE_COLOR_ALIASES = [
   '#ffffff',
@@ -98,16 +93,18 @@ const isWhiteOrLightColor = (color?: string): boolean => {
   return false;
 };
 
-const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity']) => {
+const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity'], themeShadows: any) => {
   if (!intensity || intensity === 'none') {
-    return {};
+    return themeShadows.none;
   }
 
-  return {
-    shadowColor: '#000000',
-    shadowOffset: {width: 0, height: 2},
-    ...SHADOW_MAP[intensity],
-  };
+  const shadowMap = {
+    light: themeShadows.xs,
+    medium: themeShadows.sm,
+    strong: themeShadows.md,
+  } as const;
+
+  return shadowMap[intensity];
 };
 
 const SIZE_CONFIG = {
@@ -180,11 +177,13 @@ const buildGlassSurfaceStyle = ({
   isLightTint,
   forceBorder,
   shadowIntensity,
+  themeShadows,
 }: {
   borderColor?: string;
   isLightTint: boolean;
   forceBorder: boolean;
   shadowIntensity: GlassButtonProps['shadowIntensity'];
+  themeShadows: any;
 }): ViewStyle => {
   const shouldAddBorder = forceBorder || isLightTint;
   const borderColorValue =
@@ -196,7 +195,7 @@ const buildGlassSurfaceStyle = ({
   return {
     borderWidth: shouldAddBorder ? 1 : 0.5,
     borderColor: borderColorValue,
-    ...(shouldAddBorder ? buildShadowStyle(shadowIntensity) : {}),
+    ...(shouldAddBorder ? buildShadowStyle(shadowIntensity, themeShadows) : {}),
   };
 };
 
@@ -381,6 +380,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         isLightTint,
         forceBorder,
         shadowIntensity,
+        themeShadows: theme.shadows,
       });
     }
 
@@ -398,6 +398,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     shadowIntensity,
     useNativeGlass,
     isDark,
+    theme.shadows,
   ]);
 
   const buttonStyle = React.useMemo(

@@ -33,7 +33,7 @@ export const TaskFormFooter: React.FC<TaskFormFooterProps> = ({
         borderColor={theme.colors.borderMuted}
         shadowIntensity="medium"
         height={56}
-        borderRadius={16}
+        borderRadius={theme.borderRadius.lg}
       />
     </View>
   );

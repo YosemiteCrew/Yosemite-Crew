@@ -199,8 +199,8 @@ const createStyles = (theme: any) =>
     },
     mainContent: {
       flex: 1,
-      paddingTop: 12,
-      paddingBottom: 40,
+      paddingTop: theme.spacing['3'],
+      paddingBottom: theme.spacing['10'],
       justifyContent: 'space-between',
     },
     title: {
@@ -209,13 +209,13 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     buttonContainer: {
-      paddingHorizontal: 24,
-      gap: 16,
-      paddingTop: 20,
+      paddingHorizontal: theme.spacing['6'],
+      gap: theme.spacing['4'],
+      paddingTop: theme.spacing['5'],
     },
     emailButton: {
       backgroundColor: theme.colors.secondary,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
     },
     emailButtonText: {
       ...theme.typography.cta,
@@ -224,7 +224,7 @@ const createStyles = (theme: any) =>
     socialButton: {
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.white,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
     },
     socialButtonTextGoogle: {
       ...theme.typography.cta,
@@ -232,11 +232,11 @@ const createStyles = (theme: any) =>
     },
     facebookButton: {
       backgroundColor: theme.colors.primary,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
     },
     appleButton: {
       backgroundColor: theme.colors.secondary,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
     },
     socialButtonText: {
       ...theme.typography.cta,
@@ -244,16 +244,16 @@ const createStyles = (theme: any) =>
     },
     socialErrorText: {
       ...theme.typography.paragraph,
-      color: theme.colors.error ?? '#D64545',
+      color: theme.colors.error,
       textAlign: 'center',
-      marginTop: 12,
-      paddingHorizontal: 32,
+      marginTop: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['8'],
     },
     signInContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: 24,
+      marginTop: theme.spacing['6'],
     },
     signInText: {
       ...theme.typography.paragraphBold,

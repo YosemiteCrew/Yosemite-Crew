@@ -80,10 +80,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
-    paddingHorizontal: theme.spacing[4],
-    paddingTop: theme.spacing[4],
-    paddingBottom: theme.spacing[8],
-    gap: theme.spacing[4],
+    paddingHorizontal: theme.spacing['4'],
+    paddingTop: theme.spacing['4'],
+    paddingBottom: theme.spacing['8'],
+    gap: theme.spacing['4'],
   },
 });
 

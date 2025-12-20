@@ -2,6 +2,7 @@ import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import {Images} from '@/assets/images';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -47,23 +48,7 @@ jest.mock('react-native', () => {
 });
 
 // --- Test Setup ---
-const mockTheme = {
-  spacing: {
-    '2': 4,
-    '4': 8,
-    '6': 12,
-    '8': 16,
-  },
-  typography: {
-    h3: {
-      fontSize: 20,
-      fontWeight: 'bold',
-    },
-  },
-  colors: {
-    text: '#000000',
-  },
-};
+
 
 describe('BottomSheetHeader', () => {
   const mockOnClose = jest.fn();

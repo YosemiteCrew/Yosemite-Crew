@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {Text} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import AERLayout from '../../../../src/features/adverseEventReporting/components/AERLayout';
@@ -7,17 +8,7 @@ import AERLayout from '../../../../src/features/adverseEventReporting/components
 
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      spacing: {4: 16, 24: 96},
-      colors: {
-        placeholder: '#888',
-      },
-      typography: {
-        subtitleBold12: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Shared Components

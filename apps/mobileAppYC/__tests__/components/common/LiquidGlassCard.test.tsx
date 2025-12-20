@@ -121,7 +121,7 @@ describe('LiquidGlassCard', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         wrap(
-          <LiquidGlassCard tintColor="#FF0000">
+          <LiquidGlassCard tintColor='#F44336'>
             <Text>Content</Text>
           </LiquidGlassCard>
         )

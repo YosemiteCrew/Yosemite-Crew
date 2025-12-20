@@ -894,8 +894,8 @@ const createDetailStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      gap: theme.spacing[2],
-      paddingVertical: theme.spacing[2],
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['2'],
     },
     label: {
       ...theme.typography.body14,
@@ -918,9 +918,9 @@ const createDetailStyles = (theme: any) =>
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    padding: theme.spacing[4],
-    paddingBottom: theme.spacing[24],
-    gap: theme.spacing[2],
+    padding: theme.spacing['4'],
+    paddingBottom: theme.spacing['24'],
+    gap: theme.spacing['2'],
   },
   statusNote: {
     ...theme.typography.body12,
@@ -931,9 +931,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing[4],
-    marginBottom: theme.spacing[3],
-    gap: theme.spacing[2],
+    padding: theme.spacing['4'],
+    marginBottom: theme.spacing['3'],
+    gap: theme.spacing['2'],
   },
   statusLabel: {
     ...theme.typography.paragraphBold,
@@ -941,7 +941,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   statusBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: theme.spacing[2.5],
+    paddingHorizontal: theme.spacing['2.5'],
     paddingVertical: 6,
     borderRadius: 12,
   },
@@ -949,26 +949,26 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...theme.typography.title,
   },
   summaryCard: {
-    marginBottom: theme.spacing[3],
+    marginBottom: theme.spacing['3'],
   },
   detailsCard: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing[4],
-    gap: theme.spacing[2],
+    padding: theme.spacing['4'],
+    gap: theme.spacing['2'],
   },
   sectionTitle: {
     ...theme.typography.titleMedium,
     color: theme.colors.secondary,
-    marginBottom: theme.spacing[3],
+    marginBottom: theme.spacing['3'],
   },
   attachmentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: theme.spacing[2],
+    paddingVertical: theme.spacing['2'],
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border + '40',
   },
@@ -980,7 +980,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   attachmentLink: {
     ...theme.typography.body14,
     color: theme.colors.primary,
-    marginLeft: theme.spacing[2],
+    marginLeft: theme.spacing['2'],
   },
   attachmentPreview: {
     maxHeight: 220,
@@ -990,11 +990,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   actionsContainer: {
-    gap: theme.spacing[3],
-    marginTop: theme.spacing[2],
+    gap: theme.spacing['3'],
+    marginTop: theme.spacing['2'],
   },
   loadingContainer: {
-    padding: theme.spacing[4],
+    padding: theme.spacing['4'],
   },
   loadingText: {
     ...theme.typography.body14,

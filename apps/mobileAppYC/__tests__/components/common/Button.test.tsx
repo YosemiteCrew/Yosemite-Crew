@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 // FIX: Corrected the import path
 import {Button} from '@/shared/components/common/Button/Button';
@@ -7,34 +8,14 @@ import {useTheme} from '@/hooks';
 // --- Mocks ---
 
 // 1. Mock useTheme
-const mockTheme = {
-  borderRadius: {
-    base: 8,
-  },
-  spacing: {
-    '2': 4,
-    '3': 8,
-    '4': 12,
-    '6': 16,
-  },
-  colors: {
-    primary: 'mock-primary',
-    secondary: 'mock-secondary',
-    surface: 'mock-surface',
-    textSecondary: 'mock-text-secondary',
-    transparent: 'transparent',
-  },
-  typography: {
-    button: {fontSize: 16, fontWeight: '600'},
-    buttonSmall: {fontSize: 14, fontWeight: '500'},
-  },
-};
 
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 // 2. Mock react-native
 jest.mock('react-native', () => {

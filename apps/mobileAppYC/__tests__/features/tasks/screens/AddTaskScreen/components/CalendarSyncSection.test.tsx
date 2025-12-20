@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {CalendarSyncSection} from '../../../../../../src/features/tasks/screens/AddTaskScreen/components/CalendarSyncSection';
+import {mockTheme} from '../../../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -48,13 +49,7 @@ jest.mock('@/shared/utils/formStyles', () => ({
 describe('CalendarSyncSection', () => {
   const mockUpdateField = jest.fn();
   const mockOnOpenSheet = jest.fn();
-  const mockTheme = {
-    colors: {
-      borderMuted: 'gray',
-      primary: 'blue',
-      white: 'white',
-    },
-  };
+  
 
   const defaultProps = {
     formData: {

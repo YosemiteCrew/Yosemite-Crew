@@ -10,14 +10,15 @@ import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 // FIX 5: Correct import path for type
 import type {TaskCardProps} from '@/features/tasks/components/TaskCard/TaskCard';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
 // FIX 6: Correct mock path
 jest.mock('@/shared/hooks', () => ({
-  useTheme: jest.fn(),
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
 }));
-const mockUseTheme = useTheme as jest.Mock;
+const mockUseTheme = useTheme as jest.MockedFunction<typeof useTheme>;
 
 // FIX 7: Correct mock path
 jest.mock(
@@ -76,22 +77,7 @@ jest.mock('@/shared/components/common/AvatarGroup/AvatarGroup', () => ({
 
 // --- Mock Data ---
 
-const mockTheme = {
-  spacing: {1: 2, 2: 4, 3: 8},
-  colors: {
-    secondary: '#222222',
-    textSecondary: '#555555',
-    success: '#008F5D',
-    borderMuted: '#EEEEEE',
-  },
-  typography: {
-    h6Clash: {fontSize: 18, fontWeight: '600'},
-    captionBoldSatoshi: {fontSize: 12, fontWeight: '700'},
-    labelSmall: {fontSize: 10, fontWeight: '500'},
-    bodySmall: {fontSize: 14, fontWeight: '500'},
-    labelXsBold: {fontSize: 10, fontWeight: '700'},
-  },
-};
+
 
 const baseProps: TaskCardProps = {
   title: 'Give Morning Medication',
@@ -109,7 +95,7 @@ const baseProps: TaskCardProps = {
 // --- Helper ---
 
 const renderComponent = (props: Partial<TaskCardProps> = {}) => {
-  mockUseTheme.mockReturnValue({theme: mockTheme});
+  mockUseTheme.mockReturnValue({theme: mockTheme, isDark: false});
   mockFormatDate.mockReturnValue('October 29, 2025');
   mockCreateCardStyles.mockReturnValue({card: {}, fallback: {}});
 

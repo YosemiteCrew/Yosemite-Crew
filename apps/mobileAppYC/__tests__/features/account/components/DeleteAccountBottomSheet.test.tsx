@@ -3,6 +3,7 @@ import {render, fireEvent, act} from '@testing-library/react-native';
 import DeleteAccountBottomSheet, {
   DeleteAccountBottomSheetRef,
 } from '../../../../src/features/account/components/DeleteAccountBottomSheet';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -66,32 +67,7 @@ jest.mock('../../../../src/shared/components/common/Input/Input', () => {
 
 // 3. Mock Hooks
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        surface: 'white',
-        textPrimary: 'grey',
-        primary: 'blue',
-        error: 'red',
-        white: 'white',
-        borderMuted: 'grey',
-      },
-      spacing: {
-        '2': 8,
-        '3': 12,
-        '4': 16,
-        '5': 20,
-        '6': 24,
-      },
-      typography: {
-        h5Clash23: {fontSize: 23},
-        paragraph18Bold: {fontSize: 18},
-        inputLabel: {fontSize: 14},
-        buttonH6Clash19: {fontSize: 19},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('DeleteAccountBottomSheet', () => {

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {Image} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {ProfileHeader} from '../../../src/shared/components/common/ProfileHeader/ProfileHeader';
@@ -14,24 +15,7 @@ jest.mock('@/assets/images', () => ({
 
 // 2. Mock useTheme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: '#333333',
-        white: '#ffffff',
-        textSecondary: '#666666',
-      },
-      spacing: {
-        '1': 4,
-        '4': 16,
-        '6': 24,
-      },
-      typography: {
-        h4: {fontSize: 24, fontWeight: 'bold'},
-        labelMdBold: {fontSize: 14, fontWeight: '700'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 3. Mock ProfileImagePicker

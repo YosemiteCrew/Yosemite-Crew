@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {ScrollView, StyleSheet} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
@@ -10,30 +11,7 @@ import {
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        text: '#000000',
-        white: '#ffffff',
-        primary: '#0000ff',
-        lightBlueBackground: '#e6f7ff',
-      },
-      spacing: {
-        '1': 4,
-        '1.25': 5,
-        '2': 8,
-        '4': 16,
-      },
-      borderRadius: {
-        md: 8,
-        full: 999,
-      },
-      typography: {
-        pillSubtitleBold15: {fontSize: 15, fontWeight: 'bold'},
-        captionBold: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('PillSelector Component', () => {
@@ -100,8 +78,8 @@ describe('PillSelector Component', () => {
     const selectedStyle = StyleSheet.flatten(selectedText.props.style);
     const inactiveStyle = StyleSheet.flatten(inactiveText.props.style);
 
-    expect(selectedStyle.color).toBe('#0000ff'); // active color
-    expect(inactiveStyle.color).toBe('#000000'); // default text color
+    expect(selectedStyle.color).toBe(mockTheme.colors.primary);
+    expect(inactiveStyle.color).toBe(mockTheme.colors.text);
   });
 
   // ===========================================================================

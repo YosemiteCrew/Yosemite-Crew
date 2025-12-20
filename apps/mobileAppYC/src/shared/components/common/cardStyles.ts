@@ -30,20 +30,20 @@ export const createCardStyles = (theme: any) =>
     container: {
       width: '100%',
       alignSelf: 'center',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     card: {
       borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
@@ -75,12 +75,12 @@ export const createCardStyles = (theme: any) =>
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     thumbnailContainer: {
       width: 54,
       height: 54,
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.md,
       overflow: 'hidden' as const,
       backgroundColor: theme.colors.primarySurface,
       alignItems: 'center',
@@ -93,7 +93,7 @@ export const createCardStyles = (theme: any) =>
     },
     textContent: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     title: {
       ...theme.typography.titleMedium,
@@ -102,7 +102,7 @@ export const createCardStyles = (theme: any) =>
     rightColumn: {
       alignItems: 'flex-end',
       justifyContent: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
       minWidth: 70,
     },
     amount: {

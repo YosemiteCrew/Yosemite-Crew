@@ -59,7 +59,7 @@ export const createLegalStyles = (theme: any) =>
       minHeight: 96,
     },
     formErrorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
       marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['1'],
@@ -100,11 +100,7 @@ export const createLegalStyles = (theme: any) =>
       minHeight: 56,
     },
     glassButtonDarkText: {
-      fontFamily: theme.typography.businessTitle16.fontFamily,
-      fontSize: 16,
-      fontWeight: theme.typography.businessTitle16.fontWeight,
-      letterSpacing: -0.16,
-      lineHeight: 16,
+      ...theme.typography.titleSmall,
       color: theme.colors.white,
       textAlign: 'center',
     },

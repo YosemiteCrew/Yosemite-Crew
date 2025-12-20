@@ -29,8 +29,8 @@ const createStyles = (theme: any) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: theme.spacing[6],
-      gap: theme.spacing[2],
+      padding: theme.spacing['6'],
+      gap: theme.spacing['2'],
     },
     title: {
       ...theme.typography.titleLarge,

@@ -3,6 +3,7 @@ import {render, fireEvent, within} from '@testing-library/react-native';
 import {Step3Screen} from '../../../../src/features/adverseEventReporting/screens/Step3Screen';
 import {useSelector} from 'react-redux';
 import {useAdverseEventReport} from '../../../../src/features/adverseEventReporting/state/AdverseEventReportContext';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -31,21 +32,7 @@ jest.mock(
 
 // 4. Hooks
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        white: 'white',
-        error: 'red',
-      },
-      spacing: {4: 16, 6: 24},
-      typography: {
-        h6Clash: {},
-        paragraphBold: {},
-        labelXsBold: {},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 5. Components

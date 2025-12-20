@@ -1,5 +1,6 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
+import {useTheme} from '@/hooks';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -11,6 +12,41 @@ interface ErrorBoundaryState {
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
 }
+
+// Functional component for the error fallback UI
+const ErrorFallback: React.FC<{
+  error: Error;
+  errorInfo: React.ErrorInfo | null;
+  resetError: () => void;
+}> = ({error, errorInfo, resetError}) => {
+  const {theme} = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Oops! Something went wrong</Text>
+        <Text style={styles.message}>
+          The app encountered an unexpected error. Don't worry, your data is safe.
+        </Text>
+
+        {__DEV__ && (
+          <View style={styles.errorDetails}>
+            <Text style={styles.errorTitle}>Error Details (Dev Only):</Text>
+            <Text style={styles.errorText}>{error.toString()}</Text>
+            {errorInfo?.componentStack && (
+              <Text style={styles.stackText}>{errorInfo.componentStack}</Text>
+            )}
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.button} onPress={resetError}>
+          <Text style={styles.buttonText}>Try Again</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+};
 
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -58,30 +94,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
       // Default error UI
       return (
-        <View style={styles.container}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.title}>Oops! Something went wrong</Text>
-            <Text style={styles.message}>
-              The app encountered an unexpected error. Don't worry, your data is safe.
-            </Text>
-
-            {__DEV__ && (
-              <View style={styles.errorDetails}>
-                <Text style={styles.errorTitle}>Error Details (Dev Only):</Text>
-                <Text style={styles.errorText}>{this.state.error.toString()}</Text>
-                {this.state.errorInfo?.componentStack && (
-                  <Text style={styles.stackText}>
-                    {this.state.errorInfo.componentStack}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            <TouchableOpacity style={styles.button} onPress={this.resetError}>
-              <Text style={styles.buttonText}>Try Again</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+        <ErrorFallback error={this.state.error} errorInfo={this.state.errorInfo} resetError={this.resetError} />
       );
     }
 
@@ -89,69 +102,64 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  errorDetails: {
-    width: '100%',
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  errorTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#d32f2f',
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#d32f2f',
-    fontFamily: 'monospace',
-    marginBottom: 8,
-  },
-  stackText: {
-    fontSize: 10,
-    color: '#666',
-    fontFamily: 'monospace',
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.white,
+    },
+    scrollContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: theme.spacing['5'],
+    },
+    title: {
+      ...theme.typography.h2,
+      color: theme.colors.text,
+      marginBottom: theme.spacing['4'],
+      textAlign: 'center',
+    },
+    message: {
+      ...theme.typography.paragraph,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: theme.spacing['8'],
+      lineHeight: theme.spacing['6'],
+    },
+    errorDetails: {
+      width: '100%',
+      backgroundColor: theme.colors.backgroundSecondary,
+      padding: theme.spacing['4'],
+      borderRadius: theme.borderRadius.base,
+      marginBottom: theme.spacing['6'],
+    },
+    errorTitle: {
+      ...theme.typography.labelSmBold,
+      color: theme.colors.error,
+      marginBottom: theme.spacing['2'],
+    },
+    errorText: {
+      ...theme.typography.labelXs,
+      color: theme.colors.error,
+      fontFamily: 'monospace',
+      marginBottom: theme.spacing['2'],
+    },
+    stackText: {
+      fontSize: theme.spacing['2.5'],
+      color: theme.colors.textSecondary,
+      fontFamily: 'monospace',
+    },
+    button: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: theme.spacing['8'],
+      paddingVertical: theme.spacing['3'],
+      borderRadius: theme.borderRadius.base,
+      ...theme.shadows.sm,
+    },
+    buttonText: {
+      color: theme.colors.white,
+      ...theme.typography.paragraph,
+      fontWeight: '600',
+    },
+  });

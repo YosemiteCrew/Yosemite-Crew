@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {
   ConfirmActionBottomSheet,
@@ -8,38 +9,14 @@ import {useTheme} from '@/hooks';
 import {Text} from 'react-native';
 
 // FIX: Added 'h3' to typography and 'text' to colors to prevent crashes
-const mockTheme = {
-  colors: {
-    surface: 'mock-surface',
-    secondary: 'mock-secondary',
-    white: 'mock-white',
-    borderMuted: 'mock-borderMuted',
-    primary: 'mock-primary',
-    text: 'mock-text-color',
-  },
-  borderRadius: {
-    '3xl': 24,
-    lg: 12,
-  },
-  spacing: {
-    '3': 8,
-    '4': 12,
-    '5': 16,
-    '6': 20,
-  },
-  typography: {
-    h3: {fontSize: 24, fontWeight: 'bold', lineHeight: 32}, // Added this required property
-    h5Clash23: {fontSize: 23},
-    paragraph18Bold: {fontSize: 18, fontWeight: 'bold'},
-    buttonH6Clash19: {fontSize: 19},
-  },
-};
 
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 const mockBottomSheet = jest.fn();
 const mockSnapToIndex = jest.fn();

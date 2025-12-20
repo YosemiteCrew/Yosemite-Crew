@@ -38,9 +38,13 @@ const mockUseRoute = useRoute as jest.Mock;
 const mockUseFocusEffect = useFocusEffect as jest.Mock;
 
 // Mock custom hooks
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../../../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 (useTheme as jest.Mock).mockReturnValue({
   theme: {
     colors: {

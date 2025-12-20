@@ -559,19 +559,19 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     searchBarContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingTop: theme.spacing['4'],
       backgroundColor: theme.colors.background,
     },
     scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-      paddingTop: theme.spacing[3],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+      paddingTop: theme.spacing['3'],
     },
     sectionTitle: {
       ...theme.typography.titleLarge,
       color: theme.colors.text,
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     loadingContainer: {
       height: 200,
@@ -579,17 +579,17 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
     },
     resultsContainer: {
-      gap: theme.spacing[3],
-      marginTop: theme.spacing[4],
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['4'],
     },
     linkedSection: {
-      marginTop: theme.spacing[6],
+      marginTop: theme.spacing['6'],
     },
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: theme.spacing[12],
+      paddingVertical: theme.spacing['12'],
     },
     emptyText: {
       ...theme.typography.body,

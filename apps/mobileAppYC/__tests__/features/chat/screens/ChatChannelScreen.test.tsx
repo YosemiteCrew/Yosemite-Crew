@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, waitFor, fireEvent, act} from '@testing-library/react-native';
 import {ChatChannelScreen} from '../../../../src/features/chat/screens/ChatChannelScreen';
 import {Alert} from 'react-native';
@@ -64,20 +65,7 @@ jest.mock('stream-chat-react-native', () => {
 
 // 5. Common Components & Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        primary: 'blue',
-        textSecondary: 'gray',
-        error: 'red',
-      },
-      typography: {
-        bodyMedium: {},
-        bodySmall: {},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Header specifically

@@ -1,35 +1,19 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import { render, fireEvent } from '@testing-library/react-native';
 import { Checkbox } from '@/shared/components/common/Checkbox/Checkbox';
 import { useTheme } from '@/hooks';
 
 // --- Mocks ---
 
-// 1. Mock useTheme
-const mockTheme = {
-  colors: {
-    border: 'mock-border',
-    primary: 'mock-primary',
-    error: 'mock-error',
-    white: 'mock-white',
-    text: 'mock-text',
-  },
-  typography: {
-    subtitleRegular14: {
-      fontFamily: 'Satoshi-Regular',
-      fontSize: 14,
-      lineHeight: 16.8,
-      fontWeight: '400',
-    },
-    SATOSHI_REGULAR: 'Satoshi-Regular-Fallback', // Fallback font
-  },
-};
-
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
-}));
+// 1. Mock useTheme (hoist-safe)
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 // 2. Mock react-native
 jest.mock('react-native', () => {
@@ -166,7 +150,7 @@ describe('Checkbox', () => {
 
     expect(checkboxView.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ backgroundColor: 'mock-primary' }),
+        expect.objectContaining({ backgroundColor: mockTheme.colors.primary }),
       ]),
     );
   });
@@ -184,7 +168,7 @@ describe('Checkbox', () => {
 
     expect(checkboxView.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ borderColor: 'mock-error' }),
+        expect.objectContaining({ borderColor: mockTheme.colors.error }),
       ]),
     );
   });
@@ -202,8 +186,8 @@ describe('Checkbox', () => {
 
     expect(checkboxView.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ backgroundColor: 'mock-primary' }),
-        expect.objectContaining({ borderColor: 'mock-error' }),
+        expect.objectContaining({ backgroundColor: mockTheme.colors.primary }),
+        expect.objectContaining({ borderColor: mockTheme.colors.error }),
       ]),
     );
   });

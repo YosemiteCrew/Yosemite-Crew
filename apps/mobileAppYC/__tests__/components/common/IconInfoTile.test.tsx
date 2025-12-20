@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import IconInfoTile from '../../../src/shared/components/common/tiles/IconInfoTile';
 import {Image, Text} from 'react-native';
@@ -16,29 +17,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        textSecondary: 'gray',
-        success: 'green',
-        successLight: '#lightgreen',
-      },
-      spacing: {
-        2: 8,
-        3: 12,
-        4: 16,
-      },
-      borderRadius: {
-        md: 8,
-      },
-      typography: {
-        titleMedium: {fontSize: 16, fontWeight: 'bold'},
-        labelXsBold: {fontSize: 12, fontWeight: 'bold'},
-      },
-      shadows: {},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Styles Utils

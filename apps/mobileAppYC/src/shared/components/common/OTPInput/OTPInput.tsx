@@ -23,6 +23,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   autoFocus = true,
 }) => {
   const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [otp, setOtp] = useState<string[]>(() => Array.from({ length }, () => ''));
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRefs = useRef<(TextInput | null)[]>(new Array(length).fill(null));
@@ -146,31 +147,32 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 240,
-    paddingHorizontal: 10,
-  },
-  input: {
-    width: 45,
-    height: 55,
-    borderWidth: 2,
-    borderRadius: 8,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginHorizontal: 5,
-  },
-  errorText: {
-    marginTop: 12,
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      marginVertical: theme.spacing['5'],
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      width: 240,
+      paddingHorizontal: theme.spacing['2.5'],
+    },
+    input: {
+      width: 45,
+      height: 55,
+      borderWidth: 2,
+      borderRadius: theme.borderRadius.md,
+      textAlign: 'center',
+      ...theme.typography.h4,
+      fontWeight: 'bold',
+      marginHorizontal: theme.spacing['2'],
+    },
+    errorText: {
+      marginTop: theme.spacing['3'],
+      ...theme.typography.bodySmall,
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+  });

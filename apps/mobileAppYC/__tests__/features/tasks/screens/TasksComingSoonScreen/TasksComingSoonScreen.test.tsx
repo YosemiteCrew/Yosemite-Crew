@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render} from '@testing-library/react-native';
 import {TasksComingSoonScreen} from '../../../../../src/features/tasks/screens/TasksComingSoonScreen/TasksComingSoonScreen';
 
@@ -6,29 +7,7 @@ import {TasksComingSoonScreen} from '../../../../../src/features/tasks/screens/T
 
 // 1. Mock Theme Hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        secondary: '#000000',
-        textSecondary: '#666666',
-      },
-      spacing: {
-        '2': 8,
-        '6': 24,
-      },
-      typography: {
-        titleLarge: {
-          fontSize: 24,
-          fontWeight: 'bold',
-        },
-        bodyLarge: {
-          fontSize: 16,
-          fontWeight: 'normal',
-        },
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock SafeAreaView
@@ -68,7 +47,7 @@ describe('TasksComingSoonScreen', () => {
     const safeArea = getByTestId('safe-area');
     expect(safeArea.props.style).toEqual(
       expect.objectContaining({
-        backgroundColor: '#ffffff',
+        backgroundColor: mockTheme.colors.background,
         flex: 1,
       }),
     );
@@ -77,8 +56,8 @@ describe('TasksComingSoonScreen', () => {
     const title = getByText('Tasks coming soon');
     expect(title.props.style).toEqual(
       expect.objectContaining({
-        fontSize: 24, // from mock titleLarge
-        color: '#000000', // from mock secondary
+        fontSize: mockTheme.typography.titleLarge.fontSize,
+        color: mockTheme.colors.secondary,
         textAlign: 'center',
       }),
     );
@@ -89,8 +68,8 @@ describe('TasksComingSoonScreen', () => {
     );
     expect(subtitle.props.style).toEqual(
       expect.objectContaining({
-        fontSize: 16, // from mock bodyLarge
-        color: '#666666', // from mock textSecondary
+        fontSize: mockTheme.typography.bodyLarge.fontSize,
+        color: mockTheme.colors.textSecondary,
         textAlign: 'center',
       }),
     );

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {SwipeableActionCard} from '../../../src/shared/components/common/SwipeableActionCard/SwipeableActionCard';
 import {Text, Image} from 'react-native';
@@ -7,16 +8,7 @@ import {Text, Image} from 'react-native';
 
 // 1. Mock Theme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        success: 'green',
-        surface: 'white',
-      },
-      spacing: [0, 4, 8, 12, 16],
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Images

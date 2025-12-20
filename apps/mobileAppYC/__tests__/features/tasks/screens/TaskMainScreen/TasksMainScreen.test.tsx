@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {TasksMainScreen} from '../../../../../src/features/tasks/screens/TasksMainScreen/TasksMainScreen';
 import {useSelector, useDispatch} from 'react-redux';
@@ -113,37 +114,7 @@ jest.mock('@/assets/images', () => ({
 }));
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#fff',
-        surface: '#f5f5f5',
-        primary: 'blue',
-        textSecondary: '#666',
-        border: '#ccc',
-        lightBlueBackground: '#eef',
-      },
-      spacing: {
-        1: 4,
-        2: 8,
-        3: 12,
-        4: 16,
-        6: 24,
-        8: 32,
-        10: 40,
-        20: 80,
-      },
-      typography: {
-        titleMedium: {fontSize: 16},
-        h6Clash: {fontSize: 14},
-        bodyMedium: {fontSize: 14},
-      },
-      borderRadius: {
-        md: 8,
-        lg: 12,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 6. Date Utils

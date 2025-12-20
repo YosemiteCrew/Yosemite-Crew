@@ -188,7 +188,7 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     emptyStateSubtitle: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },
@@ -229,7 +229,7 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.textSecondary,
     },
     filePlaceholderText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },
@@ -280,7 +280,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       marginTop: theme.spacing['2'],
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
     },
   });

@@ -60,22 +60,22 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {flex: 1, backgroundColor: theme.colors.background},
     selectorWrapper: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[3],
-      marginBottom: theme.spacing[1],
+      paddingHorizontal: theme.spacing['4'],
+      paddingTop: theme.spacing['3'],
+      marginBottom: theme.spacing['1'],
     },
     selectorContainer: {
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     contentContainer: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingBottom: theme.spacing[52],
-      paddingHorizontal: theme.spacing[6],
+      paddingBottom: theme.spacing['52'],
+      paddingHorizontal: theme.spacing['6'],
     },
-    emptyImage: {width: 220, height: 220, resizeMode: 'contain', marginBottom: theme.spacing[6]},
-    title: {...theme.typography.businessSectionTitle20, color: '#302F2E', marginBottom: theme.spacing[3], textAlign: 'center'},
+    emptyImage: {width: 220, height: 220, resizeMode: 'contain', marginBottom: theme.spacing['6']},
+    title: {...theme.typography.businessSectionTitle20, color: '#302F2E', marginBottom: theme.spacing['3'], textAlign: 'center'},
     subtitle: {...theme.typography.subtitleRegular14, color: '#302F2E', textAlign: 'center'},
   });
 

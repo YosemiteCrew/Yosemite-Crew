@@ -62,10 +62,10 @@ const createStyles = (theme: any, variant: CardActionButtonVariant) => {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     borderRadius: theme.borderRadius.lg,
-    paddingVertical: theme.spacing[2],
-    paddingHorizontal: theme.spacing[4],
-    marginTop: theme.spacing[3],
-    gap: theme.spacing[2],
+    paddingVertical: theme.spacing['2'],
+    paddingHorizontal: theme.spacing['4'],
+    marginTop: theme.spacing['3'],
+    gap: theme.spacing['2'],
     minHeight: 45,
   };
 

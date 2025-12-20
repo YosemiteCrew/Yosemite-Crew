@@ -451,9 +451,9 @@ export const BookingFormScreen: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      padding: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-      gap: theme.spacing[4],
+      padding: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['4'],
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,

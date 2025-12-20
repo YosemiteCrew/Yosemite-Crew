@@ -6,7 +6,9 @@ import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
-import android.os.Bundle;
+import android.os.Build
+import android.os.Bundle
+import androidx.core.view.WindowCompat
 import com.zoontek.rnbootsplash.RNBootSplash
 
 class MainActivity : ReactActivity() {
@@ -20,6 +22,11 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
        RNBootSplash.init(this, R.style.BootTheme)
     super.onCreate(savedInstanceState)
+
+    // Enable edge-to-edge display for Android 15+ (backward compatible)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+      WindowCompat.setDecorFitsSystemWindows(window, false)
+    }
   }
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]

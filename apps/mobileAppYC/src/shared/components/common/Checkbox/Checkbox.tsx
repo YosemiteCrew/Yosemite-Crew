@@ -60,21 +60,21 @@ export const Checkbox: React.FC<CheckboxProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: 8,
+      marginBottom: theme.spacing['2'],
     },
     checkboxContainer: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'flex-start',
     },
     checkbox: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       borderWidth: 2,
       borderColor: theme.colors.border,
-      borderRadius: 4,
+      borderRadius: theme.borderRadius.sm,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 8,
+      marginRight: theme.spacing['2'],
     },
     checkboxChecked: {
       backgroundColor: theme.colors.primary,
@@ -85,7 +85,7 @@ const createStyles = (theme: any) =>
     },
     checkmark: {
       color: theme.colors.white,
-      fontSize: 12,
+      ...theme.typography.bodySmall,
       fontWeight: 'bold',
     },
     label: {
@@ -95,8 +95,8 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       color: theme.colors.error,
-      fontSize: 12,
-      marginTop: 4,
-      marginLeft: 28,
+      ...theme.typography.bodySmall,
+      marginTop: theme.spacing['1'],
+      marginLeft: theme.spacing['7'],
     },
   });

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import ExpenseCard from '../../../../../src/features/expenses/components/ExpenseCard/ExpenseCard';
 import {Images} from '@/assets/images';
@@ -7,20 +8,7 @@ import {Images} from '@/assets/images';
 
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        textSecondary: '#666',
-        secondary: '#000',
-        success: '#0f0',
-      },
-      typography: {
-        bodySmall: {fontSize: 12},
-        labelSmall: {fontSize: 10},
-      },
-      spacing: {2: 8},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Assets

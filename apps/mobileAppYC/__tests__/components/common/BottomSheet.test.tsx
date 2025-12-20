@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {Text, View} from 'react-native';
 import CustomBottomSheet, {
@@ -70,13 +71,7 @@ const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {cardBackground: 'white'},
-      borderRadius: {base: 10},
-      shadows: {medium: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // --- Tests ---

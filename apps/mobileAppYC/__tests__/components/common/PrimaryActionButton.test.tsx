@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render} from '@testing-library/react-native';
 import {
   PrimaryActionButton,
@@ -10,21 +11,7 @@ import {StyleSheet} from 'react-native';
 
 // Mock useTheme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: '#333333',
-        borderMuted: '#cccccc',
-        background: '#ffffff',
-      },
-      borderRadius: {
-        lg: 12,
-      },
-      typography: {
-        cta: {fontSize: 16, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock LiquidGlassButton

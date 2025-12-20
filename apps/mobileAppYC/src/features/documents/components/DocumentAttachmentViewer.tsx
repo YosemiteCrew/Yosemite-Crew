@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
-  StyleSheet,
 } from 'react-native';
 import {WebView} from 'react-native-webview';
 import Pdf from 'react-native-pdf';
@@ -53,6 +52,7 @@ const buildShareLabel = (
 };
 
 const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({uri, fallback}) => {
+  const {theme} = useTheme();
   const height = Math.max(Dimensions.get('window').height * 0.6, 400);
   const [shouldFallback, setShouldFallback] = React.useState(false);
 
@@ -61,7 +61,7 @@ const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({uri, fal
   }
 
   return (
-    <View style={[viewerStyles.pdfContainer, {height}]}>
+    <View style={[viewerStyles.pdfContainer(theme.borderRadius.lg), {height}]}>
       <Pdf
         source={{uri, cache: true}}
         style={viewerStyles.pdf}
@@ -84,6 +84,7 @@ const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({uri, fal
 };
 
 const DocViewer: React.FC<{uri: string; fallback?: React.ReactNode; fileName?: string}> = ({uri, fallback, fileName}) => {
+  const {theme} = useTheme();
   const height = Math.max(Dimensions.get('window').height * 0.6, 400);
   const [hasError, setHasError] = React.useState(false);
   const [useGoogleViewer, setUseGoogleViewer] = React.useState(false);
@@ -121,18 +122,21 @@ const DocViewer: React.FC<{uri: string; fallback?: React.ReactNode; fileName?: s
   const viewerUri = useGoogleViewer ? googleUri : officeUri;
 
   return (
-    <View style={[viewerStyles.docContainer, {height}]}>
+    <View style={[viewerStyles.docContainer(theme.borderRadius.lg), {height}]}>
       <WebView
         style={viewerStyles.webview}
         source={{uri: viewerUri}}
-        originWhitelist={['*']}
+        originWhitelist={['https://*']}
         javaScriptEnabled
         domStorageEnabled
         allowsInlineMediaPlayback
-        allowFileAccess
+        allowFileAccess={false}
         startInLoadingState
-        mixedContentMode="always"
+        mixedContentMode="never"
         userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        androidLayerType="hardware"
+        setSupportMultipleWindows={false}
+        geolocationEnabled={false}
         onError={error => {
           console.error('[DocumentAttachmentViewer] Doc viewer error', {
             fileName,
@@ -277,7 +281,7 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
   };
 
   return (
-    <View style={{gap: theme.spacing[6]}}>
+    <View style={{gap: theme.spacing['6']}}>
       {attachments.map(file => {
         const sourceUri = resolveSourceUri(file);
         const canPreview = Boolean(sourceUri);
@@ -341,10 +345,18 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
 
 export default DocumentAttachmentViewer;
 
-const viewerStyles = StyleSheet.create({
-  pdfContainer: {borderRadius: 16, overflow: 'hidden', width: '100%'},
-  pdf: {flex: 1, width: '100%'},
-  loader: {flex: 1, alignItems: 'center', justifyContent: 'center'},
-  docContainer: {borderRadius: 16, overflow: 'hidden'},
+// These styles don't depend on theme, so they can stay outside
+const viewerStyles = {
+  pdfContainer: (borderRadius: number) => ({
+    borderRadius,
+    overflow: 'hidden' as const,
+    width: '100%' as const,
+  }),
+  pdf: {flex: 1, width: '100%' as const},
+  loader: {flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const},
+  docContainer: (borderRadius: number) => ({
+    borderRadius,
+    overflow: 'hidden' as const,
+  }),
   webview: {flex: 1},
-});
+};

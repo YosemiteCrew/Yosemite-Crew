@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {AddCoParentScreen} from '../../../../../src/features/coParent/screens/AddCoParentScreen/AddCoParentScreen';
 import * as Redux from 'react-redux';
@@ -43,23 +44,7 @@ jest.mock('@/features/companion', () => ({
 
 // 4. Hooks & Assets
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        secondary: 'blue',
-        borderMuted: 'gray',
-        white: 'white',
-        text: 'black',
-      },
-      spacing: new Array(30).fill(8),
-      typography: {
-        titleMedium: {fontSize: 16},
-        h4Alt: {fontSize: 18},
-      },
-      borderRadius: {lg: 8},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({

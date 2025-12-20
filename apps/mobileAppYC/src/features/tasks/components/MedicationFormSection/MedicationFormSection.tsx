@@ -175,15 +175,15 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
 const createMedicationStyles = (theme: any) =>
   StyleSheet.create({
     dosageDisplayContainer: {
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
+      gap: theme.spacing['3'],
+      marginBottom: theme.spacing['4'],
     },
     dosageDisplayRow: {
       flexDirection: 'row',
-      gap: theme.spacing[3],
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[2],
-      borderRadius: 8,
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['2'],
+      borderRadius: theme.borderRadius.sm,
       backgroundColor: 'transparent',
     },
     dosageDisplayField: {

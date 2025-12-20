@@ -308,35 +308,35 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[6],
-      paddingBottom: theme.spacing[24],
+      paddingHorizontal: theme.spacing['4'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
     },
     heroImage: {
       width: 220,
       height: 220,
       resizeMode: 'contain',
       alignSelf: 'center',
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     title: {
       // Clash Grotesk 20/24, 500, -0.2
       ...theme.typography.businessSectionTitle20,
       color: '#302F2E',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
       alignSelf: 'center',
     },
     subtitle: {
       // Satoshi 15 Bold, 120%
       ...theme.typography.pillSubtitleBold15,
       color: '#302F2E',
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
       lineHeight: 18,
       letterSpacing: -0.3,
     },
     checkboxSection: {
       // Increased space before buttons group
-      marginBottom: theme.spacing[8],
+      marginBottom: theme.spacing['8'],
     },
     checkboxLabel: {
       // Satoshi 15 Bold, 120%
@@ -346,14 +346,14 @@ const createStyles = (theme: any) =>
       letterSpacing: -0.3,
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
-      marginTop: theme.spacing[2],
-      marginLeft: theme.spacing[1],
+      marginTop: theme.spacing['2'],
+      marginLeft: theme.spacing['1'],
     },
     actionsContainer: {
       // Slightly larger gap between buttons
-      gap: theme.spacing[5],
+      gap: theme.spacing['5'],
     },
     button: {
       width: '100%',
@@ -361,11 +361,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
+      ...theme.shadows.lg,
     },
     buttonText: {
       // CTA Clash Grotesk 18/18, 500, -0.18, white
@@ -391,11 +387,11 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: theme.spacing[8],
-      gap: theme.spacing[3],
+      paddingVertical: theme.spacing['8'],
+      gap: theme.spacing['3'],
       borderTopWidth: 1,
       borderTopColor: theme.colors.borderMuted,
-      marginTop: theme.spacing[2],
+      marginTop: theme.spacing['2'],
     },
     phoneIcon: {
       width: 20,
@@ -411,9 +407,9 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     authorityDetails: {
-      marginTop: theme.spacing[2],
+      marginTop: theme.spacing['2'],
       alignItems: 'center',
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     authorityName: {
       ...theme.typography.subtitleBold14,

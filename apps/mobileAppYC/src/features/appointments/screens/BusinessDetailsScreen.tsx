@@ -175,15 +175,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
-    padding: theme.spacing[4],
-    paddingBottom: theme.spacing[24],
+    padding: theme.spacing['4'],
+    paddingBottom: theme.spacing['24'],
   },
   businessCard: {
-    marginBottom: theme.spacing[5],
+    marginBottom: theme.spacing['5'],
   },
   footer: {
-    marginTop: theme.spacing[2],
-    marginBottom: theme.spacing[4],
+    marginTop: theme.spacing['2'],
+    marginBottom: theme.spacing['4'],
   },
   buttonText: {
     ...theme.typography.cta,
@@ -194,9 +194,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing[4],
-    gap: theme.spacing[2],
-       marginBottom: theme.spacing[4],
+    padding: theme.spacing['4'],
+    gap: theme.spacing['2'],
+       marginBottom: theme.spacing['4'],
   },
   emptyServicesTitle: {
     ...theme.typography.titleSmall,

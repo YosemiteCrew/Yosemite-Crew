@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {ScrollView} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
@@ -10,30 +11,7 @@ import {
 
 // Mocking useTheme to provide a predictable theme object for styling tests
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        white: '#ffffff',
-        border: '#e0e0e0',
-        lightBlueBackground: '#e6f7ff',
-        secondary: '#333333',
-        textSecondary: '#666666',
-      },
-      spacing: {
-        1: 4,
-        3: 12,
-        4: 16,
-      },
-      borderRadius: {
-        lg: 8,
-      },
-      typography: {
-        h4: {fontSize: 20, fontWeight: 'bold'},
-        titleSmall: {fontSize: 14, fontWeight: '600'},
-        bodyExtraSmall: {fontSize: 12},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('SearchDropdownOverlay Component', () => {

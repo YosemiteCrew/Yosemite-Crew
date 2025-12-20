@@ -147,20 +147,20 @@ const createStyles = (theme: any) =>
     ...createScreenContainerStyles(theme),
     ...createErrorContainerStyles(theme),
     searchBar: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[3],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['3'],
     },
     selector: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     loaderContainer: {
-      paddingVertical: theme.spacing[8],
+      paddingVertical: theme.spacing['8'],
       alignItems: 'center',
       justifyContent: 'center',
     },
     emptyState: {
-      paddingVertical: theme.spacing[8],
-      gap: theme.spacing[2],
+      paddingVertical: theme.spacing['8'],
+      gap: theme.spacing['2'],
     },
     emptyTitle: {
       ...theme.typography.titleMedium,
@@ -171,8 +171,8 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     resultsContainer: {
-      gap: theme.spacing[3],
-      paddingBottom: theme.spacing[10],
+      gap: theme.spacing['3'],
+      paddingBottom: theme.spacing['10'],
     },
   });
 

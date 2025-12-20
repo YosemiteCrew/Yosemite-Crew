@@ -414,23 +414,23 @@ const createStyles = (theme: any) =>
     scrollContent: {
       flexGrow: 1,
       paddingTop: 100,
-      paddingHorizontal: 20,
+      paddingHorizontal: theme.spacing['5'],
     },
     content: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingBottom: 20,
+      paddingBottom: theme.spacing['5'],
     },
     illustration: {
       width: '80%',
       height: '30%',
-      marginBottom: 22,
+      marginBottom: theme.spacing['5'],
     },
     subtitle: {
       ...theme.typography.h3,
       color: theme.colors.secondary,
-      marginBottom: 16,
+      marginBottom: theme.spacing['4'],
       textAlign: 'center',
     },
     description: {
@@ -438,21 +438,21 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       textAlign: 'center',
       lineHeight: 22.4,
-      marginBottom: 16,
+      marginBottom: theme.spacing['4'],
     },
     emailText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.secondary,
     },
     bottomSection: {
-      paddingHorizontal: 20,
-      paddingBottom: 40,
-      paddingTop: 20,
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['10'],
+      paddingTop: theme.spacing['5'],
       backgroundColor: theme.colors.background,
     },
     verifyButton: {
       width: '100%',
-      marginBottom: 24,
+      marginBottom: theme.spacing['6'],
     },
     verifyButtonText: {
       ...theme.typography.cta,
@@ -462,15 +462,15 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: theme.spacing['1'],
     },
     resendText: {
       ...theme.typography.paragraph,
       color: theme.colors.textSecondary,
     },
     resendButton: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
     },
     resendLink: {
       ...theme.typography.paragraphBold,
@@ -484,9 +484,9 @@ const createStyles = (theme: any) =>
       width: '100%',
     },
     prefillButton: {
-      marginTop: 8,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      marginTop: theme.spacing['2'],
+      paddingVertical: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['3'],
     },
     prefillText: {
       ...theme.typography.paragraphBold,

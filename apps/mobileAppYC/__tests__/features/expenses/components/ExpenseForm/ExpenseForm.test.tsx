@@ -8,100 +8,58 @@ const mockHandleRemoveFile = jest.fn();
 const mockConfirmDeleteFile = jest.fn();
 
 jest.mock('@/hooks', () => {
-  const mockOpenSheetInternal = jest.fn();
-  const mockCloseSheetInternal = jest.fn();
+  const {mockTheme: theme} = require('../setup/mockTheme');
 
-  const mockCategorySheetRef = {current: {open: jest.fn(), close: jest.fn()}};
-  const mockSubcategorySheetRef = {
-    current: {open: jest.fn(), close: jest.fn()},
+  const createSheetRef = () => ({
+    current: {
+      open: jest.fn(),
+      close: jest.fn(),
+    },
+  });
+
+  const formBottomSheets = {
+    refs: {
+      categorySheetRef: createSheetRef(),
+      subcategorySheetRef: createSheetRef(),
+      visitTypeSheetRef: createSheetRef(),
+      uploadSheetRef: createSheetRef(),
+      deleteSheetRef: createSheetRef(),
+    },
+    openSheet: jest.fn(),
+    closeSheet: jest.fn(),
   };
-  const mockVisitTypeSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
-  const mockUploadSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
-  const mockDeleteSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
-
-  let mockFileToDelete: string | null = null;
 
   return {
-    useTheme: () => ({
-      theme: {
-        spacing: {1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 24: 96},
-        colors: {
-          background: '#FFF',
-          secondary: '#000',
-          white: '#FFF',
-          borderMuted: '#DDD',
-          primary: '#123',
-        },
-        typography: {
-          label: {fontSize: 14},
-          paragraphBold: {fontSize: 16, fontWeight: 'bold'},
-        },
-        borderRadius: {lg: 8},
-        shadows: {md: {}, lg: {}},
-      },
-    }),
-    useFileOperations: jest
-      .fn()
-      .mockImplementation(
-        ({
-          files,
-          setFiles,
-          clearError,
-          openSheet,
-          closeSheet,
-          deleteSheetRef,
-        }) => {
-          const testCallableSetFiles = (newFiles: any[]) => {
-            setFiles(newFiles);
-          };
-          const testCallableClearError = () => {
-            clearError();
-          };
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+    useFormBottomSheets: jest.fn(() => formBottomSheets),
+    useFileOperations: jest.fn((config: any) => {
+      let fileToDelete: string | null = null;
 
-          return {
-            fileToDelete: mockFileToDelete,
-            handleTakePhoto: mockHandleTakePhoto,
-            handleChooseFromGallery: mockHandleChooseFromGallery,
-            handleUploadFromDrive: mockHandleUploadFromDrive,
-            handleRemoveFile: (fileId: string) => {
-              mockFileToDelete = fileId;
-              openSheet('delete');
-              deleteSheetRef.current?.open();
-              mockHandleRemoveFile(fileId);
-            },
-            confirmDeleteFile: () => {
-              if (mockFileToDelete) {
-                const fileToRemoveId = mockFileToDelete;
-                mockConfirmDeleteFile(fileToRemoveId);
-                mockFileToDelete = null;
-                const updatedFiles = files.filter(
-                  (f: any) => f.id !== fileToRemoveId,
-                );
-                setFiles(updatedFiles);
-                closeSheet();
-              }
-            },
-            _testSetFiles: testCallableSetFiles,
-            _testClearError: testCallableClearError,
-          };
+      return {
+        fileToDelete,
+        handleTakePhoto: mockHandleTakePhoto,
+        handleChooseFromGallery: mockHandleChooseFromGallery,
+        handleUploadFromDrive: mockHandleUploadFromDrive,
+        handleRemoveFile: (fileId: string) => {
+          fileToDelete = fileId;
+          mockHandleRemoveFile(fileId);
+          config?.openSheet?.('delete');
+          config?.deleteSheetRef?.current?.open?.();
         },
-      ),
-    useFormBottomSheets: jest.fn(() => ({
-      refs: {
-        categorySheetRef: mockCategorySheetRef,
-        subcategorySheetRef: mockSubcategorySheetRef,
-        visitTypeSheetRef: mockVisitTypeSheetRef,
-        uploadSheetRef: mockUploadSheetRef,
-        deleteSheetRef: mockDeleteSheetRef,
-      },
-      openSheet: mockOpenSheetInternal,
-      closeSheet: mockCloseSheetInternal,
-    })),
-    useBottomSheetBackHandler: jest.fn(() => ({
-      registerSheet: jest.fn(),
-      openSheet: mockOpenSheetInternal,
-      closeSheet: mockCloseSheetInternal,
-    })),
+        confirmDeleteFile: () => {
+          if (!fileToDelete) {
+            return;
+          }
+          mockConfirmDeleteFile(fileToDelete);
+          config?.setFiles?.((config?.files ?? []).filter((f: any) => f.id !== fileToDelete));
+          fileToDelete = null;
+          config?.closeSheet?.();
+        },
+        _testSetFiles: (files: any[]) => config?.setFiles?.(files),
+        _testClearError: () => config?.clearError?.(),
+      };
+    }),
   };
 });
 

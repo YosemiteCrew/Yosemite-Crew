@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Platform, Modal, View, StyleSheet, TouchableOpacity, Text, useColorScheme } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useTheme } from '@/hooks';
 
 interface SimpleDatePickerProps {
   value: Date | null;
@@ -25,6 +26,7 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
   const [tempDate, setTempDate] = useState(value || new Date());
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === 'dark';
+  const {theme} = useTheme();
 
   useEffect(() => {
     setInternalShow(show);
@@ -67,11 +69,13 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
     return null;
   }
 
-  const sheetBackground = isDarkMode ? '#1C1C1E' : '#FFFFFF';
-  const dividerColor = isDarkMode ? '#38383A' : '#E5E5EA';
-  const overlayColor = 'rgba(0, 0, 0, 0.35)';
-  const primaryTextColor = '#007AFF'; // iOS system blue
-  const pickerTextColor = isDarkMode ? '#FFFFFF' : '#000000';
+  const sheetBackground = isDarkMode ? theme.colors.gray800 : theme.colors.white;
+  const dividerColor = isDarkMode ? theme.colors.borderMuted : theme.colors.border;
+  const overlayColor = theme.colors.overlay;
+  const primaryTextColor = theme.colors.primary;
+  const pickerTextColor = isDarkMode ? theme.colors.white : theme.colors.black;
+
+  const styles = createStyles(theme);
 
   // iOS needs a modal container
   if (Platform.OS === 'ios') {
@@ -127,52 +131,53 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-  },
-  modalBackdrop: {
-    flex: 1,
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 34, // Safe area for iOS
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
-    width: '100%',
-  },
-  button: {
-    padding: 8,
-    minWidth: 60,
-  },
-  buttonText: {
-    fontSize: 17,
-    color: '#007AFF',
-    textAlign: 'center',
-  },
-  confirmText: {
-    fontWeight: '600',
-  },
-  picker: {
-    height: 216,
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: theme.colors.overlay,
+    },
+    modalBackdrop: {
+      flex: 1,
+    },
+    modalContent: {
+      backgroundColor: theme.colors.white,
+      borderTopLeftRadius: theme.borderRadius.lg,
+      borderTopRightRadius: theme.borderRadius.lg,
+      paddingBottom: theme.spacing['9'] || 34,
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+      backgroundColor: theme.colors.white,
+      width: '100%',
+    },
+    button: {
+      padding: theme.spacing['2'],
+      minWidth: theme.spacing['15'] || 60,
+    },
+    buttonText: {
+      ...theme.typography.paragraph,
+      color: theme.colors.primary,
+      textAlign: 'center',
+    },
+    confirmText: {
+      fontWeight: '600',
+    },
+    picker: {
+      height: theme.spacing['54'] || 216,
+      width: '100%',
+      backgroundColor: theme.colors.white,
+    },
+  });
 
 // Utility function for date formatting
 export const formatDateForDisplay = (date: Date | null): string => {

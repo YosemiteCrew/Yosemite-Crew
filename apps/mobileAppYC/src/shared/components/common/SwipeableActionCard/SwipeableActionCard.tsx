@@ -134,7 +134,7 @@ const createStyles = (theme: any) =>
     container: {
       width: '100%',
       alignSelf: 'center',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     actionContainer: {
       flexDirection: 'row',

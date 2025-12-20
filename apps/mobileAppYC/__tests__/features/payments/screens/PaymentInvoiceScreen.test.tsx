@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, waitFor} from '@testing-library/react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {useRoute} from '@react-navigation/native';
@@ -38,27 +39,7 @@ jest.mock('react-redux', () => ({
 }));
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        secondary: 'black',
-        textSecondary: 'gray',
-        surface: 'white',
-        cardBackground: '#f0f0f0',
-        border: '#ddd',
-        lightBlueBackground: '#eef',
-        white: '#fff',
-      },
-      spacing: {1: 4, 2: 8, 3: 12, 4: 16, 24: 96},
-      typography: {
-        titleSmall: {fontSize: 16, fontWeight: 'bold'},
-        body14: {fontSize: 14},
-        body12: {fontSize: 12},
-        button: {fontSize: 16},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Fix TS Error: Remove unused imports or mock correctly

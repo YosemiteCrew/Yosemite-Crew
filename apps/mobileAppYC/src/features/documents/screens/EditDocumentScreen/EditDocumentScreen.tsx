@@ -1,5 +1,5 @@
 /* istanbul ignore file -- UI-heavy edit flow pending dedicated integration coverage */
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useState, useRef, useEffect, useMemo} from 'react';
 import {View, Text, StyleSheet, BackHandler} from 'react-native';
 import {useNavigation, useRoute, RouteProp, CommonActions} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -84,6 +84,8 @@ export const EditDocumentScreen: React.FC = () => {
 
     return () => backHandler.remove();
   }, [isDeleteSheetOpen]);
+
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (!document) {
     return (
@@ -262,13 +264,14 @@ export const EditDocumentScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   errorContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   errorMessage: {
-    fontSize: 16,
+    ...theme.typography.body,
+    color: theme.colors.error,
   },
 });

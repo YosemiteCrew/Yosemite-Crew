@@ -4,6 +4,7 @@ import {DocumentsScreen} from '../../../../../src/features/documents/screens/Doc
 import * as reactRedux from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 import {DOCUMENT_CATEGORIES} from '../../../../../src/features/documents/constants';
+import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -12,13 +13,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('../../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {background: 'white', secondary: 'black'},
-      spacing: {2: 8, 3: 12, 4: 16, 24: 96},
-      typography: {titleLarge: {fontSize: 20}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('../../../../../src/shared/components/common', () => {

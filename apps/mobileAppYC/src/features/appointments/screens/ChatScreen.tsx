@@ -50,15 +50,15 @@ export const ChatScreen: React.FC = () => {
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  list: {padding: 16, gap: 8},
-  bubble: {maxWidth: '80%', padding: 12, borderRadius: 14, marginVertical: 6},
-  you: {alignSelf: 'flex-end', backgroundColor: '#E6F0FE'},
-  vet: {alignSelf: 'flex-start', backgroundColor: '#F0F0F0'},
+  list: {padding: theme.spacing['4'], gap: theme.spacing['2']},
+  bubble: {maxWidth: '80%', padding: theme.spacing['3'], borderRadius: theme.borderRadius.md, marginVertical: theme.spacing['2']},
+  you: {alignSelf: 'flex-end', backgroundColor: theme.colors.lightBlueBackground},
+  vet: {alignSelf: 'flex-start', backgroundColor: theme.colors.surface},
   text: {...theme.typography.bodySmall, color: theme.colors.secondary},
-  time: {...theme.typography.caption, color: theme.colors.textSecondary, marginTop: 4},
-  composer: {flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderTopWidth: 1, borderColor: theme.colors.border},
-  input: {flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground},
-  send: {paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.colors.secondary},
+  time: {...theme.typography.caption, color: theme.colors.textSecondary, marginTop: theme.spacing['1']},
+  composer: {flexDirection: 'row', alignItems: 'center', gap: theme.spacing['2'], padding: theme.spacing['3'], borderTopWidth: 1, borderColor: theme.colors.border},
+  input: {flex: 1, paddingVertical: theme.spacing['2.5'], paddingHorizontal: theme.spacing['3'], borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground},
+  send: {paddingHorizontal: theme.spacing['4'], paddingVertical: theme.spacing['2.5'], borderRadius: theme.borderRadius.lg, backgroundColor: theme.colors.secondary},
   sendText: {...theme.typography.buttonSmall, color: theme.colors.white},
 });
 

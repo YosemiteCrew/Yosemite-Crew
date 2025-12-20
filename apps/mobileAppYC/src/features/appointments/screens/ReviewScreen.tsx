@@ -166,12 +166,12 @@ export const ReviewScreen: React.FC = () => {
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    padding: theme.spacing[4],
-    paddingBottom: theme.spacing[24],
+    padding: theme.spacing['4'],
+    paddingBottom: theme.spacing['24'],
   },
   headerSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing[5],
+    marginBottom: theme.spacing['5'],
   },
   checkmarkContainer: {
     width: 72,
@@ -179,8 +179,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: theme.spacing[6],
-        marginBottom: theme.spacing[12],
+    marginTop: theme.spacing['6'],
+        marginBottom: theme.spacing['12'],
   },
   checkmarkIcon: {
     width: 100,
@@ -189,7 +189,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   title: {
     ...theme.typography.h3,
     color: theme.colors.secondary,
-    marginBottom: theme.spacing[2],
+    marginBottom: theme.spacing['2'],
     textAlign: 'center',
   },
   subtitle: {
@@ -198,29 +198,29 @@ const createStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
   },
   businessCardContainer: {
-    marginBottom: theme.spacing[4],
+    marginBottom: theme.spacing['4'],
   },
   summaryCard: {
-    marginBottom: theme.spacing[2],
+    marginBottom: theme.spacing['2'],
   },
   ratingSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing[6],
+    marginBottom: theme.spacing['6'],
   },
   reviewSection: {
-    marginBottom: theme.spacing[4],
+    marginBottom: theme.spacing['4'],
   },
   reviewLabel: {
     ...theme.typography.titleMedium,
     color: theme.colors.secondary,
-    marginBottom: theme.spacing[3],
+    marginBottom: theme.spacing['3'],
   },
   textArea: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[3],
+    paddingHorizontal: theme.spacing['3'],
+    paddingVertical: theme.spacing['3'],
     minHeight: 140,
     backgroundColor: theme.colors.inputBackground,
   },
@@ -230,7 +230,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     minHeight: 120,
   },
   buttonContainer: {
-    marginTop: theme.spacing[2],
+    marginTop: theme.spacing['2'],
   },
 });
 

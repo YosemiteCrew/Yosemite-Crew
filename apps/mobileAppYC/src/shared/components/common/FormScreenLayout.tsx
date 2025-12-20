@@ -43,12 +43,12 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createScreenContainerStyles(theme),
     content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['10'],
     },
     glassContainer: {
       borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
+      paddingVertical: theme.spacing['2'],
       overflow: 'hidden',
       ...theme.shadows.md,
     },
@@ -58,6 +58,6 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
     },
     listContainer: {
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
   });

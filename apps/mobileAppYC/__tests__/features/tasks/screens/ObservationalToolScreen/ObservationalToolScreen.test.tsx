@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {
   render,
   fireEvent,
@@ -194,39 +195,7 @@ jest.mock(
 );
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        secondary: 'blue',
-        primary: 'red',
-        borderMuted: 'gray',
-        cardBackground: 'white',
-        lightBlueBackground: 'lightblue',
-        surface: 'white',
-        placeholder: 'gray',
-        error: 'red',
-        white: 'white',
-      },
-      spacing: new Array(30).fill(4),
-      borderRadius: {lg: 8, md: 4},
-      typography: {
-        h3: {fontSize: 20},
-        bodyMedium: {fontSize: 14},
-        paragraph18Bold: {fontSize: 18},
-        subtitleRegular14: {fontSize: 14},
-        businessSectionTitle20: {fontSize: 20},
-        body12: {fontSize: 12},
-        button: {fontSize: 16},
-        labelXsBold: {fontSize: 10},
-        titleSmall: {fontSize: 14},
-        captionBoldSatoshi: {fontSize: 12},
-        h6Clash: {fontSize: 18},
-        paragraphBold: {fontSize: 16},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.spyOn(console, 'error').mockImplementation(() => {});
