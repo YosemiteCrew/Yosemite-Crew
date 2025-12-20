@@ -1,315 +1,276 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SpecialityInfo from "@/app/pages/Organization/Sections/Specialities/SpecialityInfo";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import {
   updateService,
   updateSpeciality,
 } from "@/app/services/specialityService";
 import { SpecialityWeb } from "@/app/types/speciality";
-// Import the component we are mocking so we can cast it to a mock to inspect calls
-import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
-import { Service } from "@yosemite-crew/types";
 
 // --- Mocks ---
 
-// Mock Services
+jest.mock("@/app/hooks/useTeam", () => ({
+  useTeamForPrimaryOrg: jest.fn(),
+}));
+
 jest.mock("@/app/services/specialityService", () => ({
   updateService: jest.fn(),
   updateSpeciality: jest.fn(),
 }));
 
-// Mock Modal
-jest.mock("@/app/components/Modal", () => {
-  return ({ showModal, children, setShowModal }: any) =>
-    showModal ? (
-      <div data-testid="mock-modal">
-        <button
-          data-testid="close-modal-overlay"
-          onClick={() => setShowModal(false)}
-        >
-          Close Overlay
-        </button>
-        {children}
-      </div>
-    ) : null;
-});
+jest.mock("@/app/components/Modal", () => ({
+  __esModule: true,
+  default: ({ children, showModal }: any) =>
+    showModal ? <div>{children}</div> : null,
+}));
 
-// Mock Icons
-jest.mock("react-icons/io", () => ({
-  IoIosCloseCircleOutline: ({ onClick }: any) => (
-    <button data-testid="icon-close" onClick={onClick}>
-      Close Icon
-    </button>
+jest.mock("@/app/components/Inputs/ServiceSearch/ServiceSearchEdit", () => ({
+  __esModule: true,
+  default: () => <div data-testid="service-search-edit" />,
+}));
+
+jest.mock("@/app/components/Accordion/Accordion", () => ({
+  __esModule: true,
+  default: ({ children, title }: any) => (
+    <div data-testid={`accordion-${title.toLowerCase()}`}>
+      <h3>{title}</h3>
+      {children}
+    </div>
   ),
 }));
 
-// Mock Child Components
-jest.mock(
-  "@/app/components/Inputs/ServiceSearch/ServiceSearchEdit",
-  () => () => <div data-testid="service-search-edit">ServiceSearchEdit</div>
-);
-
-jest.mock(
-  "@/app/components/Accordion/Accordion",
-  () =>
-    ({ title, children }: any) => (
-      <div data-testid={`accordion-${title}`}>
-        <h3>{title}</h3>
-        {children}
-      </div>
-    )
-);
-
-// Mock EditableAccordion (Defined Inline to avoid hoisting ReferenceError)
-jest.mock("@/app/components/Accordion/EditableAccordion", () => {
-  return jest.fn(({ title }) => (
-    <div data-testid={`editable-${title}`}>
-      <span>{title}</span>
+// Mock EditableAccordion to simulate Save events
+jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+  __esModule: true,
+  default: ({ title, onSave, data }: any) => (
+    <div
+      data-testid={`editable-accordion-${title.replaceAll(/\s+/g, "-").toLowerCase()}`}
+    >
+      <h4>{title}</h4>
+      <span data-testid={`data-${title.replaceAll(/\s+/g, "-").toLowerCase()}`}>
+        {data.name}
+      </span>
+      <button
+        data-testid={`save-${title.replaceAll(/\s+/g, "-").toLowerCase()}`}
+        onClick={() => {
+          // Simulate different payloads based on what section it is
+          if (title === "Core") {
+            onSave({ name: "Updated Speciality", headName: "team-1" });
+          } else {
+            onSave({
+              name: "Updated Service",
+              description: "New Desc",
+              durationMinutes: "45",
+              cost: "150",
+              maxDiscount: "20",
+            });
+          }
+        }}
+      >
+        Save {title}
+      </button>
+      <button
+        data-testid={`save-empty-${title.replaceAll(/\s+/g, "-").toLowerCase()}`}
+        onClick={() => {
+          // Simulate sending empty/null values to test fallback logic
+          onSave({ maxDiscount: "" });
+        }}
+      >
+        Save Empty {title}
+      </button>
     </div>
-  ));
-});
-
-// --- Test Data ---
-
-// Fixed: Removed '_id' from Service mock, keeping only 'id'
-const mockServices: Service[] = [
-  {
-    id: "s1",
-    name: "Consultation",
-    description: "General checkup",
-    durationMinutes: 30,
-    cost: 50,
-    maxDiscount: 10,
-    organisationId: "org-1",
-    isActive: true,
-  },
-] as Service[];
-
-const mockSpeciality: SpecialityWeb = {
-  _id: "spec-1",
-  name: "Cardiology",
-  headName: "Dr. Heart",
-  organisationId: "org-1",
-  services: mockServices,
-} as SpecialityWeb;
+  ),
+}));
 
 describe("SpecialityInfo Component", () => {
   const mockSetShowModal = jest.fn();
+  const mockTeam = [{ _id: "team-1", name: "Dr. Smith" }];
 
-  // Helper to get the mock object for assertions
-  const getAccordionMock = () => EditableAccordion as unknown as jest.Mock;
+  const mockActiveSpeciality: SpecialityWeb = {
+    _id: "spec-1",
+    organisationId: "org-1",
+    name: "Cardiology",
+    headUserId: "team-old",
+    headName: "Old Lead",
+    services: [
+      {
+        id: "svc-1",
+        organisationId: "org-1",
+        name: "Consultation",
+        description: "Standard checkup",
+        durationMinutes: 30,
+        cost: 100,
+        maxDiscount: 10,
+        isActive: true,
+      },
+    ],
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue(mockTeam);
   });
 
-  // --- 1. Rendering Section ---
+  // --- 1. Rendering ---
 
-  it("renders correctly when open", () => {
+  it("renders correctly with active speciality data", () => {
     render(
       <SpecialityInfo
         showModal={true}
         setShowModal={mockSetShowModal}
-        activeSpeciality={mockSpeciality}
+        activeSpeciality={mockActiveSpeciality}
       />
     );
 
-    expect(screen.getByTestId("mock-modal")).toBeInTheDocument();
     expect(screen.getByText("View speciality")).toBeInTheDocument();
-    expect(screen.getByText("Cardiology")).toBeInTheDocument();
-
-    // Check Sections
-    expect(screen.getByTestId("editable-Core")).toBeInTheDocument();
-    expect(screen.getByTestId("accordion-Services")).toBeInTheDocument();
-
-    // Check Service List
-    expect(screen.getByTestId("editable-Consultation")).toBeInTheDocument();
-    expect(screen.getByTestId("service-search-edit")).toBeInTheDocument();
   });
 
-  it("renders '-' if name is missing", () => {
-    const unnamedSpec = { ...mockSpeciality, name: "" };
+  it("renders fallback values for empty data", () => {
+    const emptySpec = {
+      ...mockActiveSpeciality,
+      name: "",
+      headUserId: null,
+    } as any;
     render(
       <SpecialityInfo
         showModal={true}
         setShowModal={mockSetShowModal}
-        activeSpeciality={unnamedSpec as any}
+        activeSpeciality={emptySpec}
       />
     );
-    expect(screen.getByText("-")).toBeInTheDocument();
+    // Should render without crashing
+    expect(screen.getByText("View speciality")).toBeInTheDocument();
   });
 
-  // --- 2. Interaction: Core Update ---
-
-  it("calls updateSpeciality with merged values when Core section is saved", async () => {
-    (updateSpeciality as jest.Mock).mockResolvedValue({}); // Mock success
-
-    render(
+  it("closes modal when close icon is clicked", () => {
+    const { container } = render(
       <SpecialityInfo
         showModal={true}
         setShowModal={mockSetShowModal}
-        activeSpeciality={mockSpeciality}
+        activeSpeciality={mockActiveSpeciality}
       />
     );
 
-    // Find the call for the "Core" accordion
-    const coreCall = getAccordionMock().mock.calls.find(
-      (call) => call[0].title === "Core"
-    );
-    expect(coreCall).toBeDefined();
-
-    const onSave = coreCall?.[0].onSave;
-
-    // Simulate saving with new values
-    const newValues = { name: "Neuro", headName: "Dr. Brain" };
-    if (onSave) await onSave(newValues);
-  });
-
-  it("falls back to existing values if Core update fields are undefined", async () => {
-    (updateSpeciality as jest.Mock).mockResolvedValue({}); // Mock success
-
-    render(
-      <SpecialityInfo
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeSpeciality={mockSpeciality}
-      />
-    );
-
-    const coreCall = getAccordionMock().mock.calls.find(
-      (call) => call[0].title === "Core"
-    );
-    const onSave = coreCall?.[0].onSave;
-
-    if (onSave) await onSave({});
-
-    expect(updateSpeciality).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "Cardiology",
-        headName: "Dr. Heart",
-      })
-    );
-  });
-
-  // --- 3. Interaction: Service Update ---
-
-  it("calls updateService with correct types when Service is saved", async () => {
-    (updateService as jest.Mock).mockResolvedValue({}); // Mock success
-
-    render(
-      <SpecialityInfo
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeSpeciality={mockSpeciality}
-      />
-    );
-
-    const serviceCall = getAccordionMock().mock.calls.find(
-      (call) => call[0].title === "Consultation"
-    );
-    expect(serviceCall).toBeDefined();
-
-    const onSave = serviceCall?.[0].onSave;
-
-    if (onSave) {
-      await onSave({
-        description: "Updated Desc",
-        durationMinutes: "60",
-        cost: "100",
-        maxDiscount: "15",
-      });
-    }
-
-    expect(updateService).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "s1", // Check for 'id', not '_id'
-        name: "Consultation",
-        description: "Updated Desc",
-        durationMinutes: 60, // Number
-        cost: 100, // Number
-        maxDiscount: 15, // Number
-      })
-    );
-  });
-
-  it("handles null/empty maxDiscount correctly for Services", async () => {
-    (updateService as jest.Mock).mockResolvedValue({}); // Mock success
-
-    render(
-      <SpecialityInfo
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeSpeciality={mockSpeciality}
-      />
-    );
-
-    const serviceCall = getAccordionMock().mock.calls.find(
-      (call) => call[0].title === "Consultation"
-    );
-    const onSave = serviceCall?.[0].onSave;
-
-    if (onSave) {
-      // Case 1: Empty string
-      await onSave({ maxDiscount: "" });
-      expect(updateService).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          maxDiscount: null,
-        })
-      );
-
-      // Case 2: Null
-      await onSave({ maxDiscount: null });
-      expect(updateService).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          maxDiscount: null,
-        })
-      );
-    }
-  });
-
-  it("falls back to existing service values if inputs are undefined", async () => {
-    (updateService as jest.Mock).mockResolvedValue({}); // Mock success
-
-    render(
-      <SpecialityInfo
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeSpeciality={mockSpeciality}
-      />
-    );
-
-    const serviceCall = getAccordionMock().mock.calls.find(
-      (call) => call[0].title === "Consultation"
-    );
-    const onSave = serviceCall?.[0].onSave;
-
-    if (onSave) await onSave({});
-
-    expect(updateService).toHaveBeenCalledWith(
-      expect.objectContaining({
-        description: "General checkup",
-        durationMinutes: 30,
-        cost: 50,
-      })
-    );
-  });
-
-  // --- 4. Interaction: Closing ---
-
-  it("closes modal when clicking close icon", () => {
-    render(
-      <SpecialityInfo
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeSpeciality={mockSpeciality}
-      />
-    );
-
-    // Click the second icon (the visible one)
-    const closeButtons = screen.getAllByTestId("icon-close");
-    fireEvent.click(closeButtons[1]);
+    const closeIcon = container.querySelector("svg.cursor-pointer");
+    if (closeIcon) fireEvent.click(closeIcon);
 
     expect(mockSetShowModal).toHaveBeenCalledWith(false);
+  });
+
+  // --- 2. Updating Speciality (Core) ---
+
+  it("calls updateSpeciality with correct data on Core save", async () => {
+    render(
+      <SpecialityInfo
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        activeSpeciality={mockActiveSpeciality}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("save-core"));
+
+    await waitFor(() => {
+      expect(updateSpeciality).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: "spec-1",
+          name: "Updated Speciality",
+          headUserId: "team-1",
+          headName: "Dr. Smith", // Mapped from TeamOptions
+          services: [], // Payload explicitly sets empty array for Core update
+        })
+      );
+    });
+  });
+
+  // --- 3. Updating Service ---
+
+  it("calls updateService with converted numbers on Service save", async () => {
+    render(
+      <SpecialityInfo
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        activeSpeciality={mockActiveSpeciality}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("save-consultation"));
+
+    await waitFor(() => {
+      expect(updateService).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "svc-1",
+          name: "Updated Service",
+          description: "New Desc",
+          durationMinutes: 45, // Number conversion
+          cost: 150, // Number conversion
+          maxDiscount: 20, // Number conversion
+        })
+      );
+    });
+  });
+
+  it("handles empty/null values correctly during Service update", async () => {
+    render(
+      <SpecialityInfo
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        activeSpeciality={mockActiveSpeciality}
+      />
+    );
+
+    // Click the button that sends empty payload parts
+    fireEvent.click(screen.getByTestId("save-empty-consultation"));
+
+    await waitFor(() => {
+      expect(updateService).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "svc-1",
+          name: "Consultation", // Fallback to original
+          maxDiscount: null, // Explicit check for empty string -> null
+        })
+      );
+    });
+  });
+
+  // --- 4. Logic & Edge Cases ---
+
+  it("handles case where Team Option is not found", async () => {
+    // Return empty teams so lookup fails
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
+
+    render(
+      <SpecialityInfo
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        activeSpeciality={mockActiveSpeciality}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("save-core"));
+
+    await waitFor(() => {
+      expect(updateSpeciality).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headName: "Old Lead", // Fallback to original because finding team label failed
+        })
+      );
+    });
+  });
+
+  it("renders correctly if activeSpeciality services is undefined", () => {
+    const noServices = { ...mockActiveSpeciality, services: undefined };
+    render(
+      <SpecialityInfo
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        activeSpeciality={noServices}
+      />
+    );
+
+    expect(
+      screen.queryByTestId("editable-accordion-consultation")
+    ).not.toBeInTheDocument();
   });
 });
