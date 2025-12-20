@@ -10,6 +10,7 @@ import type {
   TaskFormErrors,
   DosageSchedule,
 } from '@/features/tasks/types';
+import {mockTheme} from '../../setup/mockTheme';
 
 // FIX 3: Update mocked component path
 jest.mock('@/shared/components/common', () => {
@@ -122,11 +123,7 @@ jest.mock('react-native/Libraries/Image/Image', () => {
   return MockImage;
 });
 
-const mockTheme = {
-  spacing: {1: 4, 2: 8, 3: 12, 4: 16},
-  typography: {},
-  colors: {},
-};
+
 
 const baseFormData: TaskFormData = {
   title: 'Give Medication',

@@ -58,7 +58,7 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
         title: 'Call vet/ Practice',
         subtitle: 'Quickly reach your veterinarian or practice for urgent support and guidance via phone.',
         icon: Images.medicalCap,
-        iconBackgroundColor: 'rgba(252, 55, 49, 0.20)', // red
+        iconBackgroundColor: theme.colors.errorSurface,
         note: 'Note: To use this feature, your hospital contact details should be added already.',
       },
       {
@@ -66,7 +66,7 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
         title: 'Adverse event\nreporting',
         subtitle: 'Notify the vet, manufacturer and regulatory authority about issues or concerns with a pharmaceutical product.',
         icon: Images.pill,
-        iconBackgroundColor: '#E9F2FD' // grey
+        iconBackgroundColor: theme.colors.lightBlueBackground,
       },
     ];
 
@@ -187,38 +187,38 @@ EmergencyBottomSheet.displayName = 'EmergencyBottomSheet';
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[3],
-      paddingBottom: theme.spacing[16],
+      paddingHorizontal: theme.spacing['4'],
+      paddingTop: theme.spacing['3'],
+      paddingBottom: theme.spacing['16'],
       alignItems: 'center',
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: theme.borderRadius['3xl'],
+      borderTopRightRadius: theme.borderRadius['3xl'],
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.black,
-      width: 80,
-      height: 6,
+      width: theme.spacing['20'],
+      height: theme.spacing['1.25'] + 1,
       opacity: 0.2,
     },
     catImage: {
-      width: 160,
-      height: 160,
+      width: theme.spacing['40'],
+      height: theme.spacing['40'],
       resizeMode: 'contain',
     },
     titleText: {
       ...theme.typography.h4Alt,
       color: theme.colors.secondary,
       textAlign: 'center',
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     subtitleText: {
       ...theme.typography.subtitleRegular14,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     optionsContainer: {
       width: '100%',
@@ -226,7 +226,7 @@ const createStyles = (theme: any) =>
     },
     optionsGrid: {
       width: '100%',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     optionCard: {
       borderRadius: theme.borderRadius.lg,
@@ -234,12 +234,8 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
       overflow: 'hidden',
-      minHeight: 105,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 2},
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      elevation: 2,
+      minHeight: theme.spacing['24'] + theme.spacing['2'] + 1,
+      ...theme.shadows.sm,
     },
     optionCardFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -248,29 +244,29 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
     },
     optionContent: {
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
       flex: 1,
     },
     iconContainer: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: theme.spacing['16'],
+      height: theme.spacing['16'],
+      borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
       flexShrink: 0,
     },
     optionIcon: {
-      width: 32,
-      height: 32,
+      width: theme.spacing['8'],
+      height: theme.spacing['8'],
       resizeMode: 'contain',
     },
     optionTextContainer: {
       flex: 1,
       justifyContent: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     optionTitle: {
       ...theme.typography.h6Clash,
@@ -279,22 +275,18 @@ const createStyles = (theme: any) =>
     },
     optionSubtitle: {
       ...theme.typography.tabLabel,
-      fontSize: 11,
-      lineHeight: 11 * 1.2,
       color: theme.colors.textSecondary,
       textAlign: 'left',
     },
     optionNote: {
       ...theme.typography.tabLabel,
-      fontSize: 11,
-      lineHeight: 11 * 1.2,
       color: theme.colors.text,
       textAlign: 'left',
     },
     emptyStateContainer: {
       width: '100%',
       alignItems: 'center',
-      paddingVertical: theme.spacing[8],
+      paddingVertical: theme.spacing['8'],
     },
     emptyStateText: {
       ...theme.typography.subtitleRegular14,

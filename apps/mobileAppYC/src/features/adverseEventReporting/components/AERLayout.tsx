@@ -54,19 +54,19 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
+      paddingHorizontal: theme.spacing['4'],
+      paddingTop: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
     },
     stepLabel: {
       ...theme.typography.subtitleBold12,
       lineHeight: 12,
       color: theme.colors.placeholder,
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
       textAlign: 'center',
     },
     buttonContainer: {
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing['4'],
     },
   });
 

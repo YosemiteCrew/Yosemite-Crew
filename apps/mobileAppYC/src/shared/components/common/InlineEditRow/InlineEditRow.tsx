@@ -112,8 +112,8 @@ const createStyles = (theme: any) =>
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
     },
     label: {
       ...theme.typography.paragraphBold,
@@ -123,7 +123,7 @@ const createStyles = (theme: any) =>
     valueContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
       maxWidth: '60%',
     },
     value: {

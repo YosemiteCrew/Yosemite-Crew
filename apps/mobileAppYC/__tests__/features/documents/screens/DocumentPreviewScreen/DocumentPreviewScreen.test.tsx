@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 // FIX: Corrected path depth (5 levels up instead of 6)
 import {DocumentPreviewScreen} from '../../../../../src/features/documents/screens/DocumentPreviewScreen/DocumentPreviewScreen';
@@ -31,14 +32,7 @@ jest.mock('@/shared/utils/screenStyles', () => ({
 
 // 3. Theme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {cardBackground: 'white', textSecondary: 'grey'},
-      spacing: {2: 8, 4: 16},
-      borderRadius: {lg: 8},
-      typography: {titleLarge: {}, bodyMedium: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Assets

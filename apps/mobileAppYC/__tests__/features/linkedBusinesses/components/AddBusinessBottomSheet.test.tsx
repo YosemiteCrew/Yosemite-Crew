@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {AddBusinessBottomSheet} from '../../../../src/features/linkedBusinesses/components/AddBusinessBottomSheet';
 
@@ -6,16 +7,7 @@ import {AddBusinessBottomSheet} from '../../../../src/features/linkedBusinesses/
 
 // Mock useTheme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-      },
-      spacing: {
-        4: 16,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock ConfirmActionBottomSheet

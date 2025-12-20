@@ -4,24 +4,10 @@ import {
   createEmptyStateStyles,
   createSearchAndSelectorStyles,
 } from '@/shared/utils/screenStyles';
+import {mockTheme} from '../setup/mockTheme';
 
 // Define a mock theme
-const mockTheme = {
-  colors: {
-    background: '#F0F0F0',
-    error: '#FF0000',
-    textSecondary: '#666666',
-  },
-  spacing: {
-    2: 8,
-    4: 16,
-    6: 24,
-  },
-  typography: {
-    bodyLarge: { fontSize: 18 },
-    bodyMedium: { fontSize: 16 },
-  },
-};
+
 
 describe('screenStyles', () => {
   describe('createScreenContainerStyles', () => {
@@ -30,7 +16,7 @@ describe('screenStyles', () => {
       expect(styles).toEqual({
         container: {
           flex: 1,
-          backgroundColor: '#F0F0F0',
+          backgroundColor: '#FFFEFE',
         },
         contentContainer: {
           paddingHorizontal: 16,
@@ -49,10 +35,13 @@ describe('screenStyles', () => {
           alignItems: 'center',
           justifyContent: 'center',
         },
-        errorText: {
+        errorText: expect.objectContaining({
           fontSize: 18,
-          color: '#FF0000',
-        },
+          fontWeight: '400',
+          lineHeight: 29.25,
+          fontFamily: 'Satoshi-Regular',
+          color: '#F44336',
+        }),
       });
     });
   });
@@ -65,10 +54,12 @@ describe('screenStyles', () => {
           paddingVertical: 16,
           alignItems: 'center',
         },
-        emptyText: {
-          fontSize: 16,
-          color: '#666666',
-        },
+        emptyText: expect.objectContaining({
+          fontSize: 14,
+          fontWeight: '400',
+          fontFamily: 'Satoshi-Regular',
+          color: '#747473',
+        }),
       });
     });
   });

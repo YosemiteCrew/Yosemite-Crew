@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, act} from '@testing-library/react-native';
 import DeleteProfileBottomSheet, {
   type DeleteProfileBottomSheetRef,
@@ -7,28 +8,9 @@ import DeleteProfileBottomSheet, {
 // --- Mocks ---
 
 // 1. Mock useTheme
-const mockTheme = {
-  colors: {
-    secondary: 'mockSecondaryColor',
-    surface: 'mockSurfaceColor',
-    border: 'mockBorderColor',
-    white: 'mockWhiteColor',
-    textSecondary: 'mockTextSecondaryColor',
-  },
-  spacing: {
-    '2': 2,
-    '4': 4,
-    '5': 5,
-    '6': 6,
-  },
-  typography: {
-    h4: {fontSize: 24},
-    body: {fontSize: 16},
-    button: {fontSize: 18, fontWeight: '600'},
-  },
-};
+
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme}),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock child ConfirmActionBottomSheet

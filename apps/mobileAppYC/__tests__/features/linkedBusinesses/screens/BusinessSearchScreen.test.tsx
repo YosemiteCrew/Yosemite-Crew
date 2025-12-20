@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../setup/mockTheme';
 import {
   render,
   fireEvent,
@@ -89,24 +90,7 @@ jest.mock('@react-navigation/native', () => {
 
 // 5. Mock Hooks & Services
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        secondary: 'blue',
-        borderMuted: 'gray',
-        cardBackground: 'white',
-      },
-      spacing: [0, 4, 8, 16, 24, 32],
-      borderRadius: {md: 8, lg: 12},
-      typography: {
-        titleLarge: {fontSize: 20},
-        captionBoldSatoshi: {fontSize: 12},
-        cta: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({

@@ -227,7 +227,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               keyboardType="numeric"
               containerStyle={styles.amountInputContainer}
               inputStyle={styles.amountInput}
-              placeholderOffset={theme.spacing[4]}
+              placeholderOffset={theme.spacing['4']}
               error={errors.amount}
             />
             <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
@@ -344,14 +344,14 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
     },
     companionSelector: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     fieldGroup: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     dropdownIcon: {
       width: 16,
@@ -372,7 +372,7 @@ const createStyles = (theme: any) =>
     },
     currencyPrefix: {
       position: 'absolute',
-      left: theme.spacing[5],
+      left: theme.spacing['5'],
       top: 16,
       ...theme.typography.label,
       color: theme.colors.secondary,
@@ -380,18 +380,18 @@ const createStyles = (theme: any) =>
       pointerEvents: 'none',
     },
     amountInput: {
-      paddingLeft: theme.spacing[4],
+      paddingLeft: theme.spacing['4'],
       color: theme.colors.secondary,
     },
     footer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
-      paddingTop: theme.spacing[2],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['6'],
+      paddingTop: theme.spacing['2'],
       backgroundColor: theme.colors.background,
     },
     saveButton: {
       width: '100%',
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing['4'],
     },
     saveButtonText: {
       ...theme.typography.paragraphBold,

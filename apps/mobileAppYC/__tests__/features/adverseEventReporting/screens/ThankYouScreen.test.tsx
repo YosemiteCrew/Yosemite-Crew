@@ -9,6 +9,7 @@ import {
   showErrorAlert,
   showSuccessAlert,
 } from '../../../../src/shared/utils/commonHelpers';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -21,27 +22,7 @@ const mockNavigation = {navigate: mockNavigate} as any;
 
 // 3. Hooks & Theme
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        borderMuted: 'gray',
-        error: 'red',
-        surface: 'white',
-        white: 'white',
-      },
-      spacing: {1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 24: 96},
-      borderRadius: {lg: 10},
-      typography: {
-        businessSectionTitle20: {fontSize: 20},
-        pillSubtitleBold15: {fontSize: 15},
-        labelXsBold: {fontSize: 10},
-        h6Clash: {fontSize: 18},
-        subtitleBold14: {fontSize: 14},
-        paragraph: {fontSize: 12},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Redux & Context

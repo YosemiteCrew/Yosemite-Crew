@@ -18,6 +18,7 @@ import type {
   TaskFrequency,
   TaskTypeSelection,
 } from '@/features/tasks/types';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -140,11 +141,7 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 
 // --- Mock Data ---
 
-const mockTheme = {
-  spacing: {1: 4, 3: 8, 4: 12},
-  typography: {},
-  colors: {},
-};
+
 
 const baseFormData: TaskFormData = {
   title: '',

@@ -138,23 +138,23 @@ const createStyles = (theme: any) =>
     infoCard: {
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[4],
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
+      padding: theme.spacing['4'],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
     },
     infoTitle: {
       ...theme.typography.titleLarge,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     infoText: {
       ...theme.typography.bodyMedium,
       color: theme.colors.textSecondary,
-      marginBottom: theme.spacing[1],
+      marginBottom: theme.spacing['1'],
     },
     documentPreview: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
   });

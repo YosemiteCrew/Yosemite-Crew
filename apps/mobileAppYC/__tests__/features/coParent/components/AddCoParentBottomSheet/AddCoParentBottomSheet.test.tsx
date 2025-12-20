@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {AddCoParentBottomSheet} from '../../../../../src/features/coParent/components/AddCoParentBottomSheet/AddCoParentBottomSheet';
 
@@ -6,11 +7,7 @@ import {AddCoParentBottomSheet} from '../../../../../src/features/coParent/compo
 
 // 1. Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      spacing: {4: 16},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Shared Components

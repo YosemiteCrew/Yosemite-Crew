@@ -68,38 +68,38 @@ export const AssignTaskBottomSheet = forwardRef<
     const containerStyle = {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: 12,
+      gap: theme.spacing['3'],
       flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 16,
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: '#EAEAEA',
+      borderColor: theme.colors.borderMuted,
     };
 
-    const avatarStyle = {width: 40, height: 40, borderRadius: 20, resizeMode: 'cover' as const};
+    const avatarStyle = {width: 40, height: 40, borderRadius: theme.borderRadius.full, resizeMode: 'cover' as const};
     const avatarPlaceholderStyle = {
       width: 40,
       height: 40,
-      borderRadius: 20,
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.lightBlueBackground,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const avatarTextStyle = {fontSize: 18, fontWeight: '700' as const, color: theme.colors.primary};
+    const avatarTextStyle = {...theme.typography.bodyLarge, fontWeight: '700' as const, color: theme.colors.primary};
     const nameTextStyle = {
+      ...theme.typography.bodyMedium,
       fontWeight: isSelected ? '600' as const : '500' as const,
-      fontSize: 16,
     };
     const checkmarkContainerStyle = {
       width: 20,
       height: 20,
       backgroundColor: theme.colors.primary,
-      borderRadius: 10,
+      borderRadius: theme.borderRadius.full,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const checkmarkTextStyle = {color: 'white', fontSize: 12, fontWeight: '700' as const};
+    const checkmarkTextStyle = {...theme.typography.labelSmall, color: theme.colors.white, fontWeight: '700' as const};
 
     return (
       <View style={containerStyle}>

@@ -6,6 +6,7 @@ import {CommonTaskFields} from '@/features/tasks/components/CommonTaskFields/Com
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 import type {User} from '@/features/auth/types';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -64,15 +65,7 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 
 // --- Mock Data ---
 
-const mockTheme = {
-  spacing: {1: 4, 3: 8, 4: 12},
-  typography: {
-    labelXsBold: {fontSize: 12, fontWeight: 'bold'},
-  },
-  colors: {
-    error: 'red',
-  },
-};
+
 
 const mockCurrentUser: User = {
   id: 'user-1',

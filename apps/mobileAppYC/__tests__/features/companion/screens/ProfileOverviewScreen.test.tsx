@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
 import {Provider} from 'react-redux';
@@ -50,22 +51,7 @@ jest.mock('react-native-safe-area-context', () => {
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        textSecondary: 'gray',
-        cardBackground: 'white',
-        borderMuted: 'gray',
-        borderSeperator: 'lightgray',
-        secondary: 'black',
-      },
-      spacing: {1: 4, 2: 8, 3: 12, 5: 20, 10: 40},
-      borderRadius: {lg: 8},
-      typography: {body: {}, paragraphBold: {}},
-      shadows: {md: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/features/auth/context/AuthContext', () => ({

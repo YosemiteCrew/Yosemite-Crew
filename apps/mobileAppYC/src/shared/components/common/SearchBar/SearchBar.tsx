@@ -56,7 +56,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={onIconPress ?? onPress}
-          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+          hitSlop={{top: theme.spacing['2'], bottom: theme.spacing['2'], left: theme.spacing['2'], right: theme.spacing['2']}}>
           <Image source={Images.searchIcon} style={styles.icon} />
         </TouchableOpacity>
       </View>
@@ -85,7 +85,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             onSubmitEditing({nativeEvent: {text: value ?? ''}} as any);
           }
         }}
-        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+        hitSlop={{top: theme.spacing['2'], bottom: theme.spacing['2'], left: theme.spacing['2'], right: theme.spacing['2']}}>
         <Image source={Images.searchIcon} style={styles.icon} />
       </TouchableOpacity>
       {rightElement}
@@ -107,8 +107,8 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[3],
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
@@ -131,36 +131,36 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 12,
+      gap: theme.spacing['3'],
       flex: 1,
     },
     icon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       resizeMode: 'contain',
       tintColor: theme.colors.textSecondary,
     },
     placeholder: {
       flex: 1,
       fontFamily: theme.typography.paragraph.fontFamily,
-      fontSize: 15,
+      fontSize: theme.typography.paragraph.fontSize,
       fontWeight: theme.typography.paragraph.fontWeight,
-      lineHeight: 18,
-      letterSpacing: -0.32,
+      lineHeight: theme.typography.paragraph.lineHeight,
+      letterSpacing: theme.typography.paragraph.letterSpacing,
       color: theme.colors.textSecondary,
     },
     inputWrapper: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 12,
+      gap: theme.spacing['3'],
     },
     input: {
       flex: 1,
       fontFamily: theme.typography.paragraph.fontFamily,
-      fontSize: 15,
-      lineHeight: 18,
-      letterSpacing: -0.32,
+      fontSize: theme.typography.paragraph.fontSize,
+      lineHeight: theme.typography.paragraph.lineHeight,
+      letterSpacing: theme.typography.paragraph.letterSpacing,
       color: theme.colors.text,
       padding: 0,
     },

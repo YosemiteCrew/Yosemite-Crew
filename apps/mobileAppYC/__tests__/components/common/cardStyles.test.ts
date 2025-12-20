@@ -7,37 +7,10 @@ import {
   getViewActionButtonStyle,
   createCardStyles,
 } from '@/shared/components/common/cardStyles.ts';
+import {mockTheme} from '../../setup/mockTheme';
 
 // Mock a theme object matching the structure used in your file
-const mockTheme = {
-  colors: {
-    primary: '#007AFF',
-    success: '#34C759',
-    surface: '#FFFFFF',
-    borderMuted: '#E5E5EA',
-    secondary: '#000000',
-    primarySurface: '#F2F2F7',
-  },
-  borderRadius: {
-    lg: 12,
-  },
-  spacing: {
-    1: 4,
-    2: 8,
-    3: 12,
-    4: 16,
-  },
-  typography: {
-    titleMedium: {
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    h5: {
-      fontSize: 20,
-      fontWeight: '700',
-    },
-  },
-};
+
 
 describe('cardStyles', () => {
   describe('Constants', () => {
@@ -124,8 +97,11 @@ describe('cardStyles', () => {
       // 5. Verify typography spreading (title)
       expect(styles.title).toEqual(
         expect.objectContaining({
-          fontSize: 16,
-          fontWeight: '600',
+          fontSize: 18,
+          fontWeight: '500',
+          lineHeight: 21.6,
+          fontFamily: 'ClashGrotesk-Medium',
+          letterSpacing: -0.18,
           color: mockTheme.colors.secondary,
         })
       );
@@ -133,8 +109,10 @@ describe('cardStyles', () => {
       // 6. Verify typography spreading (amount)
       expect(styles.amount).toEqual(
         expect.objectContaining({
-          fontSize: 20,
-          fontWeight: '700',
+          fontSize: 18,
+          fontWeight: '500',
+          lineHeight: 27,
+          fontFamily: 'ClashDisplay-Medium',
           color: mockTheme.colors.secondary,
         })
       );

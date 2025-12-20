@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, screen, fireEvent} from '@testing-library/react-native';
 import {TaskFormFooter} from '@/features/tasks/components/form/TaskFormFooter';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -47,12 +48,7 @@ const mockStyles = {
   saveButton: {height: 56},
   saveButtonText: {fontSize: 18},
 };
-const mockTheme = {
-  colors: {
-    secondary: 'blue',
-    borderMuted: 'grey',
-  },
-};
+
 
 const renderComponent = (
   props: Partial<React.ComponentProps<typeof TaskFormFooter>>,

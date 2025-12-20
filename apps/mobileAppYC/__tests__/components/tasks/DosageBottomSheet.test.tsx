@@ -9,10 +9,14 @@ import {useTheme} from '@/hooks';
 
 // --- Mocks ---
 
-// Mock Hooks
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(),
-}));
+// Mock Hooks (hoist-safe + jest.fn so tests can override with mockReturnValue)
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 // Mock Assets
 jest.mock('@/assets/images', () => ({

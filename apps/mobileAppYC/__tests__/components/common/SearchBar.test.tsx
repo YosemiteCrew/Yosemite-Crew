@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
   SearchBar,
@@ -30,33 +31,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock theme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        border: '#e0e0e0',
-        cardBackground: '#ffffff',
-        neutralShadow: '#000000',
-        text: '#000000',
-        textSecondary: '#888888',
-      },
-      borderRadius: {
-        lg: 12,
-      },
-      spacing: {
-        3: 12,
-        4: 16,
-      },
-      shadows: {
-        base: {shadowOpacity: 0.1},
-      },
-      typography: {
-        paragraph: {
-          fontFamily: 'System',
-          fontWeight: '400',
-        },
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('SearchBar Component', () => {

@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
   InlineEditRow,
@@ -16,27 +17,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: '#333333',
-        textSecondary: '#666666',
-        background: '#ffffff',
-        white: '#ffffff',
-        text: '#000000',
-      },
-      spacing: {
-        '2': 8,
-        '3': 12,
-        '4': 16,
-        '5': 20,
-      },
-      typography: {
-        paragraphBold: {fontWeight: 'bold'},
-        bodySmall: {fontSize: 12},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Child Components

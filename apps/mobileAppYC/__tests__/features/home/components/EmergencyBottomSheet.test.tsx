@@ -6,29 +6,12 @@ import {
 } from '../../../../src/features/home/components/EmergencyBottomSheet';
 import {useSelector} from 'react-redux';
 import {TouchableOpacity} from 'react-native';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
 // 1. Mock Hooks
-const mockTheme = {
-  colors: {
-    background: 'white',
-    secondary: 'black',
-    textSecondary: 'gray',
-    borderMuted: 'lightgray',
-    cardBackground: 'white',
-    black: 'black',
-    text: 'black',
-  },
-  spacing: {2: 8, 3: 12, 4: 16, 5: 20, 8: 32, 16: 64},
-  borderRadius: {lg: 12},
-  typography: {
-    h4Alt: {fontSize: 24},
-    subtitleRegular14: {fontSize: 14},
-    h6Clash: {fontSize: 18},
-    tabLabel: {fontSize: 12},
-  },
-};
+
 
 jest.mock('../../../../src/hooks', () => ({
   useTheme: () => ({theme: mockTheme}),

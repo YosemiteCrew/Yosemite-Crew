@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {RatingStars} from '../../../src/shared/components/common/RatingStars/RatingStars';
 import {Image} from 'react-native';
@@ -15,13 +16,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: '#FFD700',
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('RatingStars Component', () => {

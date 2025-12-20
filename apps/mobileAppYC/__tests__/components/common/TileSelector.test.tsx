@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {TileSelector} from '../../../src/shared/components/common/TileSelector/TileSelector';
 import {View} from 'react-native';
@@ -7,27 +8,7 @@ import {View} from 'react-native';
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        border: 'gray',
-        background: 'white',
-        primary: 'blue',
-        primarySurface: 'lightblue',
-        text: 'black',
-      },
-      spacing: {
-        '3': 12,
-        '5': 20,
-      },
-      borderRadius: {
-        lg: 8,
-      },
-      typography: {
-        body: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('TileSelector Component', () => {
@@ -117,7 +98,10 @@ describe('TileSelector Component', () => {
     const flatStyle1 = [style1].flat();
     expect(flatStyle1).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({color: 'blue', fontWeight: '600'}),
+        expect.objectContaining({
+          color: mockTheme.colors.primary,
+          fontWeight: '600',
+        }),
       ]),
     );
 
@@ -126,7 +110,10 @@ describe('TileSelector Component', () => {
     const flatStyle2 = [style2].flat();
     expect(flatStyle2).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({color: 'black', fontWeight: '500'}),
+        expect.objectContaining({
+          color: mockTheme.colors.secondary,
+          fontWeight: '500',
+        }),
       ]),
     );
   });

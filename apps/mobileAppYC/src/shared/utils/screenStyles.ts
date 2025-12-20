@@ -11,8 +11,8 @@ export const createScreenContainerStyles = (theme: any) => ({
     backgroundColor: theme.colors.background,
   },
   contentContainer: {
-    paddingHorizontal: theme.spacing[4],
-    paddingBottom: theme.spacing[6],
+    paddingHorizontal: theme.spacing['4'],
+    paddingBottom: theme.spacing['6'],
   },
 });
 
@@ -36,7 +36,7 @@ export const createErrorContainerStyles = (theme: any) => ({
  */
 export const createEmptyStateStyles = (theme: any) => ({
   emptyContainer: {
-    paddingVertical: theme.spacing[4],
+    paddingVertical: theme.spacing['4'],
     alignItems: 'center' as const,
   },
   emptyText: {
@@ -50,10 +50,10 @@ export const createEmptyStateStyles = (theme: any) => ({
  */
 export const createSearchAndSelectorStyles = (theme: any) => ({
   searchBar: {
-    marginTop: theme.spacing[4],
-    marginBottom: theme.spacing[2],
+    marginTop: theme.spacing['4'],
+    marginBottom: theme.spacing['2'],
   },
   companionSelector: {
-    marginBottom: theme.spacing[4],
+    marginBottom: theme.spacing['4'],
   },
 });

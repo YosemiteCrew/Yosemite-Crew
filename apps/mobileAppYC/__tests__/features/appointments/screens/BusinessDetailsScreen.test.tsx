@@ -6,24 +6,7 @@ import BusinessDetailsScreen from '../../../../src/features/appointments/screens
 
 // Mock useTheme with the specific structure expected by the component
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        cardBackground: '#f0f0f0',
-        border: '#cccccc',
-        textSecondary: '#666666',
-        secondary: '#0000ff',
-        white: '#ffffff',
-      },
-      spacing: {2: 8, 4: 16, 5: 20, 24: 96},
-      typography: {
-        cta: {fontSize: 16, fontWeight: 'bold'},
-        titleSmall: {fontSize: 14, fontWeight: '600'},
-        body12: {fontSize: 12},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 const mockNavigate = jest.fn();
@@ -168,6 +151,7 @@ jest.mock('../../../../src/features/appointments/utils/photoUtils', () => ({
   isDummyPhoto: jest.fn(),
 }));
 import {isDummyPhoto} from '../../../../src/features/appointments/utils/photoUtils';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Test Data ---
 

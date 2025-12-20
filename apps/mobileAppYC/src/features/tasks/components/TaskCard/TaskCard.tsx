@@ -233,11 +233,11 @@ const createStyles = (theme: any) =>
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     textContent: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     title: {
       ...theme.typography.h6Clash,
@@ -255,21 +255,21 @@ const createStyles = (theme: any) =>
       minWidth: 70,
     },
     completedBadge: {
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: 4,
-      borderRadius: 999,
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.successLight || 'rgba(0, 143, 93, 0.12)',
     },
     completedText: {
       ...theme.typography.labelSmall,
       color: theme.colors.success,
     },
     detailsSection: {
-      marginTop: theme.spacing[2],
-      paddingTop: theme.spacing[2],
+      marginTop: theme.spacing['2'],
+      paddingTop: theme.spacing['2'],
       borderTopWidth: 1,
       borderTopColor: theme.colors.borderMuted,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     detailLabel: {
       ...theme.typography.bodySmall,
@@ -277,11 +277,11 @@ const createStyles = (theme: any) =>
       fontWeight: '500',
     },
     detailSmall: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
     },
     liquidGlassButton: {
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing['4'],
     },
     liquidGlassButtonText: {
       ...theme.typography.paragraphBold,

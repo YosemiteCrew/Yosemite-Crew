@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {LandingScreen} from '../../../../src/features/adverseEventReporting/screens/LandingScreen';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -14,11 +15,7 @@ const mockNavigation = {
 
 // 2. Mock Theme Hook
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      spacing: {6: 24},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 3. Mock Images

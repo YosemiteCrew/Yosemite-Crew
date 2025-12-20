@@ -3,7 +3,7 @@ import {StyleSheet} from 'react-native';
 export const createTaskFormSectionStyles = (theme: any) =>
   StyleSheet.create({
     fieldGroup: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     calendarIcon: {
       width: 18,
@@ -16,8 +16,8 @@ export const createTaskFormSectionStyles = (theme: any) =>
     },
     dateTimeRow: {
       flexDirection: 'row',
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
+      gap: theme.spacing['3'],
+      marginBottom: theme.spacing['4'],
     },
     dateTimeField: {
       flex: 1,

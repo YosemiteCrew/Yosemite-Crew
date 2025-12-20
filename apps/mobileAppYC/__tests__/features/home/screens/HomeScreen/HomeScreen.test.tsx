@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
@@ -27,46 +28,7 @@ jest.mock('@react-navigation/native', () => {
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#fff',
-        primary: 'blue',
-        secondary: 'green',
-        error: 'red',
-        lightBlueBackground: '#eef',
-        cardBackground: '#eee',
-        neutralShadow: '#000',
-        white: '#fff',
-        onPrimary: '#fff',
-        whiteOverlay70: '#ffffff70',
-        primaryTint: '#blueTint',
-      },
-      spacing: {
-        1: 4,
-        1.25: 5,
-        2: 8,
-        2.5: 10,
-        3: 12,
-        3.5: 14,
-        4: 16,
-        4.5: 18,
-        5: 20,
-        6: 24,
-        30: 120,
-      },
-      typography: {
-        titleLarge: {fontSize: 20},
-        titleMedium: {fontSize: 16},
-        title: {fontSize: 18},
-        labelXsBold: {fontSize: 10},
-        paragraphBold: {fontSize: 14, fontWeight: 'bold'},
-        subtitleRegular14: {fontSize: 14},
-      },
-      borderRadius: {lg: 10},
-      shadows: {md: {}, lg: {}, sm: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/features/auth/context/AuthContext', () => ({

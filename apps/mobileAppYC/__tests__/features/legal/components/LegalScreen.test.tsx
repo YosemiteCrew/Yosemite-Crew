@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {Text} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {LegalScreen} from '../../../../src/features/legal/components/LegalScreen';
@@ -7,16 +8,7 @@ import {LegalScreen} from '../../../../src/features/legal/components/LegalScreen
 
 // 1. Mock Theme Hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#fff',
-      },
-      spacing: {
-        '4': 16,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Style Creator

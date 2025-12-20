@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {
   ProfileImagePicker,
@@ -19,14 +20,7 @@ import * as ImageUriUtils from '@/shared/utils/imageUri';
 
 // Mock Hooks and Assets
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: '#007AFF',
-        lightBlueBackground: '#E3F2FD',
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({

@@ -78,35 +78,35 @@ export const CalendarSyncBottomSheet = forwardRef<
     const containerStyle = {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: 12,
+      gap: theme.spacing['3'],
       flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
       backgroundColor: isSelected ? theme.colors.lightBlueBackground : 'transparent',
-      borderRadius: 8,
+      borderRadius: theme.borderRadius.sm,
     };
 
     const iconStyle = {width: 24, height: 24, resizeMode: 'contain' as const};
     const nameTextStyle = {
+      ...theme.typography.bodyMedium,
       color: isSelected ? theme.colors.primary : theme.colors.secondary,
       fontWeight: isSelected ? '600' as const : '500' as const,
-      fontSize: 16,
     };
     const statusTextStyle = {
+      ...theme.typography.labelSmall,
       color: theme.colors.primary,
       fontStyle: 'italic' as const,
-      fontSize: 12,
-      marginTop: 2,
+      marginTop: theme.spacing['1'],
     };
     const checkmarkContainerStyle = {
       width: 20,
       height: 20,
       backgroundColor: theme.colors.primary,
-      borderRadius: 10,
+      borderRadius: theme.borderRadius.full,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const checkmarkTextStyle = {color: 'white', fontSize: 12, fontWeight: '700' as const};
+    const checkmarkTextStyle = {...theme.typography.labelSmall, color: theme.colors.white, fontWeight: '700' as const};
 
     return (
       <View style={containerStyle}>

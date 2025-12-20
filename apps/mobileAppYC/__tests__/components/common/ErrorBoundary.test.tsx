@@ -5,6 +5,14 @@ import {View, Text, TouchableOpacity} from 'react-native';
 
 // --- Mocks ---
 
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
+
 // Mock console.error to prevent Jest from failing tests when errors are logged
 const consoleErrorSpy = jest
   .spyOn(console, 'error')

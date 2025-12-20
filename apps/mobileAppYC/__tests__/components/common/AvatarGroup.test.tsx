@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {Image, StyleSheet} from 'react-native';
 import {render} from '@testing-library/react-native';
 import {
@@ -9,18 +10,7 @@ import {
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        surface: '#ffffff',
-        lightBlueBackground: '#e6f7ff',
-        primary: '#0000ff',
-      },
-      typography: {
-        titleSmall: {fontSize: 14, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('AvatarGroup Component', () => {

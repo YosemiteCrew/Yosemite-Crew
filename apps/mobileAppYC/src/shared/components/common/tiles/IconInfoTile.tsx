@@ -78,13 +78,13 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
 
 const createStyles = (theme: any) => {
   const glassCardStyles = createGlassCardStyles(theme);
-  const contentStyles = createCardContentStyles(theme, 3);
+  const contentStyles = createCardContentStyles(theme, '3');
   const iconStyles = createIconContainerStyles(theme, 48);
-  const textStyles = createTextContainerStyles(theme, 1);
+  const textStyles = createTextContainerStyles(theme, '1');
 
   return StyleSheet.create({
     container: {
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     ...glassCardStyles,
     ...contentStyles,
@@ -100,28 +100,26 @@ const createStyles = (theme: any) => {
       color: theme.colors.secondary,
     },
     subtitle: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
     },
     rightContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     syncBadge: {
-      backgroundColor: theme.colors.successLight || '#E6F4EF',
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[3],
+      backgroundColor: theme.colors.successLight,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
       borderRadius: theme.borderRadius.md,
       borderWidth: 1,
       borderColor: theme.colors.success,
     },
     syncText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.success,
-      fontSize: 10,
       textAlign: 'center',
-      lineHeight: 11,
     },
   });
 };

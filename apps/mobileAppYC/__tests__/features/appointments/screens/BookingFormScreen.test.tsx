@@ -19,6 +19,7 @@ import BookingFormScreen from '../../../../src/features/appointments/screens/Boo
 import {createAppointment} from '../../../../src/features/appointments/appointmentsSlice';
 import {uploadDocumentFiles} from '../../../../src/features/documents/documentSlice';
 import {fetchServiceSlots} from '../../../../src/features/appointments/businessesSlice';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Global Capture for setState ---
 // This allows us to trigger state updates from within the mocked hook
@@ -300,13 +301,7 @@ jest.mock('../../../../src/shared/hooks/useAutoSelectCompanion', () => ({
 }));
 
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {primary: 'blue', secondary: 'green', white: 'white'},
-      spacing: {4: 4, 24: 24},
-      typography: {paragraphBold: {}, button: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // --- Test Suite ---

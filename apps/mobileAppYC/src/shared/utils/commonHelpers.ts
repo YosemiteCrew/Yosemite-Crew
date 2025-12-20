@@ -107,8 +107,8 @@ export const createRowStyles = (theme: any) => ({
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'center' as const,
-    paddingVertical: theme.spacing[3],
-    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing['3'],
+    paddingHorizontal: theme.spacing['3'],
   },
   rowLabel: {
     ...theme.typography.paragraphBold,
@@ -123,7 +123,11 @@ export const createRowStyles = (theme: any) => ({
   },
   separator: {
     height: 1,
-    backgroundColor: theme.colors.borderSeperator,
+    backgroundColor:
+      theme?.colors?.borderSeparator ??
+      theme?.colors?.borderSeperator ??
+      theme?.colors?.border ??
+      'rgba(0,0,0,0.1)',
   },
 });
 

@@ -161,30 +161,30 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[6],
-      paddingBottom: theme.spacing[10],
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['6'],
+      paddingBottom: theme.spacing['10'],
     },
     selectorContainer: {
-      paddingBottom: theme.spacing[4],
+      paddingBottom: theme.spacing['4'],
     },
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing[5],
+      paddingHorizontal: theme.spacing['5'],
     },
     illustration: {
       width: 200,
       height: 200,
       resizeMode: 'contain',
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     emptyTitle: {
       ...theme.typography.businessSectionTitle20,
       color: theme.colors.secondary,
       textAlign: 'center',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     emptySubtitle: {
       ...theme.typography.subtitleRegular14,

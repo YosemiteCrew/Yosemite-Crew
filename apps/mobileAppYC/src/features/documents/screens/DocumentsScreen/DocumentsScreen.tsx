@@ -164,22 +164,22 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[24], // Extra padding for tab bar
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'], // Extra padding for tab bar
     },
     searchBar: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[2],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['2'],
     },
     companionSelector: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     section: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     sectionTitle: {
       ...theme.typography.titleLarge,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
   });

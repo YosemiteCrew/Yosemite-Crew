@@ -354,31 +354,31 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
     },
     companionSelector: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
     },
     input: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     dateSection: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     dateSectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     label: {
       ...theme.typography.labelMdBold,
       color: theme.colors.secondary,
     },
     saveButton: {
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing['4'],
     },
     buttonText: {
       color: theme.colors.white,
@@ -388,18 +388,18 @@ const createStyles = (theme: any) =>
       marginBottom: 0,
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
       marginTop: 3,
-      marginBottom: theme.spacing[3],
-      marginLeft: theme.spacing[1],
+      marginBottom: theme.spacing['3'],
+      marginLeft: theme.spacing['1'],
     },
     noteContainer: {
-      marginBottom: theme.spacing[6],
-      paddingHorizontal: theme.spacing[2],
+      marginBottom: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['2'],
     },
     noteText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       textAlign: 'justify',
     },
     noteLabel: {

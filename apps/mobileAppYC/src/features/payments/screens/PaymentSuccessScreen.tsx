@@ -142,8 +142,8 @@ export const PaymentSuccessScreen: React.FC = () => {
           <LiquidGlassButton
             title={expenseId ? 'Back to Expenses' : 'Dashboard'}
             onPress={resetToMyAppointments}
-            height={56}
-            borderRadius={16}
+            height={theme.spacing['14']}
+            borderRadius={theme.borderRadius.lg}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             textStyle={styles.confirmPrimaryButtonText}
@@ -159,14 +159,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: theme.spacing[4],
-    padding: theme.spacing[4],
+    gap: theme.spacing['4'],
+    padding: theme.spacing['4'],
   },
   illustration: {
-    width: 200,
-    height: 200,
+    width: theme.spacing['50'],
+    height: theme.spacing['50'],
     resizeMode: 'contain',
-    marginBottom: theme.spacing[3],
+    marginBottom: theme.spacing['3'],
   },
   title: {
     ...theme.typography.h2,
@@ -178,26 +178,26 @@ const createStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
   },
   detailsBlock: {
-    gap: theme.spacing[2],
+    gap: theme.spacing['2'],
     width: '100%',
-    maxWidth: 400,
-    borderWidth: 1,
+    maxWidth: theme.spacing['100'],
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
-    borderRadius: 16,
-    padding: theme.spacing[4],
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing['4'],
     backgroundColor: theme.colors.cardBackground,
-    marginTop: theme.spacing[3],
+    marginTop: theme.spacing['3'],
   },
   detailsTitle: {
     ...theme.typography.titleMedium,
     color: theme.colors.secondary,
-    marginBottom: theme.spacing[2],
+    marginBottom: theme.spacing['2'],
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: theme.spacing[1],
+    paddingVertical: theme.spacing['1'],
   },
   detailLabel: {
     ...theme.typography.body14,
@@ -206,7 +206,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   detailValue: {
     ...theme.typography.body14,
     color: theme.colors.secondary,
-    fontWeight: '500',
   },
   link: {
     color: theme.colors.primary,
@@ -216,14 +215,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
   },
   downloadInvoiceIcon: {
-    width: 16,
-    height: 16,
-    marginLeft: 4,
+    width: theme.spacing['4'],
+    height: theme.spacing['4'],
+    marginLeft: theme.spacing['1'],
   },
   buttonContainer: {
     width: '100%',
-    maxWidth: 400,
-    marginTop: theme.spacing[4],
+    maxWidth: theme.spacing['100'],
+    marginTop: theme.spacing['4'],
   },
   confirmPrimaryButtonText: {
     ...theme.typography.button,

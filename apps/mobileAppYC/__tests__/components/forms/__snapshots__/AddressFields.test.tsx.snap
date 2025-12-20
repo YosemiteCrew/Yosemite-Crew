@@ -42,8 +42,8 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
       style={
         {
           "backgroundColor": "#FFFFFF",
-          "borderColor": "#E5E5E5",
-          "borderRadius": 8,
+          "borderColor": "#EAEAEA",
+          "borderRadius": 16,
           "borderWidth": 1,
           "gap": 8,
           "padding": 12,
@@ -53,9 +53,12 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
       <Text
         style={
           {
-            "color": "#000000",
+            "color": "#302F2E",
+            "fontFamily": "Satoshi-Bold",
             "fontSize": 12,
             "fontWeight": "700",
+            "letterSpacing": 0,
+            "lineHeight": 14.4,
           }
         }
       >
@@ -102,7 +105,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             onStartShouldSetResponder={[Function]}
             style={
               {
-                "borderBottomColor": "#E5E5E5",
+                "borderBottomColor": "#EAEAEA",
                 "borderBottomWidth": 0.5,
                 "opacity": 1,
                 "paddingVertical": 8,
@@ -112,9 +115,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             <Text
               style={
                 {
-                  "color": "#000000",
-                  "fontSize": 14,
-                  "fontWeight": "700",
+                  "color": "#302F2E",
                 }
               }
             >
@@ -151,7 +152,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             onStartShouldSetResponder={[Function]}
             style={
               {
-                "borderBottomColor": "#E5E5E5",
+                "borderBottomColor": "#EAEAEA",
                 "borderBottomWidth": 0.5,
                 "opacity": 1,
                 "paddingVertical": 8,
@@ -161,9 +162,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             <Text
               style={
                 {
-                  "color": "#000000",
-                  "fontSize": 14,
-                  "fontWeight": "700",
+                  "color": "#302F2E",
                 }
               }
             >
@@ -200,7 +199,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             onStartShouldSetResponder={[Function]}
             style={
               {
-                "borderBottomColor": "#E5E5E5",
+                "borderBottomColor": "#EAEAEA",
                 "borderBottomWidth": 0.5,
                 "opacity": 1,
                 "paddingVertical": 8,
@@ -210,9 +209,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             <Text
               style={
                 {
-                  "color": "#000000",
-                  "fontSize": 14,
-                  "fontWeight": "700",
+                  "color": "#302F2E",
                 }
               }
             >
@@ -249,7 +246,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             onStartShouldSetResponder={[Function]}
             style={
               {
-                "borderBottomColor": "#E5E5E5",
+                "borderBottomColor": "#EAEAEA",
                 "borderBottomWidth": 0,
                 "opacity": 1,
                 "paddingVertical": 8,
@@ -259,9 +256,7 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
             <Text
               style={
                 {
-                  "color": "#000000",
-                  "fontSize": 14,
-                  "fontWeight": "700",
+                  "color": "#302F2E",
                 }
               }
             >
@@ -273,9 +268,12 @@ exports[`AddressFields enables scroll on ScrollView only when items > 3 1`] = `
       <Text
         style={
           {
-            "color": "#666666",
+            "color": "#747473",
+            "fontFamily": "Satoshi-Bold",
             "fontSize": 12,
             "fontWeight": "700",
+            "letterSpacing": 0,
+            "lineHeight": 14.4,
             "paddingTop": 8,
             "textAlign": "right",
           }

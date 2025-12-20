@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {FloatingTabBar} from '../../src/navigation/FloatingTabBar';
 import {Platform} from 'react-native';
@@ -6,19 +7,7 @@ import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 
 // --- Mocks ---
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        textSecondary: 'gray',
-        secondary: 'blue',
-      },
-      shadows: {xs: {elevation: 1}},
-      typography: {
-        tabLabel: {fontSize: 10},
-        tabLabelFocused: {fontSize: 10, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({

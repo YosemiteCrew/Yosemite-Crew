@@ -14,6 +14,7 @@ import type {
   ObservationalTool,
   TaskFrequency,
 } from '@/features/tasks/types';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -142,7 +143,7 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 });
 
 // --- Mock Data ---
-const mockTheme = {spacing: {}, colors: {}, typography: {}};
+
 
 const baseFormData: TaskFormData = {
   title: 'Take Observational Tool',

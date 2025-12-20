@@ -118,23 +118,23 @@ export const NotificationFilterPills: React.FC<NotificationFilterPillsProps> = (
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: theme.spacing[1],
+      marginBottom: theme.spacing['1'],
     },
     content: {
-      gap: 8,
-      paddingRight: 8,
+      gap: theme.spacing['2'],
+      paddingRight: theme.spacing['2'],
     },
     pill: {
-      minWidth: 80,
-      height: 36,
-      paddingHorizontal: 16,
-      borderRadius: 12,
+      minWidth: theme.spacing['20'],
+      height: theme.spacing['9'],
+      paddingHorizontal: theme.spacing['4'],
+      borderRadius: theme.borderRadius.md,
       borderWidth: 1,
-      borderColor: '#302F2E',
+      borderColor: theme.colors.secondary,
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',
-      gap: 6,
+      gap: theme.spacing['1.25'],
     },
     pillActive: {
       backgroundColor: theme.colors.lightBlueBackground,
@@ -142,20 +142,19 @@ const createStyles = (theme: any) =>
     },
     pillText: {
       ...theme.typography.labelSmallBold,
-      color: '#302F2E',
-      fontSize: 13,
+      color: theme.colors.secondary,
     },
     pillTextActive: {
       color: theme.colors.primary,
     },
     badge: {
-      minWidth: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: '#302F2E',
+      minWidth: theme.spacing['5'],
+      height: theme.spacing['5'],
+      borderRadius: theme.spacing['2.5'],
+      backgroundColor: theme.colors.secondary,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 4,
+      paddingHorizontal: theme.spacing['1'],
     },
     badgeActive: {
       backgroundColor: theme.colors.primary,
@@ -164,6 +163,5 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelXs,
       color: theme.colors.white,
       fontWeight: '700',
-      fontSize: 10,
     },
   });

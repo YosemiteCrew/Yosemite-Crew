@@ -10,30 +10,30 @@ export const createTaskFormStyles = (theme: any) => {
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBlock: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBlock: theme.spacing['4'],
     },
     companionSelector: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
     },
     ...formStyles,
     input: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     label: {
       ...theme.typography.inputLabel,
       color: theme.colors.secondary,
     },
     footer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
-      paddingTop: theme.spacing[2],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['6'],
+      paddingTop: theme.spacing['2'],
       backgroundColor: theme.colors.background,
     },
     saveButton: {
       width: '100%',
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing['4'],
     },
     saveButtonText: {
       ...theme.typography.paragraphBold,
@@ -43,7 +43,7 @@ export const createTaskFormStyles = (theme: any) => {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
     },
     errorContainerText: {
       ...theme.typography.bodyLarge,

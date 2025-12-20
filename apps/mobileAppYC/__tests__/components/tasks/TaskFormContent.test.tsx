@@ -7,6 +7,7 @@ import type {
   TaskTypeSelection,
   ReminderOption,
 } from '@/features/tasks/types';
+import {mockTheme} from '../../setup/mockTheme';
 // We only need Switch for the test, not the mocks
 
 // --- Mocks ---
@@ -90,9 +91,7 @@ const mockFileHandlers = {
   onRequestRemove: jest.fn(),
 };
 
-const mockTheme = {
-  colors: {borderMuted: '#ccc', primary: '#007bff', white: '#fff'},
-};
+
 const mockStyles = {
   fieldGroup: {},
   toggleSection: {},

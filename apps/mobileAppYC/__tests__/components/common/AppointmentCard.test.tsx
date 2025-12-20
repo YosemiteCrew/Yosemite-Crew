@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {AppointmentCard} from '../../../src/shared/components/common/AppointmentCard/AppointmentCard';
 import {Image} from 'react-native';
@@ -15,39 +16,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        success: '#00FF00',
-        secondary: '#000000',
-        cardBackground: '#FFFFFF',
-        borderMuted: '#CCCCCC',
-        neutralShadow: '#000000',
-        primarySurface: '#F0F0F0',
-        white: '#FFFFFF',
-        placeholder: '#888888',
-        primary: 'blue',
-      },
-      spacing: {
-        1: 4,
-        2: 8,
-        3: 12,
-        4: 16,
-      },
-      borderRadius: {
-        lg: 12,
-      },
-      typography: {
-        titleMedium: {fontSize: 16},
-        labelXsBold: {fontSize: 12},
-        businessTitle16: {fontSize: 16},
-        paragraphBold: {fontWeight: 'bold'},
-      },
-      shadows: {
-        md: {},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock resolveImageSource utility

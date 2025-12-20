@@ -1052,12 +1052,16 @@ export const PaymentInvoiceScreen: React.FC = () => {
   );
 };
 
-const MetaRow = ({label, value}: {label: string; value: string}) => (
-  <View style={metaStyles.row}>
-    <Text style={metaStyles.label}>{label}</Text>
-    <Text style={metaStyles.value}>{value}</Text>
-  </View>
-);
+const MetaRow = ({label, value}: {label: string; value: string}) => {
+  const {theme} = useTheme();
+  const styles = metaStyles(theme);
+  return (
+    <View style={styles.row}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+    </View>
+  );
+};
 
 const BreakdownRow = ({
   label,
@@ -1069,46 +1073,50 @@ const BreakdownRow = ({
   value: string;
   highlight?: boolean;
   subtle?: boolean;
-}) => (
-  <View
-    style={[
-      breakdownStyles.row,
-      highlight && breakdownStyles.rowHighlight,
-      subtle && breakdownStyles.rowSubtle,
-    ]}>
-    <Text
+}) => {
+  const {theme} = useTheme();
+  const styles = breakdownStyles(theme);
+  return (
+    <View
       style={[
-        breakdownStyles.label,
-        highlight && breakdownStyles.labelHighlight,
+        styles.row,
+        highlight && styles.rowHighlight,
+        subtle && styles.rowSubtle,
       ]}>
-      {label}
-    </Text>
-    <Text
-      style={[
-        breakdownStyles.value,
-        highlight && breakdownStyles.valueHighlight,
-      ]}>
-      {value}
-    </Text>
-  </View>
-);
+      <Text
+        style={[
+          styles.label,
+          highlight && styles.labelHighlight,
+        ]}>
+        {label}
+      </Text>
+      <Text
+        style={[
+          styles.value,
+          highlight && styles.valueHighlight,
+        ]}>
+        {value}
+      </Text>
+    </View>
+  );
+};
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      padding: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-      gap: theme.spacing[2],
+      padding: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['2'],
     },
     summaryCard: {
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     loadingBox: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
-      padding: theme.spacing[3],
-      borderRadius: 12,
+      gap: theme.spacing['2'],
+      padding: theme.spacing['3'],
+      borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted ?? theme.colors.border,
@@ -1118,39 +1126,39 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     metaCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1],
-      marginBottom: theme.spacing[2],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['1'],
+      marginBottom: theme.spacing['2'],
     },
     metaTitle: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
+      marginBottom: theme.spacing['1'],
     },
     warningText: {
       ...theme.typography.body12,
-      color: '#F59E0B',
-      marginBottom: theme.spacing[2],
+      color: theme.colors.warning,
+      marginBottom: theme.spacing['2'],
     },
     missingContainer: {
       flex: 1,
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
       alignItems: 'center',
       justifyContent: 'center',
-      gap: theme.spacing[2.5],
+      gap: theme.spacing['2.5'],
     },
     missingBadge: {
-      paddingHorizontal: theme.spacing[2.5],
-      paddingVertical: theme.spacing[1],
-      borderRadius: 999,
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primaryTint,
     },
     missingBadgeText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
     },
     missingTitle: {
@@ -1161,41 +1169,41 @@ const createStyles = (theme: any) =>
       ...theme.typography.body14,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: theme.spacing['5'],
     },
     invoiceForCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['1'],
     },
     previewCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[2],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['2'],
     },
     invoiceForRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     invoiceInfoColumn: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     invoiceInfoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     infoIcon: {
-      width: 18,
-      height: 18,
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
       resizeMode: 'contain',
       tintColor: theme.colors.secondary,
     },
@@ -1211,44 +1219,41 @@ const createStyles = (theme: any) =>
     appointmentForText: {
       ...theme.typography.body14,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing[2],
+      marginTop: theme.spacing['2'],
     },
     appointmentForName: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
     },
     avatarStack: {
-      width: 80,
-      height: 104,
+      width: theme.spacing['20'],
+      height: theme.spacing['26'],
       justifyContent: 'center',
       alignItems: 'center',
       position: 'relative',
     },
     avatarCircle: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      borderWidth: 2,
+      width: theme.spacing['14'],
+      height: theme.spacing['14'],
+      borderRadius: theme.borderRadius.full,
+      borderWidth: 1,
       borderColor: theme.colors.surface,
       backgroundColor: theme.colors.lightBlueBackground,
       justifyContent: 'center',
       alignItems: 'center',
       position: 'absolute',
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      elevation: 3,
+      ...theme.shadows.small,
     },
     avatarGuardian: {
       top: 0,
     },
     avatarCompanion: {
-      top: 44,
+      top: theme.spacing['11'],
     },
     avatarImage: {
       width: '100%',
       height: '100%',
-      borderRadius: 28,
+      borderRadius: theme.borderRadius['3xl'],
     },
     avatarInitial: {
       ...theme.typography.titleSmall,
@@ -1256,38 +1261,38 @@ const createStyles = (theme: any) =>
       fontWeight: '700',
     },
     breakdownCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1.5],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['2'],
     },
     breakdownNote: {
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
+      marginTop: theme.spacing['1'],
     },
     termsCard: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[4],
-      gap: theme.spacing[1],
+      padding: theme.spacing['4'],
+      gap: theme.spacing['1'],
     },
     termsLine: {
       ...theme.typography.body12,
       color: theme.colors.textSecondary,
-      lineHeight: 18,
+      lineHeight: theme.spacing['4.5'],
     },
     refundLinkRow: {
-      gap: theme.spacing[2],
-      marginTop: theme.spacing[2],
+      gap: theme.spacing['2'],
+      marginTop: theme.spacing['2'],
     },
     buttonContainer: {
-      gap: theme.spacing[3],
-      marginTop: theme.spacing[2],
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['2'],
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,
@@ -1296,56 +1301,52 @@ const createStyles = (theme: any) =>
     },
   });
 
-const metaStyles = StyleSheet.create({
+const metaStyles = (theme: any) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: theme.spacing['2'],
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#595958',
+    ...theme.typography.labelSmall,
+    color: theme.colors.placeholder,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#302F2E',
+    ...theme.typography.labelSmall,
+    color: theme.colors.secondary,
   },
 });
 
-const breakdownStyles = StyleSheet.create({
+const breakdownStyles = (theme: any) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: theme.spacing['2'],
   },
   rowHighlight: {
-    backgroundColor: '#247AED',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing['3'],
+    paddingVertical: theme.spacing['2.5'],
   },
   rowSubtle: {
     opacity: 0.8,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#302F2E',
+    ...theme.typography.labelSmall,
+    color: theme.colors.secondary,
   },
   labelHighlight: {
-    color: '#FFFFFF',
+    color: theme.colors.white,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#302F2E',
+    ...theme.typography.labelSmall,
+    color: theme.colors.secondary,
   },
   valueHighlight: {
-    color: '#FFFFFF',
+    color: theme.colors.white,
   },
 });
 

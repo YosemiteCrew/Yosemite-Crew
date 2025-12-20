@@ -91,8 +91,8 @@ const createStyles = (theme: any) =>
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
-      paddingHorizontal: theme.spacing[1],
+      gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['1'],
     },
     avatarContainer: {
       width: 60,
@@ -117,7 +117,7 @@ const createStyles = (theme: any) =>
     },
     textContent: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     name: {
       ...theme.typography.businessSectionTitle20,
@@ -130,7 +130,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.placeholder,
     },
     divider: {
-      marginTop: theme.spacing[1],
+      marginTop: theme.spacing['1'],
     },
   });
 

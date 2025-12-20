@@ -40,9 +40,9 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: 250,
       resizeMode: 'contain',
-      marginTop: -theme.spacing[6],
+      marginTop: -theme.spacing['6'],
     },
     contentWrapper: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
   });

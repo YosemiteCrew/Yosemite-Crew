@@ -4,6 +4,7 @@ import {AddTaskScreen} from '../../../../../src/features/tasks/screens/AddTaskSc
 import {useAddTaskScreen} from '../../../../../src/features/tasks/hooks/useAddTaskScreen';
 import {addTask} from '../../../../../src/features/tasks';
 import {buildTaskTypeBreadcrumb} from '../../../../../src/features/tasks/utils/taskLabels';
+import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -23,13 +24,7 @@ jest.mock('react-redux', () => ({
 
 // 3. Hooks & Theme
 jest.mock('../../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {background: '#fff', error: 'red'},
-      spacing: {4: 16},
-      typography: {},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Feature Actions

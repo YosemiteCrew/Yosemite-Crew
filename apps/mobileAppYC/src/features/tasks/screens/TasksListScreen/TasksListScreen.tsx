@@ -158,19 +158,19 @@ const createStyles = (theme: any) =>
     },
     companionSelectorContainer: {
       backgroundColor: theme.colors.background,
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
     },
     companionSelector: {
-      paddingHorizontal: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
     },
     listContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[8],
-      gap: theme.spacing[3],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['8'],
+      gap: theme.spacing['3'],
     },
     emptyContainer: {
-      paddingVertical: theme.spacing[12],
+      paddingVertical: theme.spacing['12'],
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -3,6 +3,7 @@ import {render, fireEvent, act} from '@testing-library/react-native';
 import {View as MockView} from 'react-native';
 import {SignUpScreen} from '@/features/auth/screens/SignUpScreen';
 import {useSocialAuth, type SocialProvider} from '@/hooks';
+import {mockTheme} from '../../setup/mockTheme';
 
 // Define Mock Param List relevant to SignUpScreen
 type MockAuthStackParamList = {
@@ -42,25 +43,7 @@ jest.mock('react-native/Libraries/Image/Image', () => ({
 }));
 
 // Mock Theme hook
-const mockTheme = {
-  colors: {
-    background: '#FFF',
-    secondary: '#000',
-    textSecondary: '#555',
-    primary: '#123',
-    white: '#FFF',
-    cardBackground: '#EEE',
-    border: '#DDD',
-    error: 'red',
-    text: '#111', // Added for Google button text style
-  },
-  typography: {
-    h3: {fontSize: 24, fontWeight: 'bold'},
-    paragraph: {fontSize: 14},
-    paragraphBold: {fontSize: 14, fontWeight: 'bold'},
-    cta: {fontSize: 16, fontWeight: '600'},
-  },
-};
+
 jest.mock('@/shared/hooks/useTheme', () => ({
   useTheme: jest.fn(() => ({
     theme: mockTheme,
