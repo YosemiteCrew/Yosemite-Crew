@@ -118,7 +118,7 @@ const AppointmentTask = () => {
           )
         </span>
       </div>
-      <div className="summary-labels">
+      <div className="summary-labels flex-wrap gap-2">
         <div className="summary-labels-left">
           <button
             className={classNames("summary-label-left", {
@@ -137,7 +137,7 @@ const AppointmentTask = () => {
             Tasks
           </button>
         </div>
-        <div className="summary-labels-right">
+        <div className="summary-labels-right flex-wrap">
           {activeLabels?.map((label) => (
             <button
               className={`summary-label-right hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${label.key === activeSubLabel ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}

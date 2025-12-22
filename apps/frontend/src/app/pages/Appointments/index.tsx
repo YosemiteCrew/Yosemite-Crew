@@ -32,7 +32,7 @@ const Appointments = () => {
       if (appointments.length === 0) return null;
       if (prev?.id) {
         const updated = appointments.find((s) => s.id === prev.id);
-        if (updated) return { ...updated };
+        if (updated) return updated;
       }
       return appointments[0];
     });

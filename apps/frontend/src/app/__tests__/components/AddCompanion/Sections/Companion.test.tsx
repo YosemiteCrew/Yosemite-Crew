@@ -312,7 +312,7 @@ describe("Companion Component", () => {
 
     const insuranceLabel = screen.getByTestId("select-label-Insurance");
     // "true" boolean converted to string key
-    const yesBtn = await insuranceLabel.querySelector(
+    const yesBtn = insuranceLabel.querySelector(
       '[data-testid="option-true"]'
     );
 

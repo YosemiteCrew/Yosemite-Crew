@@ -46,28 +46,29 @@ const Accordion: React.FC<AccordionProps> = ({
             {title}
           </div>
         </button>
-        {showEditIcon && !isEditing && (
-          <RiEdit2Fill
-            size={20}
-            color="#302f2e"
-            className="cursor-pointer"
-            onClick={() => {
-              setOpen(true);
-              onEditClick?.();
-            }}
-          />
-        )}
-        {showDeleteIcon && (
-          <MdDeleteForever
-            size={20}
-            color="#EA3729"
-            className="cursor-pointer"
-            onClick={() => {
-              setOpen(true);
-              onDeleteClick?.();
-            }}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {showEditIcon && !isEditing && (
+            <RiEdit2Fill
+              size={20}
+              color="#302f2e"
+              className="cursor-pointer"
+              onClick={() => {
+                setOpen(true);
+                onEditClick?.();
+              }}
+            />
+          )}
+          {showDeleteIcon && !isEditing && (
+            <MdDeleteForever
+              size={20}
+              color="#EA3729"
+              className="cursor-pointer"
+              onClick={() => {
+                onDeleteClick?.();
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {open && hasChildren && (
