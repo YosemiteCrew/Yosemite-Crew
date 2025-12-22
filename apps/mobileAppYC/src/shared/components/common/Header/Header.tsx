@@ -1,8 +1,9 @@
 // src/components/common/Header/Header.tsx
 import React from 'react';
-import {View, Text, Image, StyleSheet, Platform, TouchableOpacity} from 'react-native';
+import {View, Text, Image, StyleSheet, Platform} from 'react-native';
 import {useTheme} from '@/hooks';
 import { Images } from '@/assets/images';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 
 interface HeaderProps {
   title?: string;
@@ -22,20 +23,23 @@ export const Header: React.FC<HeaderProps> = ({
   style,
 }) => {
   const {theme} = useTheme();
+  const iconButtonSize = theme.spacing?.['9'] ?? 36;
   const styles = createStyles(theme);
 
   return (
     <View style={[styles.container, style]}>
       {showBackButton ? (
-        <TouchableOpacity
-          onPress={onBack ?? (() => {})}
-          activeOpacity={0.8}
-          style={styles.iconButton}>
-          <Image
-            source={Images.backIcon}
-            style={[styles.icon, {tintColor: theme.colors.text}]}
-          />
-        </TouchableOpacity>
+        <View style={styles.iconButtonShadow}>
+          <LiquidGlassIconButton
+            onPress={onBack ?? (() => {})}
+            size={iconButtonSize}
+            style={styles.iconButton}>
+            <Image
+              source={Images.backIcon}
+              style={[styles.icon, {tintColor: theme.colors.text}]}
+            />
+          </LiquidGlassIconButton>
+        </View>
       ) : (
         <View style={styles.spacer} />
       )}
@@ -47,12 +51,14 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       {rightIcon ? (
-        <TouchableOpacity
-          onPress={onRightPress ?? (() => {})}
-          activeOpacity={0.8}
-          style={styles.iconButton}>
-          <Image source={rightIcon} style={[styles.icon]} />
-        </TouchableOpacity>
+        <View style={styles.iconButtonShadow}>
+          <LiquidGlassIconButton
+            onPress={onRightPress ?? (() => {})}
+            size={iconButtonSize}
+            style={styles.iconButton}>
+            <Image source={rightIcon} style={[styles.icon]} />
+          </LiquidGlassIconButton>
+        </View>
       ) : (
         <View style={styles.spacer} />
       )}
@@ -60,8 +66,10 @@ export const Header: React.FC<HeaderProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const iconButtonSize = theme.spacing?.['9'] ?? 36;
+
+  return StyleSheet.create({
     container: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -71,10 +79,14 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing?.['2'] || 8,
     },
     iconButton: {
-      width: 32,
-      height: 32,
+      width: iconButtonSize,
+      height: iconButtonSize,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    iconButtonShadow: {
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.md,
     },
     icon: {
       width: 24,
@@ -82,8 +94,8 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     spacer: {
-      width: 32,
-      height: 32,
+      width: iconButtonSize,
+      height: iconButtonSize,
     },
     title: {
       flex: 1,
@@ -92,3 +104,4 @@ const createStyles = (theme: any) =>
       color: theme.colors.text,
     },
   });
+};

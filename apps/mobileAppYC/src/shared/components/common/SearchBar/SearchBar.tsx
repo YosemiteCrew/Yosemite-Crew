@@ -122,6 +122,8 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.border,
       borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     touchable: {
       flexDirection: 'row',

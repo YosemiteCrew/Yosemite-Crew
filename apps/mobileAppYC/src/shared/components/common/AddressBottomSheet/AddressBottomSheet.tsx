@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   Keyboard,
   TouchableWithoutFeedback,
@@ -18,6 +17,7 @@ import {
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import {useTheme, useAddressAutocomplete} from '@/hooks';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import {AddressFields, type AddressFieldValues} from '@/shared/components/forms/AddressFields';
@@ -47,6 +47,7 @@ export const AddressBottomSheet = forwardRef<
 >(({selectedAddress, onSave}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const closeButtonSize = theme.spacing['9'];
   const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -167,9 +168,14 @@ export const AddressBottomSheet = forwardRef<
         <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Address</Text>
-          <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-            <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
-          </TouchableOpacity>
+          <View style={styles.closeButtonShadow}>
+            <LiquidGlassIconButton
+              onPress={handleCancel}
+              size={closeButtonSize}
+              style={styles.closeButton}>
+              <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
+            </LiquidGlassIconButton>
+          </View>
         </View>
 
         <ScrollView
@@ -228,6 +234,17 @@ const createStyles = (theme: any) =>
     ...createBottomSheetContainerStyles(theme),
     ...createBottomSheetButtonStyles(theme),
     ...createBottomSheetStyles(theme),
+    closeButtonShadow: {
+      position: 'absolute',
+      right: 0,
+      padding: theme.spacing['2'],
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.md,
+    },
+    closeButton: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 
 export default AddressBottomSheet;

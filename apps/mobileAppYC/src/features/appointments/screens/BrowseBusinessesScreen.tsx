@@ -165,16 +165,19 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
             <View style={styles.sectionHeaderRight}>
               <Text style={styles.sectionCount}>{items.length} Near You</Text>
               {items.length > 1 && (
-                <LiquidGlassButton
-                  onPress={() => navigation.navigate('BusinessesList', {category: cat as BusinessCategory})}
-                  size="small"
-                  compact
-                  glassEffect="clear"
-                  borderRadius="full"
-                  style={styles.viewMoreButton}
-                  textStyle={styles.viewMore}
-                  title="View more"
-                />
+                <View style={styles.viewMoreShadowWrapper}>
+                  <LiquidGlassButton
+                    onPress={() => navigation.navigate('BusinessesList', {category: cat as BusinessCategory})}
+                    size="small"
+                    compact
+                    glassEffect="clear"
+                    borderRadius="full"
+                    style={styles.viewMoreButton}
+                    textStyle={styles.viewMore}
+                    shadowIntensity="none"
+                    title="View more"
+                  />
+                </View>
               )}
             </View>
           </View>
@@ -422,6 +425,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 4,
     minHeight: 28,
     minWidth: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    ...theme.shadows.sm,
+    shadowColor: theme.colors.neutralShadow,
+  },
+  viewMoreShadowWrapper: {
+    borderRadius: theme.borderRadius.full,
+    ...theme.shadows.md,
   },
   sectionWrapper: {gap: 12},
   singleCardWrapper: {alignItems: 'center', width: '100%'},

@@ -9,7 +9,7 @@ import {
   Alert,
   type ImageSourcePropType,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NavigationProp, useFocusEffect} from '@react-navigation/native';
 import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -21,6 +21,7 @@ import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -570,15 +571,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     onPress?: () => void,
   ) => {
     const content = (
-      <LiquidGlassCard
-        key={key}
-        glassEffect="clear"
-        interactive
-        style={styles.infoTile}
-        fallbackStyle={styles.tileFallback}>
-        <Text style={styles.tileTitle}>{title}</Text>
-        <Text style={styles.tileSubtitle}>{subtitle}</Text>
-      </LiquidGlassCard>
+        <View style={styles.tileShadowWrapper}>
+          <LiquidGlassCard
+            key={key}
+            glassEffect="clear"
+            interactive
+            style={styles.infoTile}
+            fallbackStyle={styles.tileFallback}>
+            <Text style={styles.tileTitle}>{title}</Text>
+            <Text style={styles.tileSubtitle}>{subtitle}</Text>
+          </LiquidGlassCard>
+        </View>
     );
     if (!onPress) {
       return content;
@@ -922,28 +925,45 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
 
     return (
-      <YearlySpendCard
-        amount={expenseSummary?.total ?? 0}
-        currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
-        currencySymbol={resolveCurrencySymbol(
-          expenseSummary?.currencyCode ?? userCurrencyCode,
-          '$',
-        )}
-        onPressView={() =>
-          navigation.navigate('ExpensesStack', {
-            screen: 'ExpensesMain',
-          })
-        }
-      />
+      <View style={styles.yearlySpendShadowWrapper}>
+        <YearlySpendCard
+          amount={expenseSummary?.total ?? 0}
+          currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
+          currencySymbol={resolveCurrencySymbol(
+            expenseSummary?.currencyCode ?? userCurrencyCode,
+            '$',
+          )}
+          onPressView={() =>
+            navigation.navigate('ExpensesStack', {
+              screen: 'ExpensesMain',
+            })
+          }
+        />
+      </View>
     );
   };
 
+  const actionIconSize = theme.spacing['10'];
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
+
   return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.topSection, {paddingTop: insets.top}]}>
+        <View
+          style={styles.topGlassShadow}
+          onLayout={event => {
+            const height = event.nativeEvent.layout.height;
+            if (height !== topGlassHeight) {
+              setTopGlassHeight(height);
+            }
+          }}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <View style={styles.headerRow}>
           <TouchableOpacity
             style={styles.profileButton}
             onPress={() => navigation.navigate('Account')}
@@ -967,26 +987,30 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           </TouchableOpacity>
 
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              onPress={handleEmergencyPress}
-              activeOpacity={0.8}
-              style={styles.actionIcon}>
-              <Image source={Images.emergencyIcon} style={styles.actionImage} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Notifications')}
-              activeOpacity={0.8}
-              style={styles.actionIcon}>
-              <View style={styles.notificationIconWrapper}>
-                <Image
-                  source={Images.notificationIcon}
-                  style={styles.actionImage}
-                />
-                {hasUnreadNotifications ? (
-                  <View style={styles.notificationDot} />
-                ) : null}
-              </View>
-            </TouchableOpacity>
+            <View style={styles.actionIconShadowWrapper}>
+              <LiquidGlassIconButton
+                onPress={handleEmergencyPress}
+                size={actionIconSize}
+                style={styles.actionIcon}>
+                <Image source={Images.emergencyIcon} style={styles.actionImage} />
+              </LiquidGlassIconButton>
+            </View>
+            <View style={styles.actionIconShadowWrapper}>
+              <LiquidGlassIconButton
+                onPress={() => navigation.navigate('Notifications')}
+                size={actionIconSize}
+                style={styles.actionIcon}>
+                <View style={styles.notificationIconWrapper}>
+                  <Image
+                    source={Images.notificationIcon}
+                    style={styles.actionImage}
+                  />
+                  {hasUnreadNotifications ? (
+                    <View style={styles.notificationDot} />
+                  ) : null}
+                </View>
+              </LiquidGlassIconButton>
+            </View>
           </View>
         </View>
 
@@ -1006,23 +1030,34 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           onSubmitEditing={e => handleServiceSearch(e.nativeEvent.text)}
           onIconPress={() => handleServiceSearch()}
         />
+          </LiquidGlassCard>
+        </View>
+      </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['2']} : null,
+        ]}
+        showsVerticalScrollIndicator={false}>
 
         {companions.length === 0 ? (
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive
-            tintColor={theme.colors.primary}
-            style={[styles.heroTouchable, styles.heroCard]}
-            fallbackStyle={styles.heroFallback}>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleAddCompanion}
-              style={styles.heroContent}>
-              <Image source={Images.paw} style={styles.heroPaw} />
-              <Image source={Images.plusIcon} style={styles.heroIconImage} />
-              <Text style={styles.heroTitle}>Add your first companion</Text>
-            </TouchableOpacity>
-          </LiquidGlassCard>
+          <View style={[styles.heroShadowWrapper, styles.heroTouchable]}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              interactive
+              tintColor={theme.colors.primary}
+              style={styles.heroCard}
+              fallbackStyle={styles.heroFallback}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={handleAddCompanion}
+                style={styles.heroContent}>
+                <Image source={Images.paw} style={styles.heroPaw} />
+                <Image source={Images.plusIcon} style={styles.heroIconImage} />
+                <Text style={styles.heroTitle}>Add your first companion</Text>
+              </TouchableOpacity>
+            </LiquidGlassCard>
+          </View>
         ) : (
           <CompanionSelector
             companions={companions}
@@ -1049,66 +1084,71 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick actions</Text>
             {companions.length > 0 && (
-              <LiquidGlassButton
-                onPress={() => {
-                  if (!guardFeature('companionProfile', 'companion profile')) {
-                    return;
-                  }
-                  // Pass the selected companion's ID to the ProfileOverview screen
-                  const companionId =
-                    selectedCompanionIdRedux ??
-                    companions[0]?.id ??
-                    (companions[0] as any)?._id ??
-                    (companions[0] as any)?.identifier?.[0]?.value ??
-                    null;
+              <View style={styles.viewMoreShadowWrapper}>
+                <LiquidGlassButton
+                  onPress={() => {
+                    if (!guardFeature('companionProfile', 'companion profile')) {
+                      return;
+                    }
+                    // Pass the selected companion's ID to the ProfileOverview screen
+                    const companionId =
+                      selectedCompanionIdRedux ??
+                      companions[0]?.id ??
+                      (companions[0] as any)?._id ??
+                      (companions[0] as any)?.identifier?.[0]?.value ??
+                      null;
 
-                  if (companionId) {
-                    // Ensure state stays in sync with the navigation target
-                    handleSelectCompanion(companionId);
-                    navigation.navigate('ProfileOverview', {
-                      companionId,
-                    });
-                  } else {
-                    console.warn('No companion selected to view profile.');
-                  }
-                }}
-                size="small"
-                compact
-                glassEffect="clear"
-                borderRadius="full"
-                style={styles.viewMoreButton}
-                textStyle={styles.viewMoreText}
-                title="View more"
-              />
+                    if (companionId) {
+                      // Ensure state stays in sync with the navigation target
+                      handleSelectCompanion(companionId);
+                      navigation.navigate('ProfileOverview', {
+                        companionId,
+                      });
+                    } else {
+                      console.warn('No companion selected to view profile.');
+                    }
+                  }}
+                  size="small"
+                  compact
+                  glassEffect="clear"
+                  borderRadius="full"
+                  style={styles.viewMoreButton}
+                  textStyle={styles.viewMoreText}
+                  shadowIntensity="none"
+                  title="View more"
+                />
+              </View>
             )}
           </View>
 
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive
-            style={styles.quickActionsCard}
-            fallbackStyle={styles.tileFallback}>
-            <View style={styles.quickActionsRow}>
-              {QUICK_ACTIONS.map(action => (
-                <TouchableOpacity
-                  key={action.id}
-                  style={styles.quickAction}
-                  activeOpacity={0.88}
-                  onPress={showTasksComingSoon}>
-                  <View style={styles.quickActionIconWrapper}>
-                    <Image
-                      source={action.icon}
-                      style={styles.quickActionIcon}
-                    />
-                  </View>
-                  <Text style={styles.quickActionLabel}>{action.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </LiquidGlassCard>
+          <View style={styles.tileShadowWrapper}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              interactive
+              style={styles.quickActionsCard}
+              fallbackStyle={styles.tileFallback}>
+              <View style={styles.quickActionsRow}>
+                {QUICK_ACTIONS.map(action => (
+                  <TouchableOpacity
+                    key={action.id}
+                    style={styles.quickAction}
+                    activeOpacity={0.88}
+                    onPress={showTasksComingSoon}>
+                    <View style={styles.quickActionIconWrapper}>
+                      <Image
+                        source={action.icon}
+                        style={styles.quickActionIcon}
+                      />
+                    </View>
+                    <Text style={styles.quickActionLabel}>{action.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </LiquidGlassCard>
+          </View>
         </View>
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -1119,9 +1159,43 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    topSection: {
+      paddingHorizontal: 0,
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassShadow: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: theme.spacing['6'],
+      paddingVertical: theme.spacing['4'],
+      gap: theme.spacing['4'],
+      overflow: 'hidden',
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
     scrollContent: {
       paddingHorizontal: theme.spacing['6'],
-      paddingTop: theme.spacing['6'],
+      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['30'],
       gap: theme.spacing['6'],
     },
@@ -1164,6 +1238,10 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       gap: theme.spacing['3'],
     },
+    actionIconShadowWrapper: {
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.md,
+    },
     actionIcon: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
@@ -1197,13 +1275,17 @@ const createStyles = (theme: any) =>
       minWidth: theme.spacing['40'],
       maxWidth: theme.spacing['40'],
     },
+    heroShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+    },
     heroCard: {
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing['5'],
       minHeight: theme.spacing['40'],
       overflow: 'hidden',
-      ...theme.shadows.lg,
-      shadowColor: theme.colors.neutralShadow,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     heroContent: {
       flex: 1,
@@ -1235,7 +1317,8 @@ const createStyles = (theme: any) =>
     heroFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.borderMuted,
+      borderWidth: 0,
+      borderColor: 'transparent',
       overflow: 'hidden',
     },
     section: {
@@ -1247,24 +1330,32 @@ const createStyles = (theme: any) =>
     },
     infoTile: {
       ...baseTileContainer(theme),
+      borderWidth: 0,
+      borderColor: 'transparent',
       padding: theme.spacing['5'],
       gap: theme.spacing['2'],
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
       overflow: 'hidden',
     },
-    tileFallback: sharedTileStyles(theme).tileFallback,
+    tileFallback: {
+      ...sharedTileStyles(theme).tileFallback,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    tileShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+    },
+    yearlySpendShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+    },
     tileTitle: sharedTileStyles(theme).tileTitle,
     tileSubtitle: sharedTileStyles(theme).tileSubtitle,
     quickActionsCard: {
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
       paddingVertical: theme.spacing['4.5'],
       paddingHorizontal: theme.spacing['4'],
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
       overflow: 'hidden',
     },
     quickActionsRow: {
@@ -1305,6 +1396,14 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing['1'],
       minHeight: theme.spacing['7'],
       minWidth: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    viewMoreShadowWrapper: {
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.md,
     },
     quickActionIcon: {
       width: theme.spacing['7'],
@@ -1317,7 +1416,13 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
       textAlign: 'center',
     },
-    reviewButtonCard: {marginTop: theme.spacing['1']},
+    reviewButtonCard: {
+      marginTop: theme.spacing['1'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
+    },
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
   upcomingFooter: {
     gap: theme.spacing['2'],

@@ -1,6 +1,7 @@
 import React from 'react';
-import {View, Text, Image, StyleSheet, TouchableOpacity} from 'react-native';
+import {View, Text, Image, StyleSheet} from 'react-native';
 import {Images} from '@/assets/images';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 
 interface BottomSheetHeaderProps {
   title: string;
@@ -21,6 +22,7 @@ export const BottomSheetHeader: React.FC<BottomSheetHeaderProps> = ({
 }) => {
   const styles = createStyles(theme);
   const closeIconSource = Images?.crossIcon ?? null;
+  const closeButtonSize = theme.spacing['9'];
 
   return (
     <View style={styles.header}>
@@ -28,16 +30,18 @@ export const BottomSheetHeader: React.FC<BottomSheetHeaderProps> = ({
         <Text style={styles.title}>{title}</Text>
       </View>
       {showCloseButton && closeIconSource && (
-        <TouchableOpacity
-          onPress={onClose}
-          activeOpacity={0.8}
-          style={styles.closeButton}>
-          <Image
-            source={closeIconSource}
-            style={styles.closeIcon}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
+        <View style={styles.closeButtonShadow}>
+          <LiquidGlassIconButton
+            onPress={onClose}
+            size={closeButtonSize}
+            style={styles.closeButton}>
+            <Image
+              source={closeIconSource}
+              style={styles.closeIcon}
+              resizeMode="contain"
+            />
+          </LiquidGlassIconButton>
+        </View>
       )}
     </View>
   );
@@ -67,14 +71,16 @@ const createStyles = (theme: any) =>
       maxWidth: '100%',
     },
     closeButton: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonShadow: {
       position: 'absolute',
       right: 0,
       top: theme.spacing['4'],
       zIndex: 10,
-      width: theme.spacing['9'],
-      height: theme.spacing['9'],
-      justifyContent: 'center',
-      alignItems: 'center',
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.md,
     },
     closeIcon: {
       width: theme.spacing['4'],
