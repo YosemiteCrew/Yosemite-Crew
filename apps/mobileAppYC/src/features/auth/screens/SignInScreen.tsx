@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import {SafeArea, Input} from '@/shared/components/common';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
@@ -57,6 +59,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [socialError, setSocialError] = useState('');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const {height: screenHeight} = useWindowDimensions();
+  const illustrationHeight = isKeyboardVisible
+    ? Math.min(screenHeight * 0.22, 180)
+    : Math.min(screenHeight * 0.32, 260);
 
   const {activeProvider, isSocialLoading, handleSocialAuth} = useSocialAuth({
     onStart: () => {
@@ -104,6 +111,22 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
 
     navigation.setParams({ email: undefined, statusMessage: undefined });
   }, [hasStatusMessageParam, navigation, routeEmail, routeStatusMessage]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const validateEmail = (email: string) => isValidEmail(email);
 
@@ -191,12 +214,17 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <ScrollView
           style={styles.scrollView}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
+          contentContainerStyle={[
+            styles.scrollContent,
+            isKeyboardVisible && styles.scrollContentKeyboard,
+          ]}>
+          <View style={styles.content}>
           <Image
             source={Images.authIllustration}
-            style={styles.illustration}
+            style={[styles.illustration, {height: illustrationHeight}]}
             resizeMode="contain"
           />
 
@@ -242,69 +270,71 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
         </ScrollView>
 
         {/* Fixed Bottom Section */}
-        <View style={styles.bottomSection}>
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Login via</Text>
-            <View style={styles.dividerLine} />
-          </View>
+        {isKeyboardVisible ? null : (
+          <View style={styles.bottomSection}>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Login via</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
-          <View style={styles.socialButtons}>
-            <LiquidGlassButton
-              onPress={handleGoogleSignIn}
-              customContent={<GoogleIcon />}
-              disabled={isSocialLoading}
-              loading={activeProvider === 'google'}
-              tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
-              height={60}
-              width={112}
-              borderRadius={20}
-              forceBorder
-              borderColor={theme.colors.border}
-              style={{
-                ...styles.socialButton,
-                ...(Platform.OS === 'ios'
-                  ? {}
-                  : {backgroundColor: theme.colors.cardBackground}),
-              }}
-            />
-            <LiquidGlassButton
-              onPress={handleFacebookSignIn}
-              customContent={<FacebookIcon />}
-              disabled={isSocialLoading}
-              loading={activeProvider === 'facebook'}
-              tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
-              height={60}
-              width={112}
-              borderRadius={20}
-              style={{
-                ...styles.socialButton,
-                ...(Platform.OS === 'ios'
-                  ? {}
-                  : {backgroundColor: theme.colors.primary}),
-              }}
-            />
-            <LiquidGlassButton
-              onPress={handleAppleSignIn}
-              customContent={<AppleIcon />}
-              disabled={isSocialLoading}
-              loading={activeProvider === 'apple'}
-              tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
-              height={60}
-              width={112}
-              borderRadius={20}
-              style={{
-                ...styles.socialButton,
-                ...(Platform.OS === 'ios'
-                  ? {}
-                  : {backgroundColor: theme.colors.secondary}),
-              }}
-            />
+            <View style={styles.socialButtons}>
+              <LiquidGlassButton
+                onPress={handleGoogleSignIn}
+                customContent={<GoogleIcon />}
+                disabled={isSocialLoading}
+                loading={activeProvider === 'google'}
+                tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
+                height={60}
+                width={112}
+                borderRadius={20}
+                forceBorder
+                borderColor={theme.colors.border}
+                style={{
+                  ...styles.socialButton,
+                  ...(Platform.OS === 'ios'
+                    ? {}
+                    : {backgroundColor: theme.colors.cardBackground}),
+                }}
+              />
+              <LiquidGlassButton
+                onPress={handleFacebookSignIn}
+                customContent={<FacebookIcon />}
+                disabled={isSocialLoading}
+                loading={activeProvider === 'facebook'}
+                tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
+                height={60}
+                width={112}
+                borderRadius={20}
+                style={{
+                  ...styles.socialButton,
+                  ...(Platform.OS === 'ios'
+                    ? {}
+                    : {backgroundColor: theme.colors.primary}),
+                }}
+              />
+              <LiquidGlassButton
+                onPress={handleAppleSignIn}
+                customContent={<AppleIcon />}
+                disabled={isSocialLoading}
+                loading={activeProvider === 'apple'}
+                tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
+                height={60}
+                width={112}
+                borderRadius={20}
+                style={{
+                  ...styles.socialButton,
+                  ...(Platform.OS === 'ios'
+                    ? {}
+                    : {backgroundColor: theme.colors.secondary}),
+                }}
+              />
+            </View>
+            {socialError ? (
+              <Text style={styles.socialErrorText}>{socialError}</Text>
+            ) : null}
           </View>
-          {socialError ? (
-            <Text style={styles.socialErrorText}>{socialError}</Text>
-          ) : null}
-        </View>
+        )}
       </KeyboardAvoidingView>
     </SafeArea>
   );
@@ -325,16 +355,23 @@ const createStyles = (theme: any) =>
     scrollContent: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['14'],
+    },
+    scrollContentKeyboard: {
+      paddingBottom: theme.spacing['26'],
     },
     content: {
-      flex: 1,
-      justifyContent: 'flex-start',
       alignItems: 'center',
+      justifyContent: 'flex-start',
+      width: '100%',
       paddingBottom: theme.spacing['5'],
     },
     illustration: {
       width: '100%',
-      height: '60%',
+      maxHeight: 260,
+      minHeight: 140,
+      marginBottom: theme.spacing['4'],
     },
     title: {
       ...theme.typography.h3,

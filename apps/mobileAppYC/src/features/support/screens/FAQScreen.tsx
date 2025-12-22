@@ -353,8 +353,8 @@ const createStyles = (theme: any) =>
     toggleSymbol: {
       fontFamily: theme.typography.paragraphBold.fontFamily,
       fontWeight: theme.typography.paragraphBold.fontWeight,
-      fontSize: theme.typography['2xl'].fontSize,
-      lineHeight: theme.typography['2xl'].fontSize,
+      fontSize: theme.typography.titleLarge.fontSize,
+      lineHeight: theme.typography.titleLarge.lineHeight,
       color: theme.colors.text,
     },
     answerSection: {

@@ -147,7 +147,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
     },
     compact: {
-      width: theme.spacing['70'],
+      width: theme.spacing['72'],
     },
     photo: {
       width: '100%',

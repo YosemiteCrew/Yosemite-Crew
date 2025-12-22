@@ -13,6 +13,7 @@ import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/features/documents/constants';
+import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {fetchDocuments} from '@/features/documents/documentSlice';
 import {formatLabel} from '@/shared/utils/helpers';
@@ -115,9 +116,19 @@ export const CategoryDetailScreen: React.FC = () => {
     navigation.navigate('EditDocument', {documentId});
   };
 
+  const handleAddDocument = () => {
+    navigation.navigate('AddDocument');
+  };
+
   return (
     <SafeArea>
-      <Header title={category.label} showBackButton={true} onBack={() => navigation.goBack()} />
+      <Header
+        title={category.label}
+        showBackButton={true}
+        onBack={() => navigation.goBack()}
+        rightIcon={Images.addIconDark}
+        onRightPress={handleAddDocument}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}

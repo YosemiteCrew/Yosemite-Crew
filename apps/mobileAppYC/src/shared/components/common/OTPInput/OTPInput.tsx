@@ -5,6 +5,7 @@ import {
   TextInput,
   StyleSheet,
   Text,
+  Platform,
 } from 'react-native';
 import { useTheme } from '@/hooks';
 import {generateId} from '@/shared/utils/helpers';
@@ -134,6 +135,8 @@ export const OTPInput: React.FC<OTPInputProps> = ({
             autoCapitalize="none"
             autoCorrect={false}
             textContentType="oneTimeCode"
+            returnKeyType="done"
+            blurOnSubmit
           />
           );
         })}
@@ -167,7 +170,11 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
       ...theme.typography.h4,
       fontWeight: 'bold',
+      lineHeight: theme.typography.h4.fontSize+3,
       marginHorizontal: theme.spacing['2'],
+      ...(Platform.OS === 'android'
+        ? { textAlignVertical: 'center', includeFontPadding: false }
+        : { includeFontPadding: false }),
     },
     errorText: {
       marginTop: theme.spacing['3'],

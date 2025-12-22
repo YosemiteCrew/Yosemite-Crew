@@ -1,11 +1,16 @@
 import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
 import {
+  Alert,
   View,
   Text,
   ScrollView,
   StyleSheet,
   BackHandler,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
+import {Images} from '@/assets/images';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 
@@ -17,7 +22,7 @@ import {GifLoader} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
-import {Separator, RowButton, ReadOnlyRow} from '@/shared/components/common/FormRowComponents';
+import {Separator, RowButton} from '@/shared/components/common/FormRowComponents';
 
 import {
   selectAuthUser,
@@ -390,10 +395,28 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <Separator />
 
             {/* Email – Read only */}
-            <ReadOnlyRow
-              label="Email"
-              value={safeUser.email}
-            />
+            <View style={styles.readOnlyEmailRow}>
+              <Text style={styles.rowButtonLabel}>Email</Text>
+              <Text
+                style={styles.rowButtonValue}
+                numberOfLines={1}
+                ellipsizeMode="tail">
+                {safeUser.email ?? '—'}
+              </Text>
+              <TouchableOpacity
+                style={styles.copyIconButton}
+                activeOpacity={0.7}
+                onPress={() => {
+                  const email = safeUser.email?.trim();
+                  if (!email) {
+                    return;
+                  }
+                  Clipboard.setString(email);
+                  Alert.alert('Copied', 'Email Id copied to clipboard');
+                }}>
+                <Image source={Images.copyIcon} style={styles.copyIcon} />
+              </TouchableOpacity>
+            </View>
 
             <Separator />
 
@@ -534,4 +557,33 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    readOnlyEmailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
+    },
+    rowButtonLabel: {
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.textSecondary,
+      flex: 1,
+    },
+    rowButtonValue: {
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.placeholder,
+      marginRight: theme.spacing['2'],
+      flexShrink: 1,
+      flex: 1,
+      textAlign: 'right',
+    },
+    copyIconButton: {
+      paddingLeft: theme.spacing['1'],
+      paddingVertical: theme.spacing['1'],
+    },
+    copyIcon: {
+      width: 18,
+      height: 18,
+      resizeMode: 'contain',
+      tintColor: theme.colors.textSecondary,
+    },
   });

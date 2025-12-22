@@ -18,7 +18,7 @@ import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
-import {SearchBar, YearlySpendCard, Loading} from '@/shared/components/common';
+import {SearchBar, YearlySpendCard} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -36,6 +36,7 @@ import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
   fetchExpenseSummary,
   selectExpenseSummaryByCompanion,
+  selectExpensesLoading,
   selectHasHydratedCompanion as selectExpensesHydrated,
 } from '@/features/expenses';
 import {
@@ -63,9 +64,11 @@ import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
 import {
+  selectNotificationsLoading,
   selectHasHydratedCompanion as selectNotificationsHydrated,
   selectUnreadCount,
 } from '@/features/notifications/selectors';
+import {useGlobalLoader} from '@/context/GlobalLoaderContext';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
@@ -96,15 +99,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const dispatch = useDispatch<AppDispatch>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const {openEmergencySheet} = useEmergency();
+  const {showLoader, hideLoader} = useGlobalLoader();
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
+  const companionLoading = useSelector((state: RootState) => state.companion?.loading);
   const expenseSummarySelector = React.useMemo(
     () => selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
     [selectedCompanionIdRedux],
   );
   const expenseSummary = useSelector(expenseSummarySelector);
-  const hasExpenseHydrated = useSelector(selectExpensesHydrated(selectedCompanionIdRedux ?? null));
+  const expensesLoading = useSelector(selectExpensesLoading);
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
   );
@@ -118,6 +123,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     : null;
   const hasCompanions = companions.length > 0;
   const unreadNotifications = useSelector(selectUnreadCount);
+  const notificationsLoading = useSelector(selectNotificationsLoading);
   const userCurrencyCode = authUser?.currency ?? 'USD';
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const upcomingAppointmentsSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
@@ -130,11 +136,54 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasNotificationsHydrated = useSelector(
     selectNotificationsHydrated('default-companion'),
   );
-  const [isInitialLoad, setIsInitialLoad] = React.useState(true);
+  const appointmentsLoading = useSelector(
+    (state: RootState) => state.appointments?.loading,
+  );
+  const linkedBusinessesLoading = useSelector(
+    (state: RootState) => state.linkedBusinesses?.loading,
+  );
+  const accessLoading = useSelector(
+    (state: RootState) => state.coParent?.accessLoading,
+  );
+  const [initialLoadStarted, setInitialLoadStarted] = React.useState(
+    Boolean(user?.id),
+  );
+  const [initialRequests, setInitialRequests] = React.useState({
+    companions: false,
+    appointments: false,
+    expenses: false,
+    access: false,
+    linkedBusinesses: false,
+    notifications: false,
+  });
+  const [initialLoadComplete, setInitialLoadComplete] = React.useState(false);
   useFocusEffect(
     React.useCallback(() => {
       setBusinessSearch('');
     }, []),
+  );
+
+  const targetCompanionId = React.useMemo(() => {
+    const fallback =
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.identifier?.[0]?.value;
+    return selectedCompanionIdRedux ?? fallback ?? null;
+  }, [companions, selectedCompanionIdRedux]);
+
+  const hasExpenseHydrated = useSelector(
+    selectExpensesHydrated(targetCompanionId),
+  );
+  const hasAppointmentsHydrated = useSelector((state: RootState) =>
+    targetCompanionId
+      ? Boolean(state.appointments?.hydratedCompanions?.[targetCompanionId])
+      : true,
+  );
+  const markInitialRequest = React.useCallback(
+    (key: keyof typeof initialRequests) => {
+      setInitialRequests(prev => (prev[key] ? prev : {...prev, [key]: true}));
+    },
+    [],
   );
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
@@ -147,13 +196,21 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       hasCompanions &&
       (!hasExpenseHydrated || !expenseSummary)
     ) {
+      markInitialRequest('expenses');
       dispatch(
         fetchExpenseSummary({
           companionId: selectedCompanionIdRedux,
         }),
       );
     }
-  }, [dispatch, selectedCompanionIdRedux, hasCompanions, hasExpenseHydrated, expenseSummary]);
+  }, [
+    dispatch,
+    selectedCompanionIdRedux,
+    hasCompanions,
+    hasExpenseHydrated,
+    expenseSummary,
+    markInitialRequest,
+  ]);
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const {businessFallbacks, handleAvatarError, requestBusinessPhoto} = useBusinessPhotoFallback();
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
@@ -252,6 +309,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     const loadCompanionsAndSelectDefault = async () => {
       if (user?.parentId) {
+        markInitialRequest('companions');
         await dispatch(fetchCompanions(user.parentId));
         // Initialize mock linked business data for testing
         dispatch(initializeMockData());
@@ -259,7 +317,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     };
 
     loadCompanionsAndSelectDefault();
-  }, [dispatch, user?.parentId]);
+  }, [dispatch, markInitialRequest, user?.parentId]);
 
   const fetchParentAccessStateRef = React.useRef({
     lastParentId: null as string | null,
@@ -286,8 +344,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           companionIds: companions.map(c => c.id),
         }),
       );
+      markInitialRequest('access');
     }
-  }, [authUser?.parentId, companions, dispatch]);
+  }, [authUser?.parentId, companions, dispatch, markInitialRequest]);
 
   // New useEffect to handle default selection once companions are loaded
   React.useEffect(() => {
@@ -305,43 +364,43 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   // Always refresh appointments when companion changes or initial load finishes
   React.useEffect(() => {
-    const targetId =
-      selectedCompanionIdRedux ??
-      companions[0]?.id ??
-      (companions[0] as any)?._id ??
-      (companions[0] as any)?.identifier?.[0]?.value;
+    const targetId = targetCompanionId;
     if (!targetId) {
       return;
     }
     if (!selectedCompanionIdRedux) {
       dispatch(setSelectedCompanion(targetId));
     }
+    markInitialRequest('appointments');
     dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
-  }, [dispatch, selectedCompanionIdRedux, companions]);
+  }, [dispatch, markInitialRequest, selectedCompanionIdRedux, targetCompanionId]);
 
   // Fetch linked hospitals for emergency feature
   React.useEffect(() => {
     if (selectedCompanionIdRedux) {
+      markInitialRequest('linkedBusinesses');
       dispatch(
         fetchLinkedBusinesses({companionId: selectedCompanionIdRedux, category: 'hospital'}),
       );
     }
-  }, [dispatch, selectedCompanionIdRedux]);
+  }, [dispatch, markInitialRequest, selectedCompanionIdRedux]);
 
   // Hydrate notifications after login to drive red dot state
   React.useEffect(() => {
     if (user && !hasNotificationsHydrated) {
+      markInitialRequest('notifications');
       dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
     }
-  }, [dispatch, hasNotificationsHydrated, user]);
+  }, [dispatch, hasNotificationsHydrated, markInitialRequest, user]);
 
   // Refresh notifications when returning to Home
   useFocusEffect(
     React.useCallback(() => {
       if (user) {
+        markInitialRequest('notifications');
         dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
       }
-    }, [dispatch, user]),
+    }, [dispatch, markInitialRequest, user]),
   );
 
   const previousCurrencyRef = React.useRef(userCurrencyCode);
@@ -353,12 +412,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       previousCurrencyRef.current !== userCurrencyCode
     ) {
       previousCurrencyRef.current = userCurrencyCode;
+      markInitialRequest('expenses');
       dispatch(
         fetchExpenseSummary({companionId: selectedCompanionIdRedux}),
       );
     }
   }, [
     dispatch,
+    markInitialRequest,
     selectedCompanionIdRedux,
     userCurrencyCode,
     hasExpenseHydrated,
@@ -368,28 +429,131 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   useFocusEffect(
     React.useCallback(() => {
       if (selectedCompanionIdRedux) {
+        markInitialRequest('expenses');
         dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
       }
-    }, [dispatch, selectedCompanionIdRedux]),
+    }, [dispatch, markInitialRequest, selectedCompanionIdRedux]),
   );
 
-  // Handle initial loading state - wait for data to be hydrated
   React.useEffect(() => {
-    if (isInitialLoad) {
-      // Check if we have the essential data loaded
-      const hasEssentialData =
-        hasNotificationsHydrated &&
-        (companions.length === 0 || (selectedCompanionIdRedux && hasExpenseHydrated));
+    if (user?.id && !initialLoadStarted) {
+      setInitialLoadStarted(true);
+    }
+  }, [initialLoadStarted, user?.id]);
 
-      if (hasEssentialData) {
-        // Add a small delay to ensure smooth transition
-        const timer = setTimeout(() => {
-          setIsInitialLoad(false);
-        }, 500);
-        return () => clearTimeout(timer);
+  const isHomeDataReady = React.useMemo(() => {
+    if (!initialLoadStarted) {
+      return false;
+    }
+
+    if (user?.parentId && !initialRequests.companions) {
+      return false;
+    }
+
+    if (user && !hasNotificationsHydrated && !initialRequests.notifications) {
+      return false;
+    }
+
+    if (authUser?.parentId && companions.length > 0 && !initialRequests.access) {
+      return false;
+    }
+
+    if (targetCompanionId && !initialRequests.appointments) {
+      return false;
+    }
+
+    if (
+      selectedCompanionIdRedux &&
+      !hasExpenseHydrated &&
+      !initialRequests.expenses
+    ) {
+      return false;
+    }
+
+    if (selectedCompanionIdRedux && !initialRequests.linkedBusinesses) {
+      return false;
+    }
+
+    if (initialRequests.companions && companionLoading) {
+      return false;
+    }
+
+    if (initialRequests.access && accessLoading) {
+      return false;
+    }
+
+    if (initialRequests.notifications) {
+      if (notificationsLoading || !hasNotificationsHydrated) {
+        return false;
       }
     }
-  }, [isInitialLoad, hasNotificationsHydrated, companions.length, selectedCompanionIdRedux, hasExpenseHydrated]);
+
+    if (initialRequests.appointments) {
+      if (appointmentsLoading || !hasAppointmentsHydrated) {
+        return false;
+      }
+    }
+
+    if (initialRequests.expenses) {
+      if (expensesLoading || !hasExpenseHydrated) {
+        return false;
+      }
+    }
+
+    if (initialRequests.linkedBusinesses && linkedBusinessesLoading) {
+      return false;
+    }
+
+    if (companions.length > 0 && !targetCompanionId) {
+      return false;
+    }
+
+    return true;
+  }, [
+    accessLoading,
+    appointmentsLoading,
+    companionLoading,
+    companions.length,
+    expensesLoading,
+    authUser?.parentId,
+    hasAppointmentsHydrated,
+    hasExpenseHydrated,
+    hasNotificationsHydrated,
+    initialLoadStarted,
+    initialRequests,
+    linkedBusinessesLoading,
+    notificationsLoading,
+    selectedCompanionIdRedux,
+    targetCompanionId,
+    user,
+  ]);
+
+  React.useEffect(() => {
+    if (initialLoadComplete) {
+      return;
+    }
+    if (isHomeDataReady) {
+      setInitialLoadComplete(true);
+    }
+  }, [initialLoadComplete, isHomeDataReady]);
+
+  React.useEffect(() => {
+    if (!initialLoadStarted) {
+      hideLoader();
+      return;
+    }
+    if (initialLoadComplete) {
+      hideLoader();
+    } else {
+      showLoader();
+    }
+  }, [hideLoader, initialLoadComplete, initialLoadStarted, showLoader]);
+
+  React.useEffect(() => {
+    return () => {
+      hideLoader();
+    };
+  }, [hideLoader]);
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -773,11 +937,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       />
     );
   };
-
-  // Show loading screen during initial data hydration
-  if (isInitialLoad) {
-    return <Loading />;
-  }
 
   return (
       <SafeAreaView style={styles.container}>

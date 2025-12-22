@@ -1,5 +1,15 @@
 import React, {useMemo, useState} from 'react';
-import {FlatList, View, Text, StyleSheet, TextInput, TouchableOpacity} from 'react-native';
+import {
+  FlatList,
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
@@ -30,26 +40,40 @@ export const ChatScreen: React.FC = () => {
   return (
     <SafeArea>
       <Header title="Dr. David Brown" showBackButton onBack={() => navigation.goBack()} />
-      <FlatList
-        contentContainerStyle={styles.list}
-        data={messages}
-        keyExtractor={m => m.id}
-        renderItem={({item}) => (
-          <View style={[styles.bubble, item.sender === 'you' ? styles.you : styles.vet]}>
-            <Text style={styles.text}>{item.text}</Text>
-            <Text style={styles.time}>{item.time}</Text>
-          </View>
-        )}
-      />
-      <View style={styles.composer}>
-        <TextInput style={styles.input} placeholder="Type a message" value={text} onChangeText={setText} />
-        <TouchableOpacity style={styles.send} onPress={send}><Text style={styles.sendText}>→</Text></TouchableOpacity>
-      </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+        <FlatList
+          contentContainerStyle={styles.list}
+          data={messages}
+          keyExtractor={m => m.id}
+          renderItem={({item}) => (
+            <View style={[styles.bubble, item.sender === 'you' ? styles.you : styles.vet]}>
+              <Text style={styles.text}>{item.text}</Text>
+              <Text style={styles.time}>{item.time}</Text>
+            </View>
+          )}
+        />
+        <View style={styles.composer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Type a message"
+            value={text}
+            onChangeText={setText}
+            returnKeyType="done"
+            blurOnSubmit
+            onSubmitEditing={() => Keyboard.dismiss()}
+          />
+          <TouchableOpacity style={styles.send} onPress={send}><Text style={styles.sendText}>→</Text></TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeArea>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
+  keyboardAvoiding: {flex: 1},
   list: {padding: theme.spacing['4'], gap: theme.spacing['2']},
   bubble: {maxWidth: '80%', padding: theme.spacing['3'], borderRadius: theme.borderRadius.md, marginVertical: theme.spacing['2']},
   you: {alignSelf: 'flex-end', backgroundColor: theme.colors.lightBlueBackground},

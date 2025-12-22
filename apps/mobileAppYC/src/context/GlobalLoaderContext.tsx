@@ -13,7 +13,7 @@ const GlobalLoaderContext = createContext<GlobalLoaderContextType | undefined>(
 export const GlobalLoaderProvider: React.FC<{children: React.ReactNode}> = ({
   children,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const showLoader = useCallback(() => {
     setIsLoading(true);

@@ -87,6 +87,15 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
     [effectiveSpringConfig, translateX],
   );
 
+  const settleToNearest = useCallback(
+    (dx = 0) => {
+      const finalOffset = clamp(currentOffset.current + dx);
+      const shouldOpen = finalOffset < -swipeableWidth / 2;
+      animateTo(shouldOpen ? -swipeableWidth : 0);
+    },
+    [animateTo, clamp, swipeableWidth],
+  );
+
   const panResponder = useMemo(() => {
     const handleMove = (_: any, gestureState: any) => {
       if (enableHorizontalSwipeOnly) {
@@ -104,7 +113,9 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
       if (enableHorizontalSwipeOnly && isMostlyVertical) {
         if (Math.abs(gestureState.dx) < 8 && Math.abs(gestureState.dy) < 8) {
           onPress?.();
+          return;
         }
+        settleToNearest(gestureState.dx);
         return;
       }
 
@@ -114,9 +125,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
         return;
       }
 
-      const finalOffset = clamp(currentOffset.current + gestureState.dx);
-      const shouldOpen = finalOffset < -swipeableWidth / 2;
-      animateTo(shouldOpen ? -swipeableWidth : 0);
+      settleToNearest(gestureState.dx);
     };
 
     return PanResponder.create({
@@ -136,8 +145,22 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
       },
       onPanResponderMove: handleMove,
       onPanResponderRelease: handleRelease,
+      onPanResponderTerminationRequest: () => true,
+      onPanResponderTerminate: () => {
+        translateX.stopAnimation(value => {
+          currentOffset.current = value;
+          settleToNearest(0);
+        });
+      },
     });
-  }, [swipeableWidth, animateTo, clamp, translateX, enableHorizontalSwipeOnly, onPress]);
+  }, [
+    animateTo,
+    clamp,
+    translateX,
+    enableHorizontalSwipeOnly,
+    onPress,
+    settleToNearest,
+  ]);
 
   const handleActionPress = () => {
     animateTo(0, () => {

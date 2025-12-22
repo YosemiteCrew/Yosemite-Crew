@@ -40,7 +40,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
   const insets = useSafeAreaInsets();
-  const useGlass = Platform.OS !== 'ios' && isLiquidGlassSupported;
+  const useGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   // Calculate if tab bar should be hidden based on nested navigation
@@ -148,12 +148,13 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
         {paddingBottom: Math.max(insets.bottom, 12)},
       ]}>
       <ContainerComponent
-        style={styles.bar}
+        style={[styles.bar, useGlass && styles.barGlass]}
         {...(useGlass
           ? {
               blurAmount: 30,
               blurType: 'regular' as const,
               tintColor: 'light',
+              colorScheme: 'light' as const,
             }
           : {})}>
         {renderItems()}
@@ -170,19 +171,20 @@ const createStyles = (theme: any) =>
       right: 24,
       bottom: 16,
       zIndex: 10,
+      ...theme.shadows.floatingMd,
     },
     bar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.white,
       paddingVertical: 15,
       paddingHorizontal: 20,
-      ...theme.shadows.xs,
       overflow: 'hidden',
+    },
+    barGlass: {
+      backgroundColor: 'transparent',
     },
     tabItem: {
       flex: 1,

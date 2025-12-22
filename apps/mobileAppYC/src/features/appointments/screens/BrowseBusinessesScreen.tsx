@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ScrollView, View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {ScrollView, View, Text, StyleSheet, TouchableOpacity, ViewStyle} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -62,6 +62,7 @@ interface BusinessCardProps {
   compact?: boolean;
   fallbackPhoto?: string | null;
   distanceUnit: 'km' | 'mi';
+  cardStyle?: ViewStyle;
 }
 
 const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
@@ -71,6 +72,7 @@ const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
   compact,
   fallbackPhoto,
   distanceUnit,
+  cardStyle,
 }) => (
   <BusinessCard
     key={business.id}
@@ -83,6 +85,7 @@ const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
     fallbackPhoto={fallbackPhoto ?? undefined}
     onBook={() => navigation.navigate('BusinessDetails', {businessId: business.id})}
     compact={compact}
+    style={cardStyle}
   />
 );
 
@@ -92,22 +95,52 @@ interface CategoryBusinessesProps {
   resolveDescription: (b: VetBusiness) => string;
   fallbacks: Record<string, {photo?: string | null}>;
   distanceUnit: 'km' | 'mi';
+  styles: any;
 }
 
-const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({businesses, navigation, resolveDescription, fallbacks, distanceUnit}) => (
-  <>
-    {businesses.map(b => (
-      <BusinessCardRenderer
-        key={b.id}
-        business={b}
-        navigation={navigation}
-        resolveDescription={resolveDescription}
-        fallbackPhoto={fallbacks[b.id]?.photo ?? null}
-        distanceUnit={distanceUnit}
-      />
-    ))}
-  </>
-);
+const CategoryBusinesses: React.FC<CategoryBusinessesProps> = ({
+  businesses,
+  navigation,
+  resolveDescription,
+  fallbacks,
+  distanceUnit,
+  styles,
+}) => {
+  if (businesses.length === 1) {
+    const single = businesses[0];
+    return (
+      <View style={styles.singleCardWrapper}>
+        <BusinessCardRenderer
+          business={single}
+          navigation={navigation}
+          resolveDescription={resolveDescription}
+          fallbackPhoto={fallbacks[single.id]?.photo ?? null}
+          distanceUnit={distanceUnit}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.horizontalList}>
+      {businesses.map(b => (
+        <BusinessCardRenderer
+          key={b.id}
+          business={b}
+          navigation={navigation}
+          resolveDescription={resolveDescription}
+          fallbackPhoto={fallbacks[b.id]?.photo ?? null}
+          distanceUnit={distanceUnit}
+          compact
+          cardStyle={styles.horizontalCard}
+        />
+      ))}
+    </ScrollView>
+  );
+};
 
 interface AllCategoriesViewProps {
   allCategories: readonly string[];
@@ -158,6 +191,7 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
                   fallbackPhoto={fallbacks[b.id]?.photo ?? null}
                   distanceUnit={distanceUnit}
                   compact
+                  cardStyle={styles.horizontalCard}
                 />
               ))}
             </ScrollView>
@@ -327,6 +361,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
                   resolveDescription={resolveDescription}
                   fallbacks={fallbacks}
                   distanceUnit={distanceUnit}
+                  styles={styles}
                 />
               );
             }
@@ -374,6 +409,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   sectionWrapper: {gap: 12},
   singleCardWrapper: {alignItems: 'center', width: '100%'},
   horizontalList: {gap: 12, paddingRight: 16, paddingVertical: 10},
+  horizontalCard: {width: 280},
   emptyState: {
     padding: 16,
     borderRadius: 12,

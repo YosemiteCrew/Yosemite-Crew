@@ -144,9 +144,9 @@ export const ExpensesMainScreen: React.FC = () => {
           contentContainerStyle={styles.emptyState}
           showsVerticalScrollIndicator={false}>
           <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
-          <Text style={styles.emptyTitle}>Zero Bucks Spent!</Text>
+          <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
           <Text style={styles.emptySubtitle}>
-            It seems like you and your buddy is in saving mode!
+            It seems like you and your buddy are in saving mode!
           </Text>
           <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
             <Text style={styles.emptyButtonText}>Add expense</Text>

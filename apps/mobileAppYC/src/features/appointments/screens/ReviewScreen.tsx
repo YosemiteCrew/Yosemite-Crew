@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ScrollView, View, Text, StyleSheet, TextInput, Image} from 'react-native';
+import {ScrollView, View, Text, StyleSheet, TextInput, Image, Keyboard} from 'react-native';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -139,11 +139,14 @@ export const ReviewScreen: React.FC = () => {
             <TextInput
               value={review}
               onChangeText={setReview}
-              multiline
+              multiline={false}
               placeholder="Your review"
               placeholderTextColor={theme.colors.textSecondary + '80'}
               style={styles.input}
               textAlignVertical="top"
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
         </View>
