@@ -10,5 +10,6 @@ router.get(
   authorizeCognito,
   OrganisationRoomController.getAllByOrganizationId,
 );
+router.delete("/:id", authorizeCognito, OrganisationRoomController.delete);
 
 export default router;
