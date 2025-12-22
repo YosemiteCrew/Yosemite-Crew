@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, Image, StyleSheet} from 'react-native';
+import {View, Text, Image, StyleSheet, TouchableOpacity} from 'react-native';
 import {Images} from '@/assets/images';
 
 interface BottomSheetHeaderProps {
@@ -28,7 +28,10 @@ export const BottomSheetHeader: React.FC<BottomSheetHeaderProps> = ({
         <Text style={styles.title}>{title}</Text>
       </View>
       {showCloseButton && closeIconSource && (
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <TouchableOpacity
+          onPress={onClose}
+          activeOpacity={0.8}
+          style={styles.closeButton}>
           <Image
             source={closeIconSource}
             style={styles.closeIcon}
@@ -67,11 +70,14 @@ const createStyles = (theme: any) =>
       position: 'absolute',
       right: 0,
       top: theme.spacing['4'],
-      padding: theme.spacing['2'],
       zIndex: 10,
+      width: theme.spacing['9'],
+      height: theme.spacing['9'],
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     closeIcon: {
-      width: theme.spacing['6'],
-      height: theme.spacing['6'],
+      width: theme.spacing['4'],
+      height: theme.spacing['4'],
     },
   });

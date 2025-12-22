@@ -968,15 +968,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={styles.actionIcon}
-              activeOpacity={0.85}
-              onPress={handleEmergencyPress}>
+              onPress={handleEmergencyPress}
+              activeOpacity={0.8}
+              style={styles.actionIcon}>
               <Image source={Images.emergencyIcon} style={styles.actionImage} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionIcon}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('Notifications')}>
+              onPress={() => navigation.navigate('Notifications')}
+              activeOpacity={0.8}
+              style={styles.actionIcon}>
               <View style={styles.notificationIconWrapper}>
                 <Image
                   source={Images.notificationIcon}
@@ -1049,8 +1049,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick actions</Text>
             {companions.length > 0 && (
-              <TouchableOpacity
-                activeOpacity={0.8}
+              <LiquidGlassButton
                 onPress={() => {
                   if (!guardFeature('companionProfile', 'companion profile')) {
                     return;
@@ -1072,9 +1071,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                   } else {
                     console.warn('No companion selected to view profile.');
                   }
-                }}>
-                <Text style={styles.viewMoreText}>View more</Text>
-              </TouchableOpacity>
+                }}
+                size="small"
+                compact
+                glassEffect="clear"
+                borderRadius="full"
+                style={styles.viewMoreButton}
+                textStyle={styles.viewMoreText}
+                title="View more"
+              />
             )}
           </View>
 
@@ -1291,6 +1296,15 @@ const createStyles = (theme: any) =>
     viewMoreText: {
       ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
+    },
+    viewMoreButton: {
+      alignSelf: 'flex-start',
+      flexGrow: 0,
+      flexShrink: 0,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+      minHeight: theme.spacing['7'],
+      minWidth: 0,
     },
     quickActionIcon: {
       width: theme.spacing['7'],

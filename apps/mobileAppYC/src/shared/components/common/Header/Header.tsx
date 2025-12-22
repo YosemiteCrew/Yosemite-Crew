@@ -1,6 +1,6 @@
 // src/components/common/Header/Header.tsx
 import React from 'react';
-import {View, Text, TouchableOpacity, Image, StyleSheet, Platform} from 'react-native';
+import {View, Text, Image, StyleSheet, Platform, TouchableOpacity} from 'react-native';
 import {useTheme} from '@/hooks';
 import { Images } from '@/assets/images';
 
@@ -27,8 +27,14 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <View style={[styles.container, style]}>
       {showBackButton ? (
-        <TouchableOpacity style={styles.iconButton} onPress={onBack}>
-          <Image source={Images.backIcon} style={[styles.icon, {tintColor: theme.colors.text}]} />
+        <TouchableOpacity
+          onPress={onBack ?? (() => {})}
+          activeOpacity={0.8}
+          style={styles.iconButton}>
+          <Image
+            source={Images.backIcon}
+            style={[styles.icon, {tintColor: theme.colors.text}]}
+          />
         </TouchableOpacity>
       ) : (
         <View style={styles.spacer} />
@@ -41,7 +47,10 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       {rightIcon ? (
-        <TouchableOpacity style={styles.iconButton} onPress={onRightPress}>
+        <TouchableOpacity
+          onPress={onRightPress ?? (() => {})}
+          activeOpacity={0.8}
+          style={styles.iconButton}>
           <Image source={rightIcon} style={[styles.icon]} />
         </TouchableOpacity>
       ) : (

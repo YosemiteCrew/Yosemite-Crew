@@ -4,6 +4,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
@@ -164,9 +165,16 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
             <View style={styles.sectionHeaderRight}>
               <Text style={styles.sectionCount}>{items.length} Near You</Text>
               {items.length > 1 && (
-                <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('BusinessesList', {category: cat as BusinessCategory})}>
-                  <Text style={styles.viewMore}>View more</Text>
-                </TouchableOpacity>
+                <LiquidGlassButton
+                  onPress={() => navigation.navigate('BusinessesList', {category: cat as BusinessCategory})}
+                  size="small"
+                  compact
+                  glassEffect="clear"
+                  borderRadius="full"
+                  style={styles.viewMoreButton}
+                  textStyle={styles.viewMore}
+                  title="View more"
+                />
               )}
             </View>
           </View>
@@ -405,7 +413,16 @@ const createStyles = (theme: any) => StyleSheet.create({
   sectionHeaderRight: {flexDirection: 'row', alignItems: 'center', gap: 8},
   sectionHeader: {...theme.typography.businessSectionTitle20, color: '#302F2E'},
   sectionCount: {...theme.typography.body12, color: '#302F2E'},
-  viewMore: { ...theme.typography.titleSmall, color: theme.colors.primary},
+  viewMore: { ...theme.typography.labelXxsBold, color: theme.colors.primary},
+  viewMoreButton: {
+    alignSelf: 'flex-start',
+    flexGrow: 0,
+    flexShrink: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    minHeight: 28,
+    minWidth: 0,
+  },
   sectionWrapper: {gap: 12},
   singleCardWrapper: {alignItems: 'center', width: '100%'},
   horizontalList: {gap: 12, paddingRight: 16, paddingVertical: 10},

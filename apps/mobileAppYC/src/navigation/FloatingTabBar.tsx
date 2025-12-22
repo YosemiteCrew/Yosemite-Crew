@@ -35,6 +35,7 @@ const ROOT_ROUTE_MAP: Record<string, string> = {
   Tasks: 'TasksMain',
   AdverseEvent: 'Landing',
 };
+const TAB_BAR_GLASS_TINT = 'rgba(255, 255, 255, 0.7)';
 
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
@@ -151,9 +152,8 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
         style={[styles.bar, useGlass && styles.barGlass]}
         {...(useGlass
           ? {
-              blurAmount: 30,
-              blurType: 'regular' as const,
-              tintColor: 'light',
+              effect: 'regular' as const,
+              tintColor: TAB_BAR_GLASS_TINT,
               colorScheme: 'light' as const,
             }
           : {})}>

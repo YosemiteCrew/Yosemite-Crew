@@ -9,7 +9,7 @@ export const getActionWrapperStyle = (showEditAction: boolean, theme: any) => ({
   flexDirection: 'row' as const,
   height: '100%' as const,
   width: '100%' as const,
-  backgroundColor: theme.colors.primary,
+  backgroundColor: showEditAction ? theme.colors.primary : theme.colors.success,
   borderTopRightRadius: theme.borderRadius.lg,
   borderBottomRightRadius: theme.borderRadius.lg,
   overflow: 'hidden' as const,

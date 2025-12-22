@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useRef} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   Image,
@@ -39,7 +39,7 @@ export interface SwipeableGlassCardProps {
 
 const DEFAULT_ACTION_WIDTH = 70;
 const DEFAULT_SPRING: SpringConfig = {useNativeDriver: true};
-const DEFAULT_OVERLAP = 12; // Default overlap to hide the seam
+const DEFAULT_OVERLAP = 0;
 
 export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   actionIcon,
@@ -62,6 +62,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   const hasCustomActionContent = Boolean(renderActionContent);
   const translateX = useRef(new Animated.Value(0)).current;
   const currentOffset = useRef(0);
+  const [isRevealed, setIsRevealed] = useState(false);
 
   const effectiveActionColor = actionBackgroundColor ?? theme.colors.success;
   const effectiveSpringConfig = useMemo<SpringConfig>(
@@ -70,6 +71,17 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   );
 
   const swipeableWidth = actionWidth - actionOverlap;
+  const actionContentOpacity = useMemo(() => {
+    if (swipeableWidth <= 0) {
+      return 0;
+    }
+
+    return translateX.interpolate({
+      inputRange: [-swipeableWidth, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+  }, [swipeableWidth, translateX]);
 
   const clamp = useCallback(
     (dx: number) => Math.max(-swipeableWidth, Math.min(0, dx)),
@@ -78,13 +90,21 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
 
   const animateTo = useCallback(
     (toValue: number, callback?: () => void) => {
+      if (toValue < 0) {
+        setIsRevealed(true);
+      }
       currentOffset.current = toValue;
       Animated.spring(translateX, {
         ...effectiveSpringConfig,
         toValue,
-      }).start(() => callback?.());
+      }).start(() => {
+        if (toValue === 0) {
+          setIsRevealed(false);
+        }
+        callback?.();
+      });
     },
-    [effectiveSpringConfig, translateX],
+    [effectiveSpringConfig, setIsRevealed, translateX],
   );
 
   const settleToNearest = useCallback(
@@ -173,37 +193,67 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
     });
   };
 
+  const actionContent = renderActionContent ? (
+    renderActionContent(() => animateTo(0))
+  ) : (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={styles.actionButton}
+      onPress={handleActionPress}>
+      <View style={styles.actionIconWrapper}>
+        <Image
+          source={actionIcon}
+          style={[styles.actionImage, actionIconStyle]}
+          resizeMode="contain"
+        />
+      </View>
+    </TouchableOpacity>
+  );
+
+  const cardPropsWithReveal = useMemo(() => {
+    const revealStyle = isRevealed ? styles.revealedCard : undefined;
+
+    if (!cardProps) {
+      return revealStyle ? {style: revealStyle} : undefined;
+    }
+
+    return {
+      ...cardProps,
+      style: [cardProps.style, revealStyle],
+    };
+  }, [cardProps, isRevealed, styles.revealedCard]);
+
   return (
-    <View style={[styles.container, containerStyle]}>
-      <View
+    <View
+      style={[
+        styles.container,
+        containerStyle,
+        isRevealed && styles.revealedContainer,
+      ]}>
+      <Animated.View
         style={[
           styles.actionContainer,
           hasCustomActionContent && styles.customActionContainer,
-          {width: actionWidth + actionOverlap, right: -actionOverlap, backgroundColor: effectiveActionColor},
+          {
+            width: actionWidth + actionOverlap,
+            right: -actionOverlap,
+            backgroundColor: effectiveActionColor,
+            opacity: actionContentOpacity,
+          },
           actionContainerStyle,
         ]}>
-        {renderActionContent ? (
-          renderActionContent(() => animateTo(0))
-        ) : (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.actionButton}
-            onPress={handleActionPress}>
-            <View style={styles.actionIconWrapper}>
-              <Image
-                source={actionIcon}
-                style={[styles.actionImage, actionIconStyle]}
-                resizeMode="contain"
-              />
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
+        <Animated.View
+          style={[styles.actionContent, {opacity: actionContentOpacity}]}>
+          {actionContent}
+        </Animated.View>
+      </Animated.View>
 
       <Animated.View
         {...panResponder.panHandlers}
         style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
-        <LiquidGlassCard {...cardProps}>{children}</LiquidGlassCard>
+        <LiquidGlassCard {...(cardPropsWithReveal ?? {})}>
+          {children}
+        </LiquidGlassCard>
       </Animated.View>
     </View>
   );
@@ -216,6 +266,10 @@ const createStyles = (theme: any) =>
       alignSelf: 'center',
       borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
+    },
+    revealedContainer: {
+      borderTopRightRadius: 0,
+      borderBottomRightRadius: 0,
     },
     actionContainer: {
       position: 'absolute',
@@ -237,6 +291,11 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    actionContent: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
+    },
     actionIconWrapper: {
       width: 40,
       height: 40,
@@ -248,6 +307,10 @@ const createStyles = (theme: any) =>
       height: 30,
     },
     animatedWrapper: {zIndex: 1},
+    revealedCard: {
+      borderTopRightRadius: 0,
+      borderBottomRightRadius: 0,
+    },
   });
 
 export default SwipeableGlassCard;

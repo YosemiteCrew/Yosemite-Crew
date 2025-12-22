@@ -131,15 +131,17 @@ const applyPathFallbacks = (resolvedResult: {path: string; size: number | null} 
   return path;
 };
 
-const validateFileSize = (size: number | null, expectedSize: number | undefined) => {
-  let finalSize = size;
-  if (finalSize == null && typeof expectedSize === 'number' && expectedSize > 0) {
-    finalSize = expectedSize;
+const resolveSizeHint = (
+  size: number | null,
+  expectedSize: number | undefined,
+): number | null => {
+  if (Number.isFinite(size) && size != null && size > 0) {
+    return size;
   }
-  if (finalSize == null || !Number.isFinite(finalSize) || finalSize <= 0) {
-    throw new Error('Local file is empty or unreadable.');
+  if (typeof expectedSize === 'number' && expectedSize > 0) {
+    return expectedSize;
   }
-  return finalSize;
+  return null;
 };
 
 export const uploadFileToPresignedUrl = async ({
@@ -153,13 +155,16 @@ export const uploadFileToPresignedUrl = async ({
 
   const resolvedResult = await findResolvedPath(wrappedPath, normalizedPath);
   const resolvedPath = applyPathFallbacks(resolvedResult, filePath);
-  const size = validateFileSize(resolvedResult?.size ?? null, expectedSize ?? undefined);
+  const sizeHint = resolveSizeHint(
+    resolvedResult?.size ?? null,
+    expectedSize ?? undefined,
+  );
 
   console.log('[UploadService] Upload start', {
     url,
     mimeType,
     filePath: resolvedPath,
-    size,
+    size: sizeHint ?? 'unknown',
   });
 
   try {
@@ -172,7 +177,7 @@ export const uploadFileToPresignedUrl = async ({
 
     console.log('[UploadService] Pre-reading file content to ensure stability', {
       path: pathForRead,
-      size,
+      size: sizeHint ?? 'unknown',
       isContentUri,
       originalPath: resolvedPath,
     });
@@ -199,7 +204,7 @@ export const uploadFileToPresignedUrl = async ({
     const actualSize = Math.ceil((base64Content.length * 3) / 4);
     console.log('[UploadService] File content read successfully', {
       path: pathForRead,
-      reportedSize: size,
+      reportedSize: sizeHint ?? 'unknown',
       actualSize,
       base64Length: base64Content.length,
     });
