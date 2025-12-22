@@ -10,6 +10,8 @@ type ServiceState = {
   setServicesForOrg: (orgId: string, items: Service[]) => void;
   addService: (service: Service) => void;
   updateService: (updated: Service) => void;
+  deleteServiceById: (id: string) => void;
+  deleteServicesBySpecialityId: (specialityId: string) => void;
   clearServicesForOrg: (orgId: string) => void;
   getServicesByOrgId: (orgId: string) => Service[];
   getServicesBySpecialityId: (specialityId: string) => Service[];
@@ -104,7 +106,7 @@ export const useServiceStore = create<ServiceState>()((set, get) => ({
           ...state.serviceIdsByOrgId,
           [orgId]: newIds,
         },
-        serviceIdsBySpecialityId
+        serviceIdsBySpecialityId,
       };
     }),
 
@@ -185,6 +187,73 @@ export const useServiceStore = create<ServiceState>()((set, get) => ({
         },
       };
       return { servicesById };
+    }),
+
+  deleteServiceById: (id) =>
+    set((state) => {
+      const existing = state.servicesById[id];
+      if (!existing) {
+        console.warn("deleteServiceById: service not found:", id);
+        return state;
+      }
+      const orgId = existing.organisationId;
+      const specialityId = existing.specialityId ?? undefined;
+      const { [id]: _, ...restById } = state.servicesById;
+      const nextOrgArr = (state.serviceIdsByOrgId[orgId] ?? []).filter(
+        (x) => x !== id
+      );
+      let serviceIdsByOrgId = {
+        ...state.serviceIdsByOrgId,
+        [orgId]: nextOrgArr,
+      };
+      if (nextOrgArr.length === 0) {
+        const { [orgId]: __, ...rest } = serviceIdsByOrgId;
+        serviceIdsByOrgId = rest;
+      }
+      let serviceIdsBySpecialityId = state.serviceIdsBySpecialityId;
+      if (specialityId) {
+        const nextSpecArr = (
+          state.serviceIdsBySpecialityId[specialityId] ?? []
+        ).filter((x) => x !== id);
+        serviceIdsBySpecialityId = {
+          ...state.serviceIdsBySpecialityId,
+          [specialityId]: nextSpecArr,
+        };
+        if (nextSpecArr.length === 0) {
+          const { [specialityId]: ___, ...rest } = serviceIdsBySpecialityId;
+          serviceIdsBySpecialityId = rest;
+        }
+      }
+      return {
+        servicesById: restById,
+        serviceIdsByOrgId,
+        serviceIdsBySpecialityId,
+      };
+    }),
+
+  deleteServicesBySpecialityId: (specialityId) =>
+    set((state) => {
+      const ids = state.serviceIdsBySpecialityId[specialityId] ?? [];
+      if (!ids.length) {
+        const { [specialityId]: _, ...restSpecIdx } =
+          state.serviceIdsBySpecialityId;
+        return { serviceIdsBySpecialityId: restSpecIdx };
+      }
+      const idSet = new Set(ids);
+      const servicesById = { ...state.servicesById };
+      for (const id of ids) delete servicesById[id];
+      const serviceIdsByOrgId: Record<string, string[]> = {};
+      for (const [orgId, orgIds] of Object.entries(state.serviceIdsByOrgId)) {
+        const next = orgIds.filter((sid) => !idSet.has(sid));
+        if (next.length) serviceIdsByOrgId[orgId] = next;
+      }
+      const { [specialityId]: __, ...restSpecIdx } =
+        state.serviceIdsBySpecialityId;
+      return {
+        servicesById,
+        serviceIdsByOrgId,
+        serviceIdsBySpecialityId: restSpecIdx,
+      };
     }),
 
   getServicesByOrgId: (orgId) => {

@@ -5,10 +5,12 @@ import InvoicesFilters from "@/app/components/Filters/InvoicesFilers";
 import InvoiceDataTable from "@/app/components/DataTable/InvoiceTable";
 import InvoiceInfo from "./Sections/InvoiceInfo";
 import OrgGuard from "@/app/components/OrgGuard";
-import { useInvoicesForPrimaryOrg } from "@/app/hooks/useInvoices";
+import { useInvoicesForPrimaryOrg, useLoadInvoicesForPrimaryOrg } from "@/app/hooks/useInvoices";
 import { Invoice } from "@yosemite-crew/types";
 
 const Finance = () => {
+  useLoadInvoicesForPrimaryOrg()
+  
   const invoices = useInvoicesForPrimaryOrg();
   const [filteredList, setFilteredList] = useState<Invoice[]>(invoices);
   const [viewInvoice, setViewInvoice] = useState(false);

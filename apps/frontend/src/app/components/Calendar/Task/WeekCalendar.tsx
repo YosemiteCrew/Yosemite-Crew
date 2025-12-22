@@ -1,9 +1,10 @@
 import { TasksProps } from "@/app/types/tasks";
 import React, { useMemo } from "react";
 import { getNextWeek, getPrevWeek, getWeekDays } from "../weekHelpers";
-import DayLabels from "../common/DayLabels";
+import DayLabels from "./DayLabels";
 import TaskSlot from "./TaskSlot";
 import { eventsForDay } from "../helpers";
+import { GrNext, GrPrevious } from "react-icons/gr";
 
 type WeekCalendarProps = {
   events: TasksProps[];
@@ -42,29 +43,39 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <DayLabels
-        days={days}
-        onPrevWeek={handlePrevWeek}
-        onNextWeek={handleNextWeek}
-        taskView
-      />
-      <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-[600px]">
-        <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] gap-y-0.5">
-          <div />
-          <div className="grid grid-cols-7 gap-x-2">
-            {days.map((day, dayIndex) => {
-              const slotEvents = eventsForDay(events, day);
-              return (
-                <TaskSlot
-                  key={day.getDate() + dayIndex}
-                  slotEvents={slotEvents}
-                  dayIndex={dayIndex}
-                  handleViewTask={handleViewTask}
-                />
-              );
-            })}
+      <div className="grid h-full grid-cols-[40px_minmax(0,1fr)_40px]">
+        <div className="flex items-start justify-center pt-3">
+          <GrPrevious
+            size={20}
+            color="#302f2e"
+            className="cursor-pointer"
+            onClick={handlePrevWeek}
+          />
+        </div>
+        <div className="overflow-x-auto">
+          <div className="min-w-max">
+            <DayLabels days={days} />
+            <div className="max-h-[400px] overflow-y-auto">
+              <div className="grid grid-flow-col auto-cols-[200px] gap-x-2 min-w-max">
+                {days.map((day, dayIndex) => (
+                  <TaskSlot
+                    key={day.getTime()}
+                    slotEvents={eventsForDay(events, day)}
+                    dayIndex={dayIndex}
+                    handleViewTask={handleViewTask}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-          <div />
+        </div>
+        <div className="flex items-start justify-center pt-3">
+          <GrNext
+            size={20}
+            color="#302f2e"
+            className="cursor-pointer"
+            onClick={handleNextWeek}
+          />
         </div>
       </div>
     </div>

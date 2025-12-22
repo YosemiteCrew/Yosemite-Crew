@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 
 import Header from "./Header/Header";
 import Cookies from "./Cookies/Cookies";
@@ -12,7 +12,7 @@ import "@stripe/connect-js";
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname() || "";
-  const isPublicRoute = publicRoutes.has(pathname);
+  const isPublicRoute = useMemo(() => publicRoutes.has(pathname), [pathname]);
   const status = useAuthStore((s) => s.status);
 
   useEffect(() => {
