@@ -19,6 +19,8 @@ import type {RouteProp} from '@react-navigation/native';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -220,6 +222,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
   const {distanceUnit} = usePreferences();
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const [fallbacks, setFallbacks] = useState<Record<string, {photo?: string | null; phone?: string; website?: string}>>({});
   const requestedDetailsRef = React.useRef<Set<string>>(new Set());
   const lastSearchRef = React.useRef<number>(0);
@@ -322,35 +326,62 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header title="Book an appointment" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillsContent}
-        >
-          {CATEGORIES.map(p => (
-            <TouchableOpacity
-              key={p.label}
-              style={[styles.pill, (p.id ?? undefined) === category && styles.pillActive]}
-              activeOpacity={0.8}
-              onPress={() => setCategory(p.id)}
-            >
-              <Text style={[styles.pillText, (p.id ?? undefined) === category && styles.pillTextActive]}>{p.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="Book an appointment"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillsContent}>
+            {CATEGORIES.map(p => (
+              <TouchableOpacity
+                key={p.label}
+                style={[styles.pill, (p.id ?? undefined) === category && styles.pillActive]}
+                activeOpacity={0.8}
+                onPress={() => setCategory(p.id)}
+              >
+                <Text style={[styles.pillText, (p.id ?? undefined) === category && styles.pillTextActive]}>{p.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
-        <SearchBar
-          placeholder="Search for services"
-          mode="input"
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={() => performSearch()}
-          onIconPress={() => performSearch()}
-          autoFocus={route.params?.autoFocusSearch}
-        />
-
+          <SearchBar
+            placeholder="Search for services"
+            mode="input"
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={() => performSearch()}
+            onIconPress={() => performSearch()}
+            autoFocus={route.params?.autoFocusSearch}
+            containerStyle={styles.searchBar}
+          />
+        </LiquidGlassCard>
+      </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.container,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['1']}
+            : null,
+        ]}
+        showsVerticalScrollIndicator={false}>
         <View style={styles.resultsWrapper}>
           {(() => {
             if (filteredBusinesses.length === 0) {
@@ -396,9 +427,38 @@ export const BrowseBusinessesScreen: React.FC = () => {
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  container: {padding: 16, paddingBottom: 32, gap: 16},
-  pillsContent: {gap: 8, paddingRight: 8},
-  resultsWrapper: {gap: 16, marginTop: 8},
+  scrollView: {flex: 1},
+  container: {paddingHorizontal: theme.spacing['6'], paddingBottom: theme.spacing['8'], gap: theme.spacing['4']},
+  topSection: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+  },
+  topGlassCard: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: theme.borderRadius['2xl'],
+    borderBottomRightRadius: theme.borderRadius['2xl'],
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: theme.spacing['3'],
+    gap: theme.spacing['3'],
+    borderWidth: 0,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  topGlassFallback: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: theme.borderRadius['2xl'],
+    borderBottomRightRadius: theme.borderRadius['2xl'],
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  pillsContent: {gap: theme.spacing['2'], paddingRight: theme.spacing['2'], paddingHorizontal: theme.spacing['6']},
+  resultsWrapper: {gap: theme.spacing['4'], marginTop: theme.spacing['2']},
   pill: {
     minWidth: 80,
     height: 36,
@@ -421,14 +481,18 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignSelf: 'flex-start',
     flexGrow: 0,
     flexShrink: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    minHeight: 28,
+    paddingHorizontal: theme.spacing['3'],
+    paddingVertical: theme.spacing['1'],
+    minHeight: theme.spacing['7'],
     minWidth: 0,
     borderWidth: 0,
     borderColor: 'transparent',
     ...theme.shadows.sm,
     shadowColor: theme.colors.neutralShadow,
+  },
+  searchBar: {
+    marginBottom: theme.spacing['2'],
+    marginInline: theme.spacing['6'],
   },
   viewMoreShadowWrapper: {
     borderRadius: theme.borderRadius.full,

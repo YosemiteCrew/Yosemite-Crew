@@ -45,7 +45,6 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
       <LiquidGlassCard
         interactive={false}
         glassEffect="clear"
-        shadow="none"
         style={styles.card}
         fallbackStyle={styles.fallback}>
         <View style={styles.content}>

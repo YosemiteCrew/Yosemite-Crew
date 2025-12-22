@@ -12,7 +12,7 @@ import {
   ToastAndroid,
   Platform,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
@@ -74,6 +74,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {companionId} = route.params;
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
@@ -369,16 +371,37 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header
-        title={`${companion.name}'s Profile`}
-        showBackButton
-        onBack={handleBackPress}
-        rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
-        onRightPress={isPrimaryParent ? handleDeletePress : undefined}
-      />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title={`${companion.name}'s Profile`}
+            showBackButton
+            onBack={handleBackPress}
+            rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+            onRightPress={isPrimaryParent ? handleDeletePress : undefined}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
         <CompanionProfileHeader
           name={companion.name}
@@ -389,6 +412,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         />
 
         {/* Only menu list inside glass card */}
+      <View style={styles.glassShadowWrapper}>
         <LiquidGlassCard
           glassEffect="clear"
           interactive
@@ -426,6 +450,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
             ))}
           </View>
         </LiquidGlassCard>
+      </View>
       </ScrollView>
 
       <DeleteProfileBottomSheet
@@ -450,16 +475,49 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['10'],
     },
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
     glassContainer: {
       borderRadius: theme.borderRadius.lg,
       paddingVertical: theme.spacing['2'],
       overflow: 'hidden',
-      ...theme.shadows.md,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     glassFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    glassShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
     },
     listContainer: {
       gap: theme.spacing['1'],

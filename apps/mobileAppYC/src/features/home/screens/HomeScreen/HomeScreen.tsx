@@ -960,7 +960,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           }}>
           <LiquidGlassCard
             glassEffect="clear"
-            interactive
+            interactive={false}
             style={styles.topGlassCard}
             fallbackStyle={styles.topGlassFallback}>
             <View style={styles.headerRow}>

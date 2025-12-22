@@ -17,6 +17,8 @@ import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {fetchDocuments} from '@/features/documents/documentSlice';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
@@ -25,6 +27,8 @@ export const DocumentsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<DocumentsNavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   // Get companions from Redux
   const companions = useSelector((state: RootState) => state.companion.companions);
@@ -99,23 +103,43 @@ export const DocumentsScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header
-        title="Documents"
-        showBackButton={false}
-        onRightPress={handleAddDocument}
-        rightIcon={Images.addIconDark}
-      />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="Documents"
+            showBackButton={false}
+            onRightPress={handleAddDocument}
+            rightIcon={Images.addIconDark}
+            glass={false}
+          />
+          <SearchBar
+            placeholder="Search through documents"
+            mode="readonly"
+            onPress={() => navigation.navigate('DocumentSearch')}
+            containerStyle={styles.searchBar}
+          />
+        </LiquidGlassCard>
+      </View>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['1']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
-        <SearchBar
-          placeholder="Search through documents"
-          mode="readonly"
-          onPress={() => navigation.navigate('DocumentSearch')}
-          containerStyle={styles.searchBar}
-        />
-
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
@@ -125,7 +149,6 @@ export const DocumentsScreen: React.FC = () => {
           requiredPermission="documents"
           permissionLabel="documents"
         />
-
         {recentDocuments.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent</Text>
@@ -142,14 +165,16 @@ export const DocumentsScreen: React.FC = () => {
 
         <View style={styles.section}>
           {categoriesWithCounts.map(category => (
-            <CategoryTile
-              key={category.id}
-              icon={category.icon}
-              title={category.label}
-              subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
-              isSynced={category.isSynced}
-              onPress={() => handleCategoryPress(category.id)}
-            />
+            <View key={category.id} style={styles.categoryTileShadow}>
+              <CategoryTile
+                icon={category.icon}
+                title={category.label}
+                subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
+                isSynced={category.isSynced}
+                onPress={() => handleCategoryPress(category.id)}
+                containerStyle={styles.categoryTile}
+              />
+            </View>
           ))}
         </View>
       </ScrollView>
@@ -164,18 +189,54 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'], // Extra padding for tab bar
     },
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      gap: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
     searchBar: {
-      marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['2'],
+      marginInline: theme.spacing['6'],
     },
     companionSelector: {
+      marginTop: theme.spacing['2'],
       marginBottom: theme.spacing['4'],
     },
     section: {
       marginBottom: theme.spacing['4'],
+    },
+    categoryTile: {
+      width: '100%',
+    },
+    categoryTileShadow: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
     },
     sectionTitle: {
       ...theme.typography.titleLarge,

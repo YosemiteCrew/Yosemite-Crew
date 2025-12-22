@@ -9,6 +9,8 @@ import {
   Image,
   Switch,
   Alert,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import {Input} from '@/shared/components/common';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -63,6 +65,8 @@ export interface DocumentFormProps {
   onSave: () => void;
   saveButtonText?: string;
   showNote?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
+  contentContainerStyle?: StyleProp<ViewStyle>;
 }
 
 export const DocumentForm: React.FC<DocumentFormProps> = ({
@@ -77,6 +81,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   onSave,
   saveButtonText = 'Save',
   showNote = false,
+  containerStyle,
+  contentContainerStyle,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -138,8 +144,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   return (
     <>
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        style={[styles.container, containerStyle]}
+        contentContainerStyle={[styles.contentContainer, contentContainerStyle]}
         showsVerticalScrollIndicator={false}>
         <CompanionSelector
           companions={companions}

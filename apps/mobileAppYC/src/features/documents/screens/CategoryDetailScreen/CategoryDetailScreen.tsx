@@ -23,6 +23,8 @@ import {
   createEmptyStateStyles,
   createSearchAndSelectorStyles,
 } from '@/shared/utils/screenStyles';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
@@ -33,6 +35,8 @@ export const CategoryDetailScreen: React.FC = () => {
   const navigation = useNavigation<CategoryDetailNavigationProp>();
   const route = useRoute<CategoryDetailRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
@@ -122,24 +126,44 @@ export const CategoryDetailScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header
-        title={category.label}
-        showBackButton={true}
-        onBack={() => navigation.goBack()}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAddDocument}
-      />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title={category.label}
+            showBackButton={true}
+            onBack={() => navigation.goBack()}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAddDocument}
+            glass={false}
+          />
+          <SearchBar
+            placeholder="Search through documents"
+            mode="readonly"
+            onPress={() => navigation.navigate('DocumentSearch')}
+            containerStyle={styles.searchBar}
+          />
+        </LiquidGlassCard>
+      </View>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['1']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
-        <SearchBar
-          placeholder="Search through documents"
-          mode="readonly"
-          onPress={() => navigation.navigate('DocumentSearch')}
-          containerStyle={styles.searchBar}
-        />
-
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
@@ -161,7 +185,8 @@ export const CategoryDetailScreen: React.FC = () => {
               title={subcategory.label}
               subtitle={`${subcategoryDocs.length} file${subcategorySuffix}`}
               icon={subcategoryIcon}
-              defaultExpanded={false}>
+              defaultExpanded={false}
+              containerStyle={styles.accordionItem}>
               {subcategoryDocs.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No documents found</Text>
@@ -190,4 +215,47 @@ const createStyles = (theme: any) =>
     ...createErrorContainerStyles(theme),
     ...createEmptyStateStyles(theme),
     ...createSearchAndSelectorStyles(theme),
+    contentContainer: {
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['6'],
+    },
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      gap: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    searchBar: {
+      marginBottom: theme.spacing['2'],
+      marginInline: theme.spacing['6'],
+    },
+    companionSelector: {
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['4'],
+    },
+    accordionItem: {
+      width: '100%',
+    },
   });

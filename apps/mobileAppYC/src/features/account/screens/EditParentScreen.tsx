@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {Images} from '@/assets/images';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {useDispatch, useSelector} from 'react-redux';
@@ -85,6 +85,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   const user = useSelector(selectAuthUser);
   const isLoading = useSelector(selectAuthIsLoading);
@@ -336,14 +338,30 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header
-        title="Parent"
-        showBackButton
-        onBack={goBack}
-      />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Parent" showBackButton onBack={goBack} glass={false} />
+        </LiquidGlassCard>
+      </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
         {/* Header block with profile image picker */}
         <UserProfileHeader
@@ -357,13 +375,14 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         />
 
         {/* Card with rows */}
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          tintColor={theme.colors.white}
-          style={styles.glassContainer}
-          fallbackStyle={styles.glassFallback}>
-          <View style={styles.listContainer}>
+        <View style={styles.glassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive
+            tintColor={theme.colors.white}
+            style={styles.glassContainer}
+            fallbackStyle={styles.glassFallback}>
+            <View style={styles.listContainer}>
             {/* First Name – Inline */}
             <InlineEditRow
               label="First name"
@@ -503,8 +522,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
               }}
               key="country"
             />
-          </View>
-        </LiquidGlassCard>
+            </View>
+          </LiquidGlassCard>
+        </View>
       </ScrollView>
 
       {/* ====== Bottom Sheets / Pickers ====== */}
@@ -557,6 +577,50 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    glassShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+    },
+    glassContainer: {
+      borderRadius: theme.borderRadius.lg,
+      paddingVertical: theme.spacing['2'],
+      overflow: 'hidden',
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    glassFallback: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
     readOnlyEmailRow: {
       flexDirection: 'row',
       alignItems: 'center',

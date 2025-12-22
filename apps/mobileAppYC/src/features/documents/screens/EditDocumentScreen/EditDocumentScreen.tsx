@@ -16,6 +16,8 @@ import type {DocumentFile} from '@/features/documents/types';
 import {updateDocument, deleteDocument, uploadDocumentFiles} from '@/features/documents/documentSlice';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 type EditDocumentNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type EditDocumentRouteProp = RouteProp<DocumentStackParamList, 'EditDocument'>;
@@ -25,6 +27,8 @@ export const EditDocumentScreen: React.FC = () => {
   const navigation = useNavigation<EditDocumentNavigationProp>();
   const route = useRoute<EditDocumentRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   const {documentId} = route.params;
 
@@ -229,13 +233,29 @@ export const EditDocumentScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header
-        title="Edit document"
-        showBackButton={true}
-        onBack={handleBack}
-        onRightPress={handleDelete}
-        rightIcon={Images.deleteIconRed}
-      />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="Edit document"
+            showBackButton={true}
+            onBack={handleBack}
+            onRightPress={handleDelete}
+            rightIcon={Images.deleteIconRed}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
       <DocumentForm
         companions={companions}
         selectedCompanionId={selectedCompanionId}
@@ -248,6 +268,11 @@ export const EditDocumentScreen: React.FC = () => {
         onSave={handleSave}
         saveButtonText="Save"
         showNote={false}
+        contentContainerStyle={
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : undefined
+        }
       />
 
       <DeleteDocumentBottomSheet
@@ -265,6 +290,33 @@ export const EditDocumentScreen: React.FC = () => {
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
+  topSection: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+  },
+  topGlassCard: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: theme.borderRadius['2xl'],
+    borderBottomRightRadius: theme.borderRadius['2xl'],
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: theme.spacing['3'],
+    borderWidth: 0,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  topGlassFallback: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: theme.borderRadius['2xl'],
+    borderBottomRightRadius: theme.borderRadius['2xl'],
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
   errorContainer: {
     flex: 1,
     alignItems: 'center',

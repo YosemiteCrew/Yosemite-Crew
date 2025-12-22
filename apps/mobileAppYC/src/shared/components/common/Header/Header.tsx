@@ -4,6 +4,7 @@ import {View, Text, Image, StyleSheet, Platform} from 'react-native';
 import {useTheme} from '@/hooks';
 import { Images } from '@/assets/images';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 interface HeaderProps {
   title?: string;
@@ -12,6 +13,7 @@ interface HeaderProps {
   rightIcon?: any;
   onRightPress?: () => void;
   style?: object;
+  glass?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,12 +23,13 @@ export const Header: React.FC<HeaderProps> = ({
   rightIcon,
   onRightPress,
   style,
+  glass = true,
 }) => {
   const {theme} = useTheme();
   const iconButtonSize = theme.spacing?.['9'] ?? 36;
   const styles = createStyles(theme);
 
-  return (
+  const content = (
     <View style={[styles.container, style]}>
       {showBackButton ? (
         <View style={styles.iconButtonShadow}>
@@ -64,6 +67,20 @@ export const Header: React.FC<HeaderProps> = ({
       )}
     </View>
   );
+
+  if (!glass) {
+    return content;
+  }
+
+  return (
+    <LiquidGlassCard
+      glassEffect="clear"
+      interactive={false}
+      style={styles.glassCard}
+      fallbackStyle={styles.glassFallback}>
+      {content}
+    </LiquidGlassCard>
+  );
 };
 
 const createStyles = (theme: any) => {
@@ -77,6 +94,23 @@ const createStyles = (theme: any) => {
       paddingHorizontal: theme.spacing?.['5'] || 20,
       paddingTop: Platform.OS === 'ios' ? theme.spacing?.['2'] || 8 : theme.spacing?.['5'] || 20,
       paddingBottom: theme.spacing?.['2'] || 8,
+    },
+    glassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    glassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     iconButton: {
       width: iconButtonSize,

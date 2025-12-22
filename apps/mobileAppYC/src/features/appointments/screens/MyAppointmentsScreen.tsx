@@ -41,6 +41,7 @@ import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -50,6 +51,8 @@ export const MyAppointmentsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
@@ -521,15 +524,40 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header title="My Appointments" showBackButton={false} rightIcon={Images.addIconDark} onRightPress={handleAdd} />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="My Appointments"
+            showBackButton={false}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAdd}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
       <SectionList
         style={styles.sectionList}
         sections={sections}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
         onEndReached={handleEndReached}
@@ -687,9 +715,36 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     sectionList: {flex: 1},
     container: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
+      paddingTop: theme.spacing['1'],
       paddingBottom: theme.spacing['10'],
+    },
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     listHeader: {gap: theme.spacing['3'], marginBottom: theme.spacing['4']},
     companionSelector: {marginBottom: theme.spacing['2']},
