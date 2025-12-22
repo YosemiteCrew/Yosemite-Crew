@@ -212,7 +212,16 @@ export const TaskController = {
       const actorId = resolveUserId(req);
       const taskId = req.params.taskId;
 
-      const task = await TaskService.updateTask(taskId, req.body, actorId);
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(actorId);
+
+      if (!authUser?.parentId) {
+        return res.status(403).json({ message: "Parent account not found" });
+      }
+
+      const parentId = authUser.parentId.toString();
+
+      const task = await TaskService.updateTask(taskId, req.body, parentId);
       res.json(task);
     } catch (error) {
       handleError(error, res);
@@ -226,6 +235,16 @@ export const TaskController = {
   ) => {
     try {
       const actorId = resolveUserId(req);
+
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(actorId);
+
+      if (!authUser?.parentId) {
+        return res.status(403).json({ message: "Parent account not found" });
+      }
+
+      const parentId = authUser.parentId.toString();
+
       const taskId = req.params.taskId;
 
       const status = parseStatusValue(req.body.status);
@@ -238,7 +257,7 @@ export const TaskController = {
       const result = await TaskService.changeStatus(
         taskId,
         status,
-        actorId,
+        parentId,
         completion,
       );
       res.json(result);
