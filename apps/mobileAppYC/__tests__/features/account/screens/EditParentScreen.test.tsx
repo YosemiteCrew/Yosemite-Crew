@@ -410,7 +410,7 @@ describe('EditParentScreen', () => {
   describe('Main Functionality', () => {
     it('navigates back when header back button is pressed and canGoBack is true', () => {
       mockCanGoBack.mockReturnValue(true);
-      const {getByTestId, getByText} = renderComponent();
+      const {getByTestId} = renderComponent();
       fireEvent.press(getByTestId('mock-header'));
       expect(mockCanGoBack).toHaveBeenCalled();
       expect(mockGoBack).toHaveBeenCalledTimes(1);
@@ -418,7 +418,7 @@ describe('EditParentScreen', () => {
 
     it('does not navigate back when header back button is pressed and canGoBack is false', () => {
       mockCanGoBack.mockReturnValue(false);
-      const {getByTestId, getByText} = renderComponent();
+      const {getByTestId} = renderComponent();
       fireEvent.press(getByTestId('mock-header'));
       expect(mockCanGoBack).toHaveBeenCalled();
       expect(mockGoBack).not.toHaveBeenCalled();

@@ -71,7 +71,7 @@ describe('AERLayout', () => {
 
   // --- 1. Basic Rendering & Default Props ---
   it('renders children and default header configuration', () => {
-    const {getByText, getByTestId, queryByText} = render(
+    const {getByText, queryByText} = render(
       <AERLayout>
         <ChildComponent />
       </AERLayout>,

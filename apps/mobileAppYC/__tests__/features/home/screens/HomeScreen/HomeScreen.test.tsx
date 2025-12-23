@@ -65,7 +65,6 @@ jest.mock('@/features/tasks', () => ({
 }));
 
 jest.mock('@/context/GlobalLoaderContext', () => {
-  const ReactLib = require('react');
   return {
     useGlobalLoader: () => ({
       showLoader: jest.fn(),

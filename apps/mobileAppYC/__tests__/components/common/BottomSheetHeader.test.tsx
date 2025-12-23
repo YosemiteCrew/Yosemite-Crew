@@ -53,7 +53,6 @@ jest.mock('react-native', () => {
 jest.mock(
   '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton',
   () => {
-    const ReactActual = jest.requireActual('react');
     const {TouchableOpacity: MockTouchableOpacity} =
       jest.requireActual('react-native');
     return {

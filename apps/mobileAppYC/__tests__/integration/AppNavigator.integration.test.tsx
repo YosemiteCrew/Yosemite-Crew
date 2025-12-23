@@ -11,7 +11,6 @@ import {DeviceEventEmitter} from 'react-native';
 import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
 
 jest.mock('@/context/GlobalLoaderContext', () => {
-  const ReactLib = require('react');
   return {
     useGlobalLoader: () => ({
       showLoader: jest.fn(),
