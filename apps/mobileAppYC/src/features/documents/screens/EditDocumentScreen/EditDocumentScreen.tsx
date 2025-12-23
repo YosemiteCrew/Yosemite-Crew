@@ -5,10 +5,16 @@ import {useNavigation, useRoute, RouteProp, CommonActions} from '@react-navigati
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {DocumentForm, type DocumentFormData} from '@/features/documents/components/DocumentForm/DocumentForm';
+import {
+  DocumentForm,
+  DocumentFormSheets,
+  type DocumentFormData,
+} from '@/features/documents/components/DocumentForm/DocumentForm';
 import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useTheme, useDocumentFormValidation} from '@/hooks';
+import {useFormBottomSheets} from '@/shared/hooks/useFormBottomSheets';
+import {useFileOperations} from '@/shared/hooks/useFileOperations';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
@@ -16,9 +22,7 @@ import type {DocumentFile} from '@/features/documents/types';
 import {updateDocument, deleteDocument, uploadDocumentFiles} from '@/features/documents/documentSlice';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
 
 type EditDocumentNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type EditDocumentRouteProp = RouteProp<DocumentStackParamList, 'EditDocument'>;
@@ -28,8 +32,7 @@ export const EditDocumentScreen: React.FC = () => {
   const navigation = useNavigation<EditDocumentNavigationProp>();
   const route = useRoute<EditDocumentRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
+  const formSheets = useFormBottomSheets();
 
   const {documentId} = route.params;
 
@@ -91,19 +94,6 @@ export const EditDocumentScreen: React.FC = () => {
   }, [isDeleteSheetOpen]);
 
   const styles = useMemo(() => createStyles(theme), [theme]);
-
-  if (!document) {
-    return (
-      <SafeArea>
-        <Header title="Edit document" showBackButton={true} onBack={() => navigation.goBack()} />
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorMessage, {color: theme.colors.error}]}>
-            Document not found
-          </Text>
-        </View>
-      </SafeArea>
-    );
-  }
 
   const resolveErrorMessage = (error: unknown, fallback: string) => {
     if (typeof error === 'string') {
@@ -219,6 +209,28 @@ export const EditDocumentScreen: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
+  const fileOps = useFileOperations({
+    files: formData.files,
+    setFiles: files => handleFormChange('files', files),
+    clearError: () => clearError('files'),
+    openSheet: formSheets.openSheet,
+    closeSheet: formSheets.closeSheet,
+    deleteSheetRef: formSheets.refs.deleteSheetRef,
+  });
+
+  if (!document) {
+    return (
+      <SafeArea>
+        <Header title="Edit document" showBackButton={true} onBack={() => navigation.goBack()} />
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorMessage, {color: theme.colors.error}]}>
+            Document not found
+          </Text>
+        </View>
+      </SafeArea>
+    );
+  }
+
   const handleBack = () => {
     if (hasUnsavedChanges) {
       discardSheetRef.current?.open();
@@ -233,20 +245,10 @@ export const EditDocumentScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+    <>
+      <SafeArea>
+      <LiquidGlassHeaderShell
+        header={
           <Header
             title="Edit document"
             showBackButton={true}
@@ -255,25 +257,46 @@ export const EditDocumentScreen: React.FC = () => {
             rightIcon={Images.deleteIconRed}
             glass={false}
           />
-        </LiquidGlassCard>
-      </View>
-      <DocumentForm
-        companions={companions}
-        selectedCompanionId={selectedCompanionId}
-        onCompanionSelect={handleCompanionSelect}
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <DocumentForm
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onCompanionSelect={handleCompanionSelect}
+            formData={formData}
+            onFormChange={handleFormChange}
+            errors={errors}
+            onErrorClear={clearError}
+            loading={loading}
+            onSave={handleSave}
+            saveButtonText="Save"
+            showNote={false}
+            contentContainerStyle={contentPaddingStyle ?? undefined}
+            formSheetRefs={formSheets.refs}
+            openSheet={formSheets.openSheet}
+            closeSheet={formSheets.closeSheet}
+            fileOperations={fileOps}
+            renderBottomSheets={false}
+          />
+        )}
+      </LiquidGlassHeaderShell>
+
+      </SafeArea>
+
+      <DocumentFormSheets
         formData={formData}
         onFormChange={handleFormChange}
-        errors={errors}
         onErrorClear={clearError}
-        loading={loading}
-        onSave={handleSave}
-        saveButtonText="Save"
-        showNote={false}
-        contentContainerStyle={
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-            : undefined
-        }
+        fileOperations={fileOps}
+        formSheetRefs={formSheets.refs}
+        closeSheet={formSheets.closeSheet}
+        onCategoryChange={value => {
+          handleFormChange('category', value);
+          handleFormChange('subcategory', null);
+          clearError('category');
+          formSheets.closeSheet();
+        }}
       />
 
       <DeleteDocumentBottomSheet
@@ -286,13 +309,12 @@ export const EditDocumentScreen: React.FC = () => {
         ref={discardSheetRef}
         onDiscard={() => navigation.goBack()}
       />
-    </SafeArea>
+    </>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    ...createLiquidGlassHeaderStyles(theme),
     errorContainer: {
       flex: 1,
       alignItems: 'center',

@@ -375,7 +375,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
+      <SafeAreaView style={styles.container}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}
@@ -450,6 +451,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         </LiquidGlassCard>
       </View>
       </ScrollView>
+      </SafeAreaView>
 
       <DeleteProfileBottomSheet
         ref={deleteSheetRef}
@@ -457,7 +459,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         onDelete={handleDeleteProfile}
         onCancel={handleDeleteCancel}
       />
-    </SafeAreaView>
+    </>
   );
 };
 

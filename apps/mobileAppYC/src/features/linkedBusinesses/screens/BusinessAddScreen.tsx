@@ -7,7 +7,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
@@ -16,6 +16,7 @@ import {Images} from '@/assets/images';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {VetBusinessCard} from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
 import {
   addLinkedBusiness,
@@ -28,6 +29,7 @@ import {
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
 import {NotifyBusinessBottomSheet, type NotifyBusinessBottomSheetRef} from '../components/NotifyBusinessBottomSheet';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessAdd'>;
 
@@ -51,11 +53,13 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
   const loading = useSelector(selectLinkedBusinessesLoading);
 
   const addBusinessSheetRef = React.useRef<AddBusinessBottomSheetRef>(null);
   const notifyBusinessSheetRef = React.useRef<NotifyBusinessBottomSheetRef>(null);
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [detailedPhoto, setDetailedPhoto] = useState<string | undefined>(photo);
@@ -215,90 +219,105 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
   }, [dispatch, companionId, category, businessName]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header title="Add Business" showBackButton onBack={handleBack} />
+    <>
+      <SafeAreaView style={styles.container}>
+        <LiquidGlassHeader
+          insetsTop={insets.top}
+          currentHeight={topGlassHeight}
+          onHeightChange={setTopGlassHeight}
+          topSectionStyle={styles.topSection}
+          cardStyle={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Add Business" showBackButton onBack={handleBack} glass={false} />
+        </LiquidGlassHeader>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        {/* Business Card */}
-        <VetBusinessCard
-          photo={detailedPhoto}
-          name={businessName}
-          address={businessAddress}
-          distance={distance ? `${distance}mi` : undefined}
-          rating={rating ? `${rating}` : undefined}
-          website={detailedWebsite}
-          cta=""
-        />
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
+          showsVerticalScrollIndicator={false}>
+          {/* Business Card */}
+          <VetBusinessCard
+            photo={detailedPhoto}
+            name={businessName}
+            address={businessAddress}
+            distance={distance ? `${distance}mi` : undefined}
+            rating={rating ? `${rating}` : undefined}
+            website={detailedWebsite}
+            cta=""
+          />
 
-        {/* PMS Status Card */}
-        <LiquidGlassCard
-          glassEffect="regular"
-          interactive
-          style={styles.statusCard}
-          fallbackStyle={styles.statusCardFallback}>
-          <View style={styles.statusContent}>
+          {/* PMS Status Card */}
+          <LiquidGlassCard
+            glassEffect="regular"
+            interactive
+            style={styles.statusCard}
+            fallbackStyle={styles.statusCardFallback}>
+            <View style={styles.statusContent}>
+              {isPMSRecord ? (
+                <View style={styles.statusRow}>
+                  <Text style={styles.statusEmojiLeft}>🎉</Text>
+                  <Text style={styles.statusText}>
+                    We are happy to inform you that this organisation is part of Yosemite Crew PMS
+                  </Text>
+                  <Image
+                    source={Images.yosemiteLogo}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : (
+                <View style={styles.statusRow}>
+                  <Text style={styles.statusEmojiLeft}>😔</Text>
+                  <Text style={styles.statusText}>
+                    We are sorry to inform you, this organisation is not a part of Yosemite Crew
+                    PMS. We will soon notify you, when the organisation is available on this
+                    platform.
+                  </Text>
+                  <Text style={styles.statusEmojiRight}>🔔</Text>
+                </View>
+              )}
+            </View>
+          </LiquidGlassCard>
+
+          {/* Add Button or Notify Button */}
+          <View style={styles.buttonContainer}>
             {isPMSRecord ? (
-              <View style={styles.statusRow}>
-                <Text style={styles.statusEmojiLeft}>🎉</Text>
-                <Text style={styles.statusText}>
-                  We are happy to inform you that this organisation is part of Yosemite Crew PMS
-                </Text>
-   <Image
-                  source={Images.yosemiteLogo}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                />
-              </View>
+              <LiquidGlassButton
+                title={loading ? 'Adding...' : 'Add'}
+                onPress={handleAddBusiness}
+                disabled={loading}
+                glassEffect="clear"
+                height={56}
+                borderRadius={16}
+                tintColor={theme.colors.secondary}
+                textStyle={styles.buttonText}
+                shadowIntensity="medium"
+                forceBorder
+                borderColor={theme.colors.borderMuted}
+                loading={loading}
+              />
             ) : (
-              <View style={styles.statusRow}>
-                <Text style={styles.statusEmojiLeft}>😔</Text>
-                <Text style={styles.statusText}>
-                  We are sorry to inform you, this organisation is not a part of Yosemite Crew
-                  PMS. We will soon notify you, when the organisation is available on this
-                  platform.
-                </Text>
-            <Text style={styles.statusEmojiRight}>🔔</Text>
-              </View>
+              <LiquidGlassButton
+                title="Notify Business"
+                onPress={handleNotifyPress}
+                disabled={fetchingDetails}
+                glassEffect="clear"
+                height={56}
+                borderRadius={16}
+                tintColor={theme.colors.secondary}
+                textStyle={styles.buttonText}
+                shadowIntensity="medium"
+                forceBorder
+                borderColor={theme.colors.borderMuted}
+              />
             )}
           </View>
-        </LiquidGlassCard>
-
-        {/* Add Button or Notify Button */}
-        <View style={styles.buttonContainer}>
-          {isPMSRecord ? (
-            <LiquidGlassButton
-              title={loading ? 'Adding...' : 'Add'}
-              onPress={handleAddBusiness}
-              disabled={loading}
-              glassEffect="clear"
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
-              textStyle={styles.buttonText}
-              shadowIntensity="medium"
-              forceBorder
-              borderColor={theme.colors.borderMuted}
-              loading={loading}
-            />
-          ) : (
-            <LiquidGlassButton
-              title="Notify Business"
-              onPress={handleNotifyPress}
-              disabled={fetchingDetails}
-              glassEffect="clear"
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
-              textStyle={styles.buttonText}
-              shadowIntensity="medium"
-              forceBorder
-              borderColor={theme.colors.borderMuted}
-            />
-          )}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
 
       {/* Add Business Bottom Sheet */}
       <AddBusinessBottomSheet
@@ -315,19 +334,28 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
         companionName={companionName}
         onConfirm={handleNotifyClose}
       />
-    </SafeAreaView>
+    </>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const glassStyles = createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']});
+
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    ...glassStyles,
+    topGlassCard: {
+      ...glassStyles.topGlassCard,
+      paddingHorizontal: theme.spacing['4'],
+    },
+    searchBar: {
+      marginBottom: theme.spacing['2'],
+    },
     scrollContent: {
       paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
       gap: theme.spacing['4'],
     },
@@ -386,3 +414,4 @@ const createStyles = (theme: any) =>
       color: theme.colors.white,
     },
   });
+};

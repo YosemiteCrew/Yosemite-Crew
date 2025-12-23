@@ -1,6 +1,6 @@
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
 import {View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Text, Alert, Pressable} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -8,6 +8,7 @@ import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {
   searchBusinessesByLocation,
   fetchLinkedBusinesses,
@@ -27,6 +28,7 @@ import {CompanionProfileImage} from '../components/CompanionProfileImage';
 import {InviteCard} from '../components/InviteCard';
 import LocationService from '@/shared/services/LocationService';
 import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessSearch'>;
 
@@ -35,6 +37,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     route.params;
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,6 +47,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const deleteBottomSheetRef = useRef<DeleteBusinessBottomSheetRef>(null);
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   // Fetch linked businesses on mount
   useEffect(() => {
@@ -439,12 +443,27 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header title={categoryTitle} showBackButton onBack={handleBack} />
+    <>
+      <SafeAreaView style={styles.container}>
+        <LiquidGlassHeader
+          insetsTop={insets.top}
+          currentHeight={topGlassHeight}
+          onHeightChange={setTopGlassHeight}
+          topSectionStyle={styles.topSection}
+          cardStyle={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title={categoryTitle} showBackButton onBack={handleBack} glass={false} />
+          <SearchBar
+            placeholder={`Search ${category}`}
+            mode="input"
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+        </LiquidGlassHeader>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}>
         {/* Close dropdown when clicking outside */}
         {searchResults.length > 0 && (
           <Pressable
@@ -454,17 +473,13 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         )}
 
         <View style={styles.mainContent}>
-          <View style={styles.searchBarContainer}>
-            <SearchBar
-              placeholder={`Search ${category}`}
-              mode="input"
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-          </View>
-
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              topGlassHeight
+                ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+                : null,
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
             {/* Companion Profile Header - Always visible */}
@@ -521,15 +536,18 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
 
         <SearchDropdownOverlay
           visible={searchQuery.length >= 2 && searchResults.length > 0 && !searching}
+          top={Math.max(0, topGlassHeight - theme.spacing['16'])}
           items={searchResults}
           keyExtractor={item => item.id}
           onPress={handleSelectBusiness}
           title={item => item.name}
           subtitle={item => item.address}
           initials={item => item.name}
-          scrollEnabledThreshold={4}
+          containerStyle={styles.dropdownOverlay}
+          scrollEnabledThreshold={0}
         />
       </KeyboardAvoidingView>
+      </SafeAreaView>
 
       <DeleteBusinessBottomSheet
         ref={deleteBottomSheetRef}
@@ -537,15 +555,22 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         onCancel={handleCancelDelete}
         loading={deleteLoading}
       />
-    </SafeAreaView>
+    </>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const glassStyles = createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']});
+
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    ...glassStyles,
+    topGlassCard: {
+      ...glassStyles.topGlassCard,
+      paddingHorizontal: theme.spacing['4'],
     },
     overlay: {
       position: 'absolute',
@@ -558,15 +583,9 @@ const createStyles = (theme: any) =>
     mainContent: {
       flex: 1,
     },
-    searchBarContainer: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['4'],
-      backgroundColor: theme.colors.background,
-    },
     scrollContent: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
-      paddingTop: theme.spacing['3'],
     },
     sectionTitle: {
       ...theme.typography.titleLarge,
@@ -595,4 +614,8 @@ const createStyles = (theme: any) =>
       ...theme.typography.body,
       color: theme.colors.textSecondary,
     },
+    dropdownOverlay: {
+      maxHeight: 320,
+    },
   });
+};

@@ -4,9 +4,15 @@ import {useNavigation, CommonActions} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {DocumentForm, type DocumentFormData} from '@/features/documents/components/DocumentForm/DocumentForm';
+import {
+  DocumentForm,
+  DocumentFormSheets,
+  type DocumentFormData,
+} from '@/features/documents/components/DocumentForm/DocumentForm';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useDocumentFormValidation, useTheme} from '@/hooks';
+import {useFormBottomSheets} from '@/shared/hooks/useFormBottomSheets';
+import {useFileOperations} from '@/shared/hooks/useFileOperations';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
@@ -15,21 +21,16 @@ import {
   uploadDocumentFiles,
 } from '@/features/documents/documentSlice';
 import {setSelectedCompanion} from '@/features/companion';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {StyleSheet, View} from 'react-native';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
 
 type AddDocumentNavigationProp =
   NativeStackNavigationProp<DocumentStackParamList>;
 
 export const AddDocumentScreen: React.FC = () => {
   const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<AddDocumentNavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
+  const formSheets = useFormBottomSheets();
 
   const companions = useSelector(
     (state: RootState) => state.companion.companions,
@@ -62,6 +63,15 @@ export const AddDocumentScreen: React.FC = () => {
     setFormData(prev => ({...prev, [field]: value}));
     setHasUnsavedChanges(true);
   };
+
+  const fileOps = useFileOperations({
+    files: formData.files,
+    setFiles: files => handleFormChange('files', files),
+    clearError: () => clearError('files'),
+    openSheet: formSheets.openSheet,
+    closeSheet: formSheets.closeSheet,
+    deleteSheetRef: formSheets.refs.deleteSheetRef,
+  });
 
   const handleCompanionSelect = (id: string | null) => {
     dispatch(setSelectedCompanion(id));
@@ -135,56 +145,61 @@ export const AddDocumentScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+    <>
+      <SafeArea>
+      <LiquidGlassHeaderShell
+        header={
           <Header
             title="Add document"
             showBackButton={true}
             onBack={handleBack}
             glass={false}
           />
-        </LiquidGlassCard>
-      </View>
-      <DocumentForm
-        companions={companions}
-        selectedCompanionId={selectedCompanionId}
-        onCompanionSelect={handleCompanionSelect}
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <DocumentForm
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onCompanionSelect={handleCompanionSelect}
+            formData={formData}
+            onFormChange={handleFormChange}
+            errors={errors}
+            onErrorClear={clearError}
+            loading={loading}
+            onSave={handleSave}
+            saveButtonText="Save"
+            showNote={true}
+            contentContainerStyle={contentPaddingStyle ?? undefined}
+            formSheetRefs={formSheets.refs}
+            openSheet={formSheets.openSheet}
+            closeSheet={formSheets.closeSheet}
+            fileOperations={fileOps}
+            renderBottomSheets={false}
+          />
+        )}
+      </LiquidGlassHeaderShell>
+      </SafeArea>
+
+      <DocumentFormSheets
         formData={formData}
         onFormChange={handleFormChange}
-        errors={errors}
         onErrorClear={clearError}
-        loading={loading}
-        onSave={handleSave}
-        saveButtonText="Save"
-        showNote={true}
-        contentContainerStyle={
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-            : undefined
-        }
+        fileOperations={fileOps}
+        formSheetRefs={formSheets.refs}
+        closeSheet={formSheets.closeSheet}
+        onCategoryChange={value => {
+          handleFormChange('category', value);
+          handleFormChange('subcategory', null);
+          clearError('category');
+          formSheets.closeSheet();
+        }}
       />
 
       <DiscardChangesBottomSheet
         ref={discardSheetRef}
         onDiscard={() => navigation.goBack()}
       />
-    </SafeArea>
+    </>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createLiquidGlassHeaderStyles(theme),
-  });

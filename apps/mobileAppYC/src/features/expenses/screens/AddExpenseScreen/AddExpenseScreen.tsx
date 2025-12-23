@@ -1,23 +1,34 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useMemo} from 'react';
 import {useNavigation, CommonActions} from '@react-navigation/native';
-import {Alert} from 'react-native';
+import {Alert, StyleSheet} from 'react-native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
-import {ExpenseForm, type ExpenseFormData} from '@/features/expenses/components';
+import {
+  ExpenseForm,
+  ExpenseFormSheets,
+  type ExpenseFormData,
+} from '@/features/expenses/components';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useExpenseForm, DEFAULT_FORM} from '@/features/expenses/hooks/useExpenseForm';
 import type {AppDispatch, RootState} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {addExternalExpense} from '@/features/expenses';
 import type {ExpenseStackParamList} from '@/navigation/types';
+import {useTheme} from '@/hooks';
+import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
+import {useFormBottomSheets} from '@/shared/hooks/useFormBottomSheets';
+import {useFileOperations} from '@/shared/hooks/useFileOperations';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'AddExpense'>;
 
 export const AddExpenseScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const dispatch = useDispatch<AppDispatch>();
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const formSheets = useFormBottomSheets();
 
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector(
@@ -45,6 +56,15 @@ export const AddExpenseScreen: React.FC = () => {
     handleChange(field, value);
     setHasUnsavedChanges(true);
   };
+
+  const fileOps = useFileOperations({
+    files: formData.attachments,
+    setFiles: files => handleChangeWithTracking('attachments', files),
+    clearError: () => handleErrorClear('attachments'),
+    openSheet: formSheets.openSheet,
+    closeSheet: formSheets.closeSheet,
+    deleteSheetRef: formSheets.refs.deleteSheetRef,
+  });
 
   const handleSave = async () => {
     if (!validate(selectedCompanionId)) return;
@@ -80,23 +100,45 @@ export const AddExpenseScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Expenses" showBackButton onBack={handleGoBack} />
-      <ExpenseForm
-        companions={companions}
-        selectedCompanionId={selectedCompanionId}
-        onCompanionSelect={id => {
-          dispatch(setSelectedCompanion(id));
-          setHasUnsavedChanges(true);
-        }}
-        formData={formData!}
+    <>
+      <SafeAreaView style={styles.container}>
+        <LiquidGlassHeaderShell
+          header={<Header title="Expenses" showBackButton onBack={handleGoBack} glass={false} />}
+          contentPadding={theme.spacing['3']}>
+          {contentPaddingStyle => (
+            <ExpenseForm
+              companions={companions}
+              selectedCompanionId={selectedCompanionId}
+              onCompanionSelect={id => {
+                dispatch(setSelectedCompanion(id));
+                setHasUnsavedChanges(true);
+              }}
+              formData={formData!}
+              onFormChange={handleChangeWithTracking}
+              errors={errors}
+              onErrorClear={handleErrorClear}
+              loading={loading}
+              onSave={handleSave}
+              currencyCode={currencyCode}
+              saveButtonText="Save"
+              contentContainerStyle={contentPaddingStyle}
+              formSheetRefs={formSheets.refs}
+              openSheet={formSheets.openSheet}
+              closeSheet={formSheets.closeSheet}
+              fileOperations={fileOps}
+              renderBottomSheets={false}
+            />
+          )}
+        </LiquidGlassHeaderShell>
+      </SafeAreaView>
+
+      <ExpenseFormSheets
+        formData={formData}
         onFormChange={handleChangeWithTracking}
-        errors={errors}
         onErrorClear={handleErrorClear}
-        loading={loading}
-        onSave={handleSave}
-        currencyCode={currencyCode}
-        saveButtonText="Save"
+        fileOperations={fileOps}
+        formSheetRefs={formSheets.refs}
+        closeSheet={formSheets.closeSheet}
       />
 
       <DiscardChangesBottomSheet
@@ -107,8 +149,16 @@ export const AddExpenseScreen: React.FC = () => {
           }
         }}
       />
-    </SafeArea>
+    </>
   );
 };
 
 export default AddExpenseScreen;
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+  });

@@ -1,7 +1,7 @@
 import React, {useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Alert, Text} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -36,6 +36,8 @@ import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -43,6 +45,8 @@ type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
 export const BookingFormScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
@@ -313,9 +317,24 @@ export const BookingFormScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Book an Appointment" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container}>
+    <>
+      <SafeAreaView style={styles.root}>
+        <LiquidGlassHeader
+          insetsTop={insets.top}
+          currentHeight={topGlassHeight}
+          onHeightChange={setTopGlassHeight}
+          topSectionStyle={styles.topSection}
+          cardStyle={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Book an Appointment" showBackButton onBack={() => navigation.goBack()} glass={false} />
+        </LiquidGlassHeader>
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}>
         <AppointmentFormContent
           businessCard={{
             title: business?.name ?? '',
@@ -432,7 +451,8 @@ export const BookingFormScreen: React.FC = () => {
           }
         />
 
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
       <DocumentUploadSheets
         uploadSheetRef={uploadSheetRef}
         deleteSheetRef={deleteSheetRef}
@@ -444,12 +464,17 @@ export const BookingFormScreen: React.FC = () => {
         confirmDeleteFile={confirmDeleteFile}
         closeSheet={closeSheet}
       />
-    </SafeArea>
+    </>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    ...createLiquidGlassHeaderStyles(theme),
     container: {
       padding: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],

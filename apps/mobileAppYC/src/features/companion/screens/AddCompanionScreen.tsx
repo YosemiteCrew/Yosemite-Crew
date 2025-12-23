@@ -872,7 +872,8 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   const isPrimaryButtonLoading = isFinalStep && isSubmitting;
 
   return (
-    <SafeArea style={styles.container}>
+    <>
+      <SafeArea style={styles.container}>
       <View
         style={[styles.topSection, {paddingTop: insets.top}]}
         onLayout={event => {
@@ -944,13 +945,14 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         />
       </KeyboardAvoidingView>
 
+      </SafeArea>
+
       <BreedBottomSheet
         ref={breedSheetRef}
         breeds={getBreedListByCategory(category)}
         selectedBreed={breed}
         onSave={handleBreedSave}
       />
-
 
       <BloodGroupBottomSheet
         ref={bloodGroupSheetRef}
@@ -972,7 +974,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         ref={discardSheetRef}
         onDiscard={() => navigation.goBack()}
       />
-    </SafeArea>
+    </>
   );
 };
 

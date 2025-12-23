@@ -25,7 +25,11 @@ import {TouchableInput} from '@/shared/components/common/TouchableInput/Touchabl
 import PrimaryActionButton from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
 import UploadDeleteSheets from '@/shared/components/common/UploadDeleteSheets/UploadDeleteSheets';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
-import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
+import {useTheme, useFileOperations} from '@/hooks';
+import {
+  useFormBottomSheets,
+  type FormBottomSheetRefs,
+} from '@/shared/hooks/useFormBottomSheets';
 import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 import {formatLabel} from '@/shared/utils/helpers';
 import {Images} from '@/assets/images';
@@ -67,7 +71,21 @@ export interface DocumentFormProps {
   showNote?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  formSheetRefs?: FormBottomSheetRefs;
+  openSheet?: (sheetName: string) => void;
+  closeSheet?: () => void;
+  fileOperations?: DocumentFormFileOperations;
+  renderBottomSheets?: boolean;
 }
+
+export type DocumentFormFileOperations = {
+  fileToDelete: string | null;
+  handleTakePhoto: () => void;
+  handleChooseFromGallery: () => void;
+  handleUploadFromDrive: () => void;
+  handleRemoveFile: (fileId: string) => void;
+  confirmDeleteFile: () => void;
+};
 
 export const DocumentForm: React.FC<DocumentFormProps> = ({
   companions,
@@ -83,6 +101,11 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   showNote = false,
   containerStyle,
   contentContainerStyle,
+  formSheetRefs,
+  openSheet,
+  closeSheet,
+  fileOperations,
+  renderBottomSheets = true,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -90,30 +113,34 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
   const [showDatePicker, setShowDatePicker] = React.useState(false);
 
-  const {refs, openSheet, closeSheet} = useFormBottomSheets();
-  const {categorySheetRef, subcategorySheetRef, visitTypeSheetRef, uploadSheetRef, deleteSheetRef} = refs;
-
+  const internalSheets = useFormBottomSheets();
+  const resolvedRefs = formSheetRefs ?? internalSheets.refs;
+  const resolvedOpenSheet = openSheet ?? internalSheets.openSheet;
+  const resolvedCloseSheet = closeSheet ?? internalSheets.closeSheet;
   const {
-    fileToDelete,
-    handleTakePhoto,
-    handleChooseFromGallery,
-    handleUploadFromDrive,
-    handleRemoveFile,
-    confirmDeleteFile,
-  } = useFileOperations({
+    categorySheetRef,
+    subcategorySheetRef,
+    visitTypeSheetRef,
+    uploadSheetRef,
+    deleteSheetRef,
+  } = resolvedRefs;
+
+  const internalFileOps = useFileOperations({
     files: formData.files,
     setFiles: files => onFormChange('files', files),
     clearError: () => onErrorClear('files'),
-    openSheet,
-    closeSheet,
+    openSheet: resolvedOpenSheet,
+    closeSheet: resolvedCloseSheet,
     deleteSheetRef,
   });
+  const resolvedFileOps = fileOperations ?? internalFileOps;
+  const {handleRemoveFile} = resolvedFileOps;
 
   const handleCategoryChange = (newCategory: string | null) => {
     onFormChange('category', newCategory);
     onFormChange('subcategory', null);
     onErrorClear('category');
-    closeSheet();
+    resolvedCloseSheet();
   };
 
   const handleUploadDocuments = () => {
@@ -124,7 +151,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
       Alert.alert('Limit reached', message);
       return;
     }
-    openSheet('upload');
+    resolvedOpenSheet('upload');
     uploadSheetRef.current?.open();
   };
 
@@ -170,7 +197,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
         <View>
           <TouchableOpacity onPress={() => {
-            openSheet('category');
+            resolvedOpenSheet('category');
             categorySheetRef.current?.open();
           }}>
             <Input
@@ -191,7 +218,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           <TouchableOpacity
             onPress={() => {
               if (formData.category) {
-                openSheet('subcategory');
+                resolvedOpenSheet('subcategory');
                 subcategorySheetRef.current?.open();
               }
             }}
@@ -211,7 +238,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         </View>
 
         <TouchableOpacity onPress={() => {
-          openSheet('visitType');
+          resolvedOpenSheet('visitType');
           visitTypeSheetRef.current?.open();
         }}>
           <Input
@@ -313,10 +340,59 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         mode="date"
       />
 
+      {renderBottomSheets ? (
+        <DocumentFormSheets
+          formData={formData}
+          onFormChange={onFormChange}
+          onErrorClear={onErrorClear}
+          fileOperations={resolvedFileOps}
+          formSheetRefs={resolvedRefs}
+          closeSheet={resolvedCloseSheet}
+          onCategoryChange={handleCategoryChange}
+        />
+      ) : null}
+    </>
+  );
+};
+
+export const DocumentFormSheets: React.FC<{
+  formData: DocumentFormData;
+  onFormChange: (field: keyof DocumentFormData, value: any) => void;
+  onErrorClear: (field: keyof DocumentFormErrors) => void;
+  fileOperations: DocumentFormFileOperations;
+  formSheetRefs: FormBottomSheetRefs;
+  closeSheet: () => void;
+  onCategoryChange: (newCategory: string | null) => void;
+}> = ({
+  formData,
+  onFormChange,
+  onErrorClear,
+  fileOperations,
+  formSheetRefs,
+  closeSheet,
+  onCategoryChange,
+}) => {
+  const {
+    categorySheetRef,
+    subcategorySheetRef,
+    visitTypeSheetRef,
+    uploadSheetRef,
+    deleteSheetRef,
+  } = formSheetRefs;
+  const {
+    fileToDelete,
+    handleTakePhoto,
+    handleChooseFromGallery,
+    handleUploadFromDrive,
+    confirmDeleteFile,
+  } = fileOperations;
+
+  return (
+    <>
       <CategoryBottomSheet
         ref={categorySheetRef}
         selectedCategory={formData.category}
-        onSave={handleCategoryChange}
+        onSave={onCategoryChange}
       />
 
       <SubcategoryBottomSheet

@@ -291,7 +291,8 @@ export const CompanionOverviewScreen: React.FC<
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
+      <SafeAreaView style={styles.container}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}
@@ -542,7 +543,22 @@ export const CompanionOverviewScreen: React.FC<
       </View>
       </ScrollView>
 
-      {/* ====== Bottom Sheets / Pickers ====== */}
+      <SimpleDatePicker
+        value={
+          safeCompanion.dateOfBirth ? new Date(safeCompanion.dateOfBirth) : null
+        }
+        onDateChange={date => {
+          applyPatch({dateOfBirth: date ? date.toISOString() : null});
+          setShowDobPicker(false);
+        }}
+        show={showDobPicker}
+        onDismiss={() => setShowDobPicker(false)}
+        maximumDate={new Date()}
+        mode="date"
+      />
+      </SafeAreaView>
+
+      {/* ====== Bottom Sheets ====== */}
       <BreedBottomSheet
         ref={breedSheetRef}
         // You likely have a util to supply list by category; here we use current category's breed list from Add screen util
@@ -622,21 +638,7 @@ export const CompanionOverviewScreen: React.FC<
           setOpenBottomSheet(null);
         }}
       />
-
-      <SimpleDatePicker
-        value={
-          safeCompanion.dateOfBirth ? new Date(safeCompanion.dateOfBirth) : null
-        }
-        onDateChange={date => {
-          applyPatch({dateOfBirth: date ? date.toISOString() : null});
-          setShowDobPicker(false);
-        }}
-        show={showDobPicker}
-        onDismiss={() => setShowDobPicker(false)}
-        maximumDate={new Date()}
-        mode="date"
-      />
-    </SafeAreaView>
+    </>
   );
 };
 

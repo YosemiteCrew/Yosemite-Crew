@@ -22,10 +22,8 @@ import {
   createErrorContainerStyles,
   createEmptyStateStyles,
   createSearchAndSelectorStyles,
-  createLiquidGlassHeaderStyles,
 } from '@/shared/utils/screenStyles';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
@@ -36,8 +34,6 @@ export const CategoryDetailScreen: React.FC = () => {
   const navigation = useNavigation<CategoryDetailNavigationProp>();
   const route = useRoute<CategoryDetailRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
@@ -127,46 +123,41 @@ export const CategoryDetailScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <LiquidGlassHeader
-        insetsTop={insets.top}
-        currentHeight={topGlassHeight}
-        onHeightChange={setTopGlassHeight}
-        topSectionStyle={styles.topSection}
-        cardStyle={styles.topGlassCard}
-        fallbackStyle={styles.topGlassFallback}>
-        <Header
-          title={category.label}
-          showBackButton={true}
-          onBack={() => navigation.goBack()}
-          rightIcon={Images.addIconDark}
-          onRightPress={handleAddDocument}
-          glass={false}
-        />
-        <SearchBar
-          placeholder="Search through documents"
-          mode="readonly"
-          onPress={() => navigation.navigate('DocumentSearch')}
-          containerStyle={styles.searchBar}
-        />
-      </LiquidGlassHeader>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.contentContainer,
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['1']}
-            : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={(id) => dispatch(setSelectedCompanion(id))}
-          showAddButton={false}
-          containerStyle={styles.companionSelector}
-          requiredPermission="documents"
-          permissionLabel="documents"
-        />
+      <LiquidGlassHeaderShell
+        header={
+          <>
+            <Header
+              title={category.label}
+              showBackButton={true}
+              onBack={() => navigation.goBack()}
+              rightIcon={Images.addIconDark}
+              onRightPress={handleAddDocument}
+              glass={false}
+            />
+            <SearchBar
+              placeholder="Search through documents"
+              mode="readonly"
+              onPress={() => navigation.navigate('DocumentSearch')}
+              containerStyle={styles.searchBar}
+            />
+          </>
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['1']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
+            <CompanionSelector
+              companions={companions}
+              selectedCompanionId={selectedCompanionId}
+              onSelect={(id) => dispatch(setSelectedCompanion(id))}
+              showAddButton={false}
+              containerStyle={styles.companionSelector}
+              requiredPermission="documents"
+              permissionLabel="documents"
+            />
 
         {subcategoriesToRender.map(subcategory => {
           const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
@@ -198,7 +189,9 @@ export const CategoryDetailScreen: React.FC = () => {
             </SubcategoryAccordion>
           );
         })}
-      </ScrollView>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderShell>
     </SafeArea>
   );
 };
@@ -209,7 +202,6 @@ const createStyles = (theme: any) =>
     ...createErrorContainerStyles(theme),
     ...createEmptyStateStyles(theme),
     ...createSearchAndSelectorStyles(theme),
-    ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['6'],

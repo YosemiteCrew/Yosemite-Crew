@@ -4,7 +4,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
-import {SafeArea, YearlySpendCard} from '@/shared/components/common';
+import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ExpenseCard} from '@/features/expenses/components';
@@ -28,6 +28,8 @@ import type {Expense} from '@/features/expenses';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesList'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensesList'>;
@@ -155,25 +157,28 @@ export const ExpensesListScreen: React.FC = () => {
   );
 
   return (
-    <SafeArea>
-      <Header title="Expenses" showBackButton onBack={handleBack} />
-      <View style={styles.container}>
-        <FlatList<Expense>
-          data={data}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          ItemSeparatorComponent={renderSeparator}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No expenses to show yet.</Text>
-            </View>
-          }
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    </SafeArea>
+    <SafeAreaView style={styles.container}>
+      <LiquidGlassHeaderShell
+        header={<Header title="Expenses" showBackButton onBack={handleBack} glass={false} />}
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <FlatList<Expense>
+            data={data}
+            keyExtractor={item => item.id}
+            renderItem={renderItem}
+            ItemSeparatorComponent={renderSeparator}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No expenses to show yet.</Text>
+              </View>
+            }
+            contentContainerStyle={[styles.listContent, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </LiquidGlassHeaderShell>
+    </SafeAreaView>
   );
 };
 
@@ -184,7 +189,6 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     listHeader: {
-      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['2'],
     },
     selector: {

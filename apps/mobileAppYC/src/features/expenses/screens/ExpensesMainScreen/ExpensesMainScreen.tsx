@@ -3,7 +3,7 @@ import {Image, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea, YearlySpendCard} from '@/shared/components/common';
+import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ExpenseCard} from '@/features/expenses/components';
@@ -30,9 +30,8 @@ import {
 } from '@/features/expenses/utils/expenseLabels';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -41,8 +40,6 @@ export const ExpensesMainScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector(
@@ -136,20 +133,9 @@ export const ExpensesMainScreen: React.FC = () => {
   const currencySymbol = resolveCurrencySymbol(summaryCurrency, '$');
 
   return (
-    <SafeArea edges={['top']}>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <LiquidGlassHeaderShell
+        header={
           <Header
             title="Expenses"
             showBackButton
@@ -158,45 +144,35 @@ export const ExpensesMainScreen: React.FC = () => {
             onRightPress={handleAddExpense}
             glass={false}
           />
-        </LiquidGlassCard>
-      </View>
-      {showEmptyState ? (
-        <ScrollView
-          contentContainerStyle={[
-            styles.emptyState,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
-          <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
-          <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
-          <Text style={styles.emptySubtitle}>
-            It seems like you and your buddy are in saving mode!
-          </Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
-            <Text style={styles.emptyButtonText}>Add expense</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={[
-            styles.contentContainer,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
-          <CompanionSelector
-            companions={companions}
-            selectedCompanionId={selectedCompanionId}
-            onSelect={id => dispatch(setSelectedCompanion(id))}
-            showAddButton={false}
-            containerStyle={styles.companionSelector}
-            requiredPermission="expenses"
-            permissionLabel="expenses"
-          />
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle =>
+          showEmptyState ? (
+            <ScrollView
+              contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
+              <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
+              <Text style={styles.emptySubtitle}>
+                It seems like you and your buddy are in saving mode!
+              </Text>
+              <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
+                <Text style={styles.emptyButtonText}>Add expense</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          ) : (
+            <ScrollView
+              contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <CompanionSelector
+                companions={companions}
+                selectedCompanionId={selectedCompanionId}
+                onSelect={id => dispatch(setSelectedCompanion(id))}
+                showAddButton={false}
+                containerStyle={styles.companionSelector}
+                requiredPermission="expenses"
+                permissionLabel="expenses"
+              />
 
           <TouchableOpacity onPress={() => handleViewMore('inApp')} activeOpacity={0.85}>
             <YearlySpendCard
@@ -283,10 +259,12 @@ export const ExpensesMainScreen: React.FC = () => {
               <Text style={styles.emptySectionText}>No external expenses yet</Text>
             </View>
           )}
-        </ScrollView>
-      )}
+            </ScrollView>
+          )
+        }
+      </LiquidGlassHeaderShell>
       {(loading || processingPayment) && <View style={styles.loadingOverlay} />}
-    </SafeArea>
+    </SafeAreaView>
   );
 };
 
@@ -301,7 +279,6 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['20'],
       gap: theme.spacing['4'],
     },
-    ...createLiquidGlassHeaderStyles(theme),
     companionSelector: {
       marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['4'],

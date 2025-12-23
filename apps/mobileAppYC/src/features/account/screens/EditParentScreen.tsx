@@ -339,7 +339,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
+      <SafeAreaView style={styles.container}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}
@@ -522,7 +523,22 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         </View>
       </ScrollView>
 
-      {/* ====== Bottom Sheets / Pickers ====== */}
+      <SimpleDatePicker
+        value={
+          safeUser.dateOfBirth ? new Date(safeUser.dateOfBirth) : null
+        }
+        onDateChange={date => {
+          applyPatch({dateOfBirth: date ? date.toISOString().split('T')[0] : undefined});
+          setShowDobPicker(false);
+        }}
+        show={showDobPicker}
+        onDismiss={() => setShowDobPicker(false)}
+        maximumDate={new Date()}
+        mode="date"
+      />
+      </SafeAreaView>
+
+      {/* ====== Bottom Sheets ====== */}
       <CurrencyBottomSheet
         ref={currencySheetRef}
         selectedCurrency={safeUser.currency ?? 'USD'}
@@ -551,21 +567,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           setOpenBottomSheet(null);
         }}
       />
-
-      <SimpleDatePicker
-        value={
-          safeUser.dateOfBirth ? new Date(safeUser.dateOfBirth) : null
-        }
-        onDateChange={date => {
-          applyPatch({dateOfBirth: date ? date.toISOString().split('T')[0] : undefined});
-          setShowDobPicker(false);
-        }}
-        show={showDobPicker}
-        onDismiss={() => setShowDobPicker(false)}
-        maximumDate={new Date()}
-        mode="date"
-      />
-    </SafeAreaView>
+    </>
   );
 };
 

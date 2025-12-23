@@ -9,9 +9,11 @@ import BottomSheet, {
   BottomSheetFooterProps,
   BottomSheetHandle,
   BottomSheetHandleProps,
+  type BottomSheetBackgroundProps,
 } from '@gorhom/bottom-sheet';
 import type { BottomSheetMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
 import type { WithSpringConfig, WithTimingConfig } from 'react-native-reanimated';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 // Types
 export type BottomSheetRef = BottomSheetMethods;
@@ -167,6 +169,21 @@ const CustomBottomSheet = forwardRef<BottomSheetRef, CustomBottomSheetProps>(
       [customHandle, handleComponent, handleStyle, handleIndicatorStyle]
     );
 
+    const renderBackground = useCallback(
+      (props: BottomSheetBackgroundProps) => (
+        <LiquidGlassCard
+          glassEffect="regular"
+          interactive={false}
+          padding="0"
+          shadow="none"
+          style={[props.style, backgroundStyle]}
+          fallbackStyle={backgroundStyle}>
+          {null}
+        </LiquidGlassCard>
+      ),
+      [backgroundStyle]
+    );
+
     // Content renderer based on type
     const renderContent = () => {
       switch (contentType) {
@@ -207,7 +224,7 @@ const CustomBottomSheet = forwardRef<BottomSheetRef, CustomBottomSheetProps>(
         enableContentPanningGesture={enableContentPanningGesture}
         enableHandlePanningGesture={enableHandlePanningGesture}
         style={[style, { zIndex: zIndex ?? 1 }]}
-        backgroundStyle={backgroundStyle}
+        backgroundComponent={renderBackground}
         backdropComponent={enableBackdrop ? renderBackdrop : undefined}
         handleComponent={renderHandle}
         footerComponent={footerComponent}
