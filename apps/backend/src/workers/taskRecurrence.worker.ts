@@ -6,7 +6,7 @@ import logger from "src/utils/logger";
 export const TaskRecurrenceWorker = new Worker(
   "task-recurrence",
   async () => {
-    console.log("🔄 Running Task Recurrence Engine...");
+    logger.info("🔄 Running Task Recurrence Engine...");
     await TaskRecurrenceEngine.run();
   },
   { connection: redisConnection },

@@ -74,7 +74,7 @@ const sanitizeMedication = (input?: MedicationInput | null) => {
     name,
     type,
     notes,
-    doses: doses && doses.length ? doses : undefined,
+    doses: doses?.length ? doses : undefined,
   };
 };
 
@@ -290,9 +290,9 @@ export const TaskService = {
 
     const reminder =
       input.reminder ||
-      (template.defaultReminderOffsetMinutes != null
-        ? { enabled: true, offsetMinutes: template.defaultReminderOffsetMinutes }
-        : undefined);
+      (template.defaultReminderOffsetMinutes == null
+        ? undefined
+        : { enabled: true, offsetMinutes: template.defaultReminderOffsetMinutes });
 
     const doc = await TaskModel.create({
       organisationId: input.organisationId,
@@ -445,8 +445,13 @@ export const TaskService = {
     if (updates.recurrence !== undefined) {
       if (updates.recurrence === null) {
         task.recurrence = undefined;
-      } else {
-        if (!task.recurrence) {
+      } else if (task.recurrence) {
+          task.recurrence.type = updates.recurrence.type;
+          task.recurrence.cronExpression =
+            updates.recurrence.cronExpression ?? task.recurrence.cronExpression;
+          task.recurrence.endDate =
+            updates.recurrence.endDate ?? task.recurrence.endDate;
+        } else {
           task.recurrence = {
             type: updates.recurrence.type,
             isMaster: true,
@@ -454,14 +459,7 @@ export const TaskService = {
             cronExpression: updates.recurrence.cronExpression ?? undefined,
             endDate: updates.recurrence.endDate ?? undefined,
           };
-        } else {
-          task.recurrence.type = updates.recurrence.type;
-          task.recurrence.cronExpression =
-            updates.recurrence.cronExpression ?? task.recurrence.cronExpression;
-          task.recurrence.endDate =
-            updates.recurrence.endDate ?? task.recurrence.endDate;
         }
-      }
     }
 
     await task.save();
@@ -501,7 +499,7 @@ export const TaskService = {
 
     let completionDoc: TaskCompletionDocument | undefined;
 
-    if (newStatus === "COMPLETED" && completion && completion.answers) {
+    if (newStatus === "COMPLETED" && completion?.answers) {
       completionDoc = await TaskCompletionModel.create({
         taskId: task._id.toString(),
         companionId: task.companionId,

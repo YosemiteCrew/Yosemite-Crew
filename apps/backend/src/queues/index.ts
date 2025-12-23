@@ -1,5 +1,7 @@
-import "./taskReminder.queue";
-import "./taskRecurrence.queue";
 import logger from "src/utils/logger";
+import { registerTaskSchedulers } from "./task.schedulers";
 
-logger.info("📬 BullMQ queues registered");
+export async function initQueues() {
+  await registerTaskSchedulers();
+  logger.info("📬 BullMQ queues initialized");
+}
