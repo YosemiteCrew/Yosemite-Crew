@@ -948,7 +948,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.topSection, {paddingTop: insets.top}]}>
         <View
           style={styles.topGlassShadow}
@@ -1037,6 +1037,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         contentContainerStyle={[
           styles.scrollContent,
           topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['2']} : null,
+          {paddingBottom: theme.spacing['30'] + insets.bottom},
         ]}
         showsVerticalScrollIndicator={false}>
 
@@ -1196,7 +1197,6 @@ const createStyles = (theme: any) =>
     scrollContent: {
       paddingHorizontal: theme.spacing['6'],
       paddingTop: theme.spacing['4'],
-      paddingBottom: theme.spacing['30'],
       gap: theme.spacing['6'],
     },
     headerRow: {

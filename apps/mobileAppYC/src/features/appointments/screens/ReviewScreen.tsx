@@ -3,6 +3,8 @@ import {ScrollView, View, Text, StyleSheet, TextInput, Image, Keyboard} from 're
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useTheme} from '@/hooks';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -23,6 +25,8 @@ type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 export const ReviewScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const [review, setReview] = useState('');
   const [rating, setRating] = useState(4);
   const [submitting, setSubmitting] = useState(false);
@@ -103,8 +107,30 @@ export const ReviewScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header title="Review" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Review" showBackButton onBack={() => navigation.goBack()} glass={false} />
+        </LiquidGlassCard>
+      </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
+        showsVerticalScrollIndicator={false}>
         {apt && (
           <View style={styles.businessCardContainer}>
             <SummaryCards
@@ -171,6 +197,33 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],
+  },
+  topSection: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+  },
+  topGlassCard: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: theme.borderRadius['2xl'],
+    borderBottomRightRadius: theme.borderRadius['2xl'],
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: theme.spacing['3'],
+    borderWidth: 0,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  topGlassFallback: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: theme.borderRadius['2xl'],
+    borderBottomRightRadius: theme.borderRadius['2xl'],
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   headerSection: {
     alignItems: 'center',

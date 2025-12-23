@@ -30,6 +30,8 @@ import {
 } from '@/features/expenses/utils/expenseLabels';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -38,6 +40,8 @@ export const ExpensesMainScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector(
@@ -131,17 +135,38 @@ export const ExpensesMainScreen: React.FC = () => {
   const currencySymbol = resolveCurrencySymbol(summaryCurrency, '$');
 
   return (
-    <SafeArea>
-      <Header
-        title="Expenses"
-        showBackButton
-        onBack={handleBack}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAddExpense}
-      />
+    <SafeArea edges={['top']}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="Expenses"
+            showBackButton
+            onBack={handleBack}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAddExpense}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
       {showEmptyState ? (
         <ScrollView
-          contentContainerStyle={styles.emptyState}
+          contentContainerStyle={[
+            styles.emptyState,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
           showsVerticalScrollIndicator={false}>
           <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
           <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
@@ -155,7 +180,12 @@ export const ExpensesMainScreen: React.FC = () => {
       ) : (
         <ScrollView
           style={styles.container}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
           showsVerticalScrollIndicator={false}>
           <CompanionSelector
             companions={companions}
@@ -269,6 +299,33 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['20'],
       gap: theme.spacing['4'],
+    },
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     companionSelector: {
       marginTop: theme.spacing['4'],

@@ -13,9 +13,11 @@ import {
   BackHandler,
   type KeyboardTypeOptions,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useForm, Controller, type ControllerProps} from 'react-hook-form';
 import {SafeArea, Input, Header} from '@/shared/components/common';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {TileSelector} from '@/shared/components/common/TileSelector/TileSelector';
 import {
@@ -123,6 +125,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
   const {weightUnit} = usePreferences();
@@ -868,18 +872,39 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
   return (
     <SafeArea style={styles.container}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
+            showBackButton
+            onBack={handleGoBack}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}>
-        <Header
-          title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
-          showBackButton
-          onBack={handleGoBack}
-        />
-
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           {currentStep === 1 && renderStep1()}
@@ -953,6 +978,33 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
     stepContainer: {
       flex: 1,
     },

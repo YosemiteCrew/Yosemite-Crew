@@ -10,7 +10,7 @@ import {
   UIManager,
   Image,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
@@ -129,6 +129,8 @@ const FAQCard: React.FC<{
 export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
   const [expandedFaqId, setExpandedFaqId] = React.useState<string | null>(
@@ -213,32 +215,52 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header
-        title="FAQs"
-        showBackButton
-        onBack={() => navigation.goBack()}
-        rightIcon={Images.accountMailIcon}
-        onRightPress={() => navigation.navigate('ContactUs')}
-      />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="FAQs"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            rightIcon={Images.accountMailIcon}
+            onRightPress={() => navigation.navigate('ContactUs')}
+            glass={false}
+          />
+          <SearchBar
+            mode="input"
+            placeholder="Search FAQs..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            containerStyle={styles.searchContainer}
+          />
+          <PillSelector
+            options={categoryOptions}
+            selectedId={selectedCategory}
+            onSelect={handleCategoryChange}
+            containerStyle={styles.pillContainer}
+          />
+        </LiquidGlassCard>
+      </View>
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
-        <SearchBar
-          mode="input"
-          placeholder="Search FAQs..."
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          containerStyle={styles.searchContainer}
-        />
-
-        <PillSelector
-          options={categoryOptions}
-          selectedId={selectedCategory}
-          onSelect={handleCategoryChange}
-          containerStyle={styles.pillContainer}
-        />
 
         <View style={styles.faqList}>
           {filteredFaqs.length === 0 ? (
@@ -296,14 +318,41 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['8'],
-      paddingTop: theme.spacing['3'],
       gap: theme.spacing['4'],
     },
+    topSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      gap: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
     searchContainer: {
-      marginBottom: theme.spacing['4'],
+      marginHorizontal: theme.spacing['6'],
     },
     pillContainer: {
-      marginBottom: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['6'],
     },
     faqList: {
       gap: theme.spacing['4'],
