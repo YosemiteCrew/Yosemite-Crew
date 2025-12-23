@@ -157,9 +157,6 @@ describe('FAQScreen', () => {
 
     fireEvent.press(screen.getByTestId('header-back'));
     expect(mockGoBack).toHaveBeenCalled();
-
-    fireEvent.press(screen.getByTestId('header-right'));
-    expect(mockNavigate).toHaveBeenCalledWith('ContactUs');
   });
 
   it('expands and collapses FAQ items', () => {

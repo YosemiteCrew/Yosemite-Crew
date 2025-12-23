@@ -3,6 +3,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {render, waitFor, fireEvent} from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppNavigator} from '../../src/navigation/AppNavigator';
+import {GlobalLoaderProvider} from '../../src/context/GlobalLoaderContext';
 import {useAuth} from '../../src/features/auth/context/AuthContext';
 import {useEmergency} from '../../src/features/home/context/EmergencyContext';
 import * as CoParentActions from '../../src/features/coParent';
@@ -221,7 +222,9 @@ describe('AppNavigator', () => {
   const renderNavigator = () => {
     return render(
       <NavigationContainer>
-        <AppNavigator />
+        <GlobalLoaderProvider>
+          <AppNavigator />
+        </GlobalLoaderProvider>
       </NavigationContainer>,
     );
   };

@@ -1,7 +1,7 @@
 import React from 'react';
 import {mockTheme} from '../../../../setup/mockTheme';
 import {render} from '@testing-library/react-native';
-import {TasksComingSoonScreen} from '../../../../../src/features/tasks/screens/TasksComingSoonScreen/TasksComingSoonScreen';
+import {EmptyTasksScreen} from '../../../../../src/features/tasks/screens/EmptyTasksScreen/EmptyTasksScreen';
 
 // --- Mocks ---
 
@@ -24,16 +24,16 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-describe('TasksComingSoonScreen', () => {
+describe('EmptyTasksScreen', () => {
   // --- 1. Basic Rendering & Content ---
 
   it('renders the screen with correct title and subtitle', () => {
-    const {getByText} = render(<TasksComingSoonScreen />);
+    const {getByText} = render(<EmptyTasksScreen />);
 
-    expect(getByText('Tasks coming soon')).toBeTruthy();
+    expect(getByText('No tasks yet!')).toBeTruthy();
     expect(
       getByText(
-        'We are finishing the task experience. Please check back shortly.',
+        'Add a companion first to start creating tasks\nfor their health, hygiene, and care!',
       ),
     ).toBeTruthy();
   });
@@ -41,7 +41,7 @@ describe('TasksComingSoonScreen', () => {
   // --- 2. Styling & Theme Application ---
 
   it('applies correct theme styles to components', () => {
-    const {getByTestId, getByText} = render(<TasksComingSoonScreen />);
+    const {getByTestId, getByText} = render(<EmptyTasksScreen />);
 
     // Check Safe Area Background (theme.colors.background)
     const safeArea = getByTestId('safe-area');
@@ -53,10 +53,10 @@ describe('TasksComingSoonScreen', () => {
     );
 
     // Check Title Styles (typography + color)
-    const title = getByText('Tasks coming soon');
+    const title = getByText('No tasks yet!');
     expect(title.props.style).toEqual(
       expect.objectContaining({
-        fontSize: mockTheme.typography.titleLarge.fontSize,
+        fontSize: mockTheme.typography.headlineMedium.fontSize,
         color: mockTheme.colors.secondary,
         textAlign: 'center',
       }),
@@ -64,11 +64,11 @@ describe('TasksComingSoonScreen', () => {
 
     // Check Subtitle Styles (typography + color)
     const subtitle = getByText(
-      'We are finishing the task experience. Please check back shortly.',
+      'Add a companion first to start creating tasks\nfor their health, hygiene, and care!',
     );
     expect(subtitle.props.style).toEqual(
       expect.objectContaining({
-        fontSize: mockTheme.typography.bodyLarge.fontSize,
+        fontSize: mockTheme.typography.bodyMedium.fontSize,
         color: mockTheme.colors.textSecondary,
         textAlign: 'center',
       }),

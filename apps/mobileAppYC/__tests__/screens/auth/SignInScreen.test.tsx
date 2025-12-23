@@ -455,7 +455,7 @@ describe('SignInScreen', () => {
     });
 
     expect(
-      await findByText('We couldn’t sign you in. Kindly retry.'),
+      await findByText("We couldn't sign you in. Kindly retry."),
     ).toBeTruthy();
   });
 

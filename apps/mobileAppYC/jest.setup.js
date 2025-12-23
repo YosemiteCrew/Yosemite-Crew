@@ -155,6 +155,19 @@ jest.mock('@callstack/liquid-glass', () => {
   };
 });
 
+// Mock safe area context helpers for screens relying on insets
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    SafeAreaView: ({children, ...props}) =>
+      React.createElement(View, props, children),
+    SafeAreaProvider: ({children}) => children,
+    useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
+  };
+});
+
 // Mock Gorhom Bottom Sheet to avoid requiring native implementation in tests
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
@@ -281,6 +294,16 @@ jest.mock('react-native-blob-util', () => {
     wrap: mockWrap,
   };
 });
+
+// Mock clipboard to avoid TurboModuleRegistry errors in tests
+jest.mock('@react-native-clipboard/clipboard', () => ({
+  __esModule: true,
+  default: {
+    getString: jest.fn(),
+    setString: jest.fn(),
+    hasString: jest.fn(),
+  },
+}));
 
 // Safe area context mock to avoid native dependency requirements
 jest.mock('react-native-safe-area-context', () => {

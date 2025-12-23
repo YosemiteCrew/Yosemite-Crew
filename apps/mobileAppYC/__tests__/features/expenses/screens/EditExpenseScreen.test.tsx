@@ -129,6 +129,19 @@ import {Header} from '@/shared/components/common/Header/Header';
 const MockedHeader = Header as jest.MockedFunction<typeof Header>;
 
 // Mock the new useFormScreen hooks
+let hasUnsavedChanges = false;
+const mockMarkAsChanged = jest.fn(() => {
+  hasUnsavedChanges = true;
+});
+const mockHandleGoBack = jest.fn(() => {
+  if (hasUnsavedChanges) {
+    mockDiscardSheetOpen();
+    return;
+  }
+  if (mockCanGoBack()) {
+    mockGoBack();
+  }
+});
 const mockFormSheetRefs = {
   categorySheetRef: {current: {open: jest.fn()}},
   subcategorySheetRef: {current: {open: jest.fn()}},
@@ -149,15 +162,11 @@ jest.mock('@/shared/hooks/useFormScreen', () => ({
       openSheet: jest.fn(),
       closeSheet: jest.fn(),
     },
-    handleGoBack: jest.fn(() => {
-      if (mockCanGoBack()) {
-        mockGoBack();
-      }
-    }),
+    handleGoBack: mockHandleGoBack,
     discardSheetRef: {current: {open: mockDiscardSheetOpen}},
-    markAsChanged: jest.fn(),
-    companions: [{id: 'comp-1', name: 'Fluffy'}],
-    selectedCompanionId: 'comp-1',
+    markAsChanged: mockMarkAsChanged,
+    companions: mockState?.companion?.companions ?? [{id: 'comp-1', name: 'Fluffy'}],
+    selectedCompanionId: mockState?.companion?.selectedCompanionId ?? 'comp-1',
   })),
   useFormFileOperations: jest.fn(() => ({
     handleAddFiles: jest.fn(),
@@ -284,6 +293,7 @@ const fireBackPress = () => {
 describe('EditExpenseScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    hasUnsavedChanges = false;
     jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     (useExpenseForm as jest.Mock).mockImplementation(
       defaultUseExpenseFormMockImplementation,
@@ -384,8 +394,10 @@ describe('EditExpenseScreen', () => {
   it('dispatches setSelectedCompanion if IDs do not match', () => {
     mockState.companion.selectedCompanionId = 'comp-2';
     renderComponent();
-    expect(mockAppDispatch).toHaveBeenCalledWith(
-      setSelectedCompanion(mockExpense.companionId),
+    return waitFor(() =>
+      expect(mockAppDispatch).toHaveBeenCalledWith(
+        setSelectedCompanion(mockExpense.companionId),
+      ),
     );
   });
 

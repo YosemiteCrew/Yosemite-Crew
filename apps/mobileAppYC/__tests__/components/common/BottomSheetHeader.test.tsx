@@ -36,6 +36,9 @@ jest.mock('react-native', () => {
     ),
     // FIX: Add a stable testID for the icon
     Image: createMockComponent('Image', 'mock-image'),
+    Appearance: {
+      getColorScheme: jest.fn(() => 'light'),
+    },
     StyleSheet: {
       create: jest.fn(styles => styles),
       flatten: jest.fn(style => style),
@@ -46,6 +49,24 @@ jest.mock('react-native', () => {
     PixelRatio: RN.PixelRatio,
   };
 });
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton',
+  () => {
+    const ReactActual = jest.requireActual('react');
+    const {TouchableOpacity: MockTouchableOpacity} =
+      jest.requireActual('react-native');
+    return {
+      LiquidGlassIconButton: ({children, onPress}: any) => (
+        <MockTouchableOpacity
+          testID="mock-liquid-glass-icon-button"
+          onPress={onPress}>
+          {children}
+        </MockTouchableOpacity>
+      ),
+    };
+  },
+);
 
 // --- Test Setup ---
 
@@ -79,7 +100,7 @@ describe('BottomSheetHeader', () => {
     );
 
     // FIX: Use getByTestId for both button and icon
-    const closeButton = getByTestId('mock-touchable-opacity');
+    const closeButton = getByTestId('mock-liquid-glass-icon-button');
     const closeIcon = getByTestId('mock-image');
 
     expect(closeButton).toBeTruthy();
@@ -97,7 +118,7 @@ describe('BottomSheetHeader', () => {
     );
 
     // FIX: Use getByTestId to find the button
-    const closeButton = getByTestId('mock-touchable-opacity');
+    const closeButton = getByTestId('mock-liquid-glass-icon-button');
     fireEvent.press(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -113,7 +134,7 @@ describe('BottomSheetHeader', () => {
       />,
     );
     // FIX: Use queryByTestId for both
-    expect(queryByTestId('mock-touchable-opacity')).toBeNull();
+    expect(queryByTestId('mock-liquid-glass-icon-button')).toBeNull();
     expect(queryByTestId('mock-image')).toBeNull();
   });
 
@@ -127,7 +148,7 @@ describe('BottomSheetHeader', () => {
       />,
     );
     // FIX: Use queryByTestId for both
-    expect(queryByTestId('mock-touchable-opacity')).toBeNull();
+    expect(queryByTestId('mock-liquid-glass-icon-button')).toBeNull();
     expect(queryByTestId('mock-image')).toBeNull();
   });
 });

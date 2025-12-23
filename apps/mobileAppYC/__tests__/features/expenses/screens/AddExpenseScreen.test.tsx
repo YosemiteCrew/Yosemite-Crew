@@ -90,6 +90,19 @@ jest.mock('@/shared/components/common/Header/Header', () => {
 });
 
 // Mock the new useFormScreen hooks
+let hasUnsavedChanges = false;
+const mockMarkAsChanged = jest.fn(() => {
+  hasUnsavedChanges = true;
+});
+const mockHandleGoBack = jest.fn(() => {
+  if (hasUnsavedChanges) {
+    mockDiscardSheetOpen();
+    return;
+  }
+  if (mockCanGoBack()) {
+    mockGoBack();
+  }
+});
 const mockFormSheetRefs = {
   categorySheetRef: {current: {open: jest.fn()}},
   subcategorySheetRef: {current: {open: jest.fn()}},
@@ -108,15 +121,11 @@ jest.mock('@/shared/hooks/useFormScreen', () => ({
       openSheet: jest.fn(),
       closeSheet: jest.fn(),
     },
-    handleGoBack: jest.fn(() => {
-      if (mockCanGoBack()) {
-        mockGoBack();
-      }
-    }),
+    handleGoBack: mockHandleGoBack,
     discardSheetRef: {current: {open: mockDiscardSheetOpen}},
-    markAsChanged: jest.fn(),
-    companions: [{id: 'comp-1', name: 'Fluffy'}],
-    selectedCompanionId: 'comp-1',
+    markAsChanged: mockMarkAsChanged,
+    companions: mockState?.companion?.companions ?? [{id: 'comp-1', name: 'Fluffy'}],
+    selectedCompanionId: mockState?.companion?.selectedCompanionId ?? null,
   })),
   useFormFileOperations: jest.fn(() => ({
     handleAddFiles: jest.fn(),
@@ -174,6 +183,7 @@ let mockState: RootState;
 describe('AddExpenseScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    hasUnsavedChanges = false;
     jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     (useExpenseForm as jest.Mock).mockImplementation(
       defaultUseExpenseFormMockImplementation,

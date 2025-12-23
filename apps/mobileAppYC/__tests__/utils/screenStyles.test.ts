@@ -69,10 +69,11 @@ describe('screenStyles', () => {
       const styles = createSearchAndSelectorStyles(mockTheme);
       expect(styles).toEqual({
         searchBar: {
-          marginTop: 16,
           marginBottom: 8,
+          marginInline: 24,
         },
         companionSelector: {
+          marginTop: 8,
           marginBottom: 16,
         },
       });
