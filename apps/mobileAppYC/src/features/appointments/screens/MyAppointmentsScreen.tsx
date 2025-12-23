@@ -39,6 +39,7 @@ import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointme
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -659,38 +660,12 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    ...createLiquidGlassHeaderStyles(theme),
     sectionList: {flex: 1},
     container: {
       paddingHorizontal: theme.spacing['6'],
       paddingTop: theme.spacing['1'],
       paddingBottom: theme.spacing['10'],
-    },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
     },
     listHeader: {gap: theme.spacing['3'], marginBottom: theme.spacing['4']},
     companionSelector: {marginBottom: theme.spacing['2']},

@@ -21,6 +21,7 @@ import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -429,34 +430,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
 const createStyles = (theme: any) => StyleSheet.create({
   scrollView: {flex: 1},
   container: {paddingHorizontal: theme.spacing['6'], paddingBottom: theme.spacing['8'], gap: theme.spacing['4']},
-  topSection: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
-  },
-  topGlassCard: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: theme.borderRadius['2xl'],
-    borderBottomRightRadius: theme.borderRadius['2xl'],
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: theme.spacing['3'],
-    gap: theme.spacing['3'],
-    borderWidth: 0,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  topGlassFallback: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: theme.borderRadius['2xl'],
-    borderBottomRightRadius: theme.borderRadius['2xl'],
-    borderWidth: 0,
-    borderColor: 'transparent',
-  },
+  ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
   pillsContent: {gap: theme.spacing['2'], paddingRight: theme.spacing['2'], paddingHorizontal: theme.spacing['6']},
   resultsWrapper: {gap: theme.spacing['4'], marginTop: theme.spacing['2']},
   pill: {

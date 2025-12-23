@@ -5,6 +5,7 @@ import { Header } from '@/shared/components/common/Header/Header';
 import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import { useTheme } from '@/hooks';
 import PrimaryActionButton from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
+import { createLiquidGlassHeaderStyles } from '@/shared/utils/screenStyles';
 
 export interface AERLayoutProps {
   children: React.ReactNode;
@@ -88,33 +89,7 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
+    ...createLiquidGlassHeaderStyles(theme),
     scrollContent: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],

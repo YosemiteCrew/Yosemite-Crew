@@ -18,6 +18,7 @@ import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type EditDocumentNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type EditDocumentRouteProp = RouteProp<DocumentStackParamList, 'EditDocument'>;
@@ -289,41 +290,16 @@ export const EditDocumentScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  topSection: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
-  },
-  topGlassCard: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: theme.borderRadius['2xl'],
-    borderBottomRightRadius: theme.borderRadius['2xl'],
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: theme.spacing['3'],
-    borderWidth: 0,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  topGlassFallback: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: theme.borderRadius['2xl'],
-    borderBottomRightRadius: theme.borderRadius['2xl'],
-    borderWidth: 0,
-    borderColor: 'transparent',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorMessage: {
-    ...theme.typography.body,
-    color: theme.colors.error,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    ...createLiquidGlassHeaderStyles(theme),
+    errorContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    errorMessage: {
+      ...theme.typography.body,
+      color: theme.colors.error,
+    },
+  });

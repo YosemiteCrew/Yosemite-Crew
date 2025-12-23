@@ -32,6 +32,7 @@ import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -300,33 +301,7 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['20'],
       gap: theme.spacing['4'],
     },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
+    ...createLiquidGlassHeaderStyles(theme),
     companionSelector: {
       marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['4'],

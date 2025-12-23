@@ -25,7 +25,12 @@ import {
   type TabParamList,
 } from '@/navigation/types';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {createScreenContainerStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {
+  createGlassCardStyles,
+  createLiquidGlassHeaderStyles,
+  createScreenContainerStyles,
+} from '@/shared/utils/screenStyles';
 import {createCenteredStyle} from '@/shared/utils/commonHelpers';
 import DeleteProfileBottomSheet, {
   type DeleteProfileBottomSheetRef,
@@ -371,29 +376,22 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title={`${companion.name}'s Profile`}
-            showBackButton
-            onBack={handleBackPress}
-            rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
-            onRightPress={isPrimaryParent ? handleDeletePress : undefined}
-            glass={false}
-          />
-        </LiquidGlassCard>
-      </View>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header
+          title={`${companion.name}'s Profile`}
+          showBackButton
+          onBack={handleBackPress}
+          rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+          onRightPress={isPrimaryParent ? handleDeletePress : undefined}
+          glass={false}
+        />
+      </LiquidGlassHeader>
 
       <ScrollView
         contentContainerStyle={[
@@ -467,6 +465,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createScreenContainerStyles(theme),
     ...createCenteredStyle(theme),
+    ...createLiquidGlassHeaderStyles(theme),
     emptyStateText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
@@ -475,50 +474,7 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['10'],
     },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing['2'],
-      overflow: 'hidden',
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
-    glassShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
-    },
+    ...createGlassCardStyles(theme),
     listContainer: {
       gap: theme.spacing['1'],
     },

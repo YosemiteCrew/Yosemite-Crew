@@ -22,8 +22,9 @@ import {
   createErrorContainerStyles,
   createEmptyStateStyles,
   createSearchAndSelectorStyles,
+  createLiquidGlassHeaderStyles,
 } from '@/shared/utils/screenStyles';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
@@ -126,35 +127,28 @@ export const CategoryDetailScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title={category.label}
-            showBackButton={true}
-            onBack={() => navigation.goBack()}
-            rightIcon={Images.addIconDark}
-            onRightPress={handleAddDocument}
-            glass={false}
-          />
-          <SearchBar
-            placeholder="Search through documents"
-            mode="readonly"
-            onPress={() => navigation.navigate('DocumentSearch')}
-            containerStyle={styles.searchBar}
-          />
-        </LiquidGlassCard>
-      </View>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header
+          title={category.label}
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+          rightIcon={Images.addIconDark}
+          onRightPress={handleAddDocument}
+          glass={false}
+        />
+        <SearchBar
+          placeholder="Search through documents"
+          mode="readonly"
+          onPress={() => navigation.navigate('DocumentSearch')}
+          containerStyle={styles.searchBar}
+        />
+      </LiquidGlassHeader>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
@@ -215,37 +209,10 @@ const createStyles = (theme: any) =>
     ...createErrorContainerStyles(theme),
     ...createEmptyStateStyles(theme),
     ...createSearchAndSelectorStyles(theme),
+    ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['6'],
-    },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      gap: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
     },
     searchBar: {
       marginBottom: theme.spacing['2'],

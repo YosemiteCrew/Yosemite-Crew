@@ -19,6 +19,7 @@ import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBus
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {Images} from '@/assets/images';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -197,33 +198,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],
   },
-  topSection: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
-  },
-  topGlassCard: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: theme.borderRadius['2xl'],
-    borderBottomRightRadius: theme.borderRadius['2xl'],
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: theme.spacing['3'],
-    borderWidth: 0,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  topGlassFallback: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: theme.borderRadius['2xl'],
-    borderBottomRightRadius: theme.borderRadius['2xl'],
-    borderWidth: 0,
-    borderColor: 'transparent',
-  },
+  ...createLiquidGlassHeaderStyles(theme),
   headerSection: {
     alignItems: 'center',
     marginBottom: theme.spacing['5'],

@@ -13,7 +13,7 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {setSelectedCompanion} from '@/features/companion';
 import {searchDocuments, clearSearchResults} from '@/features/documents/documentSlice';
-import {createScreenContainerStyles, createErrorContainerStyles} from '@/shared/utils/screenStyles';
+import {createScreenContainerStyles, createErrorContainerStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -174,37 +174,10 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createScreenContainerStyles(theme),
     ...createErrorContainerStyles(theme),
+    ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['6'],
-    },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      gap: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
     },
     searchBar: {
       marginBottom: theme.spacing['2'],

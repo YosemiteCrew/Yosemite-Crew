@@ -1,4 +1,5 @@
 import {StyleSheet} from 'react-native';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 export const createLegalStyles = (theme: any) =>
   StyleSheet.create({
@@ -14,33 +15,7 @@ export const createLegalStyles = (theme: any) =>
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['4'],
     },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
+    ...createLiquidGlassHeaderStyles(theme),
     withdrawalCardFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,

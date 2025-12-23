@@ -20,8 +20,10 @@ import type {AppDispatch} from '@/app/store';
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
+import {createGlassCardStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {Separator, RowButton} from '@/shared/components/common/FormRowComponents';
 
 import {
@@ -338,22 +340,15 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header title="Parent" showBackButton onBack={goBack} glass={false} />
-        </LiquidGlassCard>
-      </View>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header title="Parent" showBackButton onBack={goBack} glass={false} />
+      </LiquidGlassHeader>
 
       <ScrollView
         contentContainerStyle={[
@@ -577,50 +572,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
-    glassShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
-    },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing['2'],
-      overflow: 'hidden',
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
+    ...createLiquidGlassHeaderStyles(theme),
+    ...createGlassCardStyles(theme),
     readOnlyEmailRow: {
       flexDirection: 'row',
       alignItems: 'center',

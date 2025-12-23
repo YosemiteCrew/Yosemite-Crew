@@ -18,6 +18,7 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {useTheme} from '@/hooks';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
 import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
@@ -95,7 +96,7 @@ const FAQCard: React.FC<{
               interactive
               borderRadius="xl"
               forceBorder
-              tintColor={theme.colors.background}
+              tintColor={theme.colors.white}
               borderColor={theme.colors.secondary}
               style={styles.glassButtonLight}
               textStyle={styles.glassButtonLightText}
@@ -232,8 +233,6 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
             title="FAQs"
             showBackButton
             onBack={() => navigation.goBack()}
-            rightIcon={Images.accountMailIcon}
-            onRightPress={() => navigation.navigate('ContactUs')}
             glass={false}
           />
           <SearchBar
@@ -320,34 +319,7 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['8'],
       gap: theme.spacing['4'],
     },
-    topSection: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 2,
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: theme.spacing['3'],
-      gap: theme.spacing['3'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
+    ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
     searchContainer: {
       marginHorizontal: theme.spacing['6'],
     },
