@@ -10,6 +10,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DeviceEventEmitter} from 'react-native';
 import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
 
+jest.mock('@/context/GlobalLoaderContext', () => {
+  const ReactLib = require('react');
+  return {
+    useGlobalLoader: () => ({
+      showLoader: jest.fn(),
+      hideLoader: jest.fn(),
+      isLoading: false,
+    }),
+    GlobalLoaderProvider: ({children}: any) => <>{children}</>,
+  };
+});
+
 // Mock EmergencyBottomSheet to avoid native/complex dependencies during integration test
 jest.mock('@/features/home/components/EmergencyBottomSheet', () => {
   const ReactModule = require('react');

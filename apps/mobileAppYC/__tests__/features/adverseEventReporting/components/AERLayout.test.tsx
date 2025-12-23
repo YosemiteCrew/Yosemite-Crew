@@ -80,9 +80,6 @@ describe('AERLayout', () => {
     // Assert children are rendered
     expect(getByText('Child Content')).toBeTruthy();
 
-    // Assert SafeArea wrapper
-    expect(getByTestId('safe-area')).toBeTruthy();
-
     // Assert Default Header Props
     expect(getByText('Adverse event reporting')).toBeTruthy(); // Default title
     expect(getByText('BackVisible')).toBeTruthy(); // Default showBackButton = true

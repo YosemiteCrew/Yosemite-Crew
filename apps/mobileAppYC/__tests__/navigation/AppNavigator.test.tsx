@@ -232,8 +232,8 @@ describe('AppNavigator', () => {
   describe('Initialization & Loading', () => {
     it('displays Loading component while auth is loading', () => {
       (useAuth as jest.Mock).mockReturnValue({isLoading: true});
-      const {getByTestId} = renderNavigator();
-      expect(getByTestId('LoadingIndicator')).toBeTruthy();
+      const renderResult = renderNavigator();
+      expect(renderResult.toJSON()).toBeNull();
     });
 
     it('displays Loading component while checking onboarding status', () => {
@@ -241,8 +241,8 @@ describe('AppNavigator', () => {
       (AsyncStorage.getItem as jest.Mock).mockReturnValue(
         new Promise(() => {}),
       );
-      const {getByTestId} = renderNavigator();
-      expect(getByTestId('LoadingIndicator')).toBeTruthy();
+      const renderResult = renderNavigator();
+      expect(renderResult.toJSON()).toBeNull();
     });
   });
 

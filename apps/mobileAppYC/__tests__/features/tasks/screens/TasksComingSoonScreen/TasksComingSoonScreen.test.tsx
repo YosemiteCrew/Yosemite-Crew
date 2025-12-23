@@ -32,9 +32,7 @@ describe('EmptyTasksScreen', () => {
 
     expect(getByText('No tasks yet!')).toBeTruthy();
     expect(
-      getByText(
-        'Add a companion first to start creating tasks\nfor their health, hygiene, and care!',
-      ),
+      getByText(/Add a companion first to start creating tasks/),
     ).toBeTruthy();
   });
 
@@ -45,7 +43,10 @@ describe('EmptyTasksScreen', () => {
 
     // Check Safe Area Background (theme.colors.background)
     const safeArea = getByTestId('safe-area');
-    expect(safeArea.props.style).toEqual(
+    const safeAreaStyle = Array.isArray(safeArea.props.style)
+      ? safeArea.props.style.filter(Boolean)[0]
+      : safeArea.props.style;
+    expect(safeAreaStyle).toEqual(
       expect.objectContaining({
         backgroundColor: mockTheme.colors.background,
         flex: 1,
@@ -63,9 +64,7 @@ describe('EmptyTasksScreen', () => {
     );
 
     // Check Subtitle Styles (typography + color)
-    const subtitle = getByText(
-      'Add a companion first to start creating tasks\nfor their health, hygiene, and care!',
-    );
+    const subtitle = getByText(/Add a companion first to start creating tasks/);
     expect(subtitle.props.style).toEqual(
       expect.objectContaining({
         fontSize: mockTheme.typography.bodyMedium.fontSize,

@@ -115,6 +115,12 @@ jest.mock('@/features/auth', () => ({
   authReducer: jest.fn(),
 }));
 
+jest.mock('@/features/auth/sessionManager', () => ({
+  __esModule: true,
+  getFreshStoredTokens: jest.fn(() => new Promise(() => {})),
+  isTokenExpired: jest.fn(() => true),
+}));
+
 // --- Component Mocks ---
 
 jest.mock('@/shared/components/common/Header/Header', () => {
@@ -404,7 +410,7 @@ describe('EditParentScreen', () => {
   describe('Main Functionality', () => {
     it('navigates back when header back button is pressed and canGoBack is true', () => {
       mockCanGoBack.mockReturnValue(true);
-      const {getByTestId} = renderComponent();
+      const {getByTestId, getByText} = renderComponent();
       fireEvent.press(getByTestId('mock-header'));
       expect(mockCanGoBack).toHaveBeenCalled();
       expect(mockGoBack).toHaveBeenCalledTimes(1);
@@ -412,14 +418,14 @@ describe('EditParentScreen', () => {
 
     it('does not navigate back when header back button is pressed and canGoBack is false', () => {
       mockCanGoBack.mockReturnValue(false);
-      const {getByTestId} = renderComponent();
+      const {getByTestId, getByText} = renderComponent();
       fireEvent.press(getByTestId('mock-header'));
       expect(mockCanGoBack).toHaveBeenCalled();
       expect(mockGoBack).not.toHaveBeenCalled();
     });
 
     it('renders all user data correctly', () => {
-      const {getByTestId} = renderComponent();
+      const {getByTestId, getByText} = renderComponent();
 
       expect(getByTestId('mock-inline-edit-First name').props.value).toBe(
         'Test',
@@ -428,9 +434,8 @@ describe('EditParentScreen', () => {
         'User',
       );
       expect(getByTestId('mock-row-Phone').props.value).toBe('+1 8005551212');
-      expect(getByTestId('mock-row-Email').props.value).toBe(
-        'test@example.com',
-      );
+      expect(getByText('Email')).toBeTruthy();
+      expect(getByText('test@example.com')).toBeTruthy();
       expect(getByTestId('mock-row-Date of birth').props.value).toBe(
         new Date(mockUser.dateOfBirth!).toLocaleDateString('en-US'),
       );
