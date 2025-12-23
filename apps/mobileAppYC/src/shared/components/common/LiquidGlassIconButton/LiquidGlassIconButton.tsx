@@ -70,12 +70,12 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
     [size, shadow, theme.colors.black, theme.colors.neutralShadow, theme.shadows],
   );
 
-  const pressableStyle = React.useMemo(
+  const pressableStyle = React.useMemo<ViewStyle>(
     () => ({
       width: '100%',
       height: '100%',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
+      alignItems: 'center',
+      justifyContent: 'center',
     }),
     [],
   );

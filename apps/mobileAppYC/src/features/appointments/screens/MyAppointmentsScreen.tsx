@@ -4,14 +4,11 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   Image,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -63,7 +60,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   const upcoming = useSelector((state: RootState) => upcomingSelector(state, selectedCompanionId ?? null));
   const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
-  const [filter, setFilter] = React.useState<BusinessFilter>('all');
+  const [filter] = React.useState<BusinessFilter>('all');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
@@ -501,21 +498,6 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
 
-  const renderHeader = () => (
-    <View style={styles.listHeader}>
-      <CompanionSelector
-        companions={companions}
-        selectedCompanionId={selectedCompanionId}
-        onSelect={id => dispatch(setSelectedCompanion(id))}
-        showAddButton={false}
-        containerStyle={styles.companionSelector}
-        requiredPermission="appointments"
-        permissionLabel="appointments"
-      />
-
-      <SectionListHorizontalPills filter={filter} setFilter={setFilter} />
-    </View>
-  );
 
   const handleEndReached = () => {
     // Placeholder for future pagination when backend is available
@@ -671,42 +653,6 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
           </View>
         }
       />
-    </View>
-  );
-};
-
-const SectionListHorizontalPills = ({
-  filter,
-  setFilter,
-}: {
-  filter: BusinessFilter;
-  setFilter: (value: BusinessFilter) => void;
-}) => {
-  const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
-
-  const filterOptions: Array<{id: BusinessFilter; label: string}> = [
-    {id: 'all', label: 'All'},
-    {id: 'hospital', label: 'Hospital'},
-    {id: 'groomer', label: 'Groomer'},
-    {id: 'breeder', label: 'Breeder'},
-    {id: 'boarder', label: 'Boarder'},
-  ];
-
-  return (
-    <View style={styles.pillContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsContent}>
-        {filterOptions.map(option => (
-          <TouchableOpacity
-            key={option.id}
-            onPress={() => setFilter(option.id)}
-            activeOpacity={0.8}
-            style={[styles.pill, filter === option.id && styles.pillActive]}
-          >
-            <Text style={[styles.pillText, filter === option.id && styles.pillTextActive]}>{option.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
     </View>
   );
 };

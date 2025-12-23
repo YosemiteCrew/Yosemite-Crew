@@ -62,7 +62,6 @@ export const ChatScreen: React.FC = () => {
             value={text}
             onChangeText={setText}
             returnKeyType="done"
-            blurOnSubmit
             onSubmitEditing={() => Keyboard.dismiss()}
           />
           <TouchableOpacity style={styles.send} onPress={send}><Text style={styles.sendText}>→</Text></TouchableOpacity>

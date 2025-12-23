@@ -442,92 +442,54 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [initialLoadStarted, user?.id]);
 
-  const isHomeDataReady = React.useMemo(() => {
-    if (!initialLoadStarted) {
-      return false;
-    }
-
-    if (user?.parentId && !initialRequests.companions) {
-      return false;
-    }
-
-    if (user && !hasNotificationsHydrated && !initialRequests.notifications) {
-      return false;
-    }
-
-    if (authUser?.parentId && companions.length > 0 && !initialRequests.access) {
-      return false;
-    }
-
-    if (targetCompanionId && !initialRequests.appointments) {
-      return false;
-    }
-
-    if (
-      selectedCompanionIdRedux &&
-      !hasExpenseHydrated &&
-      !initialRequests.expenses
-    ) {
-      return false;
-    }
-
-    if (selectedCompanionIdRedux && !initialRequests.linkedBusinesses) {
-      return false;
-    }
-
-    if (initialRequests.companions && companionLoading) {
-      return false;
-    }
-
-    if (initialRequests.access && accessLoading) {
-      return false;
-    }
-
-    if (initialRequests.notifications) {
-      if (notificationsLoading || !hasNotificationsHydrated) {
-        return false;
-      }
-    }
-
-    if (initialRequests.appointments) {
-      if (appointmentsLoading || !hasAppointmentsHydrated) {
-        return false;
-      }
-    }
-
-    if (initialRequests.expenses) {
-      if (expensesLoading || !hasExpenseHydrated) {
-        return false;
-      }
-    }
-
-    if (initialRequests.linkedBusinesses && linkedBusinessesLoading) {
-      return false;
-    }
-
-    if (companions.length > 0 && !targetCompanionId) {
-      return false;
-    }
-
+  const areRequiredRequestsStarted = React.useMemo(() => {
+    if (!initialLoadStarted) return false;
+    if (user?.parentId && !initialRequests.companions) return false;
+    if (user && !hasNotificationsHydrated && !initialRequests.notifications) return false;
+    if (authUser?.parentId && companions.length > 0 && !initialRequests.access) return false;
+    if (targetCompanionId && !initialRequests.appointments) return false;
+    if (selectedCompanionIdRedux && !hasExpenseHydrated && !initialRequests.expenses) return false;
+    if (selectedCompanionIdRedux && !initialRequests.linkedBusinesses) return false;
     return true;
   }, [
-    accessLoading,
-    appointmentsLoading,
-    companionLoading,
-    companions.length,
-    expensesLoading,
-    authUser?.parentId,
-    hasAppointmentsHydrated,
-    hasExpenseHydrated,
-    hasNotificationsHydrated,
     initialLoadStarted,
-    initialRequests,
-    linkedBusinessesLoading,
-    notificationsLoading,
-    selectedCompanionIdRedux,
-    targetCompanionId,
     user,
+    initialRequests,
+    hasNotificationsHydrated,
+    authUser?.parentId,
+    companions.length,
+    targetCompanionId,
+    selectedCompanionIdRedux,
+    hasExpenseHydrated,
   ]);
+
+  const areRequestsComplete = React.useMemo(() => {
+    if (initialRequests.companions && companionLoading) return false;
+    if (initialRequests.access && accessLoading) return false;
+    if (initialRequests.notifications && (notificationsLoading || !hasNotificationsHydrated)) return false;
+    if (initialRequests.appointments && (appointmentsLoading || !hasAppointmentsHydrated)) return false;
+    if (initialRequests.expenses && (expensesLoading || !hasExpenseHydrated)) return false;
+    if (initialRequests.linkedBusinesses && linkedBusinessesLoading) return false;
+    return true;
+  }, [
+    initialRequests,
+    companionLoading,
+    accessLoading,
+    notificationsLoading,
+    hasNotificationsHydrated,
+    appointmentsLoading,
+    hasAppointmentsHydrated,
+    expensesLoading,
+    hasExpenseHydrated,
+    linkedBusinessesLoading,
+  ]);
+
+  const isHomeDataReady = React.useMemo(() => {
+    if (!areRequiredRequestsStarted) return false;
+    if (!areRequestsComplete) return false;
+    if (companions.length > 0 && !targetCompanionId) return false;
+    return true;
+  }, [areRequiredRequestsStarted, areRequestsComplete, companions.length, targetCompanionId]);
 
   React.useEffect(() => {
     if (initialLoadComplete) {

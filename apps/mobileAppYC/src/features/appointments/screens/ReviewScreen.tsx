@@ -171,7 +171,6 @@ export const ReviewScreen: React.FC = () => {
               style={styles.input}
               textAlignVertical="top"
               returnKeyType="done"
-              blurOnSubmit
               onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>

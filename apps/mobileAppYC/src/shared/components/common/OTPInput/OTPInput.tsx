@@ -136,7 +136,6 @@ export const OTPInput: React.FC<OTPInputProps> = ({
             autoCorrect={false}
             textContentType="oneTimeCode"
             returnKeyType="done"
-            blurOnSubmit
           />
           );
         })}

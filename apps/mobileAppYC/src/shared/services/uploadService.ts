@@ -196,7 +196,7 @@ export const uploadFileToPresignedUrl = async ({
 
     if (!base64Content || base64Content.trim().length === 0) {
       throw new Error(
-        `File is empty or unreadable. Path: ${pathForRead}. Size reported: ${size} bytes`,
+        `File is empty or unreadable. Path: ${pathForRead}. Size reported: ${sizeHint ?? 'unknown'} bytes`,
       );
     }
 
@@ -211,7 +211,7 @@ export const uploadFileToPresignedUrl = async ({
 
     if (actualSize === 0) {
       throw new Error(
-        `File content is empty after reading. Path: ${pathForRead}. Size reported: ${size} bytes`,
+        `File content is empty after reading. Path: ${pathForRead}. Size reported: ${sizeHint ?? 'unknown'} bytes`,
       );
     }
 

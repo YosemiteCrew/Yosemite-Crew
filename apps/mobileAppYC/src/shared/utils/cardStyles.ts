@@ -48,7 +48,7 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
       borderColor: colors.borderMuted ?? '#EAEAEA',
       overflow: 'hidden' as const,
       backgroundColor: colors.cardBackground ?? '#FFFFFF',
-      ...(shadows.md || {}),
+      ...(shadows.md || undefined),
       shadowColor: colors.neutralShadow ?? 'rgba(71, 56, 39, 0.15)',
       padding: finalConfig.padding,
     },

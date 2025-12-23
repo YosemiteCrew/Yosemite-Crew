@@ -463,12 +463,12 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     [isDark, theme.colors, resolvedTintColor, useNativeGlass],
   );
 
-  const customContentWrapperStyle = React.useMemo(
+  const customContentWrapperStyle = React.useMemo<ViewStyle>(
     () => ({
       width: '100%',
       height: '100%',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
+      alignItems: 'center',
+      justifyContent: 'center',
     }),
     [],
   );

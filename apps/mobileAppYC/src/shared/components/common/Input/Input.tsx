@@ -165,10 +165,7 @@ export const Input: React.FC<InputProps> = ({
     (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
   const labelLineHeight =
     theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize;
-  const floatingTop =
-    (Platform.OS === 'ios'
-      ? -Math.round(labelLineHeight / 2) - 2
-      : -Math.round(labelLineHeight / 2) - 2);
+  const floatingTop = -Math.round(labelLineHeight / 2) - 2;
 
   const getFloatingLabelStyle = () => {
     const baseStyle = {
@@ -255,10 +252,9 @@ export const Input: React.FC<InputProps> = ({
           clearButtonMode="while-editing"
           enablesReturnKeyAutomatically={true}
           returnKeyType={textInputProps.returnKeyType ?? 'done'}
-          blurOnSubmit={textInputProps.blurOnSubmit ?? !isMultiline}
           onSubmitEditing={(event) => {
             textInputProps.onSubmitEditing?.(event);
-            if (!isMultiline && textInputProps.blurOnSubmit !== false) {
+            if (!isMultiline) {
               Keyboard.dismiss();
             }
           }}
