@@ -1,4 +1,4 @@
-import { getData, patchData, postData, putData } from "@/app/services/axios";
+import { deleteData, getData, patchData, postData, putData } from "@/app/services/axios";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 import { useOrgStore } from "../stores/orgStore";
 import {
@@ -195,6 +195,24 @@ export const updateService = async (payload: Service) => {
     updateService(normalService);
   } catch (err) {
     console.error("Failed to create service:", err);
+    throw err;
+  }
+};
+
+export const deleteSpeciality = async (speciality: Speciality) => {
+  const { deleteSpecialityById } = useSpecialityStore.getState();
+  const { deleteServicesBySpecialityId } = useServiceStore.getState();
+  try {
+    const id = speciality._id;
+    const orgId = speciality.organisationId;
+    if (!id || !orgId) {
+      throw new Error("Speciality ID or Organisation ID is missing.");
+    }
+    await deleteData("/fhir/v1/speciality/" + orgId + "/" + id);
+    deleteSpecialityById(id);
+    deleteServicesBySpecialityId(id);
+  } catch (err) {
+    console.error("Failed to delete speciality:", err);
     throw err;
   }
 };

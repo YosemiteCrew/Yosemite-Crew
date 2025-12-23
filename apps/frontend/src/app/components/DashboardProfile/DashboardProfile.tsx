@@ -45,35 +45,35 @@ const DashboardProfile = () => {
       </div>
       <div className="dashboard-status">
         {primaryOrg.isVerified ? (
-          <div className="flex flex-col gap-3 w-full border border-grey-light px-4 py-3 rounded-2xl">
+          <div className="flex flex-col gap-3 w-full border border-grey-light px-3 sm:px-4 py-2 sm:py-3 rounded-2xl">
             <div className="dashboard-status">
-              <div className="font-grotesk font-medium text-black-text text-[23px]">
-                Setup stripe payment
+              <div className="font-grotesk font-medium text-black-text text-[19px] sm:text-[23px]">
+                Setup stripe
               </div>
               <Secondary
                 text="Setup stripe"
                 href={"/stripe-onboarding?orgId=" + primaryOrg._id}
-                className="w-[200px]!"
+                className="w-[140px]! text-[16px]! sm:text-[19px]! sm:w-[200px]!"
               />
             </div>
             <div className="dashboard-status">
-              <div className="font-grotesk font-medium text-black-text text-[23px]">
-                Add specialities & services
+              <div className="font-grotesk font-medium text-black-text text-[19px] sm:text-[23px]">
+                Add services
               </div>
               <Secondary
                 text="Add services"
                 href="/organization"
-                className="w-[200px]!"
+                className="w-[140px]! text-[16px]! sm:text-[19px]! sm:w-[200px]!"
               />
             </div>
             <div className="dashboard-status">
-              <div className="font-grotesk font-medium text-black-text text-[23px]">
-                Invite team members
+              <div className="font-grotesk font-medium text-black-text text-[19px] sm:text-[23px]">
+                Invite team
               </div>
               <Secondary
                 text="Invite team"
                 href="/organization"
-                className="w-[200px]!"
+                className="w-[140px]! text-[16px]! sm:text-[19px]! sm:w-[200px]!"
               />
             </div>
           </div>

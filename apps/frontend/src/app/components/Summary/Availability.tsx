@@ -52,7 +52,7 @@ const Availability = () => {
       <div className="summary-title">
         Availability&nbsp;<span>({teams.length})</span>
       </div>
-      <div className="summary-labels-left">
+      <div className="summary-labels-left flex-wrap">
         {AvailabilityLabels?.map((label, i) => (
           <button
             className={`summary-label-right hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${label.value === selectedLabel ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}

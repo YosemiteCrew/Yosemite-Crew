@@ -6,13 +6,16 @@ import ServiceSearchEdit from "@/app/components/Inputs/ServiceSearch/ServiceSear
 import Modal from "@/app/components/Modal";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import {
+  deleteSpeciality,
   updateService,
   updateSpeciality,
 } from "@/app/services/specialityService";
 import { SpecialityWeb } from "@/app/types/speciality";
 import { Service, Speciality } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
+import { MdDeleteForever } from "react-icons/md";
 import { IoIosCloseCircleOutline } from "react-icons/io";
+import { deleteService } from "@/app/services/serviceService";
 
 type SpecialityInfoProps = {
   showModal: boolean;
@@ -71,10 +74,24 @@ const SpecialityInfo = ({
   const basicInfoData = useMemo(
     () => ({
       name: activeSpeciality?.name ?? "",
-      headName: activeSpeciality?.headUserId ?? ""
+      headName: activeSpeciality?.headUserId ?? "",
     }),
     [activeSpeciality]
   );
+
+  const handleDelete = async () => {
+    try {
+      const payload: Speciality = {
+        name: activeSpeciality.name,
+        _id: activeSpeciality._id,
+        organisationId: activeSpeciality.organisationId,
+      };
+      await deleteSpeciality(payload);
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -98,8 +115,16 @@ const SpecialityInfo = ({
 
         <div className="flex flex-col gap-6 flex-1 overflow-y-auto">
           <div className={`px-3! py-2! flex items-center gap-2`}>
-            <div className="font-satoshi font-semibold text-black-text text-[23px] overflow-scroll scrollbar-hidden">
-              {activeSpeciality.name || "-"}
+            <div className="flex items-center justify-between w-full">
+              <div className="font-satoshi font-semibold text-black-text text-[23px] overflow-scroll scrollbar-hidden">
+                {activeSpeciality.name || "-"}
+              </div>
+              <MdDeleteForever
+                className="cursor-pointer"
+                onClick={handleDelete}
+                size={26}
+                color="#EA3729"
+              />
             </div>
           </div>
 
@@ -110,7 +135,7 @@ const SpecialityInfo = ({
             data={basicInfoData}
             defaultOpen={true}
             onSave={async (values) => {
-              const team = TeamOptions.find((t) => t.value === values.headName)
+              const team = TeamOptions.find((t) => t.value === values.headName);
               const payload: Speciality = {
                 ...activeSpeciality,
                 name: values.name ?? activeSpeciality.name,
@@ -138,6 +163,10 @@ const SpecialityInfo = ({
                   fields={ServiceFields}
                   data={service}
                   defaultOpen={false}
+                  showDeleteIcon={true}
+                  onDelete={() => {
+                    deleteService(service);
+                  }}
                   onSave={async (values) => {
                     const payload: Service = {
                       ...service,

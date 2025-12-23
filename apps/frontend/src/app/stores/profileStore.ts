@@ -105,7 +105,7 @@ export const useUserProfileStore = create<UserProfileState>()((set, get) => ({
 
   clearProfiles: () =>
     set(() => ({
-      profilesById: {},
+      profilesByOrgId: {},
       status: "idle",
       error: null,
     })),

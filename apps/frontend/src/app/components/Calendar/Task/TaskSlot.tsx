@@ -32,7 +32,7 @@ const TaskSlot = ({ slotEvents, handleViewTask, dayIndex }: TaskSlotProps) => {
           ))}
         </div>
       ) : (
-        <div className="w-full flex items-center rounded-2xl justify-center text-[15px] font-satoshi border border-grey-light my-2 text-grey-noti font-medium h-[200px]">
+        <div className="w-full flex items-center rounded-2xl justify-center text-[15px] font-satoshi border border-grey-light my-2 text-grey-noti font-medium h-[300px]">
           No tasks available
         </div>
       )}
