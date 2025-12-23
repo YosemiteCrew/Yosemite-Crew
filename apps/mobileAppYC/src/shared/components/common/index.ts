@@ -9,6 +9,7 @@ export { Header } from './Header/Header';
 export { SafeArea } from './SafeArea/SafeArea';
 export { SearchBar } from './SearchBar/SearchBar';
 export { YearlySpendCard } from './YearlySpendCard/YearlySpendCard';
+export { BottomFadeOverlay } from './BottomFadeOverlay/BottomFadeOverlay';
 export { TileSelector } from './TileSelector/TileSelector';
 export { BreedBottomSheet } from './BreedBottomSheet/BreedBottomSheet';
 export { BloodGroupBottomSheet } from './BloodGroupBottomSheet/BloodGroupBottomSheet';

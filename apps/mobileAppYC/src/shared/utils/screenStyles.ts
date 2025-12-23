@@ -50,10 +50,11 @@ export const createEmptyStateStyles = (theme: any) => ({
  */
 export const createSearchAndSelectorStyles = (theme: any) => ({
   searchBar: {
-    marginTop: theme.spacing['4'],
     marginBottom: theme.spacing['2'],
+    marginInline: theme.spacing['6'],
   },
   companionSelector: {
+    marginTop: theme.spacing['2'],
     marginBottom: theme.spacing['4'],
   },
 });

@@ -7,11 +7,11 @@ import type {DeleteDocumentBottomSheetRef} from '@/shared/components/common/Dele
 import {useBottomSheetBackHandler} from './useBottomSheetBackHandler';
 
 export interface FormBottomSheetRefs {
-  categorySheetRef: React.RefObject<CategoryBottomSheetRef>;
-  subcategorySheetRef: React.RefObject<SubcategoryBottomSheetRef>;
-  visitTypeSheetRef: React.RefObject<VisitTypeBottomSheetRef>;
-  uploadSheetRef: React.RefObject<UploadDocumentBottomSheetRef>;
-  deleteSheetRef: React.RefObject<DeleteDocumentBottomSheetRef>;
+  categorySheetRef: React.RefObject<CategoryBottomSheetRef | null>;
+  subcategorySheetRef: React.RefObject<SubcategoryBottomSheetRef | null>;
+  visitTypeSheetRef: React.RefObject<VisitTypeBottomSheetRef | null>;
+  uploadSheetRef: React.RefObject<UploadDocumentBottomSheetRef | null>;
+  deleteSheetRef: React.RefObject<DeleteDocumentBottomSheetRef | null>;
 }
 
 export const useFormBottomSheets = () => {

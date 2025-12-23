@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import type {ViewStyle} from 'react-native';
 import {SafeAreaView, type Edge} from 'react-native-safe-area-context';
 import {useTheme} from '@/hooks';
@@ -14,6 +14,10 @@ type LiquidGlassHeaderScreenProps = {
   edges?: ReadonlyArray<Edge>;
   mode?: 'padding' | 'margin';
   useSafeAreaView?: boolean;
+  showBottomFade?: boolean;
+  bottomFadeHeight?: number;
+  bottomFadeIntensity?: 'light' | 'medium' | 'strong';
+  bottomFadeOffset?: number;
 };
 
 export const LiquidGlassHeaderScreen: React.FC<LiquidGlassHeaderScreenProps> = ({
@@ -22,25 +26,36 @@ export const LiquidGlassHeaderScreen: React.FC<LiquidGlassHeaderScreenProps> = (
   contentPadding,
   cardGap,
   containerStyle,
-  edges,
+  edges = ['top'],
   mode,
   useSafeAreaView = false,
+  showBottomFade = true,
+  bottomFadeHeight = 80,
+  bottomFadeIntensity = 'medium',
+  bottomFadeOffset = 0,
 }) => {
   const {theme} = useTheme();
+  const safeAreaViewStyle = useMemo(
+    () => [{flex: 1, backgroundColor: theme.colors.background}, containerStyle],
+    [theme.colors.background, containerStyle],
+  );
+
   const content = (
     <LiquidGlassHeaderShell
       header={header}
       contentPadding={contentPadding}
-      cardGap={cardGap}>
+      cardGap={cardGap}
+      showBottomFade={showBottomFade}
+      bottomFadeHeight={bottomFadeHeight}
+      bottomFadeIntensity={bottomFadeIntensity}
+      bottomFadeOffset={bottomFadeOffset}>
       {children}
     </LiquidGlassHeaderShell>
   );
 
   if (useSafeAreaView) {
     return (
-      <SafeAreaView
-        style={[{flex: 1, backgroundColor: theme.colors.background}, containerStyle]}
-        edges={edges}>
+      <SafeAreaView style={safeAreaViewStyle} edges={edges}>
         {content}
       </SafeAreaView>
     );

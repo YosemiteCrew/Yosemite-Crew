@@ -340,7 +340,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   return (
     <>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}

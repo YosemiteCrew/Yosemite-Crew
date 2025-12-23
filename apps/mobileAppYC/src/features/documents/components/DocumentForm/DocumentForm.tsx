@@ -366,7 +366,7 @@ export const DocumentFormSheets: React.FC<{
 }> = ({
   formData,
   onFormChange,
-  onErrorClear,
+  onErrorClear: _onErrorClear,
   fileOperations,
   formSheetRefs,
   closeSheet,

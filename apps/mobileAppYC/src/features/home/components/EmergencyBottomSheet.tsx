@@ -156,7 +156,7 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
     return (
       <CustomBottomSheet
         ref={bottomSheetRef}
-        snapPoints={['75%','85%']}
+        snapPoints={['80%','85%']}
         initialIndex={-1}
         onChange={index => {
           setIsSheetVisible(index !== -1);

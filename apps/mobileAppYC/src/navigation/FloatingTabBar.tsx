@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Images} from '@/assets/images';
 
 const ICON_MAP: Record<
@@ -40,7 +39,6 @@ const TAB_BAR_GLASS_TINT = 'rgba(255, 255, 255, 0.7)';
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
-  const insets = useSafeAreaInsets();
   const useGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
@@ -143,11 +141,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const ContainerComponent = useGlass ? LiquidGlassView : View;
 
   return (
-    <View
-      style={[
-        styles.wrapper,
-        {paddingBottom: Math.max(insets.bottom, 12)},
-      ]}>
+    <View style={styles.wrapper}>
       <ContainerComponent
         style={[styles.bar, useGlass && styles.barGlass]}
         {...(useGlass
@@ -169,7 +163,7 @@ const createStyles = (theme: any) =>
       position: 'absolute',
       left: 24,
       right: 24,
-      bottom: 16,
+      bottom: 45,
       zIndex: 10,
       ...theme.shadows.floatingMd,
     },

@@ -1,6 +1,7 @@
 import React from 'react';
 import type {ViewStyle} from 'react-native';
 import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {BottomFadeOverlay} from '@/shared/components/common/BottomFadeOverlay/BottomFadeOverlay';
 import {useLiquidGlassHeaderLayout} from '@/shared/hooks/useLiquidGlassHeaderLayout';
 
 type LiquidGlassHeaderShellProps = {
@@ -8,6 +9,10 @@ type LiquidGlassHeaderShellProps = {
   children: (contentPaddingStyle: ViewStyle | null) => React.ReactNode;
   contentPadding?: number;
   cardGap?: number;
+  showBottomFade?: boolean;
+  bottomFadeHeight?: number;
+  bottomFadeIntensity?: 'light' | 'medium' | 'strong';
+  bottomFadeOffset?: number;
 };
 
 export const LiquidGlassHeaderShell: React.FC<LiquidGlassHeaderShellProps> = ({
@@ -15,6 +20,10 @@ export const LiquidGlassHeaderShell: React.FC<LiquidGlassHeaderShellProps> = ({
   children,
   contentPadding,
   cardGap,
+  showBottomFade = true,
+  bottomFadeHeight = 80,
+  bottomFadeIntensity = 'medium',
+  bottomFadeOffset = 0,
 }) => {
   const {headerProps, contentPaddingStyle} = useLiquidGlassHeaderLayout({
     contentPadding,
@@ -25,6 +34,13 @@ export const LiquidGlassHeaderShell: React.FC<LiquidGlassHeaderShellProps> = ({
     <>
       <LiquidGlassHeader {...headerProps}>{header}</LiquidGlassHeader>
       {children(contentPaddingStyle)}
+      {showBottomFade && (
+        <BottomFadeOverlay
+          height={bottomFadeHeight}
+          intensity={bottomFadeIntensity}
+          bottomOffset={bottomFadeOffset}
+        />
+      )}
     </>
   );
 };

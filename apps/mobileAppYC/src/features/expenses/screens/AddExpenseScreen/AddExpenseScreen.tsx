@@ -1,7 +1,6 @@
 import React from 'react';
 import {CommonActions} from '@react-navigation/native';
 import {Alert} from 'react-native';
-import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
@@ -14,11 +13,8 @@ import {useExpenseForm, DEFAULT_FORM} from '@/features/expenses/hooks/useExpense
 import type {RootState} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {addExternalExpense} from '@/features/expenses';
-import type {ExpenseStackParamList} from '@/navigation/types';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
-
-type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'AddExpense'>;
 
 export const AddExpenseScreen: React.FC = () => {
   const {
@@ -50,7 +46,7 @@ export const AddExpenseScreen: React.FC = () => {
   };
 
   const fileOps = useFormFileOperations(
-    formData.attachments,
+    formData?.attachments ?? [],
     'attachments' as keyof ExpenseFormData,
     handleChangeWithTracking,
     handleErrorClear,
@@ -104,7 +100,7 @@ export const AddExpenseScreen: React.FC = () => {
               dispatch(setSelectedCompanion(id));
               markAsChanged();
             }}
-            formData={formData!}
+            formData={formData ?? DEFAULT_FORM}
             onFormChange={handleChangeWithTracking}
             errors={errors}
             onErrorClear={handleErrorClear}
@@ -123,7 +119,7 @@ export const AddExpenseScreen: React.FC = () => {
       </LiquidGlassHeaderScreen>
 
       <ExpenseFormSheets
-        formData={formData}
+        formData={formData ?? DEFAULT_FORM}
         onFormChange={handleChangeWithTracking}
         onErrorClear={handleErrorClear}
         fileOperations={fileOps}

@@ -220,7 +220,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <LiquidGlassHeader
           insetsTop={insets.top}
           currentHeight={topGlassHeight}

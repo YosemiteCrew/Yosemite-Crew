@@ -27,7 +27,7 @@ export const LegalScreen: React.FC<LegalScreenProps> = ({
   const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View
         style={[styles.topSection, {paddingTop: insets.top}]}
         onLayout={event => {

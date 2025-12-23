@@ -6,7 +6,6 @@ import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
   DocumentForm,
-  DocumentFormSheets,
   type DocumentFormData,
 } from '@/features/documents/components/DocumentForm/DocumentForm';
 import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
@@ -269,25 +268,9 @@ export const EditDocumentScreen: React.FC = () => {
             openSheet={formSheets.openSheet}
             closeSheet={formSheets.closeSheet}
             fileOperations={fileOps}
-            renderBottomSheets={false}
           />
         )}
       </LiquidGlassHeaderScreen>
-
-      <DocumentFormSheets
-        formData={formData}
-        onFormChange={handleFormChange}
-        onErrorClear={clearError}
-        fileOperations={fileOps}
-        formSheetRefs={formSheets.refs}
-        closeSheet={formSheets.closeSheet}
-        onCategoryChange={value => {
-          handleFormChange('category', value);
-          handleFormChange('subcategory', null);
-          clearError('category');
-          formSheets.closeSheet();
-        }}
-      />
 
       <DeleteDocumentBottomSheet
         ref={deleteDocumentSheetRef}

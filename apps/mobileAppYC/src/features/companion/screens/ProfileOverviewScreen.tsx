@@ -361,7 +361,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (!companion) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header title="Profile" showBackButton onBack={handleBackPress} />
         <View style={styles.centered}>
           {isLoading ? (
@@ -376,7 +376,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}

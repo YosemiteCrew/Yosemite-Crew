@@ -1,7 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Alert, BackHandler} from 'react-native';
 import {useRoute, CommonActions} from '@react-navigation/native';
-import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -28,7 +27,6 @@ import {
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
 
-type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'EditExpense'>;
 type Route = RouteProp<ExpenseStackParamList, 'EditExpense'>;
 
 export const EditExpenseScreen: React.FC = () => {

@@ -94,7 +94,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   // Show empty state when no co-parents
   if (!loading && visibleCoParents.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title="Co-Parents"
           showBackButton
@@ -116,7 +116,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Header
         title="Co-Parents"
         showBackButton

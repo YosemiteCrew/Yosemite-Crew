@@ -215,7 +215,7 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   }, [selectedCategory]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View
         style={[styles.topSection, {paddingTop: insets.top}]}
         onLayout={event => {

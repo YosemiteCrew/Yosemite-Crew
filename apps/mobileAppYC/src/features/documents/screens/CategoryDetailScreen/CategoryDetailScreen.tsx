@@ -4,7 +4,6 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
@@ -24,6 +23,7 @@ import {
 } from '@/shared/utils/screenStyles';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
+import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
@@ -121,22 +121,16 @@ export const CategoryDetailScreen: React.FC = () => {
   return (
     <LiquidGlassHeaderScreen
       header={
-        <>
-          <Header
-            title={category.label}
-            showBackButton={true}
-            onBack={() => navigation.goBack()}
-            rightIcon={Images.addIconDark}
-            onRightPress={handleAddDocument}
-            glass={false}
-          />
-          <SearchBar
-            placeholder="Search through documents"
-            mode="readonly"
-            onPress={() => navigation.navigate('DocumentSearch')}
-            containerStyle={styles.searchBar}
-          />
-        </>
+        <DocumentsListHeader
+          title={category.label}
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+          rightIcon={Images.addIconDark}
+          onRightPress={handleAddDocument}
+          searchPlaceholder="Search through documents"
+          onSearchPress={() => navigation.navigate('DocumentSearch')}
+          searchContainerStyle={styles.searchBar}
+        />
       }
       cardGap={theme.spacing['3']}
       contentPadding={theme.spacing['1']}>
@@ -199,14 +193,6 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['6'],
-    },
-    searchBar: {
-      marginBottom: theme.spacing['2'],
-      marginInline: theme.spacing['6'],
-    },
-    companionSelector: {
-      marginTop: theme.spacing['2'],
-      marginBottom: theme.spacing['4'],
     },
     accordionItem: {
       width: '100%',

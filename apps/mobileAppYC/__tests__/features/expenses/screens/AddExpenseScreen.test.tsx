@@ -89,11 +89,61 @@ jest.mock('@/shared/components/common/Header/Header', () => {
   };
 });
 
+// Mock the new useFormScreen hooks
+const mockFormSheetRefs = {
+  categorySheetRef: {current: {open: jest.fn()}},
+  subcategorySheetRef: {current: {open: jest.fn()}},
+  visitTypeSheetRef: {current: {open: jest.fn()}},
+  uploadSheetRef: {current: {open: jest.fn()}},
+  deleteSheetRef: {current: {open: jest.fn()}},
+};
+
+jest.mock('@/shared/hooks/useFormScreen', () => ({
+  useCompanionFormScreen: jest.fn(() => ({
+    theme: {spacing: {'3': 12}, colors: {}, borderRadius: {}, typography: {}},
+    dispatch: mockAppDispatch,
+    navigation: {goBack: mockGoBack, canGoBack: mockCanGoBack, dispatch: mockNavDispatch},
+    formSheets: {
+      refs: mockFormSheetRefs,
+      openSheet: jest.fn(),
+      closeSheet: jest.fn(),
+    },
+    handleGoBack: jest.fn(() => {
+      if (mockCanGoBack()) {
+        mockGoBack();
+      }
+    }),
+    discardSheetRef: {current: {open: mockDiscardSheetOpen}},
+    markAsChanged: jest.fn(),
+    companions: [{id: 'comp-1', name: 'Fluffy'}],
+    selectedCompanionId: 'comp-1',
+  })),
+  useFormFileOperations: jest.fn(() => ({
+    handleAddFiles: jest.fn(),
+    handleDeleteFile: jest.fn(),
+  })),
+}));
+
 jest.mock('@/features/expenses/components', () => {
   const {View: MockInnerView} = require('react-native');
   return {
     ExpenseForm: (props: any) => (
       <MockInnerView testID="mock-expense-form" {...props} />
+    ),
+    ExpenseFormSheets: (props: any) => (
+      <MockInnerView testID="mock-expense-form-sheets" {...props} />
+    ),
+  };
+});
+
+jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
+  const {View} = require('react-native');
+  return {
+    LiquidGlassHeaderScreen: ({header, children}: any) => (
+      <View testID="liquid-glass-header-screen">
+        {header}
+        {typeof children === 'function' ? children(null) : children}
+      </View>
     ),
   };
 });

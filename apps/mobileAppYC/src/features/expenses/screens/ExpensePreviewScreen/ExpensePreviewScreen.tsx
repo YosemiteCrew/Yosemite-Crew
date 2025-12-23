@@ -342,7 +342,7 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   if (!expense) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView style={styles.root} edges={['top']}>
         <LiquidGlassHeader
           insetsTop={insets.top}
           currentHeight={topGlassHeight}
@@ -391,7 +391,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}

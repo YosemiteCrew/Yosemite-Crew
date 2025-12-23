@@ -2,11 +2,9 @@
 import React, {useState} from 'react';
 import {CommonActions} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
-import type {RootState} from '@/app/store';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
   DocumentForm,
-  DocumentFormSheets,
   type DocumentFormData,
 } from '@/features/documents/components/DocumentForm/DocumentForm';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
@@ -154,25 +152,9 @@ export const AddDocumentScreen: React.FC = () => {
             openSheet={formSheets.openSheet}
             closeSheet={formSheets.closeSheet}
             fileOperations={fileOps}
-            renderBottomSheets={false}
           />
         )}
       </LiquidGlassHeaderScreen>
-
-      <DocumentFormSheets
-        formData={formData}
-        onFormChange={handleFormChange}
-        onErrorClear={clearError}
-        fileOperations={fileOps}
-        formSheetRefs={formSheets.refs}
-        closeSheet={formSheets.closeSheet}
-        onCategoryChange={value => {
-          handleFormChange('category', value);
-          handleFormChange('subcategory', null);
-          clearError('category');
-          formSheets.closeSheet();
-        }}
-      />
 
       <DiscardChangesBottomSheet
         ref={discardSheetRef}

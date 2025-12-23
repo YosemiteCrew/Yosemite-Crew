@@ -109,7 +109,7 @@ export const BusinessDetailsScreen: React.FC = () => {
   }, [business?.distanceMi, distanceUnit]);
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}

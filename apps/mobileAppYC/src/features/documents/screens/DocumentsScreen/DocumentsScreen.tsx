@@ -2,8 +2,6 @@ import React, {useMemo} from 'react';
 import {View, Text, ScrollView, StyleSheet} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {Header} from '@/shared/components/common/Header/Header';
-import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {CategoryTile} from '@/shared/components/common/CategoryTile/CategoryTile';
@@ -17,6 +15,8 @@ import {setSelectedCompanion} from '@/features/companion';
 import {fetchDocuments} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
+import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
+import {createSearchAndSelectorStyles} from '@/shared/utils/screenStyles';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
@@ -93,21 +93,14 @@ export const DocumentsScreen: React.FC = () => {
   return (
     <LiquidGlassHeaderScreen
       header={
-        <>
-          <Header
-            title="Documents"
-            showBackButton={false}
-            onRightPress={handleAddDocument}
-            rightIcon={Images.addIconDark}
-            glass={false}
-          />
-          <SearchBar
-            placeholder="Search through documents"
-            mode="readonly"
-            onPress={() => navigation.navigate('DocumentSearch')}
-            containerStyle={styles.searchBar}
-          />
-        </>
+        <DocumentsListHeader
+          title="Documents"
+          searchPlaceholder="Search through documents"
+          onSearchPress={() => navigation.navigate('DocumentSearch')}
+          rightIcon={Images.addIconDark}
+          onRightPress={handleAddDocument}
+          searchContainerStyle={styles.searchBar}
+        />
       }
       cardGap={theme.spacing['3']}
       contentPadding={theme.spacing['1']}>
@@ -161,6 +154,7 @@ export const DocumentsScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    ...createSearchAndSelectorStyles(theme),
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -168,14 +162,6 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'], // Extra padding for tab bar
-    },
-    searchBar: {
-      marginBottom: theme.spacing['2'],
-      marginInline: theme.spacing['6'],
-    },
-    companionSelector: {
-      marginTop: theme.spacing['2'],
-      marginBottom: theme.spacing['4'],
     },
     section: {
       marginBottom: theme.spacing['4'],

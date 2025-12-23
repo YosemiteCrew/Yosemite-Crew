@@ -1103,7 +1103,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         contentContainerStyle={[
           styles.scrollContent,
           topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['2']} : null,
-          {paddingBottom: theme.spacing['30'] + insets.bottom},
+          {paddingBottom: theme.spacing['30']},
         ]}
         showsVerticalScrollIndicator={false}>
 

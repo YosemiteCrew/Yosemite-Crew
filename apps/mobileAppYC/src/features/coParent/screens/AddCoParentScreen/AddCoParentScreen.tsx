@@ -108,7 +108,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Header title="Add co-parent" showBackButton onBack={handleBack} />
 
       <KeyboardAvoidingView

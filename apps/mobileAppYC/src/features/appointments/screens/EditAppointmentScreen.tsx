@@ -317,10 +317,6 @@ export const EditAppointmentScreen: React.FC = () => {
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
   const businessDisplayName = business?.name ?? apt?.organisationName ?? 'this clinic';
-  const linkStyle = {
-    ...theme.typography.paragraphBold,
-    color: theme.colors.primary,
-  };
 
   useFetchServiceSlots({
     dispatch,
@@ -389,27 +385,30 @@ export const EditAppointmentScreen: React.FC = () => {
     () => buildEmployeeCard(employee, () => navigation.goBack()),
     [employee, navigation],
   );
-  const agreements = useMemo(
-    () =>
-      buildAgreements({
-        businessDisplayName,
-        linkStyle,
-        openBusinessTerms,
-        openBusinessPrivacy,
-        openBusinessCancellation,
-        handleOpenAppTerms,
-        handleOpenAppPrivacy,
-      }),
-    [
+  const agreements = useMemo(() => {
+    const linkStyle = {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.primary,
+    };
+    return buildAgreements({
       businessDisplayName,
-      handleOpenAppPrivacy,
-      handleOpenAppTerms,
       linkStyle,
-      openBusinessCancellation,
-      openBusinessPrivacy,
       openBusinessTerms,
-    ],
-  );
+      openBusinessPrivacy,
+      openBusinessCancellation,
+      handleOpenAppTerms,
+      handleOpenAppPrivacy,
+    });
+  }, [
+    businessDisplayName,
+    handleOpenAppPrivacy,
+    handleOpenAppTerms,
+    openBusinessCancellation,
+    openBusinessPrivacy,
+    openBusinessTerms,
+    theme.typography.paragraphBold,
+    theme.colors.primary,
+  ]);
   const submitLabel = getRescheduleButtonLabel();
   const submitState = getRescheduleButtonState({
     time,
@@ -421,7 +420,7 @@ export const EditAppointmentScreen: React.FC = () => {
 
   return (
     <>
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView style={styles.root} edges={['top']}>
         <LiquidGlassHeaderShell
           header={
             <Header

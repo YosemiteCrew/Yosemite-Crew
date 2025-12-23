@@ -656,7 +656,7 @@ const resolveInvoiceOrganisation = (invoice: Invoice | null) => {
     organisation?.placesId ??
     organisation?.placeId ??
     organisation?.googlePlacesId ??
-    null;
+    undefined;
 
   return {
     invoiceBusinessName: organisation?.name,
@@ -949,12 +949,12 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const businessName = resolveBusinessName({
     invoiceBusinessName,
     businessName: business?.name,
-    appointmentName: apt?.organisationName,
+    appointmentName: apt?.organisationName ?? undefined,
   });
   const businessAddress = resolveBusinessAddress({
     invoiceBusinessAddress,
     businessAddress: business?.address,
-    appointmentAddress: apt?.organisationAddress,
+    appointmentAddress: apt?.organisationAddress ?? undefined,
   });
 
   const {guardianName, guardianInitial, guardianAvatar, guardianEmail} = useGuardianInfo(authUser, invoice);
@@ -1153,7 +1153,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}
