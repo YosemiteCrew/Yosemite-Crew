@@ -8,9 +8,8 @@ import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
-import {useTheme} from '@/hooks';
-import {useSelector, useDispatch} from 'react-redux';
-import type {RootState, AppDispatch} from '@/app/store';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
@@ -23,23 +22,21 @@ import {
   createEmptyStateStyles,
   createSearchAndSelectorStyles,
 } from '@/shared/utils/screenStyles';
-import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
 
 export const CategoryDetailScreen: React.FC = () => {
-  const {theme} = useTheme();
+  const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<CategoryDetailNavigationProp>();
   const route = useRoute<CategoryDetailRouteProp>();
-  const dispatch = useDispatch<AppDispatch>();
 
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
 
-  const companions = useSelector((state: RootState) => state.companion.companions);
-  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
   const documents = useSelector((state: RootState) => state.documents.documents);
 
   // Filter documents by category and companion
@@ -122,77 +119,74 @@ export const CategoryDetailScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <LiquidGlassHeaderShell
-        header={
-          <>
-            <Header
-              title={category.label}
-              showBackButton={true}
-              onBack={() => navigation.goBack()}
-              rightIcon={Images.addIconDark}
-              onRightPress={handleAddDocument}
-              glass={false}
-            />
-            <SearchBar
-              placeholder="Search through documents"
-              mode="readonly"
-              onPress={() => navigation.navigate('DocumentSearch')}
-              containerStyle={styles.searchBar}
-            />
-          </>
-        }
-        cardGap={theme.spacing['3']}
-        contentPadding={theme.spacing['1']}>
-        {contentPaddingStyle => (
-          <ScrollView
-            style={styles.container}
-            contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
-            showsVerticalScrollIndicator={false}>
-            <CompanionSelector
-              companions={companions}
-              selectedCompanionId={selectedCompanionId}
-              onSelect={(id) => dispatch(setSelectedCompanion(id))}
-              showAddButton={false}
-              containerStyle={styles.companionSelector}
-              requiredPermission="documents"
-              permissionLabel="documents"
-            />
+    <LiquidGlassHeaderScreen
+      header={
+        <>
+          <Header
+            title={category.label}
+            showBackButton={true}
+            onBack={() => navigation.goBack()}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAddDocument}
+            glass={false}
+          />
+          <SearchBar
+            placeholder="Search through documents"
+            mode="readonly"
+            onPress={() => navigation.navigate('DocumentSearch')}
+            containerStyle={styles.searchBar}
+          />
+        </>
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onSelect={id => dispatch(setSelectedCompanion(id))}
+            showAddButton={false}
+            containerStyle={styles.companionSelector}
+            requiredPermission="documents"
+            permissionLabel="documents"
+          />
+          {subcategoriesToRender.map(subcategory => {
+            const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
+            const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
+            const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
 
-        {subcategoriesToRender.map(subcategory => {
-          const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
-          const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
-          const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
-
-          return (
-            <SubcategoryAccordion
-              key={subcategory.id}
-              title={subcategory.label}
-              subtitle={`${subcategoryDocs.length} file${subcategorySuffix}`}
-              icon={subcategoryIcon}
-              defaultExpanded={false}
-              containerStyle={styles.accordionItem}>
-              {subcategoryDocs.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No documents found</Text>
-                </View>
-              ) : (
-                subcategoryDocs.map(doc => (
-                  <DocumentListItem
-                    key={doc.id}
-                    document={doc}
-                    onPressView={handleViewDocument}
-                    onPressEdit={handleEditDocument}
-                  />
-                ))
-              )}
-            </SubcategoryAccordion>
-          );
-        })}
-          </ScrollView>
-        )}
-      </LiquidGlassHeaderShell>
-    </SafeArea>
+            return (
+              <SubcategoryAccordion
+                key={subcategory.id}
+                title={subcategory.label}
+                subtitle={`${subcategoryDocs.length} file${subcategorySuffix}`}
+                icon={subcategoryIcon}
+                defaultExpanded={false}
+                containerStyle={styles.accordionItem}>
+                {subcategoryDocs.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No documents found</Text>
+                  </View>
+                ) : (
+                  subcategoryDocs.map(doc => (
+                    <DocumentListItem
+                      key={doc.id}
+                      document={doc}
+                      onPressView={handleViewDocument}
+                      onPressEdit={handleEditDocument}
+                    />
+                  ))
+                )}
+              </SubcategoryAccordion>
+            );
+          })}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 

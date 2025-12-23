@@ -70,19 +70,27 @@ import {
   selectUnreadCount,
 } from '@/features/notifications/selectors';
 import {useGlobalLoader} from '@/context/GlobalLoaderContext';
+import {TaskCard} from '@/features/tasks/components';
+import {
+  fetchTasksForCompanion,
+  selectHasHydratedCompanion as selectTasksHydrated,
+  selectNextUpcomingTask,
+} from '@/features/tasks';
+import type {TaskCategory} from '@/features/tasks/types';
+import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
 const QUICK_ACTIONS: Array<{
-  id: 'health' | 'hygiene' | 'diet';
+  id: TaskCategory;
   label: string;
   icon: ImageSourcePropType;
 }> = [
   {id: 'health', label: 'Manage health', icon: Images.healthIcon},
   {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon},
-  {id: 'diet', label: 'Dietary plans', icon: Images.dietryIcon},
+  {id: 'dietary', label: 'Dietary plans', icon: Images.dietryIcon},
 ];
 
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
@@ -180,6 +188,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       ? Boolean(state.appointments?.hydratedCompanions?.[targetCompanionId])
       : true,
   );
+  const hasTasksHydrated = useSelector(selectTasksHydrated(targetCompanionId));
+  const nextUpcomingTaskSelector = React.useMemo(
+    () => selectNextUpcomingTask(targetCompanionId),
+    [targetCompanionId],
+  );
+  const nextUpcomingTask = useSelector(nextUpcomingTaskSelector);
   const markInitialRequest = React.useCallback(
     (key: keyof typeof initialRequests) => {
       setInitialRequests(prev => (prev[key] ? prev : {...prev, [key]: true}));
@@ -212,6 +226,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     expenseSummary,
     markInitialRequest,
   ]);
+  useEffect(() => {
+    if (targetCompanionId && !hasTasksHydrated) {
+      dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
+    }
+  }, [dispatch, targetCompanionId, hasTasksHydrated]);
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const {businessFallbacks, handleAvatarError, requestBusinessPhoto} = useBusinessPhotoFallback();
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
@@ -555,14 +574,40 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const showTasksComingSoon = React.useCallback(() => {
-    const message = 'Tasks feature coming soon.';
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(message, ToastAndroid.SHORT);
-    } else {
-      Alert.alert('Coming soon', message);
+  const handleOpenTasks = React.useCallback(() => {
+    if (!guardFeature('tasks', 'tasks')) {
+      return;
     }
-  }, []);
+    navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+      screen: 'TasksMain',
+    });
+  }, [guardFeature, navigation]);
+
+  const handleViewTask = React.useCallback(
+    (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+        screen: 'TaskView',
+        params: {taskId, source: 'home'},
+      });
+    },
+    [guardFeature, navigation],
+  );
+
+  const handleQuickActionPress = React.useCallback(
+    (category: TaskCategory) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+        screen: 'TasksList',
+        params: {category},
+      });
+    },
+    [guardFeature, navigation],
+  );
 
   const handleEmergencyPress = React.useCallback(() => {
     if (!guardFeature('emergencyBasedPermissions', 'emergency actions')) {
@@ -826,13 +871,72 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const renderUpcomingTasks = () =>
-    renderEmptyStateTile(
-      'Feature coming soon',
-      'Task management will be available shortly.',
-      'tasks-coming-soon',
-      showTasksComingSoon,
+  const renderUpcomingTasks = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to see upcoming tasks here.',
+        'tasks',
+      );
+    }
+
+    if (!canAccessFeature('tasks')) {
+      return renderEmptyStateTile(
+        'Tasks restricted',
+        'Ask the primary parent to enable tasks access for you.',
+        'tasks',
+      );
+    }
+
+    if (!nextUpcomingTask) {
+      return renderEmptyStateTile(
+        'No upcoming tasks',
+        'Create a task to stay on track.',
+        'tasks',
+        handleOpenTasks,
+      );
+    }
+
+    const companion = companions.find(c => c.id === nextUpcomingTask.companionId);
+    const assignedToData =
+      nextUpcomingTask.assignedTo === authUser?.id
+        ? {
+            avatar: authUser?.profilePicture,
+            name: authUser?.firstName || 'User',
+          }
+        : undefined;
+    const isObservationalToolTask =
+      nextUpcomingTask.category === 'health' &&
+      nextUpcomingTask.details &&
+      'taskType' in nextUpcomingTask.details &&
+      nextUpcomingTask.details.taskType === 'take-observational-tool';
+
+    return (
+      <TaskCard
+        title={nextUpcomingTask.title}
+        categoryLabel={resolveCategoryLabel(nextUpcomingTask.category)}
+        subcategoryLabel={nextUpcomingTask.subcategory ?? undefined}
+        date={nextUpcomingTask.date}
+        time={nextUpcomingTask.time}
+        companionName={companion?.name ?? 'Companion'}
+        companionAvatar={companion?.profileImage ?? undefined}
+        assignedToName={assignedToData?.name}
+        assignedToAvatar={assignedToData?.avatar}
+        status={nextUpcomingTask.status}
+        onPressView={() => handleViewTask(nextUpcomingTask.id)}
+        onPressTakeObservationalTool={
+          isObservationalToolTask
+            ? () => handleViewTask(nextUpcomingTask.id)
+            : undefined
+        }
+        showEditAction={false}
+        showCompleteButton={false}
+        hideSwipeActions
+        category={nextUpcomingTask.category}
+        details={nextUpcomingTask.details}
+      />
     );
+  };
 
   const renderUpcomingAppointments = () => {
     if (!hasCompanions) {
@@ -1096,7 +1200,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                     key={action.id}
                     style={styles.quickAction}
                     activeOpacity={0.88}
-                    onPress={showTasksComingSoon}>
+                    onPress={() => handleQuickActionPress(action.id)}>
                     <View style={styles.quickActionIconWrapper}>
                       <Image
                         source={action.icon}

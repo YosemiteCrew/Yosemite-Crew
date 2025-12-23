@@ -1,8 +1,7 @@
 /* istanbul ignore file -- UI-heavy edit flow pending dedicated integration coverage */
 import React, {useState, useRef, useEffect, useMemo} from 'react';
 import {View, Text, StyleSheet, BackHandler} from 'react-native';
-import {useNavigation, useRoute, RouteProp, CommonActions} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {useRoute, RouteProp, CommonActions} from '@react-navigation/native';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
@@ -12,34 +11,37 @@ import {
 } from '@/features/documents/components/DocumentForm/DocumentForm';
 import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
-import {useTheme, useDocumentFormValidation} from '@/hooks';
-import {useFormBottomSheets} from '@/shared/hooks/useFormBottomSheets';
-import {useFileOperations} from '@/shared/hooks/useFileOperations';
-import {useSelector, useDispatch} from 'react-redux';
-import type {RootState, AppDispatch} from '@/app/store';
+import {useDocumentFormValidation} from '@/hooks';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
 import {updateDocument, deleteDocument, uploadDocumentFiles} from '@/features/documents/documentSlice';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
-import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
 
-type EditDocumentNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type EditDocumentRouteProp = RouteProp<DocumentStackParamList, 'EditDocument'>;
 
 export const EditDocumentScreen: React.FC = () => {
-  const {theme} = useTheme();
-  const navigation = useNavigation<EditDocumentNavigationProp>();
-  const route = useRoute<EditDocumentRouteProp>();
-  const dispatch = useDispatch<AppDispatch>();
-  const formSheets = useFormBottomSheets();
+  const {
+    theme,
+    dispatch,
+    navigation,
+    formSheets,
+    handleGoBack: handleGoBackBase,
+    discardSheetRef,
+    markAsChanged,
+    companions,
+  } = useCompanionFormScreen();
 
+  const route = useRoute<EditDocumentRouteProp>();
   const {documentId} = route.params;
 
   const document = useSelector((state: RootState) =>
     state.documents.documents.find(doc => doc.id === documentId),
   );
-  const companions = useSelector((state: RootState) => state.companion.companions);
   const loading = useSelector((state: RootState) => state.documents.loading);
 
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
@@ -58,9 +60,7 @@ export const EditDocumentScreen: React.FC = () => {
     useDocumentFormValidation();
 
   const deleteDocumentSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
-  const discardSheetRef = useRef<any>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (document) {
@@ -206,17 +206,16 @@ export const EditDocumentScreen: React.FC = () => {
 
   const handleFormChange = (field: keyof DocumentFormData, value: any) => {
     setFormData(prev => ({...prev, [field]: value}));
-    setHasUnsavedChanges(true);
+    markAsChanged();
   };
 
-  const fileOps = useFileOperations({
-    files: formData.files,
-    setFiles: files => handleFormChange('files', files),
-    clearError: () => clearError('files'),
-    openSheet: formSheets.openSheet,
-    closeSheet: formSheets.closeSheet,
-    deleteSheetRef: formSheets.refs.deleteSheetRef,
-  });
+  const fileOps = useFormFileOperations(
+    formData.files,
+    'files' as keyof DocumentFormData,
+    handleFormChange,
+    clearError,
+    formSheets,
+  );
 
   if (!document) {
     return (
@@ -231,13 +230,7 @@ export const EditDocumentScreen: React.FC = () => {
     );
   }
 
-  const handleBack = () => {
-    if (hasUnsavedChanges) {
-      discardSheetRef.current?.open();
-    } else {
-      navigation.goBack();
-    }
-  };
+  const handleBack = handleGoBackBase;
 
   const handleCompanionSelect = (id: string | null) => {
     setSelectedCompanionId(id);
@@ -246,8 +239,7 @@ export const EditDocumentScreen: React.FC = () => {
 
   return (
     <>
-      <SafeArea>
-      <LiquidGlassHeaderShell
+      <LiquidGlassHeaderScreen
         header={
           <Header
             title="Edit document"
@@ -280,9 +272,7 @@ export const EditDocumentScreen: React.FC = () => {
             renderBottomSheets={false}
           />
         )}
-      </LiquidGlassHeaderShell>
-
-      </SafeArea>
+      </LiquidGlassHeaderScreen>
 
       <DocumentFormSheets
         formData={formData}

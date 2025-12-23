@@ -1,8 +1,8 @@
 /* istanbul ignore file -- document upload UI relies on native modules not mocked in Jest */
-import React, {useState, useRef} from 'react';
-import {useNavigation, CommonActions} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {SafeArea} from '@/shared/components/common';
+import React, {useState} from 'react';
+import {CommonActions} from '@react-navigation/native';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
   DocumentForm,
@@ -10,35 +10,29 @@ import {
   type DocumentFormData,
 } from '@/features/documents/components/DocumentForm/DocumentForm';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
-import {useDocumentFormValidation, useTheme} from '@/hooks';
-import {useFormBottomSheets} from '@/shared/hooks/useFormBottomSheets';
-import {useFileOperations} from '@/shared/hooks/useFileOperations';
-import {useSelector, useDispatch} from 'react-redux';
-import type {RootState, AppDispatch} from '@/app/store';
-import type {DocumentStackParamList} from '@/navigation/types';
+import {useDocumentFormValidation} from '@/hooks';
 import {
   addDocument,
   uploadDocumentFiles,
 } from '@/features/documents/documentSlice';
 import {setSelectedCompanion} from '@/features/companion';
-import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
-
-type AddDocumentNavigationProp =
-  NativeStackNavigationProp<DocumentStackParamList>;
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
 
 export const AddDocumentScreen: React.FC = () => {
-  const {theme} = useTheme();
-  const navigation = useNavigation<AddDocumentNavigationProp>();
-  const dispatch = useDispatch<AppDispatch>();
-  const formSheets = useFormBottomSheets();
+  const {
+    theme,
+    dispatch,
+    navigation,
+    formSheets,
+    handleGoBack,
+    discardSheetRef,
+    markAsChanged,
+    companions,
+    selectedCompanionId,
+  } = useCompanionFormScreen();
 
-  const companions = useSelector(
-    (state: RootState) => state.companion.companions,
-  );
-  const loading = useSelector((state: RootState) => state.documents.loading);
-  const selectedCompanionId = useSelector(
-    (state: RootState) => state.companion.selectedCompanionId,
-  );
+  const loading = useSelector((state: any) => state.documents.loading);
 
   const [formData, setFormData] = useState<DocumentFormData>({
     category: null,
@@ -50,28 +44,22 @@ export const AddDocumentScreen: React.FC = () => {
     issueDate: new Date(),
     files: [],
   });
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const discardSheetRef = useRef<any>(null);
 
   const {errors, clearError, validateForm, setFormError} =
     useDocumentFormValidation();
 
-  const handleFormChange = (
-    field: keyof DocumentFormData,
-    value: any,
-  ) => {
+  const handleFormChange = (field: keyof DocumentFormData, value: any) => {
     setFormData(prev => ({...prev, [field]: value}));
-    setHasUnsavedChanges(true);
+    markAsChanged();
   };
 
-  const fileOps = useFileOperations({
-    files: formData.files,
-    setFiles: files => handleFormChange('files', files),
-    clearError: () => clearError('files'),
-    openSheet: formSheets.openSheet,
-    closeSheet: formSheets.closeSheet,
-    deleteSheetRef: formSheets.refs.deleteSheetRef,
-  });
+  const fileOps = useFormFileOperations(
+    formData.files,
+    'files' as keyof DocumentFormData,
+    handleFormChange,
+    clearError,
+    formSheets,
+  );
 
   const handleCompanionSelect = (id: string | null) => {
     dispatch(setSelectedCompanion(id));
@@ -82,14 +70,6 @@ export const AddDocumentScreen: React.FC = () => {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, dispatch, selectedCompanionId]);
-
-  const handleBack = () => {
-    if (hasUnsavedChanges) {
-      discardSheetRef.current?.open();
-    } else {
-      navigation.goBack();
-    }
-  };
 
   const handleSave = async () => {
     const {hasError} = validateForm(formData);
@@ -146,13 +126,12 @@ export const AddDocumentScreen: React.FC = () => {
 
   return (
     <>
-      <SafeArea>
-      <LiquidGlassHeaderShell
+      <LiquidGlassHeaderScreen
         header={
           <Header
             title="Add document"
             showBackButton={true}
-            onBack={handleBack}
+            onBack={handleGoBack}
             glass={false}
           />
         }
@@ -178,8 +157,7 @@ export const AddDocumentScreen: React.FC = () => {
             renderBottomSheets={false}
           />
         )}
-      </LiquidGlassHeaderShell>
-      </SafeArea>
+      </LiquidGlassHeaderScreen>
 
       <DocumentFormSheets
         formData={formData}
