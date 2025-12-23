@@ -22,6 +22,62 @@ export class TaskServiceError extends Error {
 export type TaskAudience = "EMPLOYEE_TASK" | "PARENT_TASK";
 export type TaskSource = "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
 
+export type MedicationDoseInput = {
+  time?: string; // "08:00"
+  dosage?: string; // "5ml"
+  instructions?: string; // "after food"
+};
+
+export type MedicationInput = {
+  name?: string;
+  type?: string;
+  notes?: string;
+  doses?: MedicationDoseInput[];
+};
+
+const normalizeDoseTime = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const t = value.trim();
+  if (!t) return undefined;
+  // very lightweight validation: "HH:mm"
+  if (!/^\d{2}:\d{2}$/.test(t)) return undefined;
+  return t;
+};
+
+const sanitizeMedication = (input?: MedicationInput | null) => {
+  if (!input) return undefined;
+
+  const doses =
+    Array.isArray(input.doses) && input.doses.length
+      ? input.doses
+          .map((d) => ({
+            time: normalizeDoseTime(d.time),
+            dosage: typeof d.dosage === "string" ? d.dosage.trim() : undefined,
+            instructions:
+              typeof d.instructions === "string"
+                ? d.instructions.trim()
+                : undefined,
+          }))
+          .filter(
+            (d) => d.time || d.dosage || d.instructions, // drop empty rows
+          )
+      : undefined;
+
+  const name = typeof input.name === "string" ? input.name.trim() : undefined;
+  const type = typeof input.type === "string" ? input.type.trim() : undefined;
+  const notes = typeof input.notes === "string" ? input.notes.trim() : undefined;
+
+  // If everything is empty, store nothing
+  if (!name && !type && !notes && (!doses || doses.length === 0)) return undefined;
+
+  return {
+    name,
+    type,
+    notes,
+    doses: doses && doses.length ? doses : undefined,
+  };
+};
+
 export interface BaseTaskCreateInput {
   organisationId?: string;
   appointmentId?: string;
@@ -35,20 +91,14 @@ export interface BaseTaskCreateInput {
   dueAt: Date;
   timezone?: string;
 
-  // optional functional bits
-  medication?: {
-    name?: string;
-    type?: string;
-    dosage?: string;
-    frequency?: string;
-  };
+  medication?: MedicationInput;
 
   observationToolId?: string;
 
   recurrence?: {
     type: RecurrenceType;
     endDate?: Date;
-    cronExpression?: string; // optional for CUSTOM
+    cronExpression?: string;
   };
 
   reminder?: {
@@ -66,7 +116,6 @@ export interface BaseTaskCreateInput {
 export interface CreateFromLibraryInput extends BaseTaskCreateInput {
   audience: TaskAudience;
   libraryTaskId: string;
-  // optional overrides
   categoryOverride?: string;
   nameOverride?: string;
   descriptionOverride?: string;
@@ -74,7 +123,6 @@ export interface CreateFromLibraryInput extends BaseTaskCreateInput {
 
 export interface CreateFromTemplateInput extends BaseTaskCreateInput {
   templateId: string;
-  // optional overrides
   categoryOverride?: string;
   nameOverride?: string;
   descriptionOverride?: string;
@@ -94,12 +142,7 @@ export interface TaskUpdateInput {
   dueAt?: Date;
   timezone?: string | null;
 
-  medication?: {
-    name?: string;
-    type?: string;
-    dosage?: string;
-    frequency?: string;
-  } | null;
+  medication?: MedicationInput | null;
 
   observationToolId?: string | null;
 
@@ -114,7 +157,6 @@ export interface TaskUpdateInput {
     name: string;
   }[];
 
-  // limited recurrence update (no changing master/id)
   recurrence?: {
     type: RecurrenceType;
     endDate?: Date | null;
@@ -156,12 +198,7 @@ const buildRecurrence = (input?: {
 };
 
 export const TaskService = {
-  // ──────────────────────────────────────────────
-  // CREATE: From YC Library
-  // ──────────────────────────────────────────────
-  async createFromLibrary(
-    input: CreateFromLibraryInput,
-  ): Promise<TaskDocument> {
+  async createFromLibrary(input: CreateFromLibraryInput): Promise<TaskDocument> {
     const library = await TaskLibraryDefinitionModel.findById(
       input.libraryTaskId,
     ).exec();
@@ -189,7 +226,7 @@ export const TaskService = {
       name: input.nameOverride ?? library.name,
       description: input.descriptionOverride ?? library.defaultDescription,
 
-      medication: input.medication,
+      medication: sanitizeMedication(input.medication),
       observationToolId: input.observationToolId,
 
       dueAt: input.dueAt,
@@ -215,9 +252,6 @@ export const TaskService = {
     return doc;
   },
 
-  // ──────────────────────────────────────────────
-  // CREATE: From Org Template
-  // ──────────────────────────────────────────────
   async createFromTemplate(
     input: CreateFromTemplateInput,
   ): Promise<TaskDocument> {
@@ -228,10 +262,7 @@ export const TaskService = {
     }
 
     if (template.organisationId !== input.organisationId) {
-      throw new TaskServiceError(
-        "Template does not belong to organisation",
-        400,
-      );
+      throw new TaskServiceError("Template does not belong to organisation", 400);
     }
 
     const audience: TaskAudience =
@@ -260,10 +291,7 @@ export const TaskService = {
     const reminder =
       input.reminder ||
       (template.defaultReminderOffsetMinutes != null
-        ? {
-            enabled: true,
-            offsetMinutes: template.defaultReminderOffsetMinutes,
-          }
+        ? { enabled: true, offsetMinutes: template.defaultReminderOffsetMinutes }
         : undefined);
 
     const doc = await TaskModel.create({
@@ -285,7 +313,7 @@ export const TaskService = {
       name: input.nameOverride ?? template.name,
       description: input.descriptionOverride ?? template.description,
 
-      medication: input.medication ?? template.defaultMedication,
+      medication: sanitizeMedication(input.medication) ?? sanitizeMedication(template.defaultMedication as MedicationInput),
       observationToolId:
         input.observationToolId ?? template.defaultObservationToolId,
 
@@ -312,9 +340,6 @@ export const TaskService = {
     return doc;
   },
 
-  // ──────────────────────────────────────────────
-  // CREATE: Custom Task
-  // ──────────────────────────────────────────────
   async createCustom(input: CreateCustomTaskInput): Promise<TaskDocument> {
     if (!input.category || !input.name) {
       throw new TaskServiceError("category and name are required", 400);
@@ -339,7 +364,7 @@ export const TaskService = {
       name: input.name,
       description: input.description,
 
-      medication: input.medication,
+      medication: sanitizeMedication(input.medication),
       observationToolId: input.observationToolId,
 
       dueAt: input.dueAt,
@@ -365,38 +390,31 @@ export const TaskService = {
     return doc;
   },
 
-  // ──────────────────────────────────────────────
-  // UPDATE (partial)
-  // ──────────────────────────────────────────────
   async updateTask(
     taskId: string,
     updates: TaskUpdateInput,
     actorId: string,
   ): Promise<TaskDocument> {
     const task = await TaskModel.findById(taskId).exec();
-    if (!task) {
-      throw new TaskServiceError("Task not found", 404);
-    }
+    if (!task) throw new TaskServiceError("Task not found", 404);
 
-    // simple rule: creator or assignedTo can edit
     if (task.createdBy !== actorId && task.assignedTo !== actorId) {
       throw new TaskServiceError("Not allowed to update this task", 403);
     }
 
     if (updates.name !== undefined) task.name = updates.name;
-    if (updates.description !== undefined)
-      task.description = updates.description;
+    if (updates.description !== undefined) task.description = updates.description;
     if (updates.dueAt !== undefined) task.dueAt = updates.dueAt;
 
-    if (updates.timezone !== undefined) {
-      task.timezone = updates.timezone ?? undefined;
-    }
+    if (updates.timezone !== undefined) task.timezone = updates.timezone ?? undefined;
 
+    // ✅ medication now supports multiple doses
     if (updates.medication !== undefined) {
       if (updates.medication === null) {
         task.medication = undefined;
       } else {
-        task.medication = { ...task.medication, ...updates.medication };
+        const next = sanitizeMedication(updates.medication);
+        task.medication = next;
       }
     }
 
@@ -428,7 +446,6 @@ export const TaskService = {
       if (updates.recurrence === null) {
         task.recurrence = undefined;
       } else {
-        // we don't touch masterTaskId/isMaster here
         if (!task.recurrence) {
           task.recurrence = {
             type: updates.recurrence.type,
@@ -451,9 +468,6 @@ export const TaskService = {
     return task;
   },
 
-  // ──────────────────────────────────────────────
-  // STATUS + COMPLETION
-  // ──────────────────────────────────────────────
   async changeStatus(
     taskId: string,
     newStatus: TaskStatus,
@@ -467,7 +481,6 @@ export const TaskService = {
       throw new TaskServiceError("Not allowed to update this task", 403);
     }
 
-    // simple allowed transitions
     if (task.status === "CANCELLED" || task.status === "COMPLETED") {
       throw new TaskServiceError("Task already finished", 400);
     }
@@ -503,15 +516,12 @@ export const TaskService = {
     return { task, completion: completionDoc };
   },
 
-  // ──────────────────────────────────────────────
-  // FETCH / LIST
-  // ──────────────────────────────────────────────
   async getById(taskId: string): Promise<TaskDocument | null> {
     return TaskModel.findById(taskId).exec();
   },
 
   async listForParent(params: {
-    parentId: string; // the parent userId
+    parentId: string;
     companionId?: string;
     fromDueAt?: Date;
     toDueAt?: Date;
