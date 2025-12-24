@@ -240,7 +240,6 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
-      overflow: 'hidden',
       minHeight: theme.spacing['24'] + theme.spacing['2'] + 1,
       ...theme.shadows.sm,
     },
@@ -310,7 +309,7 @@ const createStyles = (theme: any) =>
       top: theme.spacing['4'],
       zIndex: 10,
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     closeIcon: {
       width: theme.spacing['6'],

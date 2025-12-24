@@ -366,7 +366,6 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
       height,
       minWidth,
       maxWidth,
-      overflow: 'hidden',
     }),
     [borderRadiusValue, height, maxWidth, minWidth, width],
   );

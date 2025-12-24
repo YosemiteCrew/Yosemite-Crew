@@ -1186,7 +1186,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.whiteOverlay70,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     successButtonText: {
       color: theme.colors.white,

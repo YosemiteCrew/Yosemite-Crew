@@ -85,13 +85,11 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
     ...theme.shadows[shadow],
-    overflow: 'hidden',
   };
 
   const baseStyleWithoutShadow: ViewStyle = {
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
-    overflow: 'hidden',
   };
 
   const mergedStyleOverrides = React.useMemo(

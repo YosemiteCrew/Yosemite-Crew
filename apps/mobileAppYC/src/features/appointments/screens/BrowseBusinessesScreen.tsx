@@ -481,7 +481,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   viewMoreShadowWrapper: {
     borderRadius: theme.borderRadius.full,
-    ...theme.shadows.md,
+    ...theme.shadows.sm,
   },
   sectionWrapper: {gap: 12},
   singleCardWrapper: {alignItems: 'center', width: '100%'},

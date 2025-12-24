@@ -74,7 +74,6 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
       backgroundColor: 'transparent',
       ...theme.shadows[shadow],
       shadowColor: theme.colors.neutralShadow ?? theme.colors.black,
-      overflow: 'hidden',
     }),
     [size, shadow, theme.colors.black, theme.colors.neutralShadow, theme.shadows],
   );

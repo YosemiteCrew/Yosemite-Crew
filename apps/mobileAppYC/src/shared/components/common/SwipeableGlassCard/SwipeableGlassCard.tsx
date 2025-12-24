@@ -265,7 +265,6 @@ const createStyles = (theme: any) =>
       width: '100%',
       alignSelf: 'center',
       borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
     },
     revealedContainer: {
       borderTopRightRadius: 0,

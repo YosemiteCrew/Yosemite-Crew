@@ -51,7 +51,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     buttonText: {
       ...theme.typography.cta,

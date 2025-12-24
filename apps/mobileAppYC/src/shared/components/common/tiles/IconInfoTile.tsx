@@ -90,7 +90,7 @@ const createStyles = (theme: any) => {
     },
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
       backgroundColor: theme.colors.cardBackground,
     },
     ...glassCardStyles,

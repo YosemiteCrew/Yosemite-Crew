@@ -255,6 +255,7 @@ const createStyles = (theme: any) =>
     chatWrapper: {
       flex: 1,
       backgroundColor: theme.colors.background || '#fff',
+      paddingBottom: theme.spacing['6'],
     },
     // Loading/Error states
     container: {

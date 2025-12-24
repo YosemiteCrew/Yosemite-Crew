@@ -115,7 +115,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...(Platform.OS === 'ios' ? theme.shadows.md : theme.shadows.sm),
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : theme.shadows.sm),
       shadowColor: theme.colors.neutralShadow ?? theme.colors.black,
       backgroundColor: theme.colors.surface,
     },

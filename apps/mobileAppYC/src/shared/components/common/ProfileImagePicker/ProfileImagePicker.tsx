@@ -331,7 +331,7 @@ const createStyles = (theme: any) =>
     container: {
       alignSelf: 'center',
       marginVertical: theme.spacing['5'],
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     imageContainer: {
       borderWidth: 3,

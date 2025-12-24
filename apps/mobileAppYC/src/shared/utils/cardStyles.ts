@@ -41,7 +41,7 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
   };
 
   const finalConfig = {...defaultConfig, ...config};
-  const cardShadow = Platform.OS === 'android' ? shadows.none : shadows.md;
+  const cardShadow = Platform.OS === 'android' ? shadows.none : shadows.sm;
 
   return {
     card: {

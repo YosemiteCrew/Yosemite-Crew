@@ -97,6 +97,7 @@ const createStyles = (theme: any) => {
       paddingHorizontal: theme.spacing?.['5'] || 20,
       paddingTop: Platform.OS === 'ios' ? theme.spacing?.['2'] || 8 : theme.spacing?.['5'] || 20,
       paddingBottom: theme.spacing?.['2'] || 8,
+      overflow: 'visible',
     },
     glassCard: {
       borderTopLeftRadius: 0,
@@ -105,7 +106,7 @@ const createStyles = (theme: any) => {
       borderBottomRightRadius: theme.borderRadius['2xl'],
       borderWidth: 0,
       borderColor: 'transparent',
-      overflow: 'hidden',
+      overflow: 'visible',
     },
     glassShadowWrapper: {
       borderTopLeftRadius: 0,
@@ -135,7 +136,8 @@ const createStyles = (theme: any) => {
     },
     iconButtonShadow: {
       borderRadius: theme.borderRadius.full,
-      ...(Platform.OS === 'ios' ? theme.shadows.md : null),
+      overflow: 'visible',
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     icon: {
       width: 24,

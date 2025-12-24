@@ -22,7 +22,7 @@ describe('cardStyles', () => {
         borderColor: 'rgba(234, 234, 234, 0.9)', // from theme.colors.borderMuted
         overflow: 'hidden',
         backgroundColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 4 }, // from theme.shadows.md
+        shadowOffset: { width: 0, height: 4 }, // from theme.shadows.sm
         shadowOpacity: 0.15,
         shadowRadius: 6,
         elevation: 4,

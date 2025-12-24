@@ -107,7 +107,7 @@ export const createLiquidGlassHeaderStyles = (
       paddingBottom: theme.spacing['3'],
       borderWidth: 0,
       borderColor: 'transparent',
-      overflow: 'hidden' as const,
+      overflow: 'visible' as const,
       ...(cardGap ? {gap: cardGap} : null),
     },
     topGlassFallback: {
@@ -124,12 +124,12 @@ export const createLiquidGlassHeaderStyles = (
 export const createGlassCardStyles = (theme: any) => ({
   glassShadowWrapper: {
     borderRadius: theme.borderRadius.lg,
-    ...theme.shadows.md,
+    ...theme.shadows.sm,
   },
   glassContainer: {
     borderRadius: theme.borderRadius.lg,
     paddingVertical: theme.spacing['2'],
-    overflow: 'hidden' as const,
+    overflow: 'visible' as const,
     borderWidth: 0,
     borderColor: 'transparent',
   },
