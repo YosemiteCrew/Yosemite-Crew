@@ -140,6 +140,9 @@ describe('uploadService', () => {
     it('throws error if file does not exist', async () => {
       (RNFS.exists as jest.Mock).mockResolvedValue(false);
       (RNFetchBlob.fs.exists as jest.Mock).mockResolvedValue(false);
+      (RNFetchBlob.fs.readFile as jest.Mock).mockRejectedValue(
+        new Error('ENOENT: no such file or directory'),
+      );
 
       await expect(
         uploadFileToPresignedUrl({
@@ -147,13 +150,14 @@ describe('uploadService', () => {
           mimeType: mockMimeType,
           url: mockUrl,
         }),
-      ).rejects.toThrow('Local file is empty or unreadable');
+      ).rejects.toThrow(/Failed to read file/);
     });
 
     it('throws error if file is empty (0 bytes)', async () => {
       // File exists but has 0 size in stats
       (RNFS.exists as jest.Mock).mockResolvedValue(true);
       (RNFS.stat as jest.Mock).mockResolvedValue({ size: 0 });
+      (RNFetchBlob.fs.readFile as jest.Mock).mockResolvedValue('');
 
       await expect(
         uploadFileToPresignedUrl({
@@ -161,7 +165,7 @@ describe('uploadService', () => {
           mimeType: mockMimeType,
           url: mockUrl,
         }),
-      ).rejects.toThrow('Local file is empty or unreadable');
+      ).rejects.toThrow(/File is empty or unreadable/);
     });
 
     it('throws error if file content is empty string', async () => {

@@ -3,7 +3,7 @@ import {Image, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea, YearlySpendCard} from '@/shared/components/common';
+import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ExpenseCard} from '@/features/expenses/components';
@@ -30,6 +30,8 @@ import {
 } from '@/features/expenses/utils/expenseLabels';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -131,41 +133,46 @@ export const ExpensesMainScreen: React.FC = () => {
   const currencySymbol = resolveCurrencySymbol(summaryCurrency, '$');
 
   return (
-    <SafeArea>
-      <Header
-        title="Expenses"
-        showBackButton
-        onBack={handleBack}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAddExpense}
-      />
-      {showEmptyState ? (
-        <ScrollView
-          contentContainerStyle={styles.emptyState}
-          showsVerticalScrollIndicator={false}>
-          <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
-          <Text style={styles.emptyTitle}>Zero Bucks Spent!</Text>
-          <Text style={styles.emptySubtitle}>
-            It seems like you and your buddy is in saving mode!
-          </Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
-            <Text style={styles.emptyButtonText}>Add expense</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}>
-          <CompanionSelector
-            companions={companions}
-            selectedCompanionId={selectedCompanionId}
-            onSelect={id => dispatch(setSelectedCompanion(id))}
-            showAddButton={false}
-            containerStyle={styles.companionSelector}
-            requiredPermission="expenses"
-            permissionLabel="expenses"
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <LiquidGlassHeaderShell
+        header={
+          <Header
+            title="Expenses"
+            showBackButton
+            onBack={handleBack}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAddExpense}
+            glass={false}
           />
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle =>
+          showEmptyState ? (
+            <ScrollView
+              contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
+              <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
+              <Text style={styles.emptySubtitle}>
+                It seems like you and your buddy are in saving mode!
+              </Text>
+              <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
+                <Text style={styles.emptyButtonText}>Add expense</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          ) : (
+            <ScrollView
+              contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <CompanionSelector
+                companions={companions}
+                selectedCompanionId={selectedCompanionId}
+                onSelect={id => dispatch(setSelectedCompanion(id))}
+                showAddButton={false}
+                containerStyle={styles.companionSelector}
+                requiredPermission="expenses"
+                permissionLabel="expenses"
+              />
 
           <TouchableOpacity onPress={() => handleViewMore('inApp')} activeOpacity={0.85}>
             <YearlySpendCard
@@ -252,10 +259,12 @@ export const ExpensesMainScreen: React.FC = () => {
               <Text style={styles.emptySectionText}>No external expenses yet</Text>
             </View>
           )}
-        </ScrollView>
-      )}
+            </ScrollView>
+          )
+        }
+      </LiquidGlassHeaderShell>
       {(loading || processingPayment) && <View style={styles.loadingOverlay} />}
-    </SafeArea>
+    </SafeAreaView>
   );
 };
 

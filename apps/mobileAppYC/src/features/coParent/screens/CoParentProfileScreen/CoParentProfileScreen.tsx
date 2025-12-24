@@ -110,7 +110,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <Header title="Profile" showBackButton onBack={handleBack} />
         <View style={commonStyles.centerContent}>
           <GifLoader />
@@ -121,7 +121,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (!coParent) {
     return (
-      <SafeAreaView style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <Header title="Profile" showBackButton onBack={handleBack} />
         <View style={commonStyles.centerContent}>
           <Text style={styles.errorText}>Co-Parent not found</Text>
@@ -133,7 +133,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const displayName = `${coParent.firstName} ${coParent.lastName}`.trim();
 
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       <Header title="Profile" showBackButton onBack={handleBack} />
 
       <ScrollView

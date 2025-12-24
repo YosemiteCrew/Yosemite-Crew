@@ -7,7 +7,7 @@ import {
   Alert,
   BackHandler,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {useDispatch, useSelector} from 'react-redux';
@@ -15,6 +15,7 @@ import type {AppDispatch, RootState} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {useTheme} from '@/hooks';
 import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/shared/utils/commonHelpers';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
@@ -92,6 +93,8 @@ export const CompanionOverviewScreen: React.FC<
 > = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const dispatch = useDispatch<AppDispatch>();
   const {weightUnit} = usePreferences();
 
@@ -274,7 +277,7 @@ export const CompanionOverviewScreen: React.FC<
 
   if (safeCompanion == null) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header title="Overview" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
@@ -288,15 +291,30 @@ export const CompanionOverviewScreen: React.FC<
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header
-        title={`${safeCompanion.name}'s Overview`}
-        showBackButton
-        onBack={goBack}
-      />
+    <>
+      <SafeAreaView style={styles.container} edges={['top']}>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header
+          title={`${safeCompanion.name}'s Overview`}
+          showBackButton
+          onBack={goBack}
+          glass={false}
+        />
+      </LiquidGlassHeader>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
         <CompanionProfileHeader
           name={safeCompanion.name}
@@ -307,6 +325,7 @@ export const CompanionOverviewScreen: React.FC<
         />
 
         {/* Card with rows */}
+      <View style={styles.glassShadowWrapper}>
         <LiquidGlassCard
           glassEffect="clear"
           interactive
@@ -521,9 +540,25 @@ export const CompanionOverviewScreen: React.FC<
             />
           </View>
         </LiquidGlassCard>
+      </View>
       </ScrollView>
 
-      {/* ====== Bottom Sheets / Pickers ====== */}
+      <SimpleDatePicker
+        value={
+          safeCompanion.dateOfBirth ? new Date(safeCompanion.dateOfBirth) : null
+        }
+        onDateChange={date => {
+          applyPatch({dateOfBirth: date ? date.toISOString() : null});
+          setShowDobPicker(false);
+        }}
+        show={showDobPicker}
+        onDismiss={() => setShowDobPicker(false)}
+        maximumDate={new Date()}
+        mode="date"
+      />
+      </SafeAreaView>
+
+      {/* ====== Bottom Sheets ====== */}
       <BreedBottomSheet
         ref={breedSheetRef}
         // You likely have a util to supply list by category; here we use current category's breed list from Add screen util
@@ -603,25 +638,12 @@ export const CompanionOverviewScreen: React.FC<
           setOpenBottomSheet(null);
         }}
       />
-
-      <SimpleDatePicker
-        value={
-          safeCompanion.dateOfBirth ? new Date(safeCompanion.dateOfBirth) : null
-        }
-        onDateChange={date => {
-          applyPatch({dateOfBirth: date ? date.toISOString() : null});
-          setShowDobPicker(false);
-        }}
-        show={showDobPicker}
-        onDismiss={() => setShowDobPicker(false)}
-        maximumDate={new Date()}
-        mode="date"
-      />
-    </SafeAreaView>
+    </>
   );
 };
 
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {createGlassCardStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 // Helper functions moved to @/shared/utils/commonHelpers:
 // - capitalize, displayNeutered, displayInsured, displayOrigin
@@ -658,4 +680,6 @@ function getSelectedCountryObject(countryName?: string | null) {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    ...createLiquidGlassHeaderStyles(theme),
+    ...createGlassCardStyles(theme),
   });

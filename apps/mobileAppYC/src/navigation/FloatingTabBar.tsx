@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Images} from '@/assets/images';
 
 const ICON_MAP: Record<
@@ -35,12 +34,12 @@ const ROOT_ROUTE_MAP: Record<string, string> = {
   Tasks: 'TasksMain',
   AdverseEvent: 'Landing',
 };
+const TAB_BAR_GLASS_TINT = 'rgba(255, 255, 255, 0.7)';
 
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
-  const insets = useSafeAreaInsets();
-  const useGlass = Platform.OS !== 'ios' && isLiquidGlassSupported;
+  const useGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   // Calculate if tab bar should be hidden based on nested navigation
@@ -142,18 +141,14 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const ContainerComponent = useGlass ? LiquidGlassView : View;
 
   return (
-    <View
-      style={[
-        styles.wrapper,
-        {paddingBottom: Math.max(insets.bottom, 12)},
-      ]}>
+    <View style={styles.wrapper}>
       <ContainerComponent
-        style={styles.bar}
+        style={[styles.bar, useGlass && styles.barGlass]}
         {...(useGlass
           ? {
-              blurAmount: 30,
-              blurType: 'regular' as const,
-              tintColor: 'light',
+              effect: 'regular' as const,
+              tintColor: TAB_BAR_GLASS_TINT,
+              colorScheme: 'light' as const,
             }
           : {})}>
         {renderItems()}
@@ -168,21 +163,22 @@ const createStyles = (theme: any) =>
       position: 'absolute',
       left: 24,
       right: 24,
-      bottom: 16,
+      bottom: 45,
       zIndex: 10,
+      ...theme.shadows.floatingMd,
     },
     bar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.white,
       paddingVertical: 15,
       paddingHorizontal: 20,
-      ...theme.shadows.xs,
       overflow: 'hidden',
+    },
+    barGlass: {
+      backgroundColor: 'transparent',
     },
     tabItem: {
       flex: 1,

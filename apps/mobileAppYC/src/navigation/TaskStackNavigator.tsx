@@ -8,7 +8,7 @@ import {AddTaskScreen} from '@/features/tasks/screens/AddTaskScreen/AddTaskScree
 import {EditTaskScreen} from '@/features/tasks/screens/EditTaskScreen/EditTaskScreen';
 import {TaskViewScreen} from '@/features/tasks/screens/TaskViewScreen/TaskViewScreen';
 import {ObservationalToolScreen} from '@/features/tasks/screens/ObservationalToolScreen/ObservationalToolScreen';
-import {TasksComingSoonScreen} from '@/features/tasks/screens/TasksComingSoonScreen/TasksComingSoonScreen';
+import {TasksMainScreen} from '@/features/tasks/screens/TasksMainScreen/TasksMainScreen';
 
 const Stack = createNativeStackNavigator<TaskStackParamList>();
 
@@ -19,7 +19,7 @@ export const TaskStackNavigator = () => {
         headerShown: false,
         animation: 'slide_from_right',
       }}>
-      <Stack.Screen name="TasksMain" component={TasksComingSoonScreen} />
+      <Stack.Screen name="TasksMain" component={TasksMainScreen} />
       <Stack.Screen name="TasksList" component={TasksListScreen} />
       <Stack.Screen name="AddTask" component={AddTaskScreen} />
       <Stack.Screen name="EditTask" component={EditTaskScreen} />

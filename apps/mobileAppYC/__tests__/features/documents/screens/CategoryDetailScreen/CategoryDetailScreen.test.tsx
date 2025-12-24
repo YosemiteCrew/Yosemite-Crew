@@ -31,6 +31,11 @@ jest.mock('@/shared/utils/screenStyles', () => ({
   createErrorContainerStyles: () => ({errorContainer: {}, errorText: {}}),
   createEmptyStateStyles: () => ({emptyContainer: {}, emptyText: {}}),
   createSearchAndSelectorStyles: () => ({searchBar: {}, companionSelector: {}}),
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
 }));
 
 // Mock Hooks

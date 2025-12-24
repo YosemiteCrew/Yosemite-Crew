@@ -2,35 +2,28 @@ import React, {useMemo} from 'react';
 import {View, Text, ScrollView, StyleSheet} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {SafeArea} from '@/shared/components/common';
-import {Header} from '@/shared/components/common/Header/Header';
-import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {CategoryTile} from '@/shared/components/common/CategoryTile/CategoryTile';
 import {EmptyDocumentsScreen} from '../EmptyDocumentsScreen/EmptyDocumentsScreen';
-import {useTheme} from '@/hooks';
-import {useSelector, useDispatch} from 'react-redux';
-import type {RootState, AppDispatch} from '@/app/store';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {fetchDocuments} from '@/features/documents/documentSlice';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
+import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
+import {createSearchAndSelectorStyles} from '@/shared/utils/screenStyles';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
 export const DocumentsScreen: React.FC = () => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
   const navigation = useNavigation<DocumentsNavigationProp>();
-  const dispatch = useDispatch<AppDispatch>();
-
-  // Get companions from Redux
-  const companions = useSelector((state: RootState) => state.companion.companions);
-
-  // Get selected companion from Redux
-  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Get documents from Redux
   const documents = useSelector((state: RootState) => state.documents.documents);
@@ -98,84 +91,87 @@ export const DocumentsScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header
-        title="Documents"
-        showBackButton={false}
-        onRightPress={handleAddDocument}
-        rightIcon={Images.addIconDark}
-      />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        <SearchBar
-          placeholder="Search through documents"
-          mode="readonly"
-          onPress={() => navigation.navigate('DocumentSearch')}
-          containerStyle={styles.searchBar}
+    <LiquidGlassHeaderScreen
+      header={
+        <DocumentsListHeader
+          title="Documents"
+          searchPlaceholder="Search through documents"
+          onSearchPress={() => navigation.navigate('DocumentSearch')}
+          rightIcon={Images.addIconDark}
+          onRightPress={handleAddDocument}
+          searchContainerStyle={styles.searchBar}
         />
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onSelect={id => dispatch(setSelectedCompanion(id))}
+            showAddButton={false}
+            containerStyle={styles.companionSelector}
+            requiredPermission="documents"
+            permissionLabel="documents"
+          />
+          {recentDocuments.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Recent</Text>
+              {recentDocuments.map(doc => (
+                <DocumentListItem
+                  key={doc.id}
+                  document={doc}
+                  onPressView={handleViewDocument}
+                  onPressEdit={handleEditDocument}
+                />
+              ))}
+            </View>
+          )}
 
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={id => dispatch(setSelectedCompanion(id))}
-          showAddButton={false}
-          containerStyle={styles.companionSelector}
-          requiredPermission="documents"
-          permissionLabel="documents"
-        />
-
-        {recentDocuments.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent</Text>
-            {recentDocuments.map(doc => (
-              <DocumentListItem
-                key={doc.id}
-                document={doc}
-                onPressView={handleViewDocument}
-                onPressEdit={handleEditDocument}
-              />
+            {categoriesWithCounts.map(category => (
+              <View key={category.id} style={styles.categoryTileShadow}>
+                <CategoryTile
+                  icon={category.icon}
+                  title={category.label}
+                  subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
+                  isSynced={category.isSynced}
+                  onPress={() => handleCategoryPress(category.id)}
+                  containerStyle={styles.categoryTile}
+                />
+              </View>
             ))}
           </View>
-        )}
-
-        <View style={styles.section}>
-          {categoriesWithCounts.map(category => (
-            <CategoryTile
-              key={category.id}
-              icon={category.icon}
-              title={category.label}
-              subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
-              isSynced={category.isSynced}
-              onPress={() => handleCategoryPress(category.id)}
-            />
-          ))}
-        </View>
-      </ScrollView>
-    </SafeArea>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    ...createSearchAndSelectorStyles(theme),
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'], // Extra padding for tab bar
-    },
-    searchBar: {
-      marginTop: theme.spacing['4'],
-      marginBottom: theme.spacing['2'],
-    },
-    companionSelector: {
-      marginBottom: theme.spacing['4'],
     },
     section: {
       marginBottom: theme.spacing['4'],
+    },
+    categoryTile: {
+      width: '100%',
+    },
+    categoryTileShadow: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
     },
     sectionTitle: {
       ...theme.typography.titleLarge,

@@ -6,6 +6,8 @@ import {
   StyleSheet,
   FlatList,
   Image,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type { BottomSheetRef } from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -133,16 +135,19 @@ export const GenericSelectBottomSheet = forwardRef<
   bottomSheetRef.current?.snapToIndex(0);
     },
     close: () => {
+  Keyboard.dismiss();
   bottomSheetRef.current?.close();
     },
   }));
 
   const handleSave = () => {
+    Keyboard.dismiss();
     onSave(tempItem);
     bottomSheetRef.current?.close();
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setTempItem(selectedItem);
     setSearchQuery('');
     bottomSheetRef.current?.close();
@@ -156,7 +161,13 @@ export const GenericSelectBottomSheet = forwardRef<
       onChange={index => {
         // Gorhom BottomSheet returns -1 when fully closed
         setIsSheetVisible(index !== -1);
+        if (index === -1) {
+          Keyboard.dismiss();
+        }
         onSheetChange?.(index);
+      }}
+      onAnimate={() => {
+        Keyboard.dismiss();
       }}
       enablePanDownToClose
       enableDynamicSizing={false}
@@ -169,13 +180,15 @@ export const GenericSelectBottomSheet = forwardRef<
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
+      onBackdropPress={Keyboard.dismiss}
       contentType="view"
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <View style={styles.container}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
         {/* Header */}
         <BottomSheetHeader
           title={title}
@@ -229,6 +242,8 @@ export const GenericSelectBottomSheet = forwardRef<
             showsVerticalScrollIndicator
             contentContainerStyle={styles.listContent}
             nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}
             ListEmptyComponent={renderEmptyList}
           />
         </View>
@@ -263,7 +278,8 @@ export const GenericSelectBottomSheet = forwardRef<
             />
           </View>
         )}
-      </View>
+        </View>
+      </TouchableWithoutFeedback>
     </CustomBottomSheet>
   );
 });
@@ -301,6 +317,8 @@ const createStyles = (theme: any, maxListHeight: number) =>
     },
     listWrapper: {
       maxHeight: maxListHeight,
+      minHeight: maxListHeight,
+      flexShrink: 0,
       marginBottom: theme.spacing['2'],
     },
     listContent: {

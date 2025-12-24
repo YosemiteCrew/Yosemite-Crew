@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeArea } from '@/shared/components/common';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/shared/components/common/Header/Header';
+import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import { useTheme } from '@/hooks';
 import PrimaryActionButton from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
+import { createLiquidGlassHeaderStyles } from '@/shared/utils/screenStyles';
 
 export interface AERLayoutProps {
   children: React.ReactNode;
@@ -29,11 +31,41 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   return (
-    <SafeArea>
-      <Header title={headerTitle} showBackButton={showBackButton} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title={headerTitle}
+            showBackButton={showBackButton}
+            onBack={onBack}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
+        showsVerticalScrollIndicator={false}>
         {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
         {children}
         {bottomButton ? (
@@ -47,15 +79,19 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
           </View>
         ) : null}
       </ScrollView>
-    </SafeArea>
+    </SafeAreaView>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    ...createLiquidGlassHeaderStyles(theme),
     scrollContent: {
       paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
     },
     stepLabel: {

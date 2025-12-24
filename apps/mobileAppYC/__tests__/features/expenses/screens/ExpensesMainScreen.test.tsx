@@ -324,9 +324,9 @@ describe('ExpensesMainScreen', () => {
   it('should render empty state if hydrated and no expenses exist', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => true);
     const {getByText} = render(<ExpensesMainScreen />);
-    expect(getByText('Zero Bucks Spent!')).toBeTruthy();
+    expect(getByText('Zero bucks spent!')).toBeTruthy();
     expect(
-      getByText('It seems like you and your buddy is in saving mode!'),
+      getByText('It seems like you and your buddy are in saving mode!'),
     ).toBeTruthy();
   });
 

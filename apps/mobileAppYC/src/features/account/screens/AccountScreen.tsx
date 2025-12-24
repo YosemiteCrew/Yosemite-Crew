@@ -13,7 +13,7 @@ import {
   Platform,
   ToastAndroid,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
 import type {AppDispatch, RootState} from '@/app/store';
@@ -37,6 +37,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {calculateAgeFromDateOfBirth, truncateText} from '@/shared/utils/helpers';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {deleteParentProfile} from '@/features/account/services/profileService';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {
   deleteAmplifyAccount,
   deleteFirebaseAccount,
@@ -74,6 +75,8 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const authUser = useSelector(selectAuthUser);
   const {weightUnit} = usePreferences();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -365,16 +368,37 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header
-        title="Account"
-        showBackButton
-        onBack={handleBackPress}
-        onRightPress={() => {}}
-      />
+    <>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="Account"
+            showBackButton
+            onBack={handleBackPress}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
       <View style={styles.contentWrapper}>
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
           showsVerticalScrollIndicator={false}>
           {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
           <LiquidGlassCard
@@ -478,14 +502,15 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           )}
         </ScrollView>
       </View>
-
-      <DeleteAccountBottomSheet
-        ref={deleteSheetRef}
-        email={authUser?.email}
-        onDelete={handleDeleteAccount}
-        isProcessing={isDeletingAccount}
-      />
     </SafeAreaView>
+
+    <DeleteAccountBottomSheet
+      ref={deleteSheetRef}
+      email={authUser?.email}
+      onDelete={handleDeleteAccount}
+      isProcessing={isDeletingAccount}
+    />
+    </>
   );
 };
 
@@ -501,10 +526,10 @@ const createStyles = (theme: any) =>
     content: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['5'],
     },
+    ...createLiquidGlassHeaderStyles(theme),
     companionsCard: {
       gap: theme.spacing['4'],
     },

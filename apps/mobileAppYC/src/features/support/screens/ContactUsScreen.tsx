@@ -10,10 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header, Input, TouchableInput} from '@/shared/components/common';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
@@ -30,6 +31,7 @@ import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {
   CONTACT_TABS,
   type ContactTabId,
@@ -254,6 +256,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const {user} = useSelector((state: RootState) => state.auth);
   const {companions, selectedCompanionId} = useSelector(
     (state: RootState) => state.companion,
@@ -1063,19 +1067,41 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <Header
-        title="Contact us"
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
+    <>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="Contact us"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
 
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
           showsVerticalScrollIndicator={false}>
           <View style={styles.heroCard}>
             <Image source={Images.contactHero} style={styles.heroImage} />
@@ -1095,52 +1121,53 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           {renderActiveTabContent()}
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <DataSubjectLawBottomSheet
-        ref={lawSheetRef}
-        selectedLawId={dsarForm.lawId}
-        onSelect={item => {
-          const nextLawId = item?.id ?? null;
-          setDsarForm(prev => ({
-            ...prev,
-            lawId: nextLawId,
-            otherLawNotes: nextLawId === 'other' ? prev.otherLawNotes : '',
-          }));
-          setDsarErrors(prev => {
-            const next = {...prev};
-            if (next.lawId) {
-              delete next.lawId;
-            }
-            if (nextLawId !== 'other' && next.otherLawNotes) {
-              delete next.otherLawNotes;
-            }
-            return next;
-          });
-        }}
-      />
-      <UploadDocumentBottomSheet
-        ref={uploadSheetRef}
-        onTakePhoto={() => {
-          handleTakePhoto();
-        }}
-        onChooseGallery={() => {
-          handleChooseFromGallery();
-        }}
-        onUploadDrive={() => {
-          handleUploadFromDrive();
-        }}
-      />
-
-      <DeleteDocumentBottomSheet
-        ref={deleteSheetRef}
-        documentTitle={
-          fileToDelete
-            ? complaintAttachments.find(f => f.id === fileToDelete)?.name
-            : 'this file'
-        }
-        onDelete={confirmDeleteFile}
-      />
     </SafeAreaView>
+
+    <DataSubjectLawBottomSheet
+      ref={lawSheetRef}
+      selectedLawId={dsarForm.lawId}
+      onSelect={item => {
+        const nextLawId = item?.id ?? null;
+        setDsarForm(prev => ({
+          ...prev,
+          lawId: nextLawId,
+          otherLawNotes: nextLawId === 'other' ? prev.otherLawNotes : '',
+        }));
+        setDsarErrors(prev => {
+          const next = {...prev};
+          if (next.lawId) {
+            delete next.lawId;
+          }
+          if (nextLawId !== 'other' && next.otherLawNotes) {
+            delete next.otherLawNotes;
+          }
+          return next;
+        });
+      }}
+    />
+    <UploadDocumentBottomSheet
+      ref={uploadSheetRef}
+      onTakePhoto={() => {
+        handleTakePhoto();
+      }}
+      onChooseGallery={() => {
+        handleChooseFromGallery();
+      }}
+      onUploadDrive={() => {
+        handleUploadFromDrive();
+      }}
+    />
+
+    <DeleteDocumentBottomSheet
+      ref={deleteSheetRef}
+      documentTitle={
+        fileToDelete
+          ? complaintAttachments.find(f => f.id === fileToDelete)?.name
+          : 'this file'
+      }
+      onDelete={confirmDeleteFile}
+    />
+    </>
   );
 };
 
@@ -1154,11 +1181,11 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     contentContainer: {
-      marginTop: -20,
       paddingBottom: theme.spacing['10'],
       paddingHorizontal: theme.spacing['5'],
       gap: theme.spacing['4'],
     },
+    ...createLiquidGlassHeaderStyles(theme),
     heroCard: {
       flexDirection: 'column',
       alignItems: 'center',

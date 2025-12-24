@@ -43,24 +43,19 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   fallbackStyle,
 }) => {
   const {theme, isDark} = useTheme();
-  const clipStyles = React.useMemo(
-    () => StyleSheet.create({clip: {overflow: 'hidden'}}),
-    [],
-  );
+  const resolvedColorScheme = React.useMemo(() => {
+    if (colorScheme === 'system') {
+      return 'light';
+    }
+    return colorScheme;
+  }, [colorScheme]);
 
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
       return tintColor;
     }
-    return isDark ? DARK_CARD_TINT : LIGHT_CARD_TINT;
-  }, [isDark, tintColor]);
-
-  const resolvedColorScheme = React.useMemo(() => {
-    if (colorScheme !== 'system') {
-      return colorScheme;
-    }
-    return isDark ? 'dark' : 'light';
-  }, [colorScheme, isDark]);
+    return resolvedColorScheme === 'dark' ? DARK_CARD_TINT : LIGHT_CARD_TINT;
+  }, [resolvedColorScheme, tintColor]);
 
   const defaultBackgroundColor = isDark
     ? 'rgba(28, 28, 30, 0.72)'
@@ -143,8 +138,8 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
       style,
       {
         backgroundColor: 'transparent',
-        borderColor: 'transparent',
-        borderWidth: 0,
+        borderColor: overlayBorderColor,
+        borderWidth: overlayBorderWidth,
       },
     ]);
 
@@ -155,19 +150,6 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         effect={glassEffect}
         tintColor={resolvedTintColor}
         colorScheme={resolvedColorScheme}>
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            overlayShapeStyle,
-            {
-              backgroundColor: overlayBackgroundColor,
-              borderColor: overlayBorderColor,
-              borderWidth: overlayBorderWidth,
-            },
-            clipStyles.clip,
-          ]}
-        />
         {children}
       </LiquidGlassView>
     );

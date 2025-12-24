@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -37,6 +37,8 @@ import {usePaymentHandler} from '@/features/payments/hooks/usePaymentHandler';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {resolveCurrencyForBusiness, normalizeCurrencyCode} from '@/shared/utils/currencyResolver';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -623,6 +625,122 @@ const getHeaderTitle = (isInvoiceBasedFlow: boolean, isPaymentPendingStatus: boo
   return 'Invoice details';
 };
 
+const resolveInvoice = ({
+  isInvoiceBasedFlow,
+  routeInvoice,
+  invoiceFromStore,
+}: {
+  isInvoiceBasedFlow: boolean;
+  routeInvoice?: Invoice | null;
+  invoiceFromStore?: Invoice | null;
+}) => {
+  return isInvoiceBasedFlow
+    ? routeInvoice ?? invoiceFromStore ?? null
+    : invoiceFromStore ?? routeInvoice ?? null;
+};
+
+const resolveInvoiceOrganisation = (invoice: Invoice | null) => {
+  const organisation = (invoice as any)?.organisation;
+  const organisationAddress = organisation?.address;
+  const invoiceBusinessAddress = organisationAddress
+    ? [
+        organisationAddress.addressLine,
+        organisationAddress.city,
+        organisationAddress.state,
+        organisationAddress.postalCode,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : undefined;
+  const invoiceGooglePlaceId =
+    organisation?.placesId ??
+    organisation?.placeId ??
+    organisation?.googlePlacesId ??
+    undefined;
+
+  return {
+    invoiceBusinessName: organisation?.name,
+    invoiceBusinessAddress,
+    invoiceGooglePlaceId,
+    invoiceBusinessImage: organisation?.image,
+  };
+};
+
+const resolveBusinessName = ({
+  invoiceBusinessName,
+  businessName,
+  appointmentName,
+}: {
+  invoiceBusinessName?: string;
+  businessName?: string;
+  appointmentName?: string;
+}) => {
+  return (invoiceBusinessName ?? businessName ?? appointmentName)?.trim() || 'Yosemite Crew';
+};
+
+const resolveBusinessAddress = ({
+  invoiceBusinessAddress,
+  businessAddress,
+  appointmentAddress,
+}: {
+  invoiceBusinessAddress?: string;
+  businessAddress?: string;
+  appointmentAddress?: string;
+}) => {
+  return invoiceBusinessAddress ?? businessAddress ?? appointmentAddress ?? undefined;
+};
+
+const resolvePaymentIntent = ({
+  isInvoiceBasedFlow,
+  routeIntent,
+  invoicePaymentIntent,
+  appointmentPaymentIntent,
+  fallbackPaymentIntent,
+}: {
+  isInvoiceBasedFlow: boolean;
+  routeIntent?: PaymentIntentInfo | null;
+  invoicePaymentIntent?: PaymentIntentInfo | null;
+  appointmentPaymentIntent?: PaymentIntentInfo | null;
+  fallbackPaymentIntent?: PaymentIntentInfo | null;
+}) => {
+  return (
+    (isInvoiceBasedFlow ? routeIntent ?? invoicePaymentIntent : invoicePaymentIntent) ??
+    routeIntent ??
+    appointmentPaymentIntent ??
+    fallbackPaymentIntent ??
+    null
+  );
+};
+
+const resolvePaymentPendingStatus = ({
+  isInvoiceBasedFlow,
+  invoiceStatus,
+  aptPaymentPending,
+}: {
+  isInvoiceBasedFlow: boolean;
+  invoiceStatus?: string | null;
+  aptPaymentPending: boolean;
+}) => {
+  return isInvoiceBasedFlow ? isInvoicePending(invoiceStatus) : aptPaymentPending;
+};
+
+const resolveShouldShowPay = ({
+  isPaymentPendingStatus,
+  isInvoiceBasedFlow,
+  invoiceStatus,
+  clientSecret,
+}: {
+  isPaymentPendingStatus: boolean;
+  isInvoiceBasedFlow: boolean;
+  invoiceStatus?: string | null;
+  clientSecret?: string | null;
+}) => {
+  return (
+    (isPaymentPendingStatus || (isInvoiceBasedFlow && isInvoicePending(invoiceStatus))) &&
+    Boolean(clientSecret)
+  );
+};
+
 const useInvoiceLoadingState = ({
   effectiveInvoice,
   isPaymentPendingStatus,
@@ -779,6 +897,8 @@ const buildInvoiceContent = ({
 export const PaymentInvoiceScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const route = useRoute<any>();
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
@@ -807,40 +927,35 @@ export const PaymentInvoiceScreen: React.FC = () => {
     appointmentId ? selectInvoiceForAppointment(appointmentId) : () => null,
   );
   const isInvoiceBasedFlow = Boolean(routeInvoice || expenseId); // expense/invoice-based flow
-  const invoicePreferred = isInvoiceBasedFlow
-    ? routeInvoice ?? invoiceFromStore ?? null
-    : invoiceFromStore ?? routeInvoice ?? null;
-  const invoice = invoicePreferred;
+  const invoice = resolveInvoice({
+    isInvoiceBasedFlow,
+    routeInvoice,
+    invoiceFromStore,
+  });
   const fallbackPaymentIntent = routeIntent ?? routeInvoice?.paymentIntent ?? null;
   const {apt, business, service, companion} = useAppointmentSelectors(appointmentId, companionId);
   const authUser = useSelector(selectAuthUser);
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
 
   // Extract organization details from invoice if available (expense/invoice-based flow)
-  const invoiceOrganisation = (invoice as any)?.organisation;
-  const invoiceOrganisationAddress = invoiceOrganisation?.address;
-  const invoiceBusinessName = invoiceOrganisation?.name;
-  const invoiceGooglePlaceId =
-    invoiceOrganisation?.placesId ??
-    invoiceOrganisation?.placeId ??
-    invoiceOrganisation?.googlePlacesId ??
-    null;
-  const invoiceBusinessAddress = invoiceOrganisationAddress
-    ? [
-        invoiceOrganisationAddress.addressLine,
-        invoiceOrganisationAddress.city,
-        invoiceOrganisationAddress.state,
-        invoiceOrganisationAddress.postalCode,
-      ]
-        .filter(Boolean)
-        .join(', ')
-    : undefined;
-  const invoiceBusinessImage = invoiceOrganisation?.image;
+  const {
+    invoiceBusinessName,
+    invoiceBusinessAddress,
+    invoiceGooglePlaceId,
+    invoiceBusinessImage,
+  } = resolveInvoiceOrganisation(invoice);
 
   // Use invoice organization if available, otherwise use appointment/business data
-  const businessName =
-    (invoiceBusinessName ?? business?.name ?? apt?.organisationName)?.trim() || 'Yosemite Crew';
-  const businessAddress = invoiceBusinessAddress ?? business?.address ?? apt?.organisationAddress ?? undefined;
+  const businessName = resolveBusinessName({
+    invoiceBusinessName,
+    businessName: business?.name,
+    appointmentName: apt?.organisationName ?? undefined,
+  });
+  const businessAddress = resolveBusinessAddress({
+    invoiceBusinessAddress,
+    businessAddress: business?.address,
+    appointmentAddress: apt?.organisationAddress ?? undefined,
+  });
 
   const {guardianName, guardianInitial, guardianAvatar, guardianEmail} = useGuardianInfo(authUser, invoice);
   const {companionName, companionInitial, companionAvatar} = useCompanionInfo(companion);
@@ -864,12 +979,13 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoice?.billedToName,
   ]);
 
-  const paymentIntent =
-    (isInvoiceBasedFlow ? routeIntent ?? invoice?.paymentIntent : invoice?.paymentIntent) ??
-    routeIntent ??
-    apt?.paymentIntent ??
-    fallbackPaymentIntent ??
-    null;
+  const paymentIntent = resolvePaymentIntent({
+    isInvoiceBasedFlow,
+    routeIntent,
+    invoicePaymentIntent: invoice?.paymentIntent,
+    appointmentPaymentIntent: apt?.paymentIntent,
+    fallbackPaymentIntent,
+  });
   const googlePlacesId =
     invoiceGooglePlaceId ??
     business?.googlePlacesId ??
@@ -886,11 +1002,13 @@ export const PaymentInvoiceScreen: React.FC = () => {
   };
 
   const effectiveInvoice = buildInvoices(invoice, paymentIntent, appointmentId);
-  const invoiceToCheck = invoicePreferred;
+  const invoiceToCheck = invoice;
   const {isPaymentPendingStatus: aptPaymentPending} = usePaymentStatus(apt?.status);
-  const isPaymentPendingStatus = isInvoiceBasedFlow
-    ? isInvoicePending(invoiceToCheck?.status)
-    : aptPaymentPending;
+  const isPaymentPendingStatus = resolvePaymentPendingStatus({
+    isInvoiceBasedFlow,
+    invoiceStatus: invoiceToCheck?.status,
+    aptPaymentPending,
+  });
   const invoiceIncomplete = isInvoiceMissingTotals(invoiceToCheck);
 
   useFetchAppointmentById({appointmentId, apt: isInvoiceBasedFlow ? {} : apt, dispatch});
@@ -938,10 +1056,12 @@ export const PaymentInvoiceScreen: React.FC = () => {
     [currencySymbol],
   );
   const {subtotal, discountAmount, taxAmount, total} = useInvoiceCalculations(effectiveInvoice);
-  const shouldShowPay =
-    (isPaymentPendingStatus ||
-      (isInvoiceBasedFlow && isInvoicePending(invoiceToCheck?.status))) &&
-    !!clientSecret;
+  const shouldShowPay = resolveShouldShowPay({
+    isPaymentPendingStatus,
+    isInvoiceBasedFlow,
+    invoiceStatus: invoiceToCheck?.status,
+    clientSecret,
+  });
   const headerTitle = getHeaderTitle(isInvoiceBasedFlow, isPaymentPendingStatus);
   const {shouldShowLoadingNotice} = useInvoiceLoadingState({
     effectiveInvoice,
@@ -1033,13 +1153,28 @@ export const PaymentInvoiceScreen: React.FC = () => {
   );
 
   return (
-    <SafeArea>
-      <Header
-        title={headerTitle}
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-      <ScrollView contentContainerStyle={styles.container}>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header
+          title={headerTitle}
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
+        />
+      </LiquidGlassHeader>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}>
         <SummaryCards
           businessSummary={summaryBusiness as any}
           service={service}
@@ -1048,7 +1183,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
         />
         {content}
       </ScrollView>
-    </SafeArea>
+    </SafeAreaView>
   );
 };
 
@@ -1103,6 +1238,11 @@ const BreakdownRow = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    ...createLiquidGlassHeaderStyles(theme),
     container: {
       padding: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],

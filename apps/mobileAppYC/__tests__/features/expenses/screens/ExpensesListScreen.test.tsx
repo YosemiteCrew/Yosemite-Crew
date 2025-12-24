@@ -14,6 +14,7 @@ import {ExpensesListScreen} from '@/features/expenses/screens/ExpensesListScreen
 import * as expensesSlice from '@/features/expenses';
 import * as companionSlice from '@/features/companion';
 import {useTheme} from '@/hooks';
+import {mockTheme} from '../../../setup/mockTheme';
 // 3. Import real RootState, AppDispatch, and Expense types
 import type {AppDispatch, RootState} from '@/app/store';
 import type {Expense, ExpensePaymentStatus} from '@/features/expenses';
@@ -46,15 +47,8 @@ jest.mock('@/hooks', () => {
   };
 });
 (useTheme as jest.Mock).mockReturnValue({
-  theme: {
-    colors: {
-      background: '#FFFFFF',
-      secondary: '#000000',
-      textSecondary: '#666666',
-    },
-    spacing: {2: 2, 3: 3, 4: 4, 10: 10, 24: 24},
-    typography: {h5: {}, paragraph: {}},
-  },
+  theme: mockTheme,
+  isDark: false,
 });
 
 // FIX 4: Move 'RN' import inside each mock factory & use PascalCase

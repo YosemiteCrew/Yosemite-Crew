@@ -5,6 +5,7 @@ import CustomBottomSheet, {
 } from '@/shared/components/common/BottomSheet/BottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 
 export interface UploadDocumentBottomSheetRef {
   open: () => void;
@@ -23,6 +24,7 @@ export const UploadDocumentBottomSheet = forwardRef<
 >(({onTakePhoto, onChooseGallery, onUploadDrive}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const closeButtonSize = theme.spacing['9'];
   const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
   const uploadOptions = useMemo(
@@ -88,13 +90,18 @@ export const UploadDocumentBottomSheet = forwardRef<
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Upload documents</Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Image
-              source={Images.crossIcon}
-              style={styles.closeIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          <View style={styles.closeButtonShadow}>
+            <LiquidGlassIconButton
+              onPress={handleClose}
+              size={closeButtonSize}
+              style={styles.closeButton}>
+              <Image
+                source={Images.crossIcon}
+                style={styles.closeIcon}
+                resizeMode="contain"
+              />
+            </LiquidGlassIconButton>
+          </View>
         </View>
 
         <View style={styles.optionsList}>
@@ -150,9 +157,15 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     closeButton: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonShadow: {
       position: 'absolute',
       right: 0,
       padding: theme.spacing['2'],
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.md,
     },
     closeIcon: {
       width: theme.spacing['6'],

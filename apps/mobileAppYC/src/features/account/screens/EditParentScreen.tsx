@@ -1,12 +1,17 @@
 import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
 import {
+  Alert,
   View,
   Text,
   ScrollView,
   StyleSheet,
   BackHandler,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import Clipboard from '@react-native-clipboard/clipboard';
+import {Images} from '@/assets/images';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {useDispatch, useSelector} from 'react-redux';
@@ -15,9 +20,11 @@ import type {AppDispatch} from '@/app/store';
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
-import {Separator, RowButton, ReadOnlyRow} from '@/shared/components/common/FormRowComponents';
+import {createGlassCardStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {Separator, RowButton} from '@/shared/components/common/FormRowComponents';
 
 import {
   selectAuthUser,
@@ -80,6 +87,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   const user = useSelector(selectAuthUser);
   const isLoading = useSelector(selectAuthIsLoading);
@@ -330,15 +339,25 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header
-        title="Parent"
-        showBackButton
-        onBack={goBack}
-      />
+    <>
+      <SafeAreaView style={styles.container} edges={['top']}>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header title="Parent" showBackButton onBack={goBack} glass={false} />
+      </LiquidGlassHeader>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
         {/* Header block with profile image picker */}
         <UserProfileHeader
@@ -352,13 +371,14 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         />
 
         {/* Card with rows */}
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          tintColor={theme.colors.white}
-          style={styles.glassContainer}
-          fallbackStyle={styles.glassFallback}>
-          <View style={styles.listContainer}>
+        <View style={styles.glassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive
+            tintColor={theme.colors.white}
+            style={styles.glassContainer}
+            fallbackStyle={styles.glassFallback}>
+            <View style={styles.listContainer}>
             {/* First Name – Inline */}
             <InlineEditRow
               label="First name"
@@ -390,10 +410,28 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <Separator />
 
             {/* Email – Read only */}
-            <ReadOnlyRow
-              label="Email"
-              value={safeUser.email}
-            />
+            <View style={styles.readOnlyEmailRow}>
+              <Text style={styles.rowButtonLabel}>Email</Text>
+              <Text
+                style={styles.rowButtonValue}
+                numberOfLines={1}
+                ellipsizeMode="tail">
+                {safeUser.email ?? '—'}
+              </Text>
+              <TouchableOpacity
+                style={styles.copyIconButton}
+                activeOpacity={0.7}
+                onPress={() => {
+                  const email = safeUser.email?.trim();
+                  if (!email) {
+                    return;
+                  }
+                  Clipboard.setString(email);
+                  Alert.alert('Copied', 'Email Id copied to clipboard');
+                }}>
+                <Image source={Images.copyIcon} style={styles.copyIcon} />
+              </TouchableOpacity>
+            </View>
 
             <Separator />
 
@@ -480,11 +518,27 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
               }}
               key="country"
             />
-          </View>
-        </LiquidGlassCard>
+            </View>
+          </LiquidGlassCard>
+        </View>
       </ScrollView>
 
-      {/* ====== Bottom Sheets / Pickers ====== */}
+      <SimpleDatePicker
+        value={
+          safeUser.dateOfBirth ? new Date(safeUser.dateOfBirth) : null
+        }
+        onDateChange={date => {
+          applyPatch({dateOfBirth: date ? date.toISOString().split('T')[0] : undefined});
+          setShowDobPicker(false);
+        }}
+        show={showDobPicker}
+        onDismiss={() => setShowDobPicker(false)}
+        maximumDate={new Date()}
+        mode="date"
+      />
+      </SafeAreaView>
+
+      {/* ====== Bottom Sheets ====== */}
       <CurrencyBottomSheet
         ref={currencySheetRef}
         selectedCurrency={safeUser.currency ?? 'USD'}
@@ -513,25 +567,42 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           setOpenBottomSheet(null);
         }}
       />
-
-      <SimpleDatePicker
-        value={
-          safeUser.dateOfBirth ? new Date(safeUser.dateOfBirth) : null
-        }
-        onDateChange={date => {
-          applyPatch({dateOfBirth: date ? date.toISOString().split('T')[0] : undefined});
-          setShowDobPicker(false);
-        }}
-        show={showDobPicker}
-        onDismiss={() => setShowDobPicker(false)}
-        maximumDate={new Date()}
-        mode="date"
-      />
-    </SafeAreaView>
+    </>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    ...createLiquidGlassHeaderStyles(theme),
+    ...createGlassCardStyles(theme),
+    readOnlyEmailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
+    },
+    rowButtonLabel: {
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.textSecondary,
+      flex: 1,
+    },
+    rowButtonValue: {
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.placeholder,
+      marginRight: theme.spacing['2'],
+      flexShrink: 1,
+      flex: 1,
+      textAlign: 'right',
+    },
+    copyIconButton: {
+      paddingLeft: theme.spacing['1'],
+      paddingVertical: theme.spacing['1'],
+    },
+    copyIcon: {
+      width: 18,
+      height: 18,
+      resizeMode: 'contain',
+      tintColor: theme.colors.textSecondary,
+    },
   });

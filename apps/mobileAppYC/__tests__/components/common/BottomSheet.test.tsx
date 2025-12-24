@@ -118,8 +118,6 @@ describe('CustomBottomSheet', () => {
     const mockOnAnimate = jest.fn();
     const snapPoints = ['50%'];
     const style = {backgroundColor: 'red'};
-    const backgroundStyle = {backgroundColor: 'blue'};
-
     render(
       <CustomBottomSheet
         snapPoints={snapPoints}
@@ -130,7 +128,6 @@ describe('CustomBottomSheet', () => {
         enableContentPanningGesture={false}
         enableHandlePanningGesture={false}
         style={style}
-        backgroundStyle={backgroundStyle}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
@@ -153,7 +150,7 @@ describe('CustomBottomSheet', () => {
         enableHandlePanningGesture: false,
         // FIX: Expect the style to be merged (array containing original style)
         style: expect.arrayContaining([style]),
-        backgroundStyle: backgroundStyle,
+        backgroundComponent: expect.any(Function),
       }),
     );
   });

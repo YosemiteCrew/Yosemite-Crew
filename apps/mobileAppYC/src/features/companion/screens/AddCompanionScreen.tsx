@@ -13,9 +13,11 @@ import {
   BackHandler,
   type KeyboardTypeOptions,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useForm, Controller, type ControllerProps} from 'react-hook-form';
 import {SafeArea, Input, Header} from '@/shared/components/common';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {TileSelector} from '@/shared/components/common/TileSelector/TileSelector';
 import {
@@ -40,6 +42,7 @@ import {
 
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {Images} from '@/assets/images';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '@/navigation/types';
@@ -123,6 +126,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
   const {weightUnit} = usePreferences();
@@ -867,19 +872,41 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   const isPrimaryButtonLoading = isFinalStep && isSubmitting;
 
   return (
-    <SafeArea style={styles.container}>
+    <>
+      <SafeArea style={styles.container}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
+            showBackButton
+            onBack={handleGoBack}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}>
-        <Header
-          title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
-          showBackButton
-          onBack={handleGoBack}
-        />
-
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           {currentStep === 1 && renderStep1()}
@@ -918,13 +945,14 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         />
       </KeyboardAvoidingView>
 
+      </SafeArea>
+
       <BreedBottomSheet
         ref={breedSheetRef}
         breeds={getBreedListByCategory(category)}
         selectedBreed={breed}
         onSave={handleBreedSave}
       />
-
 
       <BloodGroupBottomSheet
         ref={bloodGroupSheetRef}
@@ -946,13 +974,14 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         ref={discardSheetRef}
         onDiscard={() => navigation.goBack()}
       />
-    </SafeArea>
+    </>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    ...createLiquidGlassHeaderStyles(theme),
     stepContainer: {
       flex: 1,
     },

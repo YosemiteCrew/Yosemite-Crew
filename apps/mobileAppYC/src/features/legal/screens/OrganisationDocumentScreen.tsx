@@ -164,7 +164,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   }
 
   return (
-    <SafeAreaView style={baseStyles.safeArea}>
+    <SafeAreaView style={baseStyles.safeArea} edges={['top']}>
       <Header
         title={screenTitle}
         showBackButton

@@ -85,8 +85,8 @@ describe('FloatingTabBar', () => {
 
       expect(getByText('Home')).toBeTruthy();
       expect(getByText('Appointments')).toBeTruthy();
-      // iOS shouldn't render LiquidGlassView
-      expect(queryByTestId('liquid-glass-view')).toBeNull();
+      // iOS should render LiquidGlassView when supported
+      expect(queryByTestId('liquid-glass-view')).toBeTruthy();
     });
 
     it('renders LiquidGlassView on Android if supported', () => {
@@ -94,9 +94,10 @@ describe('FloatingTabBar', () => {
       const props: any = createProps();
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {getByTestId} = render(<FloatingTabBar {...props} />);
+      const {queryByTestId} = render(<FloatingTabBar {...props} />);
 
-      expect(getByTestId('liquid-glass-view')).toBeTruthy();
+      // Android should fall back to View because glass is iOS-only
+      expect(queryByTestId('liquid-glass-view')).toBeNull();
     });
   });
 

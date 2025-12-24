@@ -4,7 +4,7 @@ import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
-import {SafeArea} from '@/shared/components/common';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -31,6 +31,8 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {fetchBusinessDetails} from '@/features/linkedBusinesses';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
@@ -253,6 +255,8 @@ export const ExpensePreviewScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const {openPaymentScreen, processingPayment} = useExpensePayment();
 
   const expenseId = (route.params as any)?.expenseId ?? '';
@@ -338,12 +342,26 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   if (!expense) {
     return (
-      <SafeArea>
-        <Header title="Expenses" showBackButton onBack={handleBack} />
-        <View style={styles.errorContainer}>
+      <SafeAreaView style={styles.root} edges={['top']}>
+        <LiquidGlassHeader
+          insetsTop={insets.top}
+          currentHeight={topGlassHeight}
+          onHeightChange={setTopGlassHeight}
+          topSectionStyle={styles.topSection}
+          cardStyle={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Expenses" showBackButton onBack={handleBack} glass={false} />
+        </LiquidGlassHeader>
+        <View
+          style={[
+            styles.errorContainer,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}>
           <Text style={styles.errorText}>Expense not found</Text>
         </View>
-      </SafeArea>
+      </SafeAreaView>
     );
   }
 
@@ -373,17 +391,31 @@ export const ExpensePreviewScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header
-        title="Expenses"
-        showBackButton
-        onBack={handleBack}
-        rightIcon={canEdit ? Images.blackEdit : undefined}
-        onRightPress={canEdit ? handleEdit : undefined}
-      />
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header
+          title="Expenses"
+          showBackButton
+          onBack={handleBack}
+          rightIcon={canEdit ? Images.blackEdit : undefined}
+          onRightPress={canEdit ? handleEdit : undefined}
+          glass={false}
+        />
+      </LiquidGlassHeader>
         <ScrollView
           style={styles.container}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
@@ -421,12 +453,17 @@ export const ExpensePreviewScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
-    </SafeArea>
+    </SafeAreaView>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    ...createLiquidGlassHeaderStyles(theme),
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,

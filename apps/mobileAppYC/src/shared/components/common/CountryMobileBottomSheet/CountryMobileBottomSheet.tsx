@@ -137,6 +137,8 @@ export const CountryMobileBottomSheet = forwardRef<
       searchPlaceholder="Search country name"
       emptyMessage="No results found"
       customContent={customContent}
+      snapPoints={['90%', '95%']}
+      maxListHeight={420}
     />
   );
 });

@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import {
+  Keyboard,
   TextInput,
   View,
   Text,
@@ -53,6 +54,7 @@ export const Input: React.FC<InputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const [hasValue, setHasValue] = useState(!!value);
   const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const isMultiline = Boolean(textInputProps.multiline);
 
   const animateLabel = useCallback((toValue: number) => {
     Animated.timing(animatedValue, {
@@ -157,6 +159,13 @@ export const Input: React.FC<InputProps> = ({
   // the label is in the placeholder state. This gives visual offset
   // for the placeholder text without affecting entered text alignment.
   const effectivePlaceholderOffset = placeholderOffset ?? 0;
+  const placeholderLineHeight =
+    theme.typography.input.lineHeight ?? theme.typography.input.fontSize;
+  const placeholderTop =
+    (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
+  const labelLineHeight =
+    theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize;
+  const floatingTop = -Math.round(labelLineHeight / 2) - 2;
 
   const getFloatingLabelStyle = () => {
     const baseStyle = {
@@ -176,8 +185,8 @@ export const Input: React.FC<InputProps> = ({
       top: animatedValue.interpolate({
         inputRange: [0, 1],
         outputRange: [
-          Platform.OS === 'ios' ? theme.spacing['4.5'] : theme.spacing['3.5'],
-          Platform.OS === 'ios' ? -theme.spacing['1.25'] : -theme.spacing['2.5'],
+          placeholderTop,
+          floatingTop,
         ],
       }),
       color: animatedValue.interpolate({
@@ -242,6 +251,13 @@ export const Input: React.FC<InputProps> = ({
           value={value}
           clearButtonMode="while-editing"
           enablesReturnKeyAutomatically={true}
+          returnKeyType={textInputProps.returnKeyType ?? 'done'}
+          onSubmitEditing={(event) => {
+            textInputProps.onSubmitEditing?.(event);
+            if (!isMultiline) {
+              Keyboard.dismiss();
+            }
+          }}
           {...textInputProps}
         />
         {icon && IconWrapper && (

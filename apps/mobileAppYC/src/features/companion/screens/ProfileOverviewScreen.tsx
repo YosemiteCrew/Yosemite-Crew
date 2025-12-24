@@ -12,7 +12,7 @@ import {
   ToastAndroid,
   Platform,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
@@ -25,7 +25,12 @@ import {
   type TabParamList,
 } from '@/navigation/types';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {createScreenContainerStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {
+  createGlassCardStyles,
+  createLiquidGlassHeaderStyles,
+  createScreenContainerStyles,
+} from '@/shared/utils/screenStyles';
 import {createCenteredStyle} from '@/shared/utils/commonHelpers';
 import DeleteProfileBottomSheet, {
   type DeleteProfileBottomSheetRef,
@@ -74,6 +79,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {companionId} = route.params;
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
@@ -354,7 +361,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (!companion) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header title="Profile" showBackButton onBack={handleBackPress} />
         <View style={styles.centered}>
           {isLoading ? (
@@ -368,17 +375,32 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header
-        title={`${companion.name}'s Profile`}
-        showBackButton
-        onBack={handleBackPress}
-        rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
-        onRightPress={isPrimaryParent ? handleDeletePress : undefined}
-      />
+    <>
+      <SafeAreaView style={styles.container} edges={['top']}>
+      <LiquidGlassHeader
+        insetsTop={insets.top}
+        currentHeight={topGlassHeight}
+        onHeightChange={setTopGlassHeight}
+        topSectionStyle={styles.topSection}
+        cardStyle={styles.topGlassCard}
+        fallbackStyle={styles.topGlassFallback}>
+        <Header
+          title={`${companion.name}'s Profile`}
+          showBackButton
+          onBack={handleBackPress}
+          rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+          onRightPress={isPrimaryParent ? handleDeletePress : undefined}
+          glass={false}
+        />
+      </LiquidGlassHeader>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         showsVerticalScrollIndicator={false}>
         <CompanionProfileHeader
           name={companion.name}
@@ -389,6 +411,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         />
 
         {/* Only menu list inside glass card */}
+      <View style={styles.glassShadowWrapper}>
         <LiquidGlassCard
           glassEffect="clear"
           interactive
@@ -426,7 +449,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
             ))}
           </View>
         </LiquidGlassCard>
+      </View>
       </ScrollView>
+      </SafeAreaView>
 
       <DeleteProfileBottomSheet
         ref={deleteSheetRef}
@@ -434,7 +459,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         onDelete={handleDeleteProfile}
         onCancel={handleDeleteCancel}
       />
-    </SafeAreaView>
+    </>
   );
 };
 
@@ -442,6 +467,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createScreenContainerStyles(theme),
     ...createCenteredStyle(theme),
+    ...createLiquidGlassHeaderStyles(theme),
     emptyStateText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
@@ -450,17 +476,7 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['10'],
     },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing['2'],
-      overflow: 'hidden',
-      ...theme.shadows.md,
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
-    },
+    ...createGlassCardStyles(theme),
     listContainer: {
       gap: theme.spacing['1'],
     },

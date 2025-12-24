@@ -12,7 +12,6 @@ import { useTheme } from '@/hooks';
 import { Images } from '@/assets/images';
 import {
   ACTION_WIDTH,
-  OVERLAP_WIDTH,
   getActionWrapperStyle,
   getEditActionButtonStyle,
   getViewActionButtonStyle,
@@ -44,15 +43,14 @@ export const SwipeableActionCard: React.FC<SwipeableActionCardProps> = ({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const visibleActionWidth = showEditAction ? ACTION_WIDTH * 2 : ACTION_WIDTH;
-  const totalActionWidth = OVERLAP_WIDTH + visibleActionWidth;
+  const totalActionWidth = showEditAction ? ACTION_WIDTH * 2 : ACTION_WIDTH;
 
   return (
     <SwipeableGlassCard
       actionIcon={Images.viewIconSlide}
       actionWidth={hideSwipeActions ? 0 : totalActionWidth}
       actionBackgroundColor={actionBackgroundColor}
-      actionOverlap={hideSwipeActions ? 0 : OVERLAP_WIDTH}
+      actionOverlap={0}
       containerStyle={[styles.container, containerStyle]}
       cardProps={{
         interactive: true,
@@ -71,18 +69,6 @@ export const SwipeableActionCard: React.FC<SwipeableActionCardProps> = ({
               <View
                 style={getActionWrapperStyle(showEditAction, theme)}
               >
-                <View
-                  style={[
-                    styles.overlapContainer,
-                    {
-                      width: OVERLAP_WIDTH,
-                      backgroundColor: showEditAction
-                        ? theme.colors.primary
-                        : theme.colors.success,
-                    },
-                  ]}
-                />
-
                 {showEditAction && (
                   <TouchableOpacity
                     activeOpacity={0.85}
@@ -143,9 +129,6 @@ const createStyles = (theme: any) =>
     },
     hiddenActionContainer: {
       width: 0,
-    },
-    overlapContainer: {
-      height: '100%',
     },
     actionButton: {
       height: '100%',

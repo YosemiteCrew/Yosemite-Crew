@@ -50,10 +50,78 @@ export const createEmptyStateStyles = (theme: any) => ({
  */
 export const createSearchAndSelectorStyles = (theme: any) => ({
   searchBar: {
-    marginTop: theme.spacing['4'],
     marginBottom: theme.spacing['2'],
+    marginInline: theme.spacing['6'],
   },
   companionSelector: {
+    marginTop: theme.spacing['2'],
     marginBottom: theme.spacing['4'],
+  },
+});
+
+/**
+ * Creates common liquid glass header styles
+ * Use this for the "top liquid glass" pattern where scroll content sits behind the glass
+ * @see apps/mobileAppYC/guides/liquidGlassHeaderGuide.md
+ */
+type LiquidGlassHeaderOptions = {
+  cardGap?: number;
+};
+
+export const createLiquidGlassHeaderStyles = (
+  theme: any,
+  options: LiquidGlassHeaderOptions = {},
+) => {
+  const {cardGap} = options;
+
+  return {
+    topSection: {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    },
+    topGlassCard: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: theme.spacing['3'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden' as const,
+      ...(cardGap ? {gap: cardGap} : null),
+    },
+    topGlassFallback: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+  };
+};
+
+export const createGlassCardStyles = (theme: any) => ({
+  glassShadowWrapper: {
+    borderRadius: theme.borderRadius.lg,
+    ...theme.shadows.md,
+  },
+  glassContainer: {
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing['2'],
+    overflow: 'hidden' as const,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  glassFallback: {
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
 });

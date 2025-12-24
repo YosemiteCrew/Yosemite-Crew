@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks';
 import { Images } from '@/assets/images';
 import CustomBottomSheet, { type BottomSheetRef } from '@/shared/components/common/BottomSheet/BottomSheet';
 import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/app/store';
 import {
@@ -43,6 +44,7 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
     const [isSheetVisible, setIsSheetVisible] = React.useState(false);
 
     const styles = useMemo(() => createStyles(theme), [theme]);
+    const closeButtonSize = theme.spacing['9'];
 
     // Get linked hospitals for the selected companion
     const linkedHospitals = useSelector((state: RootState) =>
@@ -154,7 +156,7 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
     return (
       <CustomBottomSheet
         ref={bottomSheetRef}
-        snapPoints={['75%','85%']}
+        snapPoints={['80%','85%']}
         initialIndex={-1}
         onChange={index => {
           setIsSheetVisible(index !== -1);
@@ -172,9 +174,14 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}>
         <View style={styles.container}>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
-          </TouchableOpacity>
+          <View style={styles.closeButtonShadow}>
+            <LiquidGlassIconButton
+              onPress={handleClose}
+              size={closeButtonSize}
+              style={styles.closeButton}>
+              <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
+            </LiquidGlassIconButton>
+          </View>
           {canShowOptions ? renderOptions() : renderEmptyState()}
         </View>
       </CustomBottomSheet>
@@ -294,11 +301,16 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     closeButton: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonShadow: {
       position: 'absolute',
       right: theme.spacing['5'],
       top: theme.spacing['4'],
-      padding: theme.spacing['2'],
       zIndex: 10,
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.md,
     },
     closeIcon: {
       width: theme.spacing['6'],

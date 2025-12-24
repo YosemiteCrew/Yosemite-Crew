@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo} from 'react';
 import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -41,6 +41,8 @@ import {
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -606,6 +608,8 @@ const ActionButtons = ({
 export const ViewAppointmentScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const dispatch = useDispatch<AppDispatch>();
@@ -705,12 +709,26 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   if (!apt) {
     return (
-      <SafeArea>
-        <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} />
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.root} edges={['top']}>
+        <LiquidGlassHeader
+          insetsTop={insets.top}
+          currentHeight={topGlassHeight}
+          onHeightChange={setTopGlassHeight}
+          topSectionStyle={styles.topSection}
+          cardStyle={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
+        </LiquidGlassHeader>
+        <View
+          style={[
+            styles.loadingContainer,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}>
           <Text style={styles.loadingText}>Loading appointment...</Text>
         </View>
-      </SafeArea>
+      </SafeAreaView>
     );
   }
 
@@ -725,9 +743,25 @@ export const ViewAppointmentScreen: React.FC = () => {
   const {dateTimeLabel} = formatAppointmentDateTime(apt);
 
   return (
-    <SafeArea>
-      <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <>
+      <SafeAreaView style={styles.root} edges={['top']}>
+        <LiquidGlassHeader
+          insetsTop={insets.top}
+          currentHeight={topGlassHeight}
+          onHeightChange={setTopGlassHeight}
+          topSectionStyle={styles.topSection}
+          cardStyle={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
+        </LiquidGlassHeader>
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            topGlassHeight
+              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              : null,
+          ]}
+          showsVerticalScrollIndicator={false}>
 
         <StatusCard
           styles={styles}
@@ -865,13 +899,13 @@ export const ViewAppointmentScreen: React.FC = () => {
           theme={theme}
         />
       </ScrollView>
-
+      </SafeAreaView>
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={handleCancelAppointment}
       />
       <RescheduledInfoSheet ref={rescheduledRef} onClose={() => rescheduledRef.current?.close?.()} />
-    </SafeArea>
+    </>
   );
 };
 
@@ -917,6 +951,11 @@ const createDetailStyles = (theme: any) =>
   });
 
 const createStyles = (theme: any) => StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  ...createLiquidGlassHeaderStyles(theme),
   container: {
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],

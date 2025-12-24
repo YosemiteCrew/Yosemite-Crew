@@ -4,14 +4,11 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   Image,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -41,6 +38,8 @@ import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -50,6 +49,8 @@ export const MyAppointmentsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
@@ -60,7 +61,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   const upcoming = useSelector((state: RootState) => upcomingSelector(state, selectedCompanionId ?? null));
   const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
-  const [filter, setFilter] = React.useState<BusinessFilter>('all');
+  const [filter] = React.useState<BusinessFilter>('all');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
@@ -498,21 +499,6 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
 
-  const renderHeader = () => (
-    <View style={styles.listHeader}>
-      <CompanionSelector
-        companions={companions}
-        selectedCompanionId={selectedCompanionId}
-        onSelect={id => dispatch(setSelectedCompanion(id))}
-        showAddButton={false}
-        containerStyle={styles.companionSelector}
-        requiredPermission="appointments"
-        permissionLabel="appointments"
-      />
-
-      <SectionListHorizontalPills filter={filter} setFilter={setFilter} />
-    </View>
-  );
 
   const handleEndReached = () => {
     // Placeholder for future pagination when backend is available
@@ -521,15 +507,40 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header title="My Appointments" showBackButton={false} rightIcon={Images.addIconDark} onRightPress={handleAdd} />
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header
+            title="My Appointments"
+            showBackButton={false}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAdd}
+            glass={false}
+          />
+        </LiquidGlassCard>
+      </View>
       <SectionList
         style={styles.sectionList}
         sections={sections}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
         onEndReached={handleEndReached}
@@ -647,48 +658,13 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   );
 };
 
-const SectionListHorizontalPills = ({
-  filter,
-  setFilter,
-}: {
-  filter: BusinessFilter;
-  setFilter: (value: BusinessFilter) => void;
-}) => {
-  const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
-
-  const filterOptions: Array<{id: BusinessFilter; label: string}> = [
-    {id: 'all', label: 'All'},
-    {id: 'hospital', label: 'Hospital'},
-    {id: 'groomer', label: 'Groomer'},
-    {id: 'breeder', label: 'Breeder'},
-    {id: 'boarder', label: 'Boarder'},
-  ];
-
-  return (
-    <View style={styles.pillContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsContent}>
-        {filterOptions.map(option => (
-          <TouchableOpacity
-            key={option.id}
-            onPress={() => setFilter(option.id)}
-            activeOpacity={0.8}
-            style={[styles.pill, filter === option.id && styles.pillActive]}
-          >
-            <Text style={[styles.pillText, filter === option.id && styles.pillTextActive]}>{option.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-};
-
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    ...createLiquidGlassHeaderStyles(theme),
     sectionList: {flex: 1},
     container: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
+      paddingTop: theme.spacing['1'],
       paddingBottom: theme.spacing['10'],
     },
     listHeader: {gap: theme.spacing['3'], marginBottom: theme.spacing['4']},

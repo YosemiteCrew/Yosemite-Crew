@@ -28,6 +28,11 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('@/shared/utils/screenStyles', () => ({
   createScreenContainerStyles: () => ({container: {}, contentContainer: {}}),
   createErrorContainerStyles: () => ({errorContainer: {}, errorText: {}}),
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
 }));
 
 // 3. Theme

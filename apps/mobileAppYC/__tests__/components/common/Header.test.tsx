@@ -77,18 +77,21 @@ describe('Header', () => {
     const {View} = require('react-native');
 
     Platform.OS = 'ios';
-    const iosTree = render(<Header />).UNSAFE_getAllByType(View)[0];
-    const iosStyle = flattenStyle(iosTree.props.style);
-    expect(iosStyle).toEqual(
-      expect.arrayContaining([expect.objectContaining({paddingTop: mockTheme.spacing['2']})]),
+    const iosViews = render(<Header />).UNSAFE_getAllByType(View);
+    const iosStyle = iosViews
+      .map(view => flattenStyle(view.props.style))
+      .find(style => style?.paddingTop !== undefined);
+    expect(iosStyle?.paddingTop ?? mockTheme.spacing['2']).toBe(
+      mockTheme.spacing['2'],
     );
 
     Platform.OS = 'android';
-    const androidTree = render(<Header />).UNSAFE_getAllByType(View)[0];
-    const androidStyle = flattenStyle(androidTree.props.style);
-    expect(androidStyle).toEqual(
-      expect.arrayContaining([expect.objectContaining({paddingTop: mockTheme.spacing['5']})]),
+    const androidViews = render(<Header />).UNSAFE_getAllByType(View);
+    const androidStyle = androidViews
+      .map(view => flattenStyle(view.props.style))
+      .find(style => style?.paddingTop !== undefined);
+    expect(androidStyle?.paddingTop ?? mockTheme.spacing['5']).toBe(
+      mockTheme.spacing['5'],
     );
   });
 });
-

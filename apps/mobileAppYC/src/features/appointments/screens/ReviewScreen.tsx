@@ -1,8 +1,10 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ScrollView, View, Text, StyleSheet, TextInput, Image} from 'react-native';
+import {ScrollView, View, Text, StyleSheet, TextInput, Image, Keyboard} from 'react-native';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useTheme} from '@/hooks';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -17,12 +19,15 @@ import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBus
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {Images} from '@/assets/images';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 export const ReviewScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const [review, setReview] = useState('');
   const [rating, setRating] = useState(4);
   const [submitting, setSubmitting] = useState(false);
@@ -103,8 +108,30 @@ export const ReviewScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header title="Review" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View
+        style={[styles.topSection, {paddingTop: insets.top}]}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          interactive={false}
+          style={styles.topGlassCard}
+          fallbackStyle={styles.topGlassFallback}>
+          <Header title="Review" showBackButton onBack={() => navigation.goBack()} glass={false} />
+        </LiquidGlassCard>
+      </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          topGlassHeight
+            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            : null,
+        ]}
+        showsVerticalScrollIndicator={false}>
         {apt && (
           <View style={styles.businessCardContainer}>
             <SummaryCards
@@ -139,11 +166,13 @@ export const ReviewScreen: React.FC = () => {
             <TextInput
               value={review}
               onChangeText={setReview}
-              multiline
+              multiline={false}
               placeholder="Your review"
               placeholderTextColor={theme.colors.textSecondary + '80'}
               style={styles.input}
               textAlignVertical="top"
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
         </View>
@@ -169,6 +198,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],
   },
+  ...createLiquidGlassHeaderStyles(theme),
   headerSection: {
     alignItems: 'center',
     marginBottom: theme.spacing['5'],

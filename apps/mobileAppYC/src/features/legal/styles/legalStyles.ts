@@ -1,4 +1,5 @@
 import {StyleSheet} from 'react-native';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 export const createLegalStyles = (theme: any) =>
   StyleSheet.create({
@@ -11,10 +12,10 @@ export const createLegalStyles = (theme: any) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['3'],
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['4'],
     },
+    ...createLiquidGlassHeaderStyles(theme),
     withdrawalCardFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,

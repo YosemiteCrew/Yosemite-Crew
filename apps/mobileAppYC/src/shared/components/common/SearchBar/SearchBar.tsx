@@ -74,7 +74,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmitEditing}
-        returnKeyType="search"
+        returnKeyType="done"
       />
       <TouchableOpacity
         activeOpacity={0.85}
@@ -121,6 +121,8 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.border,
       borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     touchable: {
       flexDirection: 'row',

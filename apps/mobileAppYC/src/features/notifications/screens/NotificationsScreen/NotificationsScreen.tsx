@@ -260,7 +260,7 @@ export const NotificationsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top','bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Header
         title="Notifications"
         showBackButton

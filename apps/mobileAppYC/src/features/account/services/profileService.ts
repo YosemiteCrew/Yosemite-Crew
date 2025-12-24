@@ -73,25 +73,6 @@ const PARENT_RESOURCE = '/fhir/v1/parent';
 const PROFILE_COMPLETION_EXTENSION_URL =
   'http://example.org/fhir/StructureDefinition/parent-profile-completed';
 
-const isAddressComplete = (address?: AddressDTOAttributes): boolean => {
-  if (!address) {
-    return false;
-  }
-
-  const required: Array<keyof AddressDTOAttributes> = [
-    'addressLine',
-    'city',
-    'state',
-    'postalCode',
-    'country',
-  ];
-
-  return required.every(field => {
-    const value = address[field];
-    return typeof value === 'string' && value.trim().length > 0;
-  });
-};
-
 const hasAddressContent = (address?: FhirAddress | null): boolean => {
   if (!address) {
     return false;
@@ -169,10 +150,8 @@ const deriveCompletionFromExtensions = (
 const computeDefaultCompletion = (summary: ParentProfileSummary): boolean => {
   return (
     Boolean(summary.firstName?.trim()) &&
-    typeof summary.age === 'number' &&
-    summary.age > 0 &&
-    Boolean(summary.phoneNumber?.trim()) &&
-    isAddressComplete(summary.address)
+    Boolean(summary.lastName?.trim()) &&
+    Boolean(summary.phoneNumber?.trim())
   );
 };
 
@@ -197,7 +176,10 @@ const mapSummaryFromResource = (
 
   const extensionCompletion = deriveCompletionFromExtensions(resource.extension);
   const fallbackCompletion = computeDefaultCompletion(summary);
-  summary.isComplete = extensionCompletion ?? fallbackCompletion;
+  summary.isComplete =
+    typeof extensionCompletion === 'boolean'
+      ? extensionCompletion || fallbackCompletion
+      : fallbackCompletion;
 
   return {
     summary,

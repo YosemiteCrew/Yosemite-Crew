@@ -365,15 +365,10 @@ describe('MyAppointmentsScreen', () => {
   });
 
   describe('Filtering', () => {
-    it('filters list when pills are pressed', () => {
+    it('shows appointments from multiple business categories by default', () => {
       renderScreen();
       // 'Vet Clinic' is hospital. 'Grooming Salon' is groomer.
       expect(screen.getAllByText('Vet Clinic').length).toBeGreaterThan(0);
-      expect(screen.getByText('Grooming Salon')).toBeTruthy();
-
-      fireEvent.press(screen.getByText('Groomer'));
-
-      expect(screen.queryByText('Vet Clinic')).toBeNull();
       expect(screen.getByText('Grooming Salon')).toBeTruthy();
     });
   });

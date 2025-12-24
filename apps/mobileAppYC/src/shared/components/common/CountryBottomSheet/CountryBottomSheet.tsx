@@ -64,7 +64,8 @@ export const CountryBottomSheet = forwardRef<
       searchPlaceholder="Search country name"
       emptyMessage="No results found"
       mode='select'
-            snapPoints={['95%','98%']}
+      snapPoints={['85%', '95%']}
+      maxListHeight={520}
     />
   );
 });
