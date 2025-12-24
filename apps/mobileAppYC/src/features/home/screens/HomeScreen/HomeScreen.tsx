@@ -61,7 +61,7 @@ import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/a
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
-import {sharedTileStyles} from '@/shared/styles/tileStyles';
+import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
 import {
@@ -1266,6 +1266,8 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['6'],
       paddingVertical: theme.spacing['4'],
       gap: theme.spacing['4'],
+            borderWidth: 0,
+      borderColor: 'transparent',
       overflow: 'hidden',
     },
     topGlassFallback: {
@@ -1273,6 +1275,8 @@ const createStyles = (theme: any) =>
       borderTopRightRadius: 0,
       borderBottomLeftRadius: theme.borderRadius['2xl'],
       borderBottomRightRadius: theme.borderRadius['2xl'],
+            borderWidth: 0,
+      borderColor: 'transparent',
     },
     scrollContent: {
       paddingHorizontal: theme.spacing['6'],
@@ -1364,6 +1368,8 @@ const createStyles = (theme: any) =>
       padding: theme.spacing['5'],
       minHeight: theme.spacing['40'],
       overflow: 'hidden',
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     heroContent: {
       flex: 1,
@@ -1395,6 +1401,8 @@ const createStyles = (theme: any) =>
     heroFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
+      borderWidth: 0,
+      borderColor: 'transparent',
       overflow: 'hidden',
     },
     section: {
@@ -1405,13 +1413,17 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     infoTile: {
-      borderRadius: theme.borderRadius.lg,
+      ...baseTileContainer(theme),
+      borderWidth: 0,
+      borderColor: 'transparent',
       padding: theme.spacing['5'],
       gap: theme.spacing['2'],
       overflow: 'hidden',
     },
     tileFallback: {
       ...sharedTileStyles(theme).tileFallback,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     tileShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
@@ -1468,6 +1480,8 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing['1'],
       minHeight: theme.spacing['7'],
       minWidth: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
       ...theme.shadows.sm,
       shadowColor: theme.colors.neutralShadow,
     },
@@ -1488,6 +1502,8 @@ const createStyles = (theme: any) =>
     },
     reviewButtonCard: {
       marginTop: theme.spacing['1'],
+      borderWidth: 0,
+      borderColor: 'transparent',
       ...theme.shadows.sm,
       shadowColor: theme.colors.neutralShadow,
     },

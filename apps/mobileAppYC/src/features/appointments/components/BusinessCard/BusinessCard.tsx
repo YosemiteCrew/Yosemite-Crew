@@ -118,7 +118,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
           <LiquidGlassButton
             title="Book an appointment"
             onPress={onBook}
-            tintColor={theme.colors.whiteOverlay70}
+            tintColor={theme.colors.white}
             textStyle={styles.buttonText}
             style={styles.button}
             forceBorder
