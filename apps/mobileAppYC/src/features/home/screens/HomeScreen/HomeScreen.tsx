@@ -1012,6 +1012,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const actionIconSize = theme.spacing['10'];
   const insets = useSafeAreaInsets();
   const [topGlassHeight, setTopGlassHeight] = React.useState(0);
+  const bottomScrollPadding =
+    insets.bottom + theme.spacing['24'] + theme.spacing['12'];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -1024,11 +1026,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               setTopGlassHeight(height);
             }
           }}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            style={styles.topGlassCard}
-            fallbackStyle={styles.topGlassFallback}>
+          <View style={styles.topGlassShadowWrapper}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              interactive={false}
+              shadow="none"
+              style={styles.topGlassCard}
+              fallbackStyle={styles.topGlassFallback}>
             <View style={styles.headerRow}>
           <TouchableOpacity
             style={styles.profileButton}
@@ -1096,14 +1100,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           onSubmitEditing={e => handleServiceSearch(e.nativeEvent.text)}
           onIconPress={() => handleServiceSearch()}
         />
-          </LiquidGlassCard>
+            </LiquidGlassCard>
+          </View>
         </View>
       </View>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['2']} : null,
-          {paddingBottom: theme.spacing['30']},
+          {paddingBottom: bottomScrollPadding},
         ]}
         showsVerticalScrollIndicator={false}>
 
@@ -1233,12 +1238,25 @@ const createStyles = (theme: any) =>
       left: 0,
       right: 0,
       zIndex: 2,
+      backgroundColor: 'transparent',
     },
     topGlassShadow: {
       borderTopLeftRadius: 0,
       borderTopRightRadius: 0,
       borderBottomLeftRadius: theme.borderRadius['2xl'],
       borderBottomRightRadius: theme.borderRadius['2xl'],
+    },
+    topGlassShadowWrapper: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      shadowColor: theme.colors.neutralShadow ?? '#000000',
+      shadowOffset: {width: 0, height: 12},
+      shadowOpacity: 0.14,
+      shadowRadius: 18,
+      elevation: 10,
+      backgroundColor: 'transparent',
     },
     topGlassCard: {
       borderTopLeftRadius: 0,
@@ -1306,7 +1324,7 @@ const createStyles = (theme: any) =>
     },
     actionIconShadowWrapper: {
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.md,
+      ...(Platform.OS === 'ios' ? theme.shadows.md : null),
     },
     actionIcon: {
       width: theme.spacing['10'],
@@ -1343,7 +1361,7 @@ const createStyles = (theme: any) =>
     },
     heroShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
+      ...(Platform.OS === 'ios' ? theme.shadows.md : null),
     },
     heroCard: {
       borderRadius: theme.borderRadius.lg,
@@ -1409,11 +1427,11 @@ const createStyles = (theme: any) =>
     },
     tileShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
+      ...(Platform.OS === 'ios' ? theme.shadows.md : null),
     },
     yearlySpendShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
+      ...(Platform.OS === 'ios' ? theme.shadows.md : null),
     },
     tileTitle: sharedTileStyles(theme).tileTitle,
     tileSubtitle: sharedTileStyles(theme).tileSubtitle,
@@ -1469,7 +1487,7 @@ const createStyles = (theme: any) =>
     },
     viewMoreShadowWrapper: {
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.md,
+      ...(Platform.OS === 'ios' ? theme.shadows.md : null),
     },
     quickActionIcon: {
       width: theme.spacing['7'],

@@ -42,35 +42,38 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
       activeOpacity={0.85}
       onPress={onPress}
       style={[styles.container, containerStyle]}>
-      <LiquidGlassCard
-        interactive={false}
-        glassEffect="clear"
-        style={styles.card}
-        fallbackStyle={styles.fallback}>
-        <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <Image source={icon} style={styles.icon} />
-          </View>
+      <View style={styles.shadowWrapper}>
+        <LiquidGlassCard
+          interactive={false}
+          glassEffect="clear"
+          shadow="none"
+          style={styles.card}
+          fallbackStyle={styles.fallback}>
+          <View style={styles.content}>
+            <View style={styles.iconContainer}>
+              <Image source={icon} style={styles.icon} />
+            </View>
 
-          <View style={styles.textContainer}>
-            <Text style={styles.title} numberOfLines={2}>
-              {title}
-            </Text>
-            <Text style={styles.subtitle} numberOfLines={2}>
-              {subtitle}
-            </Text>
-          </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.title} numberOfLines={2}>
+                {title}
+              </Text>
+              <Text style={styles.subtitle} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            </View>
 
-          <View style={styles.rightContainer}>
-            {isSynced ? (
-              <View style={styles.syncBadge}>
-                <Text style={styles.syncText}>{syncedLabel}</Text>
-              </View>
-            ) : null}
-            {rightAccessory}
+            <View style={styles.rightContainer}>
+              {isSynced ? (
+                <View style={styles.syncBadge}>
+                  <Text style={styles.syncText}>{syncedLabel}</Text>
+                </View>
+              ) : null}
+              {rightAccessory}
+            </View>
           </View>
-        </View>
-      </LiquidGlassCard>
+        </LiquidGlassCard>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -85,7 +88,16 @@ const createStyles = (theme: any) => {
     container: {
       marginBottom: theme.spacing['3'],
     },
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+      backgroundColor: theme.colors.cardBackground,
+    },
     ...glassCardStyles,
+    card: {
+      ...(glassCardStyles as any).card,
+      ...theme.shadows.none,
+    },
     ...contentStyles,
     ...iconStyles,
     icon: {

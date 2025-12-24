@@ -12,8 +12,12 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 
-const LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.65)';
-const DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
+const IOS_LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.65)';
+const IOS_DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
+const ANDROID_LIGHT_CARD_TINT_CLEAR = 'rgba(255, 255, 255, 0.92)';
+const ANDROID_DARK_CARD_TINT_CLEAR = 'rgba(28, 28, 30, 0.82)';
+const ANDROID_LIGHT_CARD_TINT_REGULAR = 'rgba(255, 255, 255, 0.86)';
+const ANDROID_DARK_CARD_TINT_REGULAR = 'rgba(28, 28, 30, 0.74)';
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
 
@@ -54,8 +58,20 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     if (tintColor) {
       return tintColor;
     }
-    return resolvedColorScheme === 'dark' ? DARK_CARD_TINT : LIGHT_CARD_TINT;
-  }, [resolvedColorScheme, tintColor]);
+    if (Platform.OS === 'android') {
+      const wantsClear = glassEffect === 'clear';
+      const isSchemeDark = resolvedColorScheme === 'dark';
+      if (wantsClear) {
+        return isSchemeDark
+          ? ANDROID_DARK_CARD_TINT_CLEAR
+          : ANDROID_LIGHT_CARD_TINT_CLEAR;
+      }
+      return isSchemeDark
+        ? ANDROID_DARK_CARD_TINT_REGULAR
+        : ANDROID_LIGHT_CARD_TINT_REGULAR;
+    }
+    return resolvedColorScheme === 'dark' ? IOS_DARK_CARD_TINT : IOS_LIGHT_CARD_TINT;
+  }, [glassEffect, resolvedColorScheme, tintColor]);
 
   const defaultBackgroundColor = isDark
     ? 'rgba(28, 28, 30, 0.72)'
@@ -69,6 +85,12 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
     ...theme.shadows[shadow],
+    overflow: 'hidden',
+  };
+
+  const baseStyleWithoutShadow: ViewStyle = {
+    padding: theme.spacing[padding],
+    borderRadius: theme.borderRadius[borderRadius],
     overflow: 'hidden',
   };
 
@@ -132,7 +154,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
 
   if (useNativeGlass) {
     const iosGlassStyle = StyleSheet.flatten([
-      baseStyle,
+      baseStyleWithoutShadow,
       overlayShapeStyle,
       fallbackStyle,
       style,

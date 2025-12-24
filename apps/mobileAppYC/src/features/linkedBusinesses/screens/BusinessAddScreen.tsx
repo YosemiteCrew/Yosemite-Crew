@@ -226,6 +226,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
           currentHeight={topGlassHeight}
           onHeightChange={setTopGlassHeight}
           topSectionStyle={styles.topSection}
+          shadowWrapperStyle={styles.topGlassShadowWrapper}
           cardStyle={styles.topGlassCard}
           fallbackStyle={styles.topGlassFallback}>
           <Header title="Add Business" showBackButton onBack={handleBack} glass={false} />

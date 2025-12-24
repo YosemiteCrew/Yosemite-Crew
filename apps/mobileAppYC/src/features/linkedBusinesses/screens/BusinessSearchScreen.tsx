@@ -450,6 +450,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
           currentHeight={topGlassHeight}
           onHeightChange={setTopGlassHeight}
           topSectionStyle={styles.topSection}
+          shadowWrapperStyle={styles.topGlassShadowWrapper}
           cardStyle={styles.topGlassCard}
           fallbackStyle={styles.topGlassFallback}>
           <Header title={categoryTitle} showBackButton onBack={handleBack} glass={false} />

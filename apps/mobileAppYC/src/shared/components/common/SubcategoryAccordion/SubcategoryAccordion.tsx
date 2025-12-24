@@ -74,12 +74,13 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
   });
 
   return (
-    <View style={styles.shadowWrapper}>
+    <View style={[styles.shadowWrapper, containerStyle]}>
       <LiquidGlassCard
         glassEffect="clear"
         interactive={false}
+        shadow="none"
         padding="0"
-        style={[styles.container, containerStyle]}
+        style={styles.container}
         fallbackStyle={styles.fallback}>
         <TouchableOpacity
           style={styles.header}
@@ -116,7 +117,6 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: theme.spacing['3'],
       borderRadius: theme.borderRadius.lg,
       borderWidth: 0,
       borderColor: 'transparent',
@@ -126,6 +126,8 @@ const createStyles = (theme: any) =>
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
       ...theme.shadows.md,
+      backgroundColor: theme.colors.cardBackground,
+      marginBottom: theme.spacing['3'],
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,

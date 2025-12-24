@@ -348,6 +348,7 @@ export const ExpensePreviewScreen: React.FC = () => {
           currentHeight={topGlassHeight}
           onHeightChange={setTopGlassHeight}
           topSectionStyle={styles.topSection}
+          shadowWrapperStyle={styles.topGlassShadowWrapper}
           cardStyle={styles.topGlassCard}
           fallbackStyle={styles.topGlassFallback}>
           <Header title="Expenses" showBackButton onBack={handleBack} glass={false} />
@@ -397,6 +398,7 @@ export const ExpensePreviewScreen: React.FC = () => {
         currentHeight={topGlassHeight}
         onHeightChange={setTopGlassHeight}
         topSectionStyle={styles.topSection}
+        shadowWrapperStyle={styles.topGlassShadowWrapper}
         cardStyle={styles.topGlassCard}
         fallbackStyle={styles.topGlassFallback}>
         <Header

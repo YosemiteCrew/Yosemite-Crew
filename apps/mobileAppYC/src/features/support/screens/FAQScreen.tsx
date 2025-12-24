@@ -224,31 +224,34 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title="FAQs"
-            showBackButton
-            onBack={() => navigation.goBack()}
-            glass={false}
-          />
-          <SearchBar
-            mode="input"
-            placeholder="Search FAQs..."
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            containerStyle={styles.searchContainer}
-          />
-          <PillSelector
-            options={categoryOptions}
-            selectedId={selectedCategory}
-            onSelect={handleCategoryChange}
-            containerStyle={styles.pillContainer}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title="FAQs"
+              showBackButton
+              onBack={() => navigation.goBack()}
+              glass={false}
+            />
+            <SearchBar
+              mode="input"
+              placeholder="Search FAQs..."
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              containerStyle={styles.searchContainer}
+            />
+            <PillSelector
+              options={categoryOptions}
+              selectedId={selectedCategory}
+              onSelect={handleCategoryChange}
+              containerStyle={styles.pillContainer}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
 
       <ScrollView

@@ -1159,6 +1159,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
         currentHeight={topGlassHeight}
         onHeightChange={setTopGlassHeight}
         topSectionStyle={styles.topSection}
+        shadowWrapperStyle={styles.topGlassShadowWrapper}
         cardStyle={styles.topGlassCard}
         fallbackStyle={styles.topGlassFallback}>
         <Header

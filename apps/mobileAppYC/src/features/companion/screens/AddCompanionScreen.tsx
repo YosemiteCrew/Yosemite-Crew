@@ -882,18 +882,21 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
-            showBackButton
-            onBack={handleGoBack}
-            glass={false}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title={currentStep === 1 ? 'Choose your companion' : 'Add companion'}
+              showBackButton
+              onBack={handleGoBack}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -906,6 +909,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             topGlassHeight
               ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
               : null,
+            {paddingBottom: theme.spacing['24'] + Math.max(insets.bottom, theme.spacing['3'])},
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
@@ -918,7 +922,11 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
           <Text style={styles.submissionError}>{submissionError}</Text>
         ) : null}
 
-        <View style={styles.buttonContainer}>
+        <View
+          style={[
+            styles.buttonContainer,
+            {paddingBottom: theme.spacing['4'] + Math.max(insets.bottom, theme.spacing['3'])},
+          ]}>
           <LiquidGlassButton
             title={primaryButtonLabel}
             onPress={handlePrimaryButtonPress}

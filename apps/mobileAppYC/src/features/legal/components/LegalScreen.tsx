@@ -36,18 +36,21 @@ export const LegalScreen: React.FC<LegalScreenProps> = ({
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title={title}
-            showBackButton
-            onBack={() => navigation.goBack()}
-            glass={false}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title={title}
+              showBackButton
+              onBack={() => navigation.goBack()}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
 
       <ScrollView

@@ -462,7 +462,8 @@ const createStyles = (theme: any) =>
     },
     footer: {
       paddingHorizontal: theme.spacing['4'],
-      paddingBottom: theme.spacing['6'],
+      paddingBottom: theme.spacing['10'],
+      zIndex: 2,
       paddingTop: theme.spacing['2'],
       backgroundColor: theme.colors.background,
     },

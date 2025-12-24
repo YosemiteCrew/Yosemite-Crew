@@ -134,16 +134,15 @@ export const DocumentsScreen: React.FC = () => {
 
           <View style={styles.section}>
             {categoriesWithCounts.map(category => (
-              <View key={category.id} style={styles.categoryTileShadow}>
-                <CategoryTile
-                  icon={category.icon}
-                  title={category.label}
-                  subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
-                  isSynced={category.isSynced}
-                  onPress={() => handleCategoryPress(category.id)}
-                  containerStyle={styles.categoryTile}
-                />
-              </View>
+              <CategoryTile
+                key={category.id}
+                icon={category.icon}
+                title={category.label}
+                subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
+                isSynced={category.isSynced}
+                onPress={() => handleCategoryPress(category.id)}
+                containerStyle={styles.categoryTile}
+              />
             ))}
           </View>
         </ScrollView>
@@ -168,10 +167,6 @@ const createStyles = (theme: any) =>
     },
     categoryTile: {
       width: '100%',
-    },
-    categoryTileShadow: {
-      borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
     },
     sectionTitle: {
       ...theme.typography.titleLarge,

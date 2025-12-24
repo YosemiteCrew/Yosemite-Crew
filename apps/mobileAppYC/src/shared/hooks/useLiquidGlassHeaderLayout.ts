@@ -34,6 +34,7 @@ export const useLiquidGlassHeaderLayout = (
       currentHeight: topGlassHeight,
       onHeightChange: setTopGlassHeight,
       topSectionStyle: headerStyles.topSection,
+      shadowWrapperStyle: (headerStyles as any).topGlassShadowWrapper,
       cardStyle: headerStyles.topGlassCard,
       fallbackStyle: headerStyles.topGlassFallback,
     },

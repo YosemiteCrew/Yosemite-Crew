@@ -44,18 +44,21 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title={headerTitle}
-            showBackButton={showBackButton}
-            onBack={onBack}
-            glass={false}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title={headerTitle}
+              showBackButton={showBackButton}
+              onBack={onBack}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
 
       <ScrollView

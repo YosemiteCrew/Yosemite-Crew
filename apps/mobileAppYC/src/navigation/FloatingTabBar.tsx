@@ -142,17 +142,23 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
 
   return (
     <View style={styles.wrapper}>
-      <ContainerComponent
-        style={[styles.bar, useGlass && styles.barGlass]}
-        {...(useGlass
-          ? {
-              effect: 'regular' as const,
-              tintColor: TAB_BAR_GLASS_TINT,
-              colorScheme: 'light' as const,
-            }
-          : {})}>
-        {renderItems()}
-      </ContainerComponent>
+      <View
+        style={[
+          styles.shadowWrapper,
+          useGlass ? styles.shadowWrapperGlass : null,
+        ]}>
+        <ContainerComponent
+          style={[styles.bar, useGlass && styles.barGlass]}
+          {...(useGlass
+            ? {
+                effect: 'regular' as const,
+                tintColor: TAB_BAR_GLASS_TINT,
+                colorScheme: 'light' as const,
+              }
+            : {})}>
+          {renderItems()}
+        </ContainerComponent>
+      </View>
     </View>
   );
 };
@@ -165,7 +171,14 @@ const createStyles = (theme: any) =>
       right: 24,
       bottom: 45,
       zIndex: 10,
+    },
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
       ...theme.shadows.floatingMd,
+      backgroundColor: theme.colors.white,
+    },
+    shadowWrapperGlass: {
+      backgroundColor: 'transparent',
     },
     bar: {
       flexDirection: 'row',

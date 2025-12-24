@@ -346,6 +346,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         currentHeight={topGlassHeight}
         onHeightChange={setTopGlassHeight}
         topSectionStyle={styles.topSection}
+        shadowWrapperStyle={styles.topGlassShadowWrapper}
         cardStyle={styles.topGlassCard}
         fallbackStyle={styles.topGlassFallback}>
         <Header title="Parent" showBackButton onBack={goBack} glass={false} />

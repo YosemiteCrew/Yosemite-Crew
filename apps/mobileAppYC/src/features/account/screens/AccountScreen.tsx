@@ -378,18 +378,21 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title="Account"
-            showBackButton
-            onBack={handleBackPress}
-            glass={false}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title="Account"
+              showBackButton
+              onBack={handleBackPress}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
       <View style={styles.contentWrapper}>
         <ScrollView

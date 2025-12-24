@@ -382,6 +382,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         currentHeight={topGlassHeight}
         onHeightChange={setTopGlassHeight}
         topSectionStyle={styles.topSection}
+        shadowWrapperStyle={styles.topGlassShadowWrapper}
         cardStyle={styles.topGlassCard}
         fallbackStyle={styles.topGlassFallback}>
         <Header

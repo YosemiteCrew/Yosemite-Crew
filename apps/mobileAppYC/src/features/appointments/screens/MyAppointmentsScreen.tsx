@@ -515,19 +515,22 @@ export const MyAppointmentsScreen: React.FC = () => {
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title="My Appointments"
-            showBackButton={false}
-            rightIcon={Images.addIconDark}
-            onRightPress={handleAdd}
-            glass={false}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title="My Appointments"
+              showBackButton={false}
+              rightIcon={Images.addIconDark}
+              onRightPress={handleAdd}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
       <SectionList
         style={styles.sectionList}

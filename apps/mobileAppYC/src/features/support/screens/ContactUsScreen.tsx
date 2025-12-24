@@ -1077,18 +1077,21 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title="Contact us"
-            showBackButton
-            onBack={() => navigation.goBack()}
-            glass={false}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title="Contact us"
+              showBackButton
+              onBack={() => navigation.goBack()}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
 
       <KeyboardAvoidingView

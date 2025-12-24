@@ -81,6 +81,21 @@ export const createLiquidGlassHeaderStyles = (
       left: 0,
       right: 0,
       zIndex: 2,
+      // Transparent background allows glass effect to blur content behind it
+      backgroundColor: 'transparent',
+    },
+    topGlassShadowWrapper: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      // Shadow only sides/bottom: push it down so it doesn't draw a top edge line.
+      shadowColor: theme.colors.neutralShadow ?? '#000000',
+      shadowOffset: {width: 0, height: 12},
+      shadowOpacity: 0.14,
+      shadowRadius: 18,
+      elevation: 10,
+      backgroundColor: 'transparent',
     },
     topGlassCard: {
       borderTopLeftRadius: 0,

@@ -98,6 +98,7 @@ const buildEmployeeDisplay = ({
   const employeeWithAvatar = employee
     ? {
         ...employee,
+        specialization: apt.employeeTitle ?? employee.specialization,
         avatar: employee.avatar ?? (apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined),
       }
     : null;
@@ -715,6 +716,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           currentHeight={topGlassHeight}
           onHeightChange={setTopGlassHeight}
           topSectionStyle={styles.topSection}
+          shadowWrapperStyle={styles.topGlassShadowWrapper}
           cardStyle={styles.topGlassCard}
           fallbackStyle={styles.topGlassFallback}>
           <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
@@ -750,6 +752,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           currentHeight={topGlassHeight}
           onHeightChange={setTopGlassHeight}
           topSectionStyle={styles.topSection}
+          shadowWrapperStyle={styles.topGlassShadowWrapper}
           cardStyle={styles.topGlassCard}
           fallbackStyle={styles.topGlassFallback}>
           <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />

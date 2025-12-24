@@ -7,6 +7,7 @@ type LiquidGlassHeaderProps = {
   currentHeight: number;
   onHeightChange: (height: number) => void;
   topSectionStyle: StyleProp<ViewStyle>;
+  shadowWrapperStyle?: StyleProp<ViewStyle>;
   cardStyle: StyleProp<ViewStyle>;
   fallbackStyle: StyleProp<ViewStyle>;
   children: React.ReactNode;
@@ -17,6 +18,7 @@ export const LiquidGlassHeader: React.FC<LiquidGlassHeaderProps> = ({
   currentHeight,
   onHeightChange,
   topSectionStyle,
+  shadowWrapperStyle,
   cardStyle,
   fallbackStyle,
   children,
@@ -29,12 +31,15 @@ export const LiquidGlassHeader: React.FC<LiquidGlassHeaderProps> = ({
         onHeightChange(height);
       }
     }}>
-    <LiquidGlassCard
-      glassEffect="clear"
-      interactive={false}
-      style={cardStyle}
-      fallbackStyle={fallbackStyle}>
-      {children}
-    </LiquidGlassCard>
+    <View style={shadowWrapperStyle}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        interactive={false}
+        shadow="none"
+        style={cardStyle}
+        fallbackStyle={fallbackStyle}>
+        {children}
+      </LiquidGlassCard>
+    </View>
   </View>
 );

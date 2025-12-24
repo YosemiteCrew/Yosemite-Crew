@@ -27,7 +27,7 @@ export const createTaskFormStyles = (theme: any) => {
     },
     footer: {
       paddingHorizontal: theme.spacing['4'],
-      paddingBottom: theme.spacing['6'],
+      paddingBottom: theme.spacing['6'] + 10,
       paddingTop: theme.spacing['2'],
       backgroundColor: theme.colors.background,
     },

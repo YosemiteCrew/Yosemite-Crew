@@ -96,28 +96,31 @@ export const DocumentSearchScreen: React.FC = () => {
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title="Search documents"
-            showBackButton
-            onBack={() => navigation.goBack()}
-            glass={false}
-          />
-          <SearchBar
-            mode="input"
-            placeholder="Search by title, category, or issuer"
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={triggerSearch}
-            autoFocus
-            containerStyle={styles.searchBar}
-            rightElement={searchLoading ? <ActivityIndicator size="small" /> : null}
-          />
-        </LiquidGlassCard>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title="Search documents"
+              showBackButton
+              onBack={() => navigation.goBack()}
+              glass={false}
+            />
+            <SearchBar
+              mode="input"
+              placeholder="Search by title, category, or issuer"
+              value={query}
+              onChangeText={setQuery}
+              onSubmitEditing={triggerSearch}
+              autoFocus
+              containerStyle={styles.searchBar}
+              rightElement={searchLoading ? <ActivityIndicator size="small" /> : null}
+            />
+          </LiquidGlassCard>
+        </View>
       </View>
       <ScrollView
         style={styles.container}

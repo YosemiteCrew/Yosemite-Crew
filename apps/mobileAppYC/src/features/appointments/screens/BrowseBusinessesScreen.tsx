@@ -335,32 +335,42 @@ export const BrowseBusinessesScreen: React.FC = () => {
             setTopGlassHeight(height);
           }
         }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header
-            title="Book an appointment"
-            showBackButton
-            onBack={() => navigation.goBack()}
-            glass={false}
-          />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.pillsContent}>
-            {CATEGORIES.map(p => (
-              <TouchableOpacity
-                key={p.label}
-                style={[styles.pill, (p.id ?? undefined) === category && styles.pillActive]}
-                activeOpacity={0.8}
-                onPress={() => setCategory(p.id)}
-              >
-                <Text style={[styles.pillText, (p.id ?? undefined) === category && styles.pillTextActive]}>{p.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={styles.topGlassCard}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title="Book an appointment"
+              showBackButton
+              onBack={() => navigation.goBack()}
+              glass={false}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillsContent}>
+              {CATEGORIES.map(p => (
+                <TouchableOpacity
+                  key={p.label}
+                  style={[
+                    styles.pill,
+                    (p.id ?? undefined) === category && styles.pillActive,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => setCategory(p.id)}>
+                  <Text
+                    style={[
+                      styles.pillText,
+                      (p.id ?? undefined) === category && styles.pillTextActive,
+                    ]}>
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
           <SearchBar
             placeholder="Search for services"
@@ -373,6 +383,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
             containerStyle={styles.searchBar}
           />
         </LiquidGlassCard>
+        </View>
       </View>
       <ScrollView
         style={styles.scrollView}

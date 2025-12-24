@@ -3,6 +3,8 @@ import React, {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
+  useEffect,
 } from 'react';
 import {
   StyleProp,
@@ -11,6 +13,8 @@ import {
   TextStyle,
   View,
   ViewStyle,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import CustomBottomSheet, {
   type BottomSheetRef,
@@ -88,21 +92,67 @@ export const ConfirmActionBottomSheet = forwardRef<
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<BottomSheetRef>(null);
     // Initialize based on initialIndex - only visible if initialIndex is NOT -1
-    const [isSheetVisible, setIsSheetVisible] = React.useState(initialIndex !== -1);
+    const [isSheetVisible, setIsSheetVisible] = useState(initialIndex !== -1);
+    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+    // Listen to keyboard events to adjust snap points
+    useEffect(() => {
+      const keyboardDidShow = Keyboard.addListener(
+        'keyboardDidShow',
+        () => {
+          setIsKeyboardVisible(true);
+        }
+      );
+      const keyboardDidHide = Keyboard.addListener(
+        'keyboardDidHide',
+        () => {
+          setIsKeyboardVisible(false);
+        }
+      );
+
+      return () => {
+        keyboardDidShow.remove();
+        keyboardDidHide.remove();
+      };
+    }, []);
+
+    // Dynamic snap points based on keyboard visibility
+    const dynamicSnapPoints = useMemo(() => {
+      if (isKeyboardVisible) {
+        // When keyboard is open, expand to accommodate it
+        // Always provide 2 snap points for smooth animation
+        return ['93%', '95%'];
+      }
+      // Ensure we always have at least 2 snap points for proper animation
+      if (snapPoints.length === 1) {
+        const singlePoint = snapPoints[0];
+        return [singlePoint, singlePoint];
+      }
+      return snapPoints;
+    }, [isKeyboardVisible, snapPoints]);
 
     useImperativeHandle(ref, () => ({
       open: () => {
         setIsSheetVisible(true);
-        bottomSheetRef.current?.snapToIndex(0);
+        // Snap to the last (highest) snap point for proper keyboard animation
+        // When keyboard is closed, we want the highest snap point in the array
+        const targetIndex = Math.max(0, snapPoints.length - 1);
+        bottomSheetRef.current?.snapToIndex(targetIndex);
       },
       close: () => {
+        Keyboard.dismiss();
         setIsSheetVisible(false);
         bottomSheetRef.current?.close();
       },
-    }));
+    }), [snapPoints]);
 
     const handleClose = () => {
+      Keyboard.dismiss();
       bottomSheetRef.current?.close();
+    };
+
+    const handleBackdropPress = () => {
+      Keyboard.dismiss();
     };
 
     const renderButton = (
@@ -148,11 +198,15 @@ export const ConfirmActionBottomSheet = forwardRef<
     return (
       <CustomBottomSheet
         ref={bottomSheetRef}
-        snapPoints={snapPoints}
+        snapPoints={dynamicSnapPoints}
         initialIndex={initialIndex}
         zIndex={zIndex ?? 100}
         onChange={index => {
           setIsSheetVisible(index !== -1);
+          if (index === -1) {
+            Keyboard.dismiss();
+            setIsKeyboardVisible(false);
+          }
           onSheetChange?.(index);
         }}
         enablePanDownToClose={enablePanDown}
@@ -163,11 +217,16 @@ export const ConfirmActionBottomSheet = forwardRef<
         backdropAppearsOnIndex={0}
         backdropDisappearsOnIndex={-1}
         backdropPressBehavior={backdropPressBehavior}
+        onBackdropPress={handleBackdropPress}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}
         bottomInset={bottomInset}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
         contentType="view">
-        <View style={[styles.container, containerStyle]}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={[styles.container, containerStyle]}>
           <BottomSheetHeader
             title={title}
             onClose={handleClose}
@@ -199,7 +258,8 @@ export const ConfirmActionBottomSheet = forwardRef<
               textColor: theme.colors.white,
             })}
           </View>
-        </View>
+          </View>
+        </TouchableWithoutFeedback>
       </CustomBottomSheet>
     );
   },
