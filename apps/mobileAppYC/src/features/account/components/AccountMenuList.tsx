@@ -60,14 +60,14 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
   container: {
     overflow: 'hidden',
-    backgroundColor: theme.colors.cardBackground,
+
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: theme.spacing['3'],
     paddingHorizontal: theme.spacing['2'],
-    backgroundColor: theme.colors.cardBackground,
+
   },
   divider: {
     borderBottomWidth: StyleSheet.hairlineWidth,

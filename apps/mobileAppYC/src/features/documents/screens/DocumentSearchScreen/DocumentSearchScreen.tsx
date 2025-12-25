@@ -87,9 +87,9 @@ export const DocumentSearchScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
+    <SafeArea edges={[]}>
       <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
+        style={styles.topSection}
         onLayout={event => {
           const height = event.nativeEvent.layout.height;
           if (height !== topGlassHeight) {
@@ -101,7 +101,7 @@ export const DocumentSearchScreen: React.FC = () => {
             glassEffect="clear"
             interactive={false}
             shadow="none"
-            style={styles.topGlassCard}
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
             fallbackStyle={styles.topGlassFallback}>
             <Header
               title="Search documents"
@@ -126,9 +126,7 @@ export const DocumentSearchScreen: React.FC = () => {
         style={styles.container}
         contentContainerStyle={[
           styles.contentContainer,
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['1']}
-            : null,
+          {paddingTop: topGlassHeight + theme.spacing['1']},
         ]}
         keyboardShouldPersistTaps="handled">
         <CompanionSelector

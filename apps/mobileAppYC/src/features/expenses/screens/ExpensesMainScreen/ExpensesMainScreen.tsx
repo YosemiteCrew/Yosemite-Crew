@@ -133,7 +133,7 @@ export const ExpensesMainScreen: React.FC = () => {
   const currencySymbol = resolveCurrencySymbol(summaryCurrency, '$');
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <LiquidGlassHeaderShell
         header={
           <Header

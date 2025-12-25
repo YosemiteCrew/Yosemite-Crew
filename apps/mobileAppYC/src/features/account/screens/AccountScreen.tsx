@@ -369,9 +369,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   return (
     <>
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
+        style={styles.topSection}
         onLayout={event => {
           const height = event.nativeEvent.layout.height;
           if (height !== topGlassHeight) {
@@ -383,7 +383,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
             glassEffect="clear"
             interactive={false}
             shadow="none"
-            style={styles.topGlassCard}
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
             fallbackStyle={styles.topGlassFallback}>
             <Header
               title="Account"
@@ -399,13 +399,13 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           contentContainerStyle={[
             styles.content,
             topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              ? {paddingTop: topGlassHeight + theme.spacing['3']}
               : null,
           ]}
           showsVerticalScrollIndicator={false}>
           {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
           <LiquidGlassCard
-            glassEffect="regular"
+            glassEffect="clear"
             interactive
             style={styles.companionsCard}
             fallbackStyle={styles.companionsCardFallback}>

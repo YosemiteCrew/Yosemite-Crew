@@ -277,7 +277,7 @@ export const CompanionOverviewScreen: React.FC<
 
   if (safeCompanion == null) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <Header title="Overview" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
@@ -292,7 +292,7 @@ export const CompanionOverviewScreen: React.FC<
 
   return (
     <>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={[]}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}
@@ -313,7 +313,7 @@ export const CompanionOverviewScreen: React.FC<
         contentContainerStyle={[
           styles.content,
           topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            ? {paddingTop: topGlassHeight + theme.spacing['3']}
             : null,
         ]}
         showsVerticalScrollIndicator={false}>

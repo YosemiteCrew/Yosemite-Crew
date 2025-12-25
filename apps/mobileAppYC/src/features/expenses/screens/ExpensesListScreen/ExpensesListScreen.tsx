@@ -157,7 +157,7 @@ export const ExpensesListScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <LiquidGlassHeaderShell
         header={<Header title="Expenses" showBackButton onBack={handleBack} glass={false} />}
         contentPadding={theme.spacing['3']}>

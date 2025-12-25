@@ -710,7 +710,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   if (!apt) {
     return (
-      <SafeAreaView style={styles.root} edges={['top']}>
+      <SafeAreaView style={styles.root} edges={[]}>
         <LiquidGlassHeader
           insetsTop={insets.top}
           currentHeight={topGlassHeight}
@@ -725,7 +725,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           style={[
             styles.loadingContainer,
             topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              ? {paddingTop: topGlassHeight + theme.spacing['3']}
               : null,
           ]}>
           <Text style={styles.loadingText}>Loading appointment...</Text>
@@ -746,7 +746,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   return (
     <>
-      <SafeAreaView style={styles.root} edges={['top']}>
+      <SafeAreaView style={styles.root} edges={[]}>
         <LiquidGlassHeader
           insetsTop={insets.top}
           currentHeight={topGlassHeight}
@@ -761,7 +761,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           contentContainerStyle={[
             styles.container,
             topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              ? {paddingTop: topGlassHeight + theme.spacing['3']}
               : null,
           ]}
           showsVerticalScrollIndicator={false}>

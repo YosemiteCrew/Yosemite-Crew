@@ -26,7 +26,7 @@ export const LiquidGlassHeaderScreen: React.FC<LiquidGlassHeaderScreenProps> = (
   contentPadding,
   cardGap,
   containerStyle,
-  edges = ['top'],
+  edges = [],
   mode,
   useSafeAreaView = false,
   showBottomFade = true,

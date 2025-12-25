@@ -3,8 +3,8 @@ import {ScrollView} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {useTheme} from '@/hooks';
 import {addTask} from '@/features/tasks';
@@ -70,24 +70,26 @@ export const AddTaskScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Add task" showBackButton onBack={handleBack} />
+    <>
+      <LiquidGlassHeaderScreen
+        header={<Header title="Add task" showBackButton onBack={handleBack} glass={false} />}
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
+            <CompanionSelector
+              companions={companions}
+              selectedCompanionId={selectedCompanionId}
+              onSelect={handleCompanionSelect}
+              showAddButton={false}
+              containerStyle={styles.companionSelector}
+              requiredPermission="tasks"
+              permissionLabel="tasks"
+            />
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={handleCompanionSelect}
-          showAddButton={false}
-          containerStyle={styles.companionSelector}
-          requiredPermission="tasks"
-          permissionLabel="tasks"
-        />
-
-        <TaskFormContent
+            <TaskFormContent
           formData={formData}
           errors={errors}
           theme={theme}
@@ -116,10 +118,12 @@ export const AddTaskScreen: React.FC = () => {
             error: errors.category,
           }}
           sheetHandlers={sheetHandlers}
-          fileHandlers={createFileHandlers(openSheet, uploadSheetRef, handleRemoveFile)}
-          fileError={errors.attachments}
-        />
-      </ScrollView>
+              fileHandlers={createFileHandlers(openSheet, uploadSheetRef, handleRemoveFile)}
+              fileError={errors.attachments}
+            />
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
 
       <TaskFormFooter
         loading={loading}
@@ -143,7 +147,7 @@ export const AddTaskScreen: React.FC = () => {
           onSelect: handleTaskTypeSelect,
         }}
       />
-    </SafeArea>
+    </>
   );
 };
 

@@ -11,8 +11,8 @@ import {
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {TaskCard} from '@/features/tasks/components';
 import {EmptyTasksScreen} from '../EmptyTasksScreen/EmptyTasksScreen';
@@ -359,30 +359,34 @@ export const TasksMainScreen: React.FC = () => {
   }
 
   return (
-    <SafeArea>
-      <Header
-        title="Tasks"
-        showBackButton={false}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAddTask}
-      />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={handleCompanionSelect}
-          showAddButton={false}
-          containerStyle={styles.companionSelectorTask}
-          requiredPermission="tasks"
-          permissionLabel="tasks"
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Tasks"
+          showBackButton={false}
+          rightIcon={Images.addIconDark}
+          onRightPress={handleAddTask}
+          glass={false}
         />
+      }
+      contentPadding={theme.spacing['3']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onSelect={handleCompanionSelect}
+            showAddButton={false}
+            containerStyle={styles.companionSelectorTask}
+            requiredPermission="tasks"
+            permissionLabel="tasks"
+          />
 
-        {/* Month Navigation */}
-        <View style={styles.monthNavigation}>
+          {/* Month Navigation */}
+          <View style={styles.monthNavigation}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={handlePreviousMonth}
@@ -430,8 +434,9 @@ export const TasksMainScreen: React.FC = () => {
         ) : (
           TASK_CATEGORIES.map(category => renderCategorySection(category))
         )}
-      </ScrollView>
-    </SafeArea>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 

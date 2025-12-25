@@ -342,7 +342,7 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   if (!expense) {
     return (
-      <SafeAreaView style={styles.root} edges={['top']}>
+      <SafeAreaView style={styles.root} edges={[]}>
         <LiquidGlassHeader
           insetsTop={insets.top}
           currentHeight={topGlassHeight}
@@ -356,9 +356,7 @@ export const ExpensePreviewScreen: React.FC = () => {
         <View
           style={[
             styles.errorContainer,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
+            {paddingTop: topGlassHeight + theme.spacing['3']},
           ]}>
           <Text style={styles.errorText}>Expense not found</Text>
         </View>
@@ -392,7 +390,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={[]}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}
@@ -414,9 +412,7 @@ export const ExpensePreviewScreen: React.FC = () => {
           style={styles.container}
           contentContainerStyle={[
             styles.contentContainer,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
+            {paddingTop: topGlassHeight + theme.spacing['3']},
           ]}
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}

@@ -4,8 +4,9 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch} from 'react-redux';
-import {SafeArea, Input} from '@/shared/components/common';
+import {Input} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -95,34 +96,48 @@ export const EditTaskScreen: React.FC = () => {
 
   if (!task) {
     return (
-      <SafeArea>
-        <Header title="Edit task" showBackButton onBack={() => navigation.goBack()} />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Task not found</Text>
-        </View>
-      </SafeArea>
+      <LiquidGlassHeaderScreen
+        header={<Header title="Edit task" showBackButton onBack={() => navigation.goBack()} glass={false} />}
+        contentPadding={theme.spacing['3']}>
+        {() => (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Task not found</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
   return (
-    <SafeArea>
-      <Header title="Edit task" showBackButton onBack={handleSmartBack} rightIcon={Images.deleteIconRed} onRightPress={handleDelete} />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        {/* Category (LOCKED) */}
-        <View style={styles.fieldGroup}>
-          <Input
-            label="Task type"
-            value={resolveCategoryLabel(formData.category!)}
-            onChangeText={() => {}}
-            editable={false}
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Edit task"
+            showBackButton
+            onBack={handleSmartBack}
+            rightIcon={Images.deleteIconRed}
+            onRightPress={handleDelete}
+            glass={false}
           />
-        </View>
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
+            {/* Category (LOCKED) */}
+            <View style={styles.fieldGroup}>
+              <Input
+                label="Task type"
+                value={resolveCategoryLabel(formData.category!)}
+                onChangeText={() => {}}
+                editable={false}
+              />
+            </View>
 
-        <TaskFormContent
+            <TaskFormContent
           formData={formData}
           errors={errors}
           theme={theme}
@@ -132,11 +147,13 @@ export const EditTaskScreen: React.FC = () => {
           isSimpleForm={isSimpleForm}
           reminderOptions={REMINDER_OPTIONS}
           styles={styles}
-          sheetHandlers={sheetHandlers}
-          fileHandlers={createFileHandlers(openSheet, uploadSheetRef, handleRemoveFile)}
-          fileError={errors.attachments}
-        />
-      </ScrollView>
+              sheetHandlers={sheetHandlers}
+              fileHandlers={createFileHandlers(openSheet, uploadSheetRef, handleRemoveFile)}
+              fileError={errors.attachments}
+            />
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
 
       <TaskFormFooter
         loading={loading}
@@ -169,7 +186,7 @@ export const EditTaskScreen: React.FC = () => {
         secondaryLabel="Cancel"
         onDelete={confirmDeleteTask}
       />
-    </SafeArea>
+    </>
   );
 };
 

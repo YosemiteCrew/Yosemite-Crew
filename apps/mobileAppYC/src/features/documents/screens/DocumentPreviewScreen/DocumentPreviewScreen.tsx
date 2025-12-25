@@ -108,9 +108,9 @@ export const DocumentPreviewScreen: React.FC = () => {
   const canEdit = document.isUserAdded && !document.uploadedByPmsUserId;
 
   return (
-    <SafeArea>
+    <SafeArea edges={[]}>
       <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
+        style={styles.topSection}
         onLayout={event => {
           const height = event.nativeEvent.layout.height;
           if (height !== topGlassHeight) {
@@ -122,7 +122,7 @@ export const DocumentPreviewScreen: React.FC = () => {
             glassEffect="clear"
             interactive={false}
             shadow="none"
-            style={styles.topGlassCard}
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
             fallbackStyle={styles.topGlassFallback}>
             <Header
               title={document.title}
@@ -139,9 +139,7 @@ export const DocumentPreviewScreen: React.FC = () => {
         style={styles.container}
         contentContainerStyle={[
           styles.contentContainer,
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['1']}
-            : null,
+          {paddingTop: topGlassHeight + theme.spacing['1']},
         ]}>
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>{document.title} for {companion?.name || 'Unknown'}</Text>

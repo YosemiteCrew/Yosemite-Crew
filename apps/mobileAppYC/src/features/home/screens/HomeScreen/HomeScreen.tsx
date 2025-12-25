@@ -1016,8 +1016,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     insets.bottom + theme.spacing['24'] + theme.spacing['12'];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={[styles.topSection, {paddingTop: insets.top}]}>
+    <SafeAreaView style={styles.container} edges={[]}>
+      <View style={styles.topSection}>
         <View
           style={styles.topGlassShadow}
           onLayout={event => {
@@ -1031,7 +1031,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               glassEffect="clear"
               interactive={false}
               shadow="none"
-              style={styles.topGlassCard}
+              style={[styles.topGlassCard, {paddingTop: insets.top + theme.spacing['4']}]}
               fallbackStyle={styles.topGlassFallback}>
             <View style={styles.headerRow}>
           <TouchableOpacity
@@ -1107,7 +1107,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['2']} : null,
+          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['6']} : null,
           {paddingBottom: bottomScrollPadding},
         ]}
         showsVerticalScrollIndicator={false}>
@@ -1229,7 +1229,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: '#ffffff',
     },
     topSection: {
       paddingHorizontal: 0,
@@ -1264,7 +1264,7 @@ const createStyles = (theme: any) =>
       borderBottomLeftRadius: theme.borderRadius['2xl'],
       borderBottomRightRadius: theme.borderRadius['2xl'],
       paddingHorizontal: theme.spacing['6'],
-      paddingVertical: theme.spacing['4'],
+      paddingBottom: theme.spacing['4'],
       gap: theme.spacing['4'],
             borderWidth: 0,
       borderColor: 'transparent',

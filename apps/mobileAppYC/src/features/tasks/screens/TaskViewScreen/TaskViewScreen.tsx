@@ -4,8 +4,9 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
-import {SafeArea, Input, TouchableInput} from '@/shared/components/common';
+import {Input, TouchableInput} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -49,12 +50,15 @@ export const TaskViewScreen: React.FC = () => {
 
   if (!task) {
     return (
-      <SafeArea>
-        <Header title="Task" showBackButton onBack={() => navigation.goBack()} />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Task not found</Text>
-        </View>
-      </SafeArea>
+      <LiquidGlassHeaderScreen
+        header={<Header title="Task" showBackButton onBack={() => navigation.goBack()} glass={false} />}
+        contentPadding={theme.spacing['3']}>
+        {() => (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Task not found</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
@@ -166,19 +170,23 @@ export const TaskViewScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header
-        title="Task"
-        showBackButton
-        onBack={handleBack}
-        rightIcon={isCompleted ? undefined : Images.editIcon}
-        onRightPress={isCompleted ? undefined : handleEdit}
-      />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Task"
+          showBackButton
+          onBack={handleBack}
+          rightIcon={isCompleted ? undefined : Images.editIcon}
+          onRightPress={isCompleted ? undefined : handleEdit}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['3']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
         {isObservationalTool && (
           <LiquidGlassCard
             glassEffect="regular"
@@ -542,8 +550,9 @@ export const TaskViewScreen: React.FC = () => {
             </Text>
           </View>
         )}
-      </ScrollView>
-    </SafeArea>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 

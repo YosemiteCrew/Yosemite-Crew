@@ -35,9 +35,9 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
   const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
+        style={styles.topSection}
         onLayout={event => {
           const height = event.nativeEvent.layout.height;
           if (height !== topGlassHeight) {
@@ -49,7 +49,7 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
             glassEffect="clear"
             interactive={false}
             shadow="none"
-            style={styles.topGlassCard}
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
             fallbackStyle={styles.topGlassFallback}>
             <Header
               title={headerTitle}
@@ -65,7 +65,7 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
         contentContainerStyle={[
           styles.scrollContent,
           topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            ? {paddingTop: topGlassHeight + theme.spacing['3']}
             : null,
         ]}
         showsVerticalScrollIndicator={false}>

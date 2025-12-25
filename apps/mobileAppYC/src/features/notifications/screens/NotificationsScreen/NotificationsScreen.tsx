@@ -8,7 +8,9 @@ import {
   Image,
   RefreshControl,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
@@ -65,6 +67,8 @@ export const NotificationsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const {isLoggedIn} = useAuth();
+  const insets = useSafeAreaInsets();
+  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   // Redux selectors
   const notifications = useSelector(selectDisplayNotifications);
@@ -260,15 +264,34 @@ export const NotificationsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <Header
-        title="Notifications"
-        showBackButton
-        onBack={() => (navigation as any).goBack?.()}
-      />
+    <SafeAreaView style={styles.container} edges={[]}>
+      <View
+        style={styles.topSection}
+        onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          if (height !== topGlassHeight) {
+            setTopGlassHeight(height);
+          }
+        }}>
+        <View style={styles.topGlassShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive={false}
+            shadow="none"
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
+            fallbackStyle={styles.topGlassFallback}>
+            <Header
+              title="Notifications"
+              showBackButton
+              onBack={() => (navigation as any).goBack?.()}
+              glass={false}
+            />
+          </LiquidGlassCard>
+        </View>
+      </View>
 
       {/* Header content placed above FlatList to preserve internal scroll state */}
-      <View style={styles.headerContent}>
+      <View style={[styles.headerContent, topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['2']} : null]}>
         <View style={styles.filtersWrapper}>
           <NotificationFilterPills
             selectedFilter={filter}
@@ -317,6 +340,7 @@ export const NotificationsScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    ...createLiquidGlassHeaderStyles(theme),
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -326,7 +350,6 @@ const createStyles = (theme: any) =>
     },
     listContent: {
       paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['3'],
     },

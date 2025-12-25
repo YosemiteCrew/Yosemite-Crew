@@ -220,7 +220,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <LiquidGlassHeader
           insetsTop={insets.top}
           currentHeight={topGlassHeight}
@@ -236,7 +236,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
           contentContainerStyle={[
             styles.scrollContent,
             topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+              ? {paddingTop: topGlassHeight + theme.spacing['3']}
               : null,
           ]}
           showsVerticalScrollIndicator={false}>

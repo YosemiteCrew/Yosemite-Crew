@@ -4,8 +4,8 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {TaskCard} from '@/features/tasks/components';
 import {useTheme} from '@/hooks';
@@ -112,15 +112,18 @@ export const TasksListScreen: React.FC = () => {
   );
 
   return (
-    <SafeArea>
-      <View style={styles.mainContainer}>
+    <LiquidGlassHeaderScreen
+      header={
         <Header
           title={`${resolveCategoryLabel(category)} tasks`}
           showBackButton
           onBack={() => navigation.goBack()}
+          glass={false}
         />
-
-        <View style={styles.companionSelectorContainer}>
+      }
+      contentPadding={theme.spacing['3']}>
+      {contentPaddingStyle => (
+        <View style={styles.mainContainer}>
           <CompanionSelector
             companions={companions}
             selectedCompanionId={selectedCompanionId}
@@ -130,19 +133,19 @@ export const TasksListScreen: React.FC = () => {
             requiredPermission="tasks"
             permissionLabel="tasks"
           />
-        </View>
 
-        <FlatList
-          data={tasks}
-          renderItem={renderTask}
-          keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmpty}
-          style={styles.list}
-        />
-      </View>
-    </SafeArea>
+          <FlatList
+            data={tasks}
+            renderItem={renderTask}
+            keyExtractor={item => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.listContent, contentPaddingStyle]}
+            ListEmptyComponent={renderEmpty}
+            style={styles.list}
+          />
+        </View>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -156,13 +159,9 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    companionSelectorContainer: {
-      backgroundColor: theme.colors.background,
-      marginTop: theme.spacing['4'],
-      marginBottom: theme.spacing['4'],
-    },
     companionSelector: {
       paddingHorizontal: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
     },
     listContent: {
       paddingHorizontal: theme.spacing['4'],

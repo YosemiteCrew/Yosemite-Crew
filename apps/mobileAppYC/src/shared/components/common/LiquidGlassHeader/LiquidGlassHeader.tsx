@@ -24,7 +24,7 @@ export const LiquidGlassHeader: React.FC<LiquidGlassHeaderProps> = ({
   children,
 }) => (
   <View
-    style={[topSectionStyle, {paddingTop: insetsTop}]}
+    style={topSectionStyle}
     onLayout={event => {
       const height = event.nativeEvent.layout.height;
       if (height !== currentHeight) {
@@ -36,7 +36,7 @@ export const LiquidGlassHeader: React.FC<LiquidGlassHeaderProps> = ({
         glassEffect="clear"
         interactive={false}
         shadow="none"
-        style={cardStyle}
+        style={[cardStyle, {paddingTop: insetsTop}]}
         fallbackStyle={fallbackStyle}>
         {children}
       </LiquidGlassCard>

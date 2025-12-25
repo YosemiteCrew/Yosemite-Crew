@@ -506,9 +506,9 @@ export const MyAppointmentsScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
+    <SafeArea edges={[]}>
       <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
+        style={styles.topSection}
         onLayout={event => {
           const height = event.nativeEvent.layout.height;
           if (height !== topGlassHeight) {
@@ -520,7 +520,7 @@ export const MyAppointmentsScreen: React.FC = () => {
             glassEffect="clear"
             interactive={false}
             shadow="none"
-            style={styles.topGlassCard}
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
             fallbackStyle={styles.topGlassFallback}>
             <Header
               title="My Appointments"
@@ -541,7 +541,7 @@ export const MyAppointmentsScreen: React.FC = () => {
         contentContainerStyle={[
           styles.container,
           topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            ? {paddingTop: topGlassHeight + theme.spacing['3']}
             : null,
         ]}
         stickySectionHeadersEnabled={false}

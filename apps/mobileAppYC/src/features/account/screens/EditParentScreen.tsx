@@ -325,7 +325,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   if (!safeUser) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <Header title="Parent" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
@@ -340,7 +340,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   return (
     <>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={[]}>
       <LiquidGlassHeader
         insetsTop={insets.top}
         currentHeight={topGlassHeight}
@@ -356,7 +356,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         contentContainerStyle={[
           styles.content,
           topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            ? {paddingTop: topGlassHeight + theme.spacing['3']}
             : null,
         ]}
         showsVerticalScrollIndicator={false}>

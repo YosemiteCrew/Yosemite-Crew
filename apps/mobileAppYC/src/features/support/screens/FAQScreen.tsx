@@ -215,9 +215,9 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   }, [selectedCategory]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
+        style={styles.topSection}
         onLayout={event => {
           const height = event.nativeEvent.layout.height;
           if (height !== topGlassHeight) {
@@ -229,7 +229,7 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
             glassEffect="clear"
             interactive={false}
             shadow="none"
-            style={styles.topGlassCard}
+            style={[styles.topGlassCard, {paddingTop: insets.top}]}
             fallbackStyle={styles.topGlassFallback}>
             <Header
               title="FAQs"
@@ -259,7 +259,7 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
         contentContainerStyle={[
           styles.contentContainer,
           topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
+            ? {paddingTop: topGlassHeight + theme.spacing['3']}
             : null,
         ]}
         showsVerticalScrollIndicator={false}>
