@@ -115,12 +115,20 @@ export const ObservationToolSubmissionController = {
       }
 
       const toolId = req.params.toolId;
+
       const { companionId, taskId, answers, summary } = req.body as {
         companionId: string;
         taskId?: string;
         answers: CreateObservationToolSubmissionInput["answers"];
         summary?: string;
       };
+
+      if (!companionId) {
+        return res.status(400).json({ message: "companionId is required" });
+      }
+      if (!answers || typeof answers !== "object") {
+        return res.status(400).json({ message: "answers are required" });
+      }
 
       const submission =
         await ObservationToolSubmissionService.createSubmission({
@@ -183,20 +191,24 @@ export const ObservationToolSubmissionController = {
 
   // PMS — link submission to evaluation appointment
   linkAppointment: async (req: Request, res: Response) => {
-    try {
-      const submissionId = req.params.submissionId;
-      const { appointmentId } = req.body as { appointmentId: string };
+  try {
+    const submissionId = req.params.submissionId;
+    const { appointmentId, enforceSingle } = req.body as {
+      appointmentId: string;
+      enforceSingle?: boolean;
+    };
 
-      const updated = await ObservationToolSubmissionService.linkToAppointment({
-        submissionId,
-        appointmentId,
-      });
+    const updated = await ObservationToolSubmissionService.linkToAppointment({
+      submissionId,
+      appointmentId,
+      enforceSingleSubmissionPerAppointment: enforceSingle === true,
+    });
 
-      res.json(updated);
-    } catch (error) {
-      handleError(error, res);
-    }
-  },
+    res.json(updated);
+  } catch (error) {
+    handleError(error, res);
+  }
+},
 
   // PMS — list submissions attached to one appointment
   listForAppointment: async (req: Request, res: Response) => {
