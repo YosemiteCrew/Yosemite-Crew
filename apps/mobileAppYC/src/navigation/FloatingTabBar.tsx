@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {
   getFocusedRouteNameFromRoute,
@@ -6,7 +6,9 @@ import {
   type PartialState,
 } from '@react-navigation/native';
 import {
+  Animated,
   Image,
+  LayoutChangeEvent,
   Platform,
   StyleSheet,
   Text,
@@ -22,7 +24,7 @@ const ICON_MAP: Record<
   {label: string; iconKey: keyof typeof Images.navigation}
 > = {
   HomeStack: {label: 'Home', iconKey: 'home'},
-  Appointments: {label: 'Appointments', iconKey: 'appointments'},
+  Appointments: {label: 'Bookings', iconKey: 'appointments'},
   Documents: {label: 'Documents', iconKey: 'documents'},
   Tasks: {label: 'Tasks', iconKey: 'tasks'},
 };
@@ -34,13 +36,23 @@ const ROOT_ROUTE_MAP: Record<string, string> = {
   Tasks: 'TasksMain',
   AdverseEvent: 'Landing',
 };
-const TAB_BAR_GLASS_TINT = 'rgba(255, 255, 255, 0.7)';
+
+interface TabLayout {
+  x: number;
+  width: number;
+}
 
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
   const useGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+
+  // Animated values for sliding pill - using JS driver for both since we need width
+  const pillLeft = useRef(new Animated.Value(0)).current;
+  const pillWidth = useRef(new Animated.Value(0)).current;
+  const [tabLayouts, setTabLayouts] = useState<TabLayout[]>([]);
+  const [isReady, setIsReady] = useState(false);
 
   // Calculate if tab bar should be hidden based on nested navigation
   const shouldHideTabBar = (() => {
@@ -73,11 +85,88 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     return nestedRouteName !== rootScreenName;
   })();
 
+  // Handle tab layout measurements
+  const onTabLayout = (index: number, event: LayoutChangeEvent) => {
+    const {x, width} = event.nativeEvent.layout;
+    setTabLayouts(prev => {
+      const newLayouts = [...prev];
+      newLayouts[index] = {x, width};
+      return newLayouts;
+    });
+  };
+
+  // Animate pill to active tab
+  useEffect(() => {
+    const activeTabLayout = tabLayouts[state.index];
+    if (!activeTabLayout || tabLayouts.length !== state.routes.length) {
+      return;
+    }
+
+    if (!isReady) {
+      // Initial position - no animation
+      pillLeft.setValue(activeTabLayout.x);
+      pillWidth.setValue(activeTabLayout.width);
+      setIsReady(true);
+    } else {
+      // Smooth spring animation
+      Animated.parallel([
+        Animated.spring(pillLeft, {
+          toValue: activeTabLayout.x,
+          useNativeDriver: false,
+          tension: 68,
+          friction: 12,
+        }),
+        Animated.spring(pillWidth, {
+          toValue: activeTabLayout.width,
+          useNativeDriver: false,
+          tension: 68,
+          friction: 12,
+        }),
+      ]).start();
+    }
+  }, [
+    state.index,
+    tabLayouts,
+    isReady,
+    pillLeft,
+    pillWidth,
+    state.routes.length,
+  ]);
+
   if (shouldHideTabBar) {
     return null;
   }
 
-  const renderItems = () =>
+  const renderSlidingPill = () => {
+    if (!isReady) {
+      return null;
+    }
+
+    return (
+      <Animated.View
+        style={[
+          styles.pillContainer,
+          {
+            left: pillLeft,
+            width: pillWidth,
+          },
+        ]}>
+        {useGlass ? (
+          <LiquidGlassView
+            style={styles.pillGlass}
+            effect="clear"
+            tintColor="rgba(255, 255, 255, 0.08)"
+            colorScheme="light"
+            interactive
+          />
+        ) : (
+          <View style={styles.pillGlass} />
+        )}
+      </Animated.View>
+    );
+  };
+
+  const renderTabs = () =>
     state.routes.map((route, index) => {
       const config = ICON_MAP[route.name] ?? {
         label: route.name,
@@ -108,20 +197,17 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           accessibilityRole="button"
           accessibilityState={isFocused ? {selected: true} : {}}
           onPress={onPress}
-          activeOpacity={0.85}
-          style={styles.tabItem}>
-          <View
-            style={[
-              styles.iconWrapper,
-              isFocused && styles.iconWrapperActive,
-            ]}>
+          activeOpacity={0.7}
+          style={styles.tabItem}
+          onLayout={event => onTabLayout(index, event)}>
+          <View style={styles.iconWrapper}>
             <Image
               source={
                 isFocused
                   ? Images.navigation[config.iconKey].focused
                   : Images.navigation[config.iconKey].light
               }
-              style={styles.iconImage}
+              style={[styles.iconImage, isFocused && styles.iconImageActive]}
               resizeMode="contain"
             />
           </View>
@@ -138,26 +224,28 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
       );
     });
 
-  const ContainerComponent = useGlass ? LiquidGlassView : View;
+  const BarComponent = useGlass ? LiquidGlassView : View;
 
   return (
     <View style={styles.wrapper}>
-      <View
-        style={[
-          styles.shadowWrapper,
-          useGlass ? styles.shadowWrapperGlass : null,
-        ]}>
-        <ContainerComponent
-          style={[styles.bar, useGlass && styles.barGlass]}
-          {...(useGlass
-            ? {
-                effect: 'regular' as const,
-                tintColor: TAB_BAR_GLASS_TINT,
-                colorScheme: 'light' as const,
-              }
-            : {})}>
-          {renderItems()}
-        </ContainerComponent>
+      <View style={styles.shadowContainer}>
+        <View
+          style={[
+            styles.shadowWrapper,
+            !useGlass && styles.shadowWrapperSolid,
+          ]}>
+          <BarComponent
+            style={[styles.bar, useGlass && styles.barGlass]}
+            {...(useGlass
+              ? {
+                  effect: 'clear' as const,
+                  colorScheme: 'light' as const,
+                }
+              : {})}>
+            {renderSlidingPill()}
+            {renderTabs()}
+          </BarComponent>
+        </View>
       </View>
     </View>
   );
@@ -171,36 +259,66 @@ const createStyles = (theme: any) =>
       right: 24,
       bottom: 45,
       zIndex: 10,
+      overflow: 'visible',
+    },
+    shadowContainer: {
+      backgroundColor: 'transparent',
+      overflow: 'visible',
     },
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.floatingMd,
-      backgroundColor: theme.colors.white,
-    },
-    shadowWrapperGlass: {
       backgroundColor: 'transparent',
+      overflow: 'visible',
+    },
+    shadowWrapperSolid: {
+      backgroundColor: theme.colors.white,
     },
     bar: {
+      position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'space-around',
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.white,
-      paddingVertical: 15,
-      paddingHorizontal: 20,
-      overflow: 'hidden',
+      backgroundColor: 'transparent',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      overflow: 'visible',
     },
     barGlass: {
+      backgroundColor: 'transparent',
+    },
+    pillContainer: {
+      position: 'absolute',
+      top: 8,
+      bottom: 8,
+      zIndex: 2,
+    },
+    pill: {
+      flex: 1,
+      borderRadius: theme.borderRadius.xl,
+      backgroundColor: theme.colors.secondary,
+    },
+    pillGlass: {
+      flex: 1,
+      borderRadius: theme.borderRadius.xl,
+      backgroundColor: 'transparent',
+    },
+    invisiblePill: {
+      flex: 1,
       backgroundColor: 'transparent',
     },
     tabItem: {
       flex: 1,
       alignItems: 'center',
-      gap: 4,
+      justifyContent: 'center',
+      gap: 5,
+      zIndex: 3,
+      paddingVertical: 6,
+      paddingHorizontal: 8,
     },
     iconWrapper: {
-      width: 32,
-      height: 32,
+      width: 28,
+      height: 28,
       borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
@@ -208,12 +326,15 @@ const createStyles = (theme: any) =>
     iconWrapperActive: {},
     label: {
       textAlign: 'center',
-      ...theme.typography.tabLabel,
+      fontSize: 10,
+      fontWeight: '600',
       color: theme.colors.textSecondary,
+      maxWidth: '100%',
     },
     labelActive: {
-      ...theme.typography.tabLabelFocused,
-      color: theme.colors.secondary,
+      fontSize: 10,
+      fontWeight: '800',
+      color: theme.colors.textSecondary,
     },
     labelInactive: {
       color: theme.colors.textSecondary,
@@ -221,5 +342,9 @@ const createStyles = (theme: any) =>
     iconImage: {
       width: 20,
       height: 20,
+      tintColor: theme.colors.textSecondary,
+    },
+    iconImageActive: {
+      tintColor: theme.colors.textSecondary,
     },
   });

@@ -19,7 +19,8 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 
-const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
+// Crystal clear glass defaults - minimal tint for maximum clarity
+const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.1)';
 const IOS_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
 const ANDROID_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.92)';
 const ANDROID_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.82)';
