@@ -13,7 +13,7 @@ import {
 import {useTheme} from '@/hooks';
 
 // Crystal clear glass defaults - minimal tint for maximum clarity
-const IOS_LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.1)';
+const IOS_LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.5)';
 const IOS_DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
 const ANDROID_LIGHT_CARD_TINT_CLEAR = 'rgba(255, 255, 255, 0.92)';
 const ANDROID_DARK_CARD_TINT_CLEAR = 'rgba(28, 28, 30, 0.82)';

@@ -25,7 +25,7 @@ const ICON_MAP: Record<
 > = {
   HomeStack: {label: 'Home', iconKey: 'home'},
   Appointments: {label: 'Bookings', iconKey: 'appointments'},
-  Documents: {label: 'Documents', iconKey: 'documents'},
+  Documents: {label: 'Docs', iconKey: 'documents'},
   Tasks: {label: 'Tasks', iconKey: 'tasks'},
 };
 
@@ -51,6 +51,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   // Animated values for sliding pill - using JS driver for both since we need width
   const pillLeft = useRef(new Animated.Value(0)).current;
   const pillWidth = useRef(new Animated.Value(0)).current;
+  const pillScale = useRef(new Animated.Value(1)).current;
   const [tabLayouts, setTabLayouts] = useState<TabLayout[]>([]);
   const [isReady, setIsReady] = useState(false);
 
@@ -106,22 +107,41 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
       // Initial position - no animation
       pillLeft.setValue(activeTabLayout.x);
       pillWidth.setValue(activeTabLayout.width);
+      pillScale.setValue(1);
       setIsReady(true);
     } else {
-      // Smooth spring animation
+      // Bouncy spring animation with scale wiggle effect
       Animated.parallel([
+        // Position and width with extra bounce
         Animated.spring(pillLeft, {
           toValue: activeTabLayout.x,
           useNativeDriver: false,
-          tension: 68,
-          friction: 12,
+          tension: 40,
+          friction: 6,
+          velocity: 3,
         }),
         Animated.spring(pillWidth, {
           toValue: activeTabLayout.width,
           useNativeDriver: false,
-          tension: 68,
-          friction: 12,
+          tension: 40,
+          friction: 6,
+          velocity: 3,
         }),
+        // Scale up then down for wiggle effect
+        Animated.sequence([
+          Animated.spring(pillScale, {
+            toValue: 1.15,
+            useNativeDriver: false,
+            tension: 300,
+            friction: 10,
+          }),
+          Animated.spring(pillScale, {
+            toValue: 1,
+            useNativeDriver: false,
+            tension: 80,
+            friction: 8,
+          }),
+        ]),
       ]).start();
     }
   }, [
@@ -130,6 +150,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     isReady,
     pillLeft,
     pillWidth,
+    pillScale,
     state.routes.length,
   ]);
 
@@ -149,13 +170,14 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           {
             left: pillLeft,
             width: pillWidth,
+            transform: [{scaleX: pillScale}, {scaleY: pillScale}],
           },
         ]}>
         {useGlass ? (
           <LiquidGlassView
             style={styles.pillGlass}
             effect="clear"
-            tintColor="rgba(255, 255, 255, 0.08)"
+            tintColor={theme.colors.secondary}
             colorScheme="light"
             interactive
           />
@@ -239,7 +261,9 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             {...(useGlass
               ? {
                   effect: 'clear' as const,
+                  tintColor: 'rgba(255, 255, 255, 0.5)',
                   colorScheme: 'light' as const,
+                  interactive: false,
                 }
               : {})}>
             {renderSlidingPill()}
@@ -325,19 +349,18 @@ const createStyles = (theme: any) =>
     },
     iconWrapperActive: {},
     label: {
+      ...theme.typography.tabLabel,
       textAlign: 'center',
-      fontSize: 10,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
+      color: theme.colors.text,
       maxWidth: '100%',
     },
     labelActive: {
-      fontSize: 10,
-      fontWeight: '800',
-      color: theme.colors.textSecondary,
+      ...theme.typography.tabLabelFocused,
+      color: theme.colors.white,
     },
     labelInactive: {
-      color: theme.colors.textSecondary,
+      ...theme.typography.tabLabel,
+      color: theme.colors.text,
     },
     iconImage: {
       width: 20,
@@ -345,6 +368,6 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.textSecondary,
     },
     iconImageActive: {
-      tintColor: theme.colors.textSecondary,
+      tintColor: theme.colors.white,
     },
   });

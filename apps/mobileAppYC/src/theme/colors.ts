@@ -31,7 +31,7 @@ export const colors = {
   info: '#2196F3',
 
   // Background colors
-  background: '#FFFEFE',
+  background: '#FFFFFF',
   backgroundSecondary: '#F8F9FA',
   backgroundDark: '#121212',
   backgroundDarkSecondary: '#1E1E1E',
