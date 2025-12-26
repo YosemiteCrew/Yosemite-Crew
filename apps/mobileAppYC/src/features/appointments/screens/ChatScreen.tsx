@@ -10,13 +10,11 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
 import {useNavigation} from '@react-navigation/native';
 import {nanoid} from '@reduxjs/toolkit';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Message = { id: string; sender: 'you' | 'vet'; text: string; time: string };
 
@@ -29,8 +27,6 @@ const initialMessages: Message[] = [
 export const ChatScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const navigation = useNavigation();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [text, setText] = useState('');
@@ -42,61 +38,53 @@ export const ChatScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={[]}>
-      <LiquidGlassHeader
-        insetsTop={insets.top}
-        currentHeight={topGlassHeight}
-        onHeightChange={setTopGlassHeight}
-        topSectionStyle={styles.topSection}
-        shadowWrapperStyle={styles.topGlassShadowWrapper}
-        cardStyle={styles.topGlassCard}
-        fallbackStyle={styles.topGlassFallback}>
-        <Header title="Dr. David Brown" showBackButton onBack={() => navigation.goBack()} glass={false} />
-      </LiquidGlassHeader>
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoiding}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
-        <FlatList
-          contentContainerStyle={[
-            styles.list,
-            topGlassHeight
-              ? {paddingTop: topGlassHeight + theme.spacing['3']}
-              : null,
-          ]}
-          data={messages}
-          keyExtractor={m => m.id}
-          renderItem={({item}) => (
-            <View style={[styles.bubble, item.sender === 'you' ? styles.you : styles.vet]}>
-              <Text style={styles.text}>{item.text}</Text>
-              <Text style={styles.time}>{item.time}</Text>
-            </View>
-          )}
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Dr. David Brown"
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
         />
-        <View style={styles.composer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type a message"
-            value={text}
-            onChangeText={setText}
-            returnKeyType="done"
-            onSubmitEditing={() => Keyboard.dismiss()}
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+          <FlatList
+            contentContainerStyle={[styles.list, contentPaddingStyle]}
+            data={messages}
+            keyExtractor={m => m.id}
+            renderItem={({item}) => (
+              <View style={[styles.bubble, item.sender === 'you' ? styles.you : styles.vet]}>
+                <Text style={styles.text}>{item.text}</Text>
+                <Text style={styles.time}>{item.time}</Text>
+              </View>
+            )}
           />
-          <TouchableOpacity style={styles.send} onPress={send}><Text style={styles.sendText}>→</Text></TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          <View style={styles.composer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Type a message"
+              value={text}
+              onChangeText={setText}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+            <TouchableOpacity style={styles.send} onPress={send}><Text style={styles.sendText}>→</Text></TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  ...createLiquidGlassHeaderStyles(theme),
   keyboardAvoiding: {flex: 1},
-  list: {padding: theme.spacing['4'], gap: theme.spacing['2']},
+  list: {padding: theme.spacing['4'], gap: theme.spacing['2'], paddingBottom: theme.spacing['10']},
   bubble: {maxWidth: '80%', padding: theme.spacing['3'], borderRadius: theme.borderRadius.md, marginVertical: theme.spacing['2']},
   you: {alignSelf: 'flex-end', backgroundColor: theme.colors.lightBlueBackground},
   vet: {alignSelf: 'flex-start', backgroundColor: theme.colors.surface},

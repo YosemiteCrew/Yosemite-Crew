@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo} from 'react';
 import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -41,8 +41,7 @@ import {
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -609,8 +608,6 @@ const ActionButtons = ({
 export const ViewAppointmentScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const dispatch = useDispatch<AppDispatch>();
@@ -711,23 +708,8 @@ export const ViewAppointmentScreen: React.FC = () => {
   if (!apt) {
     return (
       <SafeAreaView style={styles.root} edges={[]}>
-        <LiquidGlassHeader
-          insetsTop={insets.top}
-          currentHeight={topGlassHeight}
-          onHeightChange={setTopGlassHeight}
-          topSectionStyle={styles.topSection}
-          shadowWrapperStyle={styles.topGlassShadowWrapper}
-          cardStyle={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
-        </LiquidGlassHeader>
-        <View
-          style={[
-            styles.loadingContainer,
-            topGlassHeight
-              ? {paddingTop: topGlassHeight + theme.spacing['3']}
-              : null,
-          ]}>
+        <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} />
+        <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading appointment...</Text>
         </View>
       </SafeAreaView>
@@ -746,25 +728,17 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   return (
     <>
-      <SafeAreaView style={styles.root} edges={[]}>
-        <LiquidGlassHeader
-          insetsTop={insets.top}
-          currentHeight={topGlassHeight}
-          onHeightChange={setTopGlassHeight}
-          topSectionStyle={styles.topSection}
-          shadowWrapperStyle={styles.topGlassShadowWrapper}
-          cardStyle={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+      <LiquidGlassHeaderScreen
+        header={
           <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
-        </LiquidGlassHeader>
-        <ScrollView
-          contentContainerStyle={[
-            styles.container,
-            topGlassHeight
-              ? {paddingTop: topGlassHeight + theme.spacing['3']}
-              : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['1']}>
+        {contentPaddingStyle => (
+          <>
+            <ScrollView
+              contentContainerStyle={[styles.container, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
 
         <StatusCard
           styles={styles}
@@ -901,8 +875,11 @@ export const ViewAppointmentScreen: React.FC = () => {
           handleCancel={() => cancelSheetRef.current?.open?.()}
           theme={theme}
         />
-      </ScrollView>
-      </SafeAreaView>
+            </ScrollView>
+          </>
+        )}
+      </LiquidGlassHeaderScreen>
+
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={handleCancelAppointment}
@@ -958,7 +935,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  ...createLiquidGlassHeaderStyles(theme),
   container: {
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],

@@ -7,7 +7,6 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
@@ -16,7 +15,7 @@ import {Images} from '@/assets/images';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {VetBusinessCard} from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
 import {
   addLinkedBusiness,
@@ -29,7 +28,7 @@ import {
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
 import {NotifyBusinessBottomSheet, type NotifyBusinessBottomSheetRef} from '../components/NotifyBusinessBottomSheet';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {createGlassCardStyles} from '@/shared/utils/screenStyles';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessAdd'>;
 
@@ -53,13 +52,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
   const loading = useSelector(selectLinkedBusinessesLoading);
 
   const addBusinessSheetRef = React.useRef<AddBusinessBottomSheetRef>(null);
   const notifyBusinessSheetRef = React.useRef<NotifyBusinessBottomSheetRef>(null);
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [detailedPhoto, setDetailedPhoto] = useState<string | undefined>(photo);
@@ -220,26 +217,21 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <>
-      <SafeAreaView style={styles.container} edges={[]}>
-        <LiquidGlassHeader
-          insetsTop={insets.top}
-          currentHeight={topGlassHeight}
-          onHeightChange={setTopGlassHeight}
-          topSectionStyle={styles.topSection}
-          shadowWrapperStyle={styles.topGlassShadowWrapper}
-          cardStyle={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header title="Add Business" showBackButton onBack={handleBack} glass={false} />
-        </LiquidGlassHeader>
-
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            topGlassHeight
-              ? {paddingTop: topGlassHeight + theme.spacing['3']}
-              : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Add Business"
+            showBackButton
+            onBack={handleBack}
+            glass={false}
+          />
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['4']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
           {/* Business Card */}
           <VetBusinessCard
             photo={detailedPhoto}
@@ -317,8 +309,9 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
               />
             )}
           </View>
-        </ScrollView>
-      </SafeAreaView>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
 
       {/* Add Business Bottom Sheet */}
       <AddBusinessBottomSheet
@@ -340,20 +333,10 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 };
 
 const createStyles = (theme: any) => {
-  const glassStyles = createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']});
-
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
-    },
-    ...glassStyles,
-    topGlassCard: {
-      ...glassStyles.topGlassCard,
-      paddingHorizontal: theme.spacing['4'],
-    },
-    searchBar: {
-      marginBottom: theme.spacing['2'],
     },
     scrollContent: {
       paddingHorizontal: theme.spacing['4'],

@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -37,8 +36,7 @@ import {usePaymentHandler} from '@/features/payments/hooks/usePaymentHandler';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {resolveCurrencyForBusiness, normalizeCurrencyCode} from '@/shared/utils/currencyResolver';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -897,8 +895,6 @@ const buildInvoiceContent = ({
 export const PaymentInvoiceScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const route = useRoute<any>();
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
@@ -1153,38 +1149,34 @@ export const PaymentInvoiceScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.root} edges={[]}>
-      <LiquidGlassHeader
-        insetsTop={insets.top}
-        currentHeight={topGlassHeight}
-        onHeightChange={setTopGlassHeight}
-        topSectionStyle={styles.topSection}
-        shadowWrapperStyle={styles.topGlassShadowWrapper}
-        cardStyle={styles.topGlassCard}
-        fallbackStyle={styles.topGlassFallback}>
+    <LiquidGlassHeaderScreen
+      header={
         <Header
           title={headerTitle}
           showBackButton
           onBack={() => navigation.goBack()}
           glass={false}
         />
-      </LiquidGlassHeader>
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          topGlassHeight
-            ? {paddingTop: topGlassHeight + theme.spacing['3']}
-            : null,
-        ]}>
-        <SummaryCards
-          businessSummary={summaryBusiness as any}
-          service={service}
-          serviceName={apt?.serviceName}
-          cardStyle={styles.summaryCard}
-        />
-        {content}
-      </ScrollView>
-    </SafeAreaView>
+      }
+      edges={[]}
+      contentPadding={theme.spacing['4']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            contentPaddingStyle,
+          ]}
+          showsVerticalScrollIndicator={false}>
+          <SummaryCards
+            businessSummary={summaryBusiness as any}
+            service={service}
+            serviceName={apt?.serviceName}
+            cardStyle={styles.summaryCard}
+          />
+          {content}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -1239,13 +1231,7 @@ const BreakdownRow = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    ...createLiquidGlassHeaderStyles(theme),
     container: {
-      padding: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
       gap: theme.spacing['2'],
     },

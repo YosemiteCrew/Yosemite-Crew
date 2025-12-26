@@ -8,19 +8,15 @@ import type {RootState, AppDispatch} from '@/app/store';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 export const BusinessesListScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const route = useRoute<any>();
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
@@ -56,48 +52,40 @@ export const BusinessesListScreen: React.FC = () => {
 
 
   return (
-    <SafeAreaView style={styles.root} edges={[]}>
-      <LiquidGlassHeader
-        insetsTop={insets.top}
-        currentHeight={topGlassHeight}
-        onHeightChange={setTopGlassHeight}
-        topSectionStyle={styles.topSection}
-        shadowWrapperStyle={styles.topGlassShadowWrapper}
-        cardStyle={styles.topGlassCard}
-        fallbackStyle={styles.topGlassFallback}>
-        <Header title="Book an appointment" showBackButton onBack={() => navigation.goBack()} glass={false} />
-      </LiquidGlassHeader>
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          topGlassHeight
-            ? {paddingTop: topGlassHeight + theme.spacing['3']}
-            : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
-        {businesses.map(b => (
-          <BusinessCard
-            key={b.id}
-            name={b.name}
-            openText={b.openHours}
-            description={resolveDescription(b)}
-            distanceText={getDistanceText(b)}
-            ratingText={b.rating ? `${b.rating}` : undefined}
-            photo={b.photo}
-            onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
-          />
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Book an appointment"
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          {businesses.map(b => (
+            <BusinessCard
+              key={b.id}
+              name={b.name}
+              openText={b.openHours}
+              description={resolveDescription(b)}
+              distanceText={getDistanceText(b)}
+              ratingText={b.rating ? `${b.rating}` : undefined}
+              photo={b.photo}
+              onBook={() => navigation.navigate('BusinessDetails', {businessId: b.id})}
+            />
+          ))}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  ...createLiquidGlassHeaderStyles(theme),
   container: {
     paddingHorizontal: theme.spacing['4'],
     paddingBottom: theme.spacing['8'],

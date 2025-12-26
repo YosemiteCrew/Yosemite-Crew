@@ -31,7 +31,7 @@ import {
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -134,7 +134,7 @@ export const ExpensesMainScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <LiquidGlassHeaderShell
+      <LiquidGlassHeaderScreen
         header={
           <Header
             title="Expenses"
@@ -262,7 +262,7 @@ export const ExpensesMainScreen: React.FC = () => {
             </ScrollView>
           )
         }
-      </LiquidGlassHeaderShell>
+      </LiquidGlassHeaderScreen>
       {(loading || processingPayment) && <View style={styles.loadingOverlay} />}
     </SafeAreaView>
   );
@@ -275,7 +275,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['20'],
       gap: theme.spacing['4'],
     },

@@ -421,7 +421,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
     },
     companionSelector: {
@@ -461,7 +461,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     footer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['10'],
       zIndex: 2,
       paddingTop: theme.spacing['2'],

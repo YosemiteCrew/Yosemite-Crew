@@ -7,8 +7,8 @@ import {
   Image,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -38,8 +38,6 @@ import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter = 'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
@@ -49,8 +47,6 @@ export const MyAppointmentsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
@@ -506,51 +502,34 @@ export const MyAppointmentsScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea edges={[]}>
-      <View
-        style={styles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title="My Appointments"
-              showBackButton={false}
-              rightIcon={Images.addIconDark}
-              onRightPress={handleAdd}
-              glass={false}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
-      <SectionList
-        style={styles.sectionList}
-        sections={sections}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        contentContainerStyle={[
-          styles.container,
-          topGlassHeight
-            ? {paddingTop: topGlassHeight + theme.spacing['3']}
-            : null,
-        ]}
-        stickySectionHeadersEnabled={false}
-        showsVerticalScrollIndicator={false}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.6}
-        ListFooterComponent={<View style={styles.bottomSpacer} />}
-      />
-    </SafeArea>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="My Appointments"
+          showBackButton={false}
+          rightIcon={Images.addIconDark}
+          onRightPress={handleAdd}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <SectionList
+          style={styles.sectionList}
+          sections={sections}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          stickySectionHeadersEnabled={false}
+          showsVerticalScrollIndicator={false}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.6}
+          ListFooterComponent={<View style={styles.bottomSpacer} />}
+        />
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -663,7 +642,6 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    ...createLiquidGlassHeaderStyles(theme),
     sectionList: {flex: 1},
     container: {
       paddingHorizontal: theme.spacing['6'],

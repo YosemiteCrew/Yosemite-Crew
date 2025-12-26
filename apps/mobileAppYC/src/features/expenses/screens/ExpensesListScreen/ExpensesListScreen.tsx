@@ -29,7 +29,7 @@ import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesList'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensesList'>;
@@ -158,7 +158,7 @@ export const ExpensesListScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <LiquidGlassHeaderShell
+      <LiquidGlassHeaderScreen
         header={<Header title="Expenses" showBackButton onBack={handleBack} glass={false} />}
         contentPadding={theme.spacing['3']}>
         {contentPaddingStyle => (
@@ -177,7 +177,7 @@ export const ExpensesListScreen: React.FC = () => {
             showsVerticalScrollIndicator={false}
           />
         )}
-      </LiquidGlassHeaderShell>
+      </LiquidGlassHeaderScreen>
     </SafeAreaView>
   );
 };
@@ -195,7 +195,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['4'],
     },
     listContent: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
     },
     separator: {
