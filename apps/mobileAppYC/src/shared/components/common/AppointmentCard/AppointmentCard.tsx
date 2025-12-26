@@ -102,6 +102,7 @@ export const AppointmentCard = ({
         glassEffect: 'clear',
         interactive: true,
         shadow: 'none',
+        colorScheme: 'light',
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}

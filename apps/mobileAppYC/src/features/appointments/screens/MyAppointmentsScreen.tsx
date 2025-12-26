@@ -5,6 +5,8 @@ import {
   Text,
   StyleSheet,
   Image,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -12,6 +14,7 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -57,7 +60,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   const upcoming = useSelector((state: RootState) => upcomingSelector(state, selectedCompanionId ?? null));
   const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
-  const [filter] = React.useState<BusinessFilter>('all');
+  const [filter, setFilter] = React.useState<BusinessFilter>('all');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
@@ -249,6 +252,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       glassEffect="clear"
       interactive
       shadow='none'
+      colorScheme='light'
       style={styles.infoTile}
       fallbackStyle={styles.tileFallback}>
       <Text style={styles.tileTitle}>{title}</Text>
@@ -501,16 +505,51 @@ export const MyAppointmentsScreen: React.FC = () => {
     // console.log('Reached end of past appointments');
   };
 
+  const FILTER_OPTIONS: Array<{id: BusinessFilter; label: string}> = [
+    {id: 'all', label: 'All'},
+    {id: 'hospital', label: 'Hospital'},
+    {id: 'groomer', label: 'Groomer'},
+    {id: 'breeder', label: 'Breeder'},
+    {id: 'boarder', label: 'Boarder'},
+  ];
+
   return (
     <LiquidGlassHeaderScreen
       header={
-        <Header
-          title="My Appointments"
-          showBackButton={false}
-          rightIcon={Images.addIconDark}
-          onRightPress={handleAdd}
-          glass={false}
-        />
+        <>
+          <Header
+            title="My Appointments"
+            showBackButton={false}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAdd}
+            glass={false}
+          />
+          <View style={styles.pillContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillsContent}>
+              {FILTER_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.pill,
+                    filter === option.id && styles.pillActive,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => setFilter(option.id)}>
+                  <Text
+                    style={[
+                      styles.pillText,
+                      filter === option.id && styles.pillTextActive,
+                    ]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </>
       }
       cardGap={theme.spacing['3']}
       contentPadding={theme.spacing['1']}>
@@ -521,6 +560,17 @@ export const MyAppointmentsScreen: React.FC = () => {
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
+          ListHeaderComponent={
+            <CompanionSelector
+              companions={companions}
+              selectedCompanionId={selectedCompanionId}
+              onSelect={id => dispatch(setSelectedCompanion(id))}
+              showAddButton={false}
+              containerStyle={styles.companionSelector}
+              requiredPermission="appointments"
+              permissionLabel="appointments"
+            />
+          }
           contentContainerStyle={[styles.container, contentPaddingStyle]}
           stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
@@ -645,28 +695,42 @@ const createStyles = (theme: any) =>
     sectionList: {flex: 1},
     container: {
       paddingHorizontal: theme.spacing['6'],
-      paddingTop: theme.spacing['1'],
-      paddingBottom: theme.spacing['10'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['18'],
     },
     listHeader: {gap: theme.spacing['3'], marginBottom: theme.spacing['4']},
-    companionSelector: {marginBottom: theme.spacing['2']},
+    companionSelector: {
+      marginTop: theme.spacing['4'],
+    },
     sectionHeaderWrapper: {marginTop: theme.spacing['4'], marginBottom: theme.spacing['2'], gap: theme.spacing['2']},
     sectionTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
-    pillContainer: {marginBottom: theme.spacing['1']},
-    pillsContent: {gap: theme.spacing['2'], paddingRight: theme.spacing['2']},
+    pillContainer: {marginBottom: theme.spacing['3']},
+    pillsContent: {
+      gap: theme.spacing['2'],
+      paddingRight: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['6'],
+    },
     pill: {
-      minWidth: theme.spacing['20'],
-      height: theme.spacing['9'],
-      paddingHorizontal: theme.spacing['4'],
-      borderRadius: theme.borderRadius.lg,
+      minWidth: 80,
+      height: 36,
+      paddingHorizontal: 16,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: theme.colors.secondary,
+      borderColor: '#302F2E',
       justifyContent: 'center',
       alignItems: 'center',
     },
-    pillActive: {backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary},
-    pillText: {...theme.typography.pillSubtitleBold15, color: theme.colors.secondary},
-    pillTextActive: {color: theme.colors.primary},
+    pillActive: {
+      backgroundColor: theme.colors.primaryTint,
+      borderColor: theme.colors.primary,
+    },
+    pillText: {
+      ...theme.typography.pillSubtitleBold15,
+      color: '#302F2E',
+    },
+    pillTextActive: {
+      color: theme.colors.primary,
+    },
     list: {gap: theme.spacing['4']},
     cardWrapper: {marginBottom: theme.spacing['4']},
     statusBadgePending: {
