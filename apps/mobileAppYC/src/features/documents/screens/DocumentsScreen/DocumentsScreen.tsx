@@ -103,7 +103,7 @@ export const DocumentsScreen: React.FC = () => {
         />
       }
       cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
         <ScrollView
           style={styles.container}

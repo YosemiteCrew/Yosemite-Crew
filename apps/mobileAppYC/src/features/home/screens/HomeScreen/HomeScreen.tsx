@@ -1031,7 +1031,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               glassEffect="clear"
               interactive={false}
               shadow="none"
-              style={[styles.topGlassCard, {paddingTop: insets.top + theme.spacing['4']}]}
+              style={[styles.topGlassCard, {paddingTop: insets.top + theme.spacing['1']}]}
               fallbackStyle={styles.topGlassFallback}>
             <View style={styles.headerRow}>
           <TouchableOpacity
@@ -1107,7 +1107,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['6']} : null,
+          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['4.5']} : null,
           {paddingBottom: bottomScrollPadding},
         ]}
         showsVerticalScrollIndicator={false}>

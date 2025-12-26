@@ -704,7 +704,7 @@ const createStyles = (theme: any) =>
     },
     sectionHeaderWrapper: {marginTop: theme.spacing['4'], marginBottom: theme.spacing['2'], gap: theme.spacing['2']},
     sectionTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
-    pillContainer: {marginBottom: theme.spacing['3']},
+    pillContainer: {marginBottom: theme.spacing['3'], marginTop: 6},
     pillsContent: {
       gap: theme.spacing['2'],
       paddingRight: theme.spacing['2'],
