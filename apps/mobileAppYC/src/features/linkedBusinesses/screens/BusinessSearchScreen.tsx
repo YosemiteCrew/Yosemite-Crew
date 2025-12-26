@@ -444,7 +444,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <>
-      <SafeAreaView style={styles.container} edges={[]}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <LiquidGlassHeader
           insetsTop={insets.top}
           currentHeight={topGlassHeight}
@@ -478,7 +478,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
             contentContainerStyle={[
               styles.scrollContent,
               topGlassHeight
-                ? {paddingTop: topGlassHeight + theme.spacing['3']}
+                ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
                 : null,
             ]}
             showsVerticalScrollIndicator={false}
@@ -537,7 +537,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
 
         <SearchDropdownOverlay
           visible={searchQuery.length >= 2 && searchResults.length > 0 && !searching}
-          top={Math.max(0, topGlassHeight - theme.spacing['16'])}
+          top={Math.max(0, topGlassHeight - theme.spacing['12'])}
           items={searchResults}
           keyExtractor={item => item.id}
           onPress={handleSelectBusiness}

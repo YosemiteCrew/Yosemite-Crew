@@ -160,7 +160,7 @@ const createStyles = (theme: any) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['24'], // Extra padding for tab bar
+      paddingBottom: theme.spacing['32'], // Extra padding for tab bar and bottom breathing room
     },
     section: {
       marginBottom: theme.spacing['4'],

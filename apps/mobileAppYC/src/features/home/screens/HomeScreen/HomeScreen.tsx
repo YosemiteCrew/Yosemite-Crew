@@ -1229,7 +1229,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#ffffff',
+      backgroundColor: theme.colors.background,
     },
     topSection: {
       paddingHorizontal: 0,

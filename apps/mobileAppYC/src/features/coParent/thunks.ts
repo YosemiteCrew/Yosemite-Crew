@@ -2,6 +2,7 @@ import {createAsyncThunk} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {coParentApi} from './services/coParentService';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import type {
   CoParent,
   CoParentInviteRequest,
@@ -80,11 +81,13 @@ const normalizeCoParent = (
   const email = link?.parent?.email ?? link?.email ?? link?.parentEmail ?? '';
   const phoneNumber =
     link?.parent?.phoneNumber ?? link?.phoneNumber ?? link?.parentPhone ?? undefined;
-  const profilePicture =
+  const rawProfilePicture =
     link?.parent?.profileImageUrl ??
     link?.profileImageUrl ??
     link?.parentProfileImage ??
     link?.profilePicture;
+
+  const profilePicture = normalizeImageUri(rawProfilePicture) ?? undefined;
 
   const permissions = normalizePermissions(link?.permissions);
 

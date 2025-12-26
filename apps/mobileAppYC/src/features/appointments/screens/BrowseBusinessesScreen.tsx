@@ -1,7 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {ScrollView, View, Text, StyleSheet, TouchableOpacity, ViewStyle} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -19,9 +18,7 @@ import type {RouteProp} from '@react-navigation/native';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -223,8 +220,6 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
   const {distanceUnit} = usePreferences();
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const [fallbacks, setFallbacks] = useState<Record<string, {photo?: string | null; phone?: string; website?: string}>>({});
   const requestedDetailsRef = React.useRef<Set<string>>(new Set());
   const lastSearchRef = React.useRef<number>(0);
@@ -326,52 +321,38 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
 
   return (
-    <SafeArea>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={styles.topGlassCard}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title="Book an appointment"
-              showBackButton
-              onBack={() => navigation.goBack()}
-              glass={false}
-            />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pillsContent}>
-              {CATEGORIES.map(p => (
-                <TouchableOpacity
-                  key={p.label}
+    <LiquidGlassHeaderScreen
+      header={
+        <>
+          <Header
+            title="Book an appointment"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillsContent}>
+            {CATEGORIES.map(p => (
+              <TouchableOpacity
+                key={p.label}
+                style={[
+                  styles.pill,
+                  (p.id ?? undefined) === category && styles.pillActive,
+                ]}
+                activeOpacity={0.8}
+                onPress={() => setCategory(p.id)}>
+                <Text
                   style={[
-                    styles.pill,
-                    (p.id ?? undefined) === category && styles.pillActive,
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => setCategory(p.id)}>
-                  <Text
-                    style={[
-                      styles.pillText,
-                      (p.id ?? undefined) === category && styles.pillTextActive,
-                    ]}>
-                    {p.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
+                    styles.pillText,
+                    (p.id ?? undefined) === category && styles.pillTextActive,
+                  ]}>
+                  {p.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           <SearchBar
             placeholder="Search for services"
             mode="input"
@@ -382,68 +363,79 @@ export const BrowseBusinessesScreen: React.FC = () => {
             autoFocus={route.params?.autoFocusSearch}
             containerStyle={styles.searchBar}
           />
-        </LiquidGlassCard>
-        </View>
-      </View>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.container,
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['1']}
-            : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.resultsWrapper}>
-          {(() => {
-            if (filteredBusinesses.length === 0) {
-              return (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateTitle}>No businesses found</Text>
-                  <Text style={styles.emptyStateSubtitle}>
-                    Try adjusting your filters or search to find nearby providers.
-                  </Text>
-                </View>
-              );
-            }
+        </>
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.resultsWrapper}>
+            {(() => {
+              if (filteredBusinesses.length === 0) {
+                return (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateTitle}>No businesses found</Text>
+                    <Text style={styles.emptyStateSubtitle}>
+                      Try adjusting your filters or search to find nearby providers.
+                    </Text>
+                  </View>
+                );
+              }
 
-            if (category) {
+              if (category) {
+                return (
+                  <CategoryBusinesses
+                    businesses={filteredBusinesses}
+                    navigation={navigation}
+                    resolveDescription={resolveDescription}
+                    fallbacks={fallbacks}
+                    distanceUnit={distanceUnit}
+                    styles={styles}
+                  />
+                );
+              }
+
               return (
-                <CategoryBusinesses
+                <AllCategoriesView
+                  allCategories={allCategories}
                   businesses={filteredBusinesses}
-                  navigation={navigation}
                   resolveDescription={resolveDescription}
+                  navigation={navigation}
+                  styles={styles}
                   fallbacks={fallbacks}
                   distanceUnit={distanceUnit}
-                  styles={styles}
                 />
               );
-            }
-
-            return (
-              <AllCategoriesView
-                allCategories={allCategories}
-                businesses={filteredBusinesses}
-                resolveDescription={resolveDescription}
-                navigation={navigation}
-                styles={styles}
-                fallbacks={fallbacks}
-                distanceUnit={distanceUnit}
-              />
-            );
-          })()}
-        </View>
-      </ScrollView>
-    </SafeArea>
+            })()}
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  scrollView: {flex: 1},
-  container: {paddingHorizontal: theme.spacing['6'], paddingBottom: theme.spacing['8'], gap: theme.spacing['4']},
-  ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
-  pillsContent: {gap: theme.spacing['2'], paddingRight: theme.spacing['2'], paddingHorizontal: theme.spacing['6']},
-  resultsWrapper: {gap: theme.spacing['4'], marginTop: theme.spacing['2']},
+  scrollView: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  container: {
+    paddingHorizontal: theme.spacing['6'],
+    paddingBottom: theme.spacing['24'],
+    gap: theme.spacing['4'],
+  },
+  pillsContent: {
+    gap: theme.spacing['2'],
+    paddingRight: theme.spacing['2'],
+    paddingHorizontal: theme.spacing['6'],
+  },
+  resultsWrapper: {
+    gap: theme.spacing['4'],
+    marginTop: theme.spacing['2'],
+  },
   pill: {
     minWidth: 80,
     height: 36,
@@ -454,14 +446,40 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pillActive: {backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary},
-  pillText: {...theme.typography.pillSubtitleBold15, color: '#302F2E'},
-  pillTextActive: {color: theme.colors.primary},
-  sectionHeaderRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4},
-  sectionHeaderRight: {flexDirection: 'row', alignItems: 'center', gap: 8},
-  sectionHeader: {...theme.typography.businessSectionTitle20, color: '#302F2E'},
-  sectionCount: {...theme.typography.body12, color: '#302F2E'},
-  viewMore: { ...theme.typography.labelXxsBold, color: theme.colors.primary},
+  pillActive: {
+    backgroundColor: theme.colors.primaryTint,
+    borderColor: theme.colors.primary,
+  },
+  pillText: {
+    ...theme.typography.pillSubtitleBold15,
+    color: '#302F2E',
+  },
+  pillTextActive: {
+    color: theme.colors.primary,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sectionHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionHeader: {
+    ...theme.typography.businessSectionTitle20,
+    color: '#302F2E',
+  },
+  sectionCount: {
+    ...theme.typography.body12,
+    color: '#302F2E',
+  },
+  viewMore: {
+    ...theme.typography.labelXxsBold,
+    color: theme.colors.primary,
+  },
   viewMoreButton: {
     alignSelf: 'flex-start',
     flexGrow: 0,
@@ -483,10 +501,21 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: theme.borderRadius.full,
     ...theme.shadows.sm,
   },
-  sectionWrapper: {gap: 12},
-  singleCardWrapper: {alignItems: 'center', width: '100%'},
-  horizontalList: {gap: 12, paddingRight: 16, paddingVertical: 10},
-  horizontalCard: {width: 280},
+  sectionWrapper: {
+    gap: 12,
+  },
+  singleCardWrapper: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  horizontalList: {
+    gap: 12,
+    paddingRight: 16,
+    paddingVertical: 10,
+  },
+  horizontalCard: {
+    width: 280,
+  },
   emptyState: {
     padding: 16,
     borderRadius: 12,
@@ -495,8 +524,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     gap: 6,
   },
-  emptyStateTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
-  emptyStateSubtitle: {...theme.typography.bodySmallTight, color: theme.colors.textSecondary},
+  emptyStateTitle: {
+    ...theme.typography.titleMedium,
+    color: theme.colors.secondary,
+  },
+  emptyStateSubtitle: {
+    ...theme.typography.bodySmallTight,
+    color: theme.colors.textSecondary,
+  },
 });
 
 export default BrowseBusinessesScreen;

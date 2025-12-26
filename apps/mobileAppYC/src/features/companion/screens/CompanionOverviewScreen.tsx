@@ -330,7 +330,6 @@ export const CompanionOverviewScreen: React.FC<
         <LiquidGlassCard
           glassEffect="clear"
           interactive
-          tintColor={theme.colors.white}
           style={styles.glassContainer}
           fallbackStyle={styles.glassFallback}>
           <View style={styles.listContainer}>

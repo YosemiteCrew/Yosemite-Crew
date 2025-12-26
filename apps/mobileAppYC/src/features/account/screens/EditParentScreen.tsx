@@ -376,7 +376,6 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           <LiquidGlassCard
             glassEffect="clear"
             interactive
-            tintColor={theme.colors.white}
             style={styles.glassContainer}
             fallbackStyle={styles.glassFallback}>
             <View style={styles.listContainer}>
