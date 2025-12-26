@@ -1040,6 +1040,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           }}
           glassEffect="regular"
           interactive
+          tintColor={theme.colors.secondary}
+          borderColor={theme.colors.borderMuted}
           style={styles.button}
           textStyle={styles.buttonText}
           height={56}

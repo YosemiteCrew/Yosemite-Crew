@@ -50,6 +50,8 @@ export const UploadDocumentBottomSheet = forwardRef<
 
   useImperativeHandle(ref, () => ({
     open: () => {
+      // Mark visible before snapping so backdrop mounts correctly
+      setIsSheetVisible(true);
       bottomSheetRef.current?.snapToIndex(0);
     },
     close: () => {
