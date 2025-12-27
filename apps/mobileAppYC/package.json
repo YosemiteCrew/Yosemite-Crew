@@ -13,6 +13,7 @@
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.10",
     "@aws-amplify/ui-react-native": "^2.6.2",
+    "@bottom-tabs/react-navigation": "^1.1.0",
     "@callstack/liquid-glass": "^0.7.0",
     "@d11/react-native-fast-image": "^8.13.0",
     "@gorhom/bottom-sheet": "^5",
@@ -56,6 +57,7 @@
     "react-native-asset": "^2.1.1",
     "react-native-blob-util": "^0.23.2",
     "react-native-bootsplash": "^6.3.11",
+    "react-native-bottom-tabs": "^1.1.0",
     "react-native-device-info": "^14.1.1",
     "react-native-fbsdk-next": "^13.4.1",
     "react-native-fs": "^2.20.0",
