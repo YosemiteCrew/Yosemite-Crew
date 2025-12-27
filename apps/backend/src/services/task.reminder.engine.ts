@@ -53,7 +53,7 @@ export const TaskReminderEngine = {
 
         const payload =
           NotificationTemplates.Task.TASK_DUE_REMINDER(
-            task.companionId,
+            task.companionId!,
             task.name,
             humanTime,
           );
@@ -70,7 +70,7 @@ export const TaskReminderEngine = {
         await task.save();
       } catch (err) {
         console.error(
-          `Failed reminder for task ${task._id}`,
+          `Failed reminder for task ${String(task._id)}`,
           err,
         );
       }

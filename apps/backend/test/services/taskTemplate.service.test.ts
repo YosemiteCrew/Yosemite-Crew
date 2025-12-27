@@ -36,7 +36,7 @@ describe("TaskTemplateService", () => {
         category: "Care",
         name: "Template",
         kind: "CUSTOM",
-        defaultRole: "EMPLOYEE",
+        defaultRole: "EMPLOYEE_TASK",
         createdBy: "creator-1",
       });
 

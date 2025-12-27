@@ -304,6 +304,7 @@ describe("ObservationToolSubmissionController", () => {
     expect(mockedSubmissionService.linkToAppointment).toHaveBeenCalledWith({
       submissionId: "sub-1",
       appointmentId: "apt-1",
+      enforceSingleSubmissionPerAppointment: false,
     });
     expect(res.json).toHaveBeenCalledWith({ id: "sub-1" });
   });

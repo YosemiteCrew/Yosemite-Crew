@@ -78,11 +78,30 @@ const sanitizeMedication = (input?: MedicationInput | null) => {
   };
 };
 
+const assertCompanionRequirement = (input: {
+  audience: TaskAudience;
+  companionId?: string;
+  medication?: MedicationInput;
+  observationToolId?: string;
+}) => {
+  const requiresCompanion =
+    input.audience === "PARENT_TASK" ||
+    !!input.observationToolId ||
+    !!sanitizeMedication(input.medication);
+
+  if (requiresCompanion && !input.companionId) {
+    throw new TaskServiceError(
+      "companionId is required for parent, medication, or observation tool tasks",
+      400,
+    );
+  }
+};
+
 export interface BaseTaskCreateInput {
   organisationId?: string;
   appointmentId?: string;
 
-  companionId: string;
+  companionId?: string;
 
   createdBy: string;
   assignedBy?: string;
@@ -207,6 +226,13 @@ export const TaskService = {
       throw new TaskServiceError("Library task not found or inactive", 404);
     }
 
+    assertCompanionRequirement({
+      audience: input.audience,
+      companionId: input.companionId,
+      medication: input.medication,
+      observationToolId: input.observationToolId,
+    });
+
     const doc = await TaskModel.create({
       organisationId: input.organisationId,
       appointmentId: input.appointmentId,
@@ -268,6 +294,15 @@ export const TaskService = {
     const audience: TaskAudience =
       input.audienceOverride ??
       (template.defaultRole === "PARENT" ? "PARENT_TASK" : "EMPLOYEE_TASK");
+
+
+    assertCompanionRequirement({
+      audience,
+      companionId: input.companionId,
+      medication: input.medication ?? (template.defaultMedication as MedicationInput),
+      observationToolId:
+        input.observationToolId ?? template.defaultObservationToolId,
+    });
 
     const recurrence =
       input.recurrence ||
@@ -344,6 +379,13 @@ export const TaskService = {
     if (!input.category || !input.name) {
       throw new TaskServiceError("category and name are required", 400);
     }
+
+    assertCompanionRequirement({
+      audience: input.audience,
+      companionId: input.companionId,
+      medication: input.medication,
+      observationToolId: input.observationToolId,
+    });
 
     const doc = await TaskModel.create({
       organisationId: input.organisationId,

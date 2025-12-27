@@ -7,7 +7,7 @@ interface TaskMongo {
   organisationId?: string;
   appointmentId?: string;
 
-  companionId: string;
+  companionId?: string;
 
   createdBy: string;
   assignedBy?: string;
@@ -128,7 +128,7 @@ const TaskSchema = new Schema<TaskMongo>(
     organisationId: String,
     appointmentId: String,
 
-    companionId: { type: String, required: true },
+    companionId: String,
 
     createdBy: { type: String, required: true },
     assignedBy: String,
