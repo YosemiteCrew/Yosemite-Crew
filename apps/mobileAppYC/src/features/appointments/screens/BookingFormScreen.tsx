@@ -36,6 +36,7 @@ import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -275,6 +276,17 @@ export const BookingFormScreen: React.FC = () => {
       );
       if (createAppointment.fulfilled.match(action)) {
         const created = action.payload.appointment;
+        const submissionId = route.params.otContext?.submissionId;
+        if (submissionId) {
+          try {
+            await observationToolApi.linkSubmissionToAppointment({
+              submissionId,
+              appointmentId: created.id,
+            });
+          } catch (linkError) {
+            console.warn('[Booking] Failed to link OT submission', linkError);
+          }
+        }
         navigation.replace('PaymentInvoice', {
           appointmentId: created.id,
           companionId: created.companionId,

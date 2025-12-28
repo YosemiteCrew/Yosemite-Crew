@@ -6,6 +6,8 @@ import {selectAuthUser} from '@/features/auth/selectors';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
+import {selectAcceptedCoParents} from '@/features/coParent/selectors';
+import type {RootState} from '@/app/store';
 
 interface CommonTaskFieldsProps {
   formData: TaskFormData;
@@ -25,15 +27,31 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const currentUser = useSelector(selectAuthUser);
+  const coParents = useSelector(selectAcceptedCoParents);
+  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
 
   // Get the assigned user's display name
   const getAssignedUserName = (): string => {
     if (!formData.assignedTo) return '';
-    // Check if the assigned user is the current user
-    if (currentUser && currentUser.id === formData.assignedTo) {
+    const selfId = currentUser?.parentId ?? currentUser?.id;
+    if (selfId && selfId === formData.assignedTo) {
       return currentUser.firstName || currentUser.email || 'You';
     }
-    return formData.assignedTo; // Fallback to ID if user not found
+    const coParentMatch = coParents.find(
+      cp =>
+        (cp.parentId && cp.parentId === formData.assignedTo) ||
+        (cp.id && cp.id === formData.assignedTo) ||
+        (cp.userId && cp.userId === formData.assignedTo),
+    );
+    if (coParentMatch) {
+      const fullName = [coParentMatch.firstName, coParentMatch.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      return fullName || coParentMatch.email || 'Co-parent';
+    }
+    // Fallback to ID if user not found
+    return formData.assignedTo;
   };
 
   return (

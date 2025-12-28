@@ -536,6 +536,9 @@ importers:
       react-native-bottom-tabs:
         specifier: ^1.1.0
         version: 1.1.0(react-native@0.81.4)(react@19.1.0)
+      react-native-calendar-events:
+        specifier: ^2.2.0
+        version: 2.2.0(react-native@0.81.4)
       react-native-device-info:
         specifier: ^14.1.1
         version: 14.1.1(react-native@0.81.4)
@@ -30281,6 +30284,14 @@ packages:
       react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
       sf-symbols-typescript: 2.2.0
       use-latest-callback: 0.2.4(react@19.1.0)
+    dev: false
+
+  /react-native-calendar-events@2.2.0(react-native@0.81.4):
+    resolution: {integrity: sha512-tNUbhT6Ief0JM4OQzQAaz1ri0+MCcAoHptBcEXCz2g7q3A05pg62PR2Dio4F9t2fCAD7Y2+QggdY1ycAsF3Tsg==}
+    peerDependencies:
+      react-native: '>=0.60.0'
+    dependencies:
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.12)(react@19.1.0)
     dev: false
 
   /react-native-device-info@14.1.1(react-native@0.81.4):

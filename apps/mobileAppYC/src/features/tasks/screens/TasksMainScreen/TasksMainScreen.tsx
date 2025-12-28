@@ -7,12 +7,14 @@ import {
   View,
   FlatList,
   Image,
+  Platform,
 } from 'react-native';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {TaskCard} from '@/features/tasks/components';
 import {EmptyTasksScreen} from '../EmptyTasksScreen/EmptyTasksScreen';
@@ -151,11 +153,11 @@ export const TasksMainScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (selectedCompanionId && !hasHydrated) {
-        console.log('📡 Fetching tasks for companion:', selectedCompanionId);
+      if (selectedCompanionId) {
+        console.log('📡 Fetching tasks for companion (focus):', selectedCompanionId);
         dispatch(fetchTasksForCompanion({companionId: selectedCompanionId}));
       }
-    }, [dispatch, hasHydrated, selectedCompanionId]),
+    }, [dispatch, selectedCompanionId]),
   );
 
   // Auto-scroll to center the selected date when screen focuses
@@ -293,9 +295,13 @@ export const TasksMainScreen: React.FC = () => {
     const taskCount = data.taskCount;
     const task = recentTasks[0];
     const companion = companions.find(c => c.id === task?.companionId);
+    const statusUpper = task ? String(task.status).toUpperCase() : '';
+    const isPending = statusUpper === 'PENDING';
+    const isCompleted = statusUpper === 'COMPLETED';
 
     // Get assigned user's profile image and name
-    const assignedToData = task?.assignedTo === authUser?.id ? {
+    const selfId = authUser?.parentId ?? authUser?.id;
+    const assignedToData = task?.assignedTo === selfId ? {
       avatar: authUser?.profilePicture,
       name: authUser?.firstName || 'User',
     } : undefined;
@@ -311,11 +317,19 @@ export const TasksMainScreen: React.FC = () => {
         <View style={styles.categoryHeader}>
           <Text style={styles.categoryTitle}>{resolveCategoryLabel(category)}</Text>
           {taskCount > 0 && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => handleViewMore(category)}>
-              <Text style={styles.viewMore}>View More</Text>
-            </TouchableOpacity>
+            <View style={styles.viewMoreShadowWrapper}>
+              <LiquidGlassButton
+                onPress={() => handleViewMore(category)}
+                size="small"
+                compact
+                glassEffect="clear"
+                borderRadius="full"
+                style={styles.viewMoreButton}
+                textStyle={styles.viewMoreText}
+                shadowIntensity="none"
+                title="View more"
+              />
+            </View>
           )}
         </View>
 
@@ -334,14 +348,14 @@ export const TasksMainScreen: React.FC = () => {
             onPressView={() => handleViewTask(task.id)}
             onPressEdit={() => handleEditTask(task.id)}
             onPressComplete={() => handleCompleteTask(task.id)}
-            onPressTakeObservationalTool={
-              isObservationalToolTask ? () => handleStartObservationalTool(task.id) : undefined
-            }
-            showEditAction
-            showCompleteButton={task.status === 'pending'}
-            category={task.category}
-            details={task.details}
-          />
+        onPressTakeObservationalTool={
+          isObservationalToolTask ? () => handleStartObservationalTool(task.id) : undefined
+        }
+        showEditAction={!isCompleted}
+        showCompleteButton={isPending}
+        category={task.category}
+        details={task.details}
+      />
         ) : (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
@@ -447,7 +461,8 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingBottom: theme.spacing['20'],
+      paddingTop: theme.spacing['2'],
+      paddingBottom: theme.spacing['28'],
     },
     companionSelectorTask: {
       marginTop: theme.spacing['4'],
@@ -547,7 +562,7 @@ const createStyles = (theme: any) =>
       bottom: theme.spacing['1'],
       width: 6,
       height: 6,
-      borderRadius: theme.borderRadius.round,
+      borderRadius: 3,
       backgroundColor: theme.colors.primary,
     },
     categorySection: {
@@ -565,11 +580,26 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
       fontWeight: '600',
     },
-    viewMore: {
-      ...theme.typography.h6Clash,
+    viewMoreText: {
+      ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
-      fontWeight: '500',
-      textAlign: 'center',
+    },
+    viewMoreButton: {
+      alignSelf: 'flex-start',
+      flexGrow: 0,
+      flexShrink: 0,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+      minHeight: theme.spacing['7'],
+      minWidth: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    viewMoreShadowWrapper: {
+      borderRadius: theme.borderRadius.full,
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     emptyCard: {
       backgroundColor: theme.colors.surface,

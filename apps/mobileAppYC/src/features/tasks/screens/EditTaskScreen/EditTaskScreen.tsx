@@ -3,24 +3,28 @@ import {ScrollView, View, Text} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
-import {useDispatch} from 'react-redux';
+import {useDispatch, useSelector} from 'react-redux';
 import {Input} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-import {updateTask, deleteTask} from '@/features/tasks';
+import {updateTask, deleteTask, setTaskCalendarEventId} from '@/features/tasks';
 import type {AppDispatch} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
-import {buildTaskFromForm} from './taskBuilder';
+import {selectAuthUser} from '@/features/auth/selectors';
+import {selectAcceptedCoParents} from '@/features/coParent/selectors';
 import {TaskFormContent, TaskFormFooter, TaskFormSheets} from '@/features/tasks/components/form';
 import {createTaskFormStyles} from '@/features/tasks/screens/styles';
 import {REMINDER_OPTIONS} from '@/features/tasks/constants';
 import {useEditTaskScreen} from '@/features/tasks/hooks/useEditTaskScreen';
 import {createFileHandlers} from '@/features/tasks/utils/createFileHandlers';
 import {getTaskFormSheetProps} from '@/features/tasks/utils/getTaskFormSheetProps';
+import {buildTaskDraftFromForm} from '@/features/tasks/services/taskService';
+import {uploadDocumentFiles} from '@/features/documents/documentSlice';
+import {createCalendarEventForTask, removeCalendarEvents} from '@/features/tasks/services/calendarSyncService';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'EditTask'>;
 type Route = RouteProp<TaskStackParamList, 'EditTask'>;
@@ -33,6 +37,9 @@ export const EditTaskScreen: React.FC = () => {
   const styles = useMemo(() => createTaskFormStyles(theme), [theme]);
 
   const {taskId, source = 'tasks'} = route.params;
+
+  const currentUser = useSelector(selectAuthUser);
+  const coParents = useSelector(selectAcceptedCoParents);
 
   const hookData = useEditTaskScreen(taskId, navigation);
   const {
@@ -52,22 +59,42 @@ export const EditTaskScreen: React.FC = () => {
     uploadSheetRef,
     handleRemoveFile,
     openSheet,
+    companions,
   } = hookData;
 
-  // Smart back handler that cleans up the navigation stack properly based on source
+  // Helper to get assigned user name
+  const getAssignedUserName = (userId: string | null | undefined): string | undefined => {
+    if (!userId) return undefined;
+
+    // Check current user
+    const currentUserId = currentUser?.parentId ?? currentUser?.id;
+    if (userId === currentUserId) {
+      return currentUser?.firstName || currentUser?.email || 'You';
+    }
+
+    // Check co-parents
+    const coParent = coParents.find(cp => {
+      const cpId = cp.parentId || cp.id || cp.userId;
+      return cpId === userId;
+    });
+
+    if (coParent) {
+      return [coParent.firstName, coParent.lastName].filter(Boolean).join(' ').trim() ||
+        coParent.email ||
+        'Co-parent';
+    }
+
+    return undefined;
+  };
+
+  // Smart back handler that navigates back without resetting the stack
   const handleSmartBack = React.useCallback(() => {
-    if (source === 'home') {
-      // Reset tab stack and go back to HomeStack
-      navigation.getParent()?.reset({
-        index: 0,
-        routes: [{name: 'HomeStack'}],
-      });
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (source === 'home') {
+      navigation.navigate('HomeStack' as any);
     } else {
-      // Default behavior - came from Tasks tab, reset to TasksMain
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'TasksMain'}],
-      });
+      navigation.navigate('TasksMain' as any);
     }
   }, [navigation, source]);
 
@@ -76,8 +103,53 @@ export const EditTaskScreen: React.FC = () => {
     if (!task) return;
 
     try {
-      const taskData = buildTaskFromForm(formData, task.companionId);
-      await dispatch(updateTask({taskId: task.id, updates: taskData})).unwrap();
+      let preparedAttachments = formData.attachments;
+      if (preparedAttachments.length > 0) {
+        preparedAttachments = await dispatch(
+          uploadDocumentFiles({files: preparedAttachments as any, companionId: task.companionId}),
+        ).unwrap();
+      }
+
+      const taskData = buildTaskDraftFromForm({
+        formData: {...formData, attachments: preparedAttachments},
+        companionId: task.companionId,
+        observationToolId: task.observationToolId ?? formData.observationalTool,
+      });
+      const updated = await dispatch(updateTask({taskId: task.id, updates: taskData})).unwrap();
+
+      if (formData.syncWithCalendar) {
+        // Remove old calendar events before creating new ones to avoid duplicates
+        if (task.calendarEventId) {
+          console.log('[EditTask] Removing old calendar events:', task.calendarEventId);
+          await removeCalendarEvents(task.calendarEventId);
+        }
+
+        // Get companion name
+        const companion = companions.find(c => c.id === task.companionId);
+        const companionName = companion?.name || 'Companion';
+
+        // Get assigned user name
+        const assignedToName = getAssignedUserName(formData.assignedTo);
+
+        // WORKAROUND: Backend doesn't return calendarProvider, so use formData value
+        const taskWithCalendar = {
+          ...updated,
+          calendarProvider: formData.calendarProvider || undefined,
+        };
+
+        console.log('[EditTask] Creating new calendar events');
+        const eventId = await createCalendarEventForTask(taskWithCalendar, companionName, assignedToName);
+        if (eventId) {
+          dispatch(setTaskCalendarEventId({taskId: updated.id, eventId}));
+          dispatch(updateTask({taskId: updated.id, updates: {calendarEventId: eventId}}));
+        }
+      } else if (task.calendarEventId) {
+        // Calendar sync was disabled - remove existing calendar events
+        console.log('[EditTask] Calendar sync disabled, removing events:', task.calendarEventId);
+        await removeCalendarEvents(task.calendarEventId);
+        dispatch(setTaskCalendarEventId({taskId: updated.id, eventId: null}));
+      }
+
       handleSmartBack();
     } catch (error) {
       showErrorAlert('Unable to update task', error);
@@ -87,6 +159,12 @@ export const EditTaskScreen: React.FC = () => {
   const confirmDeleteTask = async () => {
     if (!task) return;
     try {
+      // Remove calendar events if they exist
+      if (task.calendarEventId) {
+        console.log('[EditTask] Deleting task, removing calendar events:', task.calendarEventId);
+        await removeCalendarEvents(task.calendarEventId);
+      }
+
       await dispatch(deleteTask({taskId: task.id, companionId: task.companionId})).unwrap();
       handleSmartBack();
     } catch (error) {
@@ -121,11 +199,18 @@ export const EditTaskScreen: React.FC = () => {
             glass={false}
           />
         }
-        contentPadding={theme.spacing['3']}>
+        contentPadding={theme.spacing['4']}>
         {contentPaddingStyle => (
           <ScrollView
             style={styles.container}
-            contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+            contentContainerStyle={[
+              styles.contentContainer,
+              {
+                ...(contentPaddingStyle || {}),
+                paddingTop: (contentPaddingStyle?.paddingTop ?? theme.spacing['14']) + theme.spacing['4'],
+              },
+              {paddingBottom: theme.spacing['18']},
+            ]}
             showsVerticalScrollIndicator={false}>
             {/* Category (LOCKED) */}
             <View style={styles.fieldGroup}>

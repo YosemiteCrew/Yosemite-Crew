@@ -54,10 +54,11 @@ export type ObservationalToolProviderMap = Record<
   ObservationalToolProviderPricing[]
 >;
 
-export type ObservationalToolResponses = Record<string, string[]>;
+export type ObservationalToolResponses = Record<string, any>;
 
 export interface ObservationalToolBookingContext {
   toolId: ObservationalTool;
-  provider: ObservationalToolProviderPricing;
+  provider?: ObservationalToolProviderPricing;
   responses: ObservationalToolResponses;
+  submissionId?: string;
 }

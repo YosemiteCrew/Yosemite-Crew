@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, Image} from 'react-native';
 import {Input, TouchableInput} from '@/shared/components/common';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
 import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
@@ -13,7 +13,6 @@ interface ObservationalToolFormSectionProps {
   errors: TaskFormErrors;
   updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
   onOpenObservationalToolSheet: () => void;
-  onOpenDatePicker: () => void;
   onOpenTimePicker: () => void;
   onOpenTaskFrequencySheet: () => void;
   theme: any;
@@ -24,7 +23,6 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
   errors,
   updateField,
   onOpenObservationalToolSheet,
-  onOpenDatePicker,
   onOpenTimePicker,
   onOpenTaskFrequencySheet,
   theme,
@@ -58,19 +56,15 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
         />
       </View>
 
+      {/* Date Picker */}
       <View style={styles.fieldGroup}>
-        <TouchableInput
-          label={formData.date ? 'Date' : undefined}
-          value={formData.date ? formatDateForDisplay(formData.date) : undefined}
-          placeholder="Date"
-          onPress={onOpenDatePicker}
-          rightComponent={
-            <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-          }
-          error={errors.date}
+        <CalendarMonthStrip
+          selectedDate={formData.date}
+          onChange={(date: Date) => updateField('date', date)}
         />
       </View>
 
+      {/* Time */}
       <View style={styles.fieldGroup}>
         <TouchableInput
           label={formData.time ? 'Time' : undefined}

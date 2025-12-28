@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useEffect} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,6 +11,7 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
 import {isImageFile} from './documentAttachmentUtils';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 interface DocumentAttachmentsSectionProps {
   files: DocumentFile[];
@@ -27,16 +28,19 @@ const DEFAULT_EMPTY_SUBTITLE =
   'Only DOC, PDF, PNG, JPEG formats\nwith max size 5 MB';
 
 const resolvePreviewSource = (file: DocumentFile) => {
-  if (file.uri) {
-    // Ensure we pass a uri with scheme for React Native Image
-    return file.uri.startsWith('http') ? file.uri : `file://${file.uri.replace(/^file:\/\//, '')}`;
+  const normalizedUri = normalizeImageUri(file.uri);
+  if (normalizedUri) {
+    return normalizedUri.startsWith('http')
+      ? normalizedUri
+      : `file://${normalizedUri.replace(/^file:\/\//, '')}`;
   }
-  return (
+  const fallback =
     (file as {viewUrl?: string}).viewUrl ??
     (file as {downloadUrl?: string}).downloadUrl ??
     (file as {s3Url?: string}).s3Url ??
-    null
-  );
+    null;
+
+  return normalizeImageUri(fallback);
 };
 
 interface FilePreviewTileProps {
@@ -52,14 +56,10 @@ const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
   styles,
   theme,
 }) => {
-  const [isImageLoading, setIsImageLoading] = useState(true);
   const sourceUri = resolvePreviewSource(file);
   const isImage = isImageFile(file.type);
   const isPending = file.status === 'pending';
-
-  useEffect(() => {
-    setIsImageLoading(Boolean(isImage && sourceUri));
-  }, [isImage, sourceUri]);
+  const [isImageLoading, setIsImageLoading] = useState(Boolean(isImage && sourceUri));
 
   const showLoader = (isImage && isImageLoading) || isPending;
 

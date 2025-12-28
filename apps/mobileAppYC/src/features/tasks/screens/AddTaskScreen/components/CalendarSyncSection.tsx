@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, Switch, Image} from 'react-native';
+import {View, Text, Switch, Image, Platform} from 'react-native';
 import {TouchableInput} from '@/shared/components/common';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
@@ -13,16 +13,6 @@ interface CalendarSyncSectionProps {
   theme: any;
 }
 
-const formatCalendarProvider = (provider: 'google' | 'icloud' | null): string | undefined => {
-  if (provider === 'google') {
-    return 'Google Calendar';
-  }
-  if (provider === 'icloud') {
-    return 'iCloud Calendar';
-  }
-  return undefined;
-};
-
 export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
   formData,
   updateField,
@@ -31,6 +21,9 @@ export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
 }) => {
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const formStyles = React.useMemo(() => createFormStyles(theme), [theme]); // Used in JSX below
+
+  // Platform-specific default placeholder
+  const defaultPlaceholder = Platform.OS === 'ios' ? 'iCloud Calendar' : 'Google Calendar';
 
   return (
     <>
@@ -47,9 +40,9 @@ export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
       {formData.syncWithCalendar && (
         <View style={formStyles.fieldGroup}>
           <TouchableInput
-            label={formData.calendarProvider ? 'Calendar provider' : undefined}
-            value={formatCalendarProvider(formData.calendarProvider)}
-            placeholder="Select calendar provider"
+            label={formData.calendarProviderName ? 'Calendar provider' : undefined}
+            value={formData.calendarProviderName || undefined}
+            placeholder={defaultPlaceholder}
             onPress={onOpenCalendarSyncSheet}
             rightComponent={
               <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />

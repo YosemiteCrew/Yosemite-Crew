@@ -733,7 +733,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
         }
         cardGap={theme.spacing['3']}
-        contentPadding={theme.spacing['1']}>
+        contentPadding={theme.spacing['6']}>
         {contentPaddingStyle => (
           <>
             <ScrollView

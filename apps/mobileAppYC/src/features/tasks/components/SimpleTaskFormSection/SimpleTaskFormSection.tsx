@@ -1,8 +1,9 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {View, Image} from 'react-native';
 import {Input, TouchableInput} from '@/shared/components/common';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
 import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import {createTaskFormSectionStyles} from '@/features/tasks/components/shared/taskFormStyles';
@@ -13,7 +14,6 @@ interface SimpleTaskFormSectionProps {
   errors: TaskFormErrors;
   taskTypeSelection?: TaskTypeSelection;
   updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
-  onOpenDatePicker: () => void;
   onOpenTimePicker: () => void;
   onOpenTaskFrequencySheet: () => void;
   theme: any;
@@ -24,7 +24,6 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
   errors,
   taskTypeSelection,
   updateField,
-  onOpenDatePicker,
   onOpenTimePicker,
   onOpenTaskFrequencySheet,
   theme,
@@ -60,31 +59,24 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
         />
       </View>
 
-      {/* Date and Time in Single Row */}
-      <View style={styles.dateTimeRow}>
-        <View style={styles.dateTimeField}>
-          <TouchableInput
-            label={formData.date ? 'Date' : undefined}
-            value={formData.date ? formatDateForDisplay(formData.date) : undefined}
-            placeholder="Date"
-            onPress={onOpenDatePicker}
-            rightComponent={
-              <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-            }
-            error={errors.date}
-          />
-        </View>
+      {/* Date Picker */}
+      <View style={styles.fieldGroup}>
+        <CalendarMonthStrip
+          selectedDate={formData.date}
+          onChange={(date: Date) => updateField('date', date)}
+        />
+      </View>
 
-        <View style={styles.dateTimeField}>
-          <TouchableInput
-            label={formData.time ? 'Time' : undefined}
-            value={formatTimeForDisplay(formData.time)}
-            placeholder="Time"
-            onPress={onOpenTimePicker}
-            rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
-            error={errors.time}
-          />
-        </View>
+      {/* Time */}
+      <View style={styles.fieldGroup}>
+        <TouchableInput
+          label={formData.time ? 'Time' : undefined}
+          value={formatTimeForDisplay(formData.time)}
+          placeholder="Time"
+          onPress={onOpenTimePicker}
+          rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
+          error={errors.time}
+        />
       </View>
 
       {/* Task Frequency */}

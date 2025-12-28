@@ -1,0 +1,235 @@
+import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
+import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import type {OTFieldType} from '@/features/tasks/types';
+
+export interface ObservationToolField {
+  key: string;
+  label: string;
+  type: OTFieldType;
+  required?: boolean;
+  options?: string[];
+  scoring?: {
+    points?: number;
+    map?: Record<string, number>;
+  };
+}
+
+export interface ObservationToolDefinitionRemote {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  fields: ObservationToolField[];
+  scoringRules?: {
+    sumFields?: string[];
+    customFormula?: string;
+  };
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ObservationToolSubmission {
+  id: string;
+  toolId: string;
+  taskId?: string | null;
+  companionId: string;
+  filledBy: string;
+  answers: Record<string, unknown>;
+  score?: number;
+  summary?: string;
+  evaluationAppointmentId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+const ensureAccessToken = async (): Promise<{accessToken: string; userId?: string}> => {
+  const tokens = await getFreshStoredTokens();
+  const accessToken = tokens?.accessToken;
+  const userId = tokens?.user?.id;
+
+  if (!accessToken) {
+    throw new Error('Missing access token. Please sign in again.');
+  }
+
+  if (isTokenExpired(tokens?.expiresAt ?? undefined)) {
+    throw new Error('Your session expired. Please sign in again.');
+  }
+
+  return {accessToken, userId};
+};
+
+export const observationToolApi = {
+  async list({onlyActive}: {onlyActive?: boolean} = {}) {
+    const {accessToken, userId} = await ensureAccessToken();
+    const response = await apiClient.get('/v1/observation-tools/mobile/tools', {
+      params: {onlyActive: onlyActive ? 'true' : undefined},
+      headers: {
+        ...withAuthHeaders(accessToken),
+        ...(userId ? {'x-user-id': userId} : {}),
+      },
+    });
+    const data = Array.isArray(response.data) ? response.data : [];
+    return data.map((item: any): ObservationToolDefinitionRemote => ({
+      id: item._id ?? item.id ?? item.toolId ?? item.key ?? item.name,
+      name: item.name,
+      description: item.description,
+      category: item.category,
+      fields: item.fields ?? [],
+      scoringRules: item.scoringRules,
+      isActive: item.isActive,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+  },
+
+  async get(toolId: string) {
+    const {accessToken, userId} = await ensureAccessToken();
+    const response = await apiClient.get(`/v1/observation-tools/mobile/tools/${toolId}`, {
+      headers: {
+        ...withAuthHeaders(accessToken),
+        ...(userId ? {'x-user-id': userId} : {}),
+      },
+    });
+    const item = response.data;
+    return {
+      id: item?._id ?? item?.id ?? toolId,
+      name: item?.name,
+      description: item?.description,
+      category: item?.category,
+      fields: item?.fields ?? [],
+      scoringRules: item?.scoringRules,
+      isActive: item?.isActive,
+      createdAt: item?.createdAt,
+      updatedAt: item?.updatedAt,
+    } as ObservationToolDefinitionRemote;
+  },
+
+  async submit({
+    toolId,
+    companionId,
+    taskId,
+    answers,
+    summary,
+  }: {
+    toolId: string;
+    companionId: string;
+    taskId?: string | null;
+    answers: Record<string, unknown>;
+    summary?: string;
+  }): Promise<ObservationToolSubmission> {
+    const {accessToken, userId} = await ensureAccessToken();
+    const response = await apiClient.post(
+      `/v1/observation-tools/mobile/tools/${toolId}/submissions`,
+      {companionId, taskId, answers, summary},
+      {
+        headers: {
+          ...withAuthHeaders(accessToken),
+          ...(userId ? {'x-user-id': userId} : {}),
+        },
+      },
+    );
+    const payload = response.data;
+    return {
+      id: payload?._id ?? payload?.id,
+      toolId: payload?.toolId ?? toolId,
+      taskId: payload?.taskId,
+      companionId: payload?.companionId ?? companionId,
+      filledBy: payload?.filledBy ?? userId ?? '',
+      answers: payload?.answers ?? {},
+      score: payload?.score,
+      summary: payload?.summary,
+      evaluationAppointmentId: payload?.evaluationAppointmentId,
+      createdAt: payload?.createdAt,
+      updatedAt: payload?.updatedAt,
+    };
+  },
+
+  async linkSubmissionToAppointment({
+    submissionId,
+    appointmentId,
+  }: {
+    submissionId: string;
+    appointmentId: string;
+  }): Promise<ObservationToolSubmission> {
+    const {accessToken, userId} = await ensureAccessToken();
+    const response = await apiClient.post(
+      `/v1/observation-tools/pms/submissions/${submissionId}/link-appointment`,
+      {appointmentId},
+      {
+        headers: {
+          ...withAuthHeaders(accessToken),
+          ...(userId ? {'x-user-id': userId} : {}),
+        },
+      },
+    );
+    const payload = response.data;
+    return {
+      id: payload?._id ?? payload?.id ?? submissionId,
+      toolId: payload?.toolId ?? '',
+      taskId: payload?.taskId,
+      companionId: payload?.companionId ?? '',
+      filledBy: payload?.filledBy ?? userId ?? '',
+      answers: payload?.answers ?? {},
+      score: payload?.score,
+      summary: payload?.summary,
+      evaluationAppointmentId: payload?.evaluationAppointmentId ?? appointmentId,
+      createdAt: payload?.createdAt,
+      updatedAt: payload?.updatedAt,
+    };
+  },
+
+  async getSubmission(submissionId: string): Promise<ObservationToolSubmission> {
+    const {accessToken, userId} = await ensureAccessToken();
+    const response = await apiClient.get(
+      `/v1/observation-tools/pms/submissions/${submissionId}`,
+      {
+        headers: {
+          ...withAuthHeaders(accessToken),
+          ...(userId ? {'x-user-id': userId} : {}),
+        },
+      },
+    );
+    const payload = response.data;
+    return {
+      id: payload?._id ?? payload?.id ?? submissionId,
+      toolId: payload?.toolId ?? '',
+      taskId: payload?.taskId,
+      companionId: payload?.companionId ?? '',
+      filledBy: payload?.filledBy ?? userId ?? '',
+      answers: payload?.answers ?? {},
+      score: payload?.score,
+      summary: payload?.summary,
+      evaluationAppointmentId: payload?.evaluationAppointmentId,
+      createdAt: payload?.createdAt,
+      updatedAt: payload?.updatedAt,
+    };
+  },
+
+  async listAppointmentSubmissions(appointmentId: string): Promise<ObservationToolSubmission[]> {
+    const {accessToken, userId} = await ensureAccessToken();
+    const response = await apiClient.get(
+      `/v1/observation-tools/pms/appointments/${appointmentId}/submissions`,
+      {
+        headers: {
+          ...withAuthHeaders(accessToken),
+          ...(userId ? {'x-user-id': userId} : {}),
+        },
+      },
+    );
+    const data = Array.isArray(response.data) ? response.data : [];
+    return data.map((payload: any) => ({
+      id: payload?._id ?? payload?.id,
+      toolId: payload?.toolId ?? '',
+      taskId: payload?.taskId,
+      companionId: payload?.companionId ?? '',
+      filledBy: payload?.filledBy ?? userId ?? '',
+      answers: payload?.answers ?? {},
+      score: payload?.score,
+      summary: payload?.summary,
+      evaluationAppointmentId: payload?.evaluationAppointmentId ?? appointmentId,
+      createdAt: payload?.createdAt,
+      updatedAt: payload?.updatedAt,
+    }));
+  },
+};

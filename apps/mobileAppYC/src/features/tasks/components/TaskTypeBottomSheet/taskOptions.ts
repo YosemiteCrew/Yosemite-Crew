@@ -4,18 +4,28 @@ import type {ParasitePreventionType, ChronicConditionType} from '@/features/task
 /**
  * Creates standard medication + observational tool children for a task
  */
-const createStandardHealthTaskChildren = (prefix: string): TaskTypeOption[] => [
-  {
-    id: `${prefix}-medication`,
-    label: 'Give medication',
-    taskType: 'give-medication',
-  },
-  {
-    id: `${prefix}-tool`,
-    label: 'Take observational tool',
-    taskType: 'take-observational-tool',
-  },
-];
+const createStandardHealthTaskChildren = (
+  prefix: string,
+  includeObservationTool: boolean = false,
+): TaskTypeOption[] => {
+  const children: TaskTypeOption[] = [
+    {
+      id: `${prefix}-medication`,
+      label: 'Give medication',
+      taskType: 'give-medication',
+    },
+  ];
+
+  if (includeObservationTool) {
+    children.push({
+      id: `${prefix}-tool`,
+      label: 'Take observational tool',
+      taskType: 'take-observational-tool',
+    });
+  }
+
+  return children;
+};
 
 /**
  * Creates a chronic condition option with standard children
@@ -24,11 +34,12 @@ const createChronicConditionOption = (
   id: string,
   label: string,
   conditionType: ChronicConditionType,
+  includeObservationTool: boolean = false,
 ): TaskTypeOption => ({
   id,
   label,
   chronicConditionType: conditionType,
-  children: createStandardHealthTaskChildren(id),
+  children: createStandardHealthTaskChildren(id, includeObservationTool),
 });
 
 /**
@@ -42,7 +53,7 @@ const createParasitePreventionOption = (
   id,
   label,
   parasitePreventionType: preventionType,
-  children: createStandardHealthTaskChildren(id),
+  children: createStandardHealthTaskChildren(id, false),
 });
 
 /**
@@ -98,9 +109,9 @@ export const taskTypeOptions: TaskTypeOption[] = [
         label: 'Chronic conditions',
         subcategory: 'chronic-conditions',
         children: [
-          createChronicConditionOption('pain', 'Pain', 'pain'),
-          createChronicConditionOption('diabetes', 'Diabetes', 'diabetes'),
-          createChronicConditionOption('epilepsy', 'Epilepsy', 'epilepsy'),
+          createChronicConditionOption('pain', 'Pain', 'pain', true),
+          createChronicConditionOption('diabetes', 'Diabetes', 'diabetes', false),
+          createChronicConditionOption('epilepsy', 'Epilepsy', 'epilepsy', false),
         ],
       },
     ],

@@ -1,5 +1,6 @@
 import React, {useMemo, useState, useEffect, useCallback, useRef} from 'react';
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -45,6 +46,7 @@ import {
   DiscardChangesBottomSheet,
   DiscardChangesBottomSheetRef,
 } from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'ObservationalTool'>;
 type Route = RouteProp<TaskStackParamList, 'ObservationalTool'>;
@@ -341,38 +343,78 @@ export const ObservationalToolScreen: React.FC = () => {
       return;
     }
 
-    const responsesSnapshot = definition.steps.reduce<ObservationalToolResponses>(
-      (acc, step) => {
-        acc[step.id] = [...(responses[step.id] ?? [])];
-        return acc;
-      },
-      {},
-    );
-
-    await dispatch(markTaskStatus({taskId: task.id, status: 'completed'}));
-    if (companion) {
-      dispatch(setSelectedCompanion(companion.id));
-    }
-
-    const appointmentType = 'Observational Tool';
-    const otContext: ObservationalToolBookingContext = {
-      toolId: details.toolType,
-      provider: resolvedProvider,
-      responses: responsesSnapshot,
+    const backendFieldKeys: Record<string, string[]> = {
+      'feline-grimace-scale': [
+        'ear_position',
+        'orbital_tightening',
+        'muzzel_tension',
+        'whisker_change',
+        'head_position',
+      ],
+      'canine-acute-pain-scale': [
+        'behavior_at_rest',
+        'interest_in_surroundings',
+        'response_to_palpation',
+        'wound_site_interaction',
+        'body_tension_movement',
+      ],
+      'equine-grimace-scale': [
+        'stiffly_backward_ear',
+        'orbital_tightening',
+        'tension_above_eye',
+        'strained_chewing_muscles',
+        'mouth_strain_chin',
+        'strained_nostrils',
+      ],
     };
 
-    tabNavigation?.navigate('Appointments', {
-      screen: 'BookingForm',
-      params: {
-        businessId: resolvedProvider.businessId,
-        serviceId: details.toolType,
-        serviceName: definition.name,
-        serviceSpecialty: 'Observational Tool',
-        employeeId: resolvedProvider.employeeId ?? providerPricing[0]?.employeeId,
-        appointmentType,
-        otContext,
-      },
-    } as any);
+    const answers = definition.steps.reduce<Record<string, unknown>>((acc, step, index) => {
+      const value = responses[step.id];
+      const selected = Array.isArray(value) ? value[0] : value;
+      const optionTitle =
+        step.options.find(opt => opt.id === selected)?.title ?? (Array.isArray(value) ? value : selected);
+      const key = backendFieldKeys[details.toolType]?.[index] ?? step.id;
+      acc[key] = optionTitle ?? null;
+      return acc;
+    }, {});
+
+    try {
+      const submission = await observationToolApi.submit({
+        toolId: details.toolType,
+        companionId: companion?.id ?? task.companionId,
+        taskId: task.id,
+        answers,
+      });
+
+      await dispatch(markTaskStatus({taskId: task.id, status: 'COMPLETED'}));
+      if (companion) {
+        dispatch(setSelectedCompanion(companion.id));
+      }
+
+      const appointmentType = 'Observational Tool';
+      const otContext: ObservationalToolBookingContext = {
+        toolId: details.toolType,
+        provider: resolvedProvider,
+        responses: responses as any,
+        submissionId: submission?.id,
+      };
+
+      tabNavigation?.navigate('Appointments', {
+        screen: 'BookingForm',
+        params: {
+          businessId: resolvedProvider.businessId,
+          serviceId: details.toolType,
+          serviceName: definition.name,
+          serviceSpecialty: 'Observational Tool',
+          employeeId: resolvedProvider.employeeId ?? providerPricing[0]?.employeeId,
+          appointmentType,
+          otContext,
+        },
+      } as any);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to submit responses';
+      Alert.alert('Submission failed', message);
+    }
   }, [
     companion,
     definition,

@@ -90,9 +90,8 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
 
   const animateTo = useCallback(
     (toValue: number, callback?: () => void) => {
-      if (toValue < 0) {
-        setIsRevealed(true);
-      }
+      // Toggle the squared edges immediately so closing does not flicker rounded corners in late frames
+      setIsRevealed(toValue < 0);
       currentOffset.current = toValue;
       Animated.spring(translateX, {
         ...effectiveSpringConfig,

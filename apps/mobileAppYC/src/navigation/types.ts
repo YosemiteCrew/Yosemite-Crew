@@ -147,7 +147,7 @@ export type ExpenseStackParamList = {
 export type TaskStackParamList = {
   TasksMain: undefined;
   TasksList: { category: TaskCategory };
-  AddTask: undefined;
+  AddTask: { reuseTaskId?: string } | undefined;
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };

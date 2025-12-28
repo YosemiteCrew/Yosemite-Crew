@@ -58,6 +58,7 @@
     "react-native-blob-util": "^0.23.2",
     "react-native-bootsplash": "^6.3.11",
     "react-native-bottom-tabs": "^1.1.0",
+    "react-native-calendar-events": "^2.2.0",
     "react-native-device-info": "^14.1.1",
     "react-native-fbsdk-next": "^13.4.1",
     "react-native-fs": "^2.20.0",

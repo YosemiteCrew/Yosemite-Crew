@@ -75,6 +75,7 @@ import {
   fetchTasksForCompanion,
   selectHasHydratedCompanion as selectTasksHydrated,
   selectNextUpcomingTask,
+  markTaskStatus,
 } from '@/features/tasks';
 import type {TaskCategory} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
@@ -169,7 +170,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   useFocusEffect(
     React.useCallback(() => {
       setBusinessSearch('');
-    }, []),
+      if (targetCompanionId) {
+        dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
+      }
+    }, [dispatch, targetCompanionId]),
   );
 
   const targetCompanionId = React.useMemo(() => {
@@ -609,6 +613,29 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     [guardFeature, navigation],
   );
 
+  const handleEditTask = React.useCallback(
+    (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+        screen: 'EditTask',
+        params: {taskId, source: 'home'},
+      });
+    },
+    [guardFeature, navigation],
+  );
+
+  const handleCompleteTask = React.useCallback(
+    (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      dispatch(markTaskStatus({taskId, status: 'completed'}));
+    },
+    [dispatch, guardFeature],
+  );
+
   const handleEmergencyPress = React.useCallback(() => {
     if (!guardFeature('emergencyBasedPermissions', 'emergency actions')) {
       return;
@@ -898,8 +925,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
 
     const companion = companions.find(c => c.id === nextUpcomingTask.companionId);
+    const selfId = authUser?.parentId ?? authUser?.id;
     const assignedToData =
-      nextUpcomingTask.assignedTo === authUser?.id
+      nextUpcomingTask.assignedTo === selfId
         ? {
             avatar: authUser?.profilePicture,
             name: authUser?.firstName || 'User',
@@ -910,6 +938,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       nextUpcomingTask.details &&
       'taskType' in nextUpcomingTask.details &&
       nextUpcomingTask.details.taskType === 'take-observational-tool';
+    const isPending = String(nextUpcomingTask.status).toUpperCase() === 'PENDING';
 
     return (
       <TaskCard
@@ -924,14 +953,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         assignedToAvatar={assignedToData?.avatar}
         status={nextUpcomingTask.status}
         onPressView={() => handleViewTask(nextUpcomingTask.id)}
+        onPressEdit={() => handleEditTask(nextUpcomingTask.id)}
+        onPressComplete={() =>
+          handleCompleteTask(nextUpcomingTask.id)
+        }
         onPressTakeObservationalTool={
           isObservationalToolTask
             ? () => handleViewTask(nextUpcomingTask.id)
             : undefined
         }
-        showEditAction={false}
-        showCompleteButton={false}
-        hideSwipeActions
+        showEditAction
+        showCompleteButton={isPending}
         category={nextUpcomingTask.category}
         details={nextUpcomingTask.details}
       />

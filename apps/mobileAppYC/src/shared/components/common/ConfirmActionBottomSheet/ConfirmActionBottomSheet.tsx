@@ -38,6 +38,7 @@ interface ConfirmButtonConfig {
   borderColor?: string;
   disabled?: boolean;
   loading?: boolean;
+  shadowIntensity?: 'none' | 'light' | 'medium' | 'strong';
 }
 
 interface ConfirmActionBottomSheetProps {
@@ -191,6 +192,7 @@ export const ConfirmActionBottomSheet = forwardRef<
           loading={config.loading}
           forceBorder={config.forceBorder}
           borderColor={config.borderColor}
+          shadowIntensity={config.shadowIntensity ?? 'light'}
         />
       );
     };

@@ -32,6 +32,15 @@ const tasksSlice = createSlice({
       state.items.push(...tasks);
       state.hydratedCompanions[companionId] = true;
     },
+    setTaskCalendarEventId: (
+      state,
+      action: PayloadAction<{taskId: string; eventId: string | null}>,
+    ) => {
+      const task = state.items.find(item => item.id === action.payload.taskId);
+      if (task) {
+        task.calendarEventId = action.payload.eventId;
+      }
+    },
   },
   extraReducers: builder => {
     builder
@@ -44,14 +53,16 @@ const tasksSlice = createSlice({
         state.loading = false;
         const {companionId, tasks} = action.payload;
 
-        // Remove existing tasks for this companion
-        state.items = state.items.filter(
-          item => item.companionId !== companionId,
-        );
+        if (companionId) {
+          state.items = state.items.filter(item => item.companionId !== companionId);
+        } else {
+          state.items = [];
+        }
 
-        // Add fetched tasks
         state.items.push(...tasks);
-        state.hydratedCompanions[companionId] = true;
+        if (companionId) {
+          state.hydratedCompanions[companionId] = true;
+        }
       })
       .addCase(fetchTasksForCompanion.rejected, (state, action) => {
         state.loading = false;
@@ -66,6 +77,9 @@ const tasksSlice = createSlice({
       .addCase(addTask.fulfilled, (state, action) => {
         state.loading = false;
         state.items.push(action.payload);
+        if (action.payload.companionId) {
+          state.hydratedCompanions[action.payload.companionId] = true;
+        }
       })
       .addCase(addTask.rejected, (state, action) => {
         state.loading = false;
@@ -79,13 +93,10 @@ const tasksSlice = createSlice({
       })
       .addCase(updateTask.fulfilled, (state, action) => {
         state.loading = false;
-        const {taskId, updates} = action.payload;
-        const index = state.items.findIndex(item => item.id === taskId);
+        const updatedTask = action.payload;
+        const index = state.items.findIndex(item => item.id === updatedTask.id);
         if (index !== -1) {
-          state.items[index] = {
-            ...state.items[index],
-            ...updates,
-          };
+          state.items[index] = updatedTask;
         }
       })
       .addCase(updateTask.rejected, (state, action) => {
@@ -100,8 +111,11 @@ const tasksSlice = createSlice({
       })
       .addCase(deleteTask.fulfilled, (state, action) => {
         state.loading = false;
-        const {taskId} = action.payload;
-        state.items = state.items.filter(item => item.id !== taskId);
+        const deletedTask = action.payload;
+        const idx = state.items.findIndex(item => item.id === deletedTask.id);
+        if (idx !== -1) {
+          state.items[idx] = deletedTask;
+        }
       })
       .addCase(deleteTask.rejected, (state, action) => {
         state.loading = false;
@@ -115,16 +129,10 @@ const tasksSlice = createSlice({
       })
       .addCase(markTaskStatus.fulfilled, (state, action) => {
         state.loading = false;
-        const {taskId, status, completedAt} = action.payload;
-        const task = state.items.find(item => item.id === taskId);
-        if (task) {
-          task.status = status;
-          task.updatedAt = new Date().toISOString();
-          if (completedAt) {
-            task.completedAt = completedAt;
-          } else {
-            delete task.completedAt;
-          }
+        const updatedTask = action.payload;
+        const index = state.items.findIndex(item => item.id === updatedTask.id);
+        if (index !== -1) {
+          state.items[index] = updatedTask;
         }
       })
       .addCase(markTaskStatus.rejected, (state, action) => {
@@ -134,6 +142,6 @@ const tasksSlice = createSlice({
   },
 });
 
-export const {clearTaskError, injectMockTasks, resetTasksState} = tasksSlice.actions;
+export const {clearTaskError, injectMockTasks, resetTasksState, setTaskCalendarEventId} = tasksSlice.actions;
 
 export default tasksSlice.reducer;

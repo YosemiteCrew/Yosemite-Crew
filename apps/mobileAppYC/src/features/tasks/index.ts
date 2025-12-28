@@ -6,4 +6,5 @@ export {
   clearTaskError,
   injectMockTasks,
   resetTasksState,
+  setTaskCalendarEventId,
 } from './taskSlice';

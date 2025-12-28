@@ -4,6 +4,9 @@ import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/com
 import {useSelector} from 'react-redux';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {useTheme} from '@/hooks';
+import type {RootState} from '@/app/store';
+import {selectAcceptedCoParents} from '@/features/coParent/selectors';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 export interface AssignTaskBottomSheetRef {
   open: () => void;
@@ -23,17 +26,61 @@ export const AssignTaskBottomSheet = forwardRef<
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
   const currentUser = useSelector(selectAuthUser);
+  const coParents = useSelector(selectAcceptedCoParents);
+  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
 
-  // For now, only show current user. In future, co-users will be added here
-  const users = useMemo(() => currentUser
-    ? [
-        {
-          id: currentUser.id,
-          name: currentUser.firstName || currentUser.email || 'You',
-          avatar: currentUser.profilePicture,
-        },
-      ]
-    : [], [currentUser]);
+  const normalizedCurrentUser = useMemo(() => {
+    if (!currentUser) {
+      return null;
+    }
+    return {
+      id: currentUser.parentId ?? currentUser.id,
+      name: currentUser.firstName || currentUser.email || 'You',
+      avatar: normalizeImageUri(currentUser.profilePicture) ?? undefined,
+    };
+  }, [currentUser]);
+
+  const assignableCoParents = useMemo(() => {
+    if (!selectedCompanionId) {
+      return [];
+    }
+    return coParents.filter(
+      cp =>
+        cp.companionId === selectedCompanionId &&
+        (cp.role ?? '').toLowerCase() !== 'primary' &&
+        (cp.permissions?.tasks ?? true) &&
+        (cp.status ?? '').toLowerCase() === 'accepted',
+    );
+  }, [coParents, selectedCompanionId]);
+
+  const coParentUsers = useMemo(
+    () =>
+      assignableCoParents.map(cp => ({
+        id: cp.parentId || cp.id || cp.userId,
+        name:
+          [cp.firstName, cp.lastName].filter(Boolean).join(' ').trim() ||
+          cp.email ||
+          'Co-parent',
+        avatar: normalizeImageUri(cp.profilePicture) ?? undefined,
+      })),
+    [assignableCoParents],
+  );
+
+  const users = useMemo(() => {
+    const list = [];
+    if (normalizedCurrentUser) {
+      list.push(normalizedCurrentUser);
+    }
+    list.push(...coParentUsers);
+    // Deduplicate by id to avoid showing current user twice
+    const seen = new Set<string>();
+    return list.filter(user => {
+      if (!user.id) return false;
+      if (seen.has(user.id)) return false;
+      seen.add(user.id);
+      return true;
+    });
+  }, [coParentUsers, normalizedCurrentUser]);
 
   const userItems: SelectItem[] = useMemo(() =>
     users.map(user => ({
@@ -43,11 +90,16 @@ export const AssignTaskBottomSheet = forwardRef<
     })), [users]
   );
 
-  const selectedItem = selectedUserId ? {
-    id: selectedUserId,
-    label: users.find(u => u.id === selectedUserId)?.name || 'Unknown',
-    avatar: users.find(u => u.id === selectedUserId)?.avatar,
-  } : null;
+  const selectedItem = selectedUserId
+    ? (() => {
+        const user = users.find(u => u.id === selectedUserId);
+        return {
+          id: selectedUserId,
+          label: user?.name || 'Unknown',
+          avatar: user?.avatar,
+        };
+      })()
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {

@@ -22,6 +22,7 @@ export interface AvatarGroupProps {
   borderWidth?: number;
   maxCount?: number;
   containerStyle?: StyleProp<ViewStyle>;
+  direction?: 'row' | 'column';
 }
 
 /**
@@ -35,9 +36,10 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
   borderWidth = 2,
   maxCount,
   containerStyle,
+  direction = 'row',
 }) => {
   const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme, size, borderWidth), [theme, size, borderWidth]);
+  const styles = useMemo(() => createStyles(theme, size, borderWidth, direction), [theme, size, borderWidth, direction]);
 
   const displayedAvatars = maxCount ? avatars.slice(0, maxCount) : avatars;
 
@@ -85,6 +87,12 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
         const placeholder = getPlaceholder(avatar);
         const uniqueKey = getUniqueKey(avatar, index);
 
+        const marginStyle = index === 0
+          ? styles.avatarFirst
+          : direction === 'column'
+            ? { marginTop: overlap }
+            : { marginLeft: overlap };
+
         if (source) {
           // Render actual image
           return (
@@ -93,7 +101,7 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
               source={source}
               style={[
                 styles.avatar,
-                index === 0 ? styles.avatarFirst : { marginLeft: overlap },
+                marginStyle,
               ]}
             />
           );
@@ -104,7 +112,7 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
               key={uniqueKey}
               style={[
                 styles.avatarPlaceholder,
-                index === 0 ? styles.avatarFirst : { marginLeft: overlap },
+                marginStyle,
               ]}
             >
               <Text style={styles.avatarInitial}>{placeholder}</Text>
@@ -117,10 +125,10 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
   );
 };
 
-const createStyles = (theme: any, size: number, borderWidth: number) =>
+const createStyles = (theme: any, size: number, borderWidth: number, direction: 'row' | 'column') =>
   StyleSheet.create({
     avatarGroup: {
-      flexDirection: 'row',
+      flexDirection: direction,
       alignItems: 'center',
     },
     avatar: {

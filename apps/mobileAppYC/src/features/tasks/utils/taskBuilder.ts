@@ -19,6 +19,13 @@ export const formatTimeToISO = (date: Date | null): string | undefined => {
   return `${hours}:${minutes}:${seconds}`;
 };
 
+export const formatEndDateToISO = (date: Date | null): string | null => {
+  if (!date) return null;
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 0);
+  return endOfDay.toISOString();
+};
+
 const buildMedicationDetails = (formData: TaskFormData) => {
   const formattedDosages = formData.dosages.map(dosage => ({
     id: dosage.id,
@@ -35,7 +42,7 @@ const buildMedicationDetails = (formData: TaskFormData) => {
     startDate:
       formatDateToISODate(formData.startDate) ||
       new Date().toISOString().split('T')[0],
-    endDate: formatDateToISODate(formData.endDate) || undefined,
+    endDate: formatEndDateToISO(formData.endDate) || undefined,
   };
 };
 

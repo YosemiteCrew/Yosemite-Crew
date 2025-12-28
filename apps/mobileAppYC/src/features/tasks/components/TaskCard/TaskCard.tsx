@@ -13,6 +13,7 @@ import {useTheme} from '@/hooks';
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 import type {TaskCategory, TaskStatus} from '@/features/tasks/types';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 export interface TaskCardProps {
   title: string;
@@ -90,7 +91,65 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   }, [time]);
 
-  const isCompleted = status === 'completed';
+  // Calculate nearest dosage time for medication tasks
+  // For medication tasks, always use dosage times instead of task time
+  const isMedicationTask = category === 'health' && details?.taskType === 'give-medication';
+  const nearestDosageTime = useMemo(() => {
+    // Only calculate for medication tasks with dosages
+    if (!isMedicationTask || !details?.dosages || details.dosages.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+    const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const dosageTimes = details.dosages.map((dosage: any) => {
+      try {
+        const [hours, minutes] = dosage.time.split(':').map(Number);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+        return {
+          totalMinutes: hours * 60 + minutes,
+          originalTime: dosage.time,
+        };
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+
+    if (dosageTimes.length === 0) return null;
+
+    // Find next upcoming dosage
+    const upcomingToday = dosageTimes
+      .filter(dt => dt.totalMinutes > currentTimeInMinutes)
+      .sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
+
+    if (upcomingToday) return upcomingToday.originalTime;
+
+    // No dosage left today - return earliest tomorrow
+    const earliestDosage = dosageTimes.sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
+    return earliestDosage.originalTime;
+  }, [isMedicationTask, details]);
+
+  const formattedNearestDosage = useMemo(() => {
+    if (!nearestDosageTime) return null;
+    try {
+      const [hours, minutes] = nearestDosageTime.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+      const timeDate = new Date();
+      timeDate.setHours(hours, minutes, 0);
+      return timeDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return null;
+    }
+  }, [nearestDosageTime]);
+
+  const isCompleted = String(status).toUpperCase() === 'COMPLETED';
+  const isPending = String(status).toUpperCase() === 'PENDING';
+  const isCancelled = String(status).toUpperCase() === 'CANCELLED';
   const isObservationalToolTask =
     category === 'health' && details?.taskType === 'take-observational-tool';
   const handleCompletePress =
@@ -138,15 +197,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   };
 
   const avatars = [];
-  if (companionAvatar) {
-    avatars.push({uri: companionAvatar});
+  const companionAvatarUri = normalizeImageUri(companionAvatar ?? undefined);
+  if (companionAvatarUri) {
+    avatars.push({uri: companionAvatarUri});
   } else {
     // Show placeholder with companion name initial
     avatars.push({placeholder: companionName.charAt(0).toUpperCase()});
   }
   if (assignedToName) {
-    if (assignedToAvatar) {
-      avatars.push({uri: assignedToAvatar});
+    const assignedAvatarUri = normalizeImageUri(assignedToAvatar ?? undefined);
+    if (assignedAvatarUri) {
+      avatars.push({uri: assignedAvatarUri});
     } else {
       // Show placeholder with assigned user name initial
       avatars.push({placeholder: assignedToName.charAt(0).toUpperCase()});
@@ -170,8 +231,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {avatars.length > 0 && (
             <AvatarGroup
               avatars={avatars}
-              size={40}
-              overlap={-15}
+              size={56}
+              overlap={-10}
+              direction="column"
             />
           )}
 
@@ -184,7 +246,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
               {formattedDate}
-              {formattedTime && ` - ${formattedTime}`}
+              {isMedicationTask && formattedNearestDosage ? (
+                ` - ${formattedNearestDosage}`
+              ) : formattedTime ? (
+                ` - ${formattedTime}`
+              ) : null}
             </Text>
             {renderTaskDetails()}
           </View>
@@ -193,6 +259,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {isCompleted && (
               <View style={styles.completedBadge}>
                 <Text style={styles.completedText}>Completed</Text>
+              </View>
+            )}
+            {isPending && (
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingText}>Pending</Text>
+              </View>
+            )}
+            {isCancelled && (
+              <View style={styles.cancelledBadge}>
+                <Text style={styles.cancelledText}>Cancelled</Text>
               </View>
             )}
           </View>
@@ -263,6 +339,26 @@ const createStyles = (theme: any) =>
     completedText: {
       ...theme.typography.labelSmall,
       color: theme.colors.success,
+    },
+    pendingBadge: {
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.warningLight || 'rgba(255, 193, 7, 0.12)',
+    },
+    pendingText: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.warning || '#FFC107',
+    },
+    cancelledBadge: {
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.errorLight || 'rgba(244, 67, 54, 0.12)',
+    },
+    cancelledText: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.error,
     },
     detailsSection: {
       marginTop: theme.spacing['2'],

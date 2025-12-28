@@ -11,7 +11,7 @@ export const createTaskFormStyles = (theme: any) => {
     },
     contentContainer: {
       paddingHorizontal: theme.spacing['4'],
-      paddingBlock: theme.spacing['4'],
+      paddingBottom: theme.spacing['20'],
     },
     companionSelector: {
       marginTop: theme.spacing['4'],

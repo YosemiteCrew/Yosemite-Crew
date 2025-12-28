@@ -131,7 +131,6 @@ export const resolveTaskFrequencyLabel = (frequency: TaskFrequency): string => {
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
-    'every-day': 'Every day',
   };
   return labels[frequency] || frequency;
 };
