@@ -63,11 +63,20 @@ export const TasksListScreen: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
+  const selectedDateKey = useMemo(
+    () => formatDateToISOString(effectiveSelectedDate),
+    [effectiveSelectedDate],
+  );
+
+  const listKey = useMemo(
+    () => `${selectedCompanionId ?? 'none'}-${selectedDateKey}`,
+    [selectedCompanionId, selectedDateKey],
+  );
+
   // Filter tasks by selected date
   const tasks = useMemo(() => {
-    const selectedDateStr = formatDateToISOString(effectiveSelectedDate);
-    return allCategoryTasks.filter(task => task.date === selectedDateStr);
-  }, [allCategoryTasks, effectiveSelectedDate]);
+    return allCategoryTasks.filter(task => task.date === selectedDateKey);
+  }, [allCategoryTasks, selectedDateKey]);
 
   // Get dates with tasks for the selected category
   const datesWithTasks = useMemo(() => {
@@ -92,30 +101,33 @@ export const TasksListScreen: React.FC = () => {
     return filtered;
   }, [currentMonth, effectiveSelectedDate, datesWithTasks]);
 
+  const selectedDateIndex = useMemo(
+    () =>
+      weekDates.findIndex(
+        item =>
+          item.date.getFullYear() === effectiveSelectedDate.getFullYear() &&
+          item.date.getMonth() === effectiveSelectedDate.getMonth() &&
+          item.date.getDate() === effectiveSelectedDate.getDate(),
+      ),
+    [weekDates, effectiveSelectedDate],
+  );
+
   // Auto-scroll to center the selected date when screen focuses
   useFocusEffect(
     useCallback(() => {
       setTimeout(() => {
         if (dateListRef.current && weekDates.length > 0) {
-          // Find the index of the selected date
-          const selectedIndex = weekDates.findIndex(
-            item =>
-              item.date.getFullYear() === effectiveSelectedDate.getFullYear() &&
-              item.date.getMonth() === effectiveSelectedDate.getMonth() &&
-              item.date.getDate() === effectiveSelectedDate.getDate()
-          );
-
-          if (selectedIndex !== -1) {
+          if (selectedDateIndex !== -1) {
             // Scroll to center the selected date (0.5 means center of viewport)
             dateListRef.current?.scrollToIndex({
-              index: selectedIndex,
+              index: selectedDateIndex,
               viewPosition: 0.5,
               animated: true,
             });
             // Fallback: if scrollToIndex fails, retry after a delay
             setTimeout(() => {
               dateListRef.current?.scrollToIndex({
-                index: selectedIndex,
+                index: selectedDateIndex,
                 viewPosition: 0.5,
                 animated: true,
               });
@@ -123,7 +135,7 @@ export const TasksListScreen: React.FC = () => {
           }
         }
       }, 100); // Small delay to ensure layout is complete
-    }, [weekDates, effectiveSelectedDate]),
+    }, [weekDates, selectedDateIndex]),
   );
 
   const handleCompanionSelect = (companionId: string | null) => {
@@ -282,6 +294,7 @@ export const TasksListScreen: React.FC = () => {
           data={tasks}
           renderItem={renderTask}
           keyExtractor={item => item.id}
+          extraData={listKey}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <>
@@ -310,21 +323,22 @@ export const TasksListScreen: React.FC = () => {
 
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={handleNextMonth}
-                  style={styles.monthArrow}>
-                  <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
-                </TouchableOpacity>
-              </View>
+            onPress={handleNextMonth}
+            style={styles.monthArrow}>
+            <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
+          </TouchableOpacity>
+        </View>
 
               {/* Horizontal Date Scroller */}
               <FlatList
-                ref={dateListRef}
-                horizontal
-                data={weekDates}
-                renderItem={renderDateItem}
-                keyExtractor={item => item.date.toISOString()}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.dateScroller}
+          ref={dateListRef}
+          horizontal
+          data={weekDates}
+          renderItem={renderDateItem}
+          keyExtractor={item => item.date.toISOString()}
+          initialScrollIndex={selectedDateIndex !== -1 ? selectedDateIndex : undefined}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dateScroller}
                 style={styles.dateList}
                 getItemLayout={getItemLayout}
                 onScrollToIndexFailed={(error) => {

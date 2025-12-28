@@ -555,14 +555,11 @@ export const MyAppointmentsScreen: React.FC = () => {
       contentPadding={theme.spacing['1']}>
       {contentPaddingStyle => (
         <SectionList
-          key={filter}
           style={styles.sectionList}
           sections={sections}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
-          extraData={filter}
-          removeClippedSubviews={false}
           ListHeaderComponent={
             <CompanionSelector
               companions={companions}

@@ -8,6 +8,8 @@ const isPendingStatus = (status: TaskStatus): boolean =>
   normalizeStatus(status) === 'PENDING';
 const isCompletedStatus = (status: TaskStatus): boolean =>
   normalizeStatus(status) === 'COMPLETED';
+const isCancelledStatus = (status: TaskStatus): boolean =>
+  normalizeStatus(status) === 'CANCELLED';
 
 // Helper function to safely convert date to YYYY-MM-DD format (LOCAL timezone, not UTC)
 const getDateString = (date: Date | string): string => {
@@ -134,7 +136,29 @@ export const selectAllTasksByCategory = (
   category: TaskCategory,
 ) =>
   createSelector([selectTasksByCompanion(companionId)], tasks =>
-    tasks.filter(task => task.category === category),
+    tasks
+      .filter(task => task.category === category)
+      .sort((a, b) => {
+        const priority = (status: TaskStatus) => {
+          if (isPendingStatus(status) || normalizeStatus(status) === 'IN_PROGRESS' || normalizeStatus(status) === 'OVERDUE') {
+            return 0; // Pending/active first
+          }
+          if (isCompletedStatus(status)) return 1; // Completed next
+          if (isCancelledStatus(status)) return 2; // Cancelled last
+          return 1;
+        };
+
+        const statusCompare = priority(a.status) - priority(b.status);
+        if (statusCompare !== 0) return statusCompare;
+        // Primary: newest date first
+        const dateCompare = b.date.localeCompare(a.date);
+        if (dateCompare !== 0) return dateCompare;
+        // Secondary: tasks with time come first, then ascending time
+        if (a.time && b.time) return a.time.localeCompare(b.time);
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+        return 0;
+      }),
   );
 
 // Select task by ID

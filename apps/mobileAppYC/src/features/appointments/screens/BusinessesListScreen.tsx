@@ -62,7 +62,7 @@ export const BusinessesListScreen: React.FC = () => {
         />
       }
       cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
         <ScrollView
           contentContainerStyle={[styles.container, contentPaddingStyle]}

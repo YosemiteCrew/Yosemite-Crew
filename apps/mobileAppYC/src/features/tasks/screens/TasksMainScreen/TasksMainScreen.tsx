@@ -153,11 +153,11 @@ export const TasksMainScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (selectedCompanionId) {
-        console.log('📡 Fetching tasks for companion (focus):', selectedCompanionId);
-        dispatch(fetchTasksForCompanion({companionId: selectedCompanionId}));
+      if (!selectedCompanionId || hasHydrated) {
+        return;
       }
-    }, [dispatch, selectedCompanionId]),
+      dispatch(fetchTasksForCompanion({companionId: selectedCompanionId}));
+    }, [dispatch, selectedCompanionId, hasHydrated]),
   );
 
   // Auto-scroll to center the selected date when screen focuses

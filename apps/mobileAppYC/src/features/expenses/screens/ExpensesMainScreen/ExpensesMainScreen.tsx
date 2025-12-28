@@ -32,6 +32,7 @@ import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -187,9 +188,19 @@ export const ExpensesMainScreen: React.FC = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent in-app expenses</Text>
             {recentInAppExpenses.length > 0 && (
-              <TouchableOpacity onPress={() => handleViewMore('inApp')}>
-                <Text style={styles.sectionAction}>View More</Text>
-              </TouchableOpacity>
+              <View style={styles.viewMoreShadowWrapper}>
+                <LiquidGlassButton
+                  onPress={() => handleViewMore('inApp')}
+                  size="small"
+                  compact
+                  glassEffect="clear"
+                  borderRadius="full"
+                  style={styles.viewMoreButton}
+                  textStyle={styles.viewMoreText}
+                  shadowIntensity="none"
+                  title="View more"
+                />
+              </View>
             )}
           </View>
           {recentInAppExpenses.length > 0 ? (
@@ -229,9 +240,19 @@ export const ExpensesMainScreen: React.FC = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent external expenses</Text>
             {recentExternalExpenses.length > 0 && (
-              <TouchableOpacity onPress={() => handleViewMore('external')}>
-                <Text style={styles.sectionAction}>View More</Text>
-              </TouchableOpacity>
+              <View style={styles.viewMoreShadowWrapper}>
+                <LiquidGlassButton
+                  onPress={() => handleViewMore('external')}
+                  size="small"
+                  compact
+                  glassEffect="clear"
+                  borderRadius="full"
+                  style={styles.viewMoreButton}
+                  textStyle={styles.viewMoreText}
+                  shadowIntensity="none"
+                  title="View more"
+                />
+              </View>
             )}
           </View>
           {recentExternalExpenses.length > 0 ? (
@@ -294,9 +315,26 @@ const createStyles = (theme: any) =>
       ...theme.typography.h5,
       color: theme.colors.secondary,
     },
-    sectionAction: {
-      ...theme.typography.titleSmall,
+    viewMoreText: {
+      ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
+    },
+    viewMoreButton: {
+      alignSelf: 'flex-start',
+      flexGrow: 0,
+      flexShrink: 0,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+      minHeight: theme.spacing['7'],
+      minWidth: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    viewMoreShadowWrapper: {
+      borderRadius: theme.borderRadius.full,
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     cardsContainer: {
       gap: theme.spacing['3'],

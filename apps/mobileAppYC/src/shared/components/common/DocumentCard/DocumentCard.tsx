@@ -115,9 +115,9 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...(Platform.OS === 'ios' ? theme.shadows.sm : theme.shadows.sm),
-      shadowColor: theme.colors.neutralShadow ?? theme.colors.black,
-      backgroundColor: theme.colors.surface,
+      ...(Platform.OS === 'ios' ? theme.shadows.none : theme.shadows.none),
+      shadowColor: 'transparent',
+      backgroundColor: 'transparent',
     },
     content: {
       flexDirection: 'row',
@@ -129,7 +129,7 @@ const createStyles = (theme: any) =>
       height: 48,
       borderRadius: theme.borderRadius.base,
       overflow: 'hidden',
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.cardBackground,
       alignItems: 'center',
       justifyContent: 'center',
     },

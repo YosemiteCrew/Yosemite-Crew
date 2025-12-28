@@ -56,7 +56,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onPressTakeObservationalTool,
   showEditAction = true,
   showCompleteButton = false,
-  completeButtonVariant = 'primary',
+  completeButtonVariant = 'liquid-glass',
   completeButtonLabel = 'Complete',
   hideSwipeActions = false,
   category,
@@ -282,9 +282,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 onPress={handleCompletePress}
                 tintColor={theme.colors.secondary}
                 shadowIntensity="medium"
-                height={48}
+                height={theme.spacing['12']}
                 textStyle={styles.liquidGlassButtonText}
-                borderRadius={12}
+                borderRadius={theme.borderRadius.md}
                 style={styles.liquidGlassButton}
               />
             ) : (

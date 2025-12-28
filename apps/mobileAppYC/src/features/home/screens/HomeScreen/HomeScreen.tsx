@@ -170,10 +170,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   useFocusEffect(
     React.useCallback(() => {
       setBusinessSearch('');
-      if (targetCompanionId) {
+      if (targetCompanionId && !hasTasksHydrated) {
         dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
       }
-    }, [dispatch, targetCompanionId]),
+    }, [dispatch, targetCompanionId, hasTasksHydrated]),
   );
 
   const targetCompanionId = React.useMemo(() => {

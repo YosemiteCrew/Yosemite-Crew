@@ -44,7 +44,7 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
       style={[styles.container, containerStyle]}>
       <View style={styles.shadowWrapper}>
         <LiquidGlassCard
-          interactive={false}
+          interactive={true}
           glassEffect="clear"
           shadow="none"
           style={styles.card}

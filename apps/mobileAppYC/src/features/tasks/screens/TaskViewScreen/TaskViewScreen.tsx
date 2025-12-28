@@ -663,7 +663,7 @@ export const TaskViewScreen: React.FC = () => {
               onPress={handleReuse}
               glassEffect="clear"
               borderRadius="lg"
-              tintColor={theme.colors.primary}
+              tintColor={theme.colors.secondary}
               style={styles.reuseButton}
               textStyle={styles.reuseButtonText}
             />
