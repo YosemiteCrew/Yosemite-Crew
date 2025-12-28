@@ -16,14 +16,15 @@ export function createApp() {
 
   app.set("trust proxy", 1);
   app.use(limiter);
-  app.use(fileUpload());
-  app.use(express.json());
-
+  
   app.post(
     "/v1/stripe/webhook",
     express.raw({ type: "application/json" }),
     StripeController.webhook,
   );
+
+  app.use(fileUpload());
+  app.use(express.json());
 
   registerRoutes(app); // all routes in 1 place
 
