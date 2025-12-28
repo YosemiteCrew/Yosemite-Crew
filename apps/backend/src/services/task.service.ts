@@ -153,11 +153,13 @@ export interface CreateCustomTaskInput extends BaseTaskCreateInput {
   category: string;
   name: string;
   description?: string;
+  additionalNotes?: string;
 }
 
 export interface TaskUpdateInput {
   name?: string;
   description?: string;
+  additionalNotes?: string;
   dueAt?: Date;
   timezone?: string | null;
 
@@ -405,6 +407,7 @@ export const TaskService = {
       category: input.category,
       name: input.name,
       description: input.description,
+      additionalNotes: input.additionalNotes,
 
       medication: sanitizeMedication(input.medication),
       observationToolId: input.observationToolId,
@@ -446,6 +449,7 @@ export const TaskService = {
 
     if (updates.name !== undefined) task.name = updates.name;
     if (updates.description !== undefined) task.description = updates.description;
+    if (updates.additionalNotes !== undefined) task.additionalNotes = updates.additionalNotes;
     if (updates.dueAt !== undefined) task.dueAt = updates.dueAt;
 
     if (updates.timezone !== undefined) task.timezone = updates.timezone ?? undefined;

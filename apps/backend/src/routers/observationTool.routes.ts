@@ -15,7 +15,7 @@ const router = Router();
 // Parent lists available OT definitions (for UI)
 router.get(
   "/mobile/tools",
-  //authorizeCognitoMobile,
+  authorizeCognitoMobile,
   ObservationToolDefinitionController.list,
 );
 
@@ -29,7 +29,7 @@ router.get(
 // Parent submits OT
 router.post(
   "/mobile/tools/:toolId/submissions",
-  //authorizeCognitoMobile,
+  authorizeCognitoMobile,
   ObservationToolSubmissionController.createFromMobile,
 );
 
@@ -37,6 +37,12 @@ router.post(
   "/mobile/submissions/:submissionId/link-appointment",
   authorizeCognitoMobile,
   ObservationToolSubmissionController.linkAppointment,
+);
+
+router.get(
+  "/mobile/tasks/:taskId/preview",
+  authorizeCognitoMobile,
+  ObservationToolSubmissionController.getPreviewByTaskId,
 );
 
 /**
@@ -98,6 +104,24 @@ router.get(
   "/pms/appointments/:appointmentId/submissions",
   authorizeCognito,
   ObservationToolSubmissionController.listForAppointment,
+);
+
+router.get(
+  "/pms/tasks/:taskId/submission",
+  authorizeCognito,
+  ObservationToolSubmissionController.getByTaskId,
+);
+
+router.get(
+  "/pms/tasks/:taskId/preview",
+  authorizeCognito,
+  ObservationToolSubmissionController.getPreviewByTaskId,
+);
+
+router.get(
+  "/pms/appointments/:appointmentId/task-previews",
+  authorizeCognito,
+  ObservationToolSubmissionController.listTaskPreviewsForAppointment,
 );
 
 export default router;

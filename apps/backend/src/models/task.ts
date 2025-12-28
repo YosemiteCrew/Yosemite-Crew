@@ -22,6 +22,7 @@ interface TaskMongo {
   category: string;
   name: string;
   description?: string;
+  additionalNotes?: string;
 
   medication?: {
     name?: string;
@@ -151,7 +152,7 @@ const TaskSchema = new Schema<TaskMongo>(
     category: String,
     name: String,
     description: String,
-
+    additionalNotes: String,
     medication: MedicationSchema,
     observationToolId: String,
 

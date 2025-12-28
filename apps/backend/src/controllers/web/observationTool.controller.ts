@@ -223,4 +223,46 @@ export const ObservationToolSubmissionController = {
       handleError(error, res);
     }
   },
+
+  getByTaskId: async (req: Request, res: Response) => {
+    try {
+      const { taskId } = req.params;
+      const submission = await ObservationToolSubmissionService.getByTaskId(
+        taskId,
+      );
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  // PMS + Mobile — task card preview (definition + submission preview)
+  getPreviewByTaskId: async (req: Request, res: Response) => {
+    try {
+      const { taskId } = req.params;
+      const preview = await ObservationToolSubmissionService.getPreviewByTaskId(
+        taskId,
+      );
+      res.json(preview);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  // PMS — appointment view previews (OT cards for all OT tasks in appointment)
+  listTaskPreviewsForAppointment: async (req: Request, res: Response) => {
+    try {
+      const { appointmentId } = req.params;
+      const previews =
+        await ObservationToolSubmissionService.listTaskPreviewsForAppointment(
+          appointmentId,
+        );
+      res.json(previews);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
 };

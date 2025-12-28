@@ -43,6 +43,20 @@ export interface ListSubmissionsFilter {
   toDate?: Date;
 }
 
+type AppointmentTaskPreview = {
+  taskId: string;
+  companionId?: string;
+  status: string;
+  dueAt: Date;
+  toolId: string;
+  toolName: string;
+  toolCategory: string;
+  submissionId?: string;
+  submittedAt?: Date;
+  score?: number;
+  summary?: string;
+};
+
 const computeScore = (
   tool: ObservationToolDefinitionDocument,
   answers: ObservationToolAnswers,
@@ -257,5 +271,153 @@ export const ObservationToolSubmissionService = {
     })
       .sort({ createdAt: -1 })
       .exec();
+  },
+
+  async getByTaskId(taskId: string) {
+    if (!taskId) {
+      throw new ObservationToolSubmissionServiceError("taskId is required", 400);
+    }
+
+    return ObservationToolSubmissionModel.findOne({ taskId }).exec();
+  },
+
+  /**
+   * Used by Task cards (TaskView) — return definition + submission for a task.
+   */
+  async getPreviewByTaskId(taskId: string): Promise<{
+    taskId: string;
+    toolId: string;
+    toolName: string;
+    toolCategory: string;
+    submissionId?: string;
+    submittedAt?: Date;
+    score?: number;
+    summary?: string;
+    answersPreview?: Record<string, unknown>;
+  }> {
+    const task = await TaskModel.findById(taskId).lean();
+    if (!task) {
+      throw new ObservationToolSubmissionServiceError("Task not found", 404);
+    }
+
+    if (!task.observationToolId) {
+      throw new ObservationToolSubmissionServiceError(
+        "Task has no observationToolId",
+        400,
+      );
+    }
+
+    const tool = await ObservationToolDefinitionModel.findById(
+      task.observationToolId,
+    ).lean();
+
+    if (!tool || !tool.isActive) {
+      throw new ObservationToolSubmissionServiceError(
+        "Observation tool not found or inactive",
+        404,
+      );
+    }
+
+    const submission = await ObservationToolSubmissionModel.findOne({
+      taskId,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // small preview: only include answers for first N fields (frontend can expand later)
+    const submissionAnswers = submission?.answers as
+      | ObservationToolAnswers
+      | undefined;
+
+    const answersPreview =
+      submissionAnswers && tool.fields.length
+        ? Object.fromEntries(
+            tool.fields
+              .slice(0, 5)
+              .map<[string, unknown]>((f) => [
+                f.key,
+                submissionAnswers[f.key],
+              ])
+              .filter(([, v]) => v !== undefined),
+          )
+        : undefined;
+
+    return {
+      taskId,
+      toolId: tool._id.toString(),
+      toolName: tool.name,
+      toolCategory: tool.category,
+      submissionId: submission?._id?.toString(),
+      submittedAt: submission?.createdAt,
+      score: submission?.score,
+      summary: submission?.summary,
+      answersPreview,
+    };
+  },
+
+  /**
+   * Used by AppointmentView — give OT cards for all OT tasks in an appointment.
+   * This is the “backend hook” frontend is asking for.
+   */
+  async listTaskPreviewsForAppointment(
+    appointmentId: string,
+  ): Promise<AppointmentTaskPreview[]> {
+    if (!appointmentId) {
+      throw new ObservationToolSubmissionServiceError(
+        "appointmentId is required",
+        400,
+      );
+    }
+
+    // find OT tasks under the appointment
+    const tasks = await TaskModel.find({
+      appointmentId,
+      observationToolId: { $exists: true, $ne: null },
+    })
+      .select("_id companionId status dueAt observationToolId")
+      .lean();
+
+    if (!tasks.length) return [];
+
+    const taskIds = tasks.map((t) => t._id.toString());
+    const toolIds = Array.from(
+      new Set(tasks.map((t) => String(t.observationToolId))),
+    );
+
+    const [tools, submissions] = await Promise.all([
+      ObservationToolDefinitionModel.find({ _id: { $in: toolIds } })
+        .select("_id name category isActive")
+        .lean(),
+      ObservationToolSubmissionModel.find({ taskId: { $in: taskIds } })
+        .select("_id taskId toolId score summary createdAt")
+        .lean(),
+    ]);
+
+    const toolById = new Map(tools.map((t) => [t._id.toString(), t]));
+    const submissionByTaskId = new Map(
+      submissions.map((s) => [String(s.taskId), s]),
+    );
+
+    return tasks.flatMap<AppointmentTaskPreview>((t) => {
+      const tool = toolById.get(String(t.observationToolId));
+      if (!tool) return [];
+      const submission = submissionByTaskId.get(t._id.toString());
+
+      return [
+        {
+          taskId: t._id.toString(),
+          companionId: t.companionId ? String(t.companionId) : undefined,
+          status: String(t.status),
+          dueAt: t.dueAt,
+          toolId: tool._id.toString(),
+          toolName: tool.name,
+          toolCategory: tool.category,
+          submissionId: submission?._id?.toString(),
+          submittedAt: submission?.createdAt,
+          score: submission?.score,
+          summary: submission?.summary,
+        },
+      ];
+    });
   },
 };

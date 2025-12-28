@@ -14,7 +14,7 @@ const router = Router();
 
 router.post(
   "/mobile/",
-  authorizeCognitoMobile,
+  //authorizeCognitoMobile,
   TaskController.createCustomTask,
 );
 
