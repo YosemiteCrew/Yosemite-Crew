@@ -6,6 +6,7 @@ import timezone from "dayjs/plugin/timezone";
 import TaskModel from "src/models/task";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
+import CompanionModel from "src/models/companion"
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -51,9 +52,11 @@ export const TaskReminderEngine = {
 
         const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
+        const companion = await CompanionModel.findById(task.companionId!)
+
         const payload =
           NotificationTemplates.Task.TASK_DUE_REMINDER(
-            task.companionId!,
+            companion?.name!,
             task.name,
             humanTime,
           );
