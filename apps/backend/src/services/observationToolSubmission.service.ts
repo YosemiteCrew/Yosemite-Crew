@@ -55,6 +55,7 @@ type AppointmentTaskPreview = {
   submittedAt?: Date;
   score?: number;
   summary?: string;
+  evaluationAppointmentId?: string;
 };
 
 const computeScore = (
@@ -425,6 +426,7 @@ export const ObservationToolSubmissionService = {
           submittedAt: submission?.createdAt,
           score: submission?.score,
           summary: submission?.summary,
+          evaluationAppointmentId: submission?.evaluationAppointmentId
         },
       ];
     });
