@@ -82,5 +82,10 @@ router.get(
   authorizeCognitoMobile,
   FormController.getConsentFormForParent,
 );
+router.get(
+  "/mobile/appointments/:appointmentId/soap-notes",
+  authorizeCognitoMobile,
+  FormController.getSOAPNotesByAppointment,
+);
 
 export default router;
