@@ -231,11 +231,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     expenseSummary,
     markInitialRequest,
   ]);
-  useEffect(() => {
-    if (targetCompanionId && !hasTasksHydrated) {
-      dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
-    }
-  }, [dispatch, targetCompanionId, hasTasksHydrated]);
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const {businessFallbacks, handleAvatarError, requestBusinessPhoto} = useBusinessPhotoFallback();
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();

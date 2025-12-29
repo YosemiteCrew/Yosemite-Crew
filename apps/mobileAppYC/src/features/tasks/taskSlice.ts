@@ -1,4 +1,5 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
+import {REHYDRATE} from 'redux-persist';
 import type {TasksState, Task} from './types';
 import {
   fetchTasksForCompanion,
@@ -44,6 +45,11 @@ const tasksSlice = createSlice({
   },
   extraReducers: builder => {
     builder
+      .addCase(REHYDRATE, state => {
+        state.hydratedCompanions = {};
+        state.loading = false;
+        state.error = null;
+      })
       // Fetch tasks for companion
       .addCase(fetchTasksForCompanion.pending, state => {
         state.loading = true;
