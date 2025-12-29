@@ -1,7 +1,6 @@
 import React from 'react';
 import {View, Image, Text, StyleSheet} from 'react-native';
-import {SafeArea} from '@/shared/components/common';
-import {Header} from '@/shared/components/common/Header/Header';
+import {ScreenLayout} from '@/shared/components/common/ScreenLayout/ScreenLayout';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {useNavigation} from '@react-navigation/native';
@@ -11,9 +10,6 @@ import {useDispatch, useSelector} from 'react-redux';
 import {selectCompanions, selectSelectedCompanionId, setSelectedCompanion} from '@/features/companion';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import type {AppDispatch} from '@/app/store';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -24,39 +20,17 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const companions = useSelector(selectCompanions);
   const selectedCompanionId = useSelector(selectSelectedCompanionId);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
   return (
-    <SafeArea edges={[]}>
-      <View
-        style={styles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title="My Appointments"
-              showBackButton={false}
-              rightIcon={companions.length > 0 ? Images.addIconDark : undefined}
-              onRightPress={companions.length > 0 ? handleAdd : undefined}
-              glass={false}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
-      <View style={[styles.container, topGlassHeight ? {paddingTop: topGlassHeight} : null]}>
+    <ScreenLayout
+      title="My Appointments"
+      showBackButton={false}
+      rightIcon={companions.length > 0 ? Images.addIconDark : undefined}
+      onRightPress={companions.length > 0 ? handleAdd : undefined}
+      edges={[]}>
+      <View style={styles.container}>
         {companions.length > 0 && (
           <View style={styles.selectorWrapper}>
             <CompanionSelector
@@ -72,17 +46,16 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
         )}
         <View style={styles.contentContainer}>
           <Image source={Images.emptyAppointments || Images.emptyTasksIllustration} style={styles.emptyImage} />
-          <Text style={styles.title}>We’ve dug and dug… but no appointments found.</Text>
-          <Text style={styles.subtitle}>We’ll save your appointment history here once you start seeing your vet.</Text>
+          <Text style={styles.title}>We've dug and dug… but no appointments found.</Text>
+          <Text style={styles.subtitle}>We'll save your appointment history here once you start seeing your vet.</Text>
         </View>
       </View>
-    </SafeArea>
+    </ScreenLayout>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    ...createLiquidGlassHeaderStyles(theme),
     container: {flex: 1, backgroundColor: theme.colors.background},
     selectorWrapper: {
       paddingHorizontal: theme.spacing['4'],

@@ -1,11 +1,8 @@
 import React from 'react';
-import {View, Image} from 'react-native';
-import {Input, TouchableInput} from '@/shared/components/common';
-import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
-import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
-import {Images} from '@/assets/images';
-import {createIconStyles} from '@/shared/utils/iconStyles';
+import {View} from 'react-native';
+import {Input} from '@/shared/components/common';
 import {createTaskFormSectionStyles} from '@/features/tasks/components/shared/taskFormStyles';
+import {TaskFormFields} from '@/features/tasks/components/shared/TaskFormFields';
 import type {TaskFormData, TaskFormErrors, TaskTypeSelection} from '@/features/tasks/types';
 
 interface SimpleTaskFormSectionProps {
@@ -28,7 +25,6 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
   theme,
 }) => {
   const styles = React.useMemo(() => createTaskFormSectionStyles(theme), [theme]);
-  const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const isEditable = !taskTypeSelection || taskTypeSelection.category === 'custom';
   const placeholderText = isEditable ? 'Enter task name' : undefined;
 
@@ -58,39 +54,14 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
         />
       </View>
 
-      {/* Date Picker */}
-      <View style={styles.fieldGroup}>
-        <CalendarMonthStrip
-          selectedDate={formData.date || new Date()}
-          onChange={(date: Date) => updateField('date', date)}
-        />
-      </View>
-
-      {/* Time */}
-      <View style={styles.fieldGroup}>
-        <TouchableInput
-          label={formData.time ? 'Time' : undefined}
-          value={formatTimeForDisplay(formData.time)}
-          placeholder="Time"
-          onPress={onOpenTimePicker}
-          rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
-          error={errors.time}
-        />
-      </View>
-
-      {/* Task Frequency */}
-      <View style={styles.fieldGroup}>
-        <TouchableInput
-          label={formData.frequency ? 'Task frequency' : undefined}
-          value={formData.frequency || undefined}
-          placeholder="Task frequency"
-          onPress={onOpenTaskFrequencySheet}
-          rightComponent={
-            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
-          }
-          error={errors.frequency}
-        />
-      </View>
+      <TaskFormFields
+        formData={{date: formData.date, time: formData.time, frequency: formData.frequency}}
+        errors={{time: errors.time, frequency: errors.frequency}}
+        updateField={updateField}
+        onOpenTimePicker={onOpenTimePicker}
+        onOpenTaskFrequencySheet={onOpenTaskFrequencySheet}
+        theme={theme}
+      />
     </>
   );
 };

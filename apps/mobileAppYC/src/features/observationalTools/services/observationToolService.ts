@@ -59,15 +59,20 @@ const ensureAccessToken = async (): Promise<{accessToken: string; userId?: strin
   return {accessToken, userId};
 };
 
+const createAuthHeaders = async () => {
+  const {accessToken, userId} = await ensureAccessToken();
+  return {
+    ...withAuthHeaders(accessToken),
+    ...(userId ? {'x-user-id': userId} : {}),
+  };
+};
+
 export const observationToolApi = {
   async list({onlyActive}: {onlyActive?: boolean} = {}) {
-    const {accessToken, userId} = await ensureAccessToken();
+    const headers = await createAuthHeaders();
     const response = await apiClient.get('/v1/observation-tools/mobile/tools', {
       params: {onlyActive: onlyActive ? 'true' : undefined},
-      headers: {
-        ...withAuthHeaders(accessToken),
-        ...(userId ? {'x-user-id': userId} : {}),
-      },
+      headers,
     });
     const data = Array.isArray(response.data) ? response.data : [];
     return data.map((item: any): ObservationToolDefinitionRemote => ({
@@ -84,12 +89,9 @@ export const observationToolApi = {
   },
 
   async get(toolId: string) {
-    const {accessToken, userId} = await ensureAccessToken();
+    const headers = await createAuthHeaders();
     const response = await apiClient.get(`/v1/observation-tools/mobile/tools/${toolId}`, {
-      headers: {
-        ...withAuthHeaders(accessToken),
-        ...(userId ? {'x-user-id': userId} : {}),
-      },
+      headers,
     });
     const item = response.data;
     return {
@@ -118,16 +120,12 @@ export const observationToolApi = {
     answers: Record<string, unknown>;
     summary?: string;
   }): Promise<ObservationToolSubmission> {
-    const {accessToken, userId} = await ensureAccessToken();
+    const headers = await createAuthHeaders();
+    const {userId} = await ensureAccessToken();
     const response = await apiClient.post(
       `/v1/observation-tools/mobile/tools/${toolId}/submissions`,
       {companionId, taskId, answers, summary},
-      {
-        headers: {
-          ...withAuthHeaders(accessToken),
-          ...(userId ? {'x-user-id': userId} : {}),
-        },
-      },
+      {headers},
     );
     const payload = response.data;
     return {
@@ -152,16 +150,12 @@ export const observationToolApi = {
     submissionId: string;
     appointmentId: string;
   }): Promise<ObservationToolSubmission> {
-    const {accessToken, userId} = await ensureAccessToken();
+    const headers = await createAuthHeaders();
+    const {userId} = await ensureAccessToken();
     const response = await apiClient.post(
       `/v1/observation-tools/pms/submissions/${submissionId}/link-appointment`,
       {appointmentId},
-      {
-        headers: {
-          ...withAuthHeaders(accessToken),
-          ...(userId ? {'x-user-id': userId} : {}),
-        },
-      },
+      {headers},
     );
     const payload = response.data;
     return {
@@ -180,15 +174,11 @@ export const observationToolApi = {
   },
 
   async getSubmission(submissionId: string): Promise<ObservationToolSubmission> {
-    const {accessToken, userId} = await ensureAccessToken();
+    const headers = await createAuthHeaders();
+    const {userId} = await ensureAccessToken();
     const response = await apiClient.get(
       `/v1/observation-tools/pms/submissions/${submissionId}`,
-      {
-        headers: {
-          ...withAuthHeaders(accessToken),
-          ...(userId ? {'x-user-id': userId} : {}),
-        },
-      },
+      {headers},
     );
     const payload = response.data;
     return {
@@ -207,15 +197,11 @@ export const observationToolApi = {
   },
 
   async listAppointmentSubmissions(appointmentId: string): Promise<ObservationToolSubmission[]> {
-    const {accessToken, userId} = await ensureAccessToken();
+    const headers = await createAuthHeaders();
+    const {userId} = await ensureAccessToken();
     const response = await apiClient.get(
       `/v1/observation-tools/pms/appointments/${appointmentId}/submissions`,
-      {
-        headers: {
-          ...withAuthHeaders(accessToken),
-          ...(userId ? {'x-user-id': userId} : {}),
-        },
-      },
+      {headers},
     );
     const data = Array.isArray(response.data) ? response.data : [];
     return data.map((payload: any) => ({
