@@ -1,6 +1,15 @@
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import type {OTFieldType} from '@/features/tasks/types';
+import {observationalToolDefinitions} from '@/features/observationalTools/data';
+
+const toolCache: Record<string, ObservationToolDefinitionRemote> = {};
+const mongoIdRegex = /^[a-f0-9]{24}$/i;
+
+const normalizeName = (value?: string | null) =>
+  (value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 
 export interface ObservationToolField {
   key: string;
@@ -32,6 +41,7 @@ export interface ObservationToolDefinitionRemote {
 export interface ObservationToolSubmission {
   id: string;
   toolId: string;
+  toolName?: string;
   taskId?: string | null;
   companionId: string;
   filledBy: string;
@@ -42,6 +52,100 @@ export interface ObservationToolSubmission {
   createdAt?: string;
   updatedAt?: string;
 }
+
+const cacheTools = (tools: ObservationToolDefinitionRemote[]) => {
+  tools.forEach(tool => {
+    if (tool?.id) {
+      toolCache[tool.id] = tool;
+    }
+  });
+};
+
+const getCachedToolByName = (name: string): ObservationToolDefinitionRemote | null => {
+  const normalized = normalizeName(name);
+  if (!normalized) return null;
+  const cached = Object.values(toolCache).find(tool => normalizeName(tool.name) === normalized);
+  return cached ?? null;
+};
+
+const resolveNameFromStatic = (value: string): string | null => {
+  const direct = (observationalToolDefinitions as Record<string, any>)[value];
+  if (direct?.name) return direct.name;
+  const normalized = normalizeName(value);
+  const matched = Object.values(observationalToolDefinitions).find(def =>
+    normalizeName(def.name) === normalized ||
+    normalizeName(def.shortName) === normalized,
+  );
+  return matched?.name ?? null;
+};
+
+const resolveObservationToolId = async (toolId: string): Promise<string> => {
+  if (!toolId) return toolId;
+  if (mongoIdRegex.test(toolId)) {
+    return toolId;
+  }
+  if (toolCache[toolId]?.id) {
+    return toolCache[toolId].id;
+  }
+  const cachedByName = getCachedToolByName(toolId);
+  if (cachedByName?.id) {
+    return cachedByName.id;
+  }
+  const staticName = resolveNameFromStatic(toolId);
+  if (staticName) {
+    const cachedStatic = getCachedToolByName(staticName);
+    if (cachedStatic?.id) {
+      return cachedStatic.id;
+    }
+  }
+  try {
+    const list = await observationToolApi.list({onlyActive: true});
+    const normalizedInput = normalizeName(toolId);
+    const match =
+      list.find(tool => normalizeName(tool.name) === normalizedInput) ??
+      (staticName ? list.find(tool => normalizeName(tool.name) === normalizeName(staticName)) : null);
+    return match?.id ?? toolId;
+  } catch {
+    return toolId;
+  }
+};
+
+export const resolveObservationToolIdSync = (toolId?: string | null): string | null => {
+  if (!toolId) return null;
+  if (mongoIdRegex.test(toolId)) {
+    return toolId;
+  }
+  if (toolCache[toolId]?.id) {
+    return toolCache[toolId].id;
+  }
+  const cachedByName = getCachedToolByName(toolId);
+  if (cachedByName?.id) {
+    return cachedByName.id;
+  }
+  const staticName = resolveNameFromStatic(toolId);
+  if (staticName) {
+    const cachedStatic = getCachedToolByName(staticName);
+    if (cachedStatic?.id) {
+      return cachedStatic.id;
+    }
+  }
+  return toolId;
+};
+
+export const getCachedObservationToolName = (toolId?: string | null): string | null => {
+  if (!toolId) return null;
+  return toolCache[toolId]?.name ?? getCachedToolByName(toolId)?.name ?? null;
+};
+
+export const getCachedObservationTool = (toolId?: string | null): ObservationToolDefinitionRemote | null => {
+  if (!toolId) return null;
+  const direct = toolCache[toolId];
+  if (direct) return direct;
+  const byName = getCachedToolByName(toolId);
+  if (byName) return byName;
+  const staticName = resolveNameFromStatic(toolId);
+  return staticName ? getCachedToolByName(staticName) : null;
+};
 
 const ensureAccessToken = async (): Promise<{accessToken: string; userId?: string}> => {
   const tokens = await getFreshStoredTokens();
@@ -75,7 +179,7 @@ export const observationToolApi = {
       headers,
     });
     const data = Array.isArray(response.data) ? response.data : [];
-    return data.map((item: any): ObservationToolDefinitionRemote => ({
+    const mapped = data.map((item: any): ObservationToolDefinitionRemote => ({
       id: item._id ?? item.id ?? item.toolId ?? item.key ?? item.name,
       name: item.name,
       description: item.description,
@@ -86,16 +190,19 @@ export const observationToolApi = {
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     }));
+    cacheTools(mapped);
+    return mapped;
   },
 
   async get(toolId: string) {
     const headers = await createAuthHeaders();
-    const response = await apiClient.get(`/v1/observation-tools/mobile/tools/${toolId}`, {
+    const resolvedId = await resolveObservationToolId(toolId);
+    const response = await apiClient.get(`/v1/observation-tools/mobile/tools/${resolvedId}`, {
       headers,
     });
     const item = response.data;
-    return {
-      id: item?._id ?? item?.id ?? toolId,
+    const definition = {
+      id: item?._id ?? item?.id ?? resolvedId,
       name: item?.name,
       description: item?.description,
       category: item?.category,
@@ -105,6 +212,8 @@ export const observationToolApi = {
       createdAt: item?.createdAt,
       updatedAt: item?.updatedAt,
     } as ObservationToolDefinitionRemote;
+    cacheTools([definition]);
+    return definition;
   },
 
   async submit({
@@ -122,15 +231,16 @@ export const observationToolApi = {
   }): Promise<ObservationToolSubmission> {
     const headers = await createAuthHeaders();
     const {userId} = await ensureAccessToken();
+    const resolvedId = await resolveObservationToolId(toolId);
     const response = await apiClient.post(
-      `/v1/observation-tools/mobile/tools/${toolId}/submissions`,
+      `/v1/observation-tools/mobile/tools/${resolvedId}/submissions`,
       {companionId, taskId, answers, summary},
       {headers},
     );
     const payload = response.data;
     return {
       id: payload?._id ?? payload?.id,
-      toolId: payload?.toolId ?? toolId,
+      toolId: payload?.toolId ?? resolvedId,
       taskId: payload?.taskId,
       companionId: payload?.companionId ?? companionId,
       filledBy: payload?.filledBy ?? userId ?? '',
@@ -153,7 +263,7 @@ export const observationToolApi = {
     const headers = await createAuthHeaders();
     const {userId} = await ensureAccessToken();
     const response = await apiClient.post(
-      `/v1/observation-tools/pms/submissions/${submissionId}/link-appointment`,
+      `/v1/observation-tools/mobile/submissions/${submissionId}/link-appointment`,
       {appointmentId},
       {headers},
     );
@@ -177,7 +287,7 @@ export const observationToolApi = {
     const headers = await createAuthHeaders();
     const {userId} = await ensureAccessToken();
     const response = await apiClient.get(
-      `/v1/observation-tools/pms/submissions/${submissionId}`,
+      `/v1/observation-tools/mobile/submissions/${submissionId}`,
       {headers},
     );
     const payload = response.data;
@@ -200,7 +310,7 @@ export const observationToolApi = {
     const headers = await createAuthHeaders();
     const {userId} = await ensureAccessToken();
     const response = await apiClient.get(
-      `/v1/observation-tools/pms/appointments/${appointmentId}/submissions`,
+      `/v1/observation-tools/mobile/appointments/${appointmentId}/submissions`,
       {headers},
     );
     const data = Array.isArray(response.data) ? response.data : [];
@@ -217,5 +327,29 @@ export const observationToolApi = {
       createdAt: payload?.createdAt,
       updatedAt: payload?.updatedAt,
     }));
+  },
+
+  async previewTaskSubmission(taskId: string): Promise<ObservationToolSubmission> {
+    const headers = await createAuthHeaders();
+    const {userId} = await ensureAccessToken();
+    const response = await apiClient.get(
+      `/v1/observation-tools/mobile/tasks/${taskId}/preview`,
+      {headers},
+    );
+    const payload = response.data;
+    return {
+      id: payload?._id ?? payload?.id ?? payload?.submissionId ?? '',
+      toolId: payload?.toolId ?? '',
+      toolName: payload?.toolName ?? payload?.name ?? undefined,
+      taskId: payload?.taskId ?? taskId,
+      companionId: payload?.companionId ?? '',
+      filledBy: payload?.filledBy ?? userId ?? '',
+      answers: payload?.answersPreview ?? payload?.answers ?? {},
+      score: payload?.score,
+      summary: payload?.summary,
+      evaluationAppointmentId: payload?.evaluationAppointmentId,
+      createdAt: payload?.submittedAt ?? payload?.createdAt,
+      updatedAt: payload?.updatedAt,
+    };
   },
 };

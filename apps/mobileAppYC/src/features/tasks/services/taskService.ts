@@ -1,6 +1,7 @@
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
+import {resolveObservationToolIdSync} from '@/features/observationalTools/services/observationToolService';
 import type {
   Task,
   TaskAttachment,
@@ -258,7 +259,7 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
     completedAt: apiTask?.completedAt,
     createdAt: apiTask?.createdAt ?? new Date().toISOString(),
     updatedAt: apiTask?.updatedAt ?? new Date().toISOString(),
-    observationToolId: apiTask?.observationToolId ?? null,
+    observationToolId: resolveObservationToolIdSync(apiTask?.observationToolId ?? null),
     appointmentId: apiTask?.appointmentId ?? null,
     otSubmissionId: apiTask?.otSubmissionId ?? null,
     details: (() => {
@@ -314,9 +315,10 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
       }
 
       if (apiTask?.category === 'OBSERVATION_TOOL' || apiTask?.observationToolId) {
+        const resolvedToolId = resolveObservationToolIdSync(apiTask?.observationToolId ?? null);
         return {
           taskType: 'take-observational-tool',
-          toolType: apiTask?.observationToolId ?? 'observational-tool',
+          toolType: resolvedToolId ?? apiTask?.observationToolId ?? 'observational-tool',
           chronicConditionType: apiTask?.chronicConditionType,
         };
       }
@@ -416,7 +418,10 @@ export const buildTaskDraftFromForm = ({
                 : recurrenceType) ?? undefined,
           }
         : null,
-    observationToolId: category === 'OBSERVATION_TOOL' ? observationToolId ?? formData.observationalTool ?? null : null,
+    observationToolId:
+      category === 'OBSERVATION_TOOL'
+        ? resolveObservationToolIdSync(observationToolId ?? formData.observationalTool ?? null)
+        : null,
   };
 };
 

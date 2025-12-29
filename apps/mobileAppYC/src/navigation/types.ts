@@ -151,6 +151,7 @@ export type TaskStackParamList = {
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };
+  ObservationalToolPreview: { taskId: string; submissionId?: string | null; toolId?: string | null };
 };
 
 export type AdverseEventStackParamList = {

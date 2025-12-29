@@ -57,10 +57,7 @@ export type TaskFrequency =
   | 'monthly';
 
 // Observational Tools
-export type ObservationalTool =
-  | 'feline-grimace-scale'
-  | 'canine-acute-pain-scale'
-  | 'equine-grimace-scale';
+export type ObservationalTool = string;
 
 // Reminder Options
 export type ReminderOption =

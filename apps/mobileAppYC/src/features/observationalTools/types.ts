@@ -13,6 +13,7 @@ export interface ObservationalToolStep {
   id: string;
   title: string;
   subtitle: string;
+  required?: boolean;
   helperText?: string;
   heroImage?: ImageSourcePropType;
   footerNote?: string;

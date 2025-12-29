@@ -6,6 +6,7 @@ import {createIconStyles} from '@/shared/utils/iconStyles';
 import {createTaskFormSectionStyles} from '@/features/tasks/components/shared/taskFormStyles';
 import {TaskFormFields} from '@/features/tasks/components/shared/TaskFormFields';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
+import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
 
 interface ObservationalToolFormSectionProps {
   formData: TaskFormData;
@@ -28,6 +29,9 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
 }) => {
   const styles = React.useMemo(() => createTaskFormSectionStyles(theme), [theme]);
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
+  const observationalToolLabel = formData.observationalTool
+    ? resolveObservationalToolLabel(formData.observationalTool)
+    : undefined;
 
   return (
     <>
@@ -45,7 +49,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
       <View style={styles.fieldGroup}>
         <TouchableInput
           label={formData.observationalTool ? 'Select observational tool' : undefined}
-          value={formData.observationalTool || undefined}
+          value={observationalToolLabel}
           placeholder="Select observational tool"
           onPress={onOpenObservationalToolSheet}
           rightComponent={

@@ -42,6 +42,9 @@ import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/exp
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
+import {fetchTasksForCompanion} from '@/features/tasks/thunks';
+import {resolveCategoryLabel as resolveTaskCategoryLabel} from '@/features/tasks/utils/taskLabels';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -626,6 +629,14 @@ export const ViewAppointmentScreen: React.FC = () => {
   const companionId = apt?.companionId ?? null;
   const hasHydratedExpenses = useSelector(selectHasHydratedCompanion(companionId));
   const expensesForCompanion = useSelector(selectExpensesByCompanion(companionId));
+  const tasks = useSelector((s: RootState) => s.tasks.items);
+  const tasksHydrated = useSelector(
+    (s: RootState) => (companionId ? s.tasks.hydratedCompanions[companionId] : false),
+  );
+  const appointmentTasks = useMemo(
+    () => tasks.filter(task => task.appointmentId === appointmentId),
+    [appointmentId, tasks],
+  );
   const {appointmentInvoices, hasMultipleInvoices} = useAppointmentInvoicesData({
     appointmentId,
     expensesForCompanion,
@@ -644,6 +655,11 @@ export const ViewAppointmentScreen: React.FC = () => {
       dispatch(fetchExpensesForCompanion({companionId}));
     }
   }, [companionId, dispatch, hasHydratedExpenses]);
+  useEffect(() => {
+    if (companionId && !tasksHydrated) {
+      dispatch(fetchTasksForCompanion({companionId}));
+    }
+  }, [companionId, dispatch, tasksHydrated]);
   useFocusEffect(
     React.useCallback(() => {
       if (companionId) {
@@ -704,6 +720,17 @@ export const ViewAppointmentScreen: React.FC = () => {
     checkInBufferMs: CHECKIN_BUFFER_MS,
     dispatch,
   });
+  const handleViewTask = React.useCallback(
+    (taskId: string) => {
+      const params = {screen: 'TaskView', params: {taskId}};
+      if (tabNavigation) {
+        tabNavigation.navigate('Tasks', params as any);
+        return;
+      }
+      navigation.navigate('Tasks' as any, params as any);
+    },
+    [navigation, tabNavigation],
+  );
 
   if (!apt) {
     return (
@@ -806,6 +833,30 @@ export const ViewAppointmentScreen: React.FC = () => {
             ))
           ) : (
             <Text style={styles.emptyDocsText}>No documents shared for this appointment yet.</Text>
+          )}
+        </View>
+
+        <View style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>Tasks</Text>
+          {appointmentTasks.length ? (
+            appointmentTasks.map(taskItem => (
+              <TaskCard
+                key={taskItem.id}
+                title={taskItem.title}
+                categoryLabel={resolveTaskCategoryLabel(taskItem.category)}
+                date={taskItem.date}
+                time={taskItem.time}
+                companionName={companion?.name ?? 'Companion'}
+                status={taskItem.status}
+                onPressView={() => handleViewTask(taskItem.id)}
+                showEditAction={false}
+                hideSwipeActions
+                category={taskItem.category}
+                details={taskItem.details}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyDocsText}>No tasks linked to this appointment.</Text>
           )}
         </View>
 

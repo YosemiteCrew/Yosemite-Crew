@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -25,39 +24,78 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {TaskStackParamList, TabParamList} from '@/navigation/types';
-import {
-  observationalToolDefinitions,
-  observationalToolProviders,
-} from '@/features/observationalTools/data';
+import {Images} from '@/assets/images';
+import {observationalToolDefinitions} from '@/features/observationalTools/data';
 import type {
-  ObservationalToolDefinition,
-  ObservationalToolProviderPricing,
   ObservationalToolBookingContext,
+  ObservationalToolStep,
+  ObservationalToolOption,
   ObservationalToolResponses,
 } from '@/features/observationalTools/types';
 import {selectTaskById} from '@/features/tasks/selectors';
 import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
-import {markTaskStatus} from '@/features/tasks/thunks';
 import {setSelectedCompanion} from '@/features/companion';
 import type {VetBusiness} from '@/features/appointments/types';
+import {selectAuthUser} from '@/features/auth/selectors';
 import {
   DiscardChangesBottomSheet,
   DiscardChangesBottomSheetRef,
 } from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
-import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
+import {
+  getCachedObservationTool,
+  observationToolApi,
+  type ObservationToolField,
+  type ObservationToolDefinitionRemote,
+} from '@/features/observationalTools/services/observationToolService';
+import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {resolveImageSource} from '@/shared/utils/resolveImageSource';
+
+const normalizeToken = (value?: string | null) =>
+  (value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+const normalizeName = (value?: string | null) => normalizeToken(value);
+
+const findMatchingField = (
+  fields: ObservationToolField[],
+  step: ObservationalToolStep,
+): ObservationToolField | null => {
+  const stepTokens = [step.id, step.title].map(normalizeToken).filter(Boolean);
+  const exactMatch = fields.find(field => {
+    const fieldTokens = [field.key, field.label].map(normalizeToken).filter(Boolean);
+    return fieldTokens.some(token => stepTokens.includes(token));
+  });
+  if (exactMatch) return exactMatch;
+  const fuzzyMatch = fields.find(field => {
+    const fieldTokens = [field.key, field.label].map(normalizeToken).filter(Boolean);
+    return fieldTokens.some(token =>
+      stepTokens.some(stepToken => stepToken.includes(token) || token.includes(stepToken)),
+    );
+  });
+  return fuzzyMatch ?? null;
+};
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'ObservationalTool'>;
 type Route = RouteProp<TaskStackParamList, 'ObservationalTool'>;
 
 interface ProviderEntry {
   businessId: string;
-  pricing: ObservationalToolProviderPricing;
+  serviceId: string;
+  specialityId?: string | null;
+  serviceName: string;
+  serviceSpecialty?: string | null;
   name: string;
   subtitle?: string;
   description?: string;
   image?: any;
+  fallbackImage?: any;
+  googlePlacesId?: string | null;
+  appointmentFee?: number | null;
 }
 
 export const ObservationalToolScreen: React.FC = () => {
@@ -72,24 +110,30 @@ export const ObservationalToolScreen: React.FC = () => {
   const {taskId} = route.params;
 
   const task = useSelector((state: RootState) => selectTaskById(taskId)(state));
+  const currentUser = useSelector(selectAuthUser);
   const companion = useSelector((state: RootState) =>
     task ? state.companion.companions.find(c => c.id === task.companionId) : null,
   );
   const businesses = useSelector((state: RootState) => state.businesses.businesses);
+  const services = useSelector((state: RootState) => state.businesses.services);
+  const {businessFallbacks, requestBusinessPhoto, handleAvatarError} =
+    useBusinessPhotoFallback();
 
   useEffect(() => {
-    if (!businesses.length) {
+    if (!businesses.length || !services.length) {
       dispatch(fetchBusinesses());
     }
-  }, [dispatch, businesses.length]);
+  }, [dispatch, businesses.length, services.length]);
 
   const [stage, setStage] = useState<'landing' | 'form'>('landing');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [responses, setResponses] = useState<ObservationalToolResponses>({});
-  const [showProviders, setShowProviders] = useState(true);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [providerTouched, setProviderTouched] = useState(false);
   const [stepTouched, setStepTouched] = useState(false);
+  const [definitionLoading, setDefinitionLoading] = useState(false);
+  const [remoteDefinition, setRemoteDefinition] = useState<ObservationToolDefinitionRemote | null>(null);
+  const [companionImageError, setCompanionImageError] = useState(false);
   const scrollToTop = useCallback(() => {
     scrollViewRef.current?.scrollTo({y: 0, animated: true});
   }, []);
@@ -98,119 +142,277 @@ export const ObservationalToolScreen: React.FC = () => {
     ? (task.details as ObservationalToolTaskDetails)
     : null;
 
-  const toolType = details?.toolType ?? null;
+  const toolId = details?.toolType ?? task?.observationToolId ?? null;
 
-  const definition: ObservationalToolDefinition | null = useMemo(() => {
-    if (!toolType) {
+  useEffect(() => {
+    let isMounted = true;
+    if (!toolId) return;
+    const cached = getCachedObservationTool(toolId);
+    if (cached) {
+      setRemoteDefinition(cached);
+      return;
+    }
+    const fetchDefinition = async () => {
+      try {
+        setDefinitionLoading(true);
+        const def = await observationToolApi.get(toolId);
+        if (isMounted) {
+          setRemoteDefinition(def);
+        }
+      } catch (error) {
+        console.warn('[ObservationalTool] Failed to load definition', error);
+      } finally {
+        if (isMounted) {
+          setDefinitionLoading(false);
+        }
+      }
+    };
+    fetchDefinition();
+    return () => {
+      isMounted = false;
+    };
+  }, [toolId]);
+
+  const toolLabel = toolId
+    ? resolveObservationalToolLabel(toolId)
+    : 'Observational tool';
+
+  const inferSpeciesFromName = useCallback((name?: string | null) => {
+    const normalized = (name ?? '').toLowerCase();
+    if (normalized.includes('feline') || normalized.includes('cat')) return 'cat';
+    if (normalized.includes('canine') || normalized.includes('dog')) return 'dog';
+    if (normalized.includes('equine') || normalized.includes('horse')) return 'horse';
+    return null;
+  }, []);
+
+  const staticDefinition = useMemo(() => {
+    if (toolId && (observationalToolDefinitions as Record<string, any>)[toolId]) {
+      return (observationalToolDefinitions as Record<string, any>)[toolId];
+    }
+    const normalizedRemote = normalizeName(remoteDefinition?.name);
+    const byName = Object.values(observationalToolDefinitions).find(def => {
+      const normalizedDef = normalizeName(def.name);
+      const normalizedShort = normalizeName(def.shortName);
+      return (
+        normalizedDef === normalizedRemote ||
+        normalizedShort === normalizedRemote ||
+        (normalizedRemote && normalizedDef.includes(normalizedRemote)) ||
+        (normalizedRemote && normalizedRemote.includes(normalizedDef))
+      );
+    });
+    if (byName) return byName;
+    const fallbackBySpecies = (species: string | null) => {
+      if (species === 'cat') return observationalToolDefinitions['feline-grimace-scale'];
+      if (species === 'dog') return observationalToolDefinitions['canine-acute-pain-scale'];
+      if (species === 'horse') return observationalToolDefinitions['equine-grimace-scale'];
       return null;
-    }
-    return observationalToolDefinitions[toolType];
-  }, [toolType]);
+    };
+    const inferredSpecies = inferSpeciesFromName(remoteDefinition?.name) ?? companion?.category ?? null;
+    return fallbackBySpecies(inferredSpecies);
+  }, [companion?.category, inferSpeciesFromName, remoteDefinition?.name, toolId]);
 
-  const providerPricing = useMemo(() => {
-    if (!toolType) {
-      return [];
-    }
-    return observationalToolProviders[toolType] ?? [];
-  }, [toolType]);
+  const displayDefinition = useMemo(() => {
+    const fallbackEmpty = {
+      title: 'No providers found nearby',
+      message:
+        'We could not find any nearby providers for this observational tool yet. Please try again later.',
+      image: Images.otNoProviders,
+    };
+    return {
+      name: remoteDefinition?.name ?? staticDefinition?.name ?? toolLabel,
+      overviewTitle:
+        staticDefinition?.overviewTitle ??
+        remoteDefinition?.name ??
+        toolLabel,
+      overviewParagraphs:
+        staticDefinition?.overviewParagraphs ??
+        (remoteDefinition?.description
+          ? [remoteDefinition.description]
+          : [
+              'Answer a quick checklist to help your care team understand how your companion is doing today.',
+            ]),
+      subtitle:
+        staticDefinition?.steps?.[0]?.subtitle ??
+        remoteDefinition?.description ??
+        '',
+      footer: staticDefinition?.steps?.[0]?.footerNote ?? '',
+      emptyState: staticDefinition?.emptyState ?? fallbackEmpty,
+      heroImage: staticDefinition?.heroImage,
+    };
+  }, [remoteDefinition?.description, remoteDefinition?.name, staticDefinition, toolLabel]);
 
-  const hospitalBusinesses = useMemo(
-    () => businesses.filter(business => business.category === 'hospital'),
-    [businesses],
-  );
+  const steps = useMemo<ObservationalToolStep[]>(() => {
+    if (staticDefinition) {
+      const fields = remoteDefinition?.fields ?? [];
+      return staticDefinition.steps.map((step, index) => {
+        const matchedField =
+          (fields.length ? findMatchingField(fields, step) : null) ??
+          (fields.length === staticDefinition.steps.length ? fields[index] : null);
+        const mappedOptions =
+          matchedField?.options?.length
+            ? matchedField.options.map((backendOption, optionIdx) => {
+                const fallbackOption = step.options[optionIdx];
+                return {
+                  id: backendOption,
+                  title: backendOption,
+                  subtitle: fallbackOption?.subtitle,
+                  image: fallbackOption?.image,
+                };
+              })
+            : step.options;
+        return {
+          ...step,
+          subtitle: step.subtitle || displayDefinition.subtitle || '',
+          footerNote: step.footerNote ?? displayDefinition.footer ?? undefined,
+          required: matchedField?.required ?? step.required,
+          options: mappedOptions,
+        };
+      });
+    }
+    if (remoteDefinition) {
+      return remoteDefinition.fields.map(field => ({
+        id: field.key,
+        title: field.label ?? field.key,
+        subtitle: displayDefinition.subtitle ?? '',
+        helperText: undefined,
+        heroImage: undefined,
+        footerNote: displayDefinition.footer ?? undefined,
+        options:
+          Array.isArray(field.options) && field.options.length > 0
+            ? field.options.map(option => ({id: option, title: option}))
+            : field.type === 'BOOLEAN'
+            ? [
+                {id: 'Yes', title: 'Yes'},
+                {id: 'No', title: 'No'},
+              ]
+            : [],
+        required: field.required ?? false,
+      }));
+    }
+    return staticDefinition ? staticDefinition.steps : [];
+  }, [
+    displayDefinition.footer,
+    displayDefinition.subtitle,
+    remoteDefinition,
+    staticDefinition,
+  ]);
+
+  const submissionKeyByStepId = useMemo(() => {
+    if (!staticDefinition || !remoteDefinition?.fields?.length) {
+      return {} as Record<string, string>;
+    }
+    const mapping: Record<string, string> = {};
+    staticDefinition.steps.forEach((step, index) => {
+      const matchedField =
+        findMatchingField(remoteDefinition.fields, step) ??
+        (remoteDefinition.fields.length === staticDefinition.steps.length
+          ? remoteDefinition.fields[index]
+          : null);
+      if (matchedField?.key) {
+        mapping[step.id] = matchedField.key;
+      }
+    });
+    return mapping;
+  }, [remoteDefinition?.fields, staticDefinition]);
 
   const resolveBusinessDescription = useCallback((biz: VetBusiness) => {
     if (biz.description && biz.description.trim().length > 0) {
       return biz.description.trim();
     }
-    if (biz.specialties && biz.specialties.length > 0) {
-      return biz.specialties.slice(0, 3).join(', ');
-    }
     if (biz.openHours && biz.openHours.trim().length > 0) {
-      return `${biz.name} · ${biz.openHours}`;
+      return biz.openHours.trim();
     }
-    return `Located at ${biz.address}`;
+    return null;
   }, []);
 
-  const toolLabel = toolType
-    ? resolveObservationalToolLabel(toolType)
-    : 'Observational tool';
+  const toolDisplayName = remoteDefinition?.name ?? staticDefinition?.name ?? toolLabel;
+  const toolSpecies = inferSpeciesFromName(toolDisplayName) ?? companion?.category ?? null;
+
+  const otServices = useMemo(() => {
+    const normalizedName = (toolDisplayName ?? '').toLowerCase();
+    const speciesToken = (toolSpecies ?? '').toLowerCase();
+    return services.filter(service => {
+      const specialtyMatch = (service.specialty ?? '').toLowerCase().includes('observation');
+      const nameMatch = normalizedName ? service.name.toLowerCase().includes(normalizedName) : false;
+      const speciesMatch = speciesToken ? service.name.toLowerCase().includes(speciesToken) : true;
+      return specialtyMatch && (nameMatch || speciesMatch || !normalizedName);
+    });
+  }, [services, toolDisplayName, toolSpecies]);
 
   const providerEntries: ProviderEntry[] = useMemo(() => {
-    if (!showProviders) {
-      return [];
-    }
-
-    if (hospitalBusinesses.length > 0) {
-      return hospitalBusinesses.map((biz, index) => {
-        let matchedPricing =
-          providerPricing.find(p => p.businessId === biz.id) ?? null;
-
-        if (!matchedPricing) {
-          const fallbackByIndex = providerPricing[index];
-          if (fallbackByIndex) {
-            matchedPricing = {...fallbackByIndex, businessId: biz.id};
-          } else if (providerPricing[0]) {
-            matchedPricing = {...providerPricing[0], businessId: biz.id};
-          } else {
-            matchedPricing = {
-              businessId: biz.id,
-              evaluationFee: 0,
-              appointmentFee: 0,
-            };
-          }
-        }
-
+    const entries = otServices
+      .map(service => {
+        const biz = businesses.find(b => b.id === service.businessId);
+        if (!biz) return null;
+        const fallbackPhoto = businessFallbacks[biz.id]?.photo;
         return {
           businessId: biz.id,
-          pricing: matchedPricing,
+          serviceId: service.id,
+          specialityId: service.specialityId ?? null,
+          serviceName: service.name,
+          serviceSpecialty: service.specialty ?? null,
           name: biz.name,
-          subtitle: biz.openHours ?? biz.address,
+          subtitle: biz.address,
           description: resolveBusinessDescription(biz),
           image: biz.photo,
-        };
-      });
+          fallbackImage: fallbackPhoto ?? null,
+          googlePlacesId: biz.googlePlacesId ?? null,
+          appointmentFee: service.basePrice ?? null,
+        } as ProviderEntry;
+      })
+      .filter((entry): entry is ProviderEntry => Boolean(entry));
+
+    const currentUserId = currentUser?.parentId ?? currentUser?.id ?? null;
+    if (task?.createdBy && currentUserId && task.createdBy !== currentUserId) {
+      const matched = entries.filter(entry => entry.businessId === task.createdBy);
+      if (matched.length > 0) {
+        return matched;
+      }
     }
 
-    return providerPricing.slice(0, 3).map((pricing, index) => {
-      const biz = businesses.find(b => b.id === pricing.businessId);
-      return {
-        businessId: pricing.businessId,
-        pricing,
-        name: biz?.name ?? `Partner clinic ${index + 1}`,
-        subtitle: biz?.address ?? 'Location coming soon',
-        description:
-          biz?.description ??
-          'We are lining up trusted specialists for this evaluation.',
-        image: biz?.photo,
-      };
-    });
+    return entries;
   }, [
+    businessFallbacks,
     businesses,
-    hospitalBusinesses,
-    providerPricing,
+    currentUser?.id,
+    currentUser?.parentId,
+    otServices,
     resolveBusinessDescription,
-    showProviders,
+    task?.createdBy,
   ]);
 
   useEffect(() => {
-    if (!showProviders) {
-      setSelectedProviderId(null);
-      setProviderTouched(false);
+    providerEntries.forEach(entry => {
+      if (typeof entry.image === 'number') {
+        return;
+      }
+      const imageUri = typeof entry.image === 'string' ? entry.image : (entry.image as any)?.uri ?? null;
+      if ((!imageUri || isDummyPhoto(imageUri)) && entry.googlePlacesId) {
+        requestBusinessPhoto(entry.googlePlacesId, entry.businessId);
+      }
+    });
+  }, [providerEntries, requestBusinessPhoto]);
+
+  useEffect(() => {
+    if (!selectedProviderId && providerEntries.length === 1) {
+      setSelectedProviderId(providerEntries[0].businessId);
     }
-  }, [showProviders]);
+  }, [providerEntries, selectedProviderId]);
 
-
-  const totalSteps = definition?.steps.length ?? 0;
+  const totalSteps = steps.length;
   const effectiveStepIndex =
     totalSteps > 0 ? Math.min(currentStepIndex, totalSteps - 1) : 0;
-  const currentStep =
-    definition && totalSteps > 0 ? definition.steps[effectiveStepIndex] : null;
+  const currentStep = totalSteps > 0 ? steps[effectiveStepIndex] : null;
   const selectionsForStep = currentStep
-    ? responses[currentStep.id] ?? []
+    ? Array.isArray(responses[currentStep.id])
+      ? (responses[currentStep.id] as string[])
+      : responses[currentStep.id]
+      ? [responses[currentStep.id] as string]
+      : []
     : [];
-  const isStepCompleted = selectionsForStep.length > 0;
-  const isImageOptionLayout = (definition?.species ?? 'dog') !== 'dog';
+  const isStepCompleted = currentStep ? (!currentStep.required || selectionsForStep.length > 0) : false;
+  const isImageOptionLayout =
+    currentStep?.options?.some(option => option.image) ?? false;
 
   useEffect(() => {
     scrollToTop();
@@ -267,10 +469,18 @@ export const ObservationalToolScreen: React.FC = () => {
     setStepTouched(false);
   };
 
-  const companionImageSource = useMemo(
-    () => (companion?.profileImage ? {uri: companion.profileImage} : null),
+  const companionImageUri = useMemo(
+    () => normalizeImageUri(companion?.profileImage ?? null),
     [companion?.profileImage],
   );
+  const companionImageSource = useMemo(
+    () => (companionImageUri && !companionImageError ? {uri: companionImageUri} : null),
+    [companionImageError, companionImageUri],
+  );
+
+  useEffect(() => {
+    setCompanionImageError(false);
+  }, [companionImageUri]);
 
   const companionInitial = useMemo(() => {
     const nameSource = companion?.name ?? toolLabel;
@@ -301,100 +511,84 @@ export const ObservationalToolScreen: React.FC = () => {
   };
 
   const startAssessment = () => {
-    if (showProviders && providerEntries.length > 0 && !selectedProviderId) {
+    if (providerEntries.length > 0 && !selectedProviderId) {
       setProviderTouched(true);
       return;
     }
     setStage('form');
   };
 
-  // moved above to avoid use-before-declare in callbacks
-
-  const resolvedProvider = useMemo<ObservationalToolProviderPricing | null>(() => {
-    if (showProviders && providerEntries.length === 0) {
+  const resolvedProvider = useMemo<ProviderEntry | null>(() => {
+    if (!providerEntries.length) {
       return null;
     }
-
-    const selectedEntry = selectedProviderId
-      ? providerEntries.find(entry => entry.businessId === selectedProviderId)
-      : providerEntries[0];
-
-    const provider =
-      selectedEntry?.pricing ??
-      providerPricing.find(p => p.businessId === selectedProviderId) ??
-      providerEntries[0]?.pricing ??
-      providerPricing[0];
-
-    return provider ?? null;
-  }, [providerEntries, providerPricing, selectedProviderId, showProviders]);
+    if (selectedProviderId) {
+      const selected = providerEntries.find(entry => entry.businessId === selectedProviderId);
+      if (selected) return selected;
+    }
+    return providerEntries[0] ?? null;
+  }, [providerEntries, selectedProviderId]);
 
   const handleSubmit = useCallback(async () => {
-    if (!task || !details || !definition) {
+    if (!task || !details) {
       return;
     }
 
-    if (showProviders && providerEntries.length > 0 && !selectedProviderId) {
+    if (providerEntries.length > 0 && !selectedProviderId) {
+      setProviderTouched(true);
+      return;
+    }
+
+    if (!resolvedProvider && providerEntries.length) {
       setProviderTouched(true);
       return;
     }
 
     if (!resolvedProvider) {
-      setProviderTouched(true);
+      Alert.alert('Provider required', 'Please select a provider offering this observational tool.');
       return;
     }
 
-    const backendFieldKeys: Record<string, string[]> = {
-      'feline-grimace-scale': [
-        'ear_position',
-        'orbital_tightening',
-        'muzzel_tension',
-        'whisker_change',
-        'head_position',
-      ],
-      'canine-acute-pain-scale': [
-        'behavior_at_rest',
-        'interest_in_surroundings',
-        'response_to_palpation',
-        'wound_site_interaction',
-        'body_tension_movement',
-      ],
-      'equine-grimace-scale': [
-        'stiffly_backward_ear',
-        'orbital_tightening',
-        'tension_above_eye',
-        'strained_chewing_muscles',
-        'mouth_strain_chin',
-        'strained_nostrils',
-      ],
-    };
-
-    const answers = definition.steps.reduce<Record<string, unknown>>((acc, step, index) => {
+    const missingRequired = steps.some(step => {
+      if (!step.required) return false;
       const value = responses[step.id];
       const selected = Array.isArray(value) ? value[0] : value;
-      const optionTitle =
-        step.options.find(opt => opt.id === selected)?.title ?? (Array.isArray(value) ? value : selected);
-      const key = backendFieldKeys[details.toolType]?.[index] ?? step.id;
-      acc[key] = optionTitle ?? null;
+      return !selected;
+    });
+
+    if (missingRequired) {
+      setStepTouched(true);
+      return;
+    }
+
+    const answers = steps.reduce<Record<string, unknown>>((acc, step) => {
+      const value = responses[step.id];
+      const selected = Array.isArray(value) ? value[0] : value;
+      if (selected !== undefined && selected !== null) {
+        const submissionKey = submissionKeyByStepId[step.id] ?? step.id;
+        acc[submissionKey] = selected;
+      }
       return acc;
     }, {});
 
     try {
+      const submissionToolId =
+        task.observationToolId ?? details.toolType ?? remoteDefinition?.id ?? toolId ?? '';
       const submission = await observationToolApi.submit({
-        toolId: details.toolType,
+        toolId: submissionToolId,
         companionId: companion?.id ?? task.companionId,
         taskId: task.id,
         answers,
       });
 
-      await dispatch(markTaskStatus({taskId: task.id, status: 'COMPLETED'}));
       if (companion) {
         dispatch(setSelectedCompanion(companion.id));
       }
 
       const appointmentType = 'Observational Tool';
       const otContext: ObservationalToolBookingContext = {
-        toolId: details.toolType,
-        provider: resolvedProvider,
+        toolId: remoteDefinition?.id ?? details.toolType,
+        provider: resolvedProvider as any,
         responses: responses as any,
         submissionId: submission?.id,
       };
@@ -402,11 +596,12 @@ export const ObservationalToolScreen: React.FC = () => {
       tabNavigation?.navigate('Appointments', {
         screen: 'BookingForm',
         params: {
-          businessId: resolvedProvider.businessId,
-          serviceId: details.toolType,
-          serviceName: definition.name,
-          serviceSpecialty: 'Observational Tool',
-          employeeId: resolvedProvider.employeeId ?? providerPricing[0]?.employeeId,
+          businessId: resolvedProvider?.businessId ?? providerEntries[0]?.businessId,
+          serviceId: resolvedProvider?.serviceId ?? providerEntries[0]?.serviceId,
+          serviceName: resolvedProvider?.serviceName ?? toolDisplayName,
+          serviceSpecialty: resolvedProvider?.serviceSpecialty ?? 'Observational Tool',
+          serviceSpecialtyId: resolvedProvider?.specialityId ?? null,
+          employeeId: undefined,
           appointmentType,
           otContext,
         },
@@ -417,20 +612,20 @@ export const ObservationalToolScreen: React.FC = () => {
     }
   }, [
     companion,
-    definition,
     details,
     dispatch,
-    providerPricing,
     providerEntries,
+    remoteDefinition?.id,
     resolvedProvider,
     responses,
     selectedProviderId,
-    showProviders,
+    steps,
     tabNavigation,
     task,
+    toolDisplayName,
   ]);
 
-  if (!task || !details || !definition || !currentStep || totalSteps === 0) {
+  if (!task || !details) {
     return (
       <SafeArea>
         <Header
@@ -445,8 +640,38 @@ export const ObservationalToolScreen: React.FC = () => {
     );
   }
 
+  if (definitionLoading && totalSteps === 0) {
+    return (
+      <SafeArea>
+        <Header
+          title={displayDefinition.name}
+          showBackButton
+          onBack={() => navigation.goBack()}
+        />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Loading observational tool...</Text>
+        </View>
+      </SafeArea>
+    );
+  }
+
+  if (!currentStep || totalSteps === 0) {
+    return (
+      <SafeArea>
+        <Header
+          title={displayDefinition.name}
+          showBackButton
+          onBack={() => navigation.goBack()}
+        />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Unable to load observational tool.</Text>
+        </View>
+      </SafeArea>
+    );
+  }
+
   const renderImageOptions = () =>
-    currentStep.options.map(option => {
+    currentStep.options.map((option: ObservationalToolOption) => {
       const selected = selectionsForStep.includes(option.id);
       return (
         <Pressable
@@ -476,7 +701,7 @@ export const ObservationalToolScreen: React.FC = () => {
     });
 
   const renderTextOptions = () =>
-    currentStep.options.map((option, index) => {
+    currentStep.options.map((option: ObservationalToolOption, index: number) => {
       const selected = selectionsForStep.includes(option.id);
       const showDivider = index < currentStep.options.length - 1;
       return (
@@ -583,7 +808,11 @@ export const ObservationalToolScreen: React.FC = () => {
           fallbackStyle={styles.glassCardFallback}>
           <View style={styles.stepHeroWrapper}>
             {companionImageSource ? (
-              <Image source={companionImageSource} style={styles.stepHero} />
+              <Image
+                source={companionImageSource}
+                style={styles.stepHero}
+                onError={() => setCompanionImageError(true)}
+              />
             ) : (
               <View style={styles.stepHeroFallback}>
                 <Text style={styles.stepHeroFallbackText}>{companionInitial}</Text>
@@ -621,53 +850,80 @@ export const ObservationalToolScreen: React.FC = () => {
         <View style={styles.providerList}>
           {providerEntries.map(entry => {
             const selected = selectedProviderId === entry.businessId;
+            const isLocalAsset = typeof entry.image === 'number';
+            const primaryUri =
+              typeof entry.image === 'string'
+                ? entry.image
+                : (entry.image as any)?.uri ?? null;
+            const shouldUseFallback =
+              !isLocalAsset && (!primaryUri || isDummyPhoto(primaryUri));
+            const imageSource = resolveImageSource(
+              shouldUseFallback ? entry.fallbackImage ?? entry.image : entry.image,
+            );
             return (
-              <Pressable
+              <LiquidGlassCard
                 key={entry.businessId}
-                onPress={() => toggleProvider(entry.businessId)}
+                glassEffect="regular"
+                interactive
+                padding="0"
                 style={[
                   styles.providerCard,
                   selected && styles.providerCardSelected,
+                ]}
+                fallbackStyle={[
+                  styles.providerCard,
+                  selected && styles.providerCardSelected,
                 ]}>
-                {entry.image ? (
-                  <Image source={entry.image} style={styles.providerImage} />
-                ) : (
-                  <View style={styles.providerImageFallback}>
-                    <Text style={styles.providerImageFallbackText}>
-                      {entry.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.providerContent}>
-                  <Text style={styles.providerName}>{entry.name}</Text>
-                  {entry.subtitle ? (
-                    <Text style={styles.providerSubtitle}>{entry.subtitle}</Text>
-                  ) : null}
-                  {entry.description ? (
-                    <Text style={styles.providerDescription}>{entry.description}</Text>
-                  ) : null}
-                  <View style={styles.providerCosts}>
-                    <View style={styles.costColumn}>
-                      <Text style={styles.costLabel}>Evaluation Fee</Text>
-                      <Text style={styles.costValue}>
-                        ${entry.pricing.evaluationFee.toFixed(2)}
+                <Pressable
+                  onPress={() => toggleProvider(entry.businessId)}
+                  style={styles.providerInner}>
+                  {imageSource ? (
+                    <Image
+                      source={imageSource}
+                      style={styles.providerImage}
+                      onError={() =>
+                        handleAvatarError(entry.googlePlacesId ?? null, entry.businessId)
+                      }
+                    />
+                  ) : (
+                    <View style={styles.providerImageFallback}>
+                      <Text style={styles.providerImageFallbackText}>
+                        {entry.name.charAt(0).toUpperCase()}
                       </Text>
                     </View>
-                    <View style={styles.costColumn}>
-                      <Text style={styles.costLabel}>Appointment Fee</Text>
-                      <Text style={styles.costValue}>
-                        ${entry.pricing.appointmentFee.toFixed(2)}
-                      </Text>
+                  )}
+                  <View style={styles.providerContent}>
+                    <View style={styles.providerTitleRow}>
+                      <Text style={styles.providerName}>{entry.name}</Text>
+                      <Text style={styles.serviceBadge}>{entry.serviceName}</Text>
                     </View>
+                    {entry.subtitle ? (
+                      <Text style={styles.providerSubtitle}>{entry.subtitle}</Text>
+                    ) : null}
+                    {entry.description ? (
+                      <Text style={styles.providerDescription}>{entry.description}</Text>
+                    ) : null}
+                    {entry.appointmentFee != null ? (
+                      <View style={styles.providerCosts}>
+                        <View style={styles.costColumn}>
+                          <Text style={styles.costLabel}>Appointment Fee</Text>
+                          <Text style={styles.costValue}>
+                            ${entry.appointmentFee.toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={styles.costLabel}>Appointment fee shared during booking</Text>
+                    )}
                   </View>
-                </View>
-              </Pressable>
+                </Pressable>
+              </LiquidGlassCard>
             );
           })}
         </View>
       </LiquidGlassCard>
       {providerTouched && !selectedProviderId ? (
-        <Text style={styles.validationText}>Please select evaluation provider</Text>
+        <Text style={styles.validationText}>Please select a provider</Text>
       ) : null}
     </>
   );
@@ -678,14 +934,14 @@ export const ObservationalToolScreen: React.FC = () => {
       interactive
       style={[styles.glassCard, styles.emptyStateCard]}
       fallbackStyle={styles.glassCardFallback}>
-      <Image source={definition.emptyState.image} style={styles.emptyStateImage} />
-      <Text style={styles.emptyStateTitle}>{definition.emptyState.title}</Text>
-      <Text style={styles.emptyStateMessage}>{definition.emptyState.message}</Text>
+      <Image source={displayDefinition.emptyState.image || Images.otNoProviders} style={styles.emptyStateImage} />
+      <Text style={styles.emptyStateTitle}>{displayDefinition.emptyState.title}</Text>
+      <Text style={styles.emptyStateMessage}>{displayDefinition.emptyState.message}</Text>
     </LiquidGlassCard>
   );
 
   const renderProvidersSection = () =>
-    showProviders ? renderProvidersCard() : renderProvidersEmptyState();
+    providerEntries.length > 0 ? renderProvidersCard() : renderProvidersEmptyState();
 
   const renderLandingStage = () => (
     <>
@@ -696,16 +952,20 @@ export const ObservationalToolScreen: React.FC = () => {
         fallbackStyle={styles.glassCardFallback}>
         <View style={styles.introImageWrapper}>
           {companionImageSource ? (
-            <Image source={companionImageSource} style={styles.introImage} />
+            <Image
+              source={companionImageSource}
+              style={styles.introImage}
+              onError={() => setCompanionImageError(true)}
+            />
           ) : (
             <View style={styles.initialFallback}>
               <Text style={styles.initialFallbackText}>{companionInitial}</Text>
             </View>
           )}
         </View>
-        <Text style={styles.introTitle}>{definition.overviewTitle}</Text>
+        <Text style={styles.introTitle}>{displayDefinition.overviewTitle}</Text>
         <View style={styles.introParagraphs}>
-          {definition.overviewParagraphs.map(paragraph => (
+          {displayDefinition.overviewParagraphs.map((paragraph: string) => (
             <Text key={paragraph} style={styles.introParagraph}>
               {paragraph}
             </Text>
@@ -715,20 +975,6 @@ export const ObservationalToolScreen: React.FC = () => {
 
       <View style={styles.providersHeader}>
         <Text style={styles.providersTitle}>Evaluation offered by</Text>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>
-            {showProviders ? 'Hide mock providers' : 'Show mock providers'}
-          </Text>
-          <Switch
-            value={showProviders}
-            onValueChange={value => setShowProviders(value)}
-            trackColor={{
-              false: theme.colors.borderMuted,
-              true: theme.colors.primary,
-            }}
-            thumbColor={theme.colors.white}
-          />
-        </View>
       </View>
 
       {renderProvidersSection()}
@@ -742,7 +988,7 @@ export const ObservationalToolScreen: React.FC = () => {
           tintColor={theme.colors.secondary}
           textStyle={styles.nextText}
           shadowIntensity="medium"
-          disabled={showProviders && providerEntries.length === 0}
+          disabled={providerEntries.length === 0}
         />
       </View>
     </>
@@ -754,14 +1000,16 @@ export const ObservationalToolScreen: React.FC = () => {
   return (
     <SafeArea>
       <Header
-        title={definition.name}
+        title={displayDefinition.name}
         showBackButton
         onBack={handleHeaderBack}
       />
       <ScrollView
         ref={scrollViewRef}
+        style={styles.scrollView}
         contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         {renderStage()}
       </ScrollView>
       <DiscardChangesBottomSheet
@@ -775,7 +1023,11 @@ export const ObservationalToolScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    scrollView: {
+      flex: 1,
+    },
     container: {
+      flexGrow: 1,
       padding: theme.spacing['4'],
       paddingBottom: theme.spacing['20'],
       gap: theme.spacing['4'],
@@ -859,17 +1111,6 @@ const createStyles = (theme: any) =>
       color: theme.colors.white,
       textAlign: 'center',
     },
-    toggleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: theme.spacing['2'],
-    },
-    toggleLabel: {
-      ...theme.typography.body12,
-      color: theme.colors.textSecondary,
-      flex: 1,
-    },
     providersCard: {
       gap: theme.spacing['3'],
     },
@@ -878,26 +1119,35 @@ const createStyles = (theme: any) =>
     },
     providerCard: {
       borderRadius: theme.borderRadius.xl,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderWidth: 0,
+      borderColor: 'transparent',
       backgroundColor: theme.colors.cardBackground,
       overflow: 'hidden',
     },
+    providerInner: {
+      overflow: 'hidden',
+      borderRadius: theme.borderRadius.xl,
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
     providerCardSelected: {
       borderColor: theme.colors.primary,
-      borderWidth: 1,
+      borderWidth: 1.5,
       ...theme.shadows.medium,
     },
     providerImage: {
-      width: '100%',
-      height: theme.spacing['35'],
+      width: theme.spacing['32'],
+      height: '100%',
       resizeMode: 'cover',
+      borderRadius: theme.borderRadius.lg,
     },
     providerImageFallback: {
-      height: theme.spacing['35'],
+      width: theme.spacing['32'],
+      height: '100%',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.lightBlueBackground,
+      borderRadius: theme.borderRadius.lg,
     },
     providerImageFallbackText: {
       ...theme.typography.h3,
@@ -907,10 +1157,26 @@ const createStyles = (theme: any) =>
     providerContent: {
       padding: theme.spacing['4'],
       gap: theme.spacing['2'],
+      flex: 1,
     },
     providerName: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
+    },
+    providerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+      flexWrap: 'wrap',
+    },
+    serviceBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.primaryTint,
+      ...theme.typography.labelXxsBold,
+      color: theme.colors.primary,
     },
     providerSubtitle: {
       ...theme.typography.body12,
@@ -974,12 +1240,13 @@ const createStyles = (theme: any) =>
     },
     stepHeroWrapper: {
       alignSelf: 'center',
-      width: theme.spacing['22'],
-      height: theme.spacing['22'],
+      width: theme.spacing['20'],
+      height: theme.spacing['20'],
       borderRadius: theme.borderRadius.full,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.lightBlueBackground,
     },
     stepHero: {
       width: '100%',

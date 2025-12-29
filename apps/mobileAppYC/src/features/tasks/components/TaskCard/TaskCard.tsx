@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   StyleSheet,
   Text,
@@ -14,6 +14,8 @@ import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 import type {TaskCategory, TaskStatus} from '@/features/tasks/types';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 const calculateNearestDosageTime = (dosages: Array<{time: string; dosage: string}>): string | null => {
   if (!dosages || dosages.length === 0) return null;
@@ -131,6 +133,49 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     return calculateNearestDosageTime(details.dosages);
   }, [isMedicationTask, details?.dosages]);
 
+  const observationalToolLabel = useMemo(() => {
+    if (category !== 'health' || details?.taskType !== 'take-observational-tool') {
+      return null;
+    }
+    const raw = details.toolType;
+    const resolved = resolveObservationalToolLabel(raw);
+    const looksLikeId = typeof resolved === 'string' && /^[a-f0-9]{24}$/i.test(resolved);
+    return looksLikeId ? 'Observational tool' : resolved;
+  }, [category, details]);
+
+  const [resolvedOtLabel, setResolvedOtLabel] = useState<string | null>(observationalToolLabel);
+
+  useEffect(() => {
+    let active = true;
+    const maybeFetchOt = async () => {
+      if (
+        category !== 'health' ||
+        details?.taskType !== 'take-observational-tool' ||
+        !details.toolType
+      ) {
+        return;
+      }
+      if (observationalToolLabel && observationalToolLabel !== 'Observational tool') {
+        setResolvedOtLabel(observationalToolLabel);
+        return;
+      }
+      try {
+        const def = await observationToolApi.get(details.toolType);
+        if (active && def?.name) {
+          setResolvedOtLabel(def.name);
+        }
+      } catch {
+        if (active) {
+          setResolvedOtLabel('Observational tool');
+        }
+      }
+    };
+    maybeFetchOt();
+    return () => {
+      active = false;
+    };
+  }, [category, details, observationalToolLabel]);
+
   const formattedNearestDosage = useMemo(() => {
     if (!nearestDosageTime) return null;
     try {
@@ -179,7 +224,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     if (category === 'health' && details.taskType === 'take-observational-tool') {
       return (
         <View style={styles.detailsSection}>
-          <Text style={styles.detailLabel}>📋 Tool: {details.toolType}</Text>
+          <Text style={styles.detailLabel}>📋 Tool: {resolvedOtLabel ?? 'Observational tool'}</Text>
         </View>
       );
     }
