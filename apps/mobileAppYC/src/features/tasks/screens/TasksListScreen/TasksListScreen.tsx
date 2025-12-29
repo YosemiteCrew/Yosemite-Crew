@@ -18,6 +18,7 @@ import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import type {Task} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {createEmptyStateStyles} from '@/shared/utils/screenStyles';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksList'>;
 type Route = RouteProp<TaskStackParamList, 'TasksList'>;
@@ -212,8 +213,10 @@ export const TasksListScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const emptyStyles = createEmptyStateStyles(theme);
+  return StyleSheet.create({
+    ...emptyStyles,
     list: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -230,15 +233,10 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['3'],
     },
     emptyContainer: {
+      ...emptyStyles.emptyContainer,
       paddingVertical: theme.spacing['12'],
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    emptyText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
     },
   });
+};
 
 export default TasksListScreen;

@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {View, Text, ScrollView, StyleSheet} from 'react-native';
+import {View, Text, ScrollView} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -16,14 +16,19 @@ import {fetchDocuments} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
 import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
-import {createSearchAndSelectorStyles} from '@/shared/utils/screenStyles';
+import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
 export const DocumentsScreen: React.FC = () => {
   const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
   const navigation = useNavigation<DocumentsNavigationProp>();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useCommonScreenStyles(theme, themeArg => ({
+    contentContainer: {
+      paddingHorizontal: themeArg.spacing['6'],
+      paddingBottom: themeArg.spacing['32'],
+    },
+  }));
 
   // Get documents from Redux
   const documents = useSelector((state: RootState) => state.documents.documents);
@@ -151,26 +156,3 @@ export const DocumentsScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createSearchAndSelectorStyles(theme),
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    contentContainer: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['32'], // Extra padding for tab bar and bottom breathing room
-    },
-    section: {
-      marginBottom: theme.spacing['4'],
-    },
-    categoryTile: {
-      width: '100%',
-    },
-    sectionTitle: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['3'],
-    },
-  });

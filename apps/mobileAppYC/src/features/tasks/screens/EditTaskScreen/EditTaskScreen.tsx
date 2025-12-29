@@ -25,6 +25,7 @@ import {getTaskFormSheetProps} from '@/features/tasks/utils/getTaskFormSheetProp
 import {buildTaskDraftFromForm} from '@/features/tasks/services/taskService';
 import {uploadDocumentFiles} from '@/features/documents/documentSlice';
 import {createCalendarEventForTask, removeCalendarEvents} from '@/features/tasks/services/calendarSyncService';
+import {getAssignedUserName} from '@/features/tasks/utils/userHelpers';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'EditTask'>;
 type Route = RouteProp<TaskStackParamList, 'EditTask'>;
@@ -61,31 +62,6 @@ export const EditTaskScreen: React.FC = () => {
     openSheet,
     companions,
   } = hookData;
-
-  // Helper to get assigned user name
-  const getAssignedUserName = (userId: string | null | undefined): string | undefined => {
-    if (!userId) return undefined;
-
-    // Check current user
-    const currentUserId = currentUser?.parentId ?? currentUser?.id;
-    if (userId === currentUserId) {
-      return currentUser?.firstName || currentUser?.email || 'You';
-    }
-
-    // Check co-parents
-    const coParent = coParents.find(cp => {
-      const cpId = cp.parentId || cp.id || cp.userId;
-      return cpId === userId;
-    });
-
-    if (coParent) {
-      return [coParent.firstName, coParent.lastName].filter(Boolean).join(' ').trim() ||
-        coParent.email ||
-        'Co-parent';
-    }
-
-    return undefined;
-  };
 
   // Smart back handler that navigates back without resetting the stack
   const handleSmartBack = React.useCallback(() => {
@@ -129,7 +105,7 @@ export const EditTaskScreen: React.FC = () => {
         const companionName = companion?.name || 'Companion';
 
         // Get assigned user name
-        const assignedToName = getAssignedUserName(formData.assignedTo);
+        const assignedToName = getAssignedUserName(formData.assignedTo, currentUser, coParents);
 
         // WORKAROUND: Backend doesn't return calendarProvider, so use formData value
         const taskWithCalendar = {

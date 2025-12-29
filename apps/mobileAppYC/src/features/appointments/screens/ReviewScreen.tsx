@@ -196,13 +196,15 @@ export const ReviewScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    padding: theme.spacing['4'],
-    paddingBottom: theme.spacing['24'],
-  },
-  ...createLiquidGlassHeaderStyles(theme),
-  headerSection: {
+const createStyles = (theme: any) => {
+  const headerStyles = createLiquidGlassHeaderStyles(theme);
+  return StyleSheet.create({
+    container: {
+      padding: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+    },
+    ...headerStyles,
+    headerSection: {
     alignItems: 'center',
     marginBottom: theme.spacing['5'],
   },
@@ -265,6 +267,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   buttonContainer: {
     marginTop: theme.spacing['2'],
   },
-});
+  });
+};
 
 export default ReviewScreen;

@@ -9,7 +9,7 @@ import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {Images} from '@/assets/images';
-import {createScreenContainerStyles, createErrorContainerStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {createAllCommonStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -159,35 +159,18 @@ export const DocumentPreviewScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createScreenContainerStyles(theme),
-    ...createErrorContainerStyles(theme),
-    ...createLiquidGlassHeaderStyles(theme),
+const createStyles = (theme: any) => {
+  const commonStyles = createAllCommonStyles(theme);
+  const headerStyles = createLiquidGlassHeaderStyles(theme);
+  return StyleSheet.create({
+    ...commonStyles,
+    ...headerStyles,
     contentContainer: {
+      ...commonStyles.contentContainer,
       paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['6'],
-    },
-    infoCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['4'],
-      marginTop: theme.spacing['2'],
-      marginBottom: theme.spacing['4'],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-    infoTitle: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['2'],
-    },
-    infoText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing['1'],
     },
     documentPreview: {
       gap: theme.spacing['4'],
     },
   });
+};

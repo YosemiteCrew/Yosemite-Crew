@@ -87,7 +87,7 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
     onMonthChange(nextMonth);
   }, [currentMonth, onMonthChange]);
 
-  const getItemLayout = useCallback((_: any, index: number) => {
+  const getItemLayout = useCallback((_data: any, index: number) => {
     const itemLength = 70.5;
     const gap = 8;
     return {

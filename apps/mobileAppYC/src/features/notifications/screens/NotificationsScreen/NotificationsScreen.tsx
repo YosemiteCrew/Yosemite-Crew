@@ -338,9 +338,10 @@ export const NotificationsScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createLiquidGlassHeaderStyles(theme),
+const createStyles = (theme: any) => {
+  const headerStyles = createLiquidGlassHeaderStyles(theme);
+  return StyleSheet.create({
+    ...headerStyles,
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -422,3 +423,4 @@ const createStyles = (theme: any) =>
       lineHeight: theme.typography.subtitleRegular14.lineHeight,
     },
   });
+};

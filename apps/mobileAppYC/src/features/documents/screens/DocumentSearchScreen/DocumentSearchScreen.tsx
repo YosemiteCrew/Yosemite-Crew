@@ -13,7 +13,7 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {setSelectedCompanion} from '@/features/companion';
 import {searchDocuments, clearSearchResults} from '@/features/documents/documentSlice';
-import {createScreenContainerStyles, createErrorContainerStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {createAllCommonStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -171,18 +171,15 @@ export const DocumentSearchScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createScreenContainerStyles(theme),
-    ...createErrorContainerStyles(theme),
-    ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
+const createStyles = (theme: any) => {
+  const commonStyles = createAllCommonStyles(theme);
+  const headerStyles = createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']});
+  return StyleSheet.create({
+    ...commonStyles,
+    ...headerStyles,
     contentContainer: {
+      ...commonStyles.contentContainer,
       paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['6'],
-    },
-    searchBar: {
-      marginBottom: theme.spacing['2'],
-      marginInline: theme.spacing['6'],
     },
     selector: {
       marginTop: theme.spacing['2'],
@@ -190,8 +187,8 @@ const createStyles = (theme: any) =>
     },
     loaderContainer: {
       paddingVertical: theme.spacing['8'],
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
     emptyState: {
       paddingVertical: theme.spacing['8'],
@@ -210,5 +207,6 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['10'],
     },
   });
+};
 
 export default DocumentSearchScreen;

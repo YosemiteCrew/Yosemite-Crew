@@ -308,8 +308,9 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const headerStyles = createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']});
+  return StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -322,7 +323,7 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['8'],
       gap: theme.spacing['4'],
     },
-    ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
+    ...headerStyles,
     searchContainer: {
       marginHorizontal: theme.spacing['6'],
     },
@@ -465,5 +466,6 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
   });
+};
 
 export default FAQScreen;

@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {View, Text, ScrollView, StyleSheet} from 'react-native';
+import {View, Text, ScrollView} from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/shared/components/common';
@@ -15,12 +15,7 @@ import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {fetchDocuments} from '@/features/documents/documentSlice';
 import {formatLabel} from '@/shared/utils/helpers';
-import {
-  createScreenContainerStyles,
-  createErrorContainerStyles,
-  createEmptyStateStyles,
-  createSearchAndSelectorStyles,
-} from '@/shared/utils/screenStyles';
+import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
 import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
@@ -30,7 +25,11 @@ type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail
 
 export const CategoryDetailScreen: React.FC = () => {
   const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useCommonScreenStyles(theme, themeArg => ({
+    contentContainer: {
+      paddingHorizontal: themeArg.spacing['6'],
+    },
+  }));
   const navigation = useNavigation<CategoryDetailNavigationProp>();
   const route = useRoute<CategoryDetailRouteProp>();
 
@@ -184,17 +183,3 @@ export const CategoryDetailScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createScreenContainerStyles(theme),
-    ...createErrorContainerStyles(theme),
-    ...createEmptyStateStyles(theme),
-    ...createSearchAndSelectorStyles(theme),
-    contentContainer: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['6'],
-    },
-    accordionItem: {
-      width: '100%',
-    },
-  });

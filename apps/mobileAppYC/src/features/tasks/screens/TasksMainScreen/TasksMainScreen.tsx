@@ -1,17 +1,15 @@
 import React, {useEffect, useMemo, useState, useCallback} from 'react';
 import {
   ScrollView,
-  StyleSheet,
   Text,
   View,
-  Platform,
 } from 'react-native';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {TaskCard} from '@/features/tasks/components';
 import {TaskMonthDateSelector} from '@/features/tasks/components/shared/TaskMonthDateSelector';
@@ -31,6 +29,7 @@ import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import type {TaskCategory} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksMain'>;
 
@@ -40,7 +39,12 @@ export const TasksMainScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useCommonScreenStyles(theme, themeArg => ({
+    contentContainer: {
+      paddingTop: themeArg.spacing['2'],
+      paddingBottom: themeArg.spacing['28'],
+    },
+  }));
 
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector(
@@ -190,19 +194,7 @@ export const TasksMainScreen: React.FC = () => {
         <View style={styles.categoryHeader}>
           <Text style={styles.categoryTitle}>{resolveCategoryLabel(category)}</Text>
           {taskCount > 0 && (
-            <View style={styles.viewMoreShadowWrapper}>
-              <LiquidGlassButton
-                onPress={() => handleViewMore(category)}
-                size="small"
-                compact
-                glassEffect="clear"
-                borderRadius="full"
-                style={styles.viewMoreButton}
-                textStyle={styles.viewMoreText}
-                shadowIntensity="none"
-                title="View more"
-              />
-            </View>
+            <ViewMoreButton onPress={() => handleViewMore(category)} />
           )}
         </View>
 
@@ -299,90 +291,3 @@ export const TasksMainScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    contentContainer: {
-      paddingTop: theme.spacing['2'],
-      paddingBottom: theme.spacing['28'],
-    },
-    companionSelectorTask: {
-      marginTop: theme.spacing['4'],
-      marginBottom: theme.spacing['4'],
-      paddingHorizontal: theme.spacing['4'],
-    },
-    categorySection: {
-      marginBottom: theme.spacing['6'],
-      paddingHorizontal: theme.spacing['4'],
-    },
-    categoryHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: theme.spacing['3'],
-    },
-    categoryTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      fontWeight: '600',
-    },
-    viewMoreText: {
-      ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
-    },
-    viewMoreButton: {
-      alignSelf: 'flex-start',
-      flexGrow: 0,
-      flexShrink: 0,
-      paddingHorizontal: theme.spacing['3'],
-      paddingVertical: theme.spacing['1'],
-      minHeight: theme.spacing['7'],
-      minWidth: 0,
-      borderWidth: 0,
-      borderColor: 'transparent',
-      ...theme.shadows.sm,
-      shadowColor: theme.colors.neutralShadow,
-    },
-    viewMoreShadowWrapper: {
-      borderRadius: theme.borderRadius.full,
-      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
-    },
-    emptyCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingVertical: theme.spacing['6'],
-      paddingHorizontal: theme.spacing['4'],
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    emptyText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-    },
-    emptyStateContainer: {
-      marginHorizontal: theme.spacing['4'],
-      marginVertical: theme.spacing['8'],
-      paddingVertical: theme.spacing['10'],
-      paddingHorizontal: theme.spacing['4'],
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    emptyStateTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['2'],
-      fontWeight: '600',
-    },
-    emptyStateText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-  });

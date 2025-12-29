@@ -517,8 +517,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const headerStyles = createLiquidGlassHeaderStyles(theme);
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -532,7 +533,7 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['5'],
     },
-    ...createLiquidGlassHeaderStyles(theme),
+    ...headerStyles,
     companionsCard: {
       gap: theme.spacing['4'],
     },
@@ -631,3 +632,4 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.secondary,
     },
   });
+};

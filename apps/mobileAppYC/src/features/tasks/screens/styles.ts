@@ -1,21 +1,20 @@
 import {StyleSheet} from 'react-native';
 import {createFormStyles} from '@/shared/utils/formStyles';
+import {createScreenContainerStyles, createErrorContainerStyles, createSearchAndSelectorStyles} from '@/shared/utils/screenStyles';
 
 export const createTaskFormStyles = (theme: any) => {
   const formStyles = createFormStyles(theme);
+  const screenStyles = createScreenContainerStyles(theme);
+  const errorStyles = createErrorContainerStyles(theme);
+  const selectorStyles = createSearchAndSelectorStyles(theme);
 
   return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
+    ...screenStyles,
+    ...errorStyles,
+    ...selectorStyles,
     contentContainer: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['20'],
-    },
-    companionSelector: {
-      marginTop: theme.spacing['4'],
-      marginBottom: theme.spacing['4'],
     },
     ...formStyles,
     input: {
@@ -32,23 +31,13 @@ export const createTaskFormStyles = (theme: any) => {
       backgroundColor: theme.colors.background,
     },
     saveButton: {
-      width: '100%',
+      width: '100%' as const,
       marginTop: theme.spacing['4'],
     },
     saveButtonText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.white,
     },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing['4'],
-    },
-    errorContainerText: {
-      ...theme.typography.bodyLarge,
-      color: theme.colors.error,
-      textAlign: 'center',
-    },
+    errorText: errorStyles.errorText,
   });
 };

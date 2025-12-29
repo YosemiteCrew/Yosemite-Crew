@@ -31,26 +31,27 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const headerStyles = useMemo(() => createLiquidGlassHeaderStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View
-        style={styles.topSection}
+        style={headerStyles.topSection}
         onLayout={event => {
           const height = event.nativeEvent.layout.height;
           if (height !== topGlassHeight) {
             setTopGlassHeight(height);
           }
         }}>
-        <View style={styles.topGlassShadowWrapper}>
+        <View style={headerStyles.topGlassShadowWrapper}>
           <LiquidGlassCard
             glassEffect="clear"
             interactive={false}
             shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
+            style={[headerStyles.topGlassCard, {paddingTop: insets.top}]}
+            fallbackStyle={headerStyles.topGlassFallback}>
             <Header
               title={headerTitle}
               showBackButton={showBackButton}
@@ -60,13 +61,10 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
           </LiquidGlassCard>
         </View>
       </View>
-
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          topGlassHeight
-            ? {paddingTop: topGlassHeight + theme.spacing['3']}
-            : null,
+          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['3']} : null,
         ]}
         showsVerticalScrollIndicator={false}>
         {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
@@ -88,11 +86,10 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
+    safeArea: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    ...createLiquidGlassHeaderStyles(theme),
     scrollContent: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
