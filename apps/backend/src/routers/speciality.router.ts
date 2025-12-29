@@ -10,6 +10,9 @@ router.get(
   SpecialityController.getAllByOrganizationId,
 );
 router.put("/:id", authorizeCognito, SpecialityController.update);
-router.delete("/:organisationId/:specialityId", SpecialityController.deleteSpeciality)
+router.delete(
+  "/:organisationId/:specialityId",
+  SpecialityController.deleteSpeciality,
+);
 
 export default router;

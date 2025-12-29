@@ -102,7 +102,10 @@ export const ObservationToolSubmissionService = {
     input: CreateObservationToolSubmissionInput,
   ): Promise<ObservationToolSubmissionDocument> {
     if (!input.toolId) {
-      throw new ObservationToolSubmissionServiceError("toolId is required", 400);
+      throw new ObservationToolSubmissionServiceError(
+        "toolId is required",
+        400,
+      );
     }
     if (!input.companionId) {
       throw new ObservationToolSubmissionServiceError(
@@ -117,7 +120,10 @@ export const ObservationToolSubmissionService = {
       );
     }
     if (!input.answers || typeof input.answers !== "object") {
-      throw new ObservationToolSubmissionServiceError("answers are required", 400);
+      throw new ObservationToolSubmissionServiceError(
+        "answers are required",
+        400,
+      );
     }
 
     const tool = await ObservationToolDefinitionModel.findById(
@@ -217,7 +223,10 @@ export const ObservationToolSubmissionService = {
     ).exec();
 
     if (!doc) {
-      throw new ObservationToolSubmissionServiceError("Submission not found", 404);
+      throw new ObservationToolSubmissionServiceError(
+        "Submission not found",
+        404,
+      );
     }
 
     // ✅ Optional enforcement: only 1 submission linked to an appointment
@@ -275,7 +284,10 @@ export const ObservationToolSubmissionService = {
 
   async getByTaskId(taskId: string) {
     if (!taskId) {
-      throw new ObservationToolSubmissionServiceError("taskId is required", 400);
+      throw new ObservationToolSubmissionServiceError(
+        "taskId is required",
+        400,
+      );
     }
 
     return ObservationToolSubmissionModel.findOne({ taskId }).exec();
@@ -334,10 +346,7 @@ export const ObservationToolSubmissionService = {
         ? Object.fromEntries(
             tool.fields
               .slice(0, 5)
-              .map<[string, unknown]>((f) => [
-                f.key,
-                submissionAnswers[f.key],
-              ])
+              .map<[string, unknown]>((f) => [f.key, submissionAnswers[f.key]])
               .filter(([, v]) => v !== undefined),
           )
         : undefined;

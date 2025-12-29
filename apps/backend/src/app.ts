@@ -16,7 +16,7 @@ export function createApp() {
 
   app.set("trust proxy", 1);
   app.use(limiter);
-  
+
   app.post(
     "/v1/stripe/webhook",
     express.raw({ type: "application/json" }),

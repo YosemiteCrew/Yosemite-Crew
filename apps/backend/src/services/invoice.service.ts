@@ -189,8 +189,10 @@ export const InvoiceService = {
       { session },
     );
 
-    const notificationPayload =
-      NotificationTemplates.Payment.PAYMENT_PENDING(totalPayable,input.currency);
+    const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
+      totalPayable,
+      input.currency,
+    );
     await NotificationService.sendToUser(input.parentId, notificationPayload);
 
     return invoice;
@@ -233,7 +235,10 @@ export const InvoiceService = {
 
     await NotificationService.sendToUser(
       appointment.companion.parent.id,
-      NotificationTemplates.Payment.PAYMENT_PENDING(invoice.totalAmount,invoice.currency),
+      NotificationTemplates.Payment.PAYMENT_PENDING(
+        invoice.totalAmount,
+        invoice.currency,
+      ),
     );
 
     return toDomain(invoice);

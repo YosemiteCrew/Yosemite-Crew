@@ -317,7 +317,10 @@ export const OrganisationInviteService = {
       payload.organisationId,
       "Organisation identifier",
     );
-    if (!Array.isArray(payload.departmentIds) || payload.departmentIds.length === 0) {
+    if (
+      !Array.isArray(payload.departmentIds) ||
+      payload.departmentIds.length === 0
+    ) {
       throw new OrganisationInviteServiceError(
         "At least one department must be specified.",
         400,

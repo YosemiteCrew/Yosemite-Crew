@@ -80,7 +80,7 @@ router.get(
 router.get(
   "/mobile/forms/:organizationId/:serivceId/consent-form",
   authorizeCognitoMobile,
-  FormController.getConsentFormForParent
-)
+  FormController.getConsentFormForParent,
+);
 
 export default router;

@@ -437,7 +437,8 @@ export const StripeService = {
     await InvoiceModel.updateOne({ _id: invoice._id }, { status: "REFUNDED" });
 
     const notificationPayload = NotificationTemplates.Payment.REFUND_ISSUED(
-      charge.amount / 100, charge.currency
+      charge.amount / 100,
+      charge.currency,
     );
     const parentId = invoice.parentId;
     await NotificationService.sendToUser(parentId!, notificationPayload);

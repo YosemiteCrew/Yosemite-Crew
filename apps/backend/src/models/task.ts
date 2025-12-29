@@ -30,11 +30,11 @@ interface TaskMongo {
     notes?: string;
     doses?: {
       dosage?: string;
-      time?: string;       
-      frequency?: string;  
+      time?: string;
+      frequency?: string;
     }[];
   };
-  
+
   observationToolId?: string;
 
   dueAt: Date;
@@ -73,11 +73,11 @@ interface TaskMongo {
 const MedicationDoseSchema = new Schema(
   {
     dosage: { type: String, required: true },
-    time: { type: String },        // Optional: HH:mm
-    frequency: { type: String },   // Optional: BID, TID, DAILY
+    time: { type: String }, // Optional: HH:mm
+    frequency: { type: String }, // Optional: BID, TID, DAILY
   },
   { _id: false },
-)
+);
 
 const MedicationSchema = new Schema(
   {

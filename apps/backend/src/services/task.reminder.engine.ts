@@ -6,7 +6,7 @@ import timezone from "dayjs/plugin/timezone";
 import TaskModel from "src/models/task";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
-import CompanionModel from "src/models/companion"
+import CompanionModel from "src/models/companion";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -52,14 +52,13 @@ export const TaskReminderEngine = {
 
         const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
-        const companion = await CompanionModel.findById(task.companionId!)
+        const companion = await CompanionModel.findById(task.companionId!);
 
-        const payload =
-          NotificationTemplates.Task.TASK_DUE_REMINDER(
-            companion?.name!,
-            task.name,
-            humanTime,
-          );
+        const payload = NotificationTemplates.Task.TASK_DUE_REMINDER(
+          companion?.name!,
+          task.name,
+          humanTime,
+        );
 
         const result = await NotificationService.sendToUser(
           task.assignedTo,
@@ -67,15 +66,11 @@ export const TaskReminderEngine = {
         );
 
         // ✅ Mark reminder as sent
-        task.reminder!.scheduledNotificationId =
-          result?.[0]?.token ?? "sent";
+        task.reminder!.scheduledNotificationId = result?.[0]?.token ?? "sent";
 
         await task.save();
       } catch (err) {
-        console.error(
-          `Failed reminder for task ${String(task._id)}`,
-          err,
-        );
+        console.error(`Failed reminder for task ${String(task._id)}`, err);
       }
     }
   },

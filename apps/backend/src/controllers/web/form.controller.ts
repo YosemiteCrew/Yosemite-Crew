@@ -265,9 +265,7 @@ export const FormController = {
       const serviceId = req.params.serivceId;
 
       const species =
-        typeof req.query.species === "string"
-          ? req.query.species
-          : undefined;
+        typeof req.query.species === "string" ? req.query.species : undefined;
 
       const form = await FormService.getConsentFormForParent(orgId, {
         serviceId,

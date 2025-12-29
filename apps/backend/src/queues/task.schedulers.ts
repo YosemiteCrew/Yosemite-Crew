@@ -1,8 +1,5 @@
 import logger from "src/utils/logger";
-import {
-  TaskRecurrenceQueue,
-  TaskReminderQueue,
-} from "./task.queues";
+import { TaskRecurrenceQueue, TaskReminderQueue } from "./task.queues";
 
 export async function registerTaskSchedulers() {
   // 🔄 Recurrence: every 6 hours

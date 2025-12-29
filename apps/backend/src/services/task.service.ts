@@ -65,10 +65,12 @@ const sanitizeMedication = (input?: MedicationInput | null) => {
 
   const name = typeof input.name === "string" ? input.name.trim() : undefined;
   const type = typeof input.type === "string" ? input.type.trim() : undefined;
-  const notes = typeof input.notes === "string" ? input.notes.trim() : undefined;
+  const notes =
+    typeof input.notes === "string" ? input.notes.trim() : undefined;
 
   // If everything is empty, store nothing
-  if (!name && !type && !notes && (!doses || doses.length === 0)) return undefined;
+  if (!name && !type && !notes && (!doses || doses.length === 0))
+    return undefined;
 
   return {
     name,
@@ -219,7 +221,9 @@ const buildRecurrence = (input?: {
 };
 
 export const TaskService = {
-  async createFromLibrary(input: CreateFromLibraryInput): Promise<TaskDocument> {
+  async createFromLibrary(
+    input: CreateFromLibraryInput,
+  ): Promise<TaskDocument> {
     const library = await TaskLibraryDefinitionModel.findById(
       input.libraryTaskId,
     ).exec();
@@ -290,18 +294,21 @@ export const TaskService = {
     }
 
     if (template.organisationId !== input.organisationId) {
-      throw new TaskServiceError("Template does not belong to organisation", 400);
+      throw new TaskServiceError(
+        "Template does not belong to organisation",
+        400,
+      );
     }
 
     const audience: TaskAudience =
       input.audienceOverride ??
       (template.defaultRole === "PARENT" ? "PARENT_TASK" : "EMPLOYEE_TASK");
 
-
     assertCompanionRequirement({
       audience,
       companionId: input.companionId,
-      medication: input.medication ?? (template.defaultMedication as MedicationInput),
+      medication:
+        input.medication ?? (template.defaultMedication as MedicationInput),
       observationToolId:
         input.observationToolId ?? template.defaultObservationToolId,
     });
@@ -329,7 +336,10 @@ export const TaskService = {
       input.reminder ||
       (template.defaultReminderOffsetMinutes == null
         ? undefined
-        : { enabled: true, offsetMinutes: template.defaultReminderOffsetMinutes });
+        : {
+            enabled: true,
+            offsetMinutes: template.defaultReminderOffsetMinutes,
+          });
 
     const doc = await TaskModel.create({
       organisationId: input.organisationId,
@@ -350,7 +360,9 @@ export const TaskService = {
       name: input.nameOverride ?? template.name,
       description: input.descriptionOverride ?? template.description,
 
-      medication: sanitizeMedication(input.medication) ?? sanitizeMedication(template.defaultMedication as MedicationInput),
+      medication:
+        sanitizeMedication(input.medication) ??
+        sanitizeMedication(template.defaultMedication as MedicationInput),
       observationToolId:
         input.observationToolId ?? template.defaultObservationToolId,
 
@@ -448,11 +460,14 @@ export const TaskService = {
     }
 
     if (updates.name !== undefined) task.name = updates.name;
-    if (updates.description !== undefined) task.description = updates.description;
-    if (updates.additionalNotes !== undefined) task.additionalNotes = updates.additionalNotes;
+    if (updates.description !== undefined)
+      task.description = updates.description;
+    if (updates.additionalNotes !== undefined)
+      task.additionalNotes = updates.additionalNotes;
     if (updates.dueAt !== undefined) task.dueAt = updates.dueAt;
 
-    if (updates.timezone !== undefined) task.timezone = updates.timezone ?? undefined;
+    if (updates.timezone !== undefined)
+      task.timezone = updates.timezone ?? undefined;
 
     // ✅ medication now supports multiple doses
     if (updates.medication !== undefined) {
@@ -492,20 +507,20 @@ export const TaskService = {
       if (updates.recurrence === null) {
         task.recurrence = undefined;
       } else if (task.recurrence) {
-          task.recurrence.type = updates.recurrence.type;
-          task.recurrence.cronExpression =
-            updates.recurrence.cronExpression ?? task.recurrence.cronExpression;
-          task.recurrence.endDate =
-            updates.recurrence.endDate ?? task.recurrence.endDate;
-        } else {
-          task.recurrence = {
-            type: updates.recurrence.type,
-            isMaster: true,
-            masterTaskId: undefined,
-            cronExpression: updates.recurrence.cronExpression ?? undefined,
-            endDate: updates.recurrence.endDate ?? undefined,
-          };
-        }
+        task.recurrence.type = updates.recurrence.type;
+        task.recurrence.cronExpression =
+          updates.recurrence.cronExpression ?? task.recurrence.cronExpression;
+        task.recurrence.endDate =
+          updates.recurrence.endDate ?? task.recurrence.endDate;
+      } else {
+        task.recurrence = {
+          type: updates.recurrence.type,
+          isMaster: true,
+          masterTaskId: undefined,
+          cronExpression: updates.recurrence.cronExpression ?? undefined,
+          endDate: updates.recurrence.endDate ?? undefined,
+        };
+      }
     }
 
     await task.save();

@@ -191,24 +191,24 @@ export const ObservationToolSubmissionController = {
 
   // PMS — link submission to evaluation appointment
   linkAppointment: async (req: Request, res: Response) => {
-  try {
-    const submissionId = req.params.submissionId;
-    const { appointmentId, enforceSingle } = req.body as {
-      appointmentId: string;
-      enforceSingle?: boolean;
-    };
+    try {
+      const submissionId = req.params.submissionId;
+      const { appointmentId, enforceSingle } = req.body as {
+        appointmentId: string;
+        enforceSingle?: boolean;
+      };
 
-    const updated = await ObservationToolSubmissionService.linkToAppointment({
-      submissionId,
-      appointmentId,
-      enforceSingleSubmissionPerAppointment: enforceSingle === true,
-    });
+      const updated = await ObservationToolSubmissionService.linkToAppointment({
+        submissionId,
+        appointmentId,
+        enforceSingleSubmissionPerAppointment: enforceSingle === true,
+      });
 
-    res.json(updated);
-  } catch (error) {
-    handleError(error, res);
-  }
-},
+      res.json(updated);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
 
   // PMS — list submissions attached to one appointment
   listForAppointment: async (req: Request, res: Response) => {
@@ -227,9 +227,8 @@ export const ObservationToolSubmissionController = {
   getByTaskId: async (req: Request, res: Response) => {
     try {
       const { taskId } = req.params;
-      const submission = await ObservationToolSubmissionService.getByTaskId(
-        taskId,
-      );
+      const submission =
+        await ObservationToolSubmissionService.getByTaskId(taskId);
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
       }
@@ -243,9 +242,8 @@ export const ObservationToolSubmissionController = {
   getPreviewByTaskId: async (req: Request, res: Response) => {
     try {
       const { taskId } = req.params;
-      const preview = await ObservationToolSubmissionService.getPreviewByTaskId(
-        taskId,
-      );
+      const preview =
+        await ObservationToolSubmissionService.getPreviewByTaskId(taskId);
       res.json(preview);
     } catch (error) {
       handleError(error, res);

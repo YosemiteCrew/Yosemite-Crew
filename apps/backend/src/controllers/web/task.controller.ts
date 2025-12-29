@@ -212,8 +212,7 @@ export const TaskController = {
       const actorId = resolveUserId(req);
       const taskId = req.params.taskId;
 
-      const authUser =
-        await AuthUserMobileService.getByProviderUserId(actorId);
+      const authUser = await AuthUserMobileService.getByProviderUserId(actorId);
 
       if (!authUser?.parentId) {
         return res.status(403).json({ message: "Parent account not found" });
@@ -236,8 +235,7 @@ export const TaskController = {
     try {
       const actorId = resolveUserId(req);
 
-      const authUser =
-        await AuthUserMobileService.getByProviderUserId(actorId);
+      const authUser = await AuthUserMobileService.getByProviderUserId(actorId);
 
       if (!authUser?.parentId) {
         return res.status(403).json({ message: "Parent account not found" });

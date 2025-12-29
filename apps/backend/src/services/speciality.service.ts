@@ -342,7 +342,6 @@ export const SpecialityService = {
   },
 
   async deleteSpeciality(specialityId: string, organisationId: string) {
-
     const query = resolveIdQuery(specialityId);
     const orgId = requireOrganizationId(organisationId);
 
@@ -362,5 +361,5 @@ export const SpecialityService = {
     }
 
     await ServiceService.deleteAllBySpecialityId(document._id.toString());
-  }
+  },
 };
