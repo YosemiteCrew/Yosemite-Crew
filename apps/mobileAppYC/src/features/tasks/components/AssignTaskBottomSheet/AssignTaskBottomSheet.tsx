@@ -84,7 +84,7 @@ export const AssignTaskBottomSheet = forwardRef<
 
   const userItems: SelectItem[] = useMemo(() =>
     users.map(user => ({
-      id: user.id,
+      id: user.id!,
       label: user.name,
       avatar: user.avatar,
     })), [users]

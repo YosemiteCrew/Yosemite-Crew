@@ -19,7 +19,7 @@ const ensureCalendarPermission = async (): Promise<boolean> => {
       'Enable calendar access to sync tasks with your calendar.',
       [
         {text: 'Not now', style: 'cancel'},
-        {text: 'Open settings', onPress: () => Linking.openSettings?.()},
+        {text: 'Open settings', onPress: () => { Linking.openSettings?.(); }},
       ],
     );
   };
@@ -50,28 +50,11 @@ const ensureCalendarPermission = async (): Promise<boolean> => {
   }
 };
 
-const mapRecurrence = (
-  task: Task
-): string | undefined => {
-  const freq = (task.frequency || '').toString().toLowerCase();
-  console.log('[Calendar] Mapping recurrence from task.frequency:', {frequency: task.frequency, lowerFreq: freq});
-
-  if (freq === 'daily' || freq === 'every-day') {
-    return 'daily';
-  } else if (freq === 'weekly') {
-    return 'weekly';
-  } else if (freq === 'monthly') {
-    return 'monthly';
-  }
-
-  return undefined;
-};
-
 const buildRecurrenceParams = (
   task: Task
-): {recurrence?: string; recurrenceRule?: any} => {
+): {recurrence?: 'daily' | 'weekly' | 'monthly' | 'yearly'; recurrenceRule?: any} => {
   const freq = (task.frequency || '').toString().toLowerCase();
-  let recurrenceFreq: string | undefined;
+  let recurrenceFreq: 'daily' | 'weekly' | 'monthly' | 'yearly' | undefined;
 
   if (freq === 'daily' || freq === 'every-day') {
     recurrenceFreq = 'daily';
@@ -143,6 +126,94 @@ const parseDosageTime = (timeString: string): {hours: number; minutes: number} |
   }
 };
 
+const buildDosageEventNotes = (
+  task: Task,
+  dosageLabel: string,
+  companionName?: string,
+  assignedToName?: string
+): string => {
+  const parts: string[] = [];
+
+  if (task.description) {
+    parts.push(`📝 ${task.description}`, '');
+  }
+
+  if (task.additionalNote) {
+    parts.push(`💡 Note: ${task.additionalNote}`, '');
+  }
+
+  if ('medicineName' in task.details && task.details.medicineName) {
+    const medicationParts = [
+      `💊 MEDICATION`,
+      `   Medicine: ${task.details.medicineName}`,
+    ];
+    if ('medicineType' in task.details && task.details.medicineType) {
+      medicationParts.push(`   Type: ${task.details.medicineType}`);
+    }
+    medicationParts.push(`   Dosage: ${dosageLabel}`, '');
+    parts.push(...medicationParts);
+  }
+
+  if (companionName) {
+    parts.push(`\n👤 Companion: ${companionName}`);
+  }
+
+  if (assignedToName) {
+    parts.push(`👥 Assigned to: ${assignedToName}`);
+  }
+
+  parts.push('\n\nCreated with Yosemite Crew');
+
+  return parts.join('\n');
+};
+
+const createSingleDosageEvent = async (
+  task: Task,
+  dosage: {id: string; label: string; time: string},
+  alarms: Array<{date: number}> | undefined,
+  recurrenceParams: ReturnType<typeof buildRecurrenceParams>,
+  companionName?: string,
+  assignedToName?: string
+): Promise<string | null> => {
+  const timeInfo = parseDosageTime(dosage.time);
+  if (!timeInfo) {
+    console.warn('[Calendar] Invalid dosage time:', dosage.time);
+    return null;
+  }
+
+  const eventDate = new Date(task.date || new Date());
+  eventDate.setHours(timeInfo.hours, timeInfo.minutes, 0, 0);
+  const eventEnd = new Date(eventDate.getTime() + 30 * 60 * 1000);
+
+  const eventTitle = `${task.title} - ${dosage.label}`;
+  const eventNotes = buildDosageEventNotes(task, dosage.label, companionName, assignedToName);
+
+  console.log('[Calendar] Creating dosage event:', {
+    dosageLabel: dosage.label,
+    time: dosage.time,
+    startDate: eventDate.toISOString(),
+    endDate: eventEnd.toISOString(),
+    recurrence: recurrenceParams.recurrence,
+    recurrenceRule: recurrenceParams.recurrenceRule,
+  });
+
+  const eventId = await RNCalendarEvents.saveEvent(eventTitle, {
+    startDate: eventDate.toISOString(),
+    endDate: eventEnd.toISOString(),
+    notes: eventNotes,
+    allDay: false,
+    alarms,
+    ...(recurrenceParams.recurrence ? {recurrence: recurrenceParams.recurrence} : {}),
+    ...(recurrenceParams.recurrenceRule ? {recurrenceRule: recurrenceParams.recurrenceRule} : {}),
+    calendarId: task.calendarProvider,
+  });
+
+  if (eventId) {
+    console.log('[Calendar] Dosage event created:', eventId);
+  }
+  return eventId;
+};
+
 const createDosageCalendarEvents = async (
   task: Task,
   companionName?: string,
@@ -156,95 +227,26 @@ const createDosageCalendarEvents = async (
   const eventIds: string[] = [];
 
   const recurrenceParams = buildRecurrenceParams(task);
-  const alarms =
-    task.reminderOffsetMinutes != null
-      ? [{date: -Math.abs(task.reminderOffsetMinutes)}]
-      : task.reminderOptions
-        ? [{date: -15}]
-        : undefined;
-
-  // Build common event notes
-  const buildEventNotes = (dosageLabel: string): string => {
-    const parts: string[] = [];
-
-    // Add task description
-    if (task.description) {
-      parts.push(`📝 ${task.description}`);
-      parts.push('');
-    }
-
-    // Add additional notes
-    if (task.additionalNote) {
-      parts.push(`💡 Note: ${task.additionalNote}`);
-      parts.push('');
-    }
-
-    // Add medication details
-    if ('medicineName' in task.details && task.details.medicineName) {
-      parts.push(`💊 MEDICATION`);
-      parts.push(`   Medicine: ${task.details.medicineName}`);
-      if ('medicineType' in task.details && task.details.medicineType) {
-        parts.push(`   Type: ${task.details.medicineType}`);
-      }
-      parts.push(`   Dosage: ${dosageLabel}`);
-      parts.push('');
-    }
-
-    // Add companion info
-    if (companionName) {
-      parts.push(`\n👤 Companion: ${companionName}`);
-    }
-
-    // Add assigned info
-    if (assignedToName) {
-      parts.push(`👥 Assigned to: ${assignedToName}`);
-    }
-
-    // Add Yosemite Crew branding
-    parts.push('\n\nCreated with Yosemite Crew');
-
-    return parts.join('\n');
-  };
+  let alarms: Array<{date: number}> | undefined;
+  if (task.reminderOffsetMinutes == null) {
+    alarms = task.reminderOptions ? [{date: -15}] : undefined;
+  } else {
+    alarms = [{date: -Math.abs(task.reminderOffsetMinutes)}];
+  }
 
   try {
     for (const dosage of dosages) {
-      const timeInfo = parseDosageTime(dosage.time);
-      if (!timeInfo) {
-        console.warn('[Calendar] Invalid dosage time:', dosage.time);
-        continue;
-      }
-
-      // Create event date with dosage time
-      const eventDate = new Date(task.date || new Date());
-      eventDate.setHours(timeInfo.hours, timeInfo.minutes, 0, 0);
-      const eventEnd = new Date(eventDate.getTime() + 30 * 60 * 1000);
-
-      const eventTitle = `${task.title} - ${dosage.label}`;
-      const eventNotes = buildEventNotes(dosage.label);
-
-      console.log('[Calendar] Creating dosage event:', {
-        dosageLabel: dosage.label,
-        time: dosage.time,
-        startDate: eventDate.toISOString(),
-        endDate: eventEnd.toISOString(),
-        recurrence: recurrenceParams.recurrence,
-        recurrenceRule: recurrenceParams.recurrenceRule,
-      });
-
-      const eventId = await RNCalendarEvents.saveEvent(eventTitle, {
-        startDate: eventDate.toISOString(),
-        endDate: eventEnd.toISOString(),
-        notes: eventNotes,
-        allDay: false,
+      const eventId = await createSingleDosageEvent(
+        task,
+        dosage,
         alarms,
-        ...(recurrenceParams.recurrence ? {recurrence: recurrenceParams.recurrence} : {}),
-        ...(recurrenceParams.recurrenceRule ? {recurrenceRule: recurrenceParams.recurrenceRule} : {}),
-        calendarId: task.calendarProvider,
-      });
+        recurrenceParams,
+        companionName,
+        assignedToName
+      );
 
       if (eventId) {
         eventIds.push(eventId);
-        console.log('[Calendar] Dosage event created:', eventId);
       }
     }
 
@@ -253,7 +255,6 @@ const createDosageCalendarEvents = async (
       return null;
     }
 
-    // Return comma-separated event IDs
     const joinedIds = eventIds.join(',');
     console.log('[Calendar] All dosage events created:', {count: eventIds.length, ids: joinedIds});
     return joinedIds;
@@ -304,12 +305,12 @@ export const createCalendarEventForTask = async (
     const start = new Date(startDate);
     const end = new Date(start.getTime() + 30 * 60 * 1000);
 
-    const alarms =
-      task.reminderOffsetMinutes != null
-        ? [{date: -Math.abs(task.reminderOffsetMinutes)}]
-        : task.reminderOptions
-          ? [{date: -15}]
-          : undefined;
+    let alarms: Array<{date: number}> | undefined;
+    if (task.reminderOffsetMinutes == null) {
+      alarms = task.reminderOptions ? [{date: -15}] : undefined;
+    } else {
+      alarms = [{date: -Math.abs(task.reminderOffsetMinutes)}];
+    }
 
     const recurrenceParams = buildRecurrenceParams(task);
 
@@ -319,36 +320,36 @@ export const createCalendarEventForTask = async (
 
       // Add task description
       if (task.description) {
-        parts.push(`📝 ${task.description}`);
-        parts.push('');
+        parts.push(`📝 ${task.description}`, '');
       }
 
       // Add additional notes
       if (task.additionalNote) {
-        parts.push(`💡 Note: ${task.additionalNote}`);
-        parts.push('');
+        parts.push(`💡 Note: ${task.additionalNote}`, '');
       }
 
       // Add medication details
       if (task.details && 'medicineName' in task.details && task.details.medicineName) {
-        parts.push(`💊 MEDICATION`);
-        parts.push(`   Medicine: ${task.details.medicineName}`);
+        const medicationParts = [
+          `💊 MEDICATION`,
+          `   Medicine: ${task.details.medicineName}`,
+        ];
         if ('medicineType' in task.details && task.details.medicineType) {
-          parts.push(`   Type: ${task.details.medicineType}`);
+          medicationParts.push(`   Type: ${task.details.medicineType}`);
         }
         if ('dosages' in task.details && task.details.dosages && task.details.dosages.length > 0) {
-          parts.push(`   Dosage Schedule:`);
+          medicationParts.push(`   Dosage Schedule:`);
           task.details.dosages.forEach((d: any) => {
-            parts.push(`      • ${d.label} at ${d.time}`);
+            medicationParts.push(`      • ${d.label} at ${d.time}`);
           });
         }
-        parts.push('');
+        medicationParts.push('');
+        parts.push(...medicationParts);
       }
 
       // Add observational tool info
       if (task.details && 'toolType' in task.details && task.details.toolType) {
-        parts.push(`📋 Observational Tool: ${task.details.toolType}`);
-        parts.push('');
+        parts.push(`📋 Observational Tool: ${task.details.toolType}`, '');
       }
 
       // Add companion info
@@ -444,11 +445,14 @@ export const openCalendarEvent = async (eventId: string, fallbackDate?: string |
     if (event?.calendar) {
       // Library does not provide a native "open" UI; fallback to opening calendar app near event time
     }
-    const targetDate = event?.startDate
-      ? new Date(event.startDate)
-      : fallbackDate
-        ? new Date(fallbackDate)
-        : new Date();
+    let targetDate: Date;
+    if (event?.startDate) {
+      targetDate = new Date(event.startDate);
+    } else if (fallbackDate) {
+      targetDate = new Date(fallbackDate);
+    } else {
+      targetDate = new Date();
+    }
 
     const url =
       Platform.OS === 'ios'

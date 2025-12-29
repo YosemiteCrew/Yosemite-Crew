@@ -29,6 +29,79 @@ import {createCalendarEventForTask} from '@/features/tasks/services/calendarSync
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'AddTask'>;
 type Route = RouteProp<TaskStackParamList, 'AddTask'>;
 
+const prefillBasicFields = (reuseTask: any, updateField: (field: any, value: any) => void) => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  updateField('date', tomorrow);
+  updateField('title', reuseTask.title);
+  updateField('frequency', reuseTask.frequency);
+  updateField('additionalNote', reuseTask.additionalNote || '');
+  updateField('assignedTo', reuseTask.assignedTo ?? null);
+
+  if (reuseTask.time) {
+    const [hours, minutes] = reuseTask.time.split(':').map(Number);
+    const timeDate = new Date();
+    timeDate.setHours(hours, minutes, 0);
+    updateField('time', timeDate);
+  }
+
+  if (reuseTask.attachments && reuseTask.attachments.length > 0) {
+    updateField('attachments', [...reuseTask.attachments]);
+    updateField('attachDocuments', true);
+  }
+};
+
+const prefillMedicationFields = (reuseTask: any, updateField: (field: any, value: any) => void) => {
+  if (!reuseTask.details || !('medicineName' in reuseTask.details)) return;
+
+  updateField('medicineName', reuseTask.details.medicineName || '');
+  updateField('medicineType', reuseTask.details.medicineType || null);
+  updateField('medicationFrequency', reuseTask.frequency);
+
+  if ('dosages' in reuseTask.details && reuseTask.details.dosages) {
+    updateField('dosages', reuseTask.details.dosages);
+  }
+
+  if ('description' in reuseTask.details && typeof reuseTask.details.description === 'string') {
+    updateField('description', reuseTask.details.description);
+  }
+};
+
+const prefillFormFromTask = (
+  reuseTask: any,
+  updateField: (field: any, value: any) => void,
+  handleTaskTypeSelect: (taskType: any) => void,
+  dispatch: AppDispatch
+) => {
+  if (reuseTask.companionId) {
+    dispatch(setSelectedCompanion(reuseTask.companionId));
+  }
+
+  const taskTypeFromTask: any = {
+    category: reuseTask.category,
+    subcategory: reuseTask.subcategory === 'none' ? null : reuseTask.subcategory,
+  };
+
+  if (reuseTask.details && 'taskType' in reuseTask.details) {
+    taskTypeFromTask.taskType = reuseTask.details.taskType;
+    if ('chronicConditionType' in reuseTask.details) {
+      taskTypeFromTask.chronicConditionType = reuseTask.details.chronicConditionType;
+    }
+  }
+
+  handleTaskTypeSelect(taskTypeFromTask);
+  prefillBasicFields(reuseTask, updateField);
+  prefillMedicationFields(reuseTask, updateField);
+
+  if (reuseTask.observationToolId) {
+    updateField('observationalTool', reuseTask.observationToolId);
+  }
+
+  if (reuseTask.details && 'description' in reuseTask.details && typeof reuseTask.details.description === 'string') {
+    updateField('description', reuseTask.details.description);
+  }
+};
+
 export const AddTaskScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
@@ -75,86 +148,9 @@ export const AddTaskScreen: React.FC = () => {
   useEffect(() => {
     if (reuseTask && reuseTaskId && !hasPrefilledRef.current) {
       hasPrefilledRef.current = true;
-
-      // Set companion
-      if (reuseTask.companionId) {
-        dispatch(setSelectedCompanion(reuseTask.companionId));
-      }
-
-      // Set task type selection
-      const taskTypeFromTask: any = {
-        category: reuseTask.category,
-        subcategory: reuseTask.subcategory !== 'none' ? reuseTask.subcategory : null,
-      };
-
-      if (reuseTask.details && 'taskType' in reuseTask.details) {
-        taskTypeFromTask.taskType = reuseTask.details.taskType;
-        if ('chronicConditionType' in reuseTask.details) {
-          taskTypeFromTask.chronicConditionType = reuseTask.details.chronicConditionType;
-        }
-      }
-
-      handleTaskTypeSelect(taskTypeFromTask);
-
-      // Pre-fill form fields with tomorrow's date
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      updateField('date', tomorrow);
-
-      // Copy basic fields
-      updateField('title', reuseTask.title);
-      updateField('frequency', reuseTask.frequency);
-      updateField('additionalNote', reuseTask.additionalNote || '');
-      updateField('assignedTo', reuseTask.assignedTo ?? null);
-
-      // DON'T copy reminder and calendar fields (as requested)
-      // updateField('reminderEnabled', false);
-      // updateField('reminderOptions', null);
-      // updateField('syncWithCalendar', false);
-      // updateField('calendarProvider', null);
-
-      // Copy time
-      if (reuseTask.time) {
-        const [hours, minutes] = reuseTask.time.split(':').map(Number);
-        const timeDate = new Date();
-        timeDate.setHours(hours, minutes, 0);
-        updateField('time', timeDate);
-      }
-
-      // Copy attachments/documents
-      if (reuseTask.attachments && reuseTask.attachments.length > 0) {
-        updateField('attachments', [...reuseTask.attachments]);
-        updateField('attachDocuments', true);
-      }
-
-      // Copy medication-specific fields
-      if (reuseTask.details && 'medicineName' in reuseTask.details) {
-        updateField('medicineName', reuseTask.details.medicineName || '');
-        updateField('medicineType', reuseTask.details.medicineType || null);
-        updateField('medicationFrequency', reuseTask.frequency as any);
-
-        // Copy dosages
-        if ('dosages' in reuseTask.details && reuseTask.details.dosages) {
-          updateField('dosages', reuseTask.details.dosages);
-        }
-
-        // Copy description for medication tasks
-        if ('description' in reuseTask.details && typeof reuseTask.details.description === 'string') {
-          updateField('description', reuseTask.details.description);
-        }
-      }
-
-      // Copy observational tool
-      if (reuseTask.observationToolId) {
-        updateField('observationalTool', reuseTask.observationToolId);
-      }
-
-      // Copy hygiene/dietary description
-      if (reuseTask.details && 'description' in reuseTask.details && typeof reuseTask.details.description === 'string') {
-        updateField('description', reuseTask.details.description);
-      }
+      prefillFormFromTask(reuseTask, updateField, handleTaskTypeSelect, dispatch);
     }
-  }, [reuseTask, reuseTaskId]);  // Removed functions from dependencies
+  }, [reuseTask, reuseTaskId, dispatch, handleTaskTypeSelect, updateField]);
 
   // Helper to get assigned user name
   const getAssignedUserName = (userId: string | null | undefined): string | undefined => {

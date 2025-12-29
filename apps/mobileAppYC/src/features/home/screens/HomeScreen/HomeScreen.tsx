@@ -167,14 +167,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     notifications: false,
   });
   const [initialLoadComplete, setInitialLoadComplete] = React.useState(false);
-  useFocusEffect(
-    React.useCallback(() => {
-      setBusinessSearch('');
-      if (targetCompanionId && !hasTasksHydrated) {
-        dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
-      }
-    }, [dispatch, targetCompanionId, hasTasksHydrated]),
-  );
 
   const targetCompanionId = React.useMemo(() => {
     const fallback =
@@ -193,6 +185,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       : true,
   );
   const hasTasksHydrated = useSelector(selectTasksHydrated(targetCompanionId));
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setBusinessSearch('');
+      if (targetCompanionId && !hasTasksHydrated) {
+        dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
+      }
+    }, [dispatch, targetCompanionId, hasTasksHydrated]),
+  );
   const nextUpcomingTaskSelector = React.useMemo(
     () => selectNextUpcomingTask(targetCompanionId),
     [targetCompanionId],

@@ -1,9 +1,8 @@
-import React, {useMemo} from 'react';
+import React from 'react';
 import {View, Image} from 'react-native';
 import {Input, TouchableInput} from '@/shared/components/common';
 import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
 import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
-import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import {createTaskFormSectionStyles} from '@/features/tasks/components/shared/taskFormStyles';
@@ -62,7 +61,7 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
       {/* Date Picker */}
       <View style={styles.fieldGroup}>
         <CalendarMonthStrip
-          selectedDate={formData.date}
+          selectedDate={formData.date || new Date()}
           onChange={(date: Date) => updateField('date', date)}
         />
       </View>

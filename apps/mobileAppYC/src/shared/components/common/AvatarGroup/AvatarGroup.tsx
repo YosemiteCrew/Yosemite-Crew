@@ -87,11 +87,14 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
         const placeholder = getPlaceholder(avatar);
         const uniqueKey = getUniqueKey(avatar, index);
 
-        const marginStyle = index === 0
-          ? styles.avatarFirst
-          : direction === 'column'
-            ? { marginTop: overlap }
-            : { marginLeft: overlap };
+        let marginStyle;
+        if (index === 0) {
+          marginStyle = styles.avatarFirst;
+        } else if (direction === 'column') {
+          marginStyle = { marginTop: overlap };
+        } else {
+          marginStyle = { marginLeft: overlap };
+        }
 
         if (source) {
           // Render actual image

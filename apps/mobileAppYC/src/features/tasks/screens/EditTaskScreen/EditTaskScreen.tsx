@@ -205,11 +205,11 @@ export const EditTaskScreen: React.FC = () => {
             style={styles.container}
             contentContainerStyle={[
               styles.contentContainer,
+              contentPaddingStyle,
               {
-                ...(contentPaddingStyle || {}),
-                paddingTop: (contentPaddingStyle?.paddingTop ?? theme.spacing['14']) + theme.spacing['4'],
+                paddingTop: (typeof contentPaddingStyle?.paddingTop === 'number' ? contentPaddingStyle.paddingTop : theme.spacing['14']) + theme.spacing['4'],
+                paddingBottom: theme.spacing['18'],
               },
-              {paddingBottom: theme.spacing['18']},
             ]}
             showsVerticalScrollIndicator={false}>
             {/* Category (LOCKED) */}

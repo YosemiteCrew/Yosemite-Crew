@@ -28,7 +28,6 @@ import {
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
 import {NotifyBusinessBottomSheet, type NotifyBusinessBottomSheetRef} from '../components/NotifyBusinessBottomSheet';
-import {createGlassCardStyles} from '@/shared/utils/screenStyles';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessAdd'>;
 

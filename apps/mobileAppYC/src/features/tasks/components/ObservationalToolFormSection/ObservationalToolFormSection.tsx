@@ -59,7 +59,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
       {/* Date Picker */}
       <View style={styles.fieldGroup}>
         <CalendarMonthStrip
-          selectedDate={formData.date}
+          selectedDate={formData.date || new Date()}
           onChange={(date: Date) => updateField('date', date)}
         />
       </View>

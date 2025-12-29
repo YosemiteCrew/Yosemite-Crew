@@ -4,7 +4,7 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useSelector, useDispatch} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {Input, TouchableInput} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
@@ -21,7 +21,6 @@ import {selectTaskById} from '@/features/tasks/selectors';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {markTaskStatus} from '@/features/tasks/thunks';
 import type {TaskStackParamList} from '@/navigation/types';
-import type {RootState} from '@/app/store';
 import {
   resolveCategoryLabel,
   resolveMedicationTypeLabel,
@@ -68,19 +67,26 @@ export const TaskViewScreen: React.FC = () => {
     };
 
     return (task?.attachments ?? []).map(att => {
-      const source =
+      const attSource =
         normalizeImageUri(att.viewUrl ?? att.downloadUrl ?? att.uri) ??
         normalizeImageUri(buildCdnUrlFromKey(att.key ?? att.id));
 
       return {
         ...att,
         type: att.type ?? guessMimeFromName(att.name),
-        uri: source ?? att.uri,
-        viewUrl: source ?? att.viewUrl ?? null,
-        downloadUrl: att.downloadUrl ?? source ?? null,
+        uri: attSource ?? att.uri,
+        viewUrl: attSource ?? att.viewUrl ?? null,
+        downloadUrl: att.downloadUrl ?? attSource ?? null,
       };
     });
   }, [task?.attachments]);
+
+  const taskDescription = useMemo(() => {
+    if (task?.details && 'description' in task.details && task.details.description) {
+      return task.details.description;
+    }
+    return task?.description || '';
+  }, [task?.details, task?.description]);
 
   if (!task) {
     return (
@@ -107,13 +113,6 @@ export const TaskViewScreen: React.FC = () => {
   const isCompleted = String(task.status).toUpperCase() === 'COMPLETED';
   const isCancelled = String(task.status).toUpperCase() === 'CANCELLED';
   const isPending = String(task.status).toUpperCase() === 'PENDING';
-
-  const taskDescription = useMemo(() => {
-    if (task.details && 'description' in task.details && task.details.description) {
-      return task.details.description;
-    }
-    return task.description || '';
-  }, [task.details, task.description]);
 
   const handleEdit = () => {
     if (!isCompleted && !isCancelled) {
@@ -217,7 +216,7 @@ export const TaskViewScreen: React.FC = () => {
   const getAssignedToName = () => {
     if (!task.assignedTo) return '';
     const selfId = currentUser?.parentId ?? currentUser?.id;
-    if (selfId && task.assignedTo === selfId) {
+    if (selfId && task.assignedTo === selfId && currentUser) {
       return currentUser.firstName || currentUser.email || 'You';
     }
     return 'Unknown';
@@ -242,11 +241,11 @@ export const TaskViewScreen: React.FC = () => {
           style={styles.container}
           contentContainerStyle={[
             styles.contentContainer,
+            contentPaddingStyle,
             {
-              ...(contentPaddingStyle || {}),
-              paddingTop: (contentPaddingStyle?.paddingTop ?? theme.spacing['14']) + theme.spacing['4'],
+              paddingTop: (typeof contentPaddingStyle?.paddingTop === 'number' ? contentPaddingStyle.paddingTop : theme.spacing['14']) + theme.spacing['4'],
+              paddingBottom: theme.spacing['24'],
             },
-            {paddingBottom: theme.spacing['24']},
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">

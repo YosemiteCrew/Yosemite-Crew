@@ -735,10 +735,9 @@ export const ViewAppointmentScreen: React.FC = () => {
         cardGap={theme.spacing['3']}
         contentPadding={theme.spacing['6']}>
         {contentPaddingStyle => (
-          <>
-            <ScrollView
-              contentContainerStyle={[styles.container, contentPaddingStyle]}
-              showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={[styles.container, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
 
         <StatusCard
           styles={styles}
@@ -875,8 +874,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           handleCancel={() => cancelSheetRef.current?.open?.()}
           theme={theme}
         />
-            </ScrollView>
-          </>
+          </ScrollView>
         )}
       </LiquidGlassHeaderScreen>
 

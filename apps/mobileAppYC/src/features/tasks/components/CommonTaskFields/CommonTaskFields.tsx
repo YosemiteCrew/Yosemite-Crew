@@ -7,7 +7,6 @@ import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 import {selectAcceptedCoParents} from '@/features/coParent/selectors';
-import type {RootState} from '@/app/store';
 
 interface CommonTaskFieldsProps {
   formData: TaskFormData;
@@ -28,13 +27,12 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const currentUser = useSelector(selectAuthUser);
   const coParents = useSelector(selectAcceptedCoParents);
-  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
 
   // Get the assigned user's display name
   const getAssignedUserName = (): string => {
     if (!formData.assignedTo) return '';
     const selfId = currentUser?.parentId ?? currentUser?.id;
-    if (selfId && selfId === formData.assignedTo) {
+    if (selfId && selfId === formData.assignedTo && currentUser) {
       return currentUser.firstName || currentUser.email || 'You';
     }
     const coParentMatch = coParents.find(

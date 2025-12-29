@@ -15,6 +15,38 @@ import {createCardStyles} from '@/shared/components/common/cardStyles';
 import type {TaskCategory, TaskStatus} from '@/features/tasks/types';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 
+const calculateNearestDosageTime = (dosages: Array<{time: string; dosage: string}>): string | null => {
+  if (!dosages || dosages.length === 0) return null;
+
+  const now = new Date();
+  const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const dosageTimes = dosages.map((dosage) => {
+    try {
+      const [hours, minutes] = dosage.time.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+      return {
+        totalMinutes: hours * 60 + minutes,
+        originalTime: dosage.time,
+      };
+    } catch {
+      return null;
+    }
+  }).filter((dt): dt is {totalMinutes: number; originalTime: string} => dt !== null);
+
+  if (dosageTimes.length === 0) return null;
+
+  const upcomingToday = dosageTimes
+    .filter((dt) => dt.totalMinutes > currentTimeInMinutes)
+    .sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
+
+  if (upcomingToday) return upcomingToday.originalTime;
+
+  const sortedDosages = [...dosageTimes].sort((a, b) => a.totalMinutes - b.totalMinutes);
+  const earliestDosage = sortedDosages[0];
+  return earliestDosage.originalTime;
+};
+
 export interface TaskCardProps {
   title: string;
   categoryLabel: string;
@@ -95,40 +127,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   // For medication tasks, always use dosage times instead of task time
   const isMedicationTask = category === 'health' && details?.taskType === 'give-medication';
   const nearestDosageTime = useMemo(() => {
-    // Only calculate for medication tasks with dosages
-    if (!isMedicationTask || !details?.dosages || details.dosages.length === 0) {
-      return null;
-    }
-
-    const now = new Date();
-    const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-
-    const dosageTimes = details.dosages.map((dosage: any) => {
-      try {
-        const [hours, minutes] = dosage.time.split(':').map(Number);
-        if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-        return {
-          totalMinutes: hours * 60 + minutes,
-          originalTime: dosage.time,
-        };
-      } catch {
-        return null;
-      }
-    }).filter(Boolean);
-
-    if (dosageTimes.length === 0) return null;
-
-    // Find next upcoming dosage
-    const upcomingToday = dosageTimes
-      .filter(dt => dt.totalMinutes > currentTimeInMinutes)
-      .sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
-
-    if (upcomingToday) return upcomingToday.originalTime;
-
-    // No dosage left today - return earliest tomorrow
-    const earliestDosage = dosageTimes.sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
-    return earliestDosage.originalTime;
-  }, [isMedicationTask, details]);
+    if (!isMedicationTask || !details?.dosages) return null;
+    return calculateNearestDosageTime(details.dosages);
+  }, [isMedicationTask, details?.dosages]);
 
   const formattedNearestDosage = useMemo(() => {
     if (!nearestDosageTime) return null;
@@ -246,11 +247,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
               {formattedDate}
-              {isMedicationTask && formattedNearestDosage ? (
-                ` - ${formattedNearestDosage}`
-              ) : formattedTime ? (
-                ` - ${formattedTime}`
-              ) : null}
+              {isMedicationTask && formattedNearestDosage && ` - ${formattedNearestDosage}`}
+              {!isMedicationTask && formattedTime && ` - ${formattedTime}`}
             </Text>
             {renderTaskDetails()}
           </View>

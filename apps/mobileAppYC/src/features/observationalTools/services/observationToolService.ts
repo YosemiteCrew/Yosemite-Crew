@@ -46,7 +46,7 @@ export interface ObservationToolSubmission {
 const ensureAccessToken = async (): Promise<{accessToken: string; userId?: string}> => {
   const tokens = await getFreshStoredTokens();
   const accessToken = tokens?.accessToken;
-  const userId = tokens?.user?.id;
+  const userId = tokens?.userId;
 
   if (!accessToken) {
     throw new Error('Missing access token. Please sign in again.');

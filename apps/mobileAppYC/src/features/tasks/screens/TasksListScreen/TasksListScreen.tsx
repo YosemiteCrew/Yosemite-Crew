@@ -336,7 +336,7 @@ export const TasksListScreen: React.FC = () => {
           data={weekDates}
           renderItem={renderDateItem}
           keyExtractor={item => item.date.toISOString()}
-          initialScrollIndex={selectedDateIndex !== -1 ? selectedDateIndex : undefined}
+          initialScrollIndex={selectedDateIndex === -1 ? undefined : selectedDateIndex}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.dateScroller}
                 style={styles.dateList}

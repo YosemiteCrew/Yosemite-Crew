@@ -46,7 +46,7 @@ export interface TaskDraftPayload {
 const ensureAccessToken = async (): Promise<{accessToken: string; userId?: string}> => {
   const tokens = await getFreshStoredTokens();
   const accessToken = tokens?.accessToken;
-  const userId = tokens?.user?.id;
+  const userId = tokens?.userId;
 
   if (!accessToken) {
     throw new Error('Missing access token. Please sign in again.');
@@ -123,14 +123,14 @@ const mapBackendCategoryToUi = (category?: string): Task['category'] => {
   }
 };
 
-const mapRecurrenceToFrequency = (recurrence?: {type?: RecurrenceType | string}): Task['frequency'] => {
+const mapRecurrenceToFrequency = (recurrence?: {type?: RecurrenceType}): Task['frequency'] => {
   switch (recurrence?.type) {
     case 'DAILY':
       return 'daily';
     case 'WEEKLY':
       return 'weekly';
     case 'CUSTOM':
-      return 'every-day';
+      return 'daily';
     default:
       return 'once';
   }
@@ -306,7 +306,7 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
           medicineName: medication?.name ?? '',
           medicineType: medication?.type ?? '',
           dosages: formattedDosages,
-          frequency: (medication?.frequency as any) ?? frequency,
+          frequency: medication?.frequency ?? frequency,
           startDate: date,
           endDate: endDateISO,
           description: apiTask?.description ?? '',
@@ -364,16 +364,18 @@ export const buildTaskDraftFromForm = ({
     recurrenceType,
   });
 
-  const category: TaskBackendCategory =
-    formData.healthTaskType === 'take-observational-tool'
-      ? 'OBSERVATION_TOOL'
-      : formData.healthTaskType === 'give-medication'
-        ? 'MEDICATION'
-        : formData.category === 'hygiene'
-          ? 'HYGIENE'
-          : formData.category === 'dietary'
-            ? 'DIET'
-            : 'CUSTOM';
+  let category: TaskBackendCategory;
+  if (formData.healthTaskType === 'take-observational-tool') {
+    category = 'OBSERVATION_TOOL';
+  } else if (formData.healthTaskType === 'give-medication') {
+    category = 'MEDICATION';
+  } else if (formData.category === 'hygiene') {
+    category = 'HYGIENE';
+  } else if (formData.category === 'dietary') {
+    category = 'DIET';
+  } else {
+    category = 'CUSTOM';
+  }
 
   const attachments: TaskAttachment[] = (formData.attachments || []).map(att => normalizeAttachment(att));
 
@@ -393,12 +395,13 @@ export const buildTaskDraftFromForm = ({
     },
     calendarEventId: undefined,
     calendarProvider: formData.calendarProvider || undefined,
-    reminder:
-      formData.reminderEnabled && reminderOffsetMinutes != null
-        ? {enabled: true, offsetMinutes: reminderOffsetMinutes}
-        : formData.reminderEnabled
-          ? {enabled: true, offsetMinutes: 30}
-          : null,
+    reminder: (() => {
+      if (!formData.reminderEnabled) return null;
+      if (reminderOffsetMinutes != null) {
+        return {enabled: true, offsetMinutes: reminderOffsetMinutes};
+      }
+      return {enabled: true, offsetMinutes: 30};
+    })(),
     syncWithCalendar: formData.syncWithCalendar,
     attachments,
     medication:
@@ -406,16 +409,6 @@ export const buildTaskDraftFromForm = ({
         ? {
             name: formData.medicineName,
             type: formData.medicineType ?? undefined,
-            doses:
-              formData.dosages?.length
-                ? formData.dosages.map((dose, index) => {
-                    const hhmm = formatDoseTime(dose.time);
-                    return {
-                      dosage: dose.label || `Dose ${index + 1}`,
-                      time: hhmm,
-                    };
-                  })
-                : undefined,
             dosage: undefined,
             frequency:
               (formData.medicationFrequency

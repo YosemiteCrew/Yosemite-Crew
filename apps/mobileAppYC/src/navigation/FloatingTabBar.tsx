@@ -103,13 +103,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
       return;
     }
 
-    if (!isReady) {
-      // Initial position - no animation
-      pillLeft.setValue(activeTabLayout.x);
-      pillWidth.setValue(activeTabLayout.width);
-      pillScale.setValue(1);
-      setIsReady(true);
-    } else {
+    if (isReady) {
       // Bouncy spring animation with scale wiggle effect
       Animated.parallel([
         // Position and width with extra bounce
@@ -143,6 +137,12 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           }),
         ]),
       ]).start();
+    } else {
+      // Initial position - no animation
+      pillLeft.setValue(activeTabLayout.x);
+      pillWidth.setValue(activeTabLayout.width);
+      pillScale.setValue(1);
+      setIsReady(true);
     }
   }, [
     state.index,

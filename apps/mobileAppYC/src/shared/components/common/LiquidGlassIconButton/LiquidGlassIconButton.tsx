@@ -42,7 +42,7 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
   shadow = 'sm',
   disabled = false,
 }) => {
-  const {theme, isDark} = useTheme();
+  const {theme} = useTheme();
   const useNativeGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
   const resolvedColorScheme = React.useMemo(() => {
     if (colorScheme === 'system') {

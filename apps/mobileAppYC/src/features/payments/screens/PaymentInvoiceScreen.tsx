@@ -290,8 +290,6 @@ const InvoiceForCard = ({
   guardianAddress: string;
   companionName: string;
   styles: any;
-  avatarSize: number;
-  avatarOverlap: number;
 }) => (
   <View style={styles.invoiceForCard}>
     <Text style={styles.metaTitle}>Invoice for</Text>
@@ -849,8 +847,6 @@ const buildInvoiceContent = ({
           guardianAddress={guardianAddress}
           companionName={companionName}
           styles={styles}
-          avatarSize={theme.spacing['12']}
-          avatarOverlap={-theme.spacing['4']}
         />
       )}
 

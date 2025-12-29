@@ -1,7 +1,6 @@
 import React, {useMemo} from 'react';
 import {
   Image,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -115,7 +114,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...(Platform.OS === 'ios' ? theme.shadows.none : theme.shadows.none),
+      ...theme.shadows.none,
       shadowColor: 'transparent',
       backgroundColor: 'transparent',
     },
