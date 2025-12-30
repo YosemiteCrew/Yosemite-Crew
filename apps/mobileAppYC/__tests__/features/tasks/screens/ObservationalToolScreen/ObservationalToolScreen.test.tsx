@@ -203,6 +203,11 @@ jest.spyOn(console, 'warn').mockImplementation(() => {});
 
 describe('ObservationalToolScreen', () => {
   const mockState = {
+    auth: {
+      user: {id: 'user-1', email: 'test@example.com'},
+      status: 'authenticated',
+      provider: null,
+    },
     companion: {
       companions: [{id: 'comp-1', name: 'Buddy', profileImage: 'buddy.jpg'}],
     },
@@ -213,6 +218,15 @@ describe('ObservationalToolScreen', () => {
           name: 'Hospital A',
           category: 'hospital',
           address: '123 St',
+        },
+      ],
+      services: [
+        {
+          id: 'svc-1',
+          businessId: 'biz-1',
+          name: 'Test Tool Observation',
+          specialty: 'observation',
+          basePrice: 50,
         },
       ],
     },
@@ -316,7 +330,7 @@ describe('ObservationalToolScreen', () => {
 
   it('renders image options for non-dog species', () => {
     mockRouteParams = {taskId: 'task-cat'};
-    const emptyBizState = {...mockState, businesses: {businesses: []}};
+    const emptyBizState = {...mockState, businesses: {businesses: [], services: []}};
     mockUseSelector.mockImplementation((cb: any) => cb(emptyBizState));
 
     render(<ObservationalToolScreen />);
@@ -396,6 +410,36 @@ describe('ObservationalToolScreen', () => {
           {id: 'b3', category: 'hospital', name: 'B3', openHours: '9-5'},
           {id: 'b4', category: 'hospital', name: 'B4', address: 'Addr'},
         ],
+        services: [
+          {
+            id: 'svc-1',
+            businessId: 'b1',
+            name: 'Test Tool Observation',
+            specialty: 'observation',
+            basePrice: 50,
+          },
+          {
+            id: 'svc-2',
+            businessId: 'b2',
+            name: 'Test Tool Observation',
+            specialty: 'observation',
+            basePrice: 50,
+          },
+          {
+            id: 'svc-3',
+            businessId: 'b3',
+            name: 'Test Tool Observation',
+            specialty: 'observation',
+            basePrice: 50,
+          },
+          {
+            id: 'svc-4',
+            businessId: 'b4',
+            name: 'Test Tool Observation',
+            specialty: 'observation',
+            basePrice: 50,
+          },
+        ],
       },
     };
     mockUseSelector.mockImplementation((cb: any) => cb(mixedState));
@@ -417,6 +461,22 @@ describe('ObservationalToolScreen', () => {
           {id: 'biz-1', category: 'hospital', name: 'Match'},
           {id: 'biz-2', category: 'hospital', name: 'Fallback'},
         ],
+        services: [
+          {
+            id: 'svc-1',
+            businessId: 'biz-1',
+            name: 'Test Tool Observation',
+            specialty: 'observation',
+            basePrice: 50,
+          },
+          {
+            id: 'svc-2',
+            businessId: 'biz-2',
+            name: 'Test Tool Observation',
+            specialty: 'observation',
+            basePrice: 75,
+          },
+        ],
       },
     };
     mockUseSelector.mockImplementation((cb: any) => cb(manyBizState));
@@ -433,15 +493,23 @@ describe('ObservationalToolScreen', () => {
       ...mockState,
       businesses: {
         businesses: [{id: 'biz-any', category: 'hospital', name: 'ZeroFee'}],
+        services: [
+          {
+            id: 'svc-1',
+            businessId: 'biz-any',
+            name: 'Cat Observation',
+            specialty: 'observation',
+            basePrice: null,
+          },
+        ],
       },
     };
     mockUseSelector.mockImplementation((cb: any) => cb(bizState));
 
     render(<ObservationalToolScreen />);
 
-    // Should render with $0.00 fees
+    // Should render with appropriate pricing message
     expect(screen.getByText('ZeroFee')).toBeTruthy();
-    const zeroFees = screen.getAllByText('$0.00');
-    expect(zeroFees.length).toBeGreaterThan(0);
+    expect(screen.getByText('Appointment fee shared during booking')).toBeTruthy();
   });
 });

@@ -13,6 +13,12 @@ import type {
   SelectItem,
 } from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
+
 // FIX 5: Update mocked helper path
 jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveTaskFrequencyLabel: jest.fn((freq: string) => `Label for ${freq}`),

@@ -5,12 +5,9 @@ import {
   CalendarSyncBottomSheet,
   type CalendarSyncBottomSheetRef,
 } from '@/features/tasks/components/CalendarSyncBottomSheet/CalendarSyncBottomSheet';
-// FIX 2: Update hook import path
-import {useTheme} from '@/shared/hooks';
 // FIX 3: Update type import path
 import type {SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import {View} from 'react-native';
-import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -24,7 +21,11 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 });
 
 // FIX 4: Update hook mock path
-jest.mock('@/shared/hooks');
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
 
 let mockGoogleCalendarIcon: string | undefined = 'google.png';
 let mockICloudCalendarIcon: string | undefined = 'icloud.png';
@@ -68,7 +69,7 @@ jest.mock(
   },
 );
 
-const mockedUseTheme = useTheme as jest.Mock;
+// useTheme is already mocked in @/hooks
 // Redux Provider is handled by renderWithProviders from testUtils
 
 // --- Mock Data ---
@@ -93,7 +94,7 @@ const expectedProviderItemsInitial: SelectItem[] = [
 const renderComponent = (
   props: Partial<React.ComponentProps<typeof CalendarSyncBottomSheet>> = {},
 ) => {
-  mockedUseTheme.mockReturnValue({theme: mockTheme});
+  // useTheme is already mocked in @/hooks
   const ref = React.createRef<CalendarSyncBottomSheetRef>();
   const onSelect = jest.fn();
   const renderResult = render(
@@ -218,7 +219,7 @@ describe('CalendarSyncBottomSheet', () => {
     ) => React.ReactElement;
 
     beforeEach(() => {
-      mockedUseTheme.mockReturnValue({theme: mockTheme});
+      // useTheme is already mocked in @/hooks
       mockGoogleCalendarIcon = 'google.png';
       mockICloudCalendarIcon = 'icloud.png';
       mockCalendarIcon = 'calendar.png';
