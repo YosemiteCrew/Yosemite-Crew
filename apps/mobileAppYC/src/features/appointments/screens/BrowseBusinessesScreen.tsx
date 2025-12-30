@@ -1,10 +1,9 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Alert, Pressable, ScrollView, View, Text, StyleSheet, TouchableOpacity, ViewStyle} from 'react-native';
+import {Alert, ScrollView, View, Text, StyleSheet, TouchableOpacity, ViewStyle} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
 import {fetchBusinesses, upsertBusiness} from '@/features/appointments/businessesSlice';
@@ -23,6 +22,8 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {usePlacesBusinessSearch, type ResolvedBusinessSelection} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
 import {selectCompanions, selectSelectedCompanionId} from '@/features/companion';
 import {TabParamList} from '@/navigation/types';
+import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
+import {mapSelectionToVetBusiness} from '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -270,27 +271,12 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   const handlePmsSelection = React.useCallback(
     async (selection: ResolvedBusinessSelection) => {
-      const businessId = selection.organisationId || selection.businessId || selection.id;
+      const businessPayload = mapSelectionToVetBusiness(selection);
 
-      dispatch(
-        upsertBusiness({
-          id: businessId,
-          name: selection.name,
-          category: 'hospital',
-          address: selection.address,
-          distanceMi: selection.distance,
-          rating: selection.rating,
-          photo: selection.photo,
-          phone: selection.phone,
-          website: selection.website || selection.email,
-          lat: selection.lat,
-          lng: selection.lng,
-          googlePlacesId: selection.placeId,
-        }),
-      );
+      dispatch(upsertBusiness(businessPayload));
 
       navigation.navigate('BusinessDetails', {
-        businessId,
+        businessId: businessPayload.id,
         returnTo: {tab: 'Appointments', screen: 'BrowseBusinesses'},
       });
     },
@@ -333,6 +319,11 @@ export const BrowseBusinessesScreen: React.FC = () => {
     [ensureCompanionForSearch, navigation, selectedCompanion, targetCompanionId],
   );
 
+  const placesSearch = usePlacesBusinessSearch({
+    onSelectPms: handlePmsSelection,
+    onSelectNonPms: handleNonPmsSelection,
+    onError: handleSearchError,
+  });
   const {
     searchQuery,
     setSearchQuery,
@@ -341,11 +332,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
     handleSearchChange,
     handleSelectBusiness,
     clearResults,
-  } = usePlacesBusinessSearch({
-    onSelectPms: handlePmsSelection,
-    onSelectNonPms: handleNonPmsSelection,
-    onError: handleSearchError,
-  });
+  } = placesSearch;
 
   const performSearch = React.useCallback(
     (term?: string) => {
@@ -512,9 +499,13 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   return (
     <View style={styles.screenContainer}>
-      {showSearchResults ? (
-        <Pressable style={styles.searchBackdrop} onPress={clearResults} />
-      ) : null}
+      <BusinessSearchDropdown
+        visible={showSearchResults}
+        top={dropdownTop}
+        items={searchResults}
+        onSelect={handleSelectBusiness}
+        onDismiss={clearResults}
+      />
       <LiquidGlassHeaderScreen
         header={headerContent}
         cardGap={theme.spacing['3']}
@@ -566,19 +557,6 @@ export const BrowseBusinessesScreen: React.FC = () => {
           </ScrollView>
         )}
       </LiquidGlassHeaderScreen>
-      <SearchDropdownOverlay
-        visible={showSearchResults}
-        top={dropdownTop}
-        items={searchResults}
-        keyExtractor={item => item.id}
-        onPress={handleSelectBusiness}
-        title={item => item.name}
-        subtitle={item => item.address}
-        initials={item => item.name}
-        useGlassCard
-        glassEffect="regular"
-        containerStyle={styles.searchDropdown}
-      />
     </View>
   );
 };
@@ -587,19 +565,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,
-  },
-  searchBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 90,
-  },
-  searchDropdown: {
-    left: theme.spacing['6'],
-    right: theme.spacing['6'],
-    zIndex: 100,
   },
   scrollView: {
     flex: 1,

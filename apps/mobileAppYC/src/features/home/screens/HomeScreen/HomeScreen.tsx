@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Pressable,
   Image,
   Alert,
   type ImageSourcePropType,
@@ -20,7 +19,6 @@ import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/shared/components/common';
-import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -67,6 +65,7 @@ import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhot
 import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
 import {usePlacesBusinessSearch, type ResolvedBusinessSelection} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
+import {mapSelectionToVetBusiness} from '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
 import {
   selectNotificationsLoading,
@@ -85,6 +84,7 @@ import type {TaskCategory} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {useLiquidGlassHeaderLayout} from '@/shared/hooks/useLiquidGlassHeaderLayout';
 import {upsertBusiness} from '@/features/appointments/businessesSlice';
+import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
@@ -315,31 +315,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const handlePmsSelection = React.useCallback(
     async (selection: ResolvedBusinessSelection) => {
-      const businessId = selection.organisationId || selection.businessId || selection.id;
+      const businessPayload = mapSelectionToVetBusiness(selection);
 
-      dispatch(
-        upsertBusiness({
-          id: businessId,
-          name: selection.name,
-          category: 'hospital',
-          address: selection.address,
-          distanceMi: selection.distance,
-          rating: selection.rating,
-          photo: selection.photo,
-          phone: selection.phone,
-          website: selection.website || selection.email,
-          lat: selection.lat,
-          lng: selection.lng,
-          googlePlacesId: selection.placeId,
-        }),
-      );
+      dispatch(upsertBusiness(businessPayload));
 
       navigation
         .getParent<NavigationProp<TabParamList>>()
         ?.navigate('Appointments', {
           screen: 'BusinessDetails',
           params: {
-            businessId,
+            businessId: businessPayload.id,
             returnTo: {tab: 'HomeStack', screen: 'Home'},
           },
         });
@@ -1133,9 +1118,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      {showSearchResults ? (
-        <Pressable style={styles.searchBackdrop} onPress={clearResults} />
-      ) : null}
+      <BusinessSearchDropdown
+        visible={showSearchResults}
+        top={dropdownTop}
+        items={searchResults}
+        onSelect={handleSelectBusiness}
+        onDismiss={clearResults}
+      />
 
       <LiquidGlassHeader
         {...headerProps}
@@ -1211,19 +1200,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           }}
         />
       </LiquidGlassHeader>
-      <SearchDropdownOverlay
-        visible={showSearchResults}
-        top={dropdownTop}
-        items={searchResults}
-        keyExtractor={item => item.id}
-        onPress={handleSelectBusiness}
-        title={item => item.name}
-        subtitle={item => item.address}
-        initials={item => item.name}
-        useGlassCard
-        glassEffect="regular"
-        containerStyle={styles.searchDropdown}
-      />
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -1350,19 +1326,6 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
-    },
-    searchBackdrop: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 90,
-    },
-    searchDropdown: {
-      left: theme.spacing['6'],
-      right: theme.spacing['6'],
-      zIndex: 100,
     },
     headerCard: {
       paddingHorizontal: theme.spacing['6'],

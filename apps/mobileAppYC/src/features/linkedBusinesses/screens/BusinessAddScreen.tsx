@@ -26,7 +26,6 @@ import {
   linkBusiness,
 } from '../index';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
-import {TabParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
 import {NotifyBusinessBottomSheet, type NotifyBusinessBottomSheetRef} from '../components/NotifyBusinessBottomSheet';
 
@@ -179,9 +178,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
     addBusinessSheetRef.current?.close();
     // Navigate back to refresh the linked businesses list
     if (returnTo?.tab) {
-      navigation
-        .getParent<any>()
-        ?.navigate(returnTo.tab as keyof TabParamList, returnTo.screen ? {screen: returnTo.screen} : undefined);
+      const tabNav = navigation.getParent<any>();
+      if (tabNav) {
+        const params = returnTo.screen ? {screen: returnTo.screen} : undefined;
+        tabNav.navigate(returnTo.tab, params as any);
+      }
       return;
     }
     if (navigation.canGoBack()) {
@@ -192,9 +193,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
   const handleNotifyClose = useCallback(() => {
     notifyBusinessSheetRef.current?.close();
     if (returnTo?.tab) {
-      navigation
-        .getParent<any>()
-        ?.navigate(returnTo.tab as keyof TabParamList, returnTo.screen ? {screen: returnTo.screen} : undefined);
+      const tabNav = navigation.getParent<any>();
+      if (tabNav) {
+        const params = returnTo.screen ? {screen: returnTo.screen} : undefined;
+        tabNav.navigate(returnTo.tab, params as any);
+      }
       return;
     }
     navigation.goBack();
@@ -202,9 +205,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 
   const handleBack = useCallback(() => {
     if (returnTo?.tab) {
-      navigation
-        .getParent<any>()
-        ?.navigate(returnTo.tab as keyof TabParamList, returnTo.screen ? {screen: returnTo.screen} : undefined);
+      const tabNav = navigation.getParent<any>();
+      if (tabNav) {
+        const params = returnTo.screen ? {screen: returnTo.screen} : undefined;
+        tabNav.navigate(returnTo.tab, params as any);
+      }
       return;
     }
     if (navigation.canGoBack()) {
