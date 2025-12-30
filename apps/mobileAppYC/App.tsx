@@ -41,6 +41,7 @@ import {
 import {useAppDispatch} from '@/app/hooks';
 import type {RootStackParamList} from '@/navigation/types';
 import {STRIPE_CONFIG} from '@/config/variables';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 Amplify.configure(outputs);
 
@@ -49,11 +50,11 @@ LogBox.ignoreLogs([
 ]);
 
 
-  const noop = () => {};
-  console.log = noop;
-  console.info = noop;
-  console.debug = noop;
-  console.trace = noop;
+  // const noop = () => {};
+  // console.log = noop;
+  // console.info = noop;
+  // console.debug = noop;
+  // console.trace = noop;
 
 
 function App(): React.JSX.Element {
@@ -139,7 +140,7 @@ function AppContent(): React.JSX.Element {
         <ErrorBoundary>
           <AppNavigator />
         </ErrorBoundary>
-        <BottomFadeOverlay height={40} intensity="medium" bottomOffset={0} />
+        <BottomFadeOverlay height={30} intensity="medium" bottomOffset={0} />
     </>
   );
 }
@@ -186,6 +187,18 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     await unregisterDeviceToken(last);
     lastRegisteredRef.current = null;
   }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const preloadTools = async () => {
+      try {
+        await observationToolApi.list({onlyActive: true});
+      } catch (error) {
+        console.warn('[ObservationTools] Failed to preload tools', error);
+      }
+    };
+    preloadTools();
+  }, [isLoggedIn]);
 
   useEffect(() => {
     let mounted = true;
