@@ -1,8 +1,8 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Alert, ScrollView, StyleSheet, Text, View, Image, Switch} from 'react-native';
-import {useNavigation, useRoute, type NavigationProp} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {RouteProp} from '@react-navigation/native';
+import type {RouteProp, NavigationProp} from '@react-navigation/native';
 import {useSelector, useDispatch} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
 import {Input, TouchableInput} from '@/shared/components/common';
@@ -140,6 +140,26 @@ export const TaskViewScreen: React.FC = () => {
     }
   }, [businesses.length, dispatch, isObservationalTool, services.length]);
 
+  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+
+  const resolveOtServices = useMemo(() => {
+    if (!isObservationalTool) {
+      return [] as VetService[];
+    }
+    const normalizedName = (otLabel ?? '').toLowerCase();
+    const speciesToken = (companion?.category ?? '').toLowerCase();
+    return services.filter(service => {
+      const specialtyMatch = (service.specialty ?? '').toLowerCase().includes('observation');
+      const nameMatch = normalizedName
+        ? service.name.toLowerCase().includes(normalizedName)
+        : false;
+      const speciesMatch = speciesToken
+        ? service.name.toLowerCase().includes(speciesToken)
+        : true;
+      return specialtyMatch && (nameMatch || speciesMatch || !normalizedName);
+    });
+  }, [companion?.category, isObservationalTool, otLabel, services]);
+
   if (!task) {
     return (
       <LiquidGlassHeaderScreen
@@ -180,24 +200,6 @@ export const TaskViewScreen: React.FC = () => {
     });
   };
 
-  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
-
-  const resolveOtServices = useMemo(() => {
-    if (!isObservationalTool) return [] as VetService[];
-    const normalizedName = (otLabel ?? '').toLowerCase();
-    const speciesToken = (companion?.category ?? '').toLowerCase();
-    return services.filter(service => {
-      const specialtyMatch = (service.specialty ?? '').toLowerCase().includes('observation');
-      const nameMatch = normalizedName
-        ? service.name.toLowerCase().includes(normalizedName)
-        : false;
-      const speciesMatch = speciesToken
-        ? service.name.toLowerCase().includes(speciesToken)
-        : true;
-      return specialtyMatch && (nameMatch || speciesMatch || !normalizedName);
-    });
-  }, [companion?.category, isObservationalTool, otLabel, services]);
-
   const handleBookAppointment = async () => {
     if (!task) {
       return;
@@ -226,6 +228,7 @@ export const TaskViewScreen: React.FC = () => {
       Alert.alert('No providers available', 'We could not find a clinic offering this tool yet.');
       return;
     }
+    const toolType = (task.details as ObservationalToolTaskDetails).toolType;
     tabNavigation?.navigate('Appointments', {
       screen: 'BookingForm',
       params: {
@@ -233,17 +236,16 @@ export const TaskViewScreen: React.FC = () => {
         serviceId: service.id,
         serviceName: service.name,
         serviceSpecialty: service.specialty ?? 'Observational Tool',
-        serviceSpecialtyId: service.specialityId ?? null,
+        serviceSpecialtyId: service.specialityId ?? undefined,
         employeeId: undefined,
         appointmentType: 'Observational Tool',
         otContext: {
-          toolId:
-            task.observationToolId ?? (task.details as ObservationalToolTaskDetails).toolType,
+          toolId: task.observationToolId ?? toolType,
           responses: {},
           submissionId,
         },
       },
-    } as any);
+    });
   };
 
   const handleBack = () => {
@@ -252,7 +254,7 @@ export const TaskViewScreen: React.FC = () => {
       navigation.goBack();
       return;
     }
-    const tabNav = navigation.getParent() as any;
+    const tabNav = navigation.getParent<NavigationProp<TabParamList>>();
     if (source === 'home') {
       tabNav?.navigate('HomeStack', {screen: 'Home'});
       return;

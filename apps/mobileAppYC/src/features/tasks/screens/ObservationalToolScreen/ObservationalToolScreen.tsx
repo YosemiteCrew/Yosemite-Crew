@@ -17,8 +17,8 @@ import {
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -57,7 +57,7 @@ import {resolveImageSource} from '@/shared/utils/resolveImageSource';
 const normalizeToken = (value?: string | null) =>
   (value ?? '')
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
+    .replaceAll(/[^a-z0-9]/g, '');
 
 const normalizeName = (value?: string | null) => normalizeToken(value);
 
@@ -196,8 +196,8 @@ export const ObservationalToolScreen: React.FC = () => {
       return (
         normalizedDef === normalizedRemote ||
         normalizedShort === normalizedRemote ||
-        (normalizedRemote && normalizedDef.includes(normalizedRemote)) ||
-        (normalizedRemote && normalizedRemote.includes(normalizedDef))
+        (normalizedRemote?.includes(normalizedDef)) ||
+        (normalizedDef && normalizedRemote?.includes(normalizedDef))
       );
     });
     if (byName) return byName;
@@ -218,33 +218,40 @@ export const ObservationalToolScreen: React.FC = () => {
         'We could not find any nearby providers for this observational tool yet. Please try again later.',
       image: Images.otNoProviders,
     };
+
+    const overviewParagraphs = staticDefinition?.overviewParagraphs ??
+      (remoteDefinition?.description
+        ? [remoteDefinition.description]
+        : ['Answer a quick checklist to help your care team understand how your companion is doing today.']);
+
     return {
       name: remoteDefinition?.name ?? staticDefinition?.name ?? toolLabel,
-      overviewTitle:
-        staticDefinition?.overviewTitle ??
-        remoteDefinition?.name ??
-        toolLabel,
-      overviewParagraphs:
-        staticDefinition?.overviewParagraphs ??
-        (remoteDefinition?.description
-          ? [remoteDefinition.description]
-          : [
-              'Answer a quick checklist to help your care team understand how your companion is doing today.',
-            ]),
-      subtitle:
-        staticDefinition?.steps?.[0]?.subtitle ??
-        remoteDefinition?.description ??
-        '',
+      overviewTitle: staticDefinition?.overviewTitle ?? remoteDefinition?.name ?? toolLabel,
+      overviewParagraphs,
+      subtitle: staticDefinition?.steps?.[0]?.subtitle ?? remoteDefinition?.description ?? '',
       footer: staticDefinition?.steps?.[0]?.footerNote ?? '',
       emptyState: staticDefinition?.emptyState ?? fallbackEmpty,
       heroImage: staticDefinition?.heroImage,
     };
   }, [remoteDefinition?.description, remoteDefinition?.name, staticDefinition, toolLabel]);
 
+  const getFieldOptions = (field: ObservationToolField) => {
+    if (Array.isArray(field.options) && field.options.length > 0) {
+      return field.options.map(option => ({id: option, title: option}));
+    }
+    if (field.type === 'BOOLEAN') {
+      return [
+        {id: 'Yes', title: 'Yes'},
+        {id: 'No', title: 'No'},
+      ];
+    }
+    return [];
+  };
+
   const steps = useMemo<ObservationalToolStep[]>(() => {
     if (staticDefinition) {
       const fields = remoteDefinition?.fields ?? [];
-      return staticDefinition.steps.map((step, index) => {
+      return staticDefinition.steps.map((step: ObservationalToolStep, index: number) => {
         const matchedField =
           (fields.length ? findMatchingField(fields, step) : null) ??
           (fields.length === staticDefinition.steps.length ? fields[index] : null);
@@ -277,15 +284,7 @@ export const ObservationalToolScreen: React.FC = () => {
         helperText: undefined,
         heroImage: undefined,
         footerNote: displayDefinition.footer ?? undefined,
-        options:
-          Array.isArray(field.options) && field.options.length > 0
-            ? field.options.map(option => ({id: option, title: option}))
-            : field.type === 'BOOLEAN'
-            ? [
-                {id: 'Yes', title: 'Yes'},
-                {id: 'No', title: 'No'},
-              ]
-            : [],
+        options: getFieldOptions(field),
         required: field.required ?? false,
       }));
     }
@@ -302,7 +301,7 @@ export const ObservationalToolScreen: React.FC = () => {
       return {} as Record<string, string>;
     }
     const mapping: Record<string, string> = {};
-    staticDefinition.steps.forEach((step, index) => {
+    staticDefinition.steps.forEach((step: ObservationalToolStep, index: number) => {
       const matchedField =
         findMatchingField(remoteDefinition.fields, step) ??
         (remoteDefinition.fields.length === staticDefinition.steps.length
@@ -360,7 +359,7 @@ export const ObservationalToolScreen: React.FC = () => {
           appointmentFee: service.basePrice ?? null,
         } as ProviderEntry;
       })
-      .filter((entry): entry is ProviderEntry => Boolean(entry));
+      .filter((entry): entry is ProviderEntry => !!entry);
 
     const currentUserId = currentUser?.parentId ?? currentUser?.id ?? null;
     if (task?.createdBy && currentUserId && task.createdBy !== currentUserId) {
@@ -386,7 +385,7 @@ export const ObservationalToolScreen: React.FC = () => {
       if (typeof entry.image === 'number') {
         return;
       }
-      const imageUri = typeof entry.image === 'string' ? entry.image : (entry.image as any)?.uri ?? null;
+      const imageUri = typeof entry.image === 'string' ? entry.image : entry.image?.uri ?? null;
       if ((!imageUri || isDummyPhoto(imageUri)) && entry.googlePlacesId) {
         requestBusinessPhoto(entry.googlePlacesId, entry.businessId);
       }
@@ -403,13 +402,12 @@ export const ObservationalToolScreen: React.FC = () => {
   const effectiveStepIndex =
     totalSteps > 0 ? Math.min(currentStepIndex, totalSteps - 1) : 0;
   const currentStep = totalSteps > 0 ? steps[effectiveStepIndex] : null;
-  const selectionsForStep = currentStep
-    ? Array.isArray(responses[currentStep.id])
-      ? (responses[currentStep.id] as string[])
-      : responses[currentStep.id]
-      ? [responses[currentStep.id] as string]
-      : []
-    : [];
+  const selectionsForStep = (() => {
+    if (!currentStep) return [];
+    const value = responses[currentStep.id];
+    if (Array.isArray(value)) return value;
+    return value ? [value] : [];
+  })();
   const isStepCompleted = currentStep ? (!currentStep.required || selectionsForStep.length > 0) : false;
   const isImageOptionLayout =
     currentStep?.options?.some(option => option.image) ?? false;
@@ -620,53 +618,73 @@ export const ObservationalToolScreen: React.FC = () => {
     responses,
     selectedProviderId,
     steps,
+    submissionKeyByStepId,
     tabNavigation,
     task,
     toolDisplayName,
+    toolId,
   ]);
 
   if (!task || !details) {
     return (
-      <SafeArea>
-        <Header
-          title="Observational Tool"
-          showBackButton
-          onBack={() => navigation.goBack()}
-        />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Task not found</Text>
-        </View>
-      </SafeArea>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Observational Tool"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <View style={[styles.errorContainer, contentPaddingStyle]}>
+            <Text style={styles.errorText}>Task not found</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
   if (definitionLoading && totalSteps === 0) {
     return (
-      <SafeArea>
-        <Header
-          title={displayDefinition.name}
-          showBackButton
-          onBack={() => navigation.goBack()}
-        />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Loading observational tool...</Text>
-        </View>
-      </SafeArea>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title={displayDefinition.name}
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <View style={[styles.errorContainer, contentPaddingStyle]}>
+            <Text style={styles.errorText}>Loading observational tool...</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
   if (!currentStep || totalSteps === 0) {
     return (
-      <SafeArea>
-        <Header
-          title={displayDefinition.name}
-          showBackButton
-          onBack={() => navigation.goBack()}
-        />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Unable to load observational tool.</Text>
-        </View>
-      </SafeArea>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title={displayDefinition.name}
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle => (
+          <View style={[styles.errorContainer, contentPaddingStyle]}>
+            <Text style={styles.errorText}>Unable to load observational tool.</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
@@ -854,7 +872,7 @@ export const ObservationalToolScreen: React.FC = () => {
             const primaryUri =
               typeof entry.image === 'string'
                 ? entry.image
-                : (entry.image as any)?.uri ?? null;
+                : entry.image?.uri ?? null;
             const shouldUseFallback =
               !isLocalAsset && (!primaryUri || isDummyPhoto(primaryUri));
             const imageSource = resolveImageSource(
@@ -903,7 +921,9 @@ export const ObservationalToolScreen: React.FC = () => {
                     {entry.description ? (
                       <Text style={styles.providerDescription}>{entry.description}</Text>
                     ) : null}
-                    {entry.appointmentFee != null ? (
+                    {entry.appointmentFee === null || entry.appointmentFee === undefined ? (
+                      <Text style={styles.costLabel}>Appointment fee shared during booking</Text>
+                    ) : (
                       <View style={styles.providerCosts}>
                         <View style={styles.costColumn}>
                           <Text style={styles.costLabel}>Appointment Fee</Text>
@@ -912,8 +932,6 @@ export const ObservationalToolScreen: React.FC = () => {
                           </Text>
                         </View>
                       </View>
-                    ) : (
-                      <Text style={styles.costLabel}>Appointment fee shared during booking</Text>
                     )}
                   </View>
                 </Pressable>
@@ -998,26 +1016,34 @@ export const ObservationalToolScreen: React.FC = () => {
     stage === 'form' ? renderFormStage() : renderLandingStage();
 
   return (
-    <SafeArea>
-      <Header
-        title={displayDefinition.name}
-        showBackButton
-        onBack={handleHeaderBack}
-      />
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
-        {renderStage()}
-      </ScrollView>
-      <DiscardChangesBottomSheet
-        ref={discardSheetRef}
-        onDiscard={handleDiscardChanges}
-        onKeepEditing={() => discardSheetRef.current?.close()}
-      />
-    </SafeArea>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={displayDefinition.name}
+          showBackButton
+          onBack={handleHeaderBack}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['3']}>
+      {contentPaddingStyle => (
+        <>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={[styles.container, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            {renderStage()}
+          </ScrollView>
+          <DiscardChangesBottomSheet
+            ref={discardSheetRef}
+            onDiscard={handleDiscardChanges}
+            onKeepEditing={() => discardSheetRef.current?.close()}
+          />
+        </>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -1028,7 +1054,7 @@ const createStyles = (theme: any) =>
     },
     container: {
       flexGrow: 1,
-      padding: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['20'],
       gap: theme.spacing['4'],
       backgroundColor: theme.colors.background,

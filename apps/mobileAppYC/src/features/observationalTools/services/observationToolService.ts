@@ -9,7 +9,7 @@ const mongoIdRegex = /^[a-f0-9]{24}$/i;
 const normalizeName = (value?: string | null) =>
   (value ?? '')
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
+    .replaceAll(/[^a-z0-9]/g, '');
 
 export interface ObservationToolField {
   key: string;

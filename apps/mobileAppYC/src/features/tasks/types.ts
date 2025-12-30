@@ -56,8 +56,6 @@ export type TaskFrequency =
   | 'weekly'
   | 'monthly';
 
-// Observational Tools
-export type ObservationalTool = string;
 
 // Reminder Options
 export type ReminderOption =
@@ -109,7 +107,7 @@ export interface MedicationTaskDetails {
 // Health - Observational Tool Task
 export interface ObservationalToolTaskDetails {
   taskType: 'take-observational-tool';
-  toolType: ObservationalTool;
+  toolType: string;
   chronicConditionType?: ChronicConditionType;
 }
 
@@ -244,7 +242,7 @@ export interface MedicationFormData extends BaseTaskFormData {
 }
 
 export interface ObservationalToolFormData extends BaseTaskFormData {
-  observationalTool: ObservationalTool | null;
+  observationalTool: string | null;
 }
 
 export interface TaskFormData

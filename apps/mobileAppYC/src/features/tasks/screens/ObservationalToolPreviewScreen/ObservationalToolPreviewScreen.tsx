@@ -39,33 +39,40 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
   const normalizeToken = (value?: string | null) =>
     (value ?? '')
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+      .replaceAll(/[^a-z0-9]/g, '');
 
   useEffect(() => {
     let isMounted = true;
+
+    const loadDefinition = async (toolKey: string) => {
+      const cached = getCachedObservationTool(toolKey);
+      if (cached) {
+        setDefinition(cached);
+        return;
+      }
+      try {
+        const def = await observationToolApi.get(toolKey);
+        if (isMounted) {
+          setDefinition(def);
+        }
+      } catch (defError) {
+        console.warn('[OT Preview] Failed to fetch tool definition', defError);
+      }
+    };
+
     const load = async () => {
       try {
         setLoading(true);
         const preview = submissionId
           ? await observationToolApi.getSubmission(submissionId)
           : await observationToolApi.previewTaskSubmission(taskId);
+
         if (!isMounted) return;
+
         setSubmission(preview);
         const toolKey = preview.toolId || toolId;
         if (toolKey) {
-          const cached = getCachedObservationTool(toolKey);
-          if (cached) {
-            setDefinition(cached);
-            return;
-          }
-          try {
-            const def = await observationToolApi.get(toolKey);
-            if (isMounted) {
-              setDefinition(def);
-            }
-          } catch (defError) {
-            console.warn('[OT Preview] Failed to fetch tool definition', defError);
-          }
+          await loadDefinition(toolKey);
         }
       } catch (err) {
         if (isMounted) {
@@ -77,6 +84,7 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
         }
       }
     };
+
     load();
     return () => {
       isMounted = false;
@@ -106,11 +114,26 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
       return acc;
     }, {});
 
-    return Object.entries(submission.answers ?? {}).map(([key, value]) => ({
-      key,
-      label: labelMap[key] ?? key.replace(/_/g, ' '),
-      value: Array.isArray(value) ? value.join(', ') : String(value ?? ''),
-    }));
+    return Object.entries(submission.answers ?? {}).map(([key, value]) => {
+      let displayValue: string;
+      if (value === null || value === undefined) {
+        displayValue = '';
+      } else if (Array.isArray(value)) {
+        displayValue = value.join(', ');
+      } else if (typeof value === 'string') {
+        displayValue = value;
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        displayValue = String(value);
+      } else {
+        // Handle objects
+        displayValue = JSON.stringify(value);
+      }
+      return {
+        key,
+        label: labelMap[key] ?? key.replaceAll('_', ' '),
+        value: displayValue,
+      };
+    });
   }, [definition?.fields, submission]);
 
   const submissionDateLabel = submission?.createdAt
@@ -132,11 +155,9 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
         <ScrollView
           contentContainerStyle={[styles.container, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
-          {loading ? (
-            <Text style={styles.statusText}>Loading submission...</Text>
-          ) : error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : submission ? (
+          {loading && <Text style={styles.statusText}>Loading submission...</Text>}
+          {!loading && error && <Text style={styles.errorText}>{error}</Text>}
+          {!loading && !error && submission && (
             <>
               <LiquidGlassCard
                 glassEffect="regular"
@@ -174,7 +195,8 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
                 )}
               </LiquidGlassCard>
             </>
-          ) : (
+          )}
+          {!loading && !error && !submission && (
             <Text style={styles.statusText}>No submission found.</Text>
           )}
         </ScrollView>

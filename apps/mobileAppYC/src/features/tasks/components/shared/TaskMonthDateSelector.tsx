@@ -98,38 +98,41 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
   }, []);
 
   const renderDateItem = useCallback(
-    ({item}: {item: DateInfo & {isCurrentMonth?: boolean}}) => (
-      <TouchableOpacity
-        activeOpacity={0.7}
-        style={[
-          styles.dateItem,
-          item.isSelected && styles.dateItemSelected,
-          item.isToday && styles.dateItemToday,
-          !item.isCurrentMonth && styles.dateItemDisabled,
-        ]}
-        onPress={() => onDateSelect(item.date)}
-        disabled={!item.isCurrentMonth}>
-        <Text
+    (props: {item: DateInfo & {isCurrentMonth?: boolean; hasTask?: boolean}}) => {
+      const dateInfo = props.item;
+      return (
+        <TouchableOpacity
+          activeOpacity={0.7}
           style={[
-            styles.dayName,
-            item.isSelected && styles.dayNameSelected,
-            item.isToday && styles.dayNameToday,
-            !item.isCurrentMonth && styles.dayNameDisabled,
-          ]}>
-          {item.dayName}
-        </Text>
-        <Text
-          style={[
-            styles.dayNumber,
-            item.isSelected && styles.dayNumberSelected,
-            item.isToday && styles.dayNumberToday,
-            !item.isCurrentMonth && styles.dayNumberDisabled,
-          ]}>
-          {item.dayNumber.toString().padStart(2, '0')}
-        </Text>
-        {item.hasTask && !item.isSelected && <View style={styles.taskIndicator} />}
-      </TouchableOpacity>
-    ),
+            styles.dateItem,
+            dateInfo.isSelected && styles.dateItemSelected,
+            dateInfo.isToday && styles.dateItemToday,
+            !dateInfo.isCurrentMonth && styles.dateItemDisabled,
+          ]}
+          onPress={() => onDateSelect(dateInfo.date)}
+          disabled={!dateInfo.isCurrentMonth}>
+          <Text
+            style={[
+              styles.dayName,
+              dateInfo.isSelected && styles.dayNameSelected,
+              dateInfo.isToday && styles.dayNameToday,
+              !dateInfo.isCurrentMonth && styles.dayNameDisabled,
+            ]}>
+            {dateInfo.dayName}
+          </Text>
+          <Text
+            style={[
+              styles.dayNumber,
+              dateInfo.isSelected && styles.dayNumberSelected,
+              dateInfo.isToday && styles.dayNumberToday,
+              !dateInfo.isCurrentMonth && styles.dayNumberDisabled,
+            ]}>
+            {dateInfo.dayNumber.toString().padStart(2, '0')}
+          </Text>
+          {dateInfo.hasTask && !dateInfo.isSelected && <View style={styles.taskIndicator} />}
+        </TouchableOpacity>
+      );
+    },
     [styles, onDateSelect],
   );
 

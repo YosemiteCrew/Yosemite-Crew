@@ -1,6 +1,5 @@
 import React, {forwardRef, useImperativeHandle, useMemo, useRef, useState, useEffect} from 'react';
 import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
-import type {ObservationalTool} from '@/features/tasks/types';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
 import {observationToolApi, type ObservationToolDefinitionRemote} from '@/features/observationalTools/services/observationToolService';
 
@@ -10,8 +9,8 @@ export interface ObservationalToolBottomSheetRef {
 }
 
 interface ObservationalToolBottomSheetProps {
-  selectedTool?: ObservationalTool | null;
-  onSelect: (tool: ObservationalTool) => void;
+  selectedTool?: string | null;
+  onSelect: (tool: string) => void;
   companionType: 'cat' | 'dog' | 'horse';
   onSheetChange?: (index: number) => void;
 }
@@ -68,7 +67,7 @@ export const ObservationalToolBottomSheet = forwardRef<
   const toolItems: SelectItem[] = useMemo(() =>
     availableTools.map(tool => ({
       id: tool.id,
-      label: tool.name ?? resolveObservationalToolLabel(tool.id as ObservationalTool),
+      label: tool.name ?? resolveObservationalToolLabel(tool.id),
     })), [availableTools]
   );
 
@@ -87,7 +86,7 @@ export const ObservationalToolBottomSheet = forwardRef<
 
   const handleSave = (item: SelectItem | null) => {
     if (item) {
-      onSelect(item.id as ObservationalTool);
+      onSelect(item.id);
     }
   };
 
