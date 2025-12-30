@@ -14,6 +14,7 @@ import type {
   UpdateObservationToolDefinitionInput,
 } from "src/services/observationToolDefinition.service";
 import type { CreateObservationToolSubmissionInput } from "src/services/observationToolSubmission.service";
+import { TaskService } from "src/services/task.service";
 
 const handleError = (error: unknown, res: Response) => {
   if (error instanceof ObservationToolDefinitionServiceError) {
@@ -202,6 +203,11 @@ export const ObservationToolSubmissionController = {
         submissionId,
         appointmentId,
         enforceSingleSubmissionPerAppointment: enforceSingle === true,
+      });
+
+      await TaskService.linkToAppointment({
+        taskId: updated.taskId!,
+        appointmentId,
       });
 
       res.json(updated);
