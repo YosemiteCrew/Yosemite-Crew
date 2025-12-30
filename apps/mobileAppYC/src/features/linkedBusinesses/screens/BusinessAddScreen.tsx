@@ -26,6 +26,7 @@ import {
   linkBusiness,
 } from '../index';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
+import {TabParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
 import {NotifyBusinessBottomSheet, type NotifyBusinessBottomSheetRef} from '../components/NotifyBusinessBottomSheet';
 
@@ -47,6 +48,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
     placeId,
     companionName,
     organisationId,
+    returnTo,
   } = route.params;
 
   const {theme} = useTheme();
@@ -176,21 +178,39 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
   const handleAddBusinessClose = useCallback(() => {
     addBusinessSheetRef.current?.close();
     // Navigate back to refresh the linked businesses list
+    if (returnTo?.tab) {
+      navigation
+        .getParent<any>()
+        ?.navigate(returnTo.tab as keyof TabParamList, returnTo.screen ? {screen: returnTo.screen} : undefined);
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     }
-  }, [navigation]);
+  }, [navigation, returnTo]);
 
   const handleNotifyClose = useCallback(() => {
     notifyBusinessSheetRef.current?.close();
+    if (returnTo?.tab) {
+      navigation
+        .getParent<any>()
+        ?.navigate(returnTo.tab as keyof TabParamList, returnTo.screen ? {screen: returnTo.screen} : undefined);
+      return;
+    }
     navigation.goBack();
-  }, [navigation]);
+  }, [navigation, returnTo]);
 
   const handleBack = useCallback(() => {
+    if (returnTo?.tab) {
+      navigation
+        .getParent<any>()
+        ?.navigate(returnTo.tab as keyof TabParamList, returnTo.screen ? {screen: returnTo.screen} : undefined);
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     }
-  }, [navigation]);
+  }, [navigation, returnTo]);
 
 
   const handleNotifyPress = useCallback(async () => {

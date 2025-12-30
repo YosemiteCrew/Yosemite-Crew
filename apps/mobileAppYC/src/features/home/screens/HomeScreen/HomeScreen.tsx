@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Image,
   Alert,
   type ImageSourcePropType,
@@ -19,7 +20,9 @@ import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/shared/components/common';
+import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -63,6 +66,7 @@ import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointme
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
+import {usePlacesBusinessSearch, type ResolvedBusinessSelection} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
 import {
   selectNotificationsLoading,
@@ -79,6 +83,8 @@ import {
 } from '@/features/tasks';
 import type {TaskCategory} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {useLiquidGlassHeaderLayout} from '@/shared/hooks/useLiquidGlassHeaderLayout';
+import {upsertBusiness} from '@/features/appointments/businessesSlice';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
@@ -142,7 +148,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
   const hasUnreadNotifications = unreadNotifications > 0;
   const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
-  const [businessSearch, setBusinessSearch] = React.useState('');
   const hasNotificationsHydrated = useSelector(
     selectNotificationsHydrated('default-companion'),
   );
@@ -185,15 +190,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       : true,
   );
   const hasTasksHydrated = useSelector(selectTasksHydrated(targetCompanionId));
-
-  useFocusEffect(
-    React.useCallback(() => {
-      setBusinessSearch('');
-      if (targetCompanionId && !hasTasksHydrated) {
-        dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
-      }
-    }, [dispatch, targetCompanionId, hasTasksHydrated]),
-  );
   const nextUpcomingTaskSelector = React.useMemo(
     () => selectNextUpcomingTask(targetCompanionId),
     [targetCompanionId],
@@ -305,20 +301,104 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
     return false;
   }, [hasCompanions]);
-  const handleServiceSearch = React.useCallback(
-    (termOverride?: string) => {
-      if (!ensureCompanionForSearch()) {
-        return;
-      }
-      const term = (termOverride ?? businessSearch).trim();
+
+  const selectedCompanion = React.useMemo(() => {
+    if (targetCompanionId) {
+      return companions.find(c => c.id === targetCompanionId) ?? null;
+    }
+    return companions[0] ?? null;
+  }, [companions, targetCompanionId]);
+
+  const handleSearchError = React.useCallback((error: unknown) => {
+    console.log('[HomeSearch] Search error', error);
+  }, []);
+
+  const handlePmsSelection = React.useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      const businessId = selection.organisationId || selection.businessId || selection.id;
+
+      dispatch(
+        upsertBusiness({
+          id: businessId,
+          name: selection.name,
+          category: 'hospital',
+          address: selection.address,
+          distanceMi: selection.distance,
+          rating: selection.rating,
+          photo: selection.photo,
+          phone: selection.phone,
+          website: selection.website || selection.email,
+          lat: selection.lat,
+          lng: selection.lng,
+          googlePlacesId: selection.placeId,
+        }),
+      );
+
       navigation
         .getParent<NavigationProp<TabParamList>>()
         ?.navigate('Appointments', {
-          screen: 'BrowseBusinesses',
-          params: {serviceName: term || undefined, autoFocusSearch: true},
+          screen: 'BusinessDetails',
+          params: {
+            businessId,
+            returnTo: {tab: 'HomeStack', screen: 'Home'},
+          },
         });
     },
-    [businessSearch, ensureCompanionForSearch, navigation],
+    [dispatch, navigation],
+  );
+
+  const handleNonPmsSelection = React.useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      if (!ensureCompanionForSearch() || !selectedCompanion || !targetCompanionId) {
+        return;
+      }
+
+      navigation.navigate('LinkedBusinesses', {
+        screen: 'BusinessAdd',
+        params: {
+          companionId: targetCompanionId,
+          companionName: selectedCompanion.name,
+          companionBreed: selectedCompanion.breed?.breedName,
+          companionImage: selectedCompanion.profileImage ?? undefined,
+          category: 'hospital',
+          businessId: selection.placeId,
+          businessName: selection.name,
+          businessAddress: selection.address,
+          phone: selection.phone,
+          email: selection.email,
+          photo: selection.photo,
+          isPMSRecord: false,
+          rating: selection.rating,
+          distance: selection.distance,
+          placeId: selection.placeId,
+        },
+      });
+    },
+    [ensureCompanionForSearch, navigation, selectedCompanion, targetCompanionId],
+  );
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    searching,
+    handleSearchChange,
+    handleSelectBusiness,
+    clearResults,
+  } = usePlacesBusinessSearch({
+    onSelectPms: handlePmsSelection,
+    onSelectNonPms: handleNonPmsSelection,
+    onError: handleSearchError,
+  });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setSearchQuery('');
+      clearResults();
+      if (targetCompanionId && !hasTasksHydrated) {
+        dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
+      }
+    }, [clearResults, dispatch, hasTasksHydrated, setSearchQuery, targetCompanionId]),
   );
 
   React.useEffect(() => {
@@ -1039,29 +1119,29 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const actionIconSize = theme.spacing['10'];
   const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
+  const {headerProps, contentPaddingStyle} = useLiquidGlassHeaderLayout({
+    contentPadding: theme.spacing['4.5'],
+  });
+  const headerInsetsTop = headerProps.insetsTop + theme.spacing['1'];
   const bottomScrollPadding =
     insets.bottom + theme.spacing['24'] + theme.spacing['12'];
+  const dropdownTop =
+    (headerProps.currentHeight || headerInsetsTop + theme.spacing['18']) +
+    theme.spacing['1'];
+  const showSearchResults =
+    searchQuery.length >= 2 && searchResults.length > 0 && !searching;
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <View style={styles.topSection}>
-        <View
-          style={styles.topGlassShadow}
-          onLayout={event => {
-            const height = event.nativeEvent.layout.height;
-            if (height !== topGlassHeight) {
-              setTopGlassHeight(height);
-            }
-          }}>
-          <View style={styles.topGlassShadowWrapper}>
-            <LiquidGlassCard
-              glassEffect="clear"
-              interactive={false}
-              shadow="none"
-              style={[styles.topGlassCard, {paddingTop: insets.top + theme.spacing['1']}]}
-              fallbackStyle={styles.topGlassFallback}>
-            <View style={styles.headerRow}>
+      {showSearchResults ? (
+        <Pressable style={styles.searchBackdrop} onPress={clearResults} />
+      ) : null}
+
+      <LiquidGlassHeader
+        {...headerProps}
+        insetsTop={headerInsetsTop}
+        cardStyle={[headerProps.cardStyle, styles.headerCard]}>
+        <View style={styles.headerRow}>
           <TouchableOpacity
             style={styles.profileButton}
             onPress={() => navigation.navigate('Account')}
@@ -1115,27 +1195,39 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         <SearchBar
           placeholder="Search services"
           mode="input"
-          value={businessSearch}
+          value={searchQuery}
           onChangeText={text => {
             if (!ensureCompanionForSearch()) {
               return;
             }
-            setBusinessSearch(text);
-            if (text && text.trim().length > 0) {
-              handleServiceSearch(text);
-            }
+            handleSearchChange(text);
           }}
-          onSubmitEditing={e => handleServiceSearch(e.nativeEvent.text)}
-          onIconPress={() => handleServiceSearch()}
+          onSubmitEditing={e => handleSearchChange(e.nativeEvent.text)}
+          onIconPress={() => {
+            if (!ensureCompanionForSearch()) {
+              return;
+            }
+            handleSearchChange(searchQuery.trim());
+          }}
         />
-            </LiquidGlassCard>
-          </View>
-        </View>
-      </View>
+      </LiquidGlassHeader>
+      <SearchDropdownOverlay
+        visible={showSearchResults}
+        top={dropdownTop}
+        items={searchResults}
+        keyExtractor={item => item.id}
+        onPress={handleSelectBusiness}
+        title={item => item.name}
+        subtitle={item => item.address}
+        initials={item => item.name}
+        useGlassCard
+        glassEffect="regular"
+        containerStyle={styles.searchDropdown}
+      />
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['4.5']} : null,
+          contentPaddingStyle,
           {paddingBottom: bottomScrollPadding},
         ]}
         showsVerticalScrollIndicator={false}>
@@ -1259,52 +1351,24 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    topSection: {
-      paddingHorizontal: 0,
+    searchBackdrop: {
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
-      zIndex: 2,
-      backgroundColor: 'transparent',
+      bottom: 0,
+      zIndex: 90,
     },
-    topGlassShadow: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
+    searchDropdown: {
+      left: theme.spacing['6'],
+      right: theme.spacing['6'],
+      zIndex: 100,
     },
-    topGlassShadowWrapper: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-      shadowColor: theme.colors.neutralShadow ?? '#000000',
-      shadowOffset: {width: 0, height: 12},
-      shadowOpacity: 0.14,
-      shadowRadius: 18,
-      elevation: 10,
-      backgroundColor: 'transparent',
-    },
-    topGlassCard: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
+    headerCard: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['4'],
       gap: theme.spacing['4'],
-            borderWidth: 0,
-      borderColor: 'transparent',
       overflow: 'hidden',
-    },
-    topGlassFallback: {
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderBottomLeftRadius: theme.borderRadius['2xl'],
-      borderBottomRightRadius: theme.borderRadius['2xl'],
-            borderWidth: 0,
-      borderColor: 'transparent',
     },
     scrollContent: {
       paddingHorizontal: theme.spacing['6'],

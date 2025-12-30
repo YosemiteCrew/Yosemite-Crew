@@ -9,7 +9,7 @@ import {Images} from '@/assets/images';
 import VetBusinessCard from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
 import {createSelectServicesForBusiness} from '@/features/appointments/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, NavigationProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
@@ -19,6 +19,7 @@ import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {TabParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -30,6 +31,7 @@ export const BusinessDetailsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {distanceUnit} = usePreferences();
   const businessId = route.params?.businessId as string;
+  const returnTo = route.params?.returnTo as {tab?: keyof TabParamList; screen?: string} | undefined;
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
   const servicesSelector = React.useMemo(() => createSelectServicesForBusiness(), []);
   const services = useSelector((state: RootState) => servicesSelector(state, businessId));
@@ -104,13 +106,28 @@ export const BusinessDetailsScreen: React.FC = () => {
     return `${business.distanceMi.toFixed(1)}mi`;
   }, [business?.distanceMi, distanceUnit]);
 
+  const handleBack = () => {
+    if (returnTo?.tab) {
+      const tabNav = navigation.getParent<NavigationProp<TabParamList>>();
+      if (tabNav) {
+        // Type-safe navigation by explicitly handling each tab case
+        const params = returnTo.screen ? {screen: returnTo.screen} : undefined;
+        tabNav.navigate(returnTo.tab as any, params as any);
+      }
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  };
+
   return (
     <LiquidGlassHeaderScreen
       header={
         <Header
           title="Book an appointment"
           showBackButton
-          onBack={() => navigation.goBack()}
+          onBack={handleBack}
           glass={false}
         />
       }

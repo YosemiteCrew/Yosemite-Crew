@@ -43,6 +43,8 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const [selectedBusinessForDelete, setSelectedBusinessForDelete] = useState<LinkedBusiness | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
+  const searchBarRef = useRef<View | null>(null);
   const deleteBottomSheetRef = useRef<DeleteBusinessBottomSheetRef>(null);
 
   // Fetch linked businesses on mount
@@ -437,20 +439,42 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
 
 
   const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
+  const dropdownTop = (searchBarBottom ?? theme.spacing['24']) + theme.spacing['2'];
+  const showSearchResults = searchQuery.length >= 2 && searchResults.length > 0 && !searching;
 
   return (
-    <>
+    <View style={styles.container}>
+      {showSearchResults ? (
+        <Pressable style={styles.searchBackdrop} onPress={handleCloseDropdown} />
+      ) : null}
+
       <LiquidGlassHeaderScreen
         header={
-          <>
-            <Header title={categoryTitle} showBackButton onBack={handleBack} glass={false} />
-            <SearchBar
-              placeholder={`Search ${category}`}
-              mode="input"
-              value={searchQuery}
-              onChangeText={handleSearch}
+          <View style={styles.headerContainer}>
+            <Header
+              title={categoryTitle}
+              showBackButton
+              onBack={handleBack}
+              glass={false}
+              style={styles.header}
             />
-          </>
+            <View
+              ref={node => {
+                searchBarRef.current = node;
+              }}
+              onLayout={() => {
+                searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
+                  setSearchBarBottom(y + h);
+                });
+              }}>
+              <SearchBar
+                placeholder={`Search ${category}`}
+                mode="input"
+                value={searchQuery}
+                onChangeText={handleSearch}
+              />
+            </View>
+          </View>
         }
         cardGap={theme.spacing['3']}
         contentPadding={theme.spacing['1']}>
@@ -458,19 +482,12 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}>
-            {/* Close dropdown when clicking outside */}
-            {searchResults.length > 0 && (
-              <Pressable
-                style={styles.overlay}
-                onPress={handleCloseDropdown}
-              />
-            )}
-
             <View style={styles.mainContent}>
               <ScrollView
                 contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
                 showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled">
+                keyboardShouldPersistTaps="handled"
+                onScrollBeginDrag={showSearchResults ? handleCloseDropdown : undefined}>
                 {/* Companion Profile Header - Always visible */}
                 <View key="profile">
                   <CompanionProfileImage
@@ -522,22 +539,25 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
                 )}
               </ScrollView>
             </View>
-
-            <SearchDropdownOverlay
-              visible={searchQuery.length >= 2 && searchResults.length > 0 && !searching}
-              top={120}
-              items={searchResults}
-              keyExtractor={item => item.id}
-              onPress={handleSelectBusiness}
-              title={item => item.name}
-              subtitle={item => item.address}
-              initials={item => item.name}
-              containerStyle={styles.dropdownOverlay}
-              scrollEnabledThreshold={0}
-            />
           </KeyboardAvoidingView>
         )}
       </LiquidGlassHeaderScreen>
+
+      <SearchDropdownOverlay
+        visible={showSearchResults}
+        top={dropdownTop}
+        items={searchResults}
+        keyExtractor={item => item.id}
+        onPress={handleSelectBusiness}
+        title={item => item.name}
+        subtitle={item => item.address}
+        initials={item => item.name}
+        containerStyle={styles.dropdownOverlay}
+        scrollEnabledThreshold={0}
+        useGlassCard
+        glassEffect="regular"
+        maxHeight={theme.spacing['80']}
+      />
 
       <DeleteBusinessBottomSheet
         ref={deleteBottomSheetRef}
@@ -545,7 +565,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         onCancel={handleCancelDelete}
         loading={deleteLoading}
       />
-    </>
+    </View>
   );
 };
 
@@ -555,19 +575,18 @@ const createStyles = (theme: any) => {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    overlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 99,
-    },
     mainContent: {
       flex: 1,
     },
+    header: {
+      paddingHorizontal: 0,
+    },
+    headerContainer: {
+      paddingHorizontal: theme.spacing['6'],
+      gap: theme.spacing['3'],
+    },
     scrollContent: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
     },
     sectionTitle: {
@@ -597,8 +616,18 @@ const createStyles = (theme: any) => {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
     },
+    searchBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 90,
+    },
     dropdownOverlay: {
-      maxHeight: 320,
+      left: theme.spacing['6'],
+      right: theme.spacing['6'],
+      zIndex: 100,
     },
   });
 };

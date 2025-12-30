@@ -67,6 +67,7 @@ export type LinkedBusinessStackParamList = {
     distance?: number;
     placeId: string;
     organisationId?: string;
+    returnTo?: {tab: keyof TabParamList; screen?: string};
   };
   QRScanner: {
     companionId: string;
@@ -98,7 +99,7 @@ export type AppointmentStackParamList = {
   MyAppointmentsEmpty: undefined;
   MyAppointments: { resetKey?: number } | undefined;
   BrowseBusinesses: { serviceName?: string; autoFocusSearch?: boolean } | undefined;
-  BusinessDetails: { businessId: string };
+  BusinessDetails: { businessId: string; returnTo?: {tab: keyof TabParamList; screen?: string} };
   BookingForm: {
     businessId: string;
     serviceId?: string;

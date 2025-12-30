@@ -12,11 +12,12 @@ import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
-import {fetchDocuments} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
 import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
 import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
+import {useDocumentCompanionSync} from '@/features/documents/hooks/useDocumentCompanionSync';
+import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
@@ -29,6 +30,9 @@ export const DocumentsScreen: React.FC = () => {
       paddingBottom: themeArg.spacing['32'],
     },
   }));
+  useDocumentCompanionSync({companions, selectedCompanionId, dispatch});
+  const {handleAddDocument, handleViewDocument, handleEditDocument} =
+    useDocumentNavigation(navigation);
 
   // Get documents from Redux
   const documents = useSelector((state: RootState) => state.documents.documents);
@@ -61,35 +65,10 @@ export const DocumentsScreen: React.FC = () => {
     });
   }, [filteredDocuments]);
 
-  // Set first companion as selected on mount
-  React.useEffect(() => {
-    if (companions.length > 0 && selectedCompanionId === null) {
-      dispatch(setSelectedCompanion(companions[0].id));
-    }
-  }, [companions, selectedCompanionId, dispatch]);
-
-  React.useEffect(() => {
-    if (selectedCompanionId) {
-      dispatch(fetchDocuments({companionId: selectedCompanionId}));
-    }
-  }, [dispatch, selectedCompanionId]);
-
   // Show empty screen if no companions
   if (companions.length === 0) {
     return <EmptyDocumentsScreen />;
   }
-
-  const handleAddDocument = () => {
-    navigation.navigate('AddDocument');
-  };
-
-  const handleViewDocument = (documentId: string) => {
-    navigation.navigate('DocumentPreview', {documentId});
-  };
-
-  const handleEditDocument = (documentId: string) => {
-    navigation.navigate('EditDocument', {documentId});
-  };
 
   const handleCategoryPress = (categoryId: string) => {
     navigation.navigate('CategoryDetail', {categoryId});
@@ -155,4 +134,3 @@ export const DocumentsScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
-

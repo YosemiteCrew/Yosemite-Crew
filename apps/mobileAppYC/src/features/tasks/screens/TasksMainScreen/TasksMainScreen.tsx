@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState, useCallback} from 'react';
+import React, {useEffect, useMemo, useCallback} from 'react';
 import {
   ScrollView,
   Text,
@@ -17,7 +17,7 @@ import {EmptyTasksScreen} from '../EmptyTasksScreen/EmptyTasksScreen';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
-import {fetchTasksForCompanion, markTaskStatus} from '@/features/tasks';
+import {fetchTasksForCompanion} from '@/features/tasks';
 import {
   selectHasHydratedCompanion,
   selectRecentTasksByCategory,
@@ -30,6 +30,9 @@ import type {TaskStackParamList} from '@/navigation/types';
 import type {TaskCategory} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
+import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
+import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
+import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksMain'>;
 
@@ -56,8 +59,10 @@ export const TasksMainScreen: React.FC = () => {
     [companions, selectedCompanionId],
   );
 
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const {selectedDate, currentMonth, handleDateSelect, handleMonthChange} =
+    useTaskDateSelection();
+  const {handleViewTask, handleEditTask, handleCompleteTask, handleStartObservationalTool} =
+    useTaskNavigationActions(navigation, dispatch);
 
   const hasHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionId ?? null),
@@ -132,16 +137,6 @@ export const TasksMainScreen: React.FC = () => {
     }
   };
 
-  const handleMonthChange = useCallback((newMonth: Date) => {
-    setCurrentMonth(newMonth);
-    const firstDay = new Date(newMonth.getFullYear(), newMonth.getMonth(), 1);
-    setSelectedDate(firstDay);
-  }, []);
-
-  const handleDateSelect = useCallback((date: Date) => {
-    setSelectedDate(date);
-  }, []);
-
   const handleAddTask = () => {
     navigation.navigate('AddTask');
   };
@@ -150,44 +145,13 @@ export const TasksMainScreen: React.FC = () => {
     navigation.navigate('TasksList', {category});
   };
 
-  const handleViewTask = (taskId: string) => {
-    navigation.navigate('TaskView', {taskId});
-  };
-
-  const handleEditTask = (taskId: string) => {
-    navigation.navigate('EditTask', {taskId});
-  };
-
-  const handleCompleteTask = (taskId: string) => {
-    dispatch(markTaskStatus({taskId, status: 'completed'}));
-  };
-
-  const handleStartObservationalTool = (taskId: string) => {
-    navigation.navigate('ObservationalTool', {taskId});
-  };
-
   const renderCategorySection = (category: TaskCategory) => {
     const data = categoryData[category];
     const recentTasks = data.recentTasks;
     const taskCount = data.taskCount;
     const task = recentTasks[0];
     const companion = companions.find(c => c.id === task?.companionId);
-    const statusUpper = task ? String(task.status).toUpperCase() : '';
-    const isPending = statusUpper === 'PENDING';
-    const isCompleted = statusUpper === 'COMPLETED';
-
-    // Get assigned user's profile image and name
-    const selfId = authUser?.parentId ?? authUser?.id;
-    const assignedToData = task?.assignedTo === selfId ? {
-      avatar: authUser?.profilePicture,
-      name: authUser?.firstName || 'User',
-    } : undefined;
-
-    const isObservationalToolTask =
-      task?.category === 'health' &&
-      task.details &&
-      'taskType' in task.details &&
-      task.details.taskType === 'take-observational-tool';
+    const taskMeta = task ? getTaskCardMeta(task, authUser) : null;
 
     return (
       <View key={category} style={styles.categorySection}>
@@ -207,20 +171,22 @@ export const TasksMainScreen: React.FC = () => {
             time={task.time}
             companionName={companion.name}
             companionAvatar={companion.profileImage ?? undefined}
-            assignedToName={assignedToData?.name}
-            assignedToAvatar={assignedToData?.avatar}
+            assignedToName={taskMeta?.assignedToData?.name}
+            assignedToAvatar={taskMeta?.assignedToData?.avatar}
             status={task.status}
             onPressView={() => handleViewTask(task.id)}
             onPressEdit={() => handleEditTask(task.id)}
             onPressComplete={() => handleCompleteTask(task.id)}
-        onPressTakeObservationalTool={
-          isObservationalToolTask ? () => handleStartObservationalTool(task.id) : undefined
-        }
-        showEditAction={!isCompleted}
-        showCompleteButton={isPending}
-        category={task.category}
-        details={task.details}
-      />
+            onPressTakeObservationalTool={
+              taskMeta?.isObservationalToolTask
+                ? () => handleStartObservationalTool(task.id)
+                : undefined
+            }
+            showEditAction={!taskMeta?.isCompleted}
+            showCompleteButton={Boolean(taskMeta?.isPending)}
+            category={task.category}
+            details={task.details}
+          />
         ) : (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
@@ -290,4 +256,3 @@ export const TasksMainScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
-

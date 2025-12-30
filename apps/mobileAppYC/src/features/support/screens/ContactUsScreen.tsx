@@ -10,11 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header, Input, TouchableInput} from '@/shared/components/common';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
@@ -31,7 +30,6 @@ import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {
   CONTACT_TABS,
   type ContactTabId,
@@ -256,8 +254,6 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const {user} = useSelector((state: RootState) => state.auth);
   const {companions, selectedCompanionId} = useSelector(
     (state: RootState) => state.companion,
@@ -1070,63 +1066,47 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
 
   return (
     <>
-    <SafeAreaView style={styles.safeArea} edges={[]}>
-      <View
-        style={styles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title="Contact us"
-              showBackButton
-              onBack={() => navigation.goBack()}
-              glass={false}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={[
-            styles.contentContainer,
-            topGlassHeight
-              ? {paddingTop: topGlassHeight + theme.spacing['3']}
-              : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.heroCard}>
-            <Image source={Images.contactHero} style={styles.heroImage} />
-            <View style={styles.heroTextContainerCenter}>
-              <Text style={styles.heroTitle}>We’re happy to help</Text>
-            </View>
-          </View>
-
-          <PillSelector
-            options={CONTACT_TABS.map(tab => ({id: tab.id, label: tab.label}))}
-            selectedId={activeTab}
-            onSelect={id => setActiveTab(id as ContactTabId)}
-            containerStyle={styles.pillContainer}
-            allowScroll={false}
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Contact us"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
           />
+        }
+        contentPadding={theme.spacing['3']}
+        useSafeAreaView
+        containerStyle={styles.safeArea}
+        showBottomFade={false}>
+        {contentPaddingStyle => (
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView
+              style={styles.flex}
+              contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <View style={styles.heroCard}>
+                <Image source={Images.contactHero} style={styles.heroImage} />
+                <View style={styles.heroTextContainerCenter}>
+                  <Text style={styles.heroTitle}>We’re happy to help</Text>
+                </View>
+              </View>
 
-          {renderActiveTabContent()}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <PillSelector
+                options={CONTACT_TABS.map(tab => ({id: tab.id, label: tab.label}))}
+                selectedId={activeTab}
+                onSelect={id => setActiveTab(id as ContactTabId)}
+                containerStyle={styles.pillContainer}
+                allowScroll={false}
+              />
+
+              {renderActiveTabContent()}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+      </LiquidGlassHeaderScreen>
 
     <DataSubjectLawBottomSheet
       ref={lawSheetRef}
@@ -1190,7 +1170,6 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['5'],
       gap: theme.spacing['4'],
     },
-    ...createLiquidGlassHeaderStyles(theme),
     heroCard: {
       flexDirection: 'column',
       alignItems: 'center',

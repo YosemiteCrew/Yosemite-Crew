@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useCallback} from 'react';
+import React, {useMemo} from 'react';
 import {FlatList, StyleSheet, Text, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -11,7 +11,6 @@ import {TaskCard} from '@/features/tasks/components';
 import {TaskMonthDateSelector} from '@/features/tasks/components/shared/TaskMonthDateSelector';
 import {useTheme} from '@/hooks';
 import {setSelectedCompanion} from '@/features/companion';
-import {markTaskStatus} from '@/features/tasks';
 import {selectAllTasksByCategory} from '@/features/tasks/selectors';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -19,6 +18,10 @@ import type {TaskStackParamList} from '@/navigation/types';
 import type {Task} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {createEmptyStateStyles} from '@/shared/utils/screenStyles';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
+import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
+import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
+import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksList'>;
 type Route = RouteProp<TaskStackParamList, 'TasksList'>;
@@ -38,23 +41,17 @@ export const TasksListScreen: React.FC = () => {
   );
   const authUser = useSelector(selectAuthUser);
 
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const {selectedDate, currentMonth, handleDateSelect, handleMonthChange} =
+    useTaskDateSelection();
+  const {handleViewTask, handleEditTask, handleCompleteTask, handleStartObservationalTool} =
+    useTaskNavigationActions(navigation, dispatch);
 
   // Get all tasks for the category
   const allCategoryTasks = useSelector(selectAllTasksByCategory(selectedCompanionId, category));
 
-  // Helper function to convert date to YYYY-MM-DD format
-  const formatDateToISOString = useCallback((date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }, []);
-
   const selectedDateKey = useMemo(
-    () => formatDateToISOString(selectedDate),
-    [selectedDate, formatDateToISOString],
+    () => formatDateToISODate(selectedDate),
+    [selectedDate],
   );
 
   const listKey = useMemo(
@@ -82,52 +79,12 @@ export const TasksListScreen: React.FC = () => {
     }
   };
 
-  const handleMonthChange = useCallback((newMonth: Date) => {
-    setCurrentMonth(newMonth);
-    const firstDay = new Date(newMonth.getFullYear(), newMonth.getMonth(), 1);
-    setSelectedDate(firstDay);
-  }, []);
-
-  const handleDateSelect = useCallback((date: Date) => {
-    setSelectedDate(date);
-  }, []);
-
-  const handleViewTask = (taskId: string) => {
-    navigation.navigate('TaskView', {taskId});
-  };
-
-  const handleEditTask = (taskId: string) => {
-    navigation.navigate('EditTask', {taskId});
-  };
-
-  const handleCompleteTask = (taskId: string) => {
-    dispatch(markTaskStatus({taskId, status: 'completed'}));
-  };
-
-  const handleStartObservationalTool = (taskId: string) => {
-    navigation.navigate('ObservationalTool', {taskId});
-  };
-
   const renderTask = ({item}: {item: Task}) => {
     const companion = companions.find(c => c.id === item.companionId);
-    const statusUpper = String(item.status).toUpperCase();
-    const isPending = statusUpper === 'PENDING';
-    const isCompleted = statusUpper === 'COMPLETED';
+    const {isPending, isCompleted, assignedToData, isObservationalToolTask} =
+      getTaskCardMeta(item, authUser);
 
     if (!companion) return null;
-
-    // Get assigned user's profile image and name
-    const selfId = authUser?.parentId ?? authUser?.id;
-    const assignedToData = item.assignedTo === selfId ? {
-      avatar: authUser?.profilePicture,
-      name: authUser?.firstName || 'User',
-    } : undefined;
-
-    const isObservationalToolTask =
-      item.category === 'health' &&
-      item.details &&
-      'taskType' in item.details &&
-      item.details.taskType === 'take-observational-tool';
 
     return (
       <TaskCard

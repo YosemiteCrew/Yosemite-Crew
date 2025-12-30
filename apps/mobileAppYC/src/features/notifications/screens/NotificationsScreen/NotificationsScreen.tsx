@@ -8,9 +8,7 @@ import {
   Image,
   RefreshControl,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
@@ -67,8 +65,6 @@ export const NotificationsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const {isLoggedIn} = useAuth();
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   // Redux selectors
   const notifications = useSelector(selectDisplayNotifications);
@@ -264,84 +260,80 @@ export const NotificationsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
-      <View
-        style={styles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title="Notifications"
-              showBackButton
-              onBack={() => (navigation as any).goBack?.()}
-              glass={false}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Notifications"
+          showBackButton
+          onBack={() => (navigation as any).goBack?.()}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['2']}
+      useSafeAreaView
+      containerStyle={styles.container}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <>
+          {/* Header content placed above FlatList to preserve internal scroll state */}
+          <View style={[styles.headerContent, contentPaddingStyle]}>
+            <View style={styles.filtersWrapper}>
+              <NotificationFilterPills
+                selectedFilter={filter}
+                onFilterChange={handleFilterChange}
+                unreadCounts={unreadCounts as any}
+              />
+            </View>
 
-      {/* Header content placed above FlatList to preserve internal scroll state */}
-      <View style={[styles.headerContent, topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['2']} : null]}>
-        <View style={styles.filtersWrapper}>
-          <NotificationFilterPills
-            selectedFilter={filter}
-            onFilterChange={handleFilterChange}
-            unreadCounts={unreadCounts as any}
-          />
-        </View>
-
-        <View style={styles.segmentContainer}>
-          <View style={styles.segmentInner}>
-            {(['new', 'seen'] as const).map(option => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => handleSortChange(option)}
-                activeOpacity={0.9}
-                style={[styles.segmentItem, sortBy === option && styles.segmentItemActive]}>
-                <Text style={[styles.segmentText, sortBy === option && styles.segmentTextActive]}>
-                  {option === 'new' ? 'New' : 'Seen'}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <View style={styles.segmentContainer}>
+              <View style={styles.segmentInner}>
+                {(['new', 'seen'] as const).map(option => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => handleSortChange(option)}
+                    activeOpacity={0.9}
+                    style={[
+                      styles.segmentItem,
+                      sortBy === option && styles.segmentItemActive,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        sortBy === option && styles.segmentTextActive,
+                      ]}>
+                      {option === 'new' ? 'New' : 'Seen'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
 
-      <FlatList
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        data={notifications}
-        renderItem={renderNotificationItem}
-        keyExtractor={item => item.id}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing || loading}
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
+          <FlatList
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            data={notifications}
+            renderItem={renderNotificationItem}
+            keyExtractor={item => item.id}
+            ListEmptyComponent={renderEmptyState}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing || loading}
+                onRefresh={handleRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
           />
-        }
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-      />
-    </SafeAreaView>
+        </>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => {
-  const headerStyles = createLiquidGlassHeaderStyles(theme);
   return StyleSheet.create({
-    ...headerStyles,
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,

@@ -1,7 +1,14 @@
 import React, {useMemo, useCallback, useRef} from 'react';
 import {FlatList, StyleSheet, Text, TouchableOpacity, View, Image} from 'react-native';
 import {Images} from '@/assets/images';
-import {formatMonthYear, getMonthDates, getPreviousMonth, getNextMonth, type DateInfo} from '@/shared/utils/dateHelpers';
+import {
+  formatDateToISODate,
+  formatMonthYear,
+  getMonthDates,
+  getPreviousMonth,
+  getNextMonth,
+  type DateInfo,
+} from '@/shared/utils/dateHelpers';
 
 interface TaskMonthDateSelectorProps {
   currentMonth: Date;
@@ -25,22 +32,15 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dateListRef = useRef<FlatList>(null);
 
-  const formatDateToISOString = useCallback((date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }, []);
-
   const weekDates = useMemo(() => {
     const allMonthDates = getMonthDates(currentMonth, selectedDate);
     return allMonthDates.map(dateInfo => {
-      const dateStr = formatDateToISOString(dateInfo.date);
+      const dateStr = formatDateToISODate(dateInfo.date);
       const hasTask = datesWithTasks.has(dateStr);
       const isCurrentMonth = dateInfo.date.getMonth() === currentMonth.getMonth();
       return {...dateInfo, hasTask, isCurrentMonth};
     });
-  }, [currentMonth, selectedDate, datesWithTasks, formatDateToISOString]);
+  }, [currentMonth, selectedDate, datesWithTasks]);
 
   const selectedDateIndex = useMemo(
     () =>

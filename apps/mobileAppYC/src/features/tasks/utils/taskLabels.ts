@@ -7,7 +7,6 @@ import type {
   MedicationType,
   MedicationFrequency,
   TaskFrequency,
-  ObservationalTool,
   ReminderOption,
   ParasitePreventionType,
   ChronicConditionType,
@@ -138,7 +137,7 @@ export const resolveTaskFrequencyLabel = (frequency: TaskFrequency): string => {
 
 // Observational Tool Labels
 export const resolveObservationalToolLabel = (
-  tool: ObservationalTool,
+  tool: string,
 ): string => {
   const cached = getCachedObservationToolName(tool);
   if (cached) {

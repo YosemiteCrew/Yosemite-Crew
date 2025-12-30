@@ -9,11 +9,10 @@ import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {Images} from '@/assets/images';
-import {createAllCommonStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type DocumentPreviewNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type DocumentPreviewRouteProp = RouteProp<DocumentStackParamList, 'DocumentPreview'>;
@@ -24,8 +23,6 @@ export const DocumentPreviewScreen: React.FC = () => {
   const navigation = useNavigation<DocumentPreviewNavigationProp>();
   const route = useRoute<DocumentPreviewRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const {documentId} = route.params;
 
@@ -108,63 +105,48 @@ export const DocumentPreviewScreen: React.FC = () => {
   const canEdit = document.isUserAdded && !document.uploadedByPmsUserId;
 
   return (
-    <SafeArea edges={[]}>
-      <View
-        style={styles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title={document.title}
-              showBackButton={true}
-              onBack={() => navigation.goBack()}
-              onRightPress={canEdit ? handleEdit : undefined}
-              rightIcon={canEdit ? Images.blackEdit : undefined}
-              glass={false}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.contentContainer,
-          {paddingTop: topGlassHeight + theme.spacing['1']},
-        ]}>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>{document.title} for {companion?.name || 'Unknown'}</Text>
-          <Text style={styles.infoText}>{document.businessName || '—'}</Text>
-          <Text style={styles.infoText}>{formattedIssueDate}</Text>
-        </View>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={document.title}
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+          onRightPress={canEdit ? handleEdit : undefined}
+          rightIcon={canEdit ? Images.blackEdit : undefined}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['1']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}>
+          <View style={styles.infoCard}>
+            <Text style={styles.infoTitle}>
+              {document.title} for {companion?.name || 'Unknown'}
+            </Text>
+            <Text style={styles.infoText}>{document.businessName || '—'}</Text>
+            <Text style={styles.infoText}>{formattedIssueDate}</Text>
+          </View>
 
-        <View style={styles.documentPreview}>
-          <DocumentAttachmentViewer
-            attachments={document.files}
-            documentTitle={document.title}
-            companionName={companion?.name}
-          />
-        </View>
-      </ScrollView>
-    </SafeArea>
+          <View style={styles.documentPreview}>
+            <DocumentAttachmentViewer
+              attachments={document.files}
+              documentTitle={document.title}
+              companionName={companion?.name}
+            />
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => {
   const commonStyles = createAllCommonStyles(theme);
-  const headerStyles = createLiquidGlassHeaderStyles(theme);
   return StyleSheet.create({
     ...commonStyles,
-    ...headerStyles,
     contentContainer: {
       ...commonStyles.contentContainer,
       paddingHorizontal: theme.spacing['6'],

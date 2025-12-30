@@ -2,7 +2,6 @@ import React, {useMemo, useState, useRef, useCallback} from 'react';
 import {View, Text, ScrollView, StyleSheet, ActivityIndicator} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -13,9 +12,8 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {setSelectedCompanion} from '@/features/companion';
 import {searchDocuments, clearSearchResults} from '@/features/documents/documentSlice';
-import {createAllCommonStyles, createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {createAllCommonStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type DocumentSearchNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
@@ -24,8 +22,6 @@ export const DocumentSearchScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<DocumentSearchNavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
@@ -87,96 +83,82 @@ export const DocumentSearchScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea edges={[]}>
-      <View
-        style={styles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={styles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[styles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={styles.topGlassFallback}>
-            <Header
-              title="Search documents"
-              showBackButton
-              onBack={() => navigation.goBack()}
-              glass={false}
-            />
-            <SearchBar
-              mode="input"
-              placeholder="Search by title, category, or issuer"
-              value={query}
-              onChangeText={setQuery}
-              onSubmitEditing={triggerSearch}
-              autoFocus
-              containerStyle={styles.searchBar}
-              rightElement={searchLoading ? <ActivityIndicator size="small" /> : null}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.contentContainer,
-          {paddingTop: topGlassHeight + theme.spacing['1']},
-        ]}
-        keyboardShouldPersistTaps="handled">
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={id => dispatch(setSelectedCompanion(id))}
-          showAddButton={false}
-          containerStyle={styles.selector}
-          requiredPermission="documents"
-          permissionLabel="documents"
-        />
+    <LiquidGlassHeaderScreen
+      header={
+        <>
+          <Header
+            title="Search documents"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+          <SearchBar
+            mode="input"
+            placeholder="Search by title, category, or issuer"
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={triggerSearch}
+            autoFocus
+            containerStyle={styles.searchBar}
+            rightElement={searchLoading ? <ActivityIndicator size="small" /> : null}
+          />
+        </>
+      }
+      contentPadding={theme.spacing['1']}
+      cardGap={theme.spacing['3']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          keyboardShouldPersistTaps="handled">
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onSelect={id => dispatch(setSelectedCompanion(id))}
+            showAddButton={false}
+            containerStyle={styles.selector}
+            requiredPermission="documents"
+            permissionLabel="documents"
+          />
 
-        {searchError ? <Text style={styles.errorText}>{searchError}</Text> : null}
+          {searchError ? <Text style={styles.errorText}>{searchError}</Text> : null}
 
-        {searchLoading && (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator />
-          </View>
-        )}
-        {!searchLoading && searchResults.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No documents found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try another keyword or select a different pet to search.
-            </Text>
-          </View>
-        )}
-        {!searchLoading && searchResults.length > 0 && (
-          <View style={styles.resultsContainer}>
-            {searchResults.map(doc => (
-              <DocumentListItem
-                key={doc.id}
-                document={doc}
-                onPressView={handleViewDocument}
-                onPressEdit={handleEditDocument}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeArea>
+          {searchLoading && (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator />
+            </View>
+          )}
+          {!searchLoading && searchResults.length === 0 && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No documents found</Text>
+              <Text style={styles.emptySubtitle}>
+                Try another keyword or select a different pet to search.
+              </Text>
+            </View>
+          )}
+          {!searchLoading && searchResults.length > 0 && (
+            <View style={styles.resultsContainer}>
+              {searchResults.map(doc => (
+                <DocumentListItem
+                  key={doc.id}
+                  document={doc}
+                  onPressView={handleViewDocument}
+                  onPressEdit={handleEditDocument}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => {
   const commonStyles = createAllCommonStyles(theme);
-  const headerStyles = createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']});
   return StyleSheet.create({
     ...commonStyles,
-    ...headerStyles,
     contentContainer: {
       ...commonStyles.contentContainer,
       paddingHorizontal: theme.spacing['6'],

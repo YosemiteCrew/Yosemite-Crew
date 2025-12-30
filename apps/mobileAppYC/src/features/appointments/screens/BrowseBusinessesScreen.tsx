@@ -1,15 +1,16 @@
-import React, {useEffect, useMemo, useState} from 'react';
-import {ScrollView, View, Text, StyleSheet, TouchableOpacity, ViewStyle} from 'react-native';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {Alert, Pressable, ScrollView, View, Text, StyleSheet, TouchableOpacity, ViewStyle} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
-import {fetchBusinesses} from '@/features/appointments/businessesSlice';
+import {fetchBusinesses, upsertBusiness} from '@/features/appointments/businessesSlice';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import type {BusinessCategory, VetBusiness} from '@/features/appointments/types';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {NavigationProp, useNavigation, useRoute} from '@react-navigation/native';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
@@ -19,6 +20,9 @@ import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {usePlacesBusinessSearch, type ResolvedBusinessSelection} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
+import {selectCompanions, selectSelectedCompanionId} from '@/features/companion';
+import {TabParamList} from '@/navigation/types';
 
 const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
   {label: 'All'},
@@ -229,12 +233,119 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const [category, setCategory] = useState<BusinessCategory | undefined>(undefined);
   const initialQuery = route.params?.serviceName ?? '';
   const [query, setQuery] = useState(initialQuery);
+  const companions = useSelector(selectCompanions);
+  const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const targetCompanionId = useMemo(() => {
+    const fallback =
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.identifier?.[0]?.value;
+    return selectedCompanionId ?? fallback ?? null;
+  }, [companions, selectedCompanionId]);
+  const selectedCompanion = useMemo(
+    () => (targetCompanionId ? companions.find(c => c.id === targetCompanionId) ?? null : companions[0] ?? null),
+    [companions, targetCompanionId],
+  );
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
+  const searchBarRef = useRef<View | null>(null);
   const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
   const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
   const filteredBusinesses = useMemo(
     () => businesses.filter(b => (category ? b.category === category : true)),
     [businesses, category],
   );
+
+  const ensureCompanionForSearch = React.useCallback(() => {
+    if (targetCompanionId && selectedCompanion) {
+      return true;
+    }
+    Alert.alert('Add a companion', 'Add a companion to notify a business.');
+    return false;
+  }, [selectedCompanion, targetCompanionId]);
+
+  const handleSearchError = React.useCallback((error: unknown) => {
+    console.log('[BrowseBusinesses] Search error', error);
+  }, []);
+
+  const handlePmsSelection = React.useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      const businessId = selection.organisationId || selection.businessId || selection.id;
+
+      dispatch(
+        upsertBusiness({
+          id: businessId,
+          name: selection.name,
+          category: 'hospital',
+          address: selection.address,
+          distanceMi: selection.distance,
+          rating: selection.rating,
+          photo: selection.photo,
+          phone: selection.phone,
+          website: selection.website || selection.email,
+          lat: selection.lat,
+          lng: selection.lng,
+          googlePlacesId: selection.placeId,
+        }),
+      );
+
+      navigation.navigate('BusinessDetails', {
+        businessId,
+        returnTo: {tab: 'Appointments', screen: 'BrowseBusinesses'},
+      });
+    },
+    [dispatch, navigation],
+  );
+
+  const handleNonPmsSelection = React.useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      if (!ensureCompanionForSearch() || !targetCompanionId || !selectedCompanion) {
+        return;
+      }
+
+      navigation
+        .getParent<NavigationProp<TabParamList>>()
+        ?.navigate('HomeStack', {
+          screen: 'LinkedBusinesses',
+          params: {
+            screen: 'BusinessAdd',
+            params: {
+              companionId: targetCompanionId,
+              companionName: selectedCompanion.name,
+              companionBreed: selectedCompanion.breed?.breedName,
+              companionImage: selectedCompanion.profileImage ?? undefined,
+              category: 'hospital',
+              businessId: selection.placeId,
+              businessName: selection.name,
+              businessAddress: selection.address,
+              phone: selection.phone,
+              email: selection.email,
+              photo: selection.photo,
+              isPMSRecord: false,
+              rating: selection.rating,
+              distance: selection.distance,
+              placeId: selection.placeId,
+              returnTo: {tab: 'Appointments', screen: 'BrowseBusinesses'},
+            },
+          },
+        });
+    },
+    [ensureCompanionForSearch, navigation, selectedCompanion, targetCompanionId],
+  );
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    searching,
+    handleSearchChange,
+    handleSelectBusiness,
+    clearResults,
+  } = usePlacesBusinessSearch({
+    onSelectPms: handlePmsSelection,
+    onSelectNonPms: handleNonPmsSelection,
+    onError: handleSearchError,
+  });
 
   const performSearch = React.useCallback(
     (term?: string) => {
@@ -256,7 +367,12 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   useEffect(() => {
     setQuery(initialQuery);
-  }, [initialQuery]);
+    setSearchQuery(initialQuery);
+  }, [initialQuery, setSearchQuery]);
+
+  useEffect(() => {
+    setQuery(searchQuery);
+  }, [searchQuery]);
 
   const requestBusinessDetails = React.useCallback(
     async (biz: VetBusiness) => {
@@ -319,105 +435,172 @@ export const BrowseBusinessesScreen: React.FC = () => {
     return `${biz.name}`;
   }, []);
 
+  const showSearchResults =
+    searchQuery.length >= 2 && searchResults.length > 0 && !searching;
+  const dropdownBaseTop = searchBarBottom ?? headerHeight;
+  const dropdownTop = (dropdownBaseTop || theme.spacing['30']) + theme.spacing['2'];
+
+  const headerContent = (
+    <View
+      style={styles.headerContent}
+      onLayout={({nativeEvent}) => {
+        const height = nativeEvent.layout.height;
+        if (height !== headerHeight) {
+          setHeaderHeight(height);
+        }
+      }}>
+      <Header
+        title="Book an appointment"
+        showBackButton
+        onBack={() => navigation.goBack()}
+        glass={false}
+      />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillsContent}>
+        {CATEGORIES.map(p => (
+          <TouchableOpacity
+            key={p.label}
+            style={[
+              styles.pill,
+              (p.id ?? undefined) === category && styles.pillActive,
+            ]}
+            activeOpacity={0.8}
+            onPress={() => setCategory(p.id)}>
+            <Text
+              style={[
+                styles.pillText,
+                (p.id ?? undefined) === category && styles.pillTextActive,
+              ]}>
+              {p.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <View
+        ref={node => {
+          searchBarRef.current = node;
+        }}
+        onLayout={() => {
+          searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
+            setSearchBarBottom(y + h);
+          });
+        }}>
+        <SearchBar
+          placeholder="Search for services"
+          mode="input"
+          value={searchQuery}
+          onChangeText={text => {
+            setQuery(text);
+            handleSearchChange(text);
+          }}
+          onSubmitEditing={() => {
+            performSearch(searchQuery);
+            handleSearchChange(searchQuery);
+          }}
+          onIconPress={() => {
+            performSearch(searchQuery);
+            handleSearchChange(searchQuery);
+          }}
+          autoFocus={route.params?.autoFocusSearch}
+          containerStyle={styles.searchBar}
+        />
+      </View>
+    </View>
+  );
 
   return (
-    <LiquidGlassHeaderScreen
-      header={
-        <>
-          <Header
-            title="Book an appointment"
-            showBackButton
-            onBack={() => navigation.goBack()}
-            glass={false}
-          />
+    <View style={styles.screenContainer}>
+      {showSearchResults ? (
+        <Pressable style={styles.searchBackdrop} onPress={clearResults} />
+      ) : null}
+      <LiquidGlassHeaderScreen
+        header={headerContent}
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['4']}>
+        {contentPaddingStyle => (
           <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.pillsContent}>
-            {CATEGORIES.map(p => (
-              <TouchableOpacity
-                key={p.label}
-                style={[
-                  styles.pill,
-                  (p.id ?? undefined) === category && styles.pillActive,
-                ]}
-                activeOpacity={0.8}
-                onPress={() => setCategory(p.id)}>
-                <Text
-                  style={[
-                    styles.pillText,
-                    (p.id ?? undefined) === category && styles.pillTextActive,
-                  ]}>
-                  {p.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <SearchBar
-            placeholder="Search for services"
-            mode="input"
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={() => performSearch()}
-            onIconPress={() => performSearch()}
-            autoFocus={route.params?.autoFocusSearch}
-            containerStyle={styles.searchBar}
-          />
-        </>
-      }
-      cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['4']}>
-      {contentPaddingStyle => (
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[styles.container, contentPaddingStyle]}
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.resultsWrapper}>
-            {(() => {
-              if (filteredBusinesses.length === 0) {
-                return (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateTitle}>No businesses found</Text>
-                    <Text style={styles.emptyStateSubtitle}>
-                      Try adjusting your filters or search to find nearby providers.
-                    </Text>
-                  </View>
-                );
-              }
+            style={styles.scrollView}
+            contentContainerStyle={[styles.container, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
+            <View style={styles.resultsWrapper}>
+              {(() => {
+                if (filteredBusinesses.length === 0) {
+                  return (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateTitle}>No businesses found</Text>
+                      <Text style={styles.emptyStateSubtitle}>
+                        Try adjusting your filters or search to find nearby providers.
+                      </Text>
+                    </View>
+                  );
+                }
 
-              if (category) {
+                if (category) {
+                  return (
+                    <CategoryBusinesses
+                      businesses={filteredBusinesses}
+                      navigation={navigation}
+                      resolveDescription={resolveDescription}
+                      fallbacks={fallbacks}
+                      distanceUnit={distanceUnit}
+                      styles={styles}
+                    />
+                  );
+                }
+
                 return (
-                  <CategoryBusinesses
+                  <AllCategoriesView
+                    allCategories={allCategories}
                     businesses={filteredBusinesses}
-                    navigation={navigation}
                     resolveDescription={resolveDescription}
+                    navigation={navigation}
+                    styles={styles}
                     fallbacks={fallbacks}
                     distanceUnit={distanceUnit}
-                    styles={styles}
                   />
                 );
-              }
-
-              return (
-                <AllCategoriesView
-                  allCategories={allCategories}
-                  businesses={filteredBusinesses}
-                  resolveDescription={resolveDescription}
-                  navigation={navigation}
-                  styles={styles}
-                  fallbacks={fallbacks}
-                  distanceUnit={distanceUnit}
-                />
-              );
-            })()}
-          </View>
-        </ScrollView>
-      )}
-    </LiquidGlassHeaderScreen>
+              })()}
+            </View>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
+      <SearchDropdownOverlay
+        visible={showSearchResults}
+        top={dropdownTop}
+        items={searchResults}
+        keyExtractor={item => item.id}
+        onPress={handleSelectBusiness}
+        title={item => item.name}
+        subtitle={item => item.address}
+        initials={item => item.name}
+        useGlassCard
+        glassEffect="regular"
+        containerStyle={styles.searchDropdown}
+      />
+    </View>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  searchBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 90,
+  },
+  searchDropdown: {
+    left: theme.spacing['6'],
+    right: theme.spacing['6'],
+    zIndex: 100,
+  },
   scrollView: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -431,6 +614,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: theme.spacing['2'],
     paddingRight: theme.spacing['2'],
     paddingHorizontal: theme.spacing['6'],
+  },
+  headerContent: {
+    gap: theme.spacing['4'],
+    paddingHorizontal: theme.spacing['1'],
   },
   resultsWrapper: {
     gap: theme.spacing['4'],

@@ -1,11 +1,9 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Header } from '@/shared/components/common/Header/Header';
-import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import { useTheme } from '@/hooks';
+import React, {useMemo} from 'react';
+import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Header} from '@/shared/components/common/Header/Header';
+import {useTheme} from '@/hooks';
 import PrimaryActionButton from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
-import { createLiquidGlassHeaderStyles } from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 export interface AERLayoutProps {
   children: React.ReactNode;
@@ -29,58 +27,42 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
   showBackButton = true,
   onBack,
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const headerStyles = useMemo(() => createLiquidGlassHeaderStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
-      <View
-        style={headerStyles.topSection}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <View style={headerStyles.topGlassShadowWrapper}>
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            style={[headerStyles.topGlassCard, {paddingTop: insets.top}]}
-            fallbackStyle={headerStyles.topGlassFallback}>
-            <Header
-              title={headerTitle}
-              showBackButton={showBackButton}
-              onBack={onBack}
-              glass={false}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          topGlassHeight ? {paddingTop: topGlassHeight + theme.spacing['3']} : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
-        {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
-        {children}
-        {bottomButton ? (
-          <View style={styles.buttonContainer}>
-            <PrimaryActionButton
-              title={bottomButton.title}
-              onPress={bottomButton.onPress}
-              disabled={bottomButton.disabled}
-              textStyle={bottomButton.textStyleOverride}
-            />
-          </View>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={headerTitle}
+          showBackButton={showBackButton}
+          onBack={onBack}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['3']}
+      useSafeAreaView
+      containerStyle={styles.safeArea}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
+          {children}
+          {bottomButton ? (
+            <View style={styles.buttonContainer}>
+              <PrimaryActionButton
+                title={bottomButton.title}
+                onPress={bottomButton.onPress}
+                disabled={bottomButton.disabled}
+                textStyle={bottomButton.textStyleOverride}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 

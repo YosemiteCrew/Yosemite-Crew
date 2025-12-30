@@ -4,7 +4,6 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
 import {useSelector} from 'react-redux';
@@ -13,12 +12,14 @@ import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
-import {fetchDocuments} from '@/features/documents/documentSlice';
 import {formatLabel} from '@/shared/utils/helpers';
 import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
 import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
+import {useDocumentCompanionSync} from '@/features/documents/hooks/useDocumentCompanionSync';
+import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
+import {DocumentCompanionSelector} from '@/features/documents/components/DocumentCompanionSelector';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
@@ -32,6 +33,9 @@ export const CategoryDetailScreen: React.FC = () => {
   }));
   const navigation = useNavigation<CategoryDetailNavigationProp>();
   const route = useRoute<CategoryDetailRouteProp>();
+  useDocumentCompanionSync({companions, selectedCompanionId, dispatch});
+  const {handleAddDocument, handleViewDocument, handleEditDocument} =
+    useDocumentNavigation(navigation);
 
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
@@ -82,18 +86,6 @@ export const CategoryDetailScreen: React.FC = () => {
     return [...existing, ...extras];
   }, [category?.subcategories, documentsBySubcategory]);
 
-  React.useEffect(() => {
-    if (companions.length > 0 && selectedCompanionId === null) {
-      dispatch(setSelectedCompanion(companions[0].id));
-    }
-  }, [companions, selectedCompanionId, dispatch]);
-
-  React.useEffect(() => {
-    if (selectedCompanionId) {
-      dispatch(fetchDocuments({companionId: selectedCompanionId}));
-    }
-  }, [dispatch, selectedCompanionId]);
-
   if (!category) {
     return (
       <SafeArea>
@@ -104,18 +96,6 @@ export const CategoryDetailScreen: React.FC = () => {
       </SafeArea>
     );
   }
-
-  const handleViewDocument = (documentId: string) => {
-    navigation.navigate('DocumentPreview', {documentId});
-  };
-
-  const handleEditDocument = (documentId: string) => {
-    navigation.navigate('EditDocument', {documentId});
-  };
-
-  const handleAddDocument = () => {
-    navigation.navigate('AddDocument');
-  };
 
   return (
     <LiquidGlassHeaderScreen
@@ -138,14 +118,11 @@ export const CategoryDetailScreen: React.FC = () => {
           style={styles.container}
           contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
-          <CompanionSelector
+          <DocumentCompanionSelector
             companions={companions}
             selectedCompanionId={selectedCompanionId}
-            onSelect={id => dispatch(setSelectedCompanion(id))}
-            showAddButton={false}
+            onSelect={(id: string) => dispatch(setSelectedCompanion(id))}
             containerStyle={styles.companionSelector}
-            requiredPermission="documents"
-            permissionLabel="documents"
           />
           {subcategoriesToRender.map(subcategory => {
             const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
@@ -182,4 +159,3 @@ export const CategoryDetailScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
-
