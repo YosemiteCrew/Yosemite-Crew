@@ -150,6 +150,27 @@ export const TaskController = {
     }
   },
 
+  // PMS — Create Custom Task
+  createCustomTaskFromPms: async (
+    req: Request<ParamsDictionary, unknown, CreateCustomTaskInput>,
+    res: Response,
+  ) => {
+    try {
+      const actorId = resolveUserId(req);
+
+      const input: CreateCustomTaskInput = {
+        ...req.body,
+        createdBy: actorId,
+        assignedBy: actorId,
+      };
+
+      const task = await TaskService.createCustom(input);
+      res.status(201).json(task);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
   // PMS — Create From Library
   createFromLibrary: async (
     req: Request<ParamsDictionary, unknown, CreateFromLibraryRequestBody>,

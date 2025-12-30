@@ -60,6 +60,13 @@ router.post(
   TaskController.createFromTemplate,
 );
 
+// PMS — Create Custom Task
+router.post(
+  "/pms/custom",
+  authorizeCognito,
+  TaskController.createCustomTaskFromPms,
+);
+
 // Employee task list
 router.get(
   "/pms/organisation/:organisationId",
