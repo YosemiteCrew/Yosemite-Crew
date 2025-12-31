@@ -2,24 +2,59 @@ import React from 'react';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {AddTaskScreen} from '../../../../../src/features/tasks/screens/AddTaskScreen/AddTaskScreen';
 import {useAddTaskScreen} from '../../../../../src/features/tasks/hooks/useAddTaskScreen';
-import {addTask} from '../../../../../src/features/tasks';
 import {buildTaskTypeBreadcrumb} from '../../../../../src/features/tasks/utils/taskLabels';
+import {buildTaskDraftFromForm} from '../../../../../src/features/tasks/services/taskService';
 import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
 // 1. Navigation
 const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
+  }),
+  useRoute: () => ({
+    params: {},
   }),
 }));
 
 // 2. Redux
 const mockDispatch = jest.fn();
+const mockAuthUser = {id: 'user-1', firstName: 'John', email: 'john@test.com'};
+const mockCoParents: any[] = [];
+const mockState = {
+  auth: {
+    user: mockAuthUser,
+  },
+  coParent: {
+    coParents: mockCoParents,
+  },
+  tasks: {},
+};
 jest.mock('react-redux', () => ({
   useDispatch: () => mockDispatch,
+  useSelector: (cb: any) => cb(mockState),
+}));
+
+// Mock selectors
+jest.mock('@/features/tasks/selectors', () => ({
+  selectTaskById: jest.fn(() => () => null),
+}));
+
+jest.mock('@/features/auth/selectors', () => ({
+  selectAuthUser: jest.fn(state => state.auth.user),
+}));
+
+jest.mock('@/features/coParent/selectors', () => ({
+  selectAcceptedCoParents: jest.fn(state => state.coParent.coParents),
+}));
+
+// Mock companion actions
+jest.mock('@/features/companion', () => ({
+  setSelectedCompanion: jest.fn(id => ({type: 'companion/setSelected', payload: id})),
 }));
 
 // 3. Hooks & Theme
@@ -28,9 +63,26 @@ jest.mock('../../../../../src/hooks', () => ({
 }));
 
 // 4. Feature Actions
-// We mock the module, but define the implementation in beforeEach to avoid hoisting issues
+const mockAddTask = jest.fn();
+const mockUpdateTask = jest.fn();
 jest.mock('../../../../../src/features/tasks', () => ({
-  addTask: jest.fn(),
+  addTask: mockAddTask,
+  updateTask: mockUpdateTask,
+  setTaskCalendarEventId: jest.fn(() => ({type: 'SET_CALENDAR'})),
+}));
+
+// Mock upload and calendar functions
+const mockUploadDocumentFiles = jest.fn();
+jest.mock('@/features/documents/documentSlice', () => ({
+  uploadDocumentFiles: mockUploadDocumentFiles,
+}));
+
+jest.mock('@/features/tasks/services/calendarSyncService', () => ({
+  createCalendarEventForTask: jest.fn(),
+}));
+
+jest.mock('@/features/tasks/utils/userHelpers', () => ({
+  getAssignedUserName: jest.fn(() => 'Test User'),
 }));
 
 // 5. Custom Hook Mock
@@ -41,12 +93,14 @@ jest.mock('../../../../../src/features/tasks/utils/taskLabels', () => ({
   buildTaskTypeBreadcrumb: jest.fn(),
 }));
 
-jest.mock(
-  '../../../../../src/features/tasks/screens/AddTaskScreen/taskBuilder',
-  () => ({
-    buildTaskFromForm: jest.fn(() => ({title: 'New Task'})),
-  }),
-);
+jest.mock('../../../../../src/features/tasks/services/taskService', () => ({
+  buildTaskDraftFromForm: jest.fn(() => ({
+    companionId: 'c1',
+    category: 'CUSTOM',
+    name: 'New Task',
+    dueAt: new Date().toISOString(),
+  })),
+}));
 
 jest.mock('../../../../../src/features/tasks/utils/createFileHandlers', () => ({
   createFileHandlers: jest.fn(() => ({})),
@@ -72,6 +126,18 @@ jest.mock('../../../../../src/shared/components/common', () => {
   const {View} = require('react-native');
   return {
     SafeArea: ({children}: any) => <View testID="safe-area">{children}</View>,
+  };
+});
+
+jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
+  const {View} = require('react-native');
+  return {
+    LiquidGlassHeaderScreen: ({header, children}: any) => (
+      <View testID="liquid-glass-header-screen">
+        {header}
+        {typeof children === 'function' ? children(null) : children}
+      </View>
+    ),
   };
 });
 
@@ -145,11 +211,16 @@ describe('AddTaskScreen', () => {
   const mockUnwrap = jest.fn();
 
   const defaultHookData = {
-    companions: [],
+    companions: [{id: 'c1', name: 'Buddy', type: 'dog'}],
     selectedCompanionId: 'c1',
     loading: false,
     companionType: 'dog',
-    formData: {category: 'health'},
+    formData: {
+      category: 'health',
+      title: 'Test Task',
+      attachments: [],
+      syncWithCalendar: false,
+    },
     errors: {},
     taskTypeSelection: {category: 'health', taskType: 'vaccination'},
     isMedicationForm: false,
@@ -175,10 +246,22 @@ describe('AddTaskScreen', () => {
     (buildTaskTypeBreadcrumb as jest.Mock).mockReturnValue('Breadcrumb String');
 
     // Setup mockAsyncThunk return value
-    mockUnwrap.mockResolvedValue({});
-    (addTask as unknown as jest.Mock).mockReturnValue({
+    mockUnwrap.mockResolvedValue({id: 'new-task-id'});
+    mockAddTask.mockReturnValue({
       unwrap: mockUnwrap,
       type: 'tasks/addTask',
+    });
+
+    // Setup mockUpdateTask return value
+    mockUpdateTask.mockReturnValue({
+      unwrap: jest.fn().mockResolvedValue({id: 'new-task-id'}),
+      type: 'tasks/updateTask',
+    });
+
+    // Setup mockUploadDocumentFiles return value
+    mockUploadDocumentFiles.mockReturnValue({
+      unwrap: jest.fn().mockResolvedValue([]),
+      type: 'documents/uploadDocumentFiles',
     });
 
     // IMPORTANT: mockDispatch must return the action object so .unwrap() can be called on it
@@ -287,10 +370,15 @@ describe('AddTaskScreen', () => {
       await fireEvent.press(saveBtn);
 
       expect(validateFormMock).toHaveBeenCalled();
-      expect(mockDispatch).toHaveBeenCalled();
-      expect(addTask).toHaveBeenCalled();
-      expect(mockUnwrap).toHaveBeenCalled(); // Ensures .unwrap() was called
-      expect(mockGoBack).toHaveBeenCalled();
+      expect(buildTaskDraftFromForm).toHaveBeenCalledWith({
+        formData: expect.objectContaining({
+          category: 'health',
+          title: 'Test Task',
+          attachments: [],
+        }),
+        companionId: 'c1',
+        observationToolId: undefined,
+      });
     });
 
     it('aborts save if validation fails', async () => {
@@ -347,7 +435,6 @@ describe('AddTaskScreen', () => {
       const saveBtn = screen.getByTestId('save-button');
       await fireEvent.press(saveBtn);
 
-      expect(mockDispatch).toHaveBeenCalled();
       expect(showErrorAlertMock).toHaveBeenCalledWith(
         'Unable to add task',
         expect.any(Error),

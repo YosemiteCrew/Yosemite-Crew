@@ -178,7 +178,11 @@ export const CalendarSyncBottomSheet = forwardRef<
     return (
       <View style={containerStyle}>
         {item.icon && (
-          <Image source={item.icon} style={iconStyle} />
+          <Image
+            testID="calendar-provider-icon"
+            source={item.icon}
+            style={iconStyle}
+          />
         )}
         <View style={styles.flexOne}>
           <Text style={nameTextStyle}>

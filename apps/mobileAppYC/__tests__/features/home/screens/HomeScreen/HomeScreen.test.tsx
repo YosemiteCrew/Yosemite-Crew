@@ -58,10 +58,11 @@ mockedNotifications.selectNotificationsLoading = () => false;
 
 jest.mock('@/features/tasks', () => ({
   __esModule: true,
-  fetchTasksForCompanion: jest.fn(() => Promise.resolve()),
+  fetchTasksForCompanion: jest.fn(() => ({type: 'tasks/fetch'})),
   selectHasHydratedCompanion: jest.fn(() => () => true),
   selectNextUpcomingTask: jest.fn(() => () => null),
   selectAllTasks: jest.fn(() => []),
+  markTaskStatus: jest.fn((payload) => ({type: 'tasks/markStatus', payload})),
 }));
 
 jest.mock('@/context/GlobalLoaderContext', () => {
@@ -149,6 +150,23 @@ jest.mock(
       LiquidGlassButton: ({title, onPress}: any) => (
         <RNTouchableOpacity onPress={onPress} testID={`btn-${title}`}>
           <RNText>{title}</RNText>
+        </RNTouchableOpacity>
+      ),
+    };
+  },
+);
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton',
+  () => {
+    const {
+      TouchableOpacity: RNTouchableOpacity,
+      View: RNView,
+    } = require('react-native');
+    return {
+      LiquidGlassIconButton: ({onPress, children}: any) => (
+        <RNTouchableOpacity onPress={onPress} testID="liquid-glass-icon-button">
+          <RNView>{children}</RNView>
         </RNTouchableOpacity>
       ),
     };
@@ -316,6 +334,98 @@ jest.mock('@/features/appointments/utils/appointmentCardData', () => ({
   })),
 }));
 
+// Mock usePlacesBusinessSearch hook
+jest.mock('@/features/linkedBusinesses/hooks/usePlacesBusinessSearch', () => ({
+  usePlacesBusinessSearch: jest.fn(() => ({
+    searchQuery: '',
+    setSearchQuery: jest.fn(),
+    searchResults: [],
+    searching: false,
+    handleSearchChange: jest.fn(),
+    handleSelectBusiness: jest.fn(),
+    clearResults: jest.fn(),
+  })),
+}));
+
+// Mock BusinessSearchDropdown component
+jest.mock('@/features/linkedBusinesses/components/BusinessSearchDropdown', () => {
+  const {View: RNView} = require('react-native');
+  return {
+    BusinessSearchDropdown: () => <RNView testID="business-search-dropdown" />,
+  };
+});
+
+// Mock TaskCard component
+jest.mock('@/features/tasks/components', () => {
+  const {View: RNView, Text: RNText, TouchableOpacity: RNTouchableOpacity} = require('react-native');
+  return {
+    TaskCard: (props: any) => (
+      <RNView testID="task-card">
+        <RNText>{props.title}</RNText>
+        <RNTouchableOpacity onPress={props.onPressView} testID="task-view">
+          <RNText>View</RNText>
+        </RNTouchableOpacity>
+        <RNTouchableOpacity onPress={props.onPressEdit} testID="task-edit">
+          <RNText>Edit</RNText>
+        </RNTouchableOpacity>
+        <RNTouchableOpacity onPress={props.onPressComplete} testID="task-complete">
+          <RNText>Complete</RNText>
+        </RNTouchableOpacity>
+      </RNView>
+    ),
+  };
+});
+
+// Mock useBusinessPhotoFallback hook
+jest.mock('@/features/appointments/hooks/useBusinessPhotoFallback', () => ({
+  useBusinessPhotoFallback: jest.fn(() => ({
+    businessFallbacks: {},
+    handleAvatarError: jest.fn(),
+    requestBusinessPhoto: jest.fn(),
+  })),
+}));
+
+// Mock useLiquidGlassHeaderLayout hook
+jest.mock('@/shared/hooks/useLiquidGlassHeaderLayout', () => ({
+  useLiquidGlassHeaderLayout: jest.fn(() => ({
+    headerProps: {
+      currentHeight: 100,
+      insetsTop: 0,
+      cardStyle: {},
+    },
+    contentPaddingStyle: {},
+  })),
+}));
+
+// Mock LiquidGlassHeader component
+jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader', () => {
+  const {View: RNView} = require('react-native');
+  return {
+    LiquidGlassHeader: ({children}: any) => <RNView testID="liquid-glass-header">{children}</RNView>,
+  };
+});
+
+// Mock mapSelectionToVetBusiness utility
+jest.mock('@/features/linkedBusinesses/utils/mapSelectionToVetBusiness', () => ({
+  mapSelectionToVetBusiness: jest.fn(() => ({
+    id: 'test-business-id',
+    name: 'Test Business',
+  })),
+}));
+
+// Mock upsertBusiness action
+jest.mock('@/features/appointments/businessesSlice', () => ({
+  upsertBusiness: jest.fn(payload => ({
+    type: 'businesses/upsert',
+    payload,
+  })),
+}));
+
+// Mock task utils
+jest.mock('@/features/tasks/utils/taskLabels', () => ({
+  resolveCategoryLabel: jest.fn(category => category),
+}));
+
 describe('HomeScreen', () => {
   const mockUser = {
     id: 'u1',
@@ -339,12 +449,28 @@ describe('HomeScreen', () => {
       },
       preloadedState: {
         auth: {user: mockUser},
-        companion: {list: [mockCompanion], selectedId: 'c1'},
+        companion: {list: [mockCompanion], selectedId: 'c1', loading: false},
         expenses: {summaries: {c1: {total: 500, currencyCode: 'USD'}}},
-        appointments: {upcoming: []},
-        coParent: {accessByCompanionId: {}, lastFetchedRole: 'PRIMARY'},
+        appointments: {
+          upcoming: [],
+          loading: false,
+          hydratedCompanions: {c1: true},
+        },
+        coParent: {
+          accessByCompanionId: {},
+          lastFetchedRole: 'PRIMARY',
+          defaultAccess: null,
+          lastFetchedPermissions: null,
+          accessLoading: false,
+        },
         notifications: {unreadCount: 0},
         businesses: {services: []},
+        linkedBusinesses: {loading: false},
+        tasks: {
+          byId: {},
+          allIds: [],
+          hydratedCompanions: {c1: true},
+        },
         ...stateOverrides,
       },
     });
@@ -373,6 +499,10 @@ describe('HomeScreen', () => {
     require('@/features/auth/context/AuthContext').useAuth.mockReturnValue({
       user: mockUser,
     });
+    // Mock ToastAndroid for Android platform tests
+    if (Platform.OS === 'android') {
+      jest.spyOn(ToastAndroid, 'show').mockImplementation(jest.fn());
+    }
   });
 
   afterEach(() => {
@@ -454,6 +584,18 @@ describe('HomeScreen', () => {
     });
 
     it('handles search input', () => {
+      const mockHandleSearchChange = jest.fn();
+      const usePlacesBusinessSearchMock = require('@/features/linkedBusinesses/hooks/usePlacesBusinessSearch');
+      usePlacesBusinessSearchMock.usePlacesBusinessSearch.mockReturnValue({
+        searchQuery: '',
+        setSearchQuery: jest.fn(),
+        searchResults: [],
+        searching: false,
+        handleSearchChange: mockHandleSearchChange,
+        handleSelectBusiness: jest.fn(),
+        clearResults: jest.fn(),
+      });
+
       const store = createStore();
       mockGetParent.mockReturnValue({navigate: mockNavigate});
 
@@ -465,17 +607,17 @@ describe('HomeScreen', () => {
 
       const input = getByTestId('search-input');
 
-      // Empty string check
+      // Empty string check - should still propagate (component trims internally where needed)
       fireEvent.changeText(input, '   ');
-      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockHandleSearchChange).toHaveBeenCalledWith('   ');
 
-      // Valid string
+      // Valid string - should trigger search
       fireEvent.changeText(input, 'Vet');
-      fireEvent(input, 'submitEditing', {nativeEvent: {text: 'Vet'}});
-      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
-        screen: 'BrowseBusinesses',
-        params: {serviceName: 'Vet', autoFocusSearch: true},
-      });
+      expect(mockHandleSearchChange).toHaveBeenCalledWith('Vet');
+
+      // Submit should also trigger search
+      fireEvent(input, 'submitEditing', {nativeEvent: {text: 'Vet Clinic'}});
+      expect(mockHandleSearchChange).toHaveBeenCalledWith('Vet Clinic');
     });
 
     it('navigates to ProfileOverview', () => {
@@ -503,7 +645,13 @@ describe('HomeScreen', () => {
         companionId: 'c1',
         businessId: 'b1',
       };
-      const store = createStore({appointments: {upcoming: [mockAppt]}});
+      const store = createStore({
+        appointments: {
+          upcoming: [mockAppt],
+          loading: false,
+          hydratedCompanions: {c1: true},
+        },
+      });
       mockGetParent.mockReturnValue({navigate: mockNavigate});
 
       const {getByTestId} = renderAndWait(
@@ -535,9 +683,17 @@ describe('HomeScreen', () => {
         id: 'a1',
         status: 'PAYMENT_PENDING',
         date: '2025-01-01',
+        time: '10:00',
         companionId: 'c1',
+        businessId: 'b1',
       };
-      const store = createStore({appointments: {upcoming: [mockAppt]}});
+      const store = createStore({
+        appointments: {
+          upcoming: [mockAppt],
+          loading: false,
+          hydratedCompanions: {c1: true},
+        },
+      });
       mockGetParent.mockReturnValue({navigate: mockNavigate});
 
       const {getByTestId} = renderAndWait(
@@ -567,8 +723,15 @@ describe('HomeScreen', () => {
             },
           },
           lastFetchedRole: 'GUEST',
+          defaultAccess: null,
+          lastFetchedPermissions: null,
+          accessLoading: false,
         },
-        appointments: {upcoming: [{id: 'a1', companionId: 'c1'}]},
+        appointments: {
+          upcoming: [{id: 'a1', companionId: 'c1', date: '2025-01-01', time: '10:00'}],
+          loading: false,
+          hydratedCompanions: {c1: true},
+        },
       });
 
       // Mock alert/toast
@@ -591,6 +754,9 @@ describe('HomeScreen', () => {
             c1: {role: 'GUEST', permissions: {companionProfile: false}},
           },
           lastFetchedRole: 'GUEST',
+          defaultAccess: null,
+          lastFetchedPermissions: null,
+          accessLoading: false,
         },
       });
 
@@ -614,20 +780,37 @@ describe('HomeScreen', () => {
   });
 
   describe('Edge Cases', () => {
-    it('shows coming soon for tasks', () => {
-      const spy = jest.spyOn(Alert, 'alert');
+    it('navigates to tasks when quick action is pressed', () => {
       const store = createStore();
+      mockGetParent.mockReturnValue({navigate: mockNavigate});
       const {getByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
       );
       fireEvent.press(getByText('Manage health'));
-      spy.mockRestore();
+      expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
+        screen: 'TasksList',
+        params: {category: 'health'},
+      });
     });
 
-    it('alerts search if no companion', () => {
-      const store = createStore({companion: {list: []}});
+    it('shows toast when searching without companion', () => {
+      const mockHandleSearchChange = jest.fn();
+      const usePlacesBusinessSearchMock = require('@/features/linkedBusinesses/hooks/usePlacesBusinessSearch');
+      usePlacesBusinessSearchMock.usePlacesBusinessSearch.mockReturnValue({
+        searchQuery: '',
+        setSearchQuery: jest.fn(),
+        searchResults: [],
+        searching: false,
+        handleSearchChange: mockHandleSearchChange,
+        handleSelectBusiness: jest.fn(),
+        clearResults: jest.fn(),
+      });
+
+      const store = createStore({
+        companion: {list: [], selectedId: null, loading: false},
+      });
       const spy = jest.spyOn(Alert, 'alert');
       const {getByTestId} = renderAndWait(
         <Provider store={store}>
@@ -637,7 +820,17 @@ describe('HomeScreen', () => {
 
       const input = getByTestId('search-input');
       fireEvent.changeText(input, 'A');
-      expect(spy).toHaveBeenCalledWith('Add a companion', expect.any(String));
+
+      // The search handler should not be called due to the guard
+      expect(mockHandleSearchChange).not.toHaveBeenCalled();
+      // Should show an alert/toast
+      if (Platform.OS === 'android') {
+        expect(ToastAndroid.show).toHaveBeenCalled();
+      } else {
+        expect(spy).toHaveBeenCalledWith('Add a companion', expect.any(String));
+      }
+
+      spy.mockRestore();
     });
 
     it('exercises sort logic for appointments', () => {

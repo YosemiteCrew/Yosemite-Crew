@@ -43,6 +43,7 @@ jest.mock('../../../../../src/shared/utils/screenStyles', () => ({
     topGlassCard: {},
     topGlassFallback: {},
   }),
+  createAllCommonStyles: () => ({container: {}, contentContainer: {}, errorContainer: {}, errorText: {}}),
 }));
 
 // 4. Components (Inline requires to avoid ReferenceError due to hoisting)

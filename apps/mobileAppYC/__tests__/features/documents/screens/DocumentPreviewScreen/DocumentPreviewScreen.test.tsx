@@ -11,6 +11,7 @@ import {fetchDocumentView} from '../../../../../src/features/documents/documentS
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockDocumentId = 'doc-123';
 
 // 1. Navigation
@@ -18,6 +19,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
     goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
   }),
   useRoute: () => ({
     params: {documentId: mockDocumentId},
@@ -33,6 +35,7 @@ jest.mock('@/shared/utils/screenStyles', () => ({
     topGlassCard: {},
     topGlassFallback: {},
   }),
+  createAllCommonStyles: () => ({container: {}, contentContainer: {}, errorContainer: {}, errorText: {}}),
 }));
 
 // 3. Theme

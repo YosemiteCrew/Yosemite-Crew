@@ -21,6 +21,7 @@ const DEFAULT_DATA_SANS_DATES: Omit<TaskFormData, 'date' | 'startDate'> = {
   reminderOptions: null,
   syncWithCalendar: false,
   calendarProvider: null,
+  calendarProviderName: null,
   attachDocuments: false,
   attachments: [],
   additionalNote: '',

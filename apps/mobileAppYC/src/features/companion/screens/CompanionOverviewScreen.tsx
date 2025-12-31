@@ -16,6 +16,7 @@ import type {AppDispatch, RootState} from '@/app/store';
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/shared/utils/commonHelpers';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
@@ -634,7 +635,7 @@ export const CompanionOverviewScreen: React.FC<
   );
 };
 
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+
 import {createGlassCardStyles} from '@/shared/utils/screenStyles';
 
 // Helper functions moved to @/shared/utils/commonHelpers:

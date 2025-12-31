@@ -11,6 +11,7 @@ import * as Redux from 'react-redux';
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockReset = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockParentReset = jest.fn();
 const mockGetParent = jest.fn(() => ({
   reset: mockParentReset,
@@ -24,6 +25,7 @@ jest.mock('@react-navigation/native', () => {
       navigate: mockNavigate,
       goBack: mockGoBack,
       reset: mockReset,
+      canGoBack: mockCanGoBack,
       getParent: mockGetParent,
     }),
     useRoute: () => ({
@@ -37,6 +39,21 @@ const mockDispatch = jest.fn();
 // Mock dispatch to return a promise that resolves (for unwrap)
 const mockUnwrap = jest.fn();
 mockDispatch.mockReturnValue({unwrap: mockUnwrap});
+
+const mockState = {
+  auth: {
+    user: {id: 'user-1', firstName: 'John', email: 'john@test.com'},
+  },
+  coParent: {
+    coParents: [],
+  },
+  companion: {
+    companions: [{id: 'c1', name: 'Buddy'}],
+  },
+};
+
+const mockUseSelector = jest.spyOn(Redux, 'useSelector');
+mockUseSelector.mockImplementation((cb: any) => cb(mockState));
 
 jest.spyOn(Redux, 'useDispatch').mockReturnValue(mockDispatch);
 
@@ -56,6 +73,7 @@ jest.mock('@/assets/images', () => ({
 const mockHookData = {
   task: {id: 't1', title: 'Existing Task', companionId: 'c1'},
   loading: false,
+  companions: [{id: 'c1', name: 'Buddy', category: 'dog'}],
   companionType: 'dog',
   formData: {category: 'health', title: 'Existing Task'},
   errors: {},
@@ -92,21 +110,65 @@ jest.mock('../../../../../src/features/tasks/utils/taskLabels', () => ({
   resolveCategoryLabel: (cat: string) => cat?.toUpperCase() || '',
 }));
 
-// Mock the task builder to return simple data
+// Mock the task service to return simple data
+const mockBuildTaskDraftFromForm = jest.fn(() => ({title: 'Updated Task'}));
+jest.mock('@/features/tasks/services/taskService', () => ({
+  __esModule: true,
+  ...(jest.requireActual('@/features/tasks/services/taskService') as object),
+  buildTaskDraftFromForm: mockBuildTaskDraftFromForm,
+}));
+
+// Mock LiquidGlassHeaderScreen
 jest.mock(
-  '../../../../../src/features/tasks/screens/EditTaskScreen/taskBuilder',
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
   () => ({
-    buildTaskFromForm: jest.fn(() => ({title: 'Updated Task'})),
+    LiquidGlassHeaderScreen: ({header, children}: any) => {
+      const {View} = require('react-native');
+      return (
+        <View>
+          {header}
+          {children(() => ({}))}
+        </View>
+      );
+    },
   }),
 );
 
 // 5. Actions
+const mockUpdateTask = jest.fn();
+const mockDeleteTask = jest.fn();
+const mockSetTaskCalendarEventId = jest.fn(() => ({type: 'SET_CALENDAR'}));
 jest.mock('@/features/tasks', () => ({
-  updateTask: jest.fn(() => ({type: 'UPDATE_TASK'})),
-  deleteTask: jest.fn(() => ({type: 'DELETE_TASK'})),
+  __esModule: true,
+  ...(jest.requireActual('@/features/tasks') as object),
+  updateTask: mockUpdateTask,
+  deleteTask: mockDeleteTask,
+  setTaskCalendarEventId: mockSetTaskCalendarEventId,
+}));
+const mockedTasksModule = require('@/features/tasks');
+// Ensure mocked functions are set (defensive in case hoisting affects factory)
+mockedTasksModule.updateTask = mockUpdateTask;
+mockedTasksModule.deleteTask = mockDeleteTask;
+mockedTasksModule.setTaskCalendarEventId = mockSetTaskCalendarEventId;
+
+const mockedTaskService = require('@/features/tasks/services/taskService');
+mockedTaskService.buildTaskDraftFromForm = mockBuildTaskDraftFromForm;
+
+// 6. Mock upload and calendar functions
+jest.mock('@/features/documents/documentSlice', () => ({
+  uploadDocumentFiles: jest.fn(() => ({type: 'UPLOAD'})),
 }));
 
-// 6. Components
+jest.mock('@/features/tasks/services/calendarSyncService', () => ({
+  createCalendarEventForTask: jest.fn(),
+  removeCalendarEvents: jest.fn(),
+}));
+
+jest.mock('@/features/tasks/utils/userHelpers', () => ({
+  getAssignedUserName: jest.fn(() => 'Test User'),
+}));
+
+// 7. Components
 jest.mock('@/shared/components/common', () => ({
   SafeArea: ({children}: any) => children,
   Input: (props: any) => {
@@ -188,17 +250,34 @@ jest.mock('@/features/tasks/components/form', () => ({
 describe('EditTaskScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUnwrap.mockResolvedValue({});
+    mockUnwrap.mockResolvedValue({id: 't1', title: 'Updated Task'});
+
+    // Setup mock actions to return unwrappable promises
+    mockUpdateTask.mockReturnValue({unwrap: mockUnwrap});
+    mockDeleteTask.mockReturnValue({unwrap: mockUnwrap});
 
     // Reset hook data to defaults
     Object.assign(mockHookData, {
       task: {id: 't1', title: 'Existing Task', companionId: 'c1'},
       loading: false,
+      companions: [{id: 'c1', name: 'Buddy', category: 'dog'}],
+      companionType: 'dog',
+      formData: {
+        category: 'health',
+        title: 'Existing Task',
+        attachments: [],
+        syncWithCalendar: false,
+      },
       validateForm: jest.fn(() => true),
+      handleDelete: jest.fn(),
+      showErrorAlert: jest.fn(),
     });
 
     // Reset route params
     mockRouteParams.source = 'tasks';
+
+    // Reset buildTaskDraftFromForm mock
+    mockBuildTaskDraftFromForm.mockReturnValue({title: 'Updated Task'});
   });
 
   it('renders correctly when task exists', () => {
@@ -229,11 +308,8 @@ describe('EditTaskScreen', () => {
     const {getByTestId} = render(<EditTaskScreen />);
     fireEvent.press(getByTestId('header-back-btn'));
 
-    // Should reset to TasksMain
-    expect(mockReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'TasksMain'}],
-    });
+    // Should navigate back using goBack since canGoBack returns true
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles smart back navigation (home source)', () => {
@@ -241,11 +317,8 @@ describe('EditTaskScreen', () => {
     const {getByTestId} = render(<EditTaskScreen />);
     fireEvent.press(getByTestId('header-back-btn'));
 
-    // Should reset parent stack to HomeStack
-    expect(mockParentReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'HomeStack'}],
-    });
+    // Should navigate back using goBack since canGoBack returns true
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles undefined source param (defaults to tasks)', () => {
@@ -253,11 +326,8 @@ describe('EditTaskScreen', () => {
     const {getByTestId} = render(<EditTaskScreen />);
     fireEvent.press(getByTestId('header-back-btn'));
 
-    // Should behave like 'tasks' (default)
-    expect(mockReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'TasksMain'}],
-    });
+    // Should navigate back using goBack since canGoBack returns true
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles delete button press via hook', () => {
@@ -280,7 +350,7 @@ describe('EditTaskScreen', () => {
         companionId: 'c1',
       });
       expect(mockUnwrap).toHaveBeenCalled();
-      expect(mockReset).toHaveBeenCalled();
+      expect(mockGoBack).toHaveBeenCalled();
     });
   });
 
@@ -289,17 +359,23 @@ describe('EditTaskScreen', () => {
 
     fireEvent.press(getByTestId('save-btn'));
 
-    expect(mockHookData.validateForm).toHaveBeenCalled();
+    expect(mockHookData.validateForm).toHaveBeenCalledWith(mockHookData.formData);
     const {updateTask} = require('@/features/tasks');
+    const {buildTaskDraftFromForm} = require('@/features/tasks/services/taskService');
 
     // Wait for async action to complete and navigation to be triggered
     await waitFor(() => {
+      expect(buildTaskDraftFromForm).toHaveBeenCalledWith({
+        formData: mockHookData.formData,
+        companionId: 'c1',
+        observationToolId: undefined,
+      });
       expect(updateTask).toHaveBeenCalledWith({
         taskId: 't1',
         updates: {title: 'Updated Task'},
       });
       expect(mockUnwrap).toHaveBeenCalled();
-      expect(mockReset).toHaveBeenCalled();
+      expect(mockGoBack).toHaveBeenCalled();
     });
   });
 
