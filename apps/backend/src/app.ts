@@ -3,9 +3,15 @@ import rateLimit from "express-rate-limit";
 import fileUpload from "express-fileupload";
 import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
+import cors from "cors";
 
 export function createApp() {
   const app = express();
+
+  const allowedOrigins = [
+    "http://localhost:3000", // Next.js / React
+    "http://127.0.0.1:3000",
+  ];
 
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -24,6 +30,25 @@ export function createApp() {
   );
 
   app.use(fileUpload());
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // allow REST tools like Postman / curl
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        callback(new Error("Not allowed by CORS"));
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
+
   app.use(express.json());
 
   registerRoutes(app); // all routes in 1 place
