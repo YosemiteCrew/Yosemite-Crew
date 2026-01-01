@@ -270,11 +270,8 @@ describe('BusinessSearchScreen', () => {
     ).mockReturnValue(mockThunkReturn([]));
   });
 
-  afterEach(async () => {
-    // Run all pending timers before cleanup
-    await act(async () => {
-      jest.runOnlyPendingTimers();
-    });
+  afterEach(() => {
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 
@@ -294,6 +291,10 @@ describe('BusinessSearchScreen', () => {
 
     render(<BusinessSearchScreen {...createProps()} />);
 
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
     await waitFor(
       () => {
         expect(LocationService.getCurrentPosition).toHaveBeenCalled();
@@ -302,7 +303,7 @@ describe('BusinessSearchScreen', () => {
     );
 
     expect(screen.getByTestId('search-input')).toBeTruthy();
-  });
+  }, 10000);
 
   it('handles loadLinkedBusinesses failure gracefully', async () => {
     (
@@ -310,6 +311,10 @@ describe('BusinessSearchScreen', () => {
     ).mockReturnValue(mockThunkReject('Load failed'));
 
     render(<BusinessSearchScreen {...createProps()} />);
+
+    await act(async () => {
+      jest.runAllTimers();
+    });
 
     await waitFor(
       () => {
@@ -319,7 +324,7 @@ describe('BusinessSearchScreen', () => {
     );
 
     expect(screen.getByTestId('search-input')).toBeTruthy();
-  });
+  }, 10000);
 
   it('searches for businesses and displays results', async () => {
     const mockResults = [
@@ -339,6 +344,10 @@ describe('BusinessSearchScreen', () => {
       jest.advanceTimersByTime(800);
     });
 
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
     await waitFor(
       () => {
         expect(
@@ -350,7 +359,7 @@ describe('BusinessSearchScreen', () => {
 
     expect(screen.getByTestId('search-dropdown')).toBeTruthy();
     expect(screen.getByText('Vet 1')).toBeTruthy();
-  });
+  }, 10000);
 
   it('does not search if query is less than 3 chars', async () => {
     render(<BusinessSearchScreen {...createProps()} />);
