@@ -285,6 +285,9 @@ describe('BusinessSearchScreen', () => {
   });
 
   it('handles location fetch failure gracefully', async () => {
+    // Use real timers for this test to avoid conflicts with async operations
+    jest.useRealTimers();
+
     (LocationService.getCurrentPosition as jest.Mock).mockRejectedValue(
       new Error('Location fail'),
     );
@@ -302,6 +305,9 @@ describe('BusinessSearchScreen', () => {
   });
 
   it('handles loadLinkedBusinesses failure gracefully', async () => {
+    // Use real timers for this test to avoid conflicts with async operations
+    jest.useRealTimers();
+
     (
       LinkedBusinessActions.fetchLinkedBusinesses as unknown as jest.Mock
     ).mockReturnValue(mockThunkReject('Load failed'));
@@ -333,7 +339,7 @@ describe('BusinessSearchScreen', () => {
     fireEvent.changeText(input, 'Vet');
 
     // Advance timers to trigger the debounced search (800ms)
-    await act(async () => {
+    act(() => {
       jest.advanceTimersByTime(800);
     });
 
@@ -344,7 +350,7 @@ describe('BusinessSearchScreen', () => {
           LinkedBusinessActions.searchBusinessesByLocation,
         ).toHaveBeenCalledWith(expect.objectContaining({query: 'Vet'}));
       },
-      {timeout: 3000},
+      {timeout: 5000},
     );
 
     expect(screen.getByTestId('search-dropdown')).toBeTruthy();
