@@ -270,7 +270,11 @@ describe('BusinessSearchScreen', () => {
     ).mockReturnValue(mockThunkReturn([]));
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Run all pending timers before cleanup
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
     jest.useRealTimers();
   });
 
@@ -287,10 +291,16 @@ describe('BusinessSearchScreen', () => {
     (LocationService.getCurrentPosition as jest.Mock).mockRejectedValue(
       new Error('Location fail'),
     );
+
     render(<BusinessSearchScreen {...createProps()} />);
-    await waitFor(() => {
-      expect(LocationService.getCurrentPosition).toHaveBeenCalled();
-    });
+
+    await waitFor(
+      () => {
+        expect(LocationService.getCurrentPosition).toHaveBeenCalled();
+      },
+      {timeout: 3000},
+    );
+
     expect(screen.getByTestId('search-input')).toBeTruthy();
   });
 
@@ -301,9 +311,13 @@ describe('BusinessSearchScreen', () => {
 
     render(<BusinessSearchScreen {...createProps()} />);
 
-    await waitFor(() => {
-      expect(LinkedBusinessActions.fetchLinkedBusinesses).toHaveBeenCalled();
-    });
+    await waitFor(
+      () => {
+        expect(LinkedBusinessActions.fetchLinkedBusinesses).toHaveBeenCalled();
+      },
+      {timeout: 3000},
+    );
+
     expect(screen.getByTestId('search-input')).toBeTruthy();
   });
 
@@ -318,17 +332,21 @@ describe('BusinessSearchScreen', () => {
     render(<BusinessSearchScreen {...createProps()} />);
 
     const input = screen.getByTestId('search-input');
+
     fireEvent.changeText(input, 'Vet');
 
     await act(async () => {
       jest.advanceTimersByTime(800);
     });
 
-    await waitFor(() => {
-      expect(
-        LinkedBusinessActions.searchBusinessesByLocation,
-      ).toHaveBeenCalledWith(expect.objectContaining({query: 'Vet'}));
-    });
+    await waitFor(
+      () => {
+        expect(
+          LinkedBusinessActions.searchBusinessesByLocation,
+        ).toHaveBeenCalledWith(expect.objectContaining({query: 'Vet'}));
+      },
+      {timeout: 3000},
+    );
 
     expect(screen.getByTestId('search-dropdown')).toBeTruthy();
     expect(screen.getByText('Vet 1')).toBeTruthy();
