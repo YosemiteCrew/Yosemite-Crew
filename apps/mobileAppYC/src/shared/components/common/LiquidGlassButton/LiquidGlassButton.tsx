@@ -19,8 +19,11 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 
-const LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
-const DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+// Crystal clear glass defaults - minimal tint for maximum clarity
+const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.5)';
+const IOS_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+const ANDROID_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.92)';
+const ANDROID_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.82)';
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
 
@@ -337,7 +340,12 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     if (tintColor) {
       return tintColor;
     }
-    return resolvedColorScheme === 'dark' ? DARK_GLASS_TINT : LIGHT_GLASS_TINT;
+    if (Platform.OS === 'android') {
+      return resolvedColorScheme === 'dark'
+        ? ANDROID_DARK_GLASS_TINT
+        : ANDROID_LIGHT_GLASS_TINT;
+    }
+    return resolvedColorScheme === 'dark' ? IOS_DARK_GLASS_TINT : IOS_LIGHT_GLASS_TINT;
   }, [resolvedColorScheme, tintColor]);
   const borderRadiusValue = React.useMemo(
     () =>
@@ -359,7 +367,6 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
       height,
       minWidth,
       maxWidth,
-      overflow: 'hidden',
     }),
     [borderRadiusValue, height, maxWidth, minWidth, width],
   );

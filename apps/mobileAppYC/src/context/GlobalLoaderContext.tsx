@@ -1,4 +1,6 @@
 import React, {createContext, useContext, useState, useCallback, useMemo} from 'react';
+import {StyleSheet, View, Modal} from 'react-native';
+import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
 
 interface GlobalLoaderContextType {
   showLoader: () => void;
@@ -13,7 +15,7 @@ const GlobalLoaderContext = createContext<GlobalLoaderContextType | undefined>(
 export const GlobalLoaderProvider: React.FC<{children: React.ReactNode}> = ({
   children,
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const showLoader = useCallback(() => {
     setIsLoading(true);
@@ -31,9 +33,29 @@ export const GlobalLoaderProvider: React.FC<{children: React.ReactNode}> = ({
   return (
     <GlobalLoaderContext.Provider value={value}>
       {children}
+      {isLoading && (
+        <Modal
+          transparent
+          visible={isLoading}
+          animationType="fade"
+          statusBarTranslucent>
+          <View style={styles.loaderOverlay}>
+            <GifLoader size="large" />
+          </View>
+        </Modal>
+      )}
     </GlobalLoaderContext.Provider>
   );
 };
+
+const styles = StyleSheet.create({
+  loaderOverlay: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
 
 export const useGlobalLoader = () => {
   const context = useContext(GlobalLoaderContext);

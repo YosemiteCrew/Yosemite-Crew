@@ -109,7 +109,7 @@ export const DeleteAccountBottomSheet = forwardRef<
   return (
     <ConfirmActionBottomSheet
       ref={sheetRef}
-      snapPoints={['60%']}
+      snapPoints={['50%', '60%']}
       title="Delete account"
       message="Are you sure you want to delete your account?"
       messageAlign="left"

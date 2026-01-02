@@ -239,7 +239,7 @@ const createStyles = (theme: any) =>
       right: 0,
       padding: theme.spacing['2'],
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     closeButton: {
       justifyContent: 'center',

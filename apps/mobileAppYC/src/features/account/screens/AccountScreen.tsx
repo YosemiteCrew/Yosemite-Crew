@@ -13,7 +13,7 @@ import {
   Platform,
   ToastAndroid,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
 import type {AppDispatch, RootState} from '@/app/store';
@@ -37,7 +37,6 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {calculateAgeFromDateOfBirth, truncateText} from '@/shared/utils/helpers';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
 import {deleteParentProfile} from '@/features/account/services/profileService';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 import {
   deleteAmplifyAccount,
   deleteFirebaseAccount,
@@ -75,8 +74,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const authUser = useSelector(selectAuthUser);
   const {weightUnit} = usePreferences();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -369,153 +366,142 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   return (
     <>
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+      <LiquidGlassHeaderScreen
+        header={
           <Header
             title="Account"
             showBackButton
             onBack={handleBackPress}
             glass={false}
           />
-        </LiquidGlassCard>
-      </View>
-      <View style={styles.contentWrapper}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
-          {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
-          <LiquidGlassCard
-            glassEffect="regular"
-            interactive
-            style={styles.companionsCard}
-            fallbackStyle={styles.companionsCardFallback}>
-            {profiles.map((profile, index) => (
-              <View
-                key={profile.id}
-                style={[
-                  styles.companionRow,
-                  index < profiles.length - 1 && styles.companionRowDivider,
-                ]}>
-                <View style={styles.companionInfo}>
-                  {renderProfileAvatar(profile, index)}
-                  <View>
-                    <Text
-                      style={styles.companionName}
-                      numberOfLines={1}
-                      ellipsizeMode="tail">
-                      {truncateText(profile.name, 18)}{' '}
-                      {/* limit name to ~18 chars */}
-                    </Text>
-                    <Text
-                      style={styles.companionMeta}
-                      numberOfLines={1}
-                      ellipsizeMode="tail">
-                      {truncateText(profile.subtitle, 30)}{' '}
-                      {/* limit subtitle to ~30 chars */}
-                    </Text>
+        }
+        contentPadding={theme.spacing['3']}
+        useSafeAreaView
+        containerStyle={styles.container}
+        showBottomFade={false}>
+        {contentPaddingStyle => (
+          <View style={styles.contentWrapper}>
+            <ScrollView
+              contentContainerStyle={[styles.content, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
+              <LiquidGlassCard
+                glassEffect="clear"
+                interactive
+                style={styles.companionsCard}
+                fallbackStyle={styles.companionsCardFallback}>
+                {profiles.map((profile, index) => (
+                  <View
+                    key={profile.id}
+                    style={[
+                      styles.companionRow,
+                      index < profiles.length - 1 && styles.companionRowDivider,
+                    ]}>
+                    <View style={styles.companionInfo}>
+                      {renderProfileAvatar(profile, index)}
+                      <View>
+                        <Text
+                          style={styles.companionName}
+                          numberOfLines={1}
+                          ellipsizeMode="tail">
+                          {truncateText(profile.name, 18)}{' '}
+                          {/* limit name to ~18 chars */}
+                        </Text>
+                        <Text
+                          style={styles.companionMeta}
+                          numberOfLines={1}
+                          ellipsizeMode="tail">
+                          {truncateText(profile.subtitle, 30)}{' '}
+                          {/* limit subtitle to ~30 chars */}
+                        </Text>
+                      </View>
+                    </View>
+                    {/* Edit Button with conditional navigation */}
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={styles.editButton}
+                      onPress={() => {
+                        // Index 0 is the primary user profile
+                        if (index === 0) {
+                          // Navigate to User Profile Edit screen
+                          navigation.navigate('EditParentOverview', {
+                            companionId: profile.id,
+                          });
+                          // e.g., navigation.navigate('EditUserProfile');
+                        } else {
+                          const access = accessByCompanionId[profile.id] ?? defaultAccess ?? null;
+                          const role = (access?.role ?? globalRole ?? '').toUpperCase();
+                          const isPrimary = role.includes('PRIMARY');
+                          const permissions =
+                            access?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+                          const canEdit =
+                            isPrimary ||
+                            (permissions ? Boolean(permissions.companionProfile) : false);
+                          if (!canEdit) {
+                            showPermissionToast('companion profile');
+                            return;
+                          }
+                          dispatch(setSelectedCompanion(profile.id));
+                          navigation.navigate('ProfileOverview', {
+                            companionId: profile.id,
+                          });
+                        }
+                      }}>
+                      <Image source={Images.blackEdit} style={styles.editIcon} />
+                    </TouchableOpacity>
                   </View>
-                </View>
-                {/* Edit Button with conditional navigation */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={styles.editButton}
-                  onPress={() => {
-                    // Index 0 is the primary user profile
-                    if (index === 0) {
-                      // Navigate to User Profile Edit screen
-                      navigation.navigate('EditParentOverview', {
-                        companionId: profile.id,
-                      });
-                      // e.g., navigation.navigate('EditUserProfile');
-                    } else {
-                      const access = accessByCompanionId[profile.id] ?? defaultAccess ?? null;
-                      const role = (access?.role ?? globalRole ?? '').toUpperCase();
-                      const isPrimary = role.includes('PRIMARY');
-                      const permissions = access?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
-                      const canEdit =
-                        isPrimary ||
-                        (permissions ? Boolean(permissions.companionProfile) : false);
-                      if (!canEdit) {
-                        showPermissionToast('companion profile');
-                        return;
-                      }
-                      dispatch(setSelectedCompanion(profile.id));
-                      navigation.navigate('ProfileOverview', {
-                        companionId: profile.id,
-                      });
-                    }
-                  }}>
-                  <Image source={Images.blackEdit} style={styles.editIcon} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </LiquidGlassCard>
+                ))}
+              </LiquidGlassCard>
 
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive
-            style={styles.menuContainer}
-            fallbackStyle={styles.menuContainerFallback}>
-            <AccountMenuList
-              items={menuItems}
-              rightArrowIcon={Images.rightArrow}
-              onItemPress={(id: string) => {
-                const it = menuItems.find(m => m.id === id);
-                it?.onPress();
-              }}
-            />
-          </LiquidGlassCard>
+              <LiquidGlassCard
+                glassEffect="clear"
+                interactive
+                style={styles.menuContainer}
+                fallbackStyle={styles.menuContainerFallback}>
+                <AccountMenuList
+                  items={menuItems}
+                  rightArrowIcon={Images.rightArrow}
+                  onItemPress={(id: string) => {
+                    const it = menuItems.find(m => m.id === id);
+                    it?.onPress();
+                  }}
+                />
+              </LiquidGlassCard>
 
-          <LiquidGlassButton
-            title="Logout"
-            onPress={handleLogoutPress}
-            glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.secondary}
-            style={styles.logoutButton}
-            textStyle={styles.logoutText}
-            leftIcon={
-              <Image source={Images.logoutIcon} style={styles.logoutIcon} />
-            }
-          />
-          {!!appVersion && (
-            <Text style={styles.versionText}>Version {appVersion}</Text>
-          )}
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+              <LiquidGlassButton
+                title="Logout"
+                onPress={handleLogoutPress}
+                glassEffect="clear"
+                interactive
+                borderRadius="lg"
+                forceBorder
+                borderColor={theme.colors.secondary}
+                style={styles.logoutButton}
+                textStyle={styles.logoutText}
+                leftIcon={
+                  <Image source={Images.logoutIcon} style={styles.logoutIcon} />
+                }
+              />
+              {!!appVersion && (
+                <Text style={styles.versionText}>Version {appVersion}</Text>
+              )}
+            </ScrollView>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
 
-    <DeleteAccountBottomSheet
-      ref={deleteSheetRef}
-      email={authUser?.email}
-      onDelete={handleDeleteAccount}
-      isProcessing={isDeletingAccount}
-    />
+      <DeleteAccountBottomSheet
+        ref={deleteSheetRef}
+        email={authUser?.email}
+        onDelete={handleDeleteAccount}
+        isProcessing={isDeletingAccount}
+      />
     </>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -529,7 +515,6 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['5'],
     },
-    ...createLiquidGlassHeaderStyles(theme),
     companionsCard: {
       gap: theme.spacing['4'],
     },
@@ -628,3 +613,4 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.secondary,
     },
   });
+};

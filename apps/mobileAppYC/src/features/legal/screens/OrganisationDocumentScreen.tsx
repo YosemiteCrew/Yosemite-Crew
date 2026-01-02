@@ -2,7 +2,6 @@ import React from 'react';
 import {
   ActivityIndicator,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -21,6 +20,7 @@ import {
   type OrganisationDocument,
 } from '../services/organisationDocumentService';
 import type {AppointmentStackParamList} from '@/navigation/types';
+import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 
 type Props = NativeStackScreenProps<AppointmentStackParamList, 'OrganisationDocument'>;
 
@@ -80,7 +80,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   const {organisationId, organisationName, category} = route.params;
   const {theme} = useTheme();
   const baseStyles = React.useMemo(() => createLegalStyles(theme), [theme]);
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = useCommonScreenStyles(theme);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [sections, setSections] = React.useState<LegalSection[]>([]);
@@ -164,7 +164,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   }
 
   return (
-    <SafeAreaView style={baseStyles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <Header
         title={screenTitle}
         showBackButton
@@ -183,31 +183,5 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
     </SafeAreaView>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    statusCard: {
-      gap: theme.spacing['2'],
-      padding: theme.spacing['4'],
-    },
-    centerContent: {
-      flexGrow: 1,
-      justifyContent: 'center',
-    },
-    statusTitle: {
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.text,
-    },
-    statusText: {
-      ...theme.typography.subtitleRegular14,
-      color: theme.colors.textSecondary,
-    },
-    cardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-  });
 
 export default OrganisationDocumentScreen;

@@ -1,4 +1,4 @@
-import {createSlice, createAsyncThunk} from '@reduxjs/toolkit';
+import {createSlice, createAsyncThunk, type PayloadAction} from '@reduxjs/toolkit';
 import type {BusinessesState, VetBusiness, VetService, SlotWindow} from './types';
 import {appointmentApi} from './services/appointmentsService';
 import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
@@ -166,6 +166,14 @@ const businessesSlice = createSlice({
   initialState,
   reducers: {
     resetBusinessesState: () => initialState,
+    upsertBusiness: (state, action: PayloadAction<VetBusiness>) => {
+      const idx = state.businesses.findIndex(b => b.id === action.payload.id);
+      if (idx >= 0) {
+        state.businesses[idx] = {...state.businesses[idx], ...action.payload};
+      } else {
+        state.businesses.push(action.payload);
+      }
+    },
   },
   extraReducers: builder => {
     builder
@@ -233,5 +241,5 @@ const businessesSlice = createSlice({
   },
 });
 
-export const {resetBusinessesState} = businessesSlice.actions;
+export const {resetBusinessesState, upsertBusiness} = businessesSlice.actions;
 export default businessesSlice.reducer;

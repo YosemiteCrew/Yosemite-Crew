@@ -2,23 +2,21 @@ import React from 'react';
 import {render, screen, fireEvent} from '@testing-library/react-native';
 // FIX 1: Correct import path for component
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
-// FIX 2: Correct import path for hook
-import {useTheme} from '@/shared/hooks';
 // FIX 3: Correct import path for helper
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 // FIX 4: Correct import path for helper
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 // FIX 5: Correct import path for type
 import type {TaskCardProps} from '@/features/tasks/components/TaskCard/TaskCard';
-import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
 // FIX 6: Correct mock path
-jest.mock('@/shared/hooks', () => ({
-  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
 }));
-const mockUseTheme = useTheme as jest.MockedFunction<typeof useTheme>;
 
 // FIX 7: Correct mock path
 jest.mock(
@@ -75,6 +73,19 @@ jest.mock('@/shared/components/common/AvatarGroup/AvatarGroup', () => ({
   }),
 }));
 
+// Mock LiquidGlassButton
+jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => ({
+  LiquidGlassButton: jest.fn(({title, onPress}) => {
+    const MockButton = require('react-native').TouchableOpacity;
+    const MockText = require('react-native').Text;
+    return (
+      <MockButton testID="mock-liquid-glass-button" onPress={onPress}>
+        <MockText>{title}</MockText>
+      </MockButton>
+    );
+  }),
+}));
+
 // --- Mock Data ---
 
 
@@ -95,7 +106,6 @@ const baseProps: TaskCardProps = {
 // --- Helper ---
 
 const renderComponent = (props: Partial<TaskCardProps> = {}) => {
-  mockUseTheme.mockReturnValue({theme: mockTheme, isDark: false});
   mockFormatDate.mockReturnValue('October 29, 2025');
   mockCreateCardStyles.mockReturnValue({card: {}, fallback: {}});
 
@@ -135,18 +145,19 @@ describe('TaskCard', () => {
 
     it('renders the complete button if showCompleteButton is true and status is pending', () => {
       renderComponent({showCompleteButton: true, status: 'pending'});
-      expect(screen.getByTestId('mock-action-button')).toBeTruthy();
+      // Component now uses LiquidGlassButton by default instead of CardActionButton
+      expect(screen.getByTestId('mock-liquid-glass-button')).toBeTruthy();
       expect(screen.getByText('Complete')).toBeTruthy();
     });
 
     it('does not render the complete button if status is "completed"', () => {
       renderComponent({showCompleteButton: true, status: 'completed'});
-      expect(screen.queryByTestId('mock-action-button')).toBeNull();
+      expect(screen.queryByTestId('mock-liquid-glass-button')).toBeNull();
     });
 
     it('does not render the complete button if showCompleteButton is false', () => {
       renderComponent({showCompleteButton: false, status: 'pending'});
-      expect(screen.queryByTestId('mock-action-button')).toBeNull();
+      expect(screen.queryByTestId('mock-liquid-glass-button')).toBeNull();
     });
   });
 
@@ -160,7 +171,7 @@ describe('TaskCard', () => {
         showCompleteButton: true,
         status: 'pending',
       });
-      fireEvent.press(screen.getByTestId('mock-action-button'));
+      fireEvent.press(screen.getByTestId('mock-liquid-glass-button'));
       expect(onPressComplete).toHaveBeenCalledTimes(1);
     });
 
@@ -175,7 +186,7 @@ describe('TaskCard', () => {
         onPressTakeObservationalTool,
         onPressComplete,
       });
-      fireEvent.press(screen.getByTestId('mock-action-button'));
+      fireEvent.press(screen.getByTestId('mock-liquid-glass-button'));
       expect(onPressTakeObservationalTool).toHaveBeenCalledTimes(1);
       expect(onPressComplete).not.toHaveBeenCalled();
     });

@@ -50,6 +50,8 @@ export const UploadDocumentBottomSheet = forwardRef<
 
   useImperativeHandle(ref, () => ({
     open: () => {
+      // Mark visible before snapping so backdrop mounts correctly
+      setIsSheetVisible(true);
       bottomSheetRef.current?.snapToIndex(0);
     },
     close: () => {
@@ -165,7 +167,7 @@ const createStyles = (theme: any) =>
       right: 0,
       padding: theme.spacing['2'],
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     closeIcon: {
       width: theme.spacing['6'],

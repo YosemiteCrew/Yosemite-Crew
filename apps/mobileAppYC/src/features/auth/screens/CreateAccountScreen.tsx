@@ -14,7 +14,8 @@ import {
   BackHandler,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
-import {SafeArea, Input, Header} from '@/shared/components/common';
+import {Input, Header} from '@/shared/components/common';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {
   SimpleDatePicker,
   formatDateForDisplay,
@@ -977,113 +978,121 @@ const handleGoBack = useCallback(async () => {
   };
 
   return (
-    <SafeArea style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}>
-      <Header
-  title="Create account"
-  showBackButton
-  onBack={handleGoBack}
-/>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-          {currentStep === 1 ? renderStep1() : renderStep2()}
-        </ScrollView>
-
-        {submissionError ? (
-          <Text style={styles.submissionError}>{submissionError}</Text>
-        ) : null}
-
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title={(() => {
-              if (currentStep === 1) {
-                return 'Next';
-              }
-              if (isSubmitting) {
-                return 'Creating account...';
-              }
-              return 'Create account';
-            })()}
-            onPress={currentStep === 1 ? handleNext : handleSignUp}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
-            loading={currentStep === 2 && isSubmitting}
-            disabled={currentStep === 2 && isSubmitting}
-          />
-        </View>
-
-        <SimpleDatePicker
-          value={step1Data.dateOfBirth}
-          onDateChange={handleDateChange}
-          show={showDatePicker}
-          onDismiss={handleDatePickerDismiss}
-          maximumDate={getMaximumDate()}
-          mode="date"
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Create account"
+          showBackButton
+          onBack={handleGoBack}
+          glass={false}
         />
-      </KeyboardAvoidingView>
-      {isOtpSuccessVisible && (
-        <View style={styles.bottomSheetContainer}>
-          <CustomBottomSheet
-            ref={successBottomSheetRef}
-            snapPoints={['35%', '50%']}
-            initialIndex={1}
-            enablePanDownToClose
-            enableBackdrop
-            backdropOpacity={0.5}
-            backdropAppearsOnIndex={0}
-            backdropDisappearsOnIndex={-1}
-            backdropPressBehavior="close"
-            enableHandlePanningGesture
-            enableContentPanningGesture={false}
-            enableOverDrag
-            backgroundStyle={styles.bottomSheetBackground}
-            handleIndicatorStyle={styles.bottomSheetHandle}>
-            <View style={styles.successContent}>
-              <Image
-                source={Images.verificationSuccess}
-                style={styles.successIllustration}
-                resizeMode="contain"
-              />
-              <Text style={styles.successTitle}>Code verified</Text>
-              <Text style={styles.successMessage}>
-                Nice! Now let's finish setting up your Yosemite Crew profile.
-              </Text>
-              <LiquidGlassButton
-                title="Continue"
-                onPress={handleSuccessClose}
-                style={styles.successButton}
-                textStyle={styles.successButtonText}
-                tintColor={theme.colors.secondary}
-                shadowIntensity="medium"
-                forceBorder
-                borderColor="rgba(255, 255, 255, 0.35)"
-                height={56}
-                borderRadius={16}
-              />
-            </View>
-          </CustomBottomSheet>
-        </View>
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <>
+          <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardAvoidingView}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            {currentStep === 1 ? renderStep1() : renderStep2()}
+          </ScrollView>
+
+          {submissionError ? (
+            <Text style={styles.submissionError}>{submissionError}</Text>
+          ) : null}
+
+          <View style={styles.buttonContainer}>
+            <LiquidGlassButton
+              title={(() => {
+                if (currentStep === 1) {
+                  return 'Next';
+                }
+                if (isSubmitting) {
+                  return 'Creating account...';
+                }
+                return 'Create account';
+              })()}
+              onPress={currentStep === 1 ? handleNext : handleSignUp}
+              style={styles.button}
+              textStyle={styles.buttonText}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor="rgba(255, 255, 255, 0.35)"
+              height={56}
+              borderRadius={16}
+              loading={currentStep === 2 && isSubmitting}
+              disabled={currentStep === 2 && isSubmitting}
+            />
+          </View>
+
+          <SimpleDatePicker
+            value={step1Data.dateOfBirth}
+            onDateChange={handleDateChange}
+            show={showDatePicker}
+            onDismiss={handleDatePickerDismiss}
+            maximumDate={getMaximumDate()}
+            mode="date"
+          />
+        </KeyboardAvoidingView>
+        {isOtpSuccessVisible && (
+          <View style={styles.bottomSheetContainer}>
+            <CustomBottomSheet
+              ref={successBottomSheetRef}
+              snapPoints={['35%', '50%']}
+              initialIndex={1}
+              enablePanDownToClose
+              enableBackdrop
+              backdropOpacity={0.5}
+              backdropAppearsOnIndex={0}
+              backdropDisappearsOnIndex={-1}
+              backdropPressBehavior="close"
+              enableHandlePanningGesture
+              enableContentPanningGesture={false}
+              enableOverDrag
+              backgroundStyle={styles.bottomSheetBackground}
+              handleIndicatorStyle={styles.bottomSheetHandle}>
+              <View style={styles.successContent}>
+                <Image
+                  source={Images.verificationSuccess}
+                  style={styles.successIllustration}
+                  resizeMode="contain"
+                />
+                <Text style={styles.successTitle}>Code verified</Text>
+                <Text style={styles.successMessage}>
+                  Nice! Now let's finish setting up your Yosemite Crew profile.
+                </Text>
+                <LiquidGlassButton
+                  title="Continue"
+                  onPress={handleSuccessClose}
+                  style={styles.successButton}
+                  textStyle={styles.successButtonText}
+                  tintColor={theme.colors.secondary}
+                  shadowIntensity="medium"
+                  forceBorder
+                  borderColor="rgba(255, 255, 255, 0.35)"
+                  height={56}
+                  borderRadius={16}
+                />
+              </View>
+            </CustomBottomSheet>
+          </View>
+        )}
+          <CountryMobileBottomSheet
+            ref={countryMobileRef}
+            countries={COUNTRIES}
+            selectedCountry={selectedCountry}
+            mobileNumber={step1Data.mobileNumber}
+            onSave={handleCountryMobileSave}
+          />
+        </>
       )}
-      <CountryMobileBottomSheet
-        ref={countryMobileRef}
-        countries={COUNTRIES}
-        selectedCountry={selectedCountry}
-        mobileNumber={step1Data.mobileNumber}
-        onSave={handleCountryMobileSave}
-      />
-    </SafeArea>
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -1186,7 +1195,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.whiteOverlay70,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     successButtonText: {
       color: theme.colors.white,

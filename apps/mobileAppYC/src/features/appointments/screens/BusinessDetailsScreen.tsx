@@ -1,7 +1,6 @@
 import React, {useMemo} from 'react';
 import {ScrollView, View, StyleSheet, Text} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SpecialtyAccordion} from '@/features/appointments/components/SpecialtyAccordion';
@@ -10,7 +9,7 @@ import {Images} from '@/assets/images';
 import VetBusinessCard from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
 import {createSelectServicesForBusiness} from '@/features/appointments/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, NavigationProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
@@ -19,21 +18,20 @@ import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {TabParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 export const BusinessDetailsScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const dispatch = useDispatch<AppDispatch>();
   const {distanceUnit} = usePreferences();
   const businessId = route.params?.businessId as string;
+  const returnTo = route.params?.returnTo as {tab?: keyof TabParamList; screen?: string} | undefined;
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
   const servicesSelector = React.useMemo(() => createSelectServicesForBusiness(), []);
   const services = useSelector((state: RootState) => servicesSelector(state, businessId));
@@ -108,96 +106,104 @@ export const BusinessDetailsScreen: React.FC = () => {
     return `${business.distanceMi.toFixed(1)}mi`;
   }, [business?.distanceMi, distanceUnit]);
 
+  const handleBack = () => {
+    if (returnTo?.tab) {
+      const tabNav = navigation.getParent<NavigationProp<TabParamList>>();
+      if (tabNav) {
+        // Type-safe navigation by explicitly handling each tab case
+        const params = returnTo.screen ? {screen: returnTo.screen} : undefined;
+        tabNav.navigate(returnTo.tab as any, params as any);
+      }
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <LiquidGlassHeader
-        insetsTop={insets.top}
-        currentHeight={topGlassHeight}
-        onHeightChange={setTopGlassHeight}
-        topSectionStyle={styles.topSection}
-        cardStyle={styles.topGlassCard}
-        fallbackStyle={styles.topGlassFallback}>
-        <Header title="Book an appointment" showBackButton onBack={() => navigation.goBack()} glass={false} />
-      </LiquidGlassHeader>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.container,
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-            : null,
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Business Card */}
-        <VetBusinessCard
-          style={styles.businessCard}
-          name={business?.name || ''}
-          openHours={business?.openHours}
-          distance={displayDistance}
-          rating={business?.rating ? `${business.rating}` : undefined}
-          address={business?.address}
-          website={business?.website}
-          photo={business?.photo}
-          fallbackPhoto={fallbackPhoto ?? undefined}
-          cta=""
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Book an appointment"
+          showBackButton
+          onBack={handleBack}
+          glass={false}
         />
-
-        {/* Specialties Accordion */}
-        {specialties.length ? (
-          <SpecialtyAccordion
-            title="Specialties"
-            icon={Images.specialityIcon}
-            specialties={specialties}
-            onSelectService={handleSelectService}
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Business Card */}
+          <VetBusinessCard
+            style={styles.businessCard}
+            name={business?.name || ''}
+            openHours={business?.openHours}
+            distance={displayDistance}
+            rating={business?.rating ? `${business.rating}` : undefined}
+            address={business?.address}
+            website={business?.website}
+            photo={business?.photo}
+            fallbackPhoto={fallbackPhoto ?? undefined}
+            cta=""
           />
-        ) : (
-          <View style={styles.emptyServicesCard}>
-            <Text style={styles.emptyServicesTitle}>Services coming soon</Text>
-            <Text style={styles.emptyServicesSubtitle}>
-              This business has not published individual services yet. Please contact them directly for availability.
-            </Text>
+
+          {/* Specialties Accordion */}
+          {specialties.length ? (
+            <SpecialtyAccordion
+              title="Specialties"
+              icon={Images.specialityIcon}
+              specialties={specialties}
+              onSelectService={handleSelectService}
+            />
+          ) : (
+            <View style={styles.emptyServicesCard}>
+              <Text style={styles.emptyServicesTitle}>Services coming soon</Text>
+              <Text style={styles.emptyServicesSubtitle}>
+                This business has not published individual services yet. Please contact them directly for availability.
+              </Text>
+            </View>
+          )}
+
+          {/* Get Directions Button */}
+          <View style={styles.footer}>
+            <LiquidGlassButton
+              title="Get Directions"
+              onPress={() => {
+                if (business?.googlePlacesId) {
+                  openMapsToPlaceId(business.googlePlacesId, business?.address);
+                } else if (business?.address) {
+                  openMapsToAddress(business.address);
+                }
+              }}
+              height={56}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              textStyle={styles.buttonText}
+              glassEffect="clear"
+              shadowIntensity="none"
+              forceBorder
+              borderColor="rgba(255, 255, 255, 0.35)"
+            />
           </View>
-        )}
-
-        {/* Get Directions Button */}
-        <View style={styles.footer}>
-          <LiquidGlassButton
-            title="Get Directions"
-            onPress={() => {
-              if (business?.googlePlacesId) {
-                openMapsToPlaceId(business.googlePlacesId, business?.address);
-              } else if (business?.address) {
-                openMapsToAddress(business.address);
-              }
-            }}
-            height={56}
-            borderRadius={16}
-            tintColor={theme.colors.secondary}
-            textStyle={styles.buttonText}
-            glassEffect="clear"
-            shadowIntensity="none"
-            forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-          />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  ...createLiquidGlassHeaderStyles(theme),
   scrollView: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
   container: {
-    padding: theme.spacing['4'],
+    paddingHorizontal: theme.spacing['6'],
     paddingBottom: theme.spacing['24'],
   },
   businessCard: {
@@ -218,7 +224,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     padding: theme.spacing['4'],
     gap: theme.spacing['2'],
-       marginBottom: theme.spacing['4'],
+    marginBottom: theme.spacing['4'],
   },
   emptyServicesTitle: {
     ...theme.typography.titleSmall,

@@ -12,7 +12,7 @@ import {
   ToastAndroid,
   Platform,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
@@ -25,10 +25,9 @@ import {
   type TabParamList,
 } from '@/navigation/types';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {
   createGlassCardStyles,
-  createLiquidGlassHeaderStyles,
   createScreenContainerStyles,
 } from '@/shared/utils/screenStyles';
 import {createCenteredStyle} from '@/shared/utils/commonHelpers';
@@ -79,8 +78,6 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {companionId} = route.params;
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
@@ -361,7 +358,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (!companion) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <Header title="Profile" showBackButton onBack={handleBackPress} />
         <View style={styles.centered}>
           {isLoading ? (
@@ -376,32 +373,23 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <>
-      <SafeAreaView style={styles.container} edges={['top']}>
-      <LiquidGlassHeader
-        insetsTop={insets.top}
-        currentHeight={topGlassHeight}
-        onHeightChange={setTopGlassHeight}
-        topSectionStyle={styles.topSection}
-        cardStyle={styles.topGlassCard}
-        fallbackStyle={styles.topGlassFallback}>
-        <Header
-          title={`${companion.name}'s Profile`}
-          showBackButton
-          onBack={handleBackPress}
-          rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
-          onRightPress={isPrimaryParent ? handleDeletePress : undefined}
-          glass={false}
-        />
-      </LiquidGlassHeader>
-
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-            : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title={`${companion.name}'s Profile`}
+            showBackButton
+            onBack={handleBackPress}
+            rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+            onRightPress={isPrimaryParent ? handleDeletePress : undefined}
+            glass={false}
+          />
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['1']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            contentContainerStyle={[styles.content, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
         <CompanionProfileHeader
           name={companion.name}
           breedName={companion.breed?.breedName}
@@ -415,6 +403,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         <LiquidGlassCard
           glassEffect="clear"
           interactive
+          tintColor={theme.colors.white}
           style={styles.glassContainer}
           fallbackStyle={styles.glassFallback}>
           <View style={styles.listContainer}>
@@ -448,10 +437,11 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
               </TouchableOpacity>
             ))}
           </View>
-        </LiquidGlassCard>
-      </View>
-      </ScrollView>
-      </SafeAreaView>
+          </LiquidGlassCard>
+        </View>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
 
       <DeleteProfileBottomSheet
         ref={deleteSheetRef}
@@ -467,7 +457,6 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createScreenContainerStyles(theme),
     ...createCenteredStyle(theme),
-    ...createLiquidGlassHeaderStyles(theme),
     emptyStateText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
@@ -506,6 +495,7 @@ const createStyles = (theme: any) =>
       borderBottomColor: theme.colors.borderSeperator,
     },
     statusBadge: {
+      width: theme.spacing['28'],
       paddingHorizontal: theme.spacing['3'],
       paddingVertical: theme.spacing['2'],
       borderRadius: theme.borderRadius.lg,

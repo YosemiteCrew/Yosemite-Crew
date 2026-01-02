@@ -4,7 +4,6 @@ import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -31,8 +30,7 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {fetchBusinessDetails} from '@/features/linkedBusinesses';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
@@ -255,8 +253,6 @@ export const ExpensePreviewScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
   const {openPaymentScreen, processingPayment} = useExpensePayment();
 
   const expenseId = (route.params as any)?.expenseId ?? '';
@@ -342,26 +338,18 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   if (!expense) {
     return (
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <LiquidGlassHeader
-          insetsTop={insets.top}
-          currentHeight={topGlassHeight}
-          onHeightChange={setTopGlassHeight}
-          topSectionStyle={styles.topSection}
-          cardStyle={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+      <LiquidGlassHeaderScreen
+        header={
           <Header title="Expenses" showBackButton onBack={handleBack} glass={false} />
-        </LiquidGlassHeader>
-        <View
-          style={[
-            styles.errorContainer,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
-          ]}>
-          <Text style={styles.errorText}>Expense not found</Text>
-        </View>
-      </SafeAreaView>
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['4']}>
+        {contentPaddingStyle => (
+          <View style={[styles.errorContainer, contentPaddingStyle]}>
+            <Text style={styles.errorText}>Expense not found</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
@@ -391,14 +379,8 @@ export const ExpensePreviewScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <LiquidGlassHeader
-        insetsTop={insets.top}
-        currentHeight={topGlassHeight}
-        onHeightChange={setTopGlassHeight}
-        topSectionStyle={styles.topSection}
-        cardStyle={styles.topGlassCard}
-        fallbackStyle={styles.topGlassFallback}>
+    <LiquidGlassHeaderScreen
+      header={
         <Header
           title="Expenses"
           showBackButton
@@ -407,15 +389,12 @@ export const ExpensePreviewScreen: React.FC = () => {
           onRightPress={canEdit ? handleEdit : undefined}
           glass={false}
         />
-      </LiquidGlassHeader>
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['4']}>
+      {contentPaddingStyle => (
         <ScrollView
-          style={styles.container}
-          contentContainerStyle={[
-            styles.contentContainer,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
-          ]}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
@@ -441,35 +420,27 @@ export const ExpensePreviewScreen: React.FC = () => {
             theme={theme}
           />
 
-        <View style={styles.previewContainer}>
-          {expense.attachments && expense.attachments.length > 0 ? (
-            <DocumentAttachmentViewer attachments={expense.attachments as DocumentFile[]} />
-          ) : (
-            <View style={styles.fallbackCard}>
-              <Image source={Images.documentIcon} style={styles.fallbackIcon} />
-              <Text style={styles.fallbackTitle}>No attachments</Text>
-              <Text style={styles.fallbackText}>There are no files attached to this expense.</Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          <View style={styles.previewContainer}>
+            {expense.attachments && expense.attachments.length > 0 ? (
+              <DocumentAttachmentViewer attachments={expense.attachments as DocumentFile[]} />
+            ) : (
+              <View style={styles.fallbackCard}>
+                <Image source={Images.documentIcon} style={styles.fallbackIcon} />
+                <Text style={styles.fallbackTitle}>No attachments</Text>
+                <Text style={styles.fallbackText}>There are no files attached to this expense.</Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    ...createLiquidGlassHeaderStyles(theme),
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
     contentContainer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['12'],
       gap: theme.spacing['4'],
     },

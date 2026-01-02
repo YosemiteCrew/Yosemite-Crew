@@ -12,8 +12,12 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 
-const LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
-const DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
+const IOS_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+const ANDROID_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.92)';
+const ANDROID_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.82)';
+const ANDROID_FALLBACK_BORDER_LIGHT = 'rgba(0, 0, 0, 0.08)';
+const ANDROID_FALLBACK_BORDER_DARK = 'rgba(255, 255, 255, 0.12)';
 
 interface LiquidGlassIconButtonProps {
   children: React.ReactNode;
@@ -50,7 +54,12 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
     if (tintColor) {
       return tintColor;
     }
-    return resolvedColorScheme === 'dark' ? DARK_GLASS_TINT : LIGHT_GLASS_TINT;
+    if (Platform.OS === 'android') {
+      return resolvedColorScheme === 'dark'
+        ? ANDROID_DARK_GLASS_TINT
+        : ANDROID_LIGHT_GLASS_TINT;
+    }
+    return resolvedColorScheme === 'dark' ? IOS_DARK_GLASS_TINT : IOS_LIGHT_GLASS_TINT;
   }, [resolvedColorScheme, tintColor]);
 
   const baseStyle = React.useMemo<ViewStyle>(
@@ -65,7 +74,6 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
       backgroundColor: 'transparent',
       ...theme.shadows[shadow],
       shadowColor: theme.colors.neutralShadow ?? theme.colors.black,
-      overflow: 'hidden',
     }),
     [size, shadow, theme.colors.black, theme.colors.neutralShadow, theme.shadows],
   );
@@ -106,7 +114,18 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
       activeOpacity={0.85}
       style={[
         baseStyle,
-        {backgroundColor: resolvedTintColor},
+        {
+          backgroundColor: resolvedTintColor,
+          ...(Platform.OS === 'android'
+            ? {
+                borderWidth: 1,
+                borderColor:
+                  resolvedColorScheme === 'dark'
+                    ? ANDROID_FALLBACK_BORDER_DARK
+                    : ANDROID_FALLBACK_BORDER_LIGHT,
+              }
+            : null),
+        },
         style,
       ]}>
       <View style={pressableStyle}>{children}</View>

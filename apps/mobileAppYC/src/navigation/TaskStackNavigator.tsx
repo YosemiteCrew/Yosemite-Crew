@@ -9,6 +9,7 @@ import {EditTaskScreen} from '@/features/tasks/screens/EditTaskScreen/EditTaskSc
 import {TaskViewScreen} from '@/features/tasks/screens/TaskViewScreen/TaskViewScreen';
 import {ObservationalToolScreen} from '@/features/tasks/screens/ObservationalToolScreen/ObservationalToolScreen';
 import {TasksMainScreen} from '@/features/tasks/screens/TasksMainScreen/TasksMainScreen';
+import {ObservationalToolPreviewScreen} from '@/features/tasks/screens/ObservationalToolPreviewScreen/ObservationalToolPreviewScreen';
 
 const Stack = createNativeStackNavigator<TaskStackParamList>();
 
@@ -25,6 +26,7 @@ export const TaskStackNavigator = () => {
       <Stack.Screen name="EditTask" component={EditTaskScreen} />
       <Stack.Screen name="TaskView" component={TaskViewScreen} />
       <Stack.Screen name="ObservationalTool" component={ObservationalToolScreen} />
+      <Stack.Screen name="ObservationalToolPreview" component={ObservationalToolPreviewScreen} />
     </Stack.Navigator>
   );
 };

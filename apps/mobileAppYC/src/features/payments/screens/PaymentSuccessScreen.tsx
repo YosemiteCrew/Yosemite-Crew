@@ -1,7 +1,6 @@
 import React, {useMemo, useCallback, useEffect} from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity, Linking} from 'react-native';
+import {View, Text, StyleSheet, Image, TouchableOpacity, Linking, ScrollView} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -15,6 +14,7 @@ import {setSelectedCompanion} from '@/features/companion';
 import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
 import {fetchInvoiceForAppointment} from '@/features/appointments/appointmentsSlice';
 import {markInAppExpenseStatus} from '@/features/expenses';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -25,6 +25,7 @@ export const PaymentSuccessScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const {appointmentId, companionId, expenseId} = route.params as {appointmentId: string; companionId?: string; expenseId?: string};
+  const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const appointment = useSelector((state: RootState) => state.appointments.items.find(a => a.id === appointmentId));
   const invoice = useSelector(selectInvoiceForAppointment(appointmentId));
   const resolvedCompanionId = companionId ?? appointment?.companionId ?? null;
@@ -39,22 +40,34 @@ export const PaymentSuccessScreen: React.FC = () => {
         hour12: true,
       })
     : '—';
-  const appointmentDate = (() => {
+  const appointmentDateTime = useMemo(() => {
     if (appointment?.start) {
-      return new Date(appointment.start);
+      const parsed = new Date(appointment.start);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
     }
-    if (appointment?.date) {
-      return new Date(`${appointment.date}T${appointment.time}:00Z`);
+    if (appointment?.date && appointment?.time) {
+      const normalizedTime =
+        appointment.time.length === 5 ? `${appointment.time}:00` : appointment.time;
+      const parsed = new Date(`${appointment.date}T${normalizedTime}Z`);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
     }
     return null;
-  })();
-  const formattedAppointmentDate = appointmentDate
-    ? appointmentDate.toLocaleString(undefined, {
+  }, [appointment?.date, appointment?.start, appointment?.time]);
+  const formattedAppointmentDate = appointmentDateTime
+    ? appointmentDateTime.toLocaleString('en-US', {
         month: 'short',
         day: '2-digit',
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
+        timeZone: deviceTimeZone,
+      })
+    : '—';
+  const formattedAppointmentTime = appointmentDateTime
+    ? appointmentDateTime.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: deviceTimeZone,
       })
     : '—';
   const receiptUrl = invoice?.downloadUrl ?? invoice?.paymentIntent?.paymentLinkUrl ?? null;
@@ -95,78 +108,94 @@ export const PaymentSuccessScreen: React.FC = () => {
   }, [receiptUrl]);
 
   return (
-    <SafeArea>
-      <Header title="Successful Payment" showBackButton={false} />
-      <View style={styles.container}>
-        <Image source={Images.successPayment} style={styles.illustration} />
-        <Text style={styles.title}>Thank you</Text>
-        <Text style={styles.subtitle}>You have Successfully made Payment</Text>
-        <View style={styles.detailsBlock}>
-        <Text style={styles.detailsTitle}>Invoice Details</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Invoice number</Text>
-            <Text style={styles.detailValue}>{invoiceNumber}</Text>
+    <LiquidGlassHeaderScreen
+    showBottomFade={false}
+      header={
+        <Header
+          title="Successful Payment"
+          showBackButton={false}
+          glass={false}
+        />
+      }
+      edges={[]}
+      contentPadding={20}>
+      {contentPaddingStyle => (
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            contentPaddingStyle,
+          ]}
+          showsVerticalScrollIndicator={false}>
+          <Image source={Images.successPayment} style={styles.illustration} />
+          <Text style={styles.title}>Thank you</Text>
+          <Text style={styles.subtitle}>You have Successfully made Payment</Text>
+          <View style={styles.detailsBlock}>
+            <Text style={styles.detailsTitle}>Invoice Details</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Invoice number</Text>
+              <Text style={styles.detailValue}>{invoiceNumber}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Invoice date & time</Text>
+              <Text style={styles.detailValue}>{invoiceDateTime}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Invoice ID</Text>
+              <Text style={styles.detailValue}>{invoice?.id ?? '—'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Invoice</Text>
+              <TouchableOpacity
+                style={styles.downloadInvoiceTouchable}
+                disabled={!receiptUrl}
+                onPress={handleViewInvoice}>
+                <Text style={[styles.detailValue, styles.link]}>
+                  {receiptUrl ? 'View invoice' : 'Not available'}
+                </Text>
+                {receiptUrl ? (
+                  <Image source={Images.downloadInvoice} style={styles.downloadInvoiceIcon} />
+                ) : null}
+              </TouchableOpacity>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Appointment date</Text>
+              <Text style={styles.detailValue}>{formattedAppointmentDate}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Appointment time</Text>
+              <Text style={styles.detailValue}>{formattedAppointmentTime}</Text>
+            </View>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Invoice date & time</Text>
-            <Text style={styles.detailValue}>{invoiceDateTime}</Text>
+          <View style={styles.buttonContainer}>
+            <LiquidGlassButton
+              title={expenseId ? 'Back to Expenses' : 'Dashboard'}
+              onPress={resetToMyAppointments}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
+            />
           </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Invoice ID</Text>
-            <Text style={styles.detailValue}>{invoice?.id ?? '—'}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Invoice</Text>
-            <TouchableOpacity
-              style={styles.downloadInvoiceTouchable}
-              disabled={!receiptUrl}
-              onPress={handleViewInvoice}>
-              <Text style={[styles.detailValue, styles.link]}>
-                {receiptUrl ? 'View invoice' : 'Not available'}
-              </Text>
-              {receiptUrl ? (
-                <Image source={Images.downloadInvoice} style={styles.downloadInvoiceIcon} />
-              ) : null}
-            </TouchableOpacity>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Appointment date</Text>
-            <Text style={styles.detailValue}>{formattedAppointmentDate}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Appointment time</Text>
-            <Text style={styles.detailValue}>{appointment?.time ?? '—'}</Text>
-          </View>
-        </View>
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title={expenseId ? 'Back to Expenses' : 'Dashboard'}
-            onPress={resetToMyAppointments}
-            height={theme.spacing['14']}
-            borderRadius={theme.borderRadius.lg}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            textStyle={styles.confirmPrimaryButtonText}
-          />
-        </View>
-      </View>
-    </SafeArea>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: theme.spacing['4'],
-    padding: theme.spacing['4'],
+    paddingHorizontal: theme.spacing['4'],
+    paddingBottom: theme.spacing['24'],
   },
   illustration: {
-    width: theme.spacing['50'],
-    height: theme.spacing['50'],
+    width: 200,
+    height: 200,
     resizeMode: 'contain',
-    marginBottom: theme.spacing['3'],
   },
   title: {
     ...theme.typography.h2,

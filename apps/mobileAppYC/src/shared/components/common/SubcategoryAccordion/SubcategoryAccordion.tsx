@@ -74,12 +74,14 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
   });
 
   return (
-    <View style={styles.shadowWrapper}>
+    <View style={[styles.shadowWrapper, containerStyle]}>
       <LiquidGlassCard
         glassEffect="clear"
         interactive={false}
+        shadow="none"
         padding="0"
-        style={[styles.container, containerStyle]}
+        colorScheme="light"
+        style={styles.container}
         fallbackStyle={styles.fallback}>
         <TouchableOpacity
           style={styles.header}
@@ -116,21 +118,22 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: theme.spacing['3'],
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
-      overflow: 'hidden',
+      overflow: 'visible',
     },
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
+      backgroundColor: theme.colors.cardBackground,
+      marginBottom: theme.spacing['3'],
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
     },
     header: {
@@ -138,7 +141,7 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: theme.spacing['4'],
-      backgroundColor: theme.colors.surface,
+      backgroundColor: 'transparent',
     },
     icon: {
       width: 40,
@@ -169,5 +172,6 @@ const createStyles = (theme: any) =>
       padding: theme.spacing['4'],
       paddingTop: theme.spacing['2'],
       gap: theme.spacing['2'],
+      backgroundColor: 'transparent',
     },
   });

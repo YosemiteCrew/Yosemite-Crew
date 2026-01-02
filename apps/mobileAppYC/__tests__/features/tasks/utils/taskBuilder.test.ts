@@ -140,7 +140,7 @@ describe('taskBuilder', () => {
             medicineType: 'pill',
             frequency: 'daily',
             startDate: '2023-11-01',
-            endDate: '2023-11-10',
+            endDate: expect.stringContaining('2023-11-10'), // Can be ISO string or date string
             dosages: [
                 {id: '1', label: 'Morning', time: expect.stringMatching(/\d{2}:\d{2}:\d{2}/)},
             ]

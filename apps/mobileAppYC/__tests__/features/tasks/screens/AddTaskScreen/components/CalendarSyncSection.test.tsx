@@ -55,6 +55,7 @@ describe('CalendarSyncSection', () => {
     formData: {
       syncWithCalendar: false,
       calendarProvider: null,
+      calendarProviderName: null,
     } as any,
     updateField: mockUpdateField,
     onOpenCalendarSyncSheet: mockOnOpenSheet,
@@ -121,33 +122,35 @@ describe('CalendarSyncSection', () => {
     expect(mockOnOpenSheet).toHaveBeenCalled();
   });
 
-  it('formats Google Calendar provider correctly', () => {
+  it('displays Google Calendar provider correctly', () => {
     const props = {
       ...defaultProps,
       formData: {
         syncWithCalendar: true,
         calendarProvider: 'google',
+        calendarProviderName: 'Google Calendar',
       },
     };
 
     render(<CalendarSyncSection {...props} />);
 
-    // Check value formatting logic
+    // Check value is displayed correctly
     expect(screen.getByTestId('input-value').props.children).toBe(
       'Google Calendar',
     );
-    // Check label logic (should be 'Calendar provider' if provider is set)
+    // Check label logic (should be 'Calendar provider' if provider name is set)
     expect(screen.getByTestId('input-label').props.children).toBe(
       'Calendar provider',
     );
   });
 
-  it('formats iCloud Calendar provider correctly', () => {
+  it('displays iCloud Calendar provider correctly', () => {
     const props = {
       ...defaultProps,
       formData: {
         syncWithCalendar: true,
         calendarProvider: 'icloud',
+        calendarProviderName: 'iCloud Calendar',
       },
     };
 
@@ -158,18 +161,21 @@ describe('CalendarSyncSection', () => {
     );
   });
 
-  it('returns undefined for unknown calendar provider', () => {
+  it('displays placeholder when calendar provider name is not set', () => {
     const props = {
       ...defaultProps,
       formData: {
         syncWithCalendar: true,
-        calendarProvider: 'unknown-provider',
+        calendarProvider: null,
+        calendarProviderName: null,
       },
     };
 
     render(<CalendarSyncSection {...props} />);
 
-    // The internal format function returns undefined, mock renders 'No Value'
+    // When calendarProviderName is null/undefined, value is undefined and mock renders 'No Value'
     expect(screen.getByTestId('input-value').props.children).toBe('No Value');
+    // Label should be undefined (mock renders 'No Label') when calendarProviderName is not set
+    expect(screen.getByTestId('input-label').props.children).toBe('No Label');
   });
 });

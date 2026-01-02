@@ -1,6 +1,5 @@
 import type {ImageSourcePropType} from 'react-native';
 import type {CompanionCategory} from '@/features/companion/types';
-import type {ObservationalTool} from '@/features/tasks/types';
 
 export interface ObservationalToolOption {
   id: string;
@@ -13,6 +12,7 @@ export interface ObservationalToolStep {
   id: string;
   title: string;
   subtitle: string;
+  required?: boolean;
   helperText?: string;
   heroImage?: ImageSourcePropType;
   footerNote?: string;
@@ -21,7 +21,7 @@ export interface ObservationalToolStep {
 }
 
 export interface ObservationalToolDefinition {
-  id: ObservationalTool;
+  id: string;
   name: string;
   shortName: string;
   species: CompanionCategory;
@@ -45,19 +45,20 @@ export interface ObservationalToolProviderPricing {
 }
 
 export type ObservationalToolDefinitionMap = Record<
-  ObservationalTool,
+  string,
   ObservationalToolDefinition
 >;
 
 export type ObservationalToolProviderMap = Record<
-  ObservationalTool,
+  string,
   ObservationalToolProviderPricing[]
 >;
 
-export type ObservationalToolResponses = Record<string, string[]>;
+export type ObservationalToolResponses = Record<string, any>;
 
 export interface ObservationalToolBookingContext {
-  toolId: ObservationalTool;
-  provider: ObservationalToolProviderPricing;
+  toolId: string;
+  provider?: ObservationalToolProviderPricing;
   responses: ObservationalToolResponses;
+  submissionId?: string;
 }

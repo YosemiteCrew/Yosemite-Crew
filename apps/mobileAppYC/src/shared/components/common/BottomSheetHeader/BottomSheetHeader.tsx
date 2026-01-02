@@ -80,7 +80,7 @@ const createStyles = (theme: any) =>
       top: theme.spacing['4'],
       zIndex: 10,
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     closeIcon: {
       width: theme.spacing['4'],

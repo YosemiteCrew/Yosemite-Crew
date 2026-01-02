@@ -233,7 +233,10 @@ describe('AppNavigator', () => {
     it('displays Loading component while auth is loading', () => {
       (useAuth as jest.Mock).mockReturnValue({isLoading: true});
       const renderResult = renderNavigator();
-      expect(renderResult.toJSON()).toBeNull();
+      const tree = renderResult.toJSON();
+      expect(tree).toBeTruthy();
+      // Check that Modal is rendered for loading state
+      expect(tree.type).toBe('Modal');
     });
 
     it('displays Loading component while checking onboarding status', () => {
@@ -242,7 +245,10 @@ describe('AppNavigator', () => {
         new Promise(() => {}),
       );
       const renderResult = renderNavigator();
-      expect(renderResult.toJSON()).toBeNull();
+      const tree = renderResult.toJSON();
+      expect(tree).toBeTruthy();
+      // Check that Modal is rendered for loading state
+      expect(tree.type).toBe('Modal');
     });
   });
 

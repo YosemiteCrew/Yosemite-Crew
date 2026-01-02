@@ -12,7 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import {SafeArea, OTPInput, Header, Input} from '@/shared/components/common';
+import {OTPInput, Header, Input} from '@/shared/components/common';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -291,16 +292,18 @@ const buildUserPayload = (
     isVerifying || (isDemoLogin ? otpCode.trim().length === 0 : otpCode.length !== expectedLength);
 
   return (
-    <SafeArea style={styles.container}>
-      <Header title="Enter login code" showBackButton onBack={handleGoBack} />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}>
+    <LiquidGlassHeaderScreen
+      header={<Header title="Enter login code" showBackButton onBack={handleGoBack} glass={false} />}
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}>
           <View style={styles.content}>
             <Image
               source={Images.catLaptop}
@@ -352,10 +355,10 @@ const buildUserPayload = (
                 />
               </>
             )}
-          </View>
-        </ScrollView>
+            </View>
+          </ScrollView>
 
-        <View style={styles.bottomSection}>
+          <View style={styles.bottomSection}>
           <LiquidGlassButton
             title={getButtonTitle()}
             onPress={handleVerifyCode}
@@ -393,9 +396,10 @@ const buildUserPayload = (
               )}
             </View>
           )}
-        </View>
-      </KeyboardAvoidingView>
-    </SafeArea>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 

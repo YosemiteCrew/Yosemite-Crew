@@ -1,6 +1,5 @@
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
 import {View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Text, Alert, Pressable} from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -8,7 +7,7 @@ import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {
   searchBusinessesByLocation,
   fetchLinkedBusinesses,
@@ -28,7 +27,6 @@ import {CompanionProfileImage} from '../components/CompanionProfileImage';
 import {InviteCard} from '../components/InviteCard';
 import LocationService from '@/shared/services/LocationService';
 import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessSearch'>;
 
@@ -37,7 +35,6 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     route.params;
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,8 +43,9 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const [selectedBusinessForDelete, setSelectedBusinessForDelete] = useState<LinkedBusiness | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
+  const searchBarRef = useRef<View | null>(null);
   const deleteBottomSheetRef = useRef<DeleteBusinessBottomSheetRef>(null);
-  const [topGlassHeight, setTopGlassHeight] = useState(0);
 
   // Fetch linked businesses on mount
   useEffect(() => {
@@ -441,113 +439,125 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
 
 
   const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
+  const dropdownTop = (searchBarBottom ?? theme.spacing['24']) + theme.spacing['2'];
+  const showSearchResults = searchQuery.length >= 2 && searchResults.length > 0 && !searching;
 
   return (
-    <>
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <LiquidGlassHeader
-          insetsTop={insets.top}
-          currentHeight={topGlassHeight}
-          onHeightChange={setTopGlassHeight}
-          topSectionStyle={styles.topSection}
-          cardStyle={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header title={categoryTitle} showBackButton onBack={handleBack} glass={false} />
-          <SearchBar
-            placeholder={`Search ${category}`}
-            mode="input"
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
-        </LiquidGlassHeader>
+    <View style={styles.container}>
+      {showSearchResults ? (
+        <Pressable style={styles.searchBackdrop} onPress={handleCloseDropdown} />
+      ) : null}
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}>
-        {/* Close dropdown when clicking outside */}
-        {searchResults.length > 0 && (
-          <Pressable
-            style={styles.overlay}
-            onPress={handleCloseDropdown}
-          />
-        )}
-
-        <View style={styles.mainContent}>
-          <ScrollView
-            contentContainerStyle={[
-              styles.scrollContent,
-              topGlassHeight
-                ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-                : null,
-            ]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled">
-            {/* Companion Profile Header - Always visible */}
-            <View key="profile">
-              <CompanionProfileImage
-                name={companionName}
-                breedName={companionBreed}
-                profileImage={companionImage}
+      <LiquidGlassHeaderScreen
+        header={
+          <View style={styles.headerContainer}>
+            <Header
+              title={categoryTitle}
+              showBackButton
+              onBack={handleBack}
+              glass={false}
+              style={styles.header}
+            />
+            <View
+              ref={node => {
+                searchBarRef.current = node;
+              }}
+              onLayout={() => {
+                searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
+                  setSearchBarBottom(y + h);
+                });
+              }}>
+              <SearchBar
+                placeholder={`Search ${category}`}
+                mode="input"
+                value={searchQuery}
+                onChangeText={handleSearch}
               />
             </View>
+          </View>
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['1']}>
+        {contentPaddingStyle => (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}>
+            <View style={styles.mainContent}>
+              <ScrollView
+                contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                onScrollBeginDrag={showSearchResults ? handleCloseDropdown : undefined}>
+                {/* Companion Profile Header - Always visible */}
+                <View key="profile">
+                  <CompanionProfileImage
+                    name={companionName}
+                    breedName={companionBreed}
+                    profileImage={companionImage}
+                  />
+                </View>
 
-            {/* Pending Invite Sections - Show only the first pending invite */}
-            {linkedBusinesses
-              .filter(b => b.inviteStatus === 'pending' && b.state === 'pending')
-              .slice(0, 1)
-              .map(business => (
-                <InviteCard
-                  key={business.linkId || business.id}
-                  businessName={business.businessName}
-                  parentName={business.parentName || 'Unknown'}
-                  companionName={companionName}
-                  email={business.email || business.parentEmail || ''}
-                  phone={business.phone || ''}
-                  onAccept={() => handleAcceptInvite(business.linkId || business.id)}
-                  onDecline={() => handleDeclineInvite(business.linkId || business.id)}
-                />
-              ))}
-
-            {/* Linked Businesses Section - Only show accepted ones */}
-            {linkedBusinesses.some(b => b.inviteStatus === 'accepted' || b.state === 'active') ? (
-              <View key="linked" style={styles.linkedSection}>
-                <Text style={styles.sectionTitle}>
-                  Linked {categoryTitle.toLowerCase()}s
-                </Text>
+                {/* Pending Invite Sections - Show only the first pending invite */}
                 {linkedBusinesses
-                  .filter(b => b.inviteStatus === 'accepted' || b.state === 'active')
+                  .filter(b => b.inviteStatus === 'pending' && b.state === 'pending')
+                  .slice(0, 1)
                   .map(business => (
-                    <LinkedBusinessCard
+                    <InviteCard
                       key={business.linkId || business.id}
-                      business={business}
-                      onDeletePress={handleDeletePressFromCard}
+                      businessName={business.businessName}
+                      parentName={business.parentName || 'Unknown'}
+                      companionName={companionName}
+                      email={business.email || business.parentEmail || ''}
+                      phone={business.phone || ''}
+                      onAccept={() => handleAcceptInvite(business.linkId || business.id)}
+                      onDecline={() => handleDeclineInvite(business.linkId || business.id)}
                     />
                   ))}
-              </View>
-            ) : (
-              <View key="empty" style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                  No linked {categoryTitle.toLowerCase()}s yet
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
 
-        <SearchDropdownOverlay
-          visible={searchQuery.length >= 2 && searchResults.length > 0 && !searching}
-          top={Math.max(0, topGlassHeight - theme.spacing['16'])}
-          items={searchResults}
-          keyExtractor={item => item.id}
-          onPress={handleSelectBusiness}
-          title={item => item.name}
-          subtitle={item => item.address}
-          initials={item => item.name}
-          containerStyle={styles.dropdownOverlay}
-          scrollEnabledThreshold={0}
-        />
-      </KeyboardAvoidingView>
-      </SafeAreaView>
+                {/* Linked Businesses Section - Only show accepted ones */}
+                {linkedBusinesses.some(b => b.inviteStatus === 'accepted' || b.state === 'active') ? (
+                  <View key="linked" style={styles.linkedSection}>
+                    <Text style={styles.sectionTitle}>
+                      Linked {categoryTitle.toLowerCase()}s
+                    </Text>
+                    {linkedBusinesses
+                      .filter(b => b.inviteStatus === 'accepted' || b.state === 'active')
+                      .map(business => (
+                        <LinkedBusinessCard
+                          key={business.linkId || business.id}
+                          business={business}
+                          onDeletePress={handleDeletePressFromCard}
+                        />
+                      ))}
+                  </View>
+                ) : (
+                  <View key="empty" style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>
+                      No linked {categoryTitle.toLowerCase()}s yet
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        )}
+      </LiquidGlassHeaderScreen>
+
+      <SearchDropdownOverlay
+        visible={showSearchResults}
+        top={dropdownTop}
+        items={searchResults}
+        keyExtractor={item => item.id}
+        onPress={handleSelectBusiness}
+        title={item => item.name}
+        subtitle={item => item.address}
+        initials={item => item.name}
+        containerStyle={styles.dropdownOverlay}
+        scrollEnabledThreshold={0}
+        useGlassCard
+        glassEffect="regular"
+        maxHeight={theme.spacing['80']}
+      />
 
       <DeleteBusinessBottomSheet
         ref={deleteBottomSheetRef}
@@ -555,36 +565,28 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         onCancel={handleCancelDelete}
         loading={deleteLoading}
       />
-    </>
+    </View>
   );
 };
 
 const createStyles = (theme: any) => {
-  const glassStyles = createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']});
-
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    ...glassStyles,
-    topGlassCard: {
-      ...glassStyles.topGlassCard,
-      paddingHorizontal: theme.spacing['4'],
-    },
-    overlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 99,
-    },
     mainContent: {
       flex: 1,
     },
+    header: {
+      paddingHorizontal: 0,
+    },
+    headerContainer: {
+      paddingHorizontal: theme.spacing['6'],
+      gap: theme.spacing['3'],
+    },
     scrollContent: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
     },
     sectionTitle: {
@@ -614,8 +616,18 @@ const createStyles = (theme: any) => {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
     },
+    searchBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 90,
+    },
     dropdownOverlay: {
-      maxHeight: 320,
+      left: theme.spacing['6'],
+      right: theme.spacing['6'],
+      zIndex: 100,
     },
   });
 };

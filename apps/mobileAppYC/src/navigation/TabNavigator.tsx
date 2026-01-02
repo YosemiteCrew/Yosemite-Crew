@@ -159,7 +159,10 @@ const TabNavigatorInner: React.FC = () => {
         <Tab.Screen
           name="HomeStack"
           component={HomeStackNavigator}
-          options={{headerShown: false}}
+          options={{headerShown: false, popToTopOnBlur: true}}
+          listeners={({navigation, route}) =>
+            createTabPressListener(navigation, route)
+          }
         />
         <Tab.Screen
           name="Appointments"

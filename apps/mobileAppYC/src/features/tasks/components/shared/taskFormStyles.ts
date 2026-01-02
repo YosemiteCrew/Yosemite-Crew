@@ -22,4 +22,7 @@ export const createTaskFormSectionStyles = (theme: any) =>
     dateTimeField: {
       flex: 1,
     },
+    dateTimeFieldFull: {
+      flex: 1,
+    },
   });

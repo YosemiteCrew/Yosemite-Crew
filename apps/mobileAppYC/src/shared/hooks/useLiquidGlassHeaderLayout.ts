@@ -24,9 +24,9 @@ export const useLiquidGlassHeaderLayout = (
     if (!topGlassHeight) return null;
     const padding = options.contentPadding ?? theme.spacing['3'];
     return {
-      paddingTop: Math.max(0, topGlassHeight - insets.top) + padding,
+      paddingTop: topGlassHeight + padding,
     };
-  }, [insets.top, options.contentPadding, theme, topGlassHeight]);
+  }, [options.contentPadding, theme, topGlassHeight]);
 
   return {
     headerProps: {
@@ -34,6 +34,7 @@ export const useLiquidGlassHeaderLayout = (
       currentHeight: topGlassHeight,
       onHeightChange: setTopGlassHeight,
       topSectionStyle: headerStyles.topSection,
+      shadowWrapperStyle: (headerStyles as any).topGlassShadowWrapper,
       cardStyle: headerStyles.topGlassCard,
       fallbackStyle: headerStyles.topGlassFallback,
     },

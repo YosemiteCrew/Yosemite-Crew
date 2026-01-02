@@ -89,7 +89,13 @@ describe('BrowseBusinessesScreen', () => {
     jest.spyOn(reactRedux, 'useDispatch').mockReturnValue(dispatchMock);
     dispatchMock.mockReturnValue({unwrap: jest.fn().mockResolvedValue({})});
 
-    jest.spyOn(reactRedux, 'useSelector').mockImplementation(cb => cb({}));
+    const mockState = {
+      companion: {
+        companions: [],
+        selectedCompanionId: null,
+      },
+    };
+    jest.spyOn(reactRedux, 'useSelector').mockImplementation(cb => cb(mockState));
     mockSelectBusinessesByCategory.mockReturnValue([]);
 
     (useRoute as jest.Mock).mockReturnValue({params: {}});

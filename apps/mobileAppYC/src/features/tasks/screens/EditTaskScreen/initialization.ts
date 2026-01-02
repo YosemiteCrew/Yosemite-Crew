@@ -5,6 +5,17 @@ import type {
   ObservationalToolTaskDetails,
 } from '@/features/tasks/types';
 
+// Helper to get calendar provider name for legacy tasks
+const getCalendarProviderName = (provider: string | null | undefined): string | null => {
+  if (!provider) return null;
+  // For legacy hardcoded values
+  if (provider === 'google') return 'Google Calendar';
+  if (provider === 'icloud') return 'iCloud Calendar';
+  // For new dynamic values, we don't have the name stored, so return null
+  // The user will need to reselect the calendar
+  return null;
+};
+
 const parseDate = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -114,6 +125,7 @@ export const initializeFormDataFromTask = (task: Task): TaskFormData => {
     reminderOptions: task.reminderOptions || null,
     syncWithCalendar: task.syncWithCalendar,
     calendarProvider: task.calendarProvider || null,
+    calendarProviderName: getCalendarProviderName(task.calendarProvider),
     attachDocuments: task.attachDocuments,
     attachments: task.attachments || [],
     additionalNote: task.additionalNote || '',

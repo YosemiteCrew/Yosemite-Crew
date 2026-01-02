@@ -7,11 +7,11 @@ import type {
   MedicationType,
   MedicationFrequency,
   TaskFrequency,
-  ObservationalTool,
   ReminderOption,
   ParasitePreventionType,
   ChronicConditionType,
 } from '@/features/tasks/types';
+import {getCachedObservationToolName} from '@/features/observationalTools/services/observationToolService';
 
 // Category Labels
 export const resolveCategoryLabel = (category: TaskCategory): string => {
@@ -131,16 +131,19 @@ export const resolveTaskFrequencyLabel = (frequency: TaskFrequency): string => {
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
-    'every-day': 'Every day',
   };
   return labels[frequency] || frequency;
 };
 
 // Observational Tool Labels
 export const resolveObservationalToolLabel = (
-  tool: ObservationalTool,
+  tool: string,
 ): string => {
-  const labels: Record<ObservationalTool, string> = {
+  const cached = getCachedObservationToolName(tool);
+  if (cached) {
+    return cached;
+  }
+  const labels: Record<string, string> = {
     'feline-grimace-scale': 'Feline grimace scale',
     'canine-acute-pain-scale': 'Canine acute pain scale',
     'equine-grimace-scale': 'Equine Grimace Scale',

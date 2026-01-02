@@ -91,7 +91,7 @@ export const createAttachmentStyles = (theme: Theme) =>
       justifyContent: 'center',
       marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['2'],
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     downloadButton: {
       width: theme.spacing['12'],
@@ -102,7 +102,7 @@ export const createAttachmentStyles = (theme: Theme) =>
       justifyContent: 'center',
       marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['2'],
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     shareIcon: {
       width: theme.spacing['7'],

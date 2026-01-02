@@ -4,19 +4,24 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {TaskCard} from '@/features/tasks/components';
+import {TaskMonthDateSelector} from '@/features/tasks/components/shared/TaskMonthDateSelector';
 import {useTheme} from '@/hooks';
 import {setSelectedCompanion} from '@/features/companion';
-import {markTaskStatus} from '@/features/tasks';
 import {selectAllTasksByCategory} from '@/features/tasks/selectors';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import type {Task} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {createEmptyStateStyles} from '@/shared/utils/screenStyles';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
+import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
+import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
+import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksList'>;
 type Route = RouteProp<TaskStackParamList, 'TasksList'>;
@@ -36,7 +41,37 @@ export const TasksListScreen: React.FC = () => {
   );
   const authUser = useSelector(selectAuthUser);
 
-  const tasks = useSelector(selectAllTasksByCategory(selectedCompanionId, category));
+  const {selectedDate, currentMonth, handleDateSelect, handleMonthChange} =
+    useTaskDateSelection();
+  const {handleViewTask, handleEditTask, handleCompleteTask, handleStartObservationalTool} =
+    useTaskNavigationActions(navigation, dispatch);
+
+  // Get all tasks for the category
+  const allCategoryTasks = useSelector(selectAllTasksByCategory(selectedCompanionId, category));
+
+  const selectedDateKey = useMemo(
+    () => formatDateToISODate(selectedDate),
+    [selectedDate],
+  );
+
+  const listKey = useMemo(
+    () => `${selectedCompanionId ?? 'none'}-${selectedDateKey}`,
+    [selectedCompanionId, selectedDateKey],
+  );
+
+  // Filter tasks by selected date
+  const tasks = useMemo(() => {
+    return allCategoryTasks.filter(task => task.date === selectedDateKey);
+  }, [allCategoryTasks, selectedDateKey]);
+
+  // Get dates with tasks for the selected category
+  const datesWithTasks = useMemo(() => {
+    const dateSet = new Set<string>();
+    for (const task of allCategoryTasks) {
+      dateSet.add(task.date);
+    }
+    return dateSet;
+  }, [allCategoryTasks]);
 
   const handleCompanionSelect = (companionId: string | null) => {
     if (companionId) {
@@ -44,38 +79,12 @@ export const TasksListScreen: React.FC = () => {
     }
   };
 
-  const handleViewTask = (taskId: string) => {
-    navigation.navigate('TaskView', {taskId});
-  };
-
-  const handleEditTask = (taskId: string) => {
-    navigation.navigate('EditTask', {taskId});
-  };
-
-  const handleCompleteTask = (taskId: string) => {
-    dispatch(markTaskStatus({taskId, status: 'completed'}));
-  };
-
-  const handleStartObservationalTool = (taskId: string) => {
-    navigation.navigate('ObservationalTool', {taskId});
-  };
-
   const renderTask = ({item}: {item: Task}) => {
     const companion = companions.find(c => c.id === item.companionId);
+    const {isPending, isCompleted, assignedToData, isObservationalToolTask} =
+      getTaskCardMeta(item, authUser);
 
     if (!companion) return null;
-
-    // Get assigned user's profile image and name
-    const assignedToData = item.assignedTo === authUser?.id ? {
-      avatar: authUser?.profilePicture,
-      name: authUser?.firstName || 'User',
-    } : undefined;
-
-    const isObservationalToolTask =
-      item.category === 'health' &&
-      item.details &&
-      'taskType' in item.details &&
-      item.details.taskType === 'take-observational-tool';
 
     return (
       <TaskCard
@@ -95,8 +104,8 @@ export const TasksListScreen: React.FC = () => {
         onPressTakeObservationalTool={
           isObservationalToolTask ? () => handleStartObservationalTool(item.id) : undefined
         }
-        showEditAction={item.status !== 'completed'}
-        showCompleteButton={item.status === 'pending'}
+        showEditAction={!isCompleted}
+        showCompleteButton={isPending}
         category={item.category}
         details={item.details}
       />
@@ -112,73 +121,79 @@ export const TasksListScreen: React.FC = () => {
   );
 
   return (
-    <SafeArea>
-      <View style={styles.mainContainer}>
+    <LiquidGlassHeaderScreen
+      header={
         <Header
           title={`${resolveCategoryLabel(category)} tasks`}
           showBackButton
           onBack={() => navigation.goBack()}
+          glass={false}
         />
-
-        <View style={styles.companionSelectorContainer}>
-          <CompanionSelector
-            companions={companions}
-            selectedCompanionId={selectedCompanionId}
-            onSelect={handleCompanionSelect}
-            showAddButton={false}
-            containerStyle={styles.companionSelector}
-            requiredPermission="tasks"
-            permissionLabel="tasks"
-          />
-        </View>
-
+      }
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
         <FlatList
           data={tasks}
           renderItem={renderTask}
           keyExtractor={item => item.id}
+          extraData={listKey}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            <>
+              <CompanionSelector
+                companions={companions}
+                selectedCompanionId={selectedCompanionId}
+                onSelect={handleCompanionSelect}
+                showAddButton={false}
+                containerStyle={styles.companionSelector}
+                requiredPermission="tasks"
+                permissionLabel="tasks"
+              />
+
+              <TaskMonthDateSelector
+                currentMonth={currentMonth}
+                selectedDate={selectedDate}
+                datesWithTasks={datesWithTasks}
+                onDateSelect={handleDateSelect}
+                onMonthChange={handleMonthChange}
+                theme={theme}
+                autoScroll={true}
+              />
+            </>
+          }
+          contentContainerStyle={[styles.listContent, contentPaddingStyle]}
           ListEmptyComponent={renderEmpty}
           style={styles.list}
         />
-      </View>
-    </SafeArea>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    mainContainer: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
+const createStyles = (theme: any) => {
+  const emptyStyles = createEmptyStateStyles(theme);
+  return StyleSheet.create({
+    ...emptyStyles,
     list: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    companionSelectorContainer: {
-      backgroundColor: theme.colors.background,
+    companionSelector: {
+      paddingHorizontal: theme.spacing['4'],
       marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['4'],
     },
-    companionSelector: {
-      paddingHorizontal: theme.spacing['4'],
-    },
     listContent: {
       paddingHorizontal: theme.spacing['4'],
-      paddingBottom: theme.spacing['8'],
+      paddingTop: theme.spacing['2'],
+      paddingBottom: theme.spacing['16'],
       gap: theme.spacing['3'],
     },
     emptyContainer: {
+      ...emptyStyles.emptyContainer,
       paddingVertical: theme.spacing['12'],
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    emptyText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
     },
   });
+};
 
 export default TasksListScreen;

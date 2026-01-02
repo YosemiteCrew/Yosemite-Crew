@@ -11,6 +11,7 @@ jest.mock('../../../../src/hooks', () => ({
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 // Use a getter for params so we can change them per test if needed
 let mockRouteParams = {businessId: 'bus-123'};
 
@@ -18,6 +19,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
     goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
   }),
   useRoute: () => ({
     params: mockRouteParams,

@@ -22,10 +22,10 @@ describe('cardStyles', () => {
         borderColor: 'rgba(234, 234, 234, 0.9)', // from theme.colors.borderMuted
         overflow: 'hidden',
         backgroundColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 4 }, // from theme.shadows.md
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 1 }, // from theme.shadows.sm
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
         shadowColor: 'rgba(71, 56, 39, 0.15)', // from theme.colors.neutralShadow
         padding: 16, // from theme.spacing[4]
       });

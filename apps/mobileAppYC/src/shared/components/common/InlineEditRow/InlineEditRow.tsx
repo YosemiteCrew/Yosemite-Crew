@@ -139,7 +139,6 @@ const createStyles = (theme: any) =>
     editContainer: {
       paddingVertical: theme.spacing['4'],
       paddingHorizontal: theme.spacing['5'],
-      backgroundColor: theme.colors.background,
     },
     inputContainer: {
       marginBottom: theme.spacing['5'],
@@ -151,7 +150,6 @@ const createStyles = (theme: any) =>
     },
     cancelButton: {
       flex: 1,
-      backgroundColor: theme.colors.white,
     },
     cancelButtonText: {
       ...theme.typography.paragraphBold,

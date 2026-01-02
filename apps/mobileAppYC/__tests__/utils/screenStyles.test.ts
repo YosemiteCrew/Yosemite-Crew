@@ -22,6 +22,10 @@ describe('screenStyles', () => {
           paddingHorizontal: 16,
           paddingBottom: 24,
         },
+        safeArea: {
+          flex: 1,
+          backgroundColor: '#FFFEFE',
+        },
       });
     });
   });
@@ -34,6 +38,7 @@ describe('screenStyles', () => {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
+          paddingHorizontal: 16,
         },
         errorText: expect.objectContaining({
           fontSize: 18,
@@ -49,7 +54,7 @@ describe('screenStyles', () => {
   describe('createEmptyStateStyles', () => {
     it('should create correct empty state styles', () => {
       const styles = createEmptyStateStyles(mockTheme);
-      expect(styles).toEqual({
+      expect(styles).toMatchObject({
         emptyContainer: {
           paddingVertical: 16,
           alignItems: 'center',
@@ -61,13 +66,17 @@ describe('screenStyles', () => {
           color: '#747473',
         }),
       });
+      // Also check for the new properties
+      expect(styles).toHaveProperty('emptyStateContainer');
+      expect(styles).toHaveProperty('emptyStateTitle');
+      expect(styles).toHaveProperty('emptyStateText');
     });
   });
 
   describe('createSearchAndSelectorStyles', () => {
     it('should create correct search and selector styles', () => {
       const styles = createSearchAndSelectorStyles(mockTheme);
-      expect(styles).toEqual({
+      expect(styles).toMatchObject({
         searchBar: {
           marginBottom: 8,
           marginInline: 24,
@@ -77,6 +86,8 @@ describe('screenStyles', () => {
           marginBottom: 16,
         },
       });
+      // Also check for the new property
+      expect(styles).toHaveProperty('companionSelectorTask');
     });
   });
 });

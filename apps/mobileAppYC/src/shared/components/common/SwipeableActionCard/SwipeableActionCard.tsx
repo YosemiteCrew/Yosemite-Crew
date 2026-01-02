@@ -56,6 +56,7 @@ export const SwipeableActionCard: React.FC<SwipeableActionCardProps> = ({
         interactive: true,
         glassEffect: 'clear',
         shadow: 'none',
+        colorScheme: 'light',
         style: cardStyle,
         fallbackStyle: fallbackStyle,
       }}

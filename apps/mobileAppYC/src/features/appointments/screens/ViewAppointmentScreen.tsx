@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo} from 'react';
 import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -41,8 +41,10 @@ import {
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
-import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
+import {fetchTasksForCompanion} from '@/features/tasks/thunks';
+import {resolveCategoryLabel as resolveTaskCategoryLabel} from '@/features/tasks/utils/taskLabels';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -98,6 +100,7 @@ const buildEmployeeDisplay = ({
   const employeeWithAvatar = employee
     ? {
         ...employee,
+        specialization: apt.employeeTitle ?? employee.specialization,
         avatar: employee.avatar ?? (apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined),
       }
     : null;
@@ -608,8 +611,6 @@ const ActionButtons = ({
 export const ViewAppointmentScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const dispatch = useDispatch<AppDispatch>();
@@ -628,6 +629,14 @@ export const ViewAppointmentScreen: React.FC = () => {
   const companionId = apt?.companionId ?? null;
   const hasHydratedExpenses = useSelector(selectHasHydratedCompanion(companionId));
   const expensesForCompanion = useSelector(selectExpensesByCompanion(companionId));
+  const tasks = useSelector((s: RootState) => s.tasks.items);
+  const tasksHydrated = useSelector(
+    (s: RootState) => (companionId ? s.tasks.hydratedCompanions[companionId] : false),
+  );
+  const appointmentTasks = useMemo(
+    () => tasks.filter(task => task.appointmentId === appointmentId),
+    [appointmentId, tasks],
+  );
   const {appointmentInvoices, hasMultipleInvoices} = useAppointmentInvoicesData({
     appointmentId,
     expensesForCompanion,
@@ -646,6 +655,11 @@ export const ViewAppointmentScreen: React.FC = () => {
       dispatch(fetchExpensesForCompanion({companionId}));
     }
   }, [companionId, dispatch, hasHydratedExpenses]);
+  useEffect(() => {
+    if (companionId && !tasksHydrated) {
+      dispatch(fetchTasksForCompanion({companionId}));
+    }
+  }, [companionId, dispatch, tasksHydrated]);
   useFocusEffect(
     React.useCallback(() => {
       if (companionId) {
@@ -706,26 +720,23 @@ export const ViewAppointmentScreen: React.FC = () => {
     checkInBufferMs: CHECKIN_BUFFER_MS,
     dispatch,
   });
+  const handleViewTask = React.useCallback(
+    (taskId: string) => {
+      const params = {screen: 'TaskView', params: {taskId}};
+      if (tabNavigation) {
+        tabNavigation.navigate('Tasks', params as any);
+        return;
+      }
+      navigation.navigate('Tasks' as any, params as any);
+    },
+    [navigation, tabNavigation],
+  );
 
   if (!apt) {
     return (
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <LiquidGlassHeader
-          insetsTop={insets.top}
-          currentHeight={topGlassHeight}
-          onHeightChange={setTopGlassHeight}
-          topSectionStyle={styles.topSection}
-          cardStyle={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
-          <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
-        </LiquidGlassHeader>
-        <View
-          style={[
-            styles.loadingContainer,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
-          ]}>
+      <SafeAreaView style={styles.root} edges={[]}>
+        <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} />
+        <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading appointment...</Text>
         </View>
       </SafeAreaView>
@@ -744,24 +755,16 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   return (
     <>
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <LiquidGlassHeader
-          insetsTop={insets.top}
-          currentHeight={topGlassHeight}
-          onHeightChange={setTopGlassHeight}
-          topSectionStyle={styles.topSection}
-          cardStyle={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+      <LiquidGlassHeaderScreen
+        header={
           <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
-        </LiquidGlassHeader>
-        <ScrollView
-          contentContainerStyle={[
-            styles.container,
-            topGlassHeight
-              ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-              : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['6']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            contentContainerStyle={[styles.container, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
 
         <StatusCard
           styles={styles}
@@ -833,6 +836,30 @@ export const ViewAppointmentScreen: React.FC = () => {
           )}
         </View>
 
+        <View style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>Tasks</Text>
+          {appointmentTasks.length ? (
+            appointmentTasks.map(taskItem => (
+              <TaskCard
+                key={taskItem.id}
+                title={taskItem.title}
+                categoryLabel={resolveTaskCategoryLabel(taskItem.category)}
+                date={taskItem.date}
+                time={taskItem.time}
+                companionName={companion?.name ?? 'Companion'}
+                status={taskItem.status}
+                onPressView={() => handleViewTask(taskItem.id)}
+                showEditAction={false}
+                hideSwipeActions
+                category={taskItem.category}
+                details={taskItem.details}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyDocsText}>No tasks linked to this appointment.</Text>
+          )}
+        </View>
+
         {hasMultipleInvoices ? (
           <View style={styles.detailsCard}>
             <Text style={styles.sectionTitle}>Invoices</Text>
@@ -898,8 +925,10 @@ export const ViewAppointmentScreen: React.FC = () => {
           handleCancel={() => cancelSheetRef.current?.open?.()}
           theme={theme}
         />
-      </ScrollView>
-      </SafeAreaView>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
+
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={handleCancelAppointment}
@@ -955,7 +984,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  ...createLiquidGlassHeaderStyles(theme),
   container: {
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],

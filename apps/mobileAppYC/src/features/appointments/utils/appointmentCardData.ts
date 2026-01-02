@@ -67,7 +67,7 @@ export const transformAppointmentCardData = (
     .join(' • ');
 
   const providerDesignation =
-    emp?.specialization ?? appointment.employeeTitle ?? service?.specialty ?? appointment.type ?? '';
+    appointment.employeeTitle ?? emp?.specialization ?? service?.specialty ?? appointment.type ?? '';
   const cardSubtitle = hasAssignedVet ? providerDesignation : serviceSubtitle;
   const petName = companions.find(c => c.id === appointment.companionId)?.name;
   const businessName = biz?.name || appointment.organisationName || '';

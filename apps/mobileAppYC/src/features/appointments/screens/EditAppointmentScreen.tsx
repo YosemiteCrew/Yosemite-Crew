@@ -1,7 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Text} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CancelAppointmentBottomSheet, type CancelAppointmentBottomSheetRef} from '@/features/appointments/components/CancelAppointmentBottomSheet';
@@ -28,7 +27,7 @@ import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBus
 import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
-import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -420,76 +419,75 @@ export const EditAppointmentScreen: React.FC = () => {
 
   return (
     <>
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <LiquidGlassHeaderShell
-          header={
-            <Header
-              title="Reschedule Appointment"
-              showBackButton
-              onBack={() => navigation.goBack()}
-              rightIcon={isCancellable ? Images.deleteIcon : undefined}
-              onRightPress={isCancellable ? () => cancelSheetRef.current?.open?.() : undefined}
-              glass={false}
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Reschedule Appointment"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            rightIcon={isCancellable ? Images.deleteIcon : undefined}
+            onRightPress={isCancellable ? () => cancelSheetRef.current?.open?.() : undefined}
+            glass={false}
+          />
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['1']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.container,
+              contentPaddingStyle,
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <AppointmentFormContent
+              businessCard={businessCard}
+              serviceCard={serviceCard}
+              employeeCard={employeeCard}
+              companions={companions}
+              selectedCompanionId={apt.companionId}
+              onSelectCompanion={(_id: string) => {}}
+              showAddCompanion={false}
+              selectedDate={dateObj}
+              todayISO={todayISO}
+              onDateChange={(nextDate, iso) => {
+                setDateObj(nextDate);
+                setDate(iso);
+                setTime(null);
+              }}
+              dateMarkers={futureDateMarkers}
+              slots={slots}
+              selectedSlot={time}
+              onSelectSlot={slot => setTime(slot)}
+              emptySlotsMessage="No future slots available. Try a different date or contact the clinic."
+              appointmentType={type}
+              allowTypeEdit={false}
+              concern={concern}
+              onConcernChange={setConcern}
+              showEmergency={type === 'Emergency'}
+              emergency={emergency}
+              onEmergencyChange={setEmergency}
+              emergencyMessage="I confirm this is an emergency. For urgent concerns, please contact my vet here."
+              showAttachments={false}
+              agreements={agreements}
+              actions={
+                <LiquidGlassButton
+                  title={submitLabel}
+                  onPress={handleSubmit}
+                  height={56}
+                  borderRadius={16}
+                  disabled={submitState.disabled}
+                  loading={submitState.loading}
+                  tintColor={theme.colors.secondary}
+                  shadowIntensity="medium"
+                  textStyle={styles.confirmPrimaryButtonText}
+                />
+              }
             />
-          }
-          contentPadding={theme.spacing['3']}>
-          {contentPaddingStyle => (
-            <ScrollView
-              style={styles.scrollView}
-              contentContainerStyle={[
-                styles.container,
-                contentPaddingStyle,
-              ]}
-              showsVerticalScrollIndicator={false}
-            >
-              <AppointmentFormContent
-                businessCard={businessCard}
-                serviceCard={serviceCard}
-                employeeCard={employeeCard}
-                companions={companions}
-                selectedCompanionId={apt.companionId}
-                onSelectCompanion={(_id: string) => {}}
-                showAddCompanion={false}
-                selectedDate={dateObj}
-                todayISO={todayISO}
-                onDateChange={(nextDate, iso) => {
-                  setDateObj(nextDate);
-                  setDate(iso);
-                  setTime(null);
-                }}
-                dateMarkers={futureDateMarkers}
-                slots={slots}
-                selectedSlot={time}
-                onSelectSlot={slot => setTime(slot)}
-                emptySlotsMessage="No future slots available. Try a different date or contact the clinic."
-                appointmentType={type}
-                allowTypeEdit={false}
-                concern={concern}
-                onConcernChange={setConcern}
-                showEmergency={type === 'Emergency'}
-                emergency={emergency}
-                onEmergencyChange={setEmergency}
-                emergencyMessage="I confirm this is an emergency. For urgent concerns, please contact my vet here."
-                showAttachments={false}
-                agreements={agreements}
-                actions={
-                  <LiquidGlassButton
-                    title={submitLabel}
-                    onPress={handleSubmit}
-                    height={56}
-                    borderRadius={16}
-                    disabled={submitState.disabled}
-                    loading={submitState.loading}
-                    tintColor={theme.colors.secondary}
-                    shadowIntensity="medium"
-                    textStyle={styles.confirmPrimaryButtonText}
-                  />
-                }
-              />
-            </ScrollView>
-          )}
-        </LiquidGlassHeaderShell>
-      </SafeAreaView>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={() => {
@@ -503,15 +501,12 @@ export const EditAppointmentScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    root: {
+    scrollView: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    scrollView: {
-      flex: 1,
-    },
     container: {
-      padding: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
       gap: theme.spacing['4'],
     },

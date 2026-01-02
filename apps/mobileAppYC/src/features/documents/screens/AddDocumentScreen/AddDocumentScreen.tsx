@@ -5,6 +5,7 @@ import {useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
   DocumentForm,
+  DocumentFormSheets,
   type DocumentFormData,
 } from '@/features/documents/components/DocumentForm/DocumentForm';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
@@ -122,6 +123,13 @@ export const AddDocumentScreen: React.FC = () => {
     }
   };
 
+  const handleCategoryChange = (newCategory: string | null) => {
+    handleFormChange('category', newCategory);
+    handleFormChange('subcategory', null);
+    clearError('category');
+    formSheets.closeSheet();
+  };
+
   return (
     <>
       <LiquidGlassHeaderScreen
@@ -152,9 +160,20 @@ export const AddDocumentScreen: React.FC = () => {
             openSheet={formSheets.openSheet}
             closeSheet={formSheets.closeSheet}
             fileOperations={fileOps}
+            renderBottomSheets={false}
           />
         )}
       </LiquidGlassHeaderScreen>
+
+      <DocumentFormSheets
+        formData={formData}
+        onFormChange={handleFormChange}
+        onErrorClear={clearError}
+        fileOperations={fileOps}
+        formSheetRefs={formSheets.refs}
+        closeSheet={formSheets.closeSheet}
+        onCategoryChange={handleCategoryChange}
+      />
 
       <DiscardChangesBottomSheet
         ref={discardSheetRef}

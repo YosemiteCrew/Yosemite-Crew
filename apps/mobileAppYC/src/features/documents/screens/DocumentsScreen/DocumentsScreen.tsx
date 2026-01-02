@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {View, Text, ScrollView, StyleSheet} from 'react-native';
+import {View, Text, ScrollView} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -12,18 +12,27 @@ import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
-import {fetchDocuments} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
 import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
-import {createSearchAndSelectorStyles} from '@/shared/utils/screenStyles';
+import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
+import {useDocumentCompanionSync} from '@/features/documents/hooks/useDocumentCompanionSync';
+import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
 export const DocumentsScreen: React.FC = () => {
   const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
   const navigation = useNavigation<DocumentsNavigationProp>();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useCommonScreenStyles(theme, themeArg => ({
+    contentContainer: {
+      paddingHorizontal: themeArg.spacing['6'],
+      paddingBottom: themeArg.spacing['32'],
+    },
+  }));
+  useDocumentCompanionSync({companions, selectedCompanionId, dispatch});
+  const {handleAddDocument, handleViewDocument, handleEditDocument} =
+    useDocumentNavigation(navigation);
 
   // Get documents from Redux
   const documents = useSelector((state: RootState) => state.documents.documents);
@@ -56,35 +65,10 @@ export const DocumentsScreen: React.FC = () => {
     });
   }, [filteredDocuments]);
 
-  // Set first companion as selected on mount
-  React.useEffect(() => {
-    if (companions.length > 0 && selectedCompanionId === null) {
-      dispatch(setSelectedCompanion(companions[0].id));
-    }
-  }, [companions, selectedCompanionId, dispatch]);
-
-  React.useEffect(() => {
-    if (selectedCompanionId) {
-      dispatch(fetchDocuments({companionId: selectedCompanionId}));
-    }
-  }, [dispatch, selectedCompanionId]);
-
   // Show empty screen if no companions
   if (companions.length === 0) {
     return <EmptyDocumentsScreen />;
   }
-
-  const handleAddDocument = () => {
-    navigation.navigate('AddDocument');
-  };
-
-  const handleViewDocument = (documentId: string) => {
-    navigation.navigate('DocumentPreview', {documentId});
-  };
-
-  const handleEditDocument = (documentId: string) => {
-    navigation.navigate('EditDocument', {documentId});
-  };
 
   const handleCategoryPress = (categoryId: string) => {
     navigation.navigate('CategoryDetail', {categoryId});
@@ -103,7 +87,7 @@ export const DocumentsScreen: React.FC = () => {
         />
       }
       cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
         <ScrollView
           style={styles.container}
@@ -134,16 +118,15 @@ export const DocumentsScreen: React.FC = () => {
 
           <View style={styles.section}>
             {categoriesWithCounts.map(category => (
-              <View key={category.id} style={styles.categoryTileShadow}>
-                <CategoryTile
-                  icon={category.icon}
-                  title={category.label}
-                  subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
-                  isSynced={category.isSynced}
-                  onPress={() => handleCategoryPress(category.id)}
-                  containerStyle={styles.categoryTile}
-                />
-              </View>
+              <CategoryTile
+                key={category.id}
+                icon={category.icon}
+                title={category.label}
+                subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
+                isSynced={category.isSynced}
+                onPress={() => handleCategoryPress(category.id)}
+                containerStyle={styles.categoryTile}
+              />
             ))}
           </View>
         </ScrollView>
@@ -151,31 +134,3 @@ export const DocumentsScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createSearchAndSelectorStyles(theme),
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    contentContainer: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['24'], // Extra padding for tab bar
-    },
-    section: {
-      marginBottom: theme.spacing['4'],
-    },
-    categoryTile: {
-      width: '100%',
-    },
-    categoryTileShadow: {
-      borderRadius: theme.borderRadius.lg,
-      ...theme.shadows.md,
-    },
-    sectionTitle: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['3'],
-    },
-  });

@@ -15,6 +15,7 @@ import {
   Animated,
   Platform,
   TouchableOpacity,
+  useColorScheme,
 } from 'react-native';
 import { useTheme } from '@/hooks';
 
@@ -51,10 +52,13 @@ export const Input: React.FC<InputProps> = ({
   ...textInputProps
 }) => {
   const { theme } = useTheme();
+  const systemColorScheme = useColorScheme();
   const [isFocused, setIsFocused] = useState(false);
   const [hasValue, setHasValue] = useState(!!value);
   const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
   const isMultiline = Boolean(textInputProps.multiline);
+  const keyboardAppearance =
+    systemColorScheme === 'dark' ? 'dark' : 'light';
 
   const animateLabel = useCallback((toValue: number) => {
     Animated.timing(animatedValue, {
@@ -245,6 +249,9 @@ export const Input: React.FC<InputProps> = ({
         <TextInput
           style={[getInputStyle(), inputStyle]}
           placeholderTextColor={theme.colors.placeholder}
+          keyboardAppearance={
+            textInputProps.keyboardAppearance ?? keyboardAppearance
+          }
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChangeText={handleChangeText}

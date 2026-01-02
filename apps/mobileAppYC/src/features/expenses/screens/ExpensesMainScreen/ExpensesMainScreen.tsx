@@ -6,6 +6,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
+import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
 import {ExpenseCard} from '@/features/expenses/components';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -31,7 +32,7 @@ import {
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {LiquidGlassHeaderShell} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderShell';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -133,8 +134,8 @@ export const ExpensesMainScreen: React.FC = () => {
   const currencySymbol = resolveCurrencySymbol(summaryCurrency, '$');
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LiquidGlassHeaderShell
+    <SafeAreaView style={styles.container} edges={[]}>
+      <LiquidGlassHeaderScreen
         header={
           <Header
             title="Expenses"
@@ -187,9 +188,7 @@ export const ExpensesMainScreen: React.FC = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent in-app expenses</Text>
             {recentInAppExpenses.length > 0 && (
-              <TouchableOpacity onPress={() => handleViewMore('inApp')}>
-                <Text style={styles.sectionAction}>View More</Text>
-              </TouchableOpacity>
+              <ViewMoreButton onPress={() => handleViewMore('inApp')} />
             )}
           </View>
           {recentInAppExpenses.length > 0 ? (
@@ -229,9 +228,7 @@ export const ExpensesMainScreen: React.FC = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent external expenses</Text>
             {recentExternalExpenses.length > 0 && (
-              <TouchableOpacity onPress={() => handleViewMore('external')}>
-                <Text style={styles.sectionAction}>View More</Text>
-              </TouchableOpacity>
+              <ViewMoreButton onPress={() => handleViewMore('external')} />
             )}
           </View>
           {recentExternalExpenses.length > 0 ? (
@@ -262,7 +259,7 @@ export const ExpensesMainScreen: React.FC = () => {
             </ScrollView>
           )
         }
-      </LiquidGlassHeaderShell>
+      </LiquidGlassHeaderScreen>
       {(loading || processingPayment) && <View style={styles.loadingOverlay} />}
     </SafeAreaView>
   );
@@ -275,7 +272,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['20'],
       gap: theme.spacing['4'],
     },
@@ -293,10 +290,6 @@ const createStyles = (theme: any) =>
     sectionTitle: {
       ...theme.typography.h5,
       color: theme.colors.secondary,
-    },
-    sectionAction: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.primary,
     },
     cardsContainer: {
       gap: theme.spacing['3'],

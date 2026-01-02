@@ -73,13 +73,16 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <LiquidGlassCard
-      glassEffect="clear"
-      interactive={false}
-      style={styles.glassCard}
-      fallbackStyle={styles.glassFallback}>
-      {content}
-    </LiquidGlassCard>
+    <View style={styles.glassShadowWrapper}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        interactive={false}
+        shadow="none"
+        style={styles.glassCard}
+        fallbackStyle={styles.glassFallback}>
+        {content}
+      </LiquidGlassCard>
+    </View>
   );
 };
 
@@ -94,6 +97,7 @@ const createStyles = (theme: any) => {
       paddingHorizontal: theme.spacing?.['5'] || 20,
       paddingTop: Platform.OS === 'ios' ? theme.spacing?.['2'] || 8 : theme.spacing?.['5'] || 20,
       paddingBottom: theme.spacing?.['2'] || 8,
+      overflow: 'visible',
     },
     glassCard: {
       borderTopLeftRadius: 0,
@@ -102,7 +106,19 @@ const createStyles = (theme: any) => {
       borderBottomRightRadius: theme.borderRadius['2xl'],
       borderWidth: 0,
       borderColor: 'transparent',
-      overflow: 'hidden',
+      overflow: 'visible',
+    },
+    glassShadowWrapper: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: theme.borderRadius['2xl'],
+      borderBottomRightRadius: theme.borderRadius['2xl'],
+      shadowColor: theme.colors.neutralShadow ?? '#000000',
+      shadowOffset: {width: 0, height: 12},
+      shadowOpacity: 0.14,
+      shadowRadius: 18,
+      elevation: 10,
+      backgroundColor: 'transparent',
     },
     glassFallback: {
       borderTopLeftRadius: 0,
@@ -120,7 +136,8 @@ const createStyles = (theme: any) => {
     },
     iconButtonShadow: {
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.md,
+      overflow: 'visible',
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     icon: {
       width: 24,

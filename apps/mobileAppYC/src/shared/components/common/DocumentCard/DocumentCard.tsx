@@ -65,50 +65,59 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   };
 
   return (
-    <SwipeableActionCard
-      cardStyle={cardStyles.card}
-      fallbackStyle={cardStyles.fallback}
-      onPressView={onPressView}
-      onPressEdit={onPressEdit}
-      showEditAction={showEditAction}
-    >
-      <TouchableOpacity
-        activeOpacity={onPress ? 0.8 : 1}
-        onPress={handleCardPress}
-        disabled={!onPress}>
-        <View style={styles.content}>
-          <View style={styles.thumbnailContainer}>
-            <Image
-              source={thumbnail ?? Images.documentFallback}
-              style={styles.thumbnail}
-            />
+    <View style={styles.shadowWrapper}>
+      <SwipeableActionCard
+        cardStyle={cardStyles.card}
+        fallbackStyle={cardStyles.fallback}
+        onPressView={onPressView}
+        onPressEdit={onPressEdit}
+        showEditAction={showEditAction}>
+        <TouchableOpacity
+          activeOpacity={onPress ? 0.8 : 1}
+          onPress={handleCardPress}
+          disabled={!onPress}>
+          <View style={styles.content}>
+            <View style={styles.thumbnailContainer}>
+              <Image
+                source={thumbnail ?? Images.documentFallback}
+                style={styles.thumbnail}
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                <Text style={styles.label}>Title: </Text>
+                <Text style={styles.value}>{resolvedTitle}</Text>
+              </Text>
+              <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                <Text style={styles.label}>Business: </Text>
+                <Text style={styles.value}>{resolvedBusiness}</Text>
+              </Text>
+              <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                <Text style={styles.label}>Visit type: </Text>
+                <Text style={styles.value}>{resolvedVisitType}</Text>
+              </Text>
+              <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                <Text style={styles.label}>Issue Date: </Text>
+                <Text style={styles.value}>
+                  {formatReadableDate(resolvedIssueDate)}
+                </Text>
+              </Text>
+            </View>
           </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-              <Text style={styles.label}>Title: </Text>
-              <Text style={styles.value}>{resolvedTitle}</Text>
-            </Text>
-            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-              <Text style={styles.label}>Business: </Text>
-              <Text style={styles.value}>{resolvedBusiness}</Text>
-            </Text>
-            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-              <Text style={styles.label}>Visit type: </Text>
-              <Text style={styles.value}>{resolvedVisitType}</Text>
-            </Text>
-            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-              <Text style={styles.label}>Issue Date: </Text>
-              <Text style={styles.value}>{formatReadableDate(resolvedIssueDate)}</Text>
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </SwipeableActionCard>
+        </TouchableOpacity>
+      </SwipeableActionCard>
+    </View>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.none,
+      shadowColor: 'transparent',
+      backgroundColor: 'transparent',
+    },
     content: {
       flexDirection: 'row',
       gap: theme.spacing['4'],
@@ -119,7 +128,7 @@ const createStyles = (theme: any) =>
       height: 48,
       borderRadius: theme.borderRadius.base,
       overflow: 'hidden',
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.cardBackground,
       alignItems: 'center',
       justifyContent: 'center',
     },

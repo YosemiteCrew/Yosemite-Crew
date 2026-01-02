@@ -50,7 +50,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       paddingVertical: theme.spacing['2'],
       overflow: 'hidden',
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     glassFallback: {
       borderRadius: theme.borderRadius.lg,

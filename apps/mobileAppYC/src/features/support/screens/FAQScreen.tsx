@@ -10,15 +10,14 @@ import {
   UIManager,
   Image,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
-import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
 import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
@@ -130,8 +129,6 @@ const FAQCard: React.FC<{
 export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
-  const [topGlassHeight, setTopGlassHeight] = React.useState(0);
 
   const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
   const [expandedFaqId, setExpandedFaqId] = React.useState<string | null>(
@@ -215,20 +212,9 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   }, [selectedCategory]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View
-        style={[styles.topSection, {paddingTop: insets.top}]}
-        onLayout={event => {
-          const height = event.nativeEvent.layout.height;
-          if (height !== topGlassHeight) {
-            setTopGlassHeight(height);
-          }
-        }}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive={false}
-          style={styles.topGlassCard}
-          fallbackStyle={styles.topGlassFallback}>
+    <LiquidGlassHeaderScreen
+      header={
+        <>
           <Header
             title="FAQs"
             showBackButton
@@ -248,65 +234,65 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
             onSelect={handleCategoryChange}
             containerStyle={styles.pillContainer}
           />
-        </LiquidGlassCard>
-      </View>
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.contentContainer,
-          topGlassHeight
-            ? {paddingTop: Math.max(0, topGlassHeight - insets.top) + theme.spacing['3']}
-            : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
-
-        <View style={styles.faqList}>
-          {filteredFaqs.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                {searchQuery.trim()
-                  ? `No FAQs found for "${searchQuery}"`
-                  : 'No FAQs available in this category'}
-              </Text>
-              {Boolean(searchQuery.trim()) && (
-                <Text style={styles.emptyStateSubtext}>
-                  Try searching with different keywords or browse by category
+        </>
+      }
+      contentPadding={theme.spacing['3']}
+      cardGap={theme.spacing['3']}
+      useSafeAreaView
+      containerStyle={styles.safeArea}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.faqList}>
+            {filteredFaqs.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  {searchQuery.trim()
+                    ? `No FAQs found for "${searchQuery}"`
+                    : 'No FAQs available in this category'}
                 </Text>
-              )}
-            </View>
-          ) : (
-            filteredFaqs.map(faq => {
-              const isExpanded = expandedFaqId === faq.id;
-              const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
-                .map(id => relatedLookup.get(id))
-                .filter(Boolean) as FAQEntry[];
-              const helpfulSelection = helpfulState[faq.id] ?? null;
+                {Boolean(searchQuery.trim()) && (
+                  <Text style={styles.emptyStateSubtext}>
+                    Try searching with different keywords or browse by category
+                  </Text>
+                )}
+              </View>
+            ) : (
+              filteredFaqs.map(faq => {
+                const isExpanded = expandedFaqId === faq.id;
+                const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
+                  .map(id => relatedLookup.get(id))
+                  .filter(Boolean) as FAQEntry[];
+                const helpfulSelection = helpfulState[faq.id] ?? null;
 
-              return (
-                <FAQCard
-                  key={faq.id}
-                  faq={faq}
-                  isExpanded={isExpanded}
-                  relatedEntries={relatedEntries}
-                  helpfulSelection={helpfulSelection}
-                  onToggle={handleToggle}
-                  onHelpfulSelect={handleHelpfulSelection}
-                  onRelatedPress={onRelatedPress}
-                  styles={styles}
-                  theme={theme}
-                />
-              );
-            })
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+                return (
+                  <FAQCard
+                    key={faq.id}
+                    faq={faq}
+                    isExpanded={isExpanded}
+                    relatedEntries={relatedEntries}
+                    helpfulSelection={helpfulSelection}
+                    onToggle={handleToggle}
+                    onHelpfulSelect={handleHelpfulSelection}
+                    onRelatedPress={onRelatedPress}
+                    styles={styles}
+                    theme={theme}
+                  />
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  return StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -319,7 +305,6 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['8'],
       gap: theme.spacing['4'],
     },
-    ...createLiquidGlassHeaderStyles(theme, {cardGap: theme.spacing['3']}),
     searchContainer: {
       marginHorizontal: theme.spacing['6'],
     },
@@ -462,5 +447,6 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
   });
+};
 
 export default FAQScreen;

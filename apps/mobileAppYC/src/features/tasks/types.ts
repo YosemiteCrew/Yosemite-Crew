@@ -1,5 +1,11 @@
 // Task Categories
 export type TaskCategory = 'health' | 'hygiene' | 'dietary' | 'custom';
+export type TaskBackendCategory =
+  | 'MEDICATION'
+  | 'OBSERVATION_TOOL'
+  | 'HYGIENE'
+  | 'DIET'
+  | 'CUSTOM';
 
 // Health Subcategories
 export type HealthSubcategory =
@@ -48,14 +54,8 @@ export type TaskFrequency =
   | 'once'
   | 'daily'
   | 'weekly'
-  | 'monthly'
-  | 'every-day';
+  | 'monthly';
 
-// Observational Tools
-export type ObservationalTool =
-  | 'feline-grimace-scale'
-  | 'canine-acute-pain-scale'
-  | 'equine-grimace-scale';
 
 // Reminder Options
 export type ReminderOption =
@@ -68,7 +68,23 @@ export type ReminderOption =
   | 'custom';
 
 // Task Status
-export type TaskStatus = 'pending' | 'completed' | 'overdue';
+export type TaskStatusApi = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TaskStatus =
+  | TaskStatusApi
+  | 'pending'
+  | 'completed'
+  | 'overdue'
+  | 'in_progress'
+  | 'cancelled';
+
+export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
+export type OTFieldType =
+  | 'TEXT'
+  | 'NUMBER'
+  | 'CHOICE'
+  | 'BOOLEAN'
+  | 'PHOTO'
+  | 'VIDEO';
 
 // Dosage Schedule
 export interface DosageSchedule {
@@ -91,7 +107,7 @@ export interface MedicationTaskDetails {
 // Health - Observational Tool Task
 export interface ObservationalToolTaskDetails {
   taskType: 'take-observational-tool';
-  toolType: ObservationalTool;
+  toolType: string;
   chronicConditionType?: ChronicConditionType;
 }
 
@@ -130,34 +146,58 @@ export type TaskSpecificDetails =
 export interface Task {
   id: string;
   companionId: string;
+  /**
+   * Normalized task kind from backend; falls back to category mapping used in UI.
+   */
+  backendCategory?: TaskBackendCategory;
   category: TaskCategory;
   subcategory?: HealthSubcategory | 'none';
   title: string;
+  name?: string;
+  description?: string;
+  /**
+   * Full ISO timestamp for due datetime returned by backend.
+   */
+  dueAt?: string;
+  timezone?: string | null;
   date: string; // ISO date
   time?: string; // ISO time string
   frequency: TaskFrequency;
   assignedTo?: string; // User ID
+  assignedBy?: string;
+  createdBy?: string;
+  audience?: 'PARENT_TASK' | 'EMPLOYEE_TASK';
+  source?: string;
   reminderEnabled: boolean;
+  reminderOffsetMinutes?: number;
   reminderOptions: ReminderOption | null;
   syncWithCalendar: boolean;
-  calendarProvider?: 'google' | 'icloud';
+  calendarProvider?: string;
+  calendarEventId?: string | null;
   attachDocuments: boolean;
   attachments: TaskAttachment[];
   additionalNote?: string;
   status: TaskStatus;
   completedAt?: string; // ISO datetime
+  statusUpdatedAt?: string;
   createdAt: string; // ISO datetime
   updatedAt: string; // ISO datetime
   details: TaskSpecificDetails;
+  observationToolId?: string | null;
+  appointmentId?: string | null;
+  otSubmissionId?: string | null;
 }
 
 // Task Attachment
 export interface TaskAttachment {
   id: string;
-  name: string;
-  uri: string;
-  type: string;
-  size: number;
+  name?: string;
+  uri?: string;
+  type?: string;
+  size?: number;
+  key?: string;
+  downloadUrl?: string | null;
+  viewUrl?: string | null;
 }
 
 // Tasks State
@@ -185,7 +225,8 @@ export interface BaseTaskFormData {
   reminderEnabled: boolean;
   reminderOptions: ReminderOption | null;
   syncWithCalendar: boolean;
-  calendarProvider: 'google' | 'icloud' | null;
+  calendarProvider: string | null;
+  calendarProviderName: string | null;
   attachDocuments: boolean;
   attachments: TaskAttachment[];
   additionalNote: string;
@@ -201,7 +242,7 @@ export interface MedicationFormData extends BaseTaskFormData {
 }
 
 export interface ObservationalToolFormData extends BaseTaskFormData {
-  observationalTool: ObservationalTool | null;
+  observationalTool: string | null;
 }
 
 export interface TaskFormData

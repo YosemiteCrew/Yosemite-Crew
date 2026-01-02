@@ -53,6 +53,7 @@ module.exports = {
     '^@react-native-community/geolocation$': '<rootDir>/__mocks__/react-native-geolocation.js',
     '^react-native-webview$': '<rootDir>/__mocks__/react-native-webview.js',
     '^react-native-pdf$': '<rootDir>/__mocks__/react-native-pdf.js',
+    '^react-native-calendar-events$': '<rootDir>/__mocks__/react-native-calendar-events.js',
   },
   testPathIgnorePatterns: [
     '/node_modules/',

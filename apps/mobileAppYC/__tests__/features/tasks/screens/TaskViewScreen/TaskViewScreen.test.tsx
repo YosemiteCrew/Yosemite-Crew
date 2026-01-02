@@ -10,6 +10,7 @@ import * as Redux from 'react-redux';
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockReset = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockGetParent = jest.fn().mockReturnValue({
   reset: mockReset,
 });
@@ -23,6 +24,7 @@ jest.mock('@react-navigation/native', () => {
       navigate: mockNavigate,
       goBack: mockGoBack,
       reset: mockReset,
+      canGoBack: mockCanGoBack,
       getParent: mockGetParent,
     }),
     useRoute: () => ({
@@ -32,7 +34,10 @@ jest.mock('@react-navigation/native', () => {
 });
 
 // 2. Redux
+const mockDispatch = jest.fn();
 const mockUseSelector = jest.spyOn(Redux, 'useSelector');
+const mockUseDispatch = jest.spyOn(Redux, 'useDispatch');
+mockUseDispatch.mockReturnValue(mockDispatch);
 
 // 3. Mock Hooks & Assets
 jest.mock('@/hooks', () => ({
@@ -109,8 +114,9 @@ jest.mock('@/shared/components/common', () => {
   };
 });
 
-jest.mock('@/features/documents/components/DocumentAttachmentsSection', () => ({
-  DocumentAttachmentsSection: () => {
+jest.mock('@/features/documents/components/DocumentAttachmentViewer', () => ({
+  __esModule: true,
+  default: () => {
     const {View, Text} = require('react-native');
     return (
       <View>
@@ -200,6 +206,14 @@ describe('TaskViewScreen', () => {
     },
     companion: {
       companions: [{id: 'comp-1', name: 'Buddy'}],
+    },
+    businesses: {
+      businesses: [],
+      services: [],
+      employees: [],
+      availability: [],
+      loading: false,
+      error: null,
     },
     tasks: {
       'task-med': {
@@ -414,10 +428,7 @@ describe('TaskViewScreen', () => {
 
     fireEvent.press(getByTestId('header-back'));
 
-    expect(mockReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'TasksMain'}],
-    });
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles navigation - back from Home', () => {
@@ -426,10 +437,7 @@ describe('TaskViewScreen', () => {
 
     fireEvent.press(getByTestId('header-back'));
 
-    expect(mockReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'HomeStack'}],
-    });
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles navigation - Edit', () => {
