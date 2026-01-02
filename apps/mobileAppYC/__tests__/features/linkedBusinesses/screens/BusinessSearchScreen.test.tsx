@@ -302,6 +302,9 @@ describe('BusinessSearchScreen', () => {
     );
 
     expect(screen.getByTestId('search-input')).toBeTruthy();
+
+    // Switch back to fake timers for cleanup
+    jest.useFakeTimers();
   });
 
   it('handles loadLinkedBusinesses failure gracefully', async () => {
@@ -322,6 +325,9 @@ describe('BusinessSearchScreen', () => {
     );
 
     expect(screen.getByTestId('search-input')).toBeTruthy();
+
+    // Switch back to fake timers for cleanup
+    jest.useFakeTimers();
   });
 
   it('searches for businesses and displays results', async () => {
