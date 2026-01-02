@@ -53,9 +53,15 @@ export const TaskReminderEngine = {
         const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
         const companion = await CompanionModel.findById(task.companionId!);
+        if (!companion) {
+          console.warn(
+            `Skipping reminder for task ${String(task._id)}; companion not found`,
+          );
+          continue;
+        }
 
         const payload = NotificationTemplates.Task.TASK_DUE_REMINDER(
-          companion?.name!,
+          companion.name,
           task.name,
           humanTime,
         );

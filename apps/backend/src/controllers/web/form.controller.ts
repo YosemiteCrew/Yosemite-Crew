@@ -282,4 +282,27 @@ export const FormController = {
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
+  getFormSubmissionPDF: async (req: Request, res: Response) => {
+    try {
+      const submissionId = req.params.submissionId;
+
+      const pdfBuffer = await FormService.generatePDFForSubmission(
+        submissionId,
+      );
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="form_submission_${submissionId}.pdf"`,
+      );
+      res.send(pdfBuffer);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Unexpected error in getFormSubmissionPDF:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
 };

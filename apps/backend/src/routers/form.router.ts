@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { FormController } from "src/controllers/web/form.controller";
+import { FormSigningController } from "src/controllers/web/formSigning.contorller";
 import { authorizeCognitoMobile, authorizeCognito } from "src/middlewares/auth";
 
 const router = Router();
@@ -56,6 +57,12 @@ router.get(
   FormController.getSOAPNotesByAppointment,
 );
 
+router.post(
+  "/form-submissions/:submissionId/sign",
+  authorizeCognito,
+  FormSigningController.startSigning
+);
+
 // PUBLIC ROUTES
 router.get("/public/:formId", FormController.getFormForClient);
 
@@ -87,5 +94,13 @@ router.get(
   authorizeCognitoMobile,
   FormController.getSOAPNotesByAppointment,
 );
+
+router.get(
+  "/mobile/form-submissions/:submissionId/pdf",
+  //authorizeCognitoMobile,
+  FormController.getFormSubmissionPDF,
+);
+
+
 
 export default router;

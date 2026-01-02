@@ -4,6 +4,7 @@ import fileUpload from "express-fileupload";
 import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
 import cors from "cors";
+import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
 
 export function createApp() {
   const app = express();
@@ -26,7 +27,13 @@ export function createApp() {
   app.post(
     "/v1/stripe/webhook",
     express.raw({ type: "application/json" }),
-    StripeController.webhook,
+    (req, res) => StripeController.webhook(req, res),
+  );
+
+  app.post(
+    "/v1/documenso/webhook",
+    express.raw({ type: "application/json" }),
+    (req, res) => DocumensoWebhookController.handle(req, res),
   );
 
   app.use(fileUpload());
