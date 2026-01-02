@@ -80,7 +80,6 @@ const formatValue = (value: unknown, field?: FormField): string => {
       return stringifyValue(value);
 
     case "signature":
-      // IMPORTANT: legal signing is Documenso, not this field
       return "Signed electronically";
 
     default:
@@ -139,11 +138,12 @@ export function buildPdfViewModel({
   };
 }
 
-
-const templatePath = path.join(__dirname, "../utils/formPDFTemplate.html");
+const templatePath = path.join(
+  process.cwd(),
+  "src/utils/formPDFTemplate.html",
+);
 
 function renderSections(vm: PdfViewModel): string {
-  console.log("Rendering sections:", vm.sections);
   return vm.sections
     .map(
       (section) => `
@@ -155,17 +155,17 @@ function renderSections(vm: PdfViewModel): string {
                 <span class="label">${f.label}:</span>
                 <span class="value">${f.value}</span>
               </div>
-            `
+            `,
           )
           .join("")}
-      `
+      `,
     )
     .join("");
 }
 
 function applyTemplate(vm: PdfViewModel): string {
   let html = fs.readFileSync(templatePath, "utf8");
-  console.log("Applying template with VM:", vm.title);
+
   html = html.replaceAll("{{title}}", vm.title);
   html = html.replace("{{submittedAt}}", vm.submittedAt);
   html = html.replace("{{sections}}", renderSections(vm));
@@ -177,9 +177,7 @@ export async function renderPdf(vm: PdfViewModel): Promise<Buffer> {
   const browser = await chromium.launch();
   const page = await browser.newPage();
 
-  const html = applyTemplate(vm);
-
-  await page.setContent(html, { waitUntil: "load" });
+  await page.setContent(applyTemplate(vm), { waitUntil: "load" });
 
   const pdf = await page.pdf({
     format: "A4",
@@ -202,12 +200,7 @@ export async function generateFormSubmissionPdf({
   answers: Record<string, unknown>;
   submittedAt: Date;
 }): Promise<Buffer> {
-  const vm = buildPdfViewModel({
-    title,
-    schema,
-    answers,
-    submittedAt,
-  });
-
-  return renderPdf(vm);
+  return renderPdf(
+    buildPdfViewModel({ title, schema, answers, submittedAt }),
+  );
 }

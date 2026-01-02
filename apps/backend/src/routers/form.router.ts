@@ -63,6 +63,12 @@ router.post(
   FormSigningController.startSigning
 );
 
+router.get(
+  "/form-submissions/:submissionId/signed-document",
+  //authorizeCognito,
+  FormSigningController.getSignedDocument
+);
+
 // PUBLIC ROUTES
 router.get("/public/:formId", FormController.getFormForClient);
 
@@ -97,8 +103,14 @@ router.get(
 
 router.get(
   "/mobile/form-submissions/:submissionId/pdf",
-  //authorizeCognitoMobile,
+  authorizeCognitoMobile,
   FormController.getFormSubmissionPDF,
+);
+
+router.post(
+  "/mobile/form-submissions/:submissionId/sign",
+  authorizeCognitoMobile,
+  FormSigningController.startSigningMobile
 );
 
 

@@ -43,7 +43,7 @@ export class DocumensoService {
         title: "Form Submission",
         recipients: [
           {
-            email: "harsh4902@gmail.com",
+            email: signerEmail,
             name: signerName ?? signerEmail,
             role: "SIGNER",
             fields: [
@@ -104,7 +104,6 @@ export class DocumensoService {
       const downloadResponse = await documenso.documents.download({
         documentId: documentId,
       });
-      console.log("Download Response:", downloadResponse);  
       return downloadResponse;
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
