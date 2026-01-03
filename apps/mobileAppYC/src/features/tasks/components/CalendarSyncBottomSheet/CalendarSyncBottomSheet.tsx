@@ -209,6 +209,16 @@ export const CalendarSyncBottomSheet = forwardRef<
     );
   };
 
+  const getEmptyMessage = () => {
+    if (loading) {
+      return 'Loading calendars...';
+    }
+    if (permissionGranted) {
+      return 'No writable calendars found';
+    }
+    return 'Enable calendar permission to pick a calendar';
+  };
+
   return (
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
@@ -220,13 +230,7 @@ export const CalendarSyncBottomSheet = forwardRef<
       mode="select"
       renderItem={renderProviderItem}
       snapPoints={['50%', '60%']}
-      emptyMessage={
-        loading
-          ? 'Loading calendars...'
-          : permissionGranted
-            ? 'No writable calendars found'
-            : 'Enable calendar permission to pick a calendar'
-      }
+      emptyMessage={getEmptyMessage()}
       onSheetChange={onSheetChange}
     />
   );
