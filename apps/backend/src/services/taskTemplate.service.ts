@@ -22,7 +22,7 @@ export interface CreateTaskTemplateInput {
   description?: string;
 
   kind: TaskKind;
-  defaultRole: "EMPLOYEE" | "PARENT";
+  defaultRole: "EMPLOYEE_TASK" | "PARENT_TASK";
 
   defaultMedication?: {
     name?: string;

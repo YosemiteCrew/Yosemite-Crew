@@ -20,6 +20,7 @@ import OrganizationModel from "src/models/organization";
 import UserProfileModel from "src/models/user-profile";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
+import { TaskService } from "./task.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -302,7 +303,7 @@ export const AppointmentService = {
       timeSlot: dayjs(input.startTime).format("HH:mm"),
       durationMinutes: input.durationMinutes,
 
-      status: "UPCOMING",
+      status: "NO_PAYMENT",
       concern: input.concern,
       isEmergency: input.isEmergency ?? false,
 
@@ -382,6 +383,20 @@ export const AppointmentService = {
         paymentIntentData = await StripeService.createPaymentIntentForInvoice(
           invoice._id.toString(),
         );
+      }
+
+      if (
+        service.serviceType === "OBSERVATION_TOOL" &&
+        service.observationToolId
+      ) {
+        await createObservationToolTaskForAppointment({
+          appointmentId: doc._id.toString(),
+          organisationId: appointment.organisationId,
+          companionId: appointment.companion.id,
+          parentId: appointment.companion.parent.id,
+          observationToolId: service.observationToolId._id.toString(),
+          appointmentStartTime: appointment.startTime,
+        });
       }
 
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
@@ -1131,4 +1146,54 @@ export const AppointmentService = {
 
     return docs.map((doc) => toAppointmentResponseDTO(toDomainLean(doc)));
   },
+};
+
+const createObservationToolTaskForAppointment = async ({
+  appointmentId,
+  organisationId,
+  companionId,
+  parentId,
+  observationToolId,
+  appointmentStartTime,
+}: {
+  appointmentId: string;
+  organisationId: string;
+  companionId: string;
+  parentId: string;
+  observationToolId: string;
+  appointmentStartTime: Date;
+}) => {
+  const dueAt = dayjs(appointmentStartTime)
+    .subtract(2, "hour")
+    .toDate();
+
+  return TaskService.createCustom({
+    organisationId,
+    appointmentId,
+
+    companionId,
+
+    createdBy: parentId,
+    assignedBy: parentId,
+    assignedTo: parentId,
+
+    audience: "PARENT_TASK",
+
+    category: "Observation Tool",
+    name: "Complete observation before appointment",
+    description:
+      "Please complete the observation tool before your scheduled appointment.",
+    additionalNotes:
+      "This task must be completed before the appointment for proper evaluation.",
+
+    observationToolId,
+
+    dueAt,
+    timezone: "UTC",
+
+    reminder: {
+      enabled: true,
+      offsetMinutes: 60, // remind 1 hour before task due
+    },
+  });
 };

@@ -4,7 +4,7 @@ export type OrganisationInvite = {
   _id?: string;
   organisationId: string;     // FK → Organisation
   invitedByUserId: string;    // FK → User (the admin who sent the invite)
-  departmentId: string;       // FK → Department
+  departmentIds: string[];       // FK → Departments
   inviteeEmail: string;       // email to which invite was sent
   inviteeName?: string;       // optional: name entered during invite
   role: string;               // org role

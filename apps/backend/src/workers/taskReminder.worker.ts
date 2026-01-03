@@ -6,7 +6,7 @@ import logger from "src/utils/logger";
 export const TaskReminderWorker = new Worker(
   "task-reminder",
   async () => {
-    console.log("🔔 Running Task Reminder Engine...");
+    logger.info("🔔 Running Task Reminder Engine...");
     await TaskReminderEngine.run();
   },
   { connection: redisConnection },

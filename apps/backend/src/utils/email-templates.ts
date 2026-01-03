@@ -159,7 +159,7 @@ export const renderOrganisationInviteTemplate = (
               <tr>
                 <td align="center" style="background-color:#f4f8ff; padding:24px 16px 30px 16px;">
                   <!-- (Footer content is IDENTICAL to your OTP email footer — reuse as-is) -->
-                  ${/* You can literally paste the same footer block here */""}
+                  ${/* You can literally paste the same footer block here */ ""}
                 </td>
               </tr>
 

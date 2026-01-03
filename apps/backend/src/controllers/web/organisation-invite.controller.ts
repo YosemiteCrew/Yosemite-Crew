@@ -71,7 +71,7 @@ export const OrganisationInviteController = {
       const invite = await OrganisationInviteService.createInvite({
         organisationId,
         invitedByUserId,
-        departmentId: body.departmentId ?? "",
+        departmentIds: body.departmentIds ?? [],
         inviteeEmail: body.inviteeEmail ?? "",
         inviteeName: body.inviteeName,
         role: body.role ?? "",

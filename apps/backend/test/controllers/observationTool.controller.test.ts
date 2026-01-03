@@ -11,6 +11,7 @@ import {
   ObservationToolSubmissionService,
   ObservationToolSubmissionServiceError,
 } from "../../src/services/observationToolSubmission.service";
+import { TaskService } from "../../src/services/task.service";
 
 jest.mock("../../src/services/authUserMobile.service", () => ({
   AuthUserMobileService: {
@@ -50,6 +51,12 @@ jest.mock("../../src/services/observationToolSubmission.service", () => {
   };
 });
 
+jest.mock("../../src/services/task.service", () => ({
+  TaskService: {
+    linkToAppointment: jest.fn(),
+  },
+}));
+
 const mockedAuthUser = AuthUserMobileService as unknown as {
   getByProviderUserId: jest.Mock;
 };
@@ -66,6 +73,9 @@ const mockedSubmissionService = ObservationToolSubmissionService as unknown as {
   getById: jest.Mock;
   linkToAppointment: jest.Mock;
   listForAppointment: jest.Mock;
+};
+const mockedTaskService = TaskService as unknown as {
+  linkToAppointment: jest.Mock;
 };
 
 const createResponse = () => {
@@ -290,7 +300,9 @@ describe("ObservationToolSubmissionController", () => {
   it("links submission to appointment", async () => {
     mockedSubmissionService.linkToAppointment.mockResolvedValueOnce({
       id: "sub-1",
+      taskId: "task-1",
     });
+    mockedTaskService.linkToAppointment.mockResolvedValueOnce(undefined);
     const res = createResponse();
 
     await ObservationToolSubmissionController.linkAppointment(
@@ -304,8 +316,13 @@ describe("ObservationToolSubmissionController", () => {
     expect(mockedSubmissionService.linkToAppointment).toHaveBeenCalledWith({
       submissionId: "sub-1",
       appointmentId: "apt-1",
+      enforceSingleSubmissionPerAppointment: false,
     });
-    expect(res.json).toHaveBeenCalledWith({ id: "sub-1" });
+    expect(mockedTaskService.linkToAppointment).toHaveBeenCalledWith({
+      taskId: "task-1",
+      appointmentId: "apt-1",
+    });
+    expect(res.json).toHaveBeenCalledWith({ id: "sub-1", taskId: "task-1" });
   });
 
   it("lists submissions for an appointment", async () => {

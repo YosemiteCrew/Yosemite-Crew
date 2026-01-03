@@ -1,7 +1,7 @@
 import TaskLibraryDefinitionModel, {
   TaskLibraryDefinitionDocument,
+  TaskKind,
 } from "../models/taskLibraryDefinition";
-import { TaskKind } from "../models/taskLibraryDefinition";
 
 export class TaskLibraryServiceError extends Error {
   constructor(
