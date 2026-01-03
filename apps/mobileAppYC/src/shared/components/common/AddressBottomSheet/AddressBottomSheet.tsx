@@ -168,14 +168,12 @@ export const AddressBottomSheet = forwardRef<
         <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Address</Text>
-          <View style={styles.closeButtonShadow}>
-            <LiquidGlassIconButton
-              onPress={handleCancel}
-              size={closeButtonSize}
-              style={styles.closeButton}>
-              <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
-            </LiquidGlassIconButton>
-          </View>
+          <LiquidGlassIconButton
+            onPress={handleCancel}
+            size={closeButtonSize}
+            style={styles.closeButton}>
+            <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
+          </LiquidGlassIconButton>
         </View>
 
         <ScrollView
@@ -234,14 +232,10 @@ const createStyles = (theme: any) =>
     ...createBottomSheetContainerStyles(theme),
     ...createBottomSheetButtonStyles(theme),
     ...createBottomSheetStyles(theme),
-    closeButtonShadow: {
+    closeButton: {
       position: 'absolute',
       right: 0,
       padding: theme.spacing['2'],
-      borderRadius: theme.borderRadius.full,
-      ...theme.shadows.sm,
-    },
-    closeButton: {
       justifyContent: 'center',
       alignItems: 'center',
     },

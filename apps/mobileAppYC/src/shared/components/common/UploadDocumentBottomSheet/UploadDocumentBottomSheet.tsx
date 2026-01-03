@@ -92,18 +92,16 @@ export const UploadDocumentBottomSheet = forwardRef<
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Upload documents</Text>
-          <View style={styles.closeButtonShadow}>
-            <LiquidGlassIconButton
-              onPress={handleClose}
-              size={closeButtonSize}
-              style={styles.closeButton}>
-              <Image
-                source={Images.crossIcon}
-                style={styles.closeIcon}
-                resizeMode="contain"
-              />
-            </LiquidGlassIconButton>
-          </View>
+          <LiquidGlassIconButton
+            onPress={handleClose}
+            size={closeButtonSize}
+            style={styles.closeButton}>
+            <Image
+              source={Images.crossIcon}
+              style={styles.closeIcon}
+              resizeMode="contain"
+            />
+          </LiquidGlassIconButton>
         </View>
 
         <View style={styles.optionsList}>
@@ -161,13 +159,10 @@ const createStyles = (theme: any) =>
     closeButton: {
       justifyContent: 'center',
       alignItems: 'center',
-    },
-    closeButtonShadow: {
       position: 'absolute',
       right: 0,
       padding: theme.spacing['2'],
       borderRadius: theme.borderRadius.full,
-      ...theme.shadows.sm,
     },
     closeIcon: {
       width: theme.spacing['6'],

@@ -4,6 +4,7 @@ import {
   Image,
   ImageSourcePropType,
   ImageStyle,
+  Platform,
   PanResponder,
   StyleProp,
   StyleSheet,
@@ -90,20 +91,16 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
 
   const animateTo = useCallback(
     (toValue: number, callback?: () => void) => {
-      // Toggle the squared edges immediately so closing does not flicker rounded corners in late frames
       setIsRevealed(toValue < 0);
       currentOffset.current = toValue;
       Animated.spring(translateX, {
         ...effectiveSpringConfig,
         toValue,
       }).start(() => {
-        if (toValue === 0) {
-          setIsRevealed(false);
-        }
         callback?.();
       });
     },
-    [effectiveSpringConfig, setIsRevealed, translateX],
+    [effectiveSpringConfig, translateX],
   );
 
   const settleToNearest = useCallback(
@@ -124,6 +121,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
         }
       }
       const nextOffset = clamp(currentOffset.current + gestureState.dx);
+      setIsRevealed(nextOffset < 0);
       translateX.setValue(nextOffset);
     };
     const handleRelease = (_: any, gestureState: any) => {
@@ -152,6 +150,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
         // Stop any running animation and sync the offset so a new gesture does not jump
         translateX.stopAnimation(value => {
           currentOffset.current = value;
+          setIsRevealed(value < 0);
           translateX.setValue(value);
         });
       },
@@ -210,24 +209,57 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   );
 
   const cardPropsWithReveal = useMemo(() => {
+    const baseCardStyle =
+      Platform.OS === 'android' ? styles.androidCardBase : undefined;
+    const borderReset = Platform.OS === 'android' ? styles.androidBorderReset : undefined;
     const revealStyle = isRevealed ? styles.revealedCard : undefined;
+    const mergedStyle = [
+      baseCardStyle,
+      cardProps?.style,
+      borderReset,
+      revealStyle,
+    ].filter(Boolean);
+    const mergedFallbackStyle = [
+      baseCardStyle,
+      cardProps?.fallbackStyle,
+      borderReset,
+      revealStyle,
+    ].filter(Boolean);
+    const resolvedShadow = cardProps?.shadow ?? 'base';
 
     if (!cardProps) {
-      return revealStyle ? {style: revealStyle} : undefined;
+      return {
+        shadow: resolvedShadow,
+        style: mergedStyle.length ? mergedStyle : undefined,
+        fallbackStyle: mergedFallbackStyle.length ? mergedFallbackStyle : undefined,
+      };
     }
 
     return {
       ...cardProps,
-      style: [cardProps.style, revealStyle],
+      shadow: resolvedShadow,
+      style: mergedStyle.length ? mergedStyle : cardProps.style,
+      fallbackStyle: mergedFallbackStyle.length
+        ? mergedFallbackStyle
+        : cardProps.fallbackStyle,
     };
-  }, [cardProps, isRevealed, styles.revealedCard]);
+  }, [
+    cardProps,
+    isRevealed,
+    styles.androidCardBase,
+    styles.androidBorderReset,
+    styles.revealedCard,
+  ]);
+
+  const containerRevealStyle = isRevealed ? styles.revealedContainer : undefined;
 
   return (
     <View
       style={[
         styles.container,
+        styles.shadowWrapper,
+        containerRevealStyle,
         containerStyle,
-        isRevealed && styles.revealedContainer,
       ]}>
       <Animated.View
         style={[
@@ -264,6 +296,12 @@ const createStyles = (theme: any) =>
       width: '100%',
       alignSelf: 'center',
       borderRadius: theme.borderRadius.lg,
+      overflow: 'visible',
+    },
+    shadowWrapper: {
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
     },
     revealedContainer: {
       borderTopRightRadius: 0,
@@ -278,6 +316,7 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       borderTopRightRadius: theme.borderRadius.lg,
       borderBottomRightRadius: theme.borderRadius.lg,
+      overflow: 'hidden',
       zIndex: 0,
     },
     customActionContainer: {
@@ -304,7 +343,20 @@ const createStyles = (theme: any) =>
       width: 30,
       height: 30,
     },
-    animatedWrapper: {zIndex: 1},
+    animatedWrapper: {
+      zIndex: 1,
+      overflow: 'visible',
+    },
+    androidCardBase: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    androidBorderReset: {
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
     revealedCard: {
       borderTopRightRadius: 0,
       borderBottomRightRadius: 0,

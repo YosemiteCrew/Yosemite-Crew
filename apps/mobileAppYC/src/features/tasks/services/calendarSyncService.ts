@@ -270,11 +270,18 @@ export const createCalendarEventForTask = async (
   companionName?: string,
   assignedToName?: string
 ): Promise<string | null> => {
+  const safeCalendarId =
+    typeof task.calendarProvider === 'string' &&
+    ['google', 'icloud', 'loading'].includes(task.calendarProvider.toLowerCase())
+      ? undefined
+      : task.calendarProvider;
+  const taskWithCalendar: Task = {...task, calendarProvider: safeCalendarId};
+
   console.log('[Calendar] Creating event for task:', {
-    taskId: task.id,
-    title: task.title,
-    syncWithCalendar: task.syncWithCalendar,
-    calendarProvider: task.calendarProvider,
+    taskId: taskWithCalendar.id,
+    title: taskWithCalendar.title,
+    syncWithCalendar: taskWithCalendar.syncWithCalendar,
+    calendarProvider: taskWithCalendar.calendarProvider,
     companionName,
     assignedToName,
   });
@@ -289,57 +296,57 @@ export const createCalendarEventForTask = async (
 
   // Check if this is a medication task with multiple dosages
   const isMedicationWithDosages =
-    task.details &&
-    'medicineName' in task.details &&
-    'dosages' in task.details &&
-    Array.isArray(task.details.dosages) &&
-    task.details.dosages.length > 0;
+    taskWithCalendar.details &&
+    'medicineName' in taskWithCalendar.details &&
+    'dosages' in taskWithCalendar.details &&
+    Array.isArray(taskWithCalendar.details.dosages) &&
+    taskWithCalendar.details.dosages.length > 0;
 
   if (isMedicationWithDosages) {
     console.log('[Calendar] Creating multiple events for medication dosages');
-    return createDosageCalendarEvents(task, companionName, assignedToName);
+    return createDosageCalendarEvents(taskWithCalendar, companionName, assignedToName);
   }
 
   try {
-    const startDate = task.dueAt ?? buildIsoDate(task.date, task.time);
+    const startDate = taskWithCalendar.dueAt ?? buildIsoDate(taskWithCalendar.date, taskWithCalendar.time);
     const start = new Date(startDate);
     const end = new Date(start.getTime() + 30 * 60 * 1000);
 
     let alarms: Array<{date: number}> | undefined;
-    if (task.reminderOffsetMinutes == null) {
-      alarms = task.reminderOptions ? [{date: -15}] : undefined;
+    if (taskWithCalendar.reminderOffsetMinutes == null) {
+      alarms = taskWithCalendar.reminderOptions ? [{date: -15}] : undefined;
     } else {
-      alarms = [{date: -Math.abs(task.reminderOffsetMinutes)}];
+      alarms = [{date: -Math.abs(taskWithCalendar.reminderOffsetMinutes)}];
     }
 
-    const recurrenceParams = buildRecurrenceParams(task);
+    const recurrenceParams = buildRecurrenceParams(taskWithCalendar);
 
     // Build comprehensive event description
     const buildEventNotes = (): string => {
       const parts: string[] = [];
 
       // Add task description
-      if (task.description) {
-        parts.push(`📝 ${task.description}`, '');
+      if (taskWithCalendar.description) {
+        parts.push(`📝 ${taskWithCalendar.description}`, '');
       }
 
       // Add additional notes
-      if (task.additionalNote) {
-        parts.push(`💡 Note: ${task.additionalNote}`, '');
+      if (taskWithCalendar.additionalNote) {
+        parts.push(`💡 Note: ${taskWithCalendar.additionalNote}`, '');
       }
 
       // Add medication details
-      if (task.details && 'medicineName' in task.details && task.details.medicineName) {
+      if (taskWithCalendar.details && 'medicineName' in taskWithCalendar.details && taskWithCalendar.details.medicineName) {
         const medicationParts = [
           `💊 MEDICATION`,
-          `   Medicine: ${task.details.medicineName}`,
+          `   Medicine: ${taskWithCalendar.details.medicineName}`,
         ];
-        if ('medicineType' in task.details && task.details.medicineType) {
-          medicationParts.push(`   Type: ${task.details.medicineType}`);
+        if ('medicineType' in taskWithCalendar.details && taskWithCalendar.details.medicineType) {
+          medicationParts.push(`   Type: ${taskWithCalendar.details.medicineType}`);
         }
-        if ('dosages' in task.details && task.details.dosages && task.details.dosages.length > 0) {
+        if ('dosages' in taskWithCalendar.details && taskWithCalendar.details.dosages && taskWithCalendar.details.dosages.length > 0) {
           medicationParts.push(`   Dosage Schedule:`);
-          task.details.dosages.forEach((d: any) => {
+          taskWithCalendar.details.dosages.forEach((d: any) => {
             medicationParts.push(`      • ${d.label} at ${d.time}`);
           });
         }
@@ -348,8 +355,8 @@ export const createCalendarEventForTask = async (
       }
 
       // Add observational tool info
-      if (task.details && 'toolType' in task.details && task.details.toolType) {
-        parts.push(`📋 Observational Tool: ${task.details.toolType}`, '');
+      if (taskWithCalendar.details && 'toolType' in taskWithCalendar.details && taskWithCalendar.details.toolType) {
+        parts.push(`📋 Observational Tool: ${taskWithCalendar.details.toolType}`, '');
       }
 
       // Add companion info
@@ -368,14 +375,14 @@ export const createCalendarEventForTask = async (
       return parts.join('\n');
     };
 
-    const eventTitle = task.title || 'Yosemite Crew Task';
+    const eventTitle = taskWithCalendar.title || 'Yosemite Crew Task';
     const eventNotes = buildEventNotes();
 
     console.log('[Calendar] Saving event with:', {
       title: eventTitle,
       startDate: start.toISOString(),
       endDate: end.toISOString(),
-      calendarId: task.calendarProvider,
+      calendarId: taskWithCalendar.calendarProvider,
       hasAlarms: !!alarms,
       recurrence: recurrenceParams.recurrence,
       recurrenceRule: recurrenceParams.recurrenceRule,
@@ -390,7 +397,7 @@ export const createCalendarEventForTask = async (
       alarms,
       ...(recurrenceParams.recurrence ? {recurrence: recurrenceParams.recurrence} : {}),
       ...(recurrenceParams.recurrenceRule ? {recurrenceRule: recurrenceParams.recurrenceRule} : {}),
-      calendarId: task.calendarProvider,
+      calendarId: taskWithCalendar.calendarProvider,
     });
 
     console.log('[Calendar] Event created successfully:', eventId);

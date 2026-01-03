@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {Platform, StyleSheet, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 
@@ -40,7 +40,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     shadowWrapper: {
       borderRadius: theme.borderRadius.full,
-      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
+      ...theme.shadows.sm,
     },
     button: {
       alignSelf: 'flex-start',
@@ -52,8 +52,6 @@ const createStyles = (theme: any) =>
       minWidth: 0,
       borderWidth: 0,
       borderColor: 'transparent',
-      ...theme.shadows.sm,
-      shadowColor: theme.colors.neutralShadow,
     },
     text: {
       ...theme.typography.labelXxsBold,

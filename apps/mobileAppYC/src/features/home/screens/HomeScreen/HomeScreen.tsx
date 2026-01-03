@@ -1107,7 +1107,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {headerProps, contentPaddingStyle} = useLiquidGlassHeaderLayout({
     contentPadding: theme.spacing['4.5'],
   });
-  const headerInsetsTop = headerProps.insetsTop + theme.spacing['1'];
+  const headerInsetsTop = headerProps.insetsTop + theme.spacing['6'];
   const bottomScrollPadding =
     insets.bottom + theme.spacing['24'] + theme.spacing['12'];
   const dropdownTop =
@@ -1482,7 +1482,9 @@ const createStyles = (theme: any) =>
     },
     tileShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
-      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
     },
     yearlySpendShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
@@ -1537,12 +1539,10 @@ const createStyles = (theme: any) =>
       minWidth: 0,
       borderWidth: 0,
       borderColor: 'transparent',
-      ...theme.shadows.sm,
-      shadowColor: theme.colors.neutralShadow,
     },
     viewMoreShadowWrapper: {
       borderRadius: theme.borderRadius.full,
-      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
+      ...theme.shadows.sm,
     },
     quickActionIcon: {
       width: theme.spacing['7'],
