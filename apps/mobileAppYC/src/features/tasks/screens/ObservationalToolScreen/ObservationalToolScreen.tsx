@@ -1016,18 +1016,19 @@ export const ObservationalToolScreen: React.FC = () => {
     stage === 'form' ? renderFormStage() : renderLandingStage();
 
   return (
-    <LiquidGlassHeaderScreen
-      header={
-        <Header
-          title={displayDefinition.name}
-          showBackButton
-          onBack={handleHeaderBack}
-          glass={false}
-        />
-      }
-      contentPadding={theme.spacing['3']}>
-      {contentPaddingStyle => (
-        <>
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title={displayDefinition.name}
+            showBackButton
+            onBack={handleHeaderBack}
+            glass={false}
+          />
+        }
+        contentPadding={theme.spacing['3']}
+        showBottomFade={false}>
+        {contentPaddingStyle => (
           <ScrollView
             ref={scrollViewRef}
             style={styles.scrollView}
@@ -1036,14 +1037,15 @@ export const ObservationalToolScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled">
             {renderStage()}
           </ScrollView>
-          <DiscardChangesBottomSheet
-            ref={discardSheetRef}
-            onDiscard={handleDiscardChanges}
-            onKeepEditing={() => discardSheetRef.current?.close()}
-          />
-        </>
-      )}
-    </LiquidGlassHeaderScreen>
+        )}
+      </LiquidGlassHeaderScreen>
+
+      <DiscardChangesBottomSheet
+        ref={discardSheetRef}
+        onDiscard={handleDiscardChanges}
+        onKeepEditing={() => discardSheetRef.current?.close()}
+      />
+    </>
   );
 };
 

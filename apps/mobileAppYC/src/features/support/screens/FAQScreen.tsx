@@ -233,6 +233,7 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
             selectedId={selectedCategory}
             onSelect={handleCategoryChange}
             containerStyle={styles.pillContainer}
+            autoScroll={true}
           />
         </>
       }

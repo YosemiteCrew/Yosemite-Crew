@@ -45,8 +45,9 @@ interface TabLayout {
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
-  const useGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const isIOS = Platform.OS === 'ios';
+  const useGlass = isIOS && isLiquidGlassSupported;
+  const styles = React.useMemo(() => createStyles(theme, isIOS), [theme, isIOS]);
 
   // Animated values for sliding pill - using JS driver for both since we need width
   const pillLeft = useRef(new Animated.Value(0)).current;
@@ -182,7 +183,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             interactive
           />
         ) : (
-          <View style={styles.pillGlass} />
+          <View style={[styles.pillGlass, styles.pillSolid]} />
         )}
       </Animated.View>
     );
@@ -257,7 +258,10 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             !useGlass && styles.shadowWrapperSolid,
           ]}>
           <BarComponent
-            style={[styles.bar, useGlass && styles.barGlass]}
+          style={[
+            styles.bar,
+            useGlass ? styles.barGlass : styles.barSolid,
+          ]}
             {...(useGlass
               ? {
                   effect: 'clear' as const,
@@ -275,7 +279,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, isIOS: boolean) =>
   StyleSheet.create({
     wrapper: {
       position: 'absolute',
@@ -293,16 +297,20 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       backgroundColor: 'transparent',
       overflow: 'visible',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
     },
     shadowWrapperSolid: {
-      backgroundColor: theme.colors.white,
+      backgroundColor: 'transparent',
     },
     bar: {
       position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: isIOS
+        ? theme.borderRadius.md
+        : theme.borderRadius.xl,
       backgroundColor: 'transparent',
       paddingVertical: 14,
       paddingHorizontal: 16,
@@ -310,6 +318,12 @@ const createStyles = (theme: any) =>
     },
     barGlass: {
       backgroundColor: 'transparent',
+    },
+    barSolid: {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.08)',
+      overflow: 'hidden',
     },
     pillContainer: {
       position: 'absolute',
@@ -324,8 +338,13 @@ const createStyles = (theme: any) =>
     },
     pillGlass: {
       flex: 1,
-      borderRadius: theme.borderRadius.xl,
+      borderRadius: isIOS
+        ? theme.borderRadius.lg
+        : theme.borderRadius['2xl'],
       backgroundColor: 'transparent',
+    },
+    pillSolid: {
+      backgroundColor: theme.colors.secondary,
     },
     invisiblePill: {
       flex: 1,

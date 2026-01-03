@@ -174,14 +174,12 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}>
         <View style={styles.container}>
-          <View style={styles.closeButtonShadow}>
-            <LiquidGlassIconButton
-              onPress={handleClose}
-              size={closeButtonSize}
-              style={styles.closeButton}>
-              <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
-            </LiquidGlassIconButton>
-          </View>
+          <LiquidGlassIconButton
+            onPress={handleClose}
+            size={closeButtonSize}
+            style={styles.closeButton}>
+            <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
+          </LiquidGlassIconButton>
           {canShowOptions ? renderOptions() : renderEmptyState()}
         </View>
       </CustomBottomSheet>
@@ -302,14 +300,9 @@ const createStyles = (theme: any) =>
     closeButton: {
       justifyContent: 'center',
       alignItems: 'center',
-    },
-    closeButtonShadow: {
       position: 'absolute',
       right: theme.spacing['5'],
       top: theme.spacing['4'],
-      zIndex: 10,
-      borderRadius: theme.borderRadius.full,
-      ...theme.shadows.sm,
     },
     closeIcon: {
       width: theme.spacing['6'],
