@@ -33,6 +33,18 @@ router.post(
   ObservationToolSubmissionController.createFromMobile,
 );
 
+router.post(
+  "/mobile/submissions/:submissionId/link-appointment",
+  authorizeCognitoMobile,
+  ObservationToolSubmissionController.linkAppointment,
+);
+
+router.get(
+  "/mobile/tasks/:taskId/preview",
+  authorizeCognitoMobile,
+  ObservationToolSubmissionController.getPreviewByTaskId,
+);
+
 /**
  * PMS ROUTES
  * prefix: /pms/observation-tools + /pms/observation-submissions
@@ -53,7 +65,7 @@ router.get(
 
 router.post(
   "/pms/tools",
-  authorizeCognito,
+  //authorizeCognito,
   ObservationToolDefinitionController.create,
 );
 
@@ -92,6 +104,24 @@ router.get(
   "/pms/appointments/:appointmentId/submissions",
   authorizeCognito,
   ObservationToolSubmissionController.listForAppointment,
+);
+
+router.get(
+  "/pms/tasks/:taskId/submission",
+  authorizeCognito,
+  ObservationToolSubmissionController.getByTaskId,
+);
+
+router.get(
+  "/pms/tasks/:taskId/preview",
+  authorizeCognito,
+  ObservationToolSubmissionController.getPreviewByTaskId,
+);
+
+router.get(
+  "/pms/appointments/:appointmentId/task-previews",
+  authorizeCognito,
+  ObservationToolSubmissionController.listTaskPreviewsForAppointment,
 );
 
 export default router;

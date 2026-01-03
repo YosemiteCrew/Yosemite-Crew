@@ -1,6 +1,9 @@
 import { InvoiceItem } from "@yosemite-crew/types";
 import { Request, Response } from "express";
-import { InvoiceService, InvoiceServiceError } from "src/services/invoice.service";
+import {
+  InvoiceService,
+  InvoiceServiceError,
+} from "src/services/invoice.service";
 import logger from "src/utils/logger";
 
 type AddChargesBody = {
@@ -107,9 +110,7 @@ export const InvoiceController = {
           ? err.message
           : "Internal server error";
 
-      return res
-        .status(statusCode)
-        .json({ message });
+      return res.status(statusCode).json({ message });
     }
   },
 

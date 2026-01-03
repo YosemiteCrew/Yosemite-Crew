@@ -438,6 +438,7 @@ export const StripeService = {
 
     const notificationPayload = NotificationTemplates.Payment.REFUND_ISSUED(
       charge.amount / 100,
+      charge.currency,
     );
     const parentId = invoice.parentId;
     await NotificationService.sendToUser(parentId!, notificationPayload);

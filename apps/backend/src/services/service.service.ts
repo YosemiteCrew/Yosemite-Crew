@@ -54,6 +54,8 @@ const mapDocToDomain = (doc: ServiceDocument): Service => {
     cost: o.cost,
     maxDiscount: o.maxDiscount ?? null,
     specialityId: o.specialityId?.toString() ?? null,
+    serviceType: o.serviceType,
+    observationToolId: o.observationToolId?.toString() ?? null,
     isActive: o.isActive,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
@@ -74,6 +76,10 @@ export const ServiceService = {
       maxDiscount: service.maxDiscount ?? null,
       specialityId: service.specialityId
         ? ensureObjectId(service.specialityId, "specialityId")
+        : null,
+      serviceType: service.serviceType,
+      observationToolId: service.observationToolId
+        ? ensureObjectId(service.observationToolId, "observationToolId")
         : null,
       isActive: service.isActive,
     };
@@ -122,6 +128,16 @@ export const ServiceService = {
     if (serviceUpdates.maxDiscount != null)
       doc.maxDiscount = serviceUpdates.maxDiscount;
 
+    if (serviceUpdates.serviceType) {
+      doc.serviceType = serviceUpdates.serviceType;
+    }
+
+    if (serviceUpdates.observationToolId !== undefined) {
+      doc.observationToolId = serviceUpdates.observationToolId
+        ? ensureObjectId(serviceUpdates.observationToolId, "observationToolId")
+        : null;
+    }
+
     if (serviceUpdates.specialityId)
       doc.specialityId = ensureObjectId(
         serviceUpdates.specialityId,
@@ -144,6 +160,12 @@ export const ServiceService = {
     await doc.deleteOne();
 
     return true;
+  },
+
+  async deleteAllBySpecialityId(specialityId: string) {
+    await ServiceModel.deleteMany({
+      specialityId: specialityId,
+    }).exec();
   },
 
   async search(query: string, organisationId?: string) {

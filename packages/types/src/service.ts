@@ -9,6 +9,8 @@ export type Service = {
   cost: number;              
   maxDiscount?: number | null;
   specialityId?: string | null;
+  serviceType?: "CONSULTATION" | "OBSERVATION_TOOL";
+  observationToolId?: string | null;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -17,6 +19,8 @@ export type Service = {
 export const EXT_DURATION = "https://yosemitecrew.com/fhir/StructureDefinition/service-duration-minutes";
 export const EXT_COST = "https://yosemitecrew.com/fhir/StructureDefinition/service-cost";
 export const EXT_MAX_DISCOUNT = "https://yosemitecrew.com/fhir/StructureDefinition/service-max-discount";
+export const EXT_SERVICE_TYPE = "https://yosemitecrew.com/fhir/StructureDefinition/service-type";
+export const EXT_OBSERVATION_TOOL_ID = "https://yosemitecrew.com/fhir/StructureDefinition/service-observation-tool-id";
 
 export function toFHIRHealthcareService(service: Service) : HealthcareService {
   const extensions : Extension[] = [];
@@ -42,6 +46,20 @@ export function toFHIRHealthcareService(service: Service) : HealthcareService {
     extensions.push({
       url: EXT_MAX_DISCOUNT,
       valueDecimal: service.maxDiscount,
+    });
+  }
+
+  if (service.serviceType) {
+    extensions.push({
+      url: EXT_SERVICE_TYPE,
+      valueString: service.serviceType,
+    });
+  }
+
+  if (service.observationToolId) {
+    extensions.push({
+      url: EXT_OBSERVATION_TOOL_ID,
+      valueString: service.observationToolId,
     });
   }
 
@@ -82,7 +100,7 @@ export function fromFHIRHealthCareService(FHIRHealthcareService : HealthcareServ
   const service : Service = {
     id: FHIRHealthcareService.id!,
     organisationId: FHIRHealthcareService.providedBy?.reference?.replace("Organization/", "")!,
-    isActive: !FHIRHealthcareService.active ? true : FHIRHealthcareService.active,
+    isActive: FHIRHealthcareService.active ? FHIRHealthcareService.active : true,
 
     name: FHIRHealthcareService.name!,
     description: FHIRHealthcareService.comment,
@@ -91,6 +109,8 @@ export function fromFHIRHealthCareService(FHIRHealthcareService : HealthcareServ
     durationMinutes: 0,
     cost: 0,
     maxDiscount: undefined,
+    serviceType: undefined,
+    observationToolId: undefined,
   }
 
   // Parse extensions
@@ -107,6 +127,15 @@ export function fromFHIRHealthCareService(FHIRHealthcareService : HealthcareServ
 
         case EXT_MAX_DISCOUNT:
           service.maxDiscount = ext.valueDecimal ?? undefined;
+          break;
+
+        case EXT_SERVICE_TYPE:
+          service.serviceType =
+            (ext.valueString as Service["serviceType"]) ?? undefined;
+          break;
+
+        case EXT_OBSERVATION_TOOL_ID:
+          service.observationToolId = ext.valueString ?? undefined;
           break;
       }
     }

@@ -14,7 +14,7 @@ const router = Router();
 
 router.post(
   "/mobile/",
-  authorizeCognitoMobile,
+  //authorizeCognitoMobile,
   TaskController.createCustomTask,
 );
 
@@ -58,6 +58,13 @@ router.post(
   "/pms/from-template",
   authorizeCognito,
   TaskController.createFromTemplate,
+);
+
+// PMS — Create Custom Task
+router.post(
+  "/pms/custom",
+  authorizeCognito,
+  TaskController.createCustomTaskFromPms,
 );
 
 // Employee task list

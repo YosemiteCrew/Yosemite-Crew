@@ -8,6 +8,8 @@ export interface ServiceMongo {
   cost: number;
   maxDiscount?: number | null;
   specialityId?: Types.ObjectId | null;
+  serviceType?: "CONSULTATION" | "OBSERVATION_TOOL";
+  observationToolId?: Types.ObjectId | null;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -32,6 +34,18 @@ const ServiceSchema = new Schema<ServiceMongo>(
     specialityId: {
       type: Schema.Types.ObjectId,
       ref: "Speciality",
+      default: null,
+    },
+
+    serviceType: {
+      type: String,
+      enum: ["CONSULTATION", "OBSERVATION_TOOL"],
+      default: "CONSULTATION",
+    },
+
+    observationToolId: {
+      type: Schema.Types.ObjectId,
+      ref: "ObservationToolDefinition",
       default: null,
     },
 
