@@ -251,6 +251,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
   const rootRef = React.useRef<View | null>(null);
   const searchBarRef = useRef<View | null>(null);
+  const categoryScrollRef = useRef<ScrollView | null>(null);
+  const categoryPillRefs = useRef<Map<string, View>>(new Map());
   const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
   const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
   const filteredBusinesses = useMemo(
@@ -410,6 +412,20 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   const allCategories = ['hospital','groomer','breeder','pet_center','boarder'] as const;
 
+  useEffect(() => {
+    const currentCategory = category ?? 'All';
+    const pillView = categoryPillRefs.current.get(currentCategory);
+    if (pillView && categoryScrollRef.current) {
+      pillView.measureLayout(
+        categoryScrollRef.current as any,
+        (x) => {
+          categoryScrollRef.current?.scrollTo({x: x - 20, animated: true});
+        },
+        () => {},
+      );
+    }
+  }, [category]);
+
   const resolveDescription = React.useCallback((biz: VetBusiness) => {
     if (biz.address && biz.address.trim().length > 0) {
       return biz.address.trim();
@@ -456,12 +472,18 @@ export const BrowseBusinessesScreen: React.FC = () => {
         glass={false}
       />
       <ScrollView
+        ref={categoryScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pillsContent}>
         {CATEGORIES.map(p => (
           <TouchableOpacity
             key={p.label}
+            ref={node => {
+              if (node) {
+                categoryPillRefs.current.set(p.id ?? 'All', node);
+              }
+            }}
             style={[
               styles.pill,
               (p.id ?? undefined) === category && styles.pillActive,

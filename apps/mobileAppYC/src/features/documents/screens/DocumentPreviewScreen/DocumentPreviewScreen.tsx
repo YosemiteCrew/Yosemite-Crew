@@ -13,6 +13,12 @@ import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {
+  resolveCategoryLabel,
+  resolveSubcategoryLabel,
+  resolveVisitTypeLabel,
+} from '@/features/expenses/utils/expenseLabels';
+import {DetailsCard, type DetailItem, type DetailBadge} from '@/shared/components/common/DetailsCard';
 
 type DocumentPreviewNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type DocumentPreviewRouteProp = RouteProp<DocumentStackParamList, 'DocumentPreview'>;
@@ -104,6 +110,49 @@ export const DocumentPreviewScreen: React.FC = () => {
   // Only allow edit/delete for documents added by user from app, not from PMS
   const canEdit = document.isUserAdded && !document.uploadedByPmsUserId;
 
+  const detailItems: DetailItem[] = [
+    {label: 'Title', value: document.title},
+    {label: 'Companion', value: companion?.name || 'Unknown'},
+    {label: 'Business', value: document.businessName || '—'},
+    {label: 'Category', value: resolveCategoryLabel(document.category)},
+    {
+      label: 'Sub category',
+      value: resolveSubcategoryLabel(document.category, document.subcategory),
+      hidden: !document.subcategory || document.subcategory === 'none',
+    },
+    {
+      label: 'Visit type',
+      value: resolveVisitTypeLabel(document.visitType),
+      hidden: !document.visitType || document.visitType === 'other',
+    },
+    {label: 'Issue Date', value: formattedIssueDate},
+    {label: 'Appointment ID', value: document.appointmentId || '', hidden: !document.appointmentId},
+    {label: 'Files', value: document.files?.length || 0},
+    {
+      label: 'Created',
+      value: new Date(document.createdAt).toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    },
+  ];
+
+  const badges: DetailBadge[] = [];
+  if (document.uploadedByPmsUserId) {
+    badges.push({
+      text: 'Synced from PMS',
+      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      textColor: theme.colors.primary,
+    });
+  } else if (document.isUserAdded) {
+    badges.push({
+      text: 'User Added',
+      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      textColor: theme.colors.success,
+    });
+  }
+
   return (
     <LiquidGlassHeaderScreen
       header={
@@ -122,13 +171,7 @@ export const DocumentPreviewScreen: React.FC = () => {
         <ScrollView
           style={styles.container}
           contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}>
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>
-              {document.title} for {companion?.name || 'Unknown'}
-            </Text>
-            <Text style={styles.infoText}>{document.businessName || '—'}</Text>
-            <Text style={styles.infoText}>{formattedIssueDate}</Text>
-          </View>
+          <DetailsCard title="Document Details" items={detailItems} badges={badges} />
 
           <View style={styles.documentPreview}>
             <DocumentAttachmentViewer
@@ -150,6 +193,7 @@ const createStyles = (theme: any) => {
     contentContainer: {
       ...commonStyles.contentContainer,
       paddingHorizontal: theme.spacing['6'],
+      gap: theme.spacing['4'],
     },
     documentPreview: {
       gap: theme.spacing['4'],

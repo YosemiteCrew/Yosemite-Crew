@@ -157,6 +157,25 @@ jest.mock('@/assets/images', () => ({
 describe('ProfileOverviewScreen', () => {
   let store: any;
   const initialState = {
+    auth: {
+      user: {
+        parentId: 'parent-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '1234567890',
+        dateOfBirth: '1990-01-01',
+        currency: 'USD',
+        address: {
+          addressLine: '123 Main St',
+          city: 'New York',
+          stateProvince: 'NY',
+          postalCode: '10001',
+          country: 'USA',
+        },
+      },
+      status: 'authenticated',
+    },
     companion: {
       companions: [
         {
@@ -168,7 +187,22 @@ describe('ProfileOverviewScreen', () => {
       ],
       loading: false,
     },
+    documents: {
+      documents: [],
+    },
+    businesses: {
+      businesses: [],
+    },
+    tasks: {
+      items: [],
+    },
+    expenses: {
+      companionExpenses: {},
+      hasHydratedCompanion: {},
+      summaries: {},
+    },
     coParent: {
+      coParents: [],
       accessByCompanionId: {
         'comp-123': {
           role: 'PRIMARY_OWNER',
@@ -185,13 +219,24 @@ describe('ProfileOverviewScreen', () => {
       loading: false,
       error: null,
     },
+    linkedBusinesses: {
+      linkedBusinesses: [],
+      loading: false,
+      error: null,
+    },
   };
 
   const setup = (customState = initialState) => {
     store = configureStore({
       reducer: {
+        auth: (state = customState.auth) => state,
         companion: (state = customState.companion) => state,
+        documents: (state = customState.documents) => state,
+        businesses: (state = customState.businesses) => state,
+        tasks: (state = customState.tasks) => state,
+        expenses: (state = customState.expenses) => state,
         coParent: (state = customState.coParent) => state,
+        linkedBusinesses: (state = customState.linkedBusinesses) => state,
       },
     });
 
@@ -405,8 +450,12 @@ describe('ProfileOverviewScreen', () => {
     const defaultAccessState = {
       ...initialState,
       coParent: {
+        coParents: [],
         accessByCompanionId: {},
         defaultAccess: {role: 'VIEWER', permissions: {documents: true}},
+        lastFetchedRole: null,
+        loading: false,
+        error: null,
       },
     };
 
@@ -420,7 +469,14 @@ describe('ProfileOverviewScreen', () => {
   it('allows access if no access object exists (fallback)', () => {
     const noAccessState = {
       ...initialState,
-      coParent: {accessByCompanionId: {}, defaultAccess: null},
+      coParent: {
+        coParents: [],
+        accessByCompanionId: {},
+        defaultAccess: null,
+        lastFetchedRole: null,
+        loading: false,
+        error: null,
+      },
     };
     const {getByText} = setup(noAccessState);
     mockGetParent.mockReturnValue(navigationMock);
