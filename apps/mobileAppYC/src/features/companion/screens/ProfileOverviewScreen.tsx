@@ -45,6 +45,11 @@ import {deleteCompanion, updateCompanionProfile} from '@/features/companion/thun
 import {setSelectedCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import type {Companion} from '@/features/companion/types';
+import {selectAuthUser} from '@/features/auth/selectors';
+import {selectLinkedBusinesses} from '@/features/linkedBusinesses/selectors';
+import {selectTasksByCompanion} from '@/features/tasks/selectors';
+import {selectExpenseSummaryByCompanion} from '@/features/expenses';
+import {selectCoParents} from '@/features/coParent/selectors';
 
 // Profile Image Picker
 import {CompanionProfileHeader} from '@/features/companion/components/CompanionProfileHeader';
@@ -56,20 +61,20 @@ type ProfileSection = {
   status: 'Complete' | 'Pending';
 };
 
-const sections: ProfileSection[] = [
-  {id: 'overview', title: 'Overview', status: 'Complete'},
-  {id: 'parent', title: 'Parent', status: 'Complete'},
-  {id: 'documents', title: 'Documents', status: 'Pending'},
-  {id: 'hospital', title: 'Hospital', status: 'Pending'},
-  {id: 'boarder', title: 'Boarder', status: 'Pending'},
-  {id: 'breeder', title: 'Breeder', status: 'Pending'},
-  {id: 'groomer', title: 'Groomer', status: 'Pending'},
-  {id: 'expense', title: 'Expense', status: 'Pending'},
-  {id: 'health_tasks', title: 'Health tasks', status: 'Pending'},
-  {id: 'hygiene_tasks', title: 'Hygiene tasks', status: 'Pending'},
-  {id: 'dietary_plan', title: 'Dietary plan tasks', status: 'Pending'},
-  {id: 'custom_tasks', title: 'Custom tasks', status: 'Pending'},
-  {id: 'co_parent', title: 'Co-Parent (Optional)', status: 'Pending'},
+const SECTION_TEMPLATES: Omit<ProfileSection, 'status'>[] = [
+  {id: 'overview', title: 'Overview'},
+  {id: 'parent', title: 'Parent'},
+  {id: 'documents', title: 'Documents'},
+  {id: 'hospital', title: 'Hospital'},
+  {id: 'boarder', title: 'Boarder'},
+  {id: 'breeder', title: 'Breeder'},
+  {id: 'groomer', title: 'Groomer'},
+  {id: 'expense', title: 'Expense'},
+  {id: 'health_tasks', title: 'Health tasks'},
+  {id: 'hygiene_tasks', title: 'Hygiene tasks'},
+  {id: 'dietary_plan', title: 'Dietary plan tasks'},
+  {id: 'custom_tasks', title: 'Custom tasks'},
+  {id: 'co_parent', title: 'Co-Parent (Optional)'},
 ];
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ProfileOverview'>;
@@ -102,6 +107,99 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     () => allCompanions.find(c => c.id === companionId),
     [allCompanions, companionId],
   );
+
+  // Get data for status calculations
+  const authUser = useSelector(selectAuthUser);
+  const linkedBusinesses = useSelector(selectLinkedBusinesses);
+  const documents = useSelector((state: RootState) => state.documents?.documents ?? []);
+  const tasksSelector = React.useMemo(() => selectTasksByCompanion(companionId), [companionId]);
+  const tasks = useSelector(tasksSelector);
+  const expenseSummarySelector = React.useMemo(
+    () => selectExpenseSummaryByCompanion(companionId),
+    [companionId],
+  );
+  const expenseSummary = useSelector(expenseSummarySelector);
+  const coParents = useSelector(selectCoParents);
+
+  // Helper functions to calculate individual section statuses
+  const isParentComplete = React.useCallback((parentUser: typeof authUser): boolean => {
+    if (!parentUser) return false;
+    const hasBasicInfo = !!(parentUser.firstName && parentUser.email);
+    const hasAddress = !!(
+      parentUser.address?.addressLine ||
+      parentUser.address?.city ||
+      parentUser.address?.stateProvince ||
+      parentUser.address?.postalCode ||
+      parentUser.address?.country
+    );
+    const filledFields = [hasAddress, !!parentUser.phone, !!parentUser.dateOfBirth, !!parentUser.currency].filter(Boolean).length;
+    return hasBasicInfo && filledFields >= 2;
+  }, []);
+
+  const isBusinessCategoryComplete = React.useCallback((category: string): boolean => {
+    return linkedBusinesses.some(b => b.companionId === companionId && b.category === category);
+  }, [linkedBusinesses, companionId]);
+
+  const isTaskCategoryComplete = React.useCallback((sectionId: string): boolean => {
+    const categoryMap: Record<string, string> = {
+      health_tasks: 'health',
+      hygiene_tasks: 'hygiene',
+      dietary_plan: 'dietary',
+      custom_tasks: 'custom',
+    };
+    const category = categoryMap[sectionId];
+    return tasks.some(task => task.category === category);
+  }, [tasks]);
+
+  const isCoParentComplete = React.useCallback((): boolean => {
+    const userEmail = authUser?.email?.toLowerCase().trim();
+    return coParents.some(cp => {
+      const cpEmail = cp.email?.toLowerCase().trim();
+      return cpEmail && userEmail && cpEmail !== userEmail;
+    });
+  }, [coParents, authUser]);
+
+  // Calculate section statuses dynamically
+  const sections: ProfileSection[] = React.useMemo(() => {
+    const calculateStatus = (sectionId: string): 'Complete' | 'Pending' => {
+      switch (sectionId) {
+        case 'overview':
+          return 'Complete';
+
+        case 'parent':
+          return isParentComplete(authUser) ? 'Complete' : 'Pending';
+
+        case 'documents':
+          return documents.some(doc => doc.companionId === companionId) ? 'Complete' : 'Pending';
+
+        case 'hospital':
+        case 'boarder':
+        case 'breeder':
+        case 'groomer':
+          return isBusinessCategoryComplete(sectionId) ? 'Complete' : 'Pending';
+
+        case 'expense':
+          return expenseSummary && expenseSummary.total > 0 ? 'Complete' : 'Pending';
+
+        case 'health_tasks':
+        case 'hygiene_tasks':
+        case 'dietary_plan':
+        case 'custom_tasks':
+          return isTaskCategoryComplete(sectionId) ? 'Complete' : 'Pending';
+
+        case 'co_parent':
+          return isCoParentComplete() ? 'Complete' : 'Pending';
+
+        default:
+          return 'Pending';
+      }
+    };
+
+    return SECTION_TEMPLATES.map(template => ({
+      ...template,
+      status: calculateStatus(template.id),
+    }));
+  }, [authUser, documents, companionId, expenseSummary, isParentComplete, isBusinessCategoryComplete, isTaskCategoryComplete, isCoParentComplete]);
 
   const showPermissionToast = React.useCallback((label: string) => {
     const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
@@ -243,53 +341,60 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       case 'parent':
         navigation.navigate('EditParentOverview', {companionId});
         break;
-      case 'documents':
+      case 'documents': {
         if (!guardFeature('documents', 'documents')) {
           return;
         }
         dispatch(setSelectedCompanion(companionId));
         navigation.getParent()?.navigate('Documents', {screen: 'DocumentsMain'});
         break;
+      }
       case 'hospital':
       case 'boarder':
       case 'breeder':
-      case 'groomer':
+      case 'groomer': {
         if (!guardFeature('appointments', 'clinic access')) {
           return;
         }
         navigateToLinkedBusiness(sectionId);
         break;
-      case 'expense':
+      }
+      case 'expense': {
         if (!guardFeature('expenses', 'expenses')) {
           return;
         }
         dispatch(setSelectedCompanion(companionId));
         navigation.navigate('ExpensesStack', {screen: 'ExpensesMain'});
         break;
-      case 'health_tasks':
+      }
+      case 'health_tasks': {
         if (!guardFeature('tasks', 'tasks')) {
           return;
         }
         navigateToTasks('health');
         break;
-      case 'hygiene_tasks':
+      }
+      case 'hygiene_tasks': {
         if (!guardFeature('tasks', 'tasks')) {
           return;
         }
         navigateToTasks('hygiene');
         break;
-      case 'dietary_plan':
+      }
+      case 'dietary_plan': {
         if (!guardFeature('tasks', 'tasks')) {
           return;
         }
         navigateToTasks('dietary');
         break;
-      case 'custom_tasks':
+      }
+      case 'custom_tasks': {
         if (!guardFeature('tasks', 'tasks')) {
           return;
         }
         navigateToTasks('custom');
         break;
+      }
       case 'co_parent':
         navigation.navigate('CoParents');
         break;

@@ -478,9 +478,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                 borderColor={theme.colors.secondary}
                 style={styles.logoutButton}
                 textStyle={styles.logoutText}
-                leftIcon={
-                  <Image source={Images.logoutIcon} style={styles.logoutIcon} />
-                }
               />
               {!!appVersion && (
                 <Text style={styles.versionText}>Version {appVersion}</Text>
@@ -605,12 +602,6 @@ const createStyles = (theme: any) => {
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginTop: theme.spacing['2'],
-    },
-    logoutIcon: {
-      width: theme.spacing['4.5'],
-      height: theme.spacing['4.5'],
-      resizeMode: 'contain',
-      tintColor: theme.colors.secondary,
     },
   });
 };
