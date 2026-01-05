@@ -1,9 +1,10 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Alert, ScrollView, View, Text, StyleSheet, TouchableOpacity, ViewStyle} from 'react-native';
+import {Alert, ScrollView, View, Text, StyleSheet, ViewStyle} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {FilterPills, type FilterOption} from '@/shared/components/common/FilterPills';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
 import {fetchBusinesses, upsertBusiness} from '@/features/appointments/businessesSlice';
@@ -25,8 +26,8 @@ import {TabParamList} from '@/navigation/types';
 import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
 import {mapSelectionToVetBusiness} from '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness';
 
-const CATEGORIES: ({label: string, id?: BusinessCategory})[] = [
-  {label: 'All'},
+const CATEGORIES: FilterOption<BusinessCategory | undefined>[] = [
+  {label: 'All', id: undefined},
   {label: 'Hospital', id: 'hospital'},
   {label: 'Groomer', id: 'groomer'},
   {label: 'Breeder', id: 'breeder'},
@@ -251,8 +252,6 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
   const rootRef = React.useRef<View | null>(null);
   const searchBarRef = useRef<View | null>(null);
-  const categoryScrollRef = useRef<ScrollView | null>(null);
-  const categoryPillRefs = useRef<Map<string, View>>(new Map());
   const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
   const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
   const filteredBusinesses = useMemo(
@@ -412,20 +411,6 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   const allCategories = ['hospital','groomer','breeder','pet_center','boarder'] as const;
 
-  useEffect(() => {
-    const currentCategory = category ?? 'All';
-    const pillView = categoryPillRefs.current.get(currentCategory);
-    if (pillView && categoryScrollRef.current) {
-      pillView.measureLayout(
-        categoryScrollRef.current as any,
-        (x) => {
-          categoryScrollRef.current?.scrollTo({x: x - 20, animated: true});
-        },
-        () => {},
-      );
-    }
-  }, [category]);
-
   const resolveDescription = React.useCallback((biz: VetBusiness) => {
     if (biz.address && biz.address.trim().length > 0) {
       return biz.address.trim();
@@ -471,35 +456,11 @@ export const BrowseBusinessesScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
         glass={false}
       />
-      <ScrollView
-        ref={categoryScrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pillsContent}>
-        {CATEGORIES.map(p => (
-          <TouchableOpacity
-            key={p.label}
-            ref={node => {
-              if (node) {
-                categoryPillRefs.current.set(p.id ?? 'All', node);
-              }
-            }}
-            style={[
-              styles.pill,
-              (p.id ?? undefined) === category && styles.pillActive,
-            ]}
-            activeOpacity={0.8}
-            onPress={() => setCategory(p.id)}>
-            <Text
-              style={[
-                styles.pillText,
-                (p.id ?? undefined) === category && styles.pillTextActive,
-              ]}>
-              {p.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <FilterPills<BusinessCategory | undefined>
+        options={CATEGORIES}
+        selected={category}
+        onSelect={setCategory}
+      />
       <View
         ref={node => {
           searchBarRef.current = node;
@@ -611,11 +572,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingBottom: theme.spacing['24'],
     gap: theme.spacing['4'],
   },
-  pillsContent: {
-    gap: theme.spacing['2'],
-    paddingRight: theme.spacing['2'],
-    paddingHorizontal: theme.spacing['6'],
-  },
   headerContent: {
     gap: theme.spacing['4'],
     paddingHorizontal: theme.spacing['1'],
@@ -623,29 +579,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   resultsWrapper: {
     gap: theme.spacing['4'],
     marginTop: theme.spacing['2'],
-  },
-  pill: {
-    minWidth: 80,
-    height: 40,
-    paddingHorizontal: theme.spacing['4'],
-    paddingVertical: theme.spacing['1.25'],
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.text,
-    backgroundColor: theme.colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pillActive: {
-    backgroundColor: theme.colors.lightBlueBackground,
-    borderColor: theme.colors.primary,
-  },
-  pillText: {
-    ...theme.typography.pillSubtitleBold15,
-    color: theme.colors.text,
-  },
-  pillTextActive: {
-    color: theme.colors.primary,
   },
   sectionHeaderRow: {
     flexDirection: 'row',

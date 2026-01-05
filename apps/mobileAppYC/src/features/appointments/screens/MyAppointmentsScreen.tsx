@@ -5,8 +5,6 @@ import {
   Text,
   StyleSheet,
   Image,
-  TouchableOpacity,
-  ScrollView,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -15,6 +13,7 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
+import {FilterPills, type FilterOption} from '@/shared/components/common/FilterPills';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -62,8 +61,6 @@ export const MyAppointmentsScreen: React.FC = () => {
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
-  const filterScrollRef = React.useRef<ScrollView | null>(null);
-  const filterPillRefs = React.useRef<Map<BusinessFilter, View>>(new Map());
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
@@ -130,6 +127,14 @@ export const MyAppointmentsScreen: React.FC = () => {
     () => [...filteredUpcoming, ...filteredPast],
     [filteredPast, filteredUpcoming],
   );
+
+  const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
+    {id: 'all', label: 'All'},
+    {id: 'hospital', label: 'Hospital'},
+    {id: 'groomer', label: 'Groomer'},
+    {id: 'breeder', label: 'Breeder'},
+    {id: 'boarder', label: 'Boarder'},
+  ];
 
   // Show permission toast when appointments access is denied
   React.useEffect(() => {
@@ -247,19 +252,6 @@ export const MyAppointmentsScreen: React.FC = () => {
       fetchOrgRatingIfNeeded(apt.businessId);
     });
   }, [fetchOrgRatingIfNeeded, filteredPast]);
-
-  useEffect(() => {
-    const pillView = filterPillRefs.current.get(filter);
-    if (pillView && filterScrollRef.current) {
-      pillView.measureLayout(
-        filterScrollRef.current as any,
-        (x) => {
-          filterScrollRef.current?.scrollTo({x: x - 20, animated: true});
-        },
-        () => {},
-      );
-    }
-  }, [filter]);
 
   const renderEmptyCard = (title: string, subtitle: string) => (
     <LiquidGlassCard
@@ -520,14 +512,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     // console.log('Reached end of past appointments');
   };
 
-  const FILTER_OPTIONS: Array<{id: BusinessFilter; label: string}> = [
-    {id: 'all', label: 'All'},
-    {id: 'hospital', label: 'Hospital'},
-    {id: 'groomer', label: 'Groomer'},
-    {id: 'breeder', label: 'Breeder'},
-    {id: 'boarder', label: 'Boarder'},
-  ];
-
   return (
     <LiquidGlassHeaderScreen
       header={
@@ -540,35 +524,11 @@ export const MyAppointmentsScreen: React.FC = () => {
             glass={false}
           />
           <View style={styles.pillContainer}>
-            <ScrollView
-              ref={filterScrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pillsContent}>
-              {FILTER_OPTIONS.map(option => (
-                <TouchableOpacity
-                  key={option.id}
-                  ref={node => {
-                    if (node) {
-                      filterPillRefs.current.set(option.id, node);
-                    }
-                  }}
-                  style={[
-                    styles.pill,
-                    filter === option.id && styles.pillActive,
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => setFilter(option.id)}>
-                  <Text
-                    style={[
-                      styles.pillText,
-                      filter === option.id && styles.pillTextActive,
-                    ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <FilterPills<BusinessFilter>
+              options={FILTER_OPTIONS}
+              selected={filter}
+              onSelect={setFilter}
+            />
           </View>
         </>
       }
@@ -726,34 +686,6 @@ const createStyles = (theme: any) =>
     sectionHeaderWrapper: {marginTop: theme.spacing['4'], marginBottom: theme.spacing['2'], gap: theme.spacing['2']},
     sectionTitle: {...theme.typography.titleMedium, color: theme.colors.secondary},
     pillContainer: {marginBottom: theme.spacing['3'], marginTop: 6},
-    pillsContent: {
-      gap: theme.spacing['2'],
-      paddingRight: theme.spacing['2'],
-      paddingHorizontal: theme.spacing['6'],
-    },
-    pill: {
-      minWidth: 80,
-      height: 40,
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['1.25'],
-      borderRadius: theme.borderRadius.md,
-      borderWidth: 1,
-      borderColor: theme.colors.text,
-      backgroundColor: theme.colors.white,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    pillActive: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
-    },
-    pillText: {
-      ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.text,
-    },
-    pillTextActive: {
-      color: theme.colors.primary,
-    },
     list: {gap: theme.spacing['4']},
     cardWrapper: {marginBottom: theme.spacing['4']},
     statusBadgePending: {

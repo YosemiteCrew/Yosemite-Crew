@@ -225,9 +225,10 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['3'],
     }, // Added marginBottom
     avatar: {
-      width: theme.spacing['16'],
-      height: theme.spacing['16'],
-      borderRadius: theme.borderRadius.full,
+      width: 74,
+      height: 74,
+      aspectRatio: 1,
+      borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.primarySurface,
     },
     actionButton: {

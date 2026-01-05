@@ -196,12 +196,19 @@ const buildGlassSurfaceStyle = ({
     : shadowIntensity;
 
   // If light tint, no border at all unless forceBorder is explicitly set
-  const borderWidth = shouldAddBorder ? 1 : (isLightTint ? 0 : 0.5);
-  const borderColorValue =
-    borderColor ??
-    (isLightTint
-      ? 'rgba(0, 0, 0, 0.15)'
-      : 'rgba(255, 255, 255, 0.2)');
+  let borderWidth: number;
+  if (shouldAddBorder) {
+    borderWidth = 1;
+  } else if (isLightTint) {
+    borderWidth = 0;
+  } else {
+    borderWidth = 0.5;
+  }
+
+  const defaultBorderColor = isLightTint
+    ? 'rgba(0, 0, 0, 0.15)'
+    : 'rgba(255, 255, 255, 0.2)';
+  const borderColorValue = borderColor ?? defaultBorderColor;
 
   return {
     borderWidth,
