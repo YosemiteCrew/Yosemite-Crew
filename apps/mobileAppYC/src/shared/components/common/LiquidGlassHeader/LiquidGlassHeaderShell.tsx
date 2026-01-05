@@ -20,7 +20,7 @@ export const LiquidGlassHeaderShell: React.FC<LiquidGlassHeaderShellProps> = ({
   children,
   contentPadding,
   cardGap,
-  showBottomFade = true,
+  showBottomFade = false,
   bottomFadeHeight = 80,
   bottomFadeIntensity = 'medium',
   bottomFadeOffset = 0,

@@ -38,6 +38,7 @@ export function SearchDropdownOverlay<T = unknown>({
   containerStyle,
   scrollEnabledThreshold = 5,
   useGlassCard = false,
+  glassEffect = 'clear',
   items,
   keyExtractor,
   onPress,
@@ -81,17 +82,14 @@ export function SearchDropdownOverlay<T = unknown>({
     </ScrollView>
   );
 
-  const resolvedGlassEffect = 'none';
-  const resolvedShadow = 'md';
-
   return (
     <View style={[styles.absoluteContainer, containerStyle]}>
       {useGlassCard ? (
         <LiquidGlassCard
-          glassEffect={resolvedGlassEffect}
+          glassEffect={glassEffect}
           interactive
           padding="0"
-          shadow={resolvedShadow}
+          shadow="md"
           style={styles.glassCard}
           fallbackStyle={styles.glassCardFallback}>
           {scrollView}

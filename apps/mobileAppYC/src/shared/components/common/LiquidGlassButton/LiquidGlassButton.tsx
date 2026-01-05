@@ -188,7 +188,15 @@ const buildGlassSurfaceStyle = ({
   shadowIntensity: GlassButtonProps['shadowIntensity'];
   themeShadows: any;
 }): ViewStyle => {
-  const shouldAddBorder = forceBorder || isLightTint;
+  const shouldAddBorder = forceBorder;
+
+  // For light tint buttons, remove border and force a shadow instead
+  const effectiveShadowIntensity = isLightTint && shadowIntensity === 'light'
+    ? 'medium'
+    : shadowIntensity;
+
+  // If light tint, no border at all unless forceBorder is explicitly set
+  const borderWidth = shouldAddBorder ? 1 : (isLightTint ? 0 : 0.5);
   const borderColorValue =
     borderColor ??
     (isLightTint
@@ -196,9 +204,9 @@ const buildGlassSurfaceStyle = ({
       : 'rgba(255, 255, 255, 0.2)');
 
   return {
-    borderWidth: shouldAddBorder ? 1 : 0.5,
+    borderWidth,
     borderColor: borderColorValue,
-    ...(shouldAddBorder ? buildShadowStyle(shadowIntensity, themeShadows) : {}),
+    ...buildShadowStyle(effectiveShadowIntensity, themeShadows),
   };
 };
 

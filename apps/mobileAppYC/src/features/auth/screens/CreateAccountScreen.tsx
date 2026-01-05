@@ -988,7 +988,8 @@ const handleGoBack = useCallback(async () => {
         />
       }
       cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      contentPadding={theme.spacing['1']}
+      showBottomFade={false}>
       {contentPaddingStyle => (
         <>
           <KeyboardAvoidingView
@@ -1044,7 +1045,7 @@ const handleGoBack = useCallback(async () => {
           <View style={styles.bottomSheetContainer}>
             <CustomBottomSheet
               ref={successBottomSheetRef}
-              snapPoints={['35%', '50%']}
+              snapPoints={['50%', '75%']}
               initialIndex={1}
               enablePanDownToClose
               enableBackdrop
@@ -1056,7 +1057,13 @@ const handleGoBack = useCallback(async () => {
               enableContentPanningGesture={false}
               enableOverDrag
               backgroundStyle={styles.bottomSheetBackground}
-              handleIndicatorStyle={styles.bottomSheetHandle}>
+              handleIndicatorStyle={styles.bottomSheetHandle}
+              onChange={(index) => {
+                // When sheet is closed by dragging down or backdrop press, index becomes -1
+                if (index === -1) {
+                  handleSuccessClose();
+                }
+              }}>
               <View style={styles.successContent}>
                 <Image
                   source={Images.verificationSuccess}
@@ -1144,6 +1151,16 @@ const createStyles = (theme: any) =>
       ...theme.typography.body,
       color: theme.colors.primary,
       textDecorationLine: 'underline',
+    },
+    buttonContainer: {
+      position: 'absolute',
+      bottom: theme.spacing['6'],
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['4'],
+      paddingBottom: theme.spacing['4'],
+      backgroundColor: theme.colors.background,
     },
     bottomSheetContainer: {
       position: 'absolute',

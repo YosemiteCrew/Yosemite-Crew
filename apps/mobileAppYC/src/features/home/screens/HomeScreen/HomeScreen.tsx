@@ -1182,7 +1182,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <SearchBar
-          placeholder="Search services"
+          placeholder="Search for nearby businesses"
           mode="input"
           value={searchQuery}
           onChangeText={text => {

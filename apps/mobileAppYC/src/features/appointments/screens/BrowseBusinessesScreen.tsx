@@ -506,7 +506,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
         }}
         onLayout={updateSearchBarBottom}>
         <SearchBar
-          placeholder="Search for services"
+          placeholder="Search for nearby businesses"
           mode="input"
           value={searchQuery}
           onChangeText={text => {
