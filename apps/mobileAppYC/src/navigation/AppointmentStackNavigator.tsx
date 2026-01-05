@@ -11,7 +11,6 @@ import {BookingFormScreen} from '@/features/appointments/screens/BookingFormScre
 import {ViewAppointmentScreen} from '@/features/appointments/screens/ViewAppointmentScreen';
 import {PaymentInvoiceScreen, PaymentSuccessScreen} from '@/features/payments';
 import {ReviewScreen} from '@/features/appointments/screens/ReviewScreen';
-import {ChatScreen} from '@/features/appointments/screens/ChatScreen';
 import {ChatChannelScreen} from '@/features/chat/screens/ChatChannelScreen';
 import {EditAppointmentScreen} from '@/features/appointments/screens/EditAppointmentScreen';
 import {BusinessesListScreen} from '@/features/appointments/screens/BusinessesListScreen';
@@ -60,7 +59,6 @@ export const AppointmentStackNavigator: React.FC = () => {
       <Stack.Screen name="PaymentInvoice" component={PaymentInvoiceScreen} />
       <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
       <Stack.Screen name="Review" component={ReviewScreen} />
-      <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="ChatChannel" component={ChatChannelScreen} />
       <Stack.Screen name="EditAppointment" component={EditAppointmentScreen} />
       <Stack.Screen name="BusinessesList" component={BusinessesListScreen} />

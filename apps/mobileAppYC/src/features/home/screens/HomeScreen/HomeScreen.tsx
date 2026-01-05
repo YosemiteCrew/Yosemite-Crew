@@ -1084,21 +1084,19 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
 
     return (
-      <View style={styles.yearlySpendShadowWrapper}>
-        <YearlySpendCard
-          amount={expenseSummary?.total ?? 0}
-          currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
-          currencySymbol={resolveCurrencySymbol(
-            expenseSummary?.currencyCode ?? userCurrencyCode,
-            '$',
-          )}
-          onPressView={() =>
-            navigation.navigate('ExpensesStack', {
-              screen: 'ExpensesMain',
-            })
-          }
-        />
-      </View>
+      <YearlySpendCard
+        amount={expenseSummary?.total ?? 0}
+        currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
+        currencySymbol={resolveCurrencySymbol(
+          expenseSummary?.currencyCode ?? userCurrencyCode,
+          '$',
+        )}
+        onPressView={() =>
+          navigation.navigate('ExpensesStack', {
+            screen: 'ExpensesMain',
+          })
+        }
+      />
     );
   };
 
@@ -1485,10 +1483,6 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       ...theme.shadows.md,
       shadowColor: theme.colors.neutralShadow,
-    },
-    yearlySpendShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     tileTitle: sharedTileStyles(theme).tileTitle,
     tileSubtitle: sharedTileStyles(theme).tileSubtitle,

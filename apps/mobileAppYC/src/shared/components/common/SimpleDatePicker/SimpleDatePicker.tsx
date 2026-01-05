@@ -69,8 +69,8 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
     return null;
   }
 
-  const sheetBackground = isDarkMode ? theme.colors.gray800 : theme.colors.white;
-  const dividerColor = isDarkMode ? theme.colors.borderMuted : theme.colors.border;
+  const sheetBackground = isDarkMode ? theme.colors.secondary : theme.colors.white;
+  const dividerColor = isDarkMode ? theme.colors.borderMuted : theme.colors.black;
   const overlayColor = theme.colors.overlay;
   const primaryTextColor = theme.colors.primary;
   const pickerTextColor = isDarkMode ? theme.colors.white : theme.colors.black;

@@ -117,7 +117,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
 };
 
 const createStyles = (theme: any) => {
-  const glassCardStyles = createGlassCardStyles(theme);
+  const glassCardStyles = createGlassCardStyles(theme, {borderWidth: 0});
   const contentStyles = createCardContentStyles(theme, '4');
   const textStyles = createTextContainerStyles(theme, '1');
 

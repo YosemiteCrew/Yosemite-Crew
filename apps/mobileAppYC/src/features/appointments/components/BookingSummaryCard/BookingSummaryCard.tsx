@@ -130,8 +130,8 @@ const createStyles = (theme: any) =>
     },
     card: {
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderWidth: 0,
+      borderColor: 'transparent',
       backgroundColor: theme.colors.cardBackground,
       padding: theme.spacing['3'],
     },

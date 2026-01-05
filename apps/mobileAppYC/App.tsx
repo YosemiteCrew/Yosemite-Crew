@@ -34,6 +34,7 @@ import {
   initializeNotifications,
   type NotificationNavigationIntent,
 } from '@/shared/services/firebaseNotifications';
+import {fetchMobileConfig, type MobileConfig} from '@/shared/services/mobileConfig';
 import {
   registerDeviceToken,
   unregisterDeviceToken,
@@ -59,6 +60,8 @@ LogBox.ignoreLogs([
 
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [mobileConfig, setMobileConfig] = useState<MobileConfig | null>(null);
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   const pendingIntentRef = useRef<NotificationNavigationIntent | null>(null);
 
@@ -67,12 +70,42 @@ function App(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!STRIPE_CONFIG.publishableKey) {
+    let mounted = true;
+
+    const loadMobileConfig = async () => {
+      try {
+        const config = await fetchMobileConfig();
+        if (mounted) {
+          setMobileConfig(config);
+        }
+      } catch (error) {
+        if (mounted) {
+          console.warn('[MobileConfig] Failed to fetch config', error);
+        }
+      } finally {
+        if (mounted) {
+          setIsConfigLoading(false);
+        }
+      }
+    };
+
+    loadMobileConfig();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const resolvedPublishableKey =
+    mobileConfig?.stripePublishableKey ?? STRIPE_CONFIG.publishableKey;
+
+  useEffect(() => {
+    if (!resolvedPublishableKey && !isConfigLoading) {
       console.warn(
-        '[Stripe] Missing publishableKey. Add STRIPE_CONFIG in variables.local.ts to enable payments.',
+        '[Stripe] Missing publishableKey from mobile config API and local config.',
       );
     }
-  }, []);
+  }, [isConfigLoading, resolvedPublishableKey]);
 
   const handleSplashAnimationEnd = () => {
     setIsSplashVisible(false);
@@ -100,6 +133,10 @@ function App(): React.JSX.Element {
     return <CustomSplashScreen onAnimationEnd={handleSplashAnimationEnd} />;
   }
 
+  if (isConfigLoading) {
+    return <CustomSplashScreen onAnimationEnd={handleSplashAnimationEnd} />;
+  }
+
   return (
     <Provider store={store}>
       <PersistGate loading={<CustomSplashScreen onAnimationEnd={() => {}} />} persistor={persistor}>
@@ -110,7 +147,7 @@ function App(): React.JSX.Element {
                 <GlobalLoaderProvider>
                   <NotificationBootstrap onNavigate={handleNotificationNavigation}>
                     <StripeProvider
-                      publishableKey={STRIPE_CONFIG.publishableKey}
+                      publishableKey={resolvedPublishableKey ?? ''}
                       urlScheme={STRIPE_CONFIG.urlScheme}
                     >
                       <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>

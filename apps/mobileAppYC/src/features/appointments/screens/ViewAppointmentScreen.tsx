@@ -583,7 +583,6 @@ const ActionButtons = ({
           height={56}
           borderRadius={16}
           glassEffect="clear"
-          tintColor={theme.colors.surface}
           forceBorder
           borderColor={theme.colors.secondary}
           textStyle={styles.secondaryButtonText}

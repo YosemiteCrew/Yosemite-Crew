@@ -56,7 +56,7 @@ const FAQCard: React.FC<{
   theme: any;
 }> = ({faq, isExpanded, relatedEntries, helpfulSelection, onToggle, onHelpfulSelect, onRelatedPress, styles, theme}) => (
   <LiquidGlassCard
-    glassEffect="regular"
+    glassEffect="clear"
     interactive
     style={styles.faqCard}
     fallbackStyle={styles.cardFallback}>
@@ -81,9 +81,7 @@ const FAQCard: React.FC<{
               glassEffect="regular"
               interactive
               borderRadius="xl"
-              forceBorder
               tintColor={theme.colors.secondary}
-              borderColor={theme.colors.secondary}
               style={[styles.glassButtonDark, helpfulSelection === 'yes' && styles.glassButtonSelected]}
               textStyle={styles.glassButtonDarkText}
               onPress={() => onHelpfulSelect(faq.id, 'yes')}
@@ -311,6 +309,8 @@ const createStyles = (theme: any) => {
     },
     pillContainer: {
       paddingHorizontal: theme.spacing['6'],
+      marginBlock: theme.spacing['2'],
+      marginTop: 6,
     },
     faqList: {
       gap: theme.spacing['4'],
@@ -420,8 +420,6 @@ const createStyles = (theme: any) => {
       alignItems: 'center',
       flexDirection: 'row',
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.secondary,
     },
     glassButtonSelected: {
       borderColor: theme.colors.secondary,

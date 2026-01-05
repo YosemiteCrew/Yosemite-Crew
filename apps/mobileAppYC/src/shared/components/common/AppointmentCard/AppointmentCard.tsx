@@ -207,15 +207,16 @@ const createStyles = (theme: any) =>
     },
     card: {
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderWidth: 0,
+      borderColor: 'transparent',
       backgroundColor: theme.colors.cardBackground,
       padding: theme.spacing['4'],
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     topRow: {
       flexDirection: 'row',
