@@ -5,6 +5,7 @@ import {
   FormVersionModel,
   FormSubmissionModel,
   FormSubmissionDocument,
+  IFormVersionDocument,
 } from "../models/form";
 
 import {
@@ -17,8 +18,10 @@ import {
   fromFormSubmissionRequestDTO,
   FormSubmissionRequestDTO,
   toFHIRQuestionnaireResponse,
+  toFHIRQuestionnaire,
 } from "@yosemite-crew/types";
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
+import AppointmentModel from "src/models/appointment";
 
 export class FormServiceError extends Error {
   constructor(
@@ -504,9 +507,7 @@ export const FormService = {
     return toFormResponseDTO(clientForm);
   },
 
-  async generatePDFForSubmission(
-    submissionId: string,
-  ): Promise<Buffer> {
+  async generatePDFForSubmission(submissionId: string): Promise<Buffer> {
     const sid = ensureObjectId(submissionId, "submissionId");
 
     const submission = await FormSubmissionModel.findById(sid).lean();
@@ -534,5 +535,131 @@ export const FormService = {
     const pdfBuffer = await renderPdf(vm);
 
     return pdfBuffer;
+  },
+
+  async getFormsForAppointment(params: {
+    appointmentId: string;
+    serviceId?: string;
+    species?: string;
+  }) {
+    type LeanForm = Omit<Form, "_id"> & { _id: Types.ObjectId };
+    type VersionAgg = Pick<
+      IFormVersionDocument,
+      "formId" | "schemaSnapshot" | "version"
+    > & { _id: Types.ObjectId };
+    type SubmissionAgg = FormSubmissionDocument & {
+      _id: Types.ObjectId;
+      formId: Types.ObjectId;
+    };
+
+    const appointmentId = ensureObjectId(
+      params.appointmentId,
+      "appointmentId",
+    ).toString();
+
+    const appointment = await AppointmentModel.findById(appointmentId).lean();
+    if (!appointment) {
+      throw new FormServiceError("Appointment not found", 404);
+    }
+
+    const formIds = (appointment.formIds ?? []).map(String);
+    if (!formIds.length) {
+      return { appointmentId, items: [] };
+    }
+
+    // 1️⃣ Load forms
+    const forms = await FormModel.find({
+      _id: { $in: formIds },
+      status: "published",
+    }).lean<LeanForm[]>();
+
+    // 2️⃣ Load latest form versions
+    const versions = await FormVersionModel.aggregate<VersionAgg>([
+      { $match: { formId: { $in: forms.map((f) => f._id) } } },
+      { $sort: { version: -1 } },
+      {
+        $group: {
+          _id: "$formId",
+          doc: { $first: "$$ROOT" },
+        },
+      },
+      { $replaceRoot: { newRoot: "$doc" } },
+    ]);
+
+    const versionMap = new Map<string, VersionAgg>(
+      versions.map((v) => [normalizeObjectId(v.formId), v]),
+    );
+
+    // 3️⃣ Load latest submissions per form
+    const submissions = await FormSubmissionModel.aggregate<SubmissionAgg>([
+      {
+        $match: {
+          appointmentId,
+          formId: { $in: forms.map((f) => f._id) },
+        },
+      },
+      { $sort: { submittedAt: -1 } },
+      {
+        $group: {
+          _id: "$formId",
+          doc: { $first: "$$ROOT" },
+        },
+      },
+      { $replaceRoot: { newRoot: "$doc" } },
+    ]);
+
+    const submissionMap = new Map<string, SubmissionAgg>(
+      submissions.map((s) => [s.formId.toString(), s]),
+    );
+
+    // 4️⃣ Build FHIR response
+    const items: {
+      questionnaire: ReturnType<typeof toFHIRQuestionnaire>;
+      questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
+      status: "completed" | "pending";
+    }[] = [];
+
+    for (const form of forms) {
+      const formId = form._id.toString();
+      const version = versionMap.get(formId);
+      if (!version) continue;
+
+      // FHIR Questionnaire
+      const questionnaire = toFHIRQuestionnaire({
+        ...form,
+        _id: form._id.toString(),
+      });
+
+      // Optional FHIR QuestionnaireResponse
+      const submission = submissionMap.get(formId);
+      const questionnaireResponse = submission
+        ? toFHIRQuestionnaireResponse(
+            {
+              _id: submission._id.toString(),
+              formId: submission.formId.toString(),
+              formVersion: submission.formVersion,
+              appointmentId: submission.appointmentId,
+              companionId: submission.companionId,
+              parentId: submission.parentId,
+              submittedBy: submission.submittedBy,
+              answers: submission.answers,
+              submittedAt: submission.submittedAt,
+              signing: submission.signing,
+            } satisfies FormSubmission,
+            version.schemaSnapshot,
+          )
+        : undefined;
+
+      items.push({
+        questionnaire,
+        questionnaireResponse,
+        status: questionnaireResponse ? "completed" : "pending",
+      });
+    }
+
+    return {
+      appointmentId,
+      items,
+    };
   },
 };

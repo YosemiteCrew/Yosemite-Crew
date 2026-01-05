@@ -3,17 +3,15 @@ import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
-const BASE_URL = process.env["DOCUMENSO_BASE_URL"] ?? "your-documenso-domain.com";
+const BASE_URL =
+  process.env["DOCUMENSO_BASE_URL"] ?? "your-documenso-domain.com";
 
 const documenso = new Documenso({
   apiKey: process.env["DOCUMENSO_API_KEY"] ?? "", // Ensure API key is set in environment variables
   serverURL: BASE_URL,
 });
 
-async function uploadPdfBuffer(
-  pdf: Buffer,
-  uploadUrl: string
-) {
+async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
   const response = await fetch(uploadUrl, {
     method: "PUT",
     body: new Uint8Array(pdf),
@@ -63,9 +61,8 @@ export class DocumensoService {
       const { document, uploadUrl } = createDocumentResponse;
 
       await uploadPdfBuffer(pdf, uploadUrl);
-      
-      return document;
 
+      return document;
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
         logger.error("API error:", error.message);
@@ -76,16 +73,12 @@ export class DocumensoService {
       }
     }
   }
-  
-  static async distributeDocument({
-    documentId,
-  }: {
-    documentId: number;
-  }) {
+
+  static async distributeDocument({ documentId }: { documentId: number }) {
     try {
       const distributeResponse = await documenso.documents.distribute({
         documentId: documentId,
-      })
+      });
       console.log("Distribute Response:", distributeResponse);
       return distributeResponse;
     } catch (error) {

@@ -1,10 +1,7 @@
 import { Request, Response } from "express";
 import crypto from "node:crypto";
 import { HydratedDocument } from "mongoose";
-import {
-  FormSubmissionDocument,
-  FormSubmissionModel,
-} from "src/models/form";
+import { FormSubmissionDocument, FormSubmissionModel } from "src/models/form";
 
 interface DocumensoWebhookBody {
   event?: string;
@@ -16,17 +13,14 @@ interface DocumensoWebhookBody {
 function verifySignature(
   payload: Buffer,
   signature: string,
-  secret: string
+  secret: string,
 ): boolean {
   const expected = crypto
     .createHmac("sha256", secret)
     .update(payload)
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signature)
-  );
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
 export const DocumensoWebhookController = {
@@ -34,14 +28,16 @@ export const DocumensoWebhookController = {
     try {
       const rawBody = req.body as Buffer;
 
-      const signature = req.headers["x-documenso-signature"] as string | undefined;
+      const signature = req.headers["x-documenso-signature"] as
+        | string
+        | undefined;
       if (process.env.DOCUMENSO_WEBHOOK_SECRET) {
         if (!signature) return res.status(401).end();
 
         const valid = verifySignature(
           rawBody,
           signature,
-          process.env.DOCUMENSO_WEBHOOK_SECRET
+          process.env.DOCUMENSO_WEBHOOK_SECRET,
         );
 
         if (!valid) return res.status(401).end();
@@ -64,7 +60,7 @@ export const DocumensoWebhookController = {
       if (!submission) {
         console.warn(
           "[DocumensoWebhook] No submission found for document",
-          documentId
+          documentId,
         );
         return res.status(200).json({ received: true });
       }
