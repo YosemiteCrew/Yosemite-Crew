@@ -12,7 +12,6 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   return authRequest.userId;
 };
 
-
 export const FormSigningController = {
   startSigning: async (req: Request, res: Response) => {
     try {
@@ -38,7 +37,7 @@ export const FormSigningController = {
       const userId = resolveUserIdFromRequest(req);
 
       const authUser = await AuthUserMobileService.getByProviderUserId(userId!);
-      
+
       if (!authUser) {
         throw new Error("Unauthorized");
       }
@@ -60,7 +59,7 @@ export const FormSigningController = {
   getSignedDocument: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.submissionId;
-      
+
       const result = await FormSigningService.getSignedDocument({
         submissionId,
       });

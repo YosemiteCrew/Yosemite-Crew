@@ -1,4 +1,8 @@
-import { FormModel, FormSubmissionModel, FormVersionModel } from "src/models/form";
+import {
+  FormModel,
+  FormSubmissionModel,
+  FormVersionModel,
+} from "src/models/form";
 import { DocumensoService } from "./documenso.service";
 import { generateFormSubmissionPdf } from "./formPDF.service";
 import { ParentModel } from "src/models/parent";
@@ -55,8 +59,8 @@ export class FormSigningService {
     if (isParent) {
       logger.info("Signing initiated by parent: ", initiatedBy);
       const parent = await ParentModel.findById(initiatedBy).lean();
-      
-      if(!parent){
+
+      if (!parent) {
         throw new Error("Unbale to find parent");
       }
 
@@ -80,7 +84,7 @@ export class FormSigningService {
     const doc = await DocumensoService.createDocument({
       pdf,
       signerEmail,
-      signerName: signerName
+      signerName: signerName,
     });
 
     if (!doc || typeof doc.id !== "number") {
@@ -106,15 +110,11 @@ export class FormSigningService {
     await submission.save();
     return {
       documentId: doc.id,
-      signingUrl: `${process.env.DOCUMENSO_URL}/sign/${doc.recipients[0].token}`
+      signingUrl: `${process.env.DOCUMENSO_URL}/sign/${doc.recipients[0].token}`,
     };
   }
 
-  static async getSignedDocument({
-    submissionId,
-  }: {
-    submissionId: string;
-  }) {
+  static async getSignedDocument({ submissionId }: { submissionId: string }) {
     // 1️⃣ Load submission
     const submission = await FormSubmissionModel.findById(submissionId);
     if (!submission) {

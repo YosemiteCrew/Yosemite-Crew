@@ -52,6 +52,8 @@ export interface AppointmentMongo {
     contentType?: string;
   }[];
 
+  formIds?: string[];
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -131,6 +133,8 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
         contentType: { type: String },
       },
     ],
+
+    formIds: { type: [String], default: [] },
   },
   { timestamps: true },
 );
