@@ -95,6 +95,8 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
               onOpenMedicationTypeSheet={sheetHandlers.onOpenMedicationTypeSheet}
               onOpenDosageSheet={sheetHandlers.onOpenDosageSheet}
               onOpenMedicationFrequencySheet={sheetHandlers.onOpenMedicationFrequencySheet}
+              onOpenStartDatePicker={sheetHandlers.onOpenStartDatePicker}
+              onOpenEndDatePicker={sheetHandlers.onOpenEndDatePicker}
               theme={theme}
             />
           )}

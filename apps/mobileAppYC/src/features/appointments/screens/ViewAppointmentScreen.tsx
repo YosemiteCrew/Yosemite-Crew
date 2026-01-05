@@ -946,7 +946,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],
-    gap: theme.spacing['2'],
+    gap: theme.spacing['3'],
   },
   statusNote: {
     ...theme.typography.body12,
@@ -958,7 +958,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
     padding: theme.spacing['4'],
-    marginBottom: theme.spacing['3'],
     gap: theme.spacing['2'],
   },
   statusLabel: {
@@ -975,7 +974,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...theme.typography.title,
   },
   summaryCard: {
-    marginBottom: theme.spacing['3'],
+    // Spacing handled by container gap
   },
   detailsCard: {
     borderRadius: theme.borderRadius.lg,

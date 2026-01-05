@@ -75,7 +75,7 @@ describe('FormRowComponents', () => {
       expect(separator).toBeTruthy();
       expect(separator.props.style).toEqual(
         expect.objectContaining({
-          borderBottomColor: mockTheme.colors.borderSeperator,
+          borderBottomColor: mockTheme.colors.border,
         }),
       );
     });

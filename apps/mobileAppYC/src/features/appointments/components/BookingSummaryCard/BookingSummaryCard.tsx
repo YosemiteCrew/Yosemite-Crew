@@ -98,7 +98,7 @@ export const BookingSummaryCard: React.FC<Props> = ({
 
   if (!interactive) {
     return (
-      <View style={[styles.cardContainer, style]}>
+      <View style={[styles.shadowWrapper, style]}>
         <View style={styles.card}>{content}</View>
       </View>
     );
@@ -110,12 +110,12 @@ export const BookingSummaryCard: React.FC<Props> = ({
       onAction={handleEdit}
       actionBackgroundColor={theme.colors.primary}
       enableHorizontalSwipeOnly
-      containerStyle={[styles.cardContainer, style]}
+      containerStyle={[styles.shadowWrapper, style]}
       cardProps={{
-        shadow: 'base',
-        glassEffect: 'none',
+        glassEffect: 'clear',
+        interactive: true,
         style: styles.card,
-        fallbackStyle: styles.card,
+        fallbackStyle: styles.fallback,
         padding: '0',
       }}>
       {content}
@@ -125,15 +125,26 @@ export const BookingSummaryCard: React.FC<Props> = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    cardContainer: {
-      width: '100%',
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
     },
     card: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 0,
       borderColor: 'transparent',
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing['3'],
+      padding: theme.spacing['4'],
+    },
+    fallback: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     inner: {
       flexDirection: 'row',

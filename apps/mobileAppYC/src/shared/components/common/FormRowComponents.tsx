@@ -92,7 +92,7 @@ const createStyles = (theme: any) =>
     },
     separator: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
+      borderBottomColor: theme.colors.border,
       marginHorizontal: theme.spacing['3'],
     },
   });

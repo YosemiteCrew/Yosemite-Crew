@@ -528,7 +528,7 @@ const createStyles = (theme: any) => {
     },
     companionRowDivider: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
+      borderBottomColor: theme.colors.border,
       paddingBottom: theme.spacing['4'],
       marginBottom: theme.spacing['2'],
     },

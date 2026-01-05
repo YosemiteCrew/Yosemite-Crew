@@ -422,7 +422,7 @@ export const EditAppointmentScreen: React.FC = () => {
       <LiquidGlassHeaderScreen
         header={
           <Header
-            title="Reschedule Appointment"
+            title="Reschedule"
             showBackButton
             onBack={() => navigation.goBack()}
             rightIcon={isCancellable ? Images.deleteIcon : undefined}

@@ -1058,7 +1058,7 @@ const createStyles = (theme: any) =>
       flexGrow: 1,
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['20'],
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3'],
       backgroundColor: theme.colors.background,
     },
     errorContainer: {
@@ -1074,9 +1074,11 @@ const createStyles = (theme: any) =>
     introCard: {
       gap: theme.spacing['3'],
       alignItems: 'center',
+      // Spacing handled by container gap
     },
     glassCard: {
       gap: theme.spacing['4'],
+      // Spacing handled by container gap
     },
     glassCardFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -1141,6 +1143,7 @@ const createStyles = (theme: any) =>
     },
     providersCard: {
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     providerList: {
       gap: theme.spacing['3'],
@@ -1237,6 +1240,7 @@ const createStyles = (theme: any) =>
     emptyStateCard: {
       alignItems: 'center',
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     emptyStateImage: {
       width: theme.spacing['50'],
@@ -1265,6 +1269,7 @@ const createStyles = (theme: any) =>
     stepInfoCard: {
       gap: theme.spacing['3'],
       alignItems: 'center',
+      // Spacing handled by container gap
     },
     stepHeroWrapper: {
       alignSelf: 'center',
@@ -1304,6 +1309,7 @@ const createStyles = (theme: any) =>
     },
     stepOptionsCard: {
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     optionsContainer: {
       gap: theme.spacing['2'],

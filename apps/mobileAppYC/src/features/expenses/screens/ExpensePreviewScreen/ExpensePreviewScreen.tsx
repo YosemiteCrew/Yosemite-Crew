@@ -387,7 +387,7 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['12'],
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3'],
     },
     errorContainer: {
       flex: 1,
@@ -399,6 +399,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     summaryCard: {
+      // Spacing handled by container gap
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing['4'],
@@ -440,8 +441,8 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     paymentButtonContainer: {
+      // Spacing handled by container gap
       gap: theme.spacing['2'],
-      marginBottom: theme.spacing['4'],
     },
     paymentButtonText: {
       ...theme.typography.button,

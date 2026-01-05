@@ -184,6 +184,7 @@ const createStyles = (theme: any) => {
     container: {
       padding: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['3'],
     },
     headerSection: {
     alignItems: 'center',
@@ -214,17 +215,17 @@ const createStyles = (theme: any) => {
     textAlign: 'center',
   },
   businessCardContainer: {
-    marginBottom: theme.spacing['4'],
+    // Spacing handled by container gap
   },
   summaryCard: {
-    marginBottom: theme.spacing['2'],
+    // Spacing handled by container gap
   },
   ratingSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing['6'],
+    // Spacing handled by container gap
   },
   reviewSection: {
-    marginBottom: theme.spacing['4'],
+    // Spacing handled by container gap
   },
   reviewLabel: {
     ...theme.typography.titleMedium,

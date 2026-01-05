@@ -210,14 +210,16 @@ const createStyles = (theme: any) =>
     container: {
       paddingBottom: theme.spacing['24'],
       paddingHorizontal: theme.spacing['4'],
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3'],
     },
     summaryCard: {
       gap: theme.spacing['2'],
       alignItems: 'center',
+      // Spacing handled by container gap
     },
     answersCard: {
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     glassFallback: {
       borderRadius: theme.borderRadius.lg,

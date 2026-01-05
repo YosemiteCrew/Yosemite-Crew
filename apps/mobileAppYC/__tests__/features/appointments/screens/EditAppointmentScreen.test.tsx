@@ -317,7 +317,7 @@ describe('EditAppointmentScreen', () => {
   it('renders correctly with all data populated', () => {
     const {getByTestId, getByText} = setup();
     expect(getByTestId('HeaderTitle')).toHaveTextContent(
-      'Reschedule Appointment',
+      'Reschedule',
     );
     expect(getByTestId('FormContent')).toBeTruthy();
     expect(getByText(/Submit reschedule request/i)).toBeTruthy();

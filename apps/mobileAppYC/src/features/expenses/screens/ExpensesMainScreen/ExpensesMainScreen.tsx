@@ -274,7 +274,7 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['20'],
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3'],
     },
     companionSelector: {
       marginTop: theme.spacing['4'],

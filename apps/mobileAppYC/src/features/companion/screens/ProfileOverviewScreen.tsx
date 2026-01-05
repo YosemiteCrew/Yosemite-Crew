@@ -597,7 +597,7 @@ const createStyles = (theme: any) =>
       left: 0,
       right: 0,
       borderBottomWidth: RNStyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
+      borderBottomColor: theme.colors.border,
     },
     statusBadge: {
       width: theme.spacing['28'],

@@ -1232,10 +1232,10 @@ const createStyles = (theme: any) =>
     container: {
       paddingBottom: theme.spacing['24'],
       paddingHorizontal: theme.spacing['4'],
-      gap: theme.spacing['2'],
+      gap: theme.spacing['3'],
     },
     summaryCard: {
-      marginBottom: theme.spacing['2'],
+      // Spacing handled by container gap
     },
     loadingBox: {
       flexDirection: 'row',
@@ -1257,18 +1257,16 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
       padding: theme.spacing['4'],
-      gap: theme.spacing['1'],
-      marginBottom: theme.spacing['2'],
+      gap: theme.spacing['2'],
+      // Spacing handled by container gap
     },
     metaTitle: {
       ...theme.typography.titleSmall,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing['1'],
     },
     warningText: {
       ...theme.typography.body12,
       color: theme.colors.warning,
-      marginBottom: theme.spacing['2'],
     },
     missingContainer: {
       flex: 1,

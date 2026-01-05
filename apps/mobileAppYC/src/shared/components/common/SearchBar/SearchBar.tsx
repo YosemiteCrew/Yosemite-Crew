@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ViewStyle,
   StyleProp,
+  useColorScheme,
 } from 'react-native';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
@@ -39,6 +40,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   autoFocus,
 }) => {
   const {theme} = useTheme();
+  const colorScheme = useColorScheme();
+  const keyboardAppearance = colorScheme === 'dark' ? 'dark' : 'light';
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const renderReadonly = () => (
@@ -75,6 +78,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         onChangeText={onChangeText}
         onSubmitEditing={onSubmitEditing}
         returnKeyType="done"
+        keyboardAppearance={keyboardAppearance}
       />
       <TouchableOpacity
         activeOpacity={0.85}
