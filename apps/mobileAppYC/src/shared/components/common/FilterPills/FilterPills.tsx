@@ -3,15 +3,15 @@ import {ScrollView, TouchableOpacity, Text, View, StyleSheet} from 'react-native
 import {useTheme} from '@/hooks';
 
 export interface FilterOption<T> {
-  id: T;
-  label: string;
+  readonly id: T;
+  readonly label: string;
 }
 
 interface FilterPillsProps<T> {
-  options: FilterOption<T>[];
-  selected: T;
-  onSelect: (id: T) => void;
-  containerStyle?: object;
+  readonly options: readonly FilterOption<T>[];
+  readonly selected: T;
+  readonly onSelect: (id: T) => void;
+  readonly containerStyle?: object;
 }
 
 export function FilterPills<T>({
@@ -19,7 +19,7 @@ export function FilterPills<T>({
   selected,
   onSelect,
   containerStyle,
-}: FilterPillsProps<T>) {
+}: Readonly<FilterPillsProps<T>>) {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const scrollRef = useRef<ScrollView | null>(null);
