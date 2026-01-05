@@ -82,12 +82,12 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
           onPress={cancelEdit}
           style={styles.cancelButton}
           textStyle={styles.cancelButtonText}
-          tintColor="#FFFFFF"
+          tintColor={theme.colors.white}
           shadowIntensity="light"
           forceBorder
-          borderColor="rgba(0, 0, 0, 0.12)"
-          height={48}
-          borderRadius={14}
+          borderColor={theme.colors.borderMuted}
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
         />
 
         <LiquidGlassButton
@@ -98,9 +98,9 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
           forceBorder
-          borderColor="rgba(255, 255, 255, 0.35)"
-          height={48}
-          borderRadius={14}
+          borderColor={theme.colors.borderMuted}
+          height={theme.spacing['12']}
+          borderRadius={theme.borderRadius.md}
         />
       </View>
     </View>

@@ -225,8 +225,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['3'],
     }, // Added marginBottom
     avatar: {
-      width: 80,
-      height: 80,
+      width: theme.spacing['20'],
+      height: theme.spacing['20'],
       aspectRatio: 1,
       borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.primarySurface,
@@ -247,18 +247,18 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     directionsButtonText: {
-      ...theme.typography.paragraphBold,
+      ...theme.typography.button,
       color: theme.colors.white,
     },
-    textBlock: {flex: 1, gap: 2},
+    textBlock: {flex: 1, gap: theme.spacing['1']},
     name: {...theme.typography.titleMedium, color: theme.colors.secondary},
-    sub: {...theme.typography.labelSmallBold, color: theme.colors.placeholder},
+    sub: {...theme.typography.labelSmall, color: theme.colors.placeholder},
     date: {...theme.typography.labelSmallBold, color: theme.colors.secondary},
     noteContainer: {
       marginBottom: theme.spacing['4'], // Tighter spacing to the next section
     },
-    note: {...theme.typography.labelSmallBold, color: theme.colors.placeholder},
-    noteLabel: {color: theme.colors.primary},
+    note: {...theme.typography.labelSmall, color: theme.colors.placeholder},
+    noteLabel: {...theme.typography.labelSmallBold, color: theme.colors.primary},
     buttonContainer: {gap: theme.spacing['4']}, // Reduced gap to bring sections closer
     inlineButtons: {
       flexDirection: 'row',

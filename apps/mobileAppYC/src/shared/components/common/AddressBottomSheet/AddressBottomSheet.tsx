@@ -201,9 +201,9 @@ export const AddressBottomSheet = forwardRef<
             tintColor={theme.colors.surface}
             shadowIntensity="light"
             forceBorder
-            borderColor="rgba(0, 0, 0, 0.12)"
-            height={56}
-            borderRadius={16}
+            borderColor={theme.colors.borderMuted}
+            height={theme.spacing['14']}
+            borderRadius={theme.borderRadius.lg}
           />
 
           <LiquidGlassButton
@@ -214,9 +214,9 @@ export const AddressBottomSheet = forwardRef<
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
+            borderColor={theme.colors.borderMuted}
+            height={theme.spacing['14']}
+            borderRadius={theme.borderRadius.lg}
           />
         </View>
         </View>

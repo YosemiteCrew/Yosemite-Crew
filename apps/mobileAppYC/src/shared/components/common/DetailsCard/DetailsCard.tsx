@@ -79,15 +79,13 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing['2'],
     },
     detailLabel: {
-      ...theme.typography.body14,
+      ...theme.typography.labelSmall,
       color: theme.colors.textSecondary,
-      fontWeight: '500',
       maxWidth: '45%',
     },
     detailValue: {
-      ...theme.typography.body14,
+      ...theme.typography.labelSmallBold,
       color: theme.colors.secondary,
-      fontWeight: '600',
       flex: 1,
       textAlign: 'right',
       flexWrap: 'wrap',

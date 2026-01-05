@@ -584,20 +584,20 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: theme.spacing['1'],
   },
   sectionHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: theme.spacing['2'],
   },
   sectionHeader: {
     ...theme.typography.businessSectionTitle20,
-    color: '#302F2E',
+    color: theme.colors.text,
   },
   sectionCount: {
     ...theme.typography.body12,
-    color: '#302F2E',
+    color: theme.colors.text,
   },
   viewMore: {
     ...theme.typography.labelXxsBold,
@@ -625,16 +625,16 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...theme.shadows.sm,
   },
   sectionWrapper: {
-    gap: 12,
+    gap: theme.spacing['3'],
   },
   singleCardWrapper: {
     alignItems: 'center',
     width: '100%',
   },
   horizontalList: {
-    gap: 12,
-    paddingRight: 16,
-    paddingVertical: 10,
+    gap: theme.spacing['3'],
+    paddingRight: theme.spacing['4'],
+    paddingVertical: theme.spacing['2.5'],
   },
   horizontalCard: {
     width: 280,

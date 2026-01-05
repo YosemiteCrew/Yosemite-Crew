@@ -1024,9 +1024,9 @@ const handleGoBack = useCallback(async () => {
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
-              height={56}
-              borderRadius={16}
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
               loading={currentStep === 2 && isSubmitting}
               disabled={currentStep === 2 && isSubmitting}
             />
@@ -1082,9 +1082,9 @@ const handleGoBack = useCallback(async () => {
                   tintColor={theme.colors.secondary}
                   shadowIntensity="medium"
                   forceBorder
-                  borderColor="rgba(255, 255, 255, 0.35)"
-                  height={56}
-                  borderRadius={16}
+                  borderColor={theme.colors.borderMuted}
+                  height={theme.spacing['14']}
+                  borderRadius={theme.borderRadius.lg}
                 />
               </View>
             </CustomBottomSheet>

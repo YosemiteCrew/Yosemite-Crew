@@ -181,14 +181,14 @@ export const BusinessDetailsScreen: React.FC = () => {
                   openMapsToAddress(business.address);
                 }
               }}
-              height={56}
-              borderRadius={16}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
               tintColor={theme.colors.secondary}
               textStyle={styles.buttonText}
               glassEffect="clear"
               shadowIntensity="none"
               forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
+              borderColor={theme.colors.borderMuted}
             />
           </View>
         </ScrollView>

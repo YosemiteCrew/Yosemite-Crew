@@ -214,29 +214,29 @@ const useStatusDisplay = (theme: any) => {
       case 'UPCOMING':
         return {text: 'Upcoming', textColor: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
       case 'CHECKED_IN':
-        return {text: 'Checked in', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Checked in', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'IN_PROGRESS':
-        return {text: 'In progress', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'In progress', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'REQUESTED':
         return {text: 'Requested', textColor: theme.colors.primary, backgroundColor: theme.colors.primaryTint};
       case 'NO_PAYMENT':
       case 'AWAITING_PAYMENT':
-        return {text: 'Payment pending', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+        return {text: 'Payment pending', textColor: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
       case 'PAYMENT_FAILED':
-        return {text: 'Payment failed', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+        return {text: 'Payment failed', textColor: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
       case 'PAID':
-        return {text: 'Paid', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Paid', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'CONFIRMED':
       case 'SCHEDULED':
-        return {text: 'Scheduled', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Scheduled', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'COMPLETED':
-        return {text: 'Completed', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Completed', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'CANCELLED':
-        return {text: 'Cancelled', textColor: '#991B1B', backgroundColor: 'rgba(239, 68, 68, 0.12)'};
+        return {text: 'Cancelled', textColor: theme.colors.error, backgroundColor: theme.colors.errorSurface};
       case 'RESCHEDULED':
-        return {text: 'Rescheduled', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+        return {text: 'Rescheduled', textColor: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
       default:
-        return {text: statusValue, textColor: theme.colors.textSecondary, backgroundColor: theme.colors.border + '40'};
+        return {text: statusValue, textColor: theme.colors.textSecondary, backgroundColor: theme.colors.borderMuted};
     }
   };
   return getStatusDisplay;
@@ -580,8 +580,8 @@ const ActionButtons = ({
         <LiquidGlassButton
           title="Edit Appointment"
           onPress={handleEdit}
-          height={56}
-          borderRadius={16}
+          height={theme.spacing['14']}
+          borderRadius={theme.borderRadius.lg}
           glassEffect="clear"
           forceBorder
           borderColor={theme.colors.secondary}
@@ -595,11 +595,11 @@ const ActionButtons = ({
         <LiquidGlassButton
           title="Cancel Appointment"
           onPress={handleCancel}
-          height={56}
-          borderRadius={16}
-          tintColor="#FEE2E2"
+          height={theme.spacing['14']}
+          borderRadius={theme.borderRadius.lg}
+          tintColor={theme.colors.errorSurface}
           forceBorder
-          borderColor="#EF4444"
+          borderColor={theme.colors.error}
           textStyle={styles.alertButtonText}
           shadowIntensity="none"
         />
@@ -1008,7 +1008,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginLeft: theme.spacing['2'],
   },
   attachmentPreview: {
-    maxHeight: 220,
+    maxHeight: theme.spacing['56'],
   },
   emptyDocsText: {
     ...theme.typography.body12,
@@ -1037,7 +1037,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   alertButtonText: {
     ...theme.typography.titleSmall,
-    color: '#EF4444',
+    color: theme.colors.error,
     textAlign: 'center',
   },
 });

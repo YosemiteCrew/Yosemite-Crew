@@ -312,19 +312,19 @@ export const ExpensePreviewScreen: React.FC = () => {
   if (!isInAppExpense) {
     badges.push({
       text: 'External expense',
-      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      backgroundColor: theme.colors.infoSurface,
       textColor: theme.colors.primary,
     });
   } else if (isPendingPayment) {
     badges.push({
       text: 'Awaiting Payment',
-      backgroundColor: 'rgba(245, 158, 11, 0.12)',
-      textColor: '#F59E0B',
+      backgroundColor: theme.colors.warningSurface,
+      textColor: theme.colors.warning,
     });
   } else {
     badges.push({
       text: 'Paid',
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      backgroundColor: theme.colors.successSurface,
       textColor: theme.colors.success,
     });
   }

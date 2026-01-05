@@ -876,7 +876,7 @@ const createStyles = (theme: any) => {
     errorText: {
       ...theme.typography.labelXxsBold,
       color: theme.colors.error,
-      marginTop: 3,
+      marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
     },
@@ -896,7 +896,7 @@ const createStyles = (theme: any) => {
       flex: 1,
     },
     completedBadge: {
-      backgroundColor: theme.colors.successLight || 'rgba(0, 143, 93, 0.12)',
+      backgroundColor: theme.colors.successSurface,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing['3'],
       marginTop: theme.spacing['4'],
@@ -905,7 +905,6 @@ const createStyles = (theme: any) => {
     completedText: {
       ...theme.typography.bodyMedium,
       color: theme.colors.success,
-      fontWeight: '600',
     },
     cancelledBadge: {
       backgroundColor: theme.colors.errorSurface,

@@ -30,7 +30,7 @@ export const createCardStyles = (theme: any) =>
     container: {
       width: '100%',
       alignSelf: 'center',
-      marginBottom: theme.spacing['3'],
+      marginBottom: theme.spacing['4'],
     },
     card: {
       borderRadius: theme.borderRadius.lg,
@@ -65,8 +65,8 @@ export const createCardStyles = (theme: any) =>
       justifyContent: 'center',
     },
     actionIcon: {
-      width: 30,
-      height: 30,
+      width: theme.spacing['7'],
+      height: theme.spacing['7'],
       resizeMode: 'contain' as const,
     },
     innerContent: {
@@ -78,8 +78,8 @@ export const createCardStyles = (theme: any) =>
       gap: theme.spacing['3'],
     },
     thumbnailContainer: {
-      width: 54,
-      height: 54,
+      width: theme.spacing['14'],
+      height: theme.spacing['14'],
       borderRadius: theme.borderRadius.md,
       overflow: 'hidden' as const,
       backgroundColor: theme.colors.primarySurface,
@@ -103,7 +103,7 @@ export const createCardStyles = (theme: any) =>
       alignItems: 'flex-end',
       justifyContent: 'center',
       gap: theme.spacing['2'],
-      minWidth: 70,
+      minWidth: theme.spacing['18'],
     },
     amount: {
       ...theme.typography.h5,

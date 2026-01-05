@@ -301,12 +301,12 @@ export const GenericSelectBottomSheet = forwardRef<
               onPress={handleCancel}
               style={styles.cancelButton}
               textStyle={styles.cancelButtonText}
-              tintColor="#FFFFFF"
+              tintColor={theme.colors.white}
               shadowIntensity="light"
               forceBorder
-              borderColor="rgba(0, 0, 0, 0.12)"
-              height={56}
-              borderRadius={16}
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
             />
 
             <LiquidGlassButton
@@ -317,9 +317,9 @@ export const GenericSelectBottomSheet = forwardRef<
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
-              height={56}
-              borderRadius={16}
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
             />
           </View>
         )}
@@ -373,7 +373,7 @@ const createStyles = (theme: any, maxListHeight: number) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 14,
+      paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['3'],
       borderRadius: theme.borderRadius.base,
       marginBottom: theme.spacing['1'],
@@ -397,9 +397,8 @@ const createStyles = (theme: any, maxListHeight: number) =>
       alignItems: 'center',
     },
     checkmarkText: {
+      ...theme.typography.labelSmallBold,
       color: theme.colors.white,
-      fontSize: theme.spacing['3'],
-      fontWeight: 'bold',
     },
     buttonContainer: {
       flexDirection: 'row',
@@ -427,13 +426,13 @@ const createStyles = (theme: any, maxListHeight: number) =>
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: theme.borderRadius['2xl'],
+      borderTopRightRadius: theme.borderRadius['2xl'],
     },
     bottomSheetHandle: {
-      backgroundColor: theme.colors.black,
-      width: 80,
-      height: 6,
+      backgroundColor: theme.colors.text,
+      width: theme.spacing['20'],
+      height: theme.spacing['1.25'],
       opacity: 0.2,
     },
     touchableItem: {

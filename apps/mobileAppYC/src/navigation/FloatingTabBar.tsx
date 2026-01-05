@@ -265,7 +265,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             {...(useGlass
               ? {
                   effect: 'clear' as const,
-                  tintColor: 'rgba(255, 255, 255, 0.5)',
+                  tintColor: theme.colors.whiteOverlay70,
                   colorScheme: 'light' as const,
                   interactive: false,
                 }
@@ -283,9 +283,9 @@ const createStyles = (theme: any, isIOS: boolean) =>
   StyleSheet.create({
     wrapper: {
       position: 'absolute',
-      left: 24,
-      right: 24,
-      bottom: 45,
+      left: theme.spacing['6'],
+      right: theme.spacing['6'],
+      bottom: theme.spacing['11'],
       zIndex: 10,
       overflow: 'visible',
     },
@@ -312,23 +312,23 @@ const createStyles = (theme: any, isIOS: boolean) =>
         ? theme.borderRadius.md
         : theme.borderRadius.xl,
       backgroundColor: 'transparent',
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['4'],
       overflow: 'visible',
     },
     barGlass: {
       backgroundColor: 'transparent',
     },
     barSolid: {
-      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      backgroundColor: theme.colors.cardOverlay,
       borderWidth: 1,
-      borderColor: 'rgba(0, 0, 0, 0.08)',
+      borderColor: theme.colors.borderMuted,
       overflow: 'hidden',
     },
     pillContainer: {
       position: 'absolute',
-      top: 8,
-      bottom: 8,
+      top: theme.spacing['2'],
+      bottom: theme.spacing['2'],
       zIndex: 2,
     },
     pill: {
@@ -354,14 +354,14 @@ const createStyles = (theme: any, isIOS: boolean) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 5,
+      gap: theme.spacing['1.25'],
       zIndex: 3,
-      paddingVertical: 6,
-      paddingHorizontal: 8,
+      paddingVertical: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['2'],
     },
     iconWrapper: {
-      width: 28,
-      height: 28,
+      width: theme.spacing['7'],
+      height: theme.spacing['7'],
       borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
@@ -382,8 +382,8 @@ const createStyles = (theme: any, isIOS: boolean) =>
       color: theme.colors.text,
     },
     iconImage: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       tintColor: theme.colors.textSecondary,
     },
     iconImageActive: {
