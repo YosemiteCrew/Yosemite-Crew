@@ -1,5 +1,5 @@
 import { Documenso } from "@documenso/sdk-typescript";
-import * as errors from "@documenso/sdk-typescript/models/errors";
+import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
