@@ -87,7 +87,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       fallbackStyle={styles.cardFallback}>
       <Image
         source={resolvedSource}
-        style={styles.photo}
+        style={[styles.photo, !compact && styles.photoFullWidth]}
         resizeMode="cover"
         defaultSource={Images.hospitalIcon}
         onError={handleError}
@@ -150,12 +150,22 @@ const createStyles = (theme: any) =>
       width: theme.spacing['72'],
     },
     photo: {
-      width: '100%',
-      height: theme.spacing['40'],
+      width: 240,
+      height: 160,
       backgroundColor: theme.colors.border + '20',
+      margin: theme.spacing['4'],
+      borderRadius: theme.borderRadius.lg,
+      alignSelf: 'center',
+    },
+    photoFullWidth: {
+      width: undefined,
+      height: 200,
+      alignSelf: 'stretch',
+      margin: theme.spacing['4'],
     },
     body: {
-      padding: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['4'],
       gap: theme.spacing['1.25'],
     },
     title: {
