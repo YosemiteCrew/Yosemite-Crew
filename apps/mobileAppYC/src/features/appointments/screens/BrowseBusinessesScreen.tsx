@@ -249,7 +249,10 @@ export const BrowseBusinessesScreen: React.FC = () => {
   );
   const [headerHeight, setHeaderHeight] = useState(0);
   const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
+  const rootRef = React.useRef<View | null>(null);
   const searchBarRef = useRef<View | null>(null);
+  const categoryScrollRef = useRef<ScrollView | null>(null);
+  const categoryPillRefs = useRef<Map<string, View>>(new Map());
   const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
   const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
   const filteredBusinesses = useMemo(
@@ -409,6 +412,20 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   const allCategories = ['hospital','groomer','breeder','pet_center','boarder'] as const;
 
+  useEffect(() => {
+    const currentCategory = category ?? 'All';
+    const pillView = categoryPillRefs.current.get(currentCategory);
+    if (pillView && categoryScrollRef.current) {
+      pillView.measureLayout(
+        categoryScrollRef.current as any,
+        (x) => {
+          categoryScrollRef.current?.scrollTo({x: x - 20, animated: true});
+        },
+        () => {},
+      );
+    }
+  }, [category]);
+
   const resolveDescription = React.useCallback((biz: VetBusiness) => {
     if (biz.address && biz.address.trim().length > 0) {
       return biz.address.trim();
@@ -424,8 +441,19 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   const showSearchResults =
     searchQuery.length >= 2 && searchResults.length > 0 && !searching;
-  const dropdownBaseTop = searchBarBottom ?? headerHeight;
+  const dropdownBaseTop = searchBarBottom ?? 0;
   const dropdownTop = (dropdownBaseTop || theme.spacing['30']) + theme.spacing['2'];
+
+  const updateSearchBarBottom = React.useCallback(() => {
+    if (!rootRef.current || !searchBarRef.current) {
+      return;
+    }
+    rootRef.current.measureInWindow((_rx, rootY) => {
+      searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
+        setSearchBarBottom(y - rootY + h);
+      });
+    });
+  }, []);
 
   const headerContent = (
     <View
@@ -435,6 +463,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
         if (height !== headerHeight) {
           setHeaderHeight(height);
         }
+        updateSearchBarBottom();
       }}>
       <Header
         title="Book an appointment"
@@ -443,12 +472,18 @@ export const BrowseBusinessesScreen: React.FC = () => {
         glass={false}
       />
       <ScrollView
+        ref={categoryScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pillsContent}>
         {CATEGORIES.map(p => (
           <TouchableOpacity
             key={p.label}
+            ref={node => {
+              if (node) {
+                categoryPillRefs.current.set(p.id ?? 'All', node);
+              }
+            }}
             style={[
               styles.pill,
               (p.id ?? undefined) === category && styles.pillActive,
@@ -469,11 +504,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
         ref={node => {
           searchBarRef.current = node;
         }}
-        onLayout={() => {
-          searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
-            setSearchBarBottom(y + h);
-          });
-        }}>
+        onLayout={updateSearchBarBottom}>
         <SearchBar
           placeholder="Search for services"
           mode="input"
@@ -498,7 +529,12 @@ export const BrowseBusinessesScreen: React.FC = () => {
   );
 
   return (
-    <View style={styles.screenContainer}>
+    <View
+      style={styles.screenContainer}
+      ref={node => {
+        rootRef.current = node;
+      }}
+      onLayout={updateSearchBarBottom}>
       <BusinessSearchDropdown
         visible={showSearchResults}
         top={dropdownTop}

@@ -1,5 +1,13 @@
 import React, {useMemo} from 'react';
-import {ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle} from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
 import {useTheme} from '@/hooks';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
@@ -30,7 +38,6 @@ export function SearchDropdownOverlay<T = unknown>({
   containerStyle,
   scrollEnabledThreshold = 5,
   useGlassCard = false,
-  glassEffect = 'regular',
   items,
   keyExtractor,
   onPress,
@@ -43,9 +50,13 @@ export function SearchDropdownOverlay<T = unknown>({
 
   if (!visible || items.length === 0) return null;
 
+  const scrollViewStyle = useGlassCard
+    ? styles.glassScrollContainer
+    : styles.dropdownContainer;
+
   const scrollView = (
     <ScrollView
-      style={[styles.dropdownContainer, useGlassCard && styles.glassDropdownContainer]}
+      style={scrollViewStyle}
       scrollEnabled={items.length > scrollEnabledThreshold}
       showsVerticalScrollIndicator
       nestedScrollEnabled>
@@ -70,13 +81,17 @@ export function SearchDropdownOverlay<T = unknown>({
     </ScrollView>
   );
 
+  const resolvedGlassEffect = 'none';
+  const resolvedShadow = 'md';
+
   return (
     <View style={[styles.absoluteContainer, containerStyle]}>
       {useGlassCard ? (
         <LiquidGlassCard
-          glassEffect={glassEffect}
+          glassEffect={resolvedGlassEffect}
           interactive
           padding="0"
+          shadow={resolvedShadow}
           style={styles.glassCard}
           fallbackStyle={styles.glassCardFallback}>
           {scrollView}
@@ -90,6 +105,29 @@ export function SearchDropdownOverlay<T = unknown>({
 
 const createStyles = (theme: any, top: number, maxHeight?: number) => {
   const resolvedMaxHeight = maxHeight ?? theme.spacing['80'];
+  const isAndroid = Platform.OS === 'android';
+
+  const dropdownBase = {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden' as const,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    maxHeight: resolvedMaxHeight,
+    ...(isAndroid ? theme.shadows.sm : theme.shadows.md),
+    shadowColor: theme.colors.neutralShadow,
+  };
+
+  const glassCardBase = {
+    padding: 0,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden' as const,
+    maxHeight: resolvedMaxHeight,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: 'transparent',
+  };
+
   return StyleSheet.create({
     absoluteContainer: {
       position: 'absolute',
@@ -99,33 +137,16 @@ const createStyles = (theme: any, top: number, maxHeight?: number) => {
       maxHeight: resolvedMaxHeight,
       zIndex: 100,
     },
-    dropdownContainer: {
-      backgroundColor: theme.colors.white,
-      borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      maxHeight: resolvedMaxHeight,
-      ...theme.shadows.lg,
-    },
-    glassDropdownContainer: {
+    dropdownContainer: dropdownBase,
+    glassScrollContainer: {
       backgroundColor: 'transparent',
-      borderWidth: 0,
     },
-    glassCard: {
-      padding: 0,
-      borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-      maxHeight: resolvedMaxHeight,
-    },
+    glassCard: glassCardBase,
     glassCardFallback: {
-      padding: 0,
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
+      ...glassCardBase,
+      backgroundColor: theme.colors.white,
       borderColor: theme.colors.border,
       borderWidth: 1,
-      overflow: 'hidden',
-      maxHeight: resolvedMaxHeight,
     },
     item: {
       flexDirection: 'row',

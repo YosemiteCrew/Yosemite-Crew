@@ -45,6 +45,7 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import {fetchTasksForCompanion} from '@/features/tasks/thunks';
 import {resolveCategoryLabel as resolveTaskCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {DetailsCard, type DetailItem} from '@/shared/components/common/DetailsCard';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -753,6 +754,18 @@ export const ViewAppointmentScreen: React.FC = () => {
   const showCheckInButton = (isUpcoming || isCheckedIn || isInProgress) && !isTerminal;
   const {dateTimeLabel} = formatAppointmentDateTime(apt);
 
+  const appointmentDetailItems: DetailItem[] = [
+    {label: 'Date & Time', value: dateTimeLabel},
+    {label: 'Type', value: apt.type},
+    {label: 'Service', value: service?.name ?? apt.serviceName ?? '—'},
+    {label: 'Business', value: businessName},
+    {label: 'Address', value: businessAddress || '', hidden: !businessAddress},
+    {label: 'Companion', value: companion?.name || '', hidden: !companion},
+    {label: 'Species', value: apt.species || '', hidden: !apt.species},
+    {label: 'Breed', value: apt.breed || '', hidden: !apt.breed},
+    {label: 'Concern', value: apt.concern || '', hidden: !apt.concern},
+  ];
+
   return (
     <>
       <LiquidGlassHeaderScreen
@@ -783,19 +796,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           cardStyle={styles.summaryCard}
         />
 
-        {/* Appointment Details Card */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Appointment Details</Text>
-          <DetailRow label="Date & Time" value={dateTimeLabel} />
-          <DetailRow label="Type" value={apt.type} />
-          <DetailRow label="Service" value={service?.name ?? apt.serviceName ?? '—'} />
-          <DetailRow label="Business" value={businessName} />
-          {businessAddress ? <DetailRow label="Address" value={businessAddress} multiline /> : null}
-          {companion && <DetailRow label="Companion" value={companion.name} />}
-          {apt.species && <DetailRow label="Species" value={apt.species} />}
-          {apt.breed && <DetailRow label="Breed" value={apt.breed} />}
-          {apt.concern && <DetailRow label="Concern" value={apt.concern} multiline />}
-        </View>
+        <DetailsCard title="Appointment Details" items={appointmentDetailItems} />
 
         {apt.uploadedFiles?.length ? (
           <View style={styles.detailsCard}>
@@ -937,47 +938,6 @@ export const ViewAppointmentScreen: React.FC = () => {
     </>
   );
 };
-
-const DetailRow = ({label, value, multiline = false}: {label: string; value: string; multiline?: boolean}) => {
-  const {theme} = useTheme();
-  const styles = React.useMemo(() => createDetailStyles(theme), [theme]);
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, multiline && styles.multiline]} numberOfLines={multiline ? 0 : 1}>
-        {value}
-      </Text>
-    </View>
-  );
-};
-
-const createDetailStyles = (theme: any) =>
-  StyleSheet.create({
-    row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: theme.spacing['2'],
-      paddingVertical: theme.spacing['2'],
-    },
-    label: {
-      ...theme.typography.body14,
-      color: theme.colors.textSecondary,
-      fontWeight: '500',
-    },
-    value: {
-      ...theme.typography.body14,
-      color: theme.colors.secondary,
-      fontWeight: '600',
-      flexShrink: 1,
-      flexGrow: 1,
-      textAlign: 'right',
-    },
-    multiline: {
-      textAlign: 'right',
-      flexWrap: 'wrap',
-    },
-  });
 
 const createStyles = (theme: any) => StyleSheet.create({
   root: {

@@ -1,5 +1,5 @@
 import React, {forwardRef, useImperativeHandle, useRef, useMemo, useState, useEffect} from 'react';
-import {View, Image, Text, StyleSheet} from 'react-native';
+import {View, Image, Text, StyleSheet, Platform} from 'react-native';
 import RNCalendarEvents from 'react-native-calendar-events';
 import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import {useTheme} from '@/hooks';
@@ -38,20 +38,15 @@ const determineCalendarIcon = (source: string, title: string) => {
   return Images.calendarIcon;
 };
 
-const getDefaultProviders = (): CalendarProvider[] => [
-  {
-    id: 'google',
-    name: 'Google Calendar',
-    icon: Images.googleCalendarIcon || Images.calendarIcon,
-    status: 'available',
-  },
-  {
-    id: 'icloud',
-    name: 'iCloud Calendar',
-    icon: Images.iCloudCalendarIcon || Images.calendarIcon,
-    status: 'available',
-  },
-];
+const isProviderSupportedOnPlatform = (source: string) => {
+  const sourceLower = source?.toLowerCase?.() || '';
+
+  if (Platform.OS === 'ios') {
+    return !sourceLower.includes('google'); // Hide Google calendars on iOS
+  }
+
+  return !sourceLower.includes('icloud') && !sourceLower.includes('apple'); // Hide iCloud/Apple calendars on Android
+};
 
 export const CalendarSyncBottomSheet = forwardRef<
   CalendarSyncBottomSheetRef,
@@ -60,7 +55,9 @@ export const CalendarSyncBottomSheet = forwardRef<
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
   const [availableCalendars, setAvailableCalendars] = useState<CalendarProvider[]>([]);
+  const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
   const [loading, setLoading] = useState(true);
+  const permissionGranted = permissionStatus === 'authorized';
 
   useEffect(() => {
     const fetchDeviceCalendars = async () => {
@@ -68,14 +65,23 @@ export const CalendarSyncBottomSheet = forwardRef<
         setLoading(true);
 
         const status = await RNCalendarEvents.checkPermissions();
-        if (status !== 'authorized') {
-          setAvailableCalendars(getDefaultProviders());
+        const resolvedStatus =
+          status === 'authorized'
+            ? status
+            : await RNCalendarEvents.requestPermissions().catch(() => status);
+
+        setPermissionStatus(resolvedStatus);
+
+        if (resolvedStatus !== 'authorized') {
+          setAvailableCalendars([]);
           setLoading(false);
           return;
         }
 
         const calendars = await RNCalendarEvents.findCalendars();
-        const writableCalendars = calendars.filter(cal => cal.allowsModifications);
+        const writableCalendars = calendars
+          .filter(cal => cal.allowsModifications)
+          .filter(cal => isProviderSupportedOnPlatform(cal.source || ''));
 
         const providers: CalendarProvider[] = writableCalendars.map(cal => ({
           id: cal.id,
@@ -85,14 +91,14 @@ export const CalendarSyncBottomSheet = forwardRef<
           sourceType: cal.source,
         }));
 
-        const calendarsToSet = providers.length > 0 ? providers : getDefaultProviders();
+        // If no platform-appropriate calendars are writable, fall back to safe defaults
+        const calendarsToSet = providers.length > 0 ? providers : [];
         setAvailableCalendars(calendarsToSet);
         onCalendarsLoaded?.(calendarsToSet);
       } catch (error) {
         console.warn('[CalendarSync] Failed to fetch calendars:', error);
-        const defaultCals = getDefaultProviders();
-        setAvailableCalendars(defaultCals);
-        onCalendarsLoaded?.(defaultCals);
+        setAvailableCalendars([]);
+        onCalendarsLoaded?.([]);
       } finally {
         setLoading(false);
       }
@@ -203,6 +209,16 @@ export const CalendarSyncBottomSheet = forwardRef<
     );
   };
 
+  const getEmptyMessage = () => {
+    if (loading) {
+      return 'Loading calendars...';
+    }
+    if (permissionGranted) {
+      return 'No writable calendars found';
+    }
+    return 'Enable calendar permission to pick a calendar';
+  };
+
   return (
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
@@ -214,7 +230,7 @@ export const CalendarSyncBottomSheet = forwardRef<
       mode="select"
       renderItem={renderProviderItem}
       snapPoints={['50%', '60%']}
-      emptyMessage={loading ? "Loading calendars..." : "No writable calendars found"}
+      emptyMessage={getEmptyMessage()}
       onSheetChange={onSheetChange}
     />
   );

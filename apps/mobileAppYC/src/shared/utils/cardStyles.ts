@@ -1,5 +1,4 @@
 import type {Theme} from '@/theme/themes';
-import {Platform} from 'react-native';
 
 /**
  * Common card style utilities to reduce duplication across card components
@@ -32,7 +31,6 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
   const borderRadiusFallback = 16;
   const paddingFallback = 16;
   const colors = (theme as any)?.colors ?? {};
-  const shadows = (theme as any)?.shadows ?? {};
 
   const defaultConfig: CardStyleConfig = {
     borderRadius: getBorderRadius(theme, 'lg', borderRadiusFallback),
@@ -41,7 +39,6 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
   };
 
   const finalConfig = {...defaultConfig, ...config};
-  const cardShadow = Platform.OS === 'android' ? shadows.none : shadows.sm;
 
   return {
     card: {
@@ -50,8 +47,6 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
       borderColor: colors.borderMuted ?? '#EAEAEA',
       overflow: 'hidden' as const,
       backgroundColor: colors.cardBackground ?? '#FFFFFF',
-      ...(cardShadow || undefined),
-      shadowColor: colors.neutralShadow ?? 'rgba(71, 56, 39, 0.15)',
       padding: finalConfig.padding,
     },
     fallback: {

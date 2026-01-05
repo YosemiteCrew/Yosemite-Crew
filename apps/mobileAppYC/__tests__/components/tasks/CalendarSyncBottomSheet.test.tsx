@@ -98,28 +98,8 @@ const mockDeviceCalendars = [
   },
 ];
 
-const expectedProviderItemsInitial: SelectItem[] = [
-  {
-    id: 'google',
-    label: 'Google Calendar',
-    icon: 'google.png',
-    status: 'available',
-  },
-  {
-    id: 'icloud',
-    label: 'iCloud Calendar',
-    icon: 'icloud.png',
-    status: 'available',
-  },
-];
-
+// Since Platform.OS defaults to 'ios' in tests, Google calendars are filtered out
 const expectedDeviceCalendarItems: SelectItem[] = [
-  {
-    id: 'cal-google-1',
-    label: 'My Google Calendar',
-    icon: 'google.png',
-    status: 'available',
-  },
   {
     id: 'cal-icloud-1',
     label: 'My iCloud Calendar',
@@ -194,26 +174,16 @@ describe('CalendarSyncBottomSheet', () => {
     });
 
     const sheet = screen.getByTestId('mock-generic-sheet');
-    expect(sheet.props.items).toEqual(expectedProviderItemsInitial);
+    // Default mock has permissions denied, so calendar list is empty
+    expect(sheet.props.items).toEqual([]);
   });
 
   it('uses fallback icon if provider icon is missing', async () => {
     mockGoogleCalendarIcon = undefined;
     mockICloudCalendarIcon = undefined;
-    const expectedFallbackItems: SelectItem[] = [
-      {
-        id: 'google',
-        label: 'Google Calendar',
-        icon: 'calendar.png',
-        status: 'available',
-      },
-      {
-        id: 'icloud',
-        label: 'iCloud Calendar',
-        icon: 'calendar.png',
-        status: 'available',
-      },
-    ];
+    mockCheckPermissions.mockResolvedValue('authorized');
+    mockFindCalendars.mockResolvedValue(mockDeviceCalendars);
+
     renderComponent();
 
     // Wait for loading to complete
@@ -223,11 +193,23 @@ describe('CalendarSyncBottomSheet', () => {
     });
 
     const sheet = screen.getByTestId('mock-generic-sheet');
+    // On iOS, only iCloud calendar with fallback icon
+    const expectedFallbackItems: SelectItem[] = [
+      {
+        id: 'cal-icloud-1',
+        label: 'My iCloud Calendar',
+        icon: 'calendar.png',
+        status: 'available',
+      },
+    ];
     expect(sheet.props.items).toEqual(expectedFallbackItems);
   });
 
-  it('passes the correct selectedItem when selectedProvider is "google"', async () => {
-    renderComponent({selectedProvider: 'google'});
+  it('passes the correct selectedItem when selectedProvider exists in calendars', async () => {
+    mockCheckPermissions.mockResolvedValue('authorized');
+    mockFindCalendars.mockResolvedValue(mockDeviceCalendars);
+
+    renderComponent({selectedProvider: 'cal-icloud-1'});
 
     // Wait for loading to complete
     await waitFor(() => {
@@ -237,15 +219,18 @@ describe('CalendarSyncBottomSheet', () => {
 
     const sheet = screen.getByTestId('mock-generic-sheet');
     expect(sheet.props.selectedItem).toEqual({
-      id: 'google',
-      label: 'Google Calendar',
-      icon: 'google.png',
+      id: 'cal-icloud-1',
+      label: 'My iCloud Calendar',
+      icon: 'icloud.png',
     });
   });
 
   it('uses fallback icon in selectedItem if provider icon is missing', async () => {
-    mockGoogleCalendarIcon = undefined;
-    renderComponent({selectedProvider: 'google'});
+    mockICloudCalendarIcon = undefined;
+    mockCheckPermissions.mockResolvedValue('authorized');
+    mockFindCalendars.mockResolvedValue(mockDeviceCalendars);
+
+    renderComponent({selectedProvider: 'cal-icloud-1'});
 
     // Wait for loading to complete
     await waitFor(() => {
@@ -255,8 +240,8 @@ describe('CalendarSyncBottomSheet', () => {
 
     const sheet = screen.getByTestId('mock-generic-sheet');
     expect(sheet.props.selectedItem).toEqual({
-      id: 'google',
-      label: 'Google Calendar',
+      id: 'cal-icloud-1',
+      label: 'My iCloud Calendar',
       icon: 'calendar.png',
     });
   });
@@ -292,6 +277,9 @@ describe('CalendarSyncBottomSheet', () => {
   });
 
   it('calls onSelect prop with the item ID and name when onSave is triggered', async () => {
+    mockCheckPermissions.mockResolvedValue('authorized');
+    mockFindCalendars.mockResolvedValue(mockDeviceCalendars);
+
     const {onSelect} = renderComponent();
 
     // Wait for loading to complete
@@ -304,7 +292,8 @@ describe('CalendarSyncBottomSheet', () => {
     act(() => {
       sheet.props.onSave(sheet.props.items[0]);
     });
-    expect(onSelect).toHaveBeenCalledWith('google', 'Google Calendar');
+    // On iOS, first item is iCloud calendar
+    expect(onSelect).toHaveBeenCalledWith('cal-icloud-1', 'My iCloud Calendar');
   });
 
   it('does not call onSelect when onSave is triggered with null', async () => {
@@ -363,7 +352,7 @@ describe('CalendarSyncBottomSheet', () => {
       expect(mockFindCalendars).toHaveBeenCalled();
     });
 
-    it('uses default providers when permissions are denied', async () => {
+    it('uses empty calendar list when permissions are denied', async () => {
       mockCheckPermissions.mockResolvedValue('denied');
 
       renderComponent();
@@ -374,12 +363,13 @@ describe('CalendarSyncBottomSheet', () => {
       });
 
       const sheet = screen.getByTestId('mock-generic-sheet');
-      expect(sheet.props.items).toEqual(expectedProviderItemsInitial);
+      // When permissions are denied, availableCalendars is empty
+      expect(sheet.props.items).toEqual([]);
       expect(mockCheckPermissions).toHaveBeenCalled();
       expect(mockFindCalendars).not.toHaveBeenCalled();
     });
 
-    it('uses default providers when no writable calendars are found', async () => {
+    it('uses empty calendar list when no writable calendars are found', async () => {
       mockCheckPermissions.mockResolvedValue('authorized');
       mockFindCalendars.mockResolvedValue([]);
 
@@ -391,7 +381,8 @@ describe('CalendarSyncBottomSheet', () => {
       });
 
       const sheet = screen.getByTestId('mock-generic-sheet');
-      expect(sheet.props.items).toEqual(expectedProviderItemsInitial);
+      // When no calendars are found, availableCalendars is empty
+      expect(sheet.props.items).toEqual([]);
     });
 
     it('filters out read-only calendars', async () => {
@@ -414,7 +405,7 @@ describe('CalendarSyncBottomSheet', () => {
       });
 
       const sheet = screen.getByTestId('mock-generic-sheet');
-      expect(sheet.props.items).toHaveLength(2);
+      expect(sheet.props.items).toHaveLength(1); // Only iCloud on iOS
       expect(sheet.props.items).toEqual(expectedDeviceCalendarItems);
     });
 
@@ -429,12 +420,9 @@ describe('CalendarSyncBottomSheet', () => {
         expect(onCalendarsLoaded).toHaveBeenCalled();
       });
 
+      // On iOS, only iCloud calendar should be loaded (Google is filtered out)
       expect(onCalendarsLoaded).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({
-            id: 'cal-google-1',
-            name: 'My Google Calendar',
-          }),
           expect.objectContaining({
             id: 'cal-icloud-1',
             name: 'My iCloud Calendar',
@@ -458,13 +446,9 @@ describe('CalendarSyncBottomSheet', () => {
       });
 
       const sheet = screen.getByTestId('mock-generic-sheet');
-      expect(sheet.props.items).toEqual(expectedProviderItemsInitial);
-      expect(onCalendarsLoaded).toHaveBeenCalledWith(expectedProviderItemsInitial.map(item => ({
-        id: item.id,
-        name: item.label,
-        icon: item.icon,
-        status: item.status,
-      })));
+      // When there's an error, availableCalendars is set to empty array
+      expect(sheet.props.items).toEqual([]);
+      expect(onCalendarsLoaded).toHaveBeenCalledWith([]);
 
       consoleSpy.mockRestore();
     });

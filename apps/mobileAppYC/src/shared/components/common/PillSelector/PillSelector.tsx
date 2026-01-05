@@ -6,6 +6,7 @@ import {
   ViewStyle,
   Text,
   View,
+  FlatList,
 } from 'react-native';
 import {useTheme} from '@/hooks';
 
@@ -23,6 +24,7 @@ interface PillSelectorProps {
   contentStyle?: ViewStyle;
   pillSpacing?: number;
   allowScroll?: boolean;
+  autoScroll?: boolean;
 }
 
 export const PillSelector: React.FC<PillSelectorProps> = ({
@@ -33,9 +35,57 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
   contentStyle,
   pillSpacing,
   allowScroll = true,
+  autoScroll = false,
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme, pillSpacing), [theme, pillSpacing]);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const flatListRef = React.useRef<FlatList>(null);
+
+  const selectedIndex = React.useMemo(
+    () => options.findIndex(option => option.id === selectedId),
+    [options, selectedId],
+  );
+
+  const scrollToSelected = React.useCallback(() => {
+    if (!autoScroll || selectedIndex === -1) {
+      return;
+    }
+
+    setTimeout(() => {
+      if (flatListRef.current) {
+        flatListRef.current.scrollToIndex({
+          index: selectedIndex,
+          viewPosition: 0.5,
+          animated: true,
+        });
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: selectedIndex,
+            viewPosition: 0.5,
+            animated: true,
+          });
+        }, 300);
+      }
+    }, 100);
+  }, [autoScroll, selectedIndex]);
+
+  React.useEffect(() => {
+    scrollToSelected();
+  }, [scrollToSelected]);
+
+  const getItemLayout = React.useCallback(
+    (_data: any, index: number) => {
+      const averageItemWidth = 120;
+      const gap = pillSpacing ?? theme.spacing['2'];
+      return {
+        length: averageItemWidth,
+        offset: index * (averageItemWidth + gap),
+        index,
+      };
+    },
+    [pillSpacing, theme.spacing],
+  );
 
   const renderOption = React.useCallback(
     (option: PillOption) => {
@@ -69,9 +119,35 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
     ],
   );
 
+  const renderFlatListItem = React.useCallback(
+    ({item}: {item: PillOption}) => renderOption(item),
+    [renderOption],
+  );
+
   if (allowScroll) {
+    if (autoScroll) {
+      return (
+        <FlatList
+          ref={flatListRef}
+          horizontal
+          data={options}
+          renderItem={renderFlatListItem}
+          keyExtractor={item => item.id}
+          initialScrollIndex={selectedIndex === -1 ? undefined : selectedIndex}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, contentStyle]}
+          style={[styles.container, containerStyle]}
+          getItemLayout={getItemLayout}
+          onScrollToIndexFailed={error => {
+            console.warn('ScrollToIndex failed:', error.index);
+          }}
+        />
+      );
+    }
+
     return (
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, contentStyle]}

@@ -149,15 +149,21 @@ describe('DocumentPreviewScreen', () => {
 
   describe('Rendering', () => {
     it('renders the header with document title', () => {
-      const {getByText, getByTestId} = renderWithRedux();
-      expect(getByText('Vaccination Report')).toBeTruthy();
+      const {getAllByText, getByTestId} = renderWithRedux();
+      // Title appears in both header and details card
+      expect(getAllByText('Vaccination Report').length).toBeGreaterThan(0);
       expect(getByTestId('mock-header')).toBeTruthy();
     });
 
     it('renders info card with correct details', () => {
-      const {getByText} = renderWithRedux();
-      // Title logic: {title} for {companionName}
-      expect(getByText('Vaccination Report for Buddy')).toBeTruthy();
+      const {getByText, getAllByText} = renderWithRedux();
+      // DetailsCard shows Document Details title
+      expect(getByText('Document Details')).toBeTruthy();
+      // Title (appears in both header and details card)
+      expect(getAllByText('Vaccination Report').length).toBeGreaterThan(0);
+      // Companion name
+      expect(getByText('Buddy')).toBeTruthy();
+      // Business name
       expect(getByText('Happy Vet Clinic')).toBeTruthy();
       // Date formatting: Jan 15, 2023
       expect(getByText('Jan 15, 2023')).toBeTruthy();
@@ -169,7 +175,7 @@ describe('DocumentPreviewScreen', () => {
         companion: {companions: []},
       };
       const {getByText} = renderWithRedux(stateNoCompanion);
-      expect(getByText('Vaccination Report for Unknown')).toBeTruthy();
+      expect(getByText('Unknown')).toBeTruthy();
     });
 
     it('renders dashes if businessName or date are missing', () => {

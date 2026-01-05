@@ -62,6 +62,8 @@ export const MyAppointmentsScreen: React.FC = () => {
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} = useBusinessPhotoFallback();
+  const filterScrollRef = React.useRef<ScrollView | null>(null);
+  const filterPillRefs = React.useRef<Map<BusinessFilter, View>>(new Map());
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
@@ -245,6 +247,19 @@ export const MyAppointmentsScreen: React.FC = () => {
       fetchOrgRatingIfNeeded(apt.businessId);
     });
   }, [fetchOrgRatingIfNeeded, filteredPast]);
+
+  useEffect(() => {
+    const pillView = filterPillRefs.current.get(filter);
+    if (pillView && filterScrollRef.current) {
+      pillView.measureLayout(
+        filterScrollRef.current as any,
+        (x) => {
+          filterScrollRef.current?.scrollTo({x: x - 20, animated: true});
+        },
+        () => {},
+      );
+    }
+  }, [filter]);
 
   const renderEmptyCard = (title: string, subtitle: string) => (
     <LiquidGlassCard
@@ -526,12 +541,18 @@ export const MyAppointmentsScreen: React.FC = () => {
           />
           <View style={styles.pillContainer}>
             <ScrollView
+              ref={filterScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.pillsContent}>
               {FILTER_OPTIONS.map(option => (
                 <TouchableOpacity
                   key={option.id}
+                  ref={node => {
+                    if (node) {
+                      filterPillRefs.current.set(option.id, node);
+                    }
+                  }}
                   style={[
                     styles.pill,
                     filter === option.id && styles.pillActive,

@@ -31,85 +31,10 @@ import {SummaryCards} from '@/features/appointments/components/SummaryCards/Summ
 import {fetchBusinessDetails} from '@/features/linkedBusinesses';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {DetailsCard, type DetailItem, type DetailBadge} from '@/shared/components/common/DetailsCard';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
-
-type ExpenseDetailsProps = {
-  expense: any;
-  formattedAmount: string;
-  businessName: string;
-  onStatusRender: React.ReactNode;
-  styles: any;
-};
-
-const ExpenseDetailsCard = ({
-  expense,
-  formattedAmount,
-  businessName,
-  onStatusRender,
-  styles,
-}: ExpenseDetailsProps) => (
-  <View style={styles.invoiceDetailsCard}>
-    <Text style={styles.invoiceDetailsTitle}>Expense Details</Text>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Title</Text>
-      <Text style={styles.detailValue}>{expense.title}</Text>
-    </View>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Business</Text>
-      <Text style={styles.detailValue}>{businessName}</Text>
-    </View>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Category</Text>
-      <Text style={styles.detailValue}>{resolveCategoryLabel(expense.category)}</Text>
-    </View>
-
-    {!!expense.subcategory && expense.subcategory !== 'none' && (
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Sub category</Text>
-        <Text style={styles.detailValue}>
-          {resolveSubcategoryLabel(expense.category, expense.subcategory)}
-        </Text>
-      </View>
-    )}
-
-    {!!expense.visitType && expense.visitType !== 'other' && (
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Visit type</Text>
-        <Text style={styles.detailValue}>{resolveVisitTypeLabel(expense.visitType)}</Text>
-      </View>
-    )}
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Date</Text>
-      <Text style={styles.detailValue}>
-        {new Date(expense.date).toLocaleDateString('en-US', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })}
-      </Text>
-    </View>
-
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>Amount</Text>
-      <Text style={[styles.detailValue, styles.detailValueBold]}>{formattedAmount}</Text>
-    </View>
-
-    {expense.description ? (
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Description</Text>
-        <Text style={styles.detailValue}>{expense.description}</Text>
-      </View>
-    ) : null}
-
-    {onStatusRender}
-  </View>
-);
 
 const PaymentActions = ({
   shouldShow,
@@ -357,26 +282,52 @@ export const ExpensePreviewScreen: React.FC = () => {
   const isPendingPayment = isExpensePaymentPending(expense);
   const shouldShowPaymentActions = isInAppExpense && (isPendingPayment || hasInvoice(expense));
 
-  const renderStatusBadge = () => {
-    if (!isInAppExpense) {
-      return (
-        <View style={[styles.statusBadge, styles.externalBadge]}>
-          <Text style={styles.externalText}>External expense</Text>
-        </View>
-      );
-    }
+  const detailItems: DetailItem[] = [
+    {label: 'Title', value: expense.title},
+    {label: 'Business', value: businessNameFromOrg ?? expense.businessName ?? '—'},
+    {label: 'Category', value: resolveCategoryLabel(expense.category)},
+    {
+      label: 'Sub category',
+      value: resolveSubcategoryLabel(expense.category, expense.subcategory),
+      hidden: !expense.subcategory || expense.subcategory === 'none',
+    },
+    {
+      label: 'Visit type',
+      value: resolveVisitTypeLabel(expense.visitType),
+      hidden: !expense.visitType || expense.visitType === 'other',
+    },
+    {
+      label: 'Date',
+      value: new Date(expense.date).toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    },
+    {label: 'Amount', value: formattedAmount, bold: true},
+    {label: 'Description', value: expense.description || '', hidden: !expense.description},
+  ];
 
-    const badgeStyle = isPendingPayment ? [styles.statusBadge, styles.pendingBadge] : [styles.statusBadge, styles.paidBadge];
-    const badgeTextStyle = isPendingPayment ? styles.pendingText : styles.paidText;
-    const badgeLabel = isPendingPayment ? 'Awaiting Payment' : 'Paid';
-    return (
-      <View style={[styles.statusBadgeContainer, {marginTop: theme.spacing['2']}]}>
-        <View style={badgeStyle}>
-          <Text style={badgeTextStyle}>{badgeLabel}</Text>
-        </View>
-      </View>
-    );
-  };
+  const badges: DetailBadge[] = [];
+  if (!isInAppExpense) {
+    badges.push({
+      text: 'External expense',
+      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      textColor: theme.colors.primary,
+    });
+  } else if (isPendingPayment) {
+    badges.push({
+      text: 'Awaiting Payment',
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+      textColor: '#F59E0B',
+    });
+  } else {
+    badges.push({
+      text: 'Paid',
+      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      textColor: theme.colors.success,
+    });
+  }
 
   return (
     <LiquidGlassHeaderScreen
@@ -401,13 +352,7 @@ export const ExpensePreviewScreen: React.FC = () => {
             <SummaryCards businessSummary={businessSummary as any} />
           )}
 
-          <ExpenseDetailsCard
-            expense={expense}
-            formattedAmount={formattedAmount}
-            businessName={businessNameFromOrg ?? expense.businessName ?? '—'}
-            onStatusRender={renderStatusBadge()}
-            styles={styles}
-          />
+          <DetailsCard title="Expense Details" items={detailItems} badges={badges} />
 
           <PaymentActions
             shouldShow={shouldShowPaymentActions}
@@ -483,72 +428,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.h5,
       color: theme.colors.secondary,
       marginTop: theme.spacing['2'],
-    },
-    statusBadgeContainer: {
-      marginTop: theme.spacing['3'],
-    },
-    statusBadge: {
-      paddingVertical: theme.spacing['1'],
-      paddingHorizontal: theme.spacing['3'],
-      borderRadius: theme.borderRadius.full,
-      alignSelf: 'flex-start',
-    },
-    paidBadge: {
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
-    },
-    paidText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.success,
-    },
-    pendingBadge: {
-      backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    },
-    pendingText: {
-      ...theme.typography.labelSmall,
-      color: '#F59E0B',
-    },
-    externalBadge: {
-      backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    },
-    externalText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.primary,
-    },
-    invoiceDetailsCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['4'],
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      gap: theme.spacing['2'],
-    },
-    invoiceDetailsTitle: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['1'],
-    },
-    detailRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['2'],
-    },
-    detailLabel: {
-      ...theme.typography.body14,
-      color: theme.colors.textSecondary,
-      fontWeight: '500',
-      maxWidth: '45%',
-    },
-    detailValue: {
-      ...theme.typography.body14,
-      color: theme.colors.secondary,
-      fontWeight: '600',
-      flex: 1,
-      textAlign: 'right',
-      flexWrap: 'wrap',
-    },
-    detailValueBold: {
-      fontWeight: '700',
     },
     loadingContainer: {
       alignItems: 'center',

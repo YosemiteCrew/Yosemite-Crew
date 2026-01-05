@@ -105,7 +105,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
       cardProps={{
         interactive: true,
         glassEffect: 'clear',
-        shadow: 'none',
+        shadow: 'base',
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}

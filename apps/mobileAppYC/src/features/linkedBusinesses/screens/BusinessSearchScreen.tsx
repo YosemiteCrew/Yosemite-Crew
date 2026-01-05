@@ -44,6 +44,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
+  const rootRef = useRef<View | null>(null);
   const searchBarRef = useRef<View | null>(null);
   const deleteBottomSheetRef = useRef<DeleteBusinessBottomSheetRef>(null);
 
@@ -442,8 +443,24 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const dropdownTop = (searchBarBottom ?? theme.spacing['24']) + theme.spacing['2'];
   const showSearchResults = searchQuery.length >= 2 && searchResults.length > 0 && !searching;
 
+  const updateSearchBarBottom = useCallback(() => {
+    if (!rootRef.current || !searchBarRef.current) {
+      return;
+    }
+    rootRef.current.measureInWindow((_rx, rootY) => {
+      searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
+        setSearchBarBottom(y - rootY + h);
+      });
+    });
+  }, []);
+
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      ref={node => {
+        rootRef.current = node;
+      }}
+      onLayout={updateSearchBarBottom}>
       {showSearchResults ? (
         <Pressable style={styles.searchBackdrop} onPress={handleCloseDropdown} />
       ) : null}
@@ -462,11 +479,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
               ref={node => {
                 searchBarRef.current = node;
               }}
-              onLayout={() => {
-                searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
-                  setSearchBarBottom(y + h);
-                });
-              }}>
+              onLayout={updateSearchBarBottom}>
               <SearchBar
                 placeholder={`Search ${category}`}
                 mode="input"
