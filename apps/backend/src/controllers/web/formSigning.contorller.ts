@@ -44,6 +44,7 @@ export const FormSigningController = {
       }
 
       const result = await FormSigningService.startSigning({
+        isParent: true,
         submissionId,
         initiatedBy: authUser.parentId?.toString(),
       });

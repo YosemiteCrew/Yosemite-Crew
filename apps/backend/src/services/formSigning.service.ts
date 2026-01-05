@@ -2,12 +2,16 @@ import { FormModel, FormSubmissionModel, FormVersionModel } from "src/models/for
 import { DocumensoService } from "./documenso.service";
 import { generateFormSubmissionPdf } from "./formPDF.service";
 import { ParentModel } from "src/models/parent";
+import UserModel from "src/models/user";
+import logger from "src/utils/logger";
 
 export class FormSigningService {
   static async startSigning({
+    isParent,
     submissionId,
     initiatedBy,
   }: {
+    isParent?: boolean;
     submissionId: string;
     initiatedBy?: string;
   }) {
@@ -45,24 +49,38 @@ export class FormSigningService {
       submittedAt: submission.submittedAt,
     });
 
-    const parent = await ParentModel.findById(submission.parentId).lean();
-    
-    if(!parent){
-      throw new Error("Unbale to find parent");
+    let signerEmail = "";
+    let signerName = "";
+
+    if (isParent) {
+      logger.info("Signing initiated by parent: ", initiatedBy);
+      const parent = await ParentModel.findById(initiatedBy).lean();
+      
+      if(!parent){
+        throw new Error("Unbale to find parent");
+      }
+
+      signerEmail = parent.email;
+      signerName = parent.firstName + " " + parent.lastName;
+    } else {
+      const user = await UserModel.findById(submission.submittedBy).lean();
+      if (!user) {
+        throw new Error("Unable to find submitting user");
+      }
+      signerEmail = user.email;
+      signerName = user.firstName + " " + user.lastName;
     }
 
-    // 5️⃣ Resolve signer email
-    const signerEmail = parent.email;
-
     if (!signerEmail) {
-      throw new Error("Unable to resolve signer email");
+      logger.error("Signer email is missing");
+      throw new Error("Signer email is required for signing");
     }
 
     // 6️⃣ Create Documenso document
     const doc = await DocumensoService.createDocument({
       pdf,
       signerEmail,
-      signerName: parent.firstName + " " + parent.lastName,
+      signerName: signerName
     });
 
     if (!doc || typeof doc.id !== "number") {
@@ -81,15 +99,14 @@ export class FormSigningService {
       documentId: doc.id.toString(),
       signer: {
         email: signerEmail,
-        role: initiatedBy ? "VET" : "CLIENT",
+        role: isParent ? "CLIENT" : "VET",
       },
     };
 
     await submission.save();
-
     return {
       documentId: doc.id,
-      signingUrl: "",
+      signingUrl: `${process.env.DOCUMENSO_URL}/sign/${doc.recipients[0].token}`
     };
   }
 

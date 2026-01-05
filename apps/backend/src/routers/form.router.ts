@@ -65,7 +65,7 @@ router.post(
 
 router.get(
   "/form-submissions/:submissionId/signed-document",
-  //authorizeCognito,
+  authorizeCognito,
   FormSigningController.getSignedDocument
 );
 
