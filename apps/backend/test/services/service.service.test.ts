@@ -82,6 +82,8 @@ describe("ServiceService", () => {
         cost: 100,
         maxDiscount: null,
         specialityId: null,
+        serviceType: "CONSULTATION",
+        observationToolId: null,
         isActive: true,
       });
 
@@ -90,6 +92,8 @@ describe("ServiceService", () => {
         name: "Consultation",
         durationMinutes: 30,
         cost: 100,
+        serviceType: "CONSULTATION",
+        observationToolId: null,
         isActive: true,
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
         updatedAt: new Date("2024-01-01T00:00:00.000Z"),
@@ -110,6 +114,8 @@ describe("ServiceService", () => {
         cost: 100,
         maxDiscount: null,
         specialityId: null,
+        serviceType: "CONSULTATION",
+        observationToolId: null,
         isActive: true,
       });
       expect(result).toMatchObject({
@@ -133,6 +139,8 @@ describe("ServiceService", () => {
         specialityId: null,
         headOfServiceId: null,
         teamMemberIds: [],
+        serviceType: "CONSULTATION",
+        observationToolId: null,
         isActive: true,
       });
 
@@ -141,6 +149,8 @@ describe("ServiceService", () => {
         name: "New Name",
         durationMinutes: 40,
         teamMemberIds: ["abc"],
+        serviceType: "OBSERVATION_TOOL",
+        observationToolId: "507f1f77bcf86cd799439022",
       });
       mockedTypes.toServiceResponseDTO.mockImplementation(
         (value: any) => value,
@@ -152,6 +162,10 @@ describe("ServiceService", () => {
 
       expect(existing.name).toBe("New Name");
       expect(existing.durationMinutes).toBe(40);
+      expect(existing.serviceType).toBe("OBSERVATION_TOOL");
+      expect(existing.observationToolId?.toString()).toBe(
+        "507f1f77bcf86cd799439022",
+      );
       expect(existing.teamMemberIds).toEqual([]);
       expect(existing.save).toHaveBeenCalled();
       expect(result.name).toBe("New Name");

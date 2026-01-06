@@ -38,6 +38,12 @@ jest.mock('../../../../../src/shared/utils/screenStyles', () => ({
   }),
   createEmptyStateStyles: () => ({emptyState: {padding: 20}}),
   createSearchAndSelectorStyles: () => ({searchBar: {margin: 10}}),
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
+  createAllCommonStyles: () => ({container: {}, contentContainer: {}, errorContainer: {}, errorText: {}}),
 }));
 
 // 4. Components (Inline requires to avoid ReferenceError due to hoisting)

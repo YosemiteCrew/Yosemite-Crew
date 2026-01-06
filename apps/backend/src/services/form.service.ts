@@ -18,6 +18,7 @@ import {
   FormSubmissionRequestDTO,
   toFHIRQuestionnaireResponse,
 } from "@yosemite-crew/types";
+import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 
 export class FormServiceError extends Error {
   constructor(
@@ -36,8 +37,22 @@ const ensureObjectId = (id: string | Types.ObjectId, label: string) => {
   return new Types.ObjectId(id);
 };
 
-const normalizeObjectId = (id: Types.ObjectId | string) =>
-  typeof id === "string" ? id : id.toHexString();
+type NormalizableObjectId =
+  | Types.ObjectId
+  | string
+  | { toHexString(): string }
+  | { toString(): string };
+
+const normalizeObjectId = (id: NormalizableObjectId): string => {
+  if (typeof id === "string") return id;
+  if (id instanceof Types.ObjectId) return id.toHexString();
+  if ("toHexString" in id) {
+    const hex = id.toHexString?.();
+    if (typeof hex === "string") return hex;
+  }
+
+  throw new FormServiceError("Invalid ObjectId", 400);
+};
 
 // Helpers
 
@@ -429,5 +444,95 @@ export const FormService = {
       appointmentId,
       soapNotes: grouped,
     };
+  },
+
+  async getConsentFormForParent(
+    orgId: string,
+    options?: {
+      serviceId?: string;
+      species?: string;
+    },
+  ) {
+    const oid = ensureObjectId(orgId, "orgId");
+
+    const filter: Record<string, unknown> = {
+      orgId: oid,
+      status: "published",
+      visibilityType: "External",
+      category: "Consent",
+    };
+
+    if (options?.serviceId) {
+      filter.serviceId = { $in: [options.serviceId] };
+    }
+
+    if (options?.species) {
+      filter.speciesFilter = { $in: [options.species] };
+    }
+
+    const form = await FormModel.findOne(filter).sort({ updatedAt: -1 });
+    if (!form) {
+      throw new FormServiceError("Consent form not found", 404);
+    }
+
+    const version = await FormVersionModel.findOne({
+      formId: form._id,
+    }).sort({ version: -1 });
+
+    if (!version) {
+      throw new FormServiceError("Consent form is not published", 400);
+    }
+
+    // Build client-safe form payload
+    const clientForm: Form = {
+      _id: form._id.toString(),
+      orgId: "",
+      name: form.name,
+      category: form.category,
+      description: form.description,
+      visibilityType: form.visibilityType,
+      serviceId: form.serviceId,
+      speciesFilter: form.speciesFilter,
+      status: form.status,
+      schema: version.schemaSnapshot,
+      createdBy: "",
+      updatedBy: "",
+      createdAt: form.createdAt,
+      updatedAt: form.updatedAt,
+    };
+
+    return toFormResponseDTO(clientForm);
+  },
+
+  async generatePDFForSubmission(
+    submissionId: string,
+  ): Promise<Buffer> {
+    const sid = ensureObjectId(submissionId, "submissionId");
+
+    const submission = await FormSubmissionModel.findById(sid).lean();
+    if (!submission) {
+      throw new FormServiceError("Submission not found", 404);
+    }
+
+    const version = await FormVersionModel.findOne({
+      formId: submission.formId,
+      version: submission.formVersion,
+    }).lean();
+    if (!version) {
+      throw new FormServiceError("Form version not found", 404);
+    }
+
+    const formIdString = normalizeObjectId(submission.formId);
+
+    const vm = buildPdfViewModel({
+      title: `Form Submission - ${formIdString}`,
+      schema: version.schemaSnapshot,
+      answers: submission.answers,
+      submittedAt: submission.submittedAt,
+    });
+
+    const pdfBuffer = await renderPdf(vm);
+
+    return pdfBuffer;
   },
 };

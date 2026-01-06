@@ -22,7 +22,7 @@ export const FormScreenLayout: React.FC<FormScreenLayoutProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         contentContainerStyle={[styles.content, contentContainerStyle]}
         showsVerticalScrollIndicator={false}>
@@ -50,7 +50,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       paddingVertical: theme.spacing['2'],
       overflow: 'hidden',
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     glassFallback: {
       borderRadius: theme.borderRadius.lg,

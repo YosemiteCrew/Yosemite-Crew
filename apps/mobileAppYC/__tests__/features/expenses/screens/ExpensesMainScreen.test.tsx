@@ -1,5 +1,5 @@
 import React from 'react';
-import {mockTheme} from '../setup/mockTheme';
+import {mockTheme} from '../../../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {ExpensesMainScreen} from '@/features/expenses/screens/ExpensesMainScreen/ExpensesMainScreen';
 import {setSelectedCompanion} from '@/features/companion';
@@ -48,7 +48,9 @@ jest.mock('@/shared/components/common', () => {
   return {
     SafeArea: ({children}: {children: React.ReactNode}) => <>{children}</>,
     YearlySpendCard: (props: any) => (
-      <RN.View data-testid="yearly-spend-card" {...props} />
+      <RN.TouchableOpacity data-testid="yearly-spend-card" onPress={props.onPress}>
+        <RN.Text>{props.label}</RN.Text>
+      </RN.TouchableOpacity>
     ),
   };
 });
@@ -88,23 +90,35 @@ jest.mock('@/features/expenses/components', () => {
     ExpenseCard: (props: any) => (
       <RN.View data-testid="expense-card">
         <RN.TouchableOpacity testID="view-button" onPress={props.onPressView} />
-        <RN.TouchableOpacity testID="edit-button" onPress={props.onPressEdit} />
-        <RN.TouchableOpacity testID="pay-button" onPress={props.onPressPay} />
-        <RN.TouchableOpacity
-          testID="toggle-paid-button"
-          onPress={props.onTogglePaidStatus}
-        />
+        {props.showEditAction && props.onPressEdit && (
+          <RN.TouchableOpacity testID="edit-button" onPress={props.onPressEdit} />
+        )}
+        {props.showPayButton && props.onPressPay && (
+          <RN.TouchableOpacity testID="pay-button" onPress={props.onPressPay} />
+        )}
+        {props.isPaid && props.onTogglePaidStatus && (
+          <RN.TouchableOpacity
+            testID="toggle-paid-button"
+            onPress={props.onTogglePaidStatus}
+          />
+        )}
       </RN.View>
     ),
   };
 });
 
 jest.mock('@/assets/images', () => ({
-  Images: {addIconDark: 'add-icon-path'},
+  Images: {
+    addIconDark: 'add-icon-path',
+    emptyExpenseIllustration: 'empty-expense-path',
+    documentFallback: 'document-fallback-path',
+    currencyIcon: 'currency-icon-path',
+  },
 }));
 
 jest.mock('@/shared/utils/currency', () => ({
   resolveCurrencySymbol: jest.fn(() => '$'),
+  formatCurrency: jest.fn((amount) => `$${amount}`),
 }));
 jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveCategoryLabel: jest.fn(val => `${val}-label`),
@@ -118,6 +132,88 @@ jest.mock('@/features/expenses/selectors', () => ({
   selectHasHydratedCompanion: jest.fn(),
   selectRecentExternalExpenses: jest.fn(),
   selectRecentInAppExpenses: jest.fn(),
+}));
+
+jest.mock('@/features/expenses/utils/status', () => ({
+  hasInvoice: jest.fn(() => false),
+  isExpensePaid: jest.fn(() => false),
+  isExpensePaymentPending: jest.fn(() => false),
+}));
+
+jest.mock('@/features/expenses/hooks/useExpensePayment', () => ({
+  useExpensePayment: jest.fn(() => ({
+    openPaymentScreen: jest.fn(),
+    processingPayment: false,
+  })),
+}));
+
+jest.mock('react-native-safe-area-context', () => {
+  const RN = jest.requireActual('react-native');
+  return {
+    SafeAreaView: ({children, style}: any) => <RN.View style={style}>{children}</RN.View>,
+  };
+});
+
+jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
+  const RN = jest.requireActual('react-native');
+  return {
+    LiquidGlassHeaderScreen: ({header, children}: any) => (
+      <RN.View>
+        {header}
+        {children(null)}
+      </RN.View>
+    ),
+  };
+});
+
+jest.mock('@/shared/components/common/ViewMoreButton/ViewMoreButton', () => {
+  const RN = jest.requireActual('react-native');
+  return {
+    ViewMoreButton: (props: any) => (
+      <RN.TouchableOpacity testID="view-more-button" onPress={props.onPress}>
+        <RN.Text>View More</RN.Text>
+      </RN.TouchableOpacity>
+    ),
+  };
+});
+
+jest.mock('@/shared/components/common/cardStyles', () => ({
+  createCardStyles: () => ({
+    card: {},
+    fallback: {},
+    innerContent: {},
+    infoRow: {},
+    thumbnailContainer: {},
+    thumbnail: {},
+    textContent: {},
+    title: {},
+    rightColumn: {},
+    amount: {},
+  }),
+}));
+
+jest.mock('@/shared/components/common/SwipeableActionCard/SwipeableActionCard', () => {
+  const RN = jest.requireActual('react-native');
+  return {
+    SwipeableActionCard: (props: any) => (
+      <RN.View testID="swipeable-card">{props.children}</RN.View>
+    ),
+  };
+});
+
+jest.mock('@/shared/components/common/CardActionButton/CardActionButton', () => {
+  const RN = jest.requireActual('react-native');
+  return {
+    CardActionButton: (props: any) => (
+      <RN.TouchableOpacity testID="card-action-btn" onPress={props.onPress}>
+        <RN.Text>{props.label}</RN.Text>
+      </RN.TouchableOpacity>
+    ),
+  };
+});
+
+jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
+  formatDateForDisplay: jest.fn((date) => date.toISOString()),
 }));
 
 
@@ -324,9 +420,9 @@ describe('ExpensesMainScreen', () => {
   it('should render empty state if hydrated and no expenses exist', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => true);
     const {getByText} = render(<ExpensesMainScreen />);
-    expect(getByText('Zero Bucks Spent!')).toBeTruthy();
+    expect(getByText('Zero bucks spent!')).toBeTruthy();
     expect(
-      getByText('It seems like you and your buddy is in saving mode!'),
+      getByText('It seems like you and your buddy are in saving mode!'),
     ).toBeTruthy();
   });
 
@@ -353,7 +449,7 @@ describe('ExpensesMainScreen', () => {
       <ExpensesMainScreen />,
     );
 
-    expect(queryByText('Zero Bucks Spent!')).toBeNull();
+    expect(queryByText('Zero bucks spent!')).toBeNull();
 
     expect(getByText('Recent in-app expenses')).toBeTruthy();
     expect(getByText('Recent external expenses')).toBeTruthy();
@@ -381,53 +477,46 @@ describe('ExpensesMainScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('AddExpense');
     });
 
-    it('should navigate to in-app ExpensesList on "View More" press', () => {
-      const {getAllByText} = render(<ExpensesMainScreen />);
+    it('should navigate to in-app ExpensesList on first "View More" press', () => {
+      const {getAllByTestId} = render(<ExpensesMainScreen />);
+      const viewMoreButtons = getAllByTestId('view-more-button');
       // First "View More" is in-app
-      fireEvent.press(getAllByText('View More')[0]); // Use press
+      fireEvent.press(viewMoreButtons[0]);
       expect(mockNavigate).toHaveBeenCalledWith('ExpensesList', {
         mode: 'inApp',
       });
     });
 
-    it('should navigate to external ExpensesList on "View More" press', () => {
-      const {getAllByText} = render(<ExpensesMainScreen />);
+    it('should navigate to external ExpensesList on second "View More" press', () => {
+      const {getAllByTestId} = render(<ExpensesMainScreen />);
+      const viewMoreButtons = getAllByTestId('view-more-button');
       // Second "View More" is external
-      fireEvent.press(getAllByText('View More')[1]); // Use press
+      fireEvent.press(viewMoreButtons[1]);
       expect(mockNavigate).toHaveBeenCalledWith('ExpensesList', {
         mode: 'external',
       });
     });
-    it('should handle view, pay, and toggle paid for in-app expense', () => {
+
+    it('should handle view for in-app expense', () => {
       const {getAllByTestId} = render(<ExpensesMainScreen />);
 
       fireEvent.press(getAllByTestId('view-button')[0]);
       expect(mockNavigate).toHaveBeenCalledWith('ExpensePreview', {
         expenseId: 'e1',
       });
-
-      fireEvent.press(getAllByTestId('pay-button')[0]);
-      mockState.expenses.items = [
-        {...mockInAppExpense, status: 'paid' as ExpensePaymentStatus},
-      ];
-      selectRecentInAppExpensesMock.mockReturnValue(() => [
-        {...mockInAppExpense, status: 'paid' as ExpensePaymentStatus},
-      ]);
-
-      const {getAllByTestId: getAllAgain} = render(<ExpensesMainScreen />);
-
-      fireEvent.press(getAllAgain('toggle-paid-button')[0]);
     });
 
     it('should handle view and edit for external expense', () => {
       const {getAllByTestId} = render(<ExpensesMainScreen />);
 
-      fireEvent.press(getAllByTestId('view-button')[1]);
+      const viewButtons = getAllByTestId('view-button');
+      fireEvent.press(viewButtons[1] ?? viewButtons[0]);
       expect(mockNavigate).toHaveBeenCalledWith('ExpensePreview', {
         expenseId: 'e2',
       });
 
-      fireEvent.press(getAllByTestId('edit-button')[1]);
+      const editButtons = getAllByTestId('edit-button');
+      fireEvent.press(editButtons[1] ?? editButtons[0]);
       expect(mockNavigate).toHaveBeenCalledWith('EditExpense', {
         expenseId: 'e2',
       });

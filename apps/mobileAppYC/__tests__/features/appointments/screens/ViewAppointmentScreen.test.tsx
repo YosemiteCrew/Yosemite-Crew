@@ -329,6 +329,10 @@ describe('ViewAppointmentScreen', () => {
     expenses: {
       expenses: [],
     },
+    tasks: {
+      items: [],
+      hydratedCompanions: {},
+    },
   };
 
   const mockOpenPayment = jest.fn();

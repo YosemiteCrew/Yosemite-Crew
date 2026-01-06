@@ -5,8 +5,14 @@ import {
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
-import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
+import {useTheme, useFileOperations} from '@/hooks';
+import {
+  useFormBottomSheets,
+  type FormBottomSheetRefs,
+} from '@/shared/hooks/useFormBottomSheets';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {CategoryBottomSheet} from '@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import {SubcategoryBottomSheet} from '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
@@ -65,7 +71,22 @@ export interface ExpenseFormProps {
   currencyCode: string;
   saveButtonText?: string;
   showProviderField?: boolean;
+  contentContainerStyle?: StyleProp<ViewStyle>;
+  formSheetRefs?: FormBottomSheetRefs;
+  openSheet?: (sheetName: string) => void;
+  closeSheet?: () => void;
+  fileOperations?: ExpenseFormFileOperations;
+  renderBottomSheets?: boolean;
 }
+
+export type ExpenseFormFileOperations = {
+  fileToDelete: string | null;
+  handleTakePhoto: () => void;
+  handleChooseFromGallery: () => void;
+  handleUploadFromDrive: () => void;
+  handleRemoveFile: (fileId: string) => void;
+  confirmDeleteFile: () => void;
+};
 
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   companions,
@@ -80,31 +101,41 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   currencyCode,
   saveButtonText = 'Save',
   showProviderField = true,
+  contentContainerStyle,
+  formSheetRefs,
+  openSheet,
+  closeSheet,
+  fileOperations,
+  renderBottomSheets = true,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const {refs, openSheet, closeSheet} = useFormBottomSheets();
-  const {categorySheetRef, subcategorySheetRef, visitTypeSheetRef, uploadSheetRef, deleteSheetRef} = refs;
+  const internalSheets = useFormBottomSheets();
+  const resolvedRefs = formSheetRefs ?? internalSheets.refs;
+  const resolvedOpenSheet = openSheet ?? internalSheets.openSheet;
+  const resolvedCloseSheet = closeSheet ?? internalSheets.closeSheet;
+  const {
+    categorySheetRef,
+    subcategorySheetRef,
+    visitTypeSheetRef,
+    uploadSheetRef,
+    deleteSheetRef,
+  } = resolvedRefs;
 
   const currencySymbol = resolveCurrencySymbol(currencyCode, '$');
 
-  const {
-    fileToDelete,
-    handleTakePhoto,
-    handleChooseFromGallery,
-    handleUploadFromDrive,
-    handleRemoveFile,
-    confirmDeleteFile,
-  } = useFileOperations({
+  const internalFileOps = useFileOperations({
     files: formData.attachments,
     setFiles: files => onFormChange('attachments', files),
     clearError: () => onErrorClear('attachments'),
-    openSheet,
-    closeSheet,
+    openSheet: resolvedOpenSheet,
+    closeSheet: resolvedCloseSheet,
     deleteSheetRef,
   });
+  const resolvedFileOps = fileOperations ?? internalFileOps;
+  const {handleRemoveFile} = resolvedFileOps;
 
   const displayDate = formData.date
     ? formatDateForDisplay(formData.date)
@@ -124,7 +155,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     <>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[styles.contentContainer, contentContainerStyle]}
         showsVerticalScrollIndicator={false}>
         <CompanionSelector
           companions={companions}
@@ -142,7 +173,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             value={categoryValue}
             placeholder="Category"
             onPress={() => {
-              openSheet('category');
+              resolvedOpenSheet('category');
               categorySheetRef.current?.open();
             }}
             rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
@@ -157,7 +188,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             placeholder="Sub category"
             onPress={() => {
               if (formData.category) {
-                openSheet('subcategory');
+                resolvedOpenSheet('subcategory');
                 subcategorySheetRef.current?.open();
               }
             }}
@@ -173,7 +204,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             value={visitTypeValue}
             placeholder="Visit type"
             onPress={() => {
-              openSheet('visitType');
+              resolvedOpenSheet('visitType');
               visitTypeSheetRef.current?.open();
             }}
             rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
@@ -238,7 +269,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           <DocumentAttachmentsSection
             files={formData.attachments}
             onAddPress={() => {
-              openSheet('upload');
+              resolvedOpenSheet('upload');
               uploadSheetRef.current?.open();
             }}
             onRequestRemove={file => handleRemoveFile(file.id)}
@@ -276,6 +307,52 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         onDismiss={() => setShowDatePicker(false)}
       />
 
+      {renderBottomSheets ? (
+        <ExpenseFormSheets
+          formData={formData}
+          onFormChange={onFormChange}
+          onErrorClear={onErrorClear}
+          fileOperations={resolvedFileOps}
+          formSheetRefs={resolvedRefs}
+          closeSheet={resolvedCloseSheet}
+        />
+      ) : null}
+    </>
+  );
+};
+
+export const ExpenseFormSheets: React.FC<{
+  formData: ExpenseFormData;
+  onFormChange: <K extends keyof ExpenseFormData>(field: K, value: ExpenseFormData[K]) => void;
+  onErrorClear: (field: keyof ExpenseFormErrors) => void;
+  fileOperations: ExpenseFormFileOperations;
+  formSheetRefs: FormBottomSheetRefs;
+  closeSheet: () => void;
+}> = ({
+  formData,
+  onFormChange,
+  onErrorClear,
+  fileOperations,
+  formSheetRefs,
+  closeSheet,
+}) => {
+  const {
+    categorySheetRef,
+    subcategorySheetRef,
+    visitTypeSheetRef,
+    uploadSheetRef,
+    deleteSheetRef,
+  } = formSheetRefs;
+  const {
+    fileToDelete,
+    handleTakePhoto,
+    handleChooseFromGallery,
+    handleUploadFromDrive,
+    confirmDeleteFile,
+  } = fileOperations;
+
+  return (
+    <>
       <CategoryBottomSheet
         ref={categorySheetRef}
         selectedCategory={formData.category}
@@ -344,7 +421,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
     },
     companionSelector: {
@@ -384,8 +461,9 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     footer: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingBottom: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['10'],
+      zIndex: 2,
       paddingTop: theme.spacing['2'],
       backgroundColor: theme.colors.background,
     },

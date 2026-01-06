@@ -105,7 +105,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
       cardProps={{
         interactive: true,
         glassEffect: 'clear',
-        shadow: 'none',
+        shadow: 'base',
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}
@@ -154,7 +154,6 @@ const createStyles = (theme: any) => {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
       borderRadius: theme.spacing['5'],
-      overflow: 'hidden',
       borderWidth: 2,
       borderColor: theme.colors.white,
     },

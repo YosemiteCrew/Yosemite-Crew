@@ -112,7 +112,7 @@ export const BookingSummaryCard: React.FC<Props> = ({
       enableHorizontalSwipeOnly
       containerStyle={[styles.cardContainer, style]}
       cardProps={{
-        shadow: 'none',
+        shadow: 'base',
         glassEffect: 'none',
         style: styles.card,
         fallbackStyle: styles.card,

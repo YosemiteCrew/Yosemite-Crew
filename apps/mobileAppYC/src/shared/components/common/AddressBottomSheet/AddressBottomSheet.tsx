@@ -10,12 +10,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import {useTheme, useAddressAutocomplete} from '@/hooks';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import {AddressFields, type AddressFieldValues} from '@/shared/components/forms/AddressFields';
@@ -45,8 +47,10 @@ export const AddressBottomSheet = forwardRef<
 >(({selectedAddress, onSave}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const closeButtonSize = theme.spacing['9'];
   const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const [tempAddress, setTempAddress] = useState<Address>(selectedAddress);
   const {
@@ -59,8 +63,23 @@ export const AddressBottomSheet = forwardRef<
     resetError,
   } = useAddressAutocomplete();
 
+  React.useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Helper to reset state and close bottom sheet
   const closeSheet = () => {
+    Keyboard.dismiss();
     clearSuggestions();
     resetError();
     bottomSheetRef.current?.close();
@@ -96,11 +115,13 @@ export const AddressBottomSheet = forwardRef<
   };
 
   const handleSave = () => {
+    Keyboard.dismiss();
     onSave(tempAddress);
     closeSheet();
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setTempAddress(selectedAddress);
     setAddressQuery(selectedAddress.addressLine ?? '', {suppressLookup: true});
     closeSheet();
@@ -116,10 +137,16 @@ export const AddressBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['60%', '80%']}
+      snapPoints={isKeyboardVisible ? ['93%', '96%'] : ['60%', '80%']}
       initialIndex={-1}
       onChange={index => {
         setIsSheetVisible(index !== -1);
+        if (index === -1) {
+          Keyboard.dismiss();
+        }
+      }}
+      onAnimate={() => {
+        Keyboard.dismiss();
       }}
       enablePanDownToClose
       enableDynamicSizing={false}
@@ -130,25 +157,31 @@ export const AddressBottomSheet = forwardRef<
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
+      onBackdropPress={Keyboard.dismiss}
       contentType="view"
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <View style={styles.container}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Address</Text>
-          <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
+          <LiquidGlassIconButton
+            onPress={handleCancel}
+            size={closeButtonSize}
+            style={styles.closeButton}>
             <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
-          </TouchableOpacity>
+          </LiquidGlassIconButton>
         </View>
 
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={Keyboard.dismiss}>
           <AddressFields
             values={tempAddress}
             onChange={handleFieldChange}
@@ -186,7 +219,8 @@ export const AddressBottomSheet = forwardRef<
             borderRadius={16}
           />
         </View>
-      </View>
+        </View>
+      </TouchableWithoutFeedback>
     </CustomBottomSheet>
   );
 });
@@ -198,6 +232,13 @@ const createStyles = (theme: any) =>
     ...createBottomSheetContainerStyles(theme),
     ...createBottomSheetButtonStyles(theme),
     ...createBottomSheetStyles(theme),
+    closeButton: {
+      position: 'absolute',
+      right: 0,
+      padding: theme.spacing['2'],
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 
 export default AddressBottomSheet;

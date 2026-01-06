@@ -1,7 +1,7 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {SubcategoryAccordion} from '../../../src/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
-import {Text} from 'react-native';
+import {Image, Text} from 'react-native';
 import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
@@ -80,10 +80,10 @@ describe('SubcategoryAccordion', () => {
   });
 
   it('does NOT render the icon when not provided', () => {
-    const {toJSON} = render(
+    const {UNSAFE_getAllByType} = render(
       <SubcategoryAccordion {...defaultProps} icon={undefined} />,
     );
-    expect(toJSON()).toMatchSnapshot();
+    expect(UNSAFE_getAllByType(Image)).toHaveLength(1);
   });
 
   it('applies custom container styles', () => {

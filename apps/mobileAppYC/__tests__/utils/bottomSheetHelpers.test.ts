@@ -125,7 +125,6 @@ describe('bottomSheetHelpers', () => {
         closeButton: {
           position: 'absolute',
           right: 0,
-          padding: mockTheme.spacing['2'],
         },
         closeIcon: {
           width: mockTheme.spacing['6'],

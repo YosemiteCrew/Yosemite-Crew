@@ -173,7 +173,7 @@ describe('SafeArea', () => {
       const views = tree.root.findAllByType(View);
       const safeAreaView = views.find(view => view.props.edges !== undefined);
       if (safeAreaView) {
-        expect(safeAreaView.props.edges).toEqual(['top', 'bottom', 'left', 'right']);
+        expect(safeAreaView.props.edges).toEqual(['top']);
       }
     });
 

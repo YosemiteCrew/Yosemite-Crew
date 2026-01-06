@@ -336,4 +336,18 @@ export const OrganisationRoomService = {
       );
     }
   },
+
+  async delete(id: string) {
+    const query = resolveIdQuery(id);
+
+    const document = await OrganisationRoomModel.findOneAndDelete(query, {
+      sanitizeFilter: true,
+    });
+
+    if (!document) {
+      return null;
+    }
+
+    return buildFHIRResponse(document);
+  },
 };

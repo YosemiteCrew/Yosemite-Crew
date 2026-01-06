@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {AppState, type AppStateStatus} from 'react-native';
+import {AppState, DeviceEventEmitter, type AppStateStatus} from 'react-native';
 import {
   getAuth,
   getIdToken,
@@ -11,7 +11,7 @@ import {syncAuthUser} from '@/features/auth/services/authUserService';
 import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
 import {Buffer} from 'node:buffer';
 
-import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
+import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import {
   clearStoredTokens,
   loadStoredTokens,
@@ -209,6 +209,33 @@ const checkPendingProfile = async (userId: string): Promise<MaybePendingProfile>
   return 'none';
 };
 
+const isProfileComplete = (user?: User | null): boolean => {
+  return Boolean(user?.parentId || user?.profileCompleted);
+};
+
+const clearPendingProfileForUser = async (userId: string) => {
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const pendingProfileRaw = await AsyncStorage.getItem(PENDING_PROFILE_STORAGE_KEY);
+    if (!pendingProfileRaw) {
+      return;
+    }
+
+    const pendingProfile = JSON.parse(pendingProfileRaw) as {userId?: string};
+    if (pendingProfile?.userId !== userId) {
+      return;
+    }
+
+    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+  } catch (error) {
+    console.warn('[Auth] Failed to clear pending profile payload', error);
+  }
+};
+
 export type RecoverAuthOutcome =
   | {
       kind: 'authenticated';
@@ -265,9 +292,10 @@ const buildAmplifyUser = (
   mapped: Partial<User>,
   profileToken: string | null | undefined,
   parentSummary?: ParentProfileSummary,
+  fallbackParentId?: string | null,
 ): User => ({
   id: authUser.userId,
-  parentId: parentSummary?.id ?? undefined,
+  parentId: parentSummary?.id ?? fallbackParentId ?? undefined,
   email: mapped.email ?? authUser.username,
   firstName: mapped.firstName,
   lastName: mapped.lastName,
@@ -279,7 +307,6 @@ const buildAmplifyUser = (
 
 const attemptAmplifyRecovery = async (
   existingProfileToken: string | null | undefined,
-  maybeHandlePendingProfile: (userId: string) => Promise<boolean>,
   existingParentId?: string | null,
 ): Promise<RecoveryResult> => {
   try {
@@ -298,9 +325,7 @@ const attemptAmplifyRecovery = async (
       fetchUserAttributes(),
     ]);
 
-    if (await maybeHandlePendingProfile(authUser.userId)) {
-      return {kind: 'pendingProfile'};
-    }
+    const pendingProfileStatus = await checkPendingProfile(authUser.userId);
 
     const mapped = mapAttributesToUser(attributes);
     const profileTokenResult = await resolveProfileTokenForUser(
@@ -318,12 +343,21 @@ const attemptAmplifyRecovery = async (
       mapped,
       profileTokenResult.token,
       profileTokenResult.parent,
+      existingParentId,
     );
     const mergedUser = mergeUserWithParentProfile(baseUser, profileTokenResult.parent);
     const hydratedUser: User = {
       ...mergedUser,
       profileCompleted: profileTokenResult.isComplete ?? mergedUser.profileCompleted,
     };
+
+    if (pendingProfileStatus === 'pending') {
+      if (isProfileComplete(hydratedUser)) {
+        await clearPendingProfileForUser(authUser.userId);
+      } else {
+        return {kind: 'pendingProfile'};
+      }
+    }
 
     const expiresAtSeconds =
       session.tokens?.idToken?.payload?.exp ??
@@ -358,7 +392,6 @@ const attemptAmplifyRecovery = async (
 const attemptFirebaseRecovery = async (
   existingUser: User | null,
   existingProfileToken: string | null | undefined,
-  maybeHandlePendingProfile: (userId: string) => Promise<boolean>,
 ): Promise<RecoveryResult> => {
   try {
     const auth = getAuth();
@@ -369,10 +402,6 @@ const attemptFirebaseRecovery = async (
     }
 
     await reload(firebaseUser);
-
-    if (await maybeHandlePendingProfile(firebaseUser.uid)) {
-      return {kind: 'pendingProfile'};
-    }
 
     const idToken = await getIdToken(firebaseUser);
     let authSync: Awaited<ReturnType<typeof syncAuthUser>> | undefined;
@@ -386,10 +415,11 @@ const attemptFirebaseRecovery = async (
     }
 
     const parentSummary = authSync?.parentSummary;
+    const pendingProfileStatus = await checkPendingProfile(firebaseUser.uid);
 
     // If we have no linked parent and no pending profile to resume, treat this
     // Firebase session as orphaned and sign out to avoid forcing CreateAccount.
-    if (!parentSummary && !existingUser?.parentId) {
+    if (!parentSummary && !existingUser?.parentId && pendingProfileStatus !== 'pending') {
       try {
         await firebaseSignOut(auth);
       } catch (signOutError) {
@@ -442,6 +472,14 @@ const attemptFirebaseRecovery = async (
       ...mergedUser,
       profileCompleted: profileTokenResult.isComplete ?? mergedUser.profileCompleted,
     };
+
+    if (pendingProfileStatus === 'pending') {
+      if (isProfileComplete(hydratedUser)) {
+        await clearPendingProfileForUser(firebaseUser.uid);
+      } else {
+        return {kind: 'pendingProfile'};
+      }
+    }
 
     const normalizedTokens = normalizeTokens(
       {
@@ -619,24 +657,15 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
   const existingUser = existingUserRaw ? (JSON.parse(existingUserRaw) as User) : null;
   const existingProfileToken = existingUser?.profileToken;
 
-  const maybeHandlePendingProfile = async (userId: string) => {
-    const pending = await checkPendingProfile(userId);
-    return pending === 'pending';
-  };
   const amplifyResult = await attemptAmplifyRecovery(
     existingProfileToken,
-    maybeHandlePendingProfile,
     existingUser?.parentId ?? undefined,
   );
   if (amplifyResult) {
     return amplifyResult;
   }
 
-  const firebaseResult = await attemptFirebaseRecovery(
-    existingUser,
-    existingProfileToken,
-    maybeHandlePendingProfile,
-  );
+  const firebaseResult = await attemptFirebaseRecovery(existingUser, existingProfileToken);
   if (firebaseResult) {
     return firebaseResult;
   }
@@ -647,8 +676,13 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
   );
   if (storedTokensResult) {
     if (storedTokensResult.kind === 'authenticated') {
-      if (await maybeHandlePendingProfile(storedTokensResult.user.id)) {
-        return {kind: 'pendingProfile'};
+      const pendingProfileStatus = await checkPendingProfile(storedTokensResult.user.id);
+      if (pendingProfileStatus === 'pending') {
+        if (isProfileComplete(storedTokensResult.user)) {
+          await clearPendingProfileForUser(storedTokensResult.user.id);
+        } else {
+          return {kind: 'pendingProfile'};
+        }
       }
     }
     return storedTokensResult;

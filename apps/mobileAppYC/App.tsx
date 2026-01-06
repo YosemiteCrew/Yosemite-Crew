@@ -28,6 +28,8 @@ import { AuthProvider, useAuth } from '@/features/auth/context/AuthContext';
 import {configureSocialProviders} from '@/features/auth/services/socialAuth';
 import { ErrorBoundary } from '@/shared/components/common/ErrorBoundary';
 import { PreferencesProvider } from '@/features/preferences/PreferencesContext';
+import { GlobalLoaderProvider } from '@/context/GlobalLoaderContext';
+import { BottomFadeOverlay } from '@/shared/components/common';
 import {
   initializeNotifications,
   type NotificationNavigationIntent,
@@ -39,6 +41,7 @@ import {
 import {useAppDispatch} from '@/app/hooks';
 import type {RootStackParamList} from '@/navigation/types';
 import {STRIPE_CONFIG} from '@/config/variables';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 Amplify.configure(outputs);
 
@@ -47,11 +50,11 @@ LogBox.ignoreLogs([
 ]);
 
 
-  const noop = () => {};
-  console.log = noop;
-  console.info = noop;
-  console.debug = noop;
-  console.trace = noop;
+  // const noop = () => {};
+  // console.log = noop;
+  // console.info = noop;
+  // console.debug = noop;
+  // console.trace = noop;
 
 
 function App(): React.JSX.Element {
@@ -104,16 +107,18 @@ function App(): React.JSX.Element {
           <SafeAreaProvider>
             <AuthProvider>
               <PreferencesProvider>
-                <NotificationBootstrap onNavigate={handleNotificationNavigation}>
-                  <StripeProvider
-                    publishableKey={STRIPE_CONFIG.publishableKey}
-                    urlScheme={STRIPE_CONFIG.urlScheme}
-                  >
-                    <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-                      <AppContent />
-                    </NavigationContainer>
-                  </StripeProvider>
-                </NotificationBootstrap>
+                <GlobalLoaderProvider>
+                  <NotificationBootstrap onNavigate={handleNotificationNavigation}>
+                    <StripeProvider
+                      publishableKey={STRIPE_CONFIG.publishableKey}
+                      urlScheme={STRIPE_CONFIG.urlScheme}
+                    >
+                      <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+                        <AppContent />
+                      </NavigationContainer>
+                    </StripeProvider>
+                  </NotificationBootstrap>
+                </GlobalLoaderProvider>
               </PreferencesProvider>
             </AuthProvider>
           </SafeAreaProvider>
@@ -135,6 +140,7 @@ function AppContent(): React.JSX.Element {
         <ErrorBoundary>
           <AppNavigator />
         </ErrorBoundary>
+        <BottomFadeOverlay height={30} intensity="medium" bottomOffset={0} />
     </>
   );
 }
@@ -181,6 +187,18 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     await unregisterDeviceToken(last);
     lastRegisteredRef.current = null;
   }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const preloadTools = async () => {
+      try {
+        await observationToolApi.list({onlyActive: true});
+      } catch (error) {
+        console.warn('[ObservationTools] Failed to preload tools', error);
+      }
+    };
+    preloadTools();
+  }, [isLoggedIn]);
 
   useEffect(() => {
     let mounted = true;

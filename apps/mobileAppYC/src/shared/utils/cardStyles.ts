@@ -31,7 +31,6 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
   const borderRadiusFallback = 16;
   const paddingFallback = 16;
   const colors = (theme as any)?.colors ?? {};
-  const shadows = (theme as any)?.shadows ?? {};
 
   const defaultConfig: CardStyleConfig = {
     borderRadius: getBorderRadius(theme, 'lg', borderRadiusFallback),
@@ -48,8 +47,6 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
       borderColor: colors.borderMuted ?? '#EAEAEA',
       overflow: 'hidden' as const,
       backgroundColor: colors.cardBackground ?? '#FFFFFF',
-      ...(shadows.md || {}),
-      shadowColor: colors.neutralShadow ?? 'rgba(71, 56, 39, 0.15)',
       padding: finalConfig.padding,
     },
     fallback: {

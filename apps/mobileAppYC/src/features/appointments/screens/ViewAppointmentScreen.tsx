@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo} from 'react';
 import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -41,6 +41,11 @@ import {
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
+import {fetchTasksForCompanion} from '@/features/tasks/thunks';
+import {resolveCategoryLabel as resolveTaskCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {DetailsCard, type DetailItem} from '@/shared/components/common/DetailsCard';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -96,6 +101,7 @@ const buildEmployeeDisplay = ({
   const employeeWithAvatar = employee
     ? {
         ...employee,
+        specialization: apt.employeeTitle ?? employee.specialization,
         avatar: employee.avatar ?? (apt.employeeAvatar ? {uri: apt.employeeAvatar} : undefined),
       }
     : null;
@@ -624,6 +630,14 @@ export const ViewAppointmentScreen: React.FC = () => {
   const companionId = apt?.companionId ?? null;
   const hasHydratedExpenses = useSelector(selectHasHydratedCompanion(companionId));
   const expensesForCompanion = useSelector(selectExpensesByCompanion(companionId));
+  const tasks = useSelector((s: RootState) => s.tasks.items);
+  const tasksHydrated = useSelector(
+    (s: RootState) => (companionId ? s.tasks.hydratedCompanions[companionId] : false),
+  );
+  const appointmentTasks = useMemo(
+    () => tasks.filter(task => task.appointmentId === appointmentId),
+    [appointmentId, tasks],
+  );
   const {appointmentInvoices, hasMultipleInvoices} = useAppointmentInvoicesData({
     appointmentId,
     expensesForCompanion,
@@ -642,6 +656,11 @@ export const ViewAppointmentScreen: React.FC = () => {
       dispatch(fetchExpensesForCompanion({companionId}));
     }
   }, [companionId, dispatch, hasHydratedExpenses]);
+  useEffect(() => {
+    if (companionId && !tasksHydrated) {
+      dispatch(fetchTasksForCompanion({companionId}));
+    }
+  }, [companionId, dispatch, tasksHydrated]);
   useFocusEffect(
     React.useCallback(() => {
       if (companionId) {
@@ -702,15 +721,26 @@ export const ViewAppointmentScreen: React.FC = () => {
     checkInBufferMs: CHECKIN_BUFFER_MS,
     dispatch,
   });
+  const handleViewTask = React.useCallback(
+    (taskId: string) => {
+      const params = {screen: 'TaskView', params: {taskId}};
+      if (tabNavigation) {
+        tabNavigation.navigate('Tasks', params as any);
+        return;
+      }
+      navigation.navigate('Tasks' as any, params as any);
+    },
+    [navigation, tabNavigation],
+  );
 
   if (!apt) {
     return (
-      <SafeArea>
+      <SafeAreaView style={styles.root} edges={[]}>
         <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading appointment...</Text>
         </View>
-      </SafeArea>
+      </SafeAreaView>
     );
   }
 
@@ -724,10 +754,30 @@ export const ViewAppointmentScreen: React.FC = () => {
   const showCheckInButton = (isUpcoming || isCheckedIn || isInProgress) && !isTerminal;
   const {dateTimeLabel} = formatAppointmentDateTime(apt);
 
+  const appointmentDetailItems: DetailItem[] = [
+    {label: 'Date & Time', value: dateTimeLabel},
+    {label: 'Type', value: apt.type},
+    {label: 'Service', value: service?.name ?? apt.serviceName ?? '—'},
+    {label: 'Business', value: businessName},
+    {label: 'Address', value: businessAddress || '', hidden: !businessAddress},
+    {label: 'Companion', value: companion?.name || '', hidden: !companion},
+    {label: 'Species', value: apt.species || '', hidden: !apt.species},
+    {label: 'Breed', value: apt.breed || '', hidden: !apt.breed},
+    {label: 'Concern', value: apt.concern || '', hidden: !apt.concern},
+  ];
+
   return (
-    <SafeArea>
-      <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['6']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            contentContainerStyle={[styles.container, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
 
         <StatusCard
           styles={styles}
@@ -746,19 +796,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           cardStyle={styles.summaryCard}
         />
 
-        {/* Appointment Details Card */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Appointment Details</Text>
-          <DetailRow label="Date & Time" value={dateTimeLabel} />
-          <DetailRow label="Type" value={apt.type} />
-          <DetailRow label="Service" value={service?.name ?? apt.serviceName ?? '—'} />
-          <DetailRow label="Business" value={businessName} />
-          {businessAddress ? <DetailRow label="Address" value={businessAddress} multiline /> : null}
-          {companion && <DetailRow label="Companion" value={companion.name} />}
-          {apt.species && <DetailRow label="Species" value={apt.species} />}
-          {apt.breed && <DetailRow label="Breed" value={apt.breed} />}
-          {apt.concern && <DetailRow label="Concern" value={apt.concern} multiline />}
-        </View>
+        <DetailsCard title="Appointment Details" items={appointmentDetailItems} />
 
         {apt.uploadedFiles?.length ? (
           <View style={styles.detailsCard}>
@@ -796,6 +834,30 @@ export const ViewAppointmentScreen: React.FC = () => {
             ))
           ) : (
             <Text style={styles.emptyDocsText}>No documents shared for this appointment yet.</Text>
+          )}
+        </View>
+
+        <View style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>Tasks</Text>
+          {appointmentTasks.length ? (
+            appointmentTasks.map(taskItem => (
+              <TaskCard
+                key={taskItem.id}
+                title={taskItem.title}
+                categoryLabel={resolveTaskCategoryLabel(taskItem.category)}
+                date={taskItem.date}
+                time={taskItem.time}
+                companionName={companion?.name ?? 'Companion'}
+                status={taskItem.status}
+                onPressView={() => handleViewTask(taskItem.id)}
+                showEditAction={false}
+                hideSwipeActions
+                category={taskItem.category}
+                details={taskItem.details}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyDocsText}>No tasks linked to this appointment.</Text>
           )}
         </View>
 
@@ -864,59 +926,24 @@ export const ViewAppointmentScreen: React.FC = () => {
           handleCancel={() => cancelSheetRef.current?.open?.()}
           theme={theme}
         />
-      </ScrollView>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
 
       <CancelAppointmentBottomSheet
         ref={cancelSheetRef}
         onConfirm={handleCancelAppointment}
       />
       <RescheduledInfoSheet ref={rescheduledRef} onClose={() => rescheduledRef.current?.close?.()} />
-    </SafeArea>
+    </>
   );
 };
-
-const DetailRow = ({label, value, multiline = false}: {label: string; value: string; multiline?: boolean}) => {
-  const {theme} = useTheme();
-  const styles = React.useMemo(() => createDetailStyles(theme), [theme]);
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, multiline && styles.multiline]} numberOfLines={multiline ? 0 : 1}>
-        {value}
-      </Text>
-    </View>
-  );
-};
-
-const createDetailStyles = (theme: any) =>
-  StyleSheet.create({
-    row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: theme.spacing['2'],
-      paddingVertical: theme.spacing['2'],
-    },
-    label: {
-      ...theme.typography.body14,
-      color: theme.colors.textSecondary,
-      fontWeight: '500',
-    },
-    value: {
-      ...theme.typography.body14,
-      color: theme.colors.secondary,
-      fontWeight: '600',
-      flexShrink: 1,
-      flexGrow: 1,
-      textAlign: 'right',
-    },
-    multiline: {
-      textAlign: 'right',
-      flexWrap: 'wrap',
-    },
-  });
 
 const createStyles = (theme: any) => StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     padding: theme.spacing['4'],
     paddingBottom: theme.spacing['24'],

@@ -1,5 +1,6 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {View, Image, Text, StyleSheet} from 'react-native';
+import React, {forwardRef, useImperativeHandle, useRef, useMemo, useState, useEffect} from 'react';
+import {View, Image, Text, StyleSheet, Platform} from 'react-native';
+import RNCalendarEvents from 'react-native-calendar-events';
 import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -10,53 +11,124 @@ export interface CalendarSyncBottomSheetRef {
 }
 
 interface CalendarSyncBottomSheetProps {
-  selectedProvider?: 'google' | 'icloud' | null;
-  onSelect: (provider: 'google' | 'icloud') => void;
+  selectedProvider?: string | null;
+  onSelect: (providerId: string, providerName: string) => void;
   onSheetChange?: (index: number) => void;
+  onCalendarsLoaded?: (calendars: CalendarProvider[]) => void;
 }
 
-type CalendarProvider = {
-  id: 'google' | 'icloud';
+export type CalendarProvider = {
+  id: string;
   name: string;
   icon: any;
   status?: 'available' | 'connecting';
+  sourceType?: string;
+};
+
+const determineCalendarIcon = (source: string, title: string) => {
+  const sourceLower = source?.toLowerCase() || '';
+  const titleLower = title?.toLowerCase() || '';
+
+  if (sourceLower.includes('google') || titleLower.includes('google')) {
+    return Images.googleCalendarIcon || Images.calendarIcon;
+  }
+  if (sourceLower.includes('icloud') || sourceLower.includes('apple') || titleLower.includes('icloud')) {
+    return Images.iCloudCalendarIcon || Images.calendarIcon;
+  }
+  return Images.calendarIcon;
+};
+
+const isProviderSupportedOnPlatform = (source: string) => {
+  const sourceLower = source?.toLowerCase?.() || '';
+
+  if (Platform.OS === 'ios') {
+    return !sourceLower.includes('google'); // Hide Google calendars on iOS
+  }
+
+  return !sourceLower.includes('icloud') && !sourceLower.includes('apple'); // Hide iCloud/Apple calendars on Android
 };
 
 export const CalendarSyncBottomSheet = forwardRef<
   CalendarSyncBottomSheetRef,
   CalendarSyncBottomSheetProps
->(({selectedProvider, onSelect, onSheetChange}, ref) => {
+>(({selectedProvider, onSelect, onSheetChange, onCalendarsLoaded}, ref) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
+  const [availableCalendars, setAvailableCalendars] = useState<CalendarProvider[]>([]);
+  const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
+  const [loading, setLoading] = useState(true);
+  const permissionGranted = permissionStatus === 'authorized';
 
-  const providers: CalendarProvider[] = useMemo(() => [
-    {
-      id: 'google',
-      name: 'Google Calendar',
-      icon: Images.googleCalendarIcon || Images.calendarIcon,
-      status: 'available',
-    },
-    {
-      id: 'icloud',
-      name: 'iCloud Calendar',
-      icon: Images.iCloudCalendarIcon || Images.calendarIcon,
-      status: 'connecting',
-    },
-  ], []);
+  useEffect(() => {
+    const fetchDeviceCalendars = async () => {
+      try {
+        setLoading(true);
 
-  const providerItems: SelectItem[] = useMemo(() =>
-    providers.map(provider => ({
+        const status = await RNCalendarEvents.checkPermissions();
+        const resolvedStatus =
+          status === 'authorized'
+            ? status
+            : await RNCalendarEvents.requestPermissions().catch(() => status);
+
+        setPermissionStatus(resolvedStatus);
+
+        if (resolvedStatus !== 'authorized') {
+          setAvailableCalendars([]);
+          setLoading(false);
+          return;
+        }
+
+        const calendars = await RNCalendarEvents.findCalendars();
+        const writableCalendars = calendars
+          .filter(cal => cal.allowsModifications)
+          .filter(cal => isProviderSupportedOnPlatform(cal.source || ''));
+
+        const providers: CalendarProvider[] = writableCalendars.map(cal => ({
+          id: cal.id,
+          name: cal.title,
+          icon: determineCalendarIcon(cal.source, cal.title),
+          status: 'available',
+          sourceType: cal.source,
+        }));
+
+        // If no platform-appropriate calendars are writable, fall back to safe defaults
+        const calendarsToSet = providers.length > 0 ? providers : [];
+        setAvailableCalendars(calendarsToSet);
+        onCalendarsLoaded?.(calendarsToSet);
+      } catch (error) {
+        console.warn('[CalendarSync] Failed to fetch calendars:', error);
+        setAvailableCalendars([]);
+        onCalendarsLoaded?.([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDeviceCalendars();
+  }, [onCalendarsLoaded]);
+
+  const providerItems: SelectItem[] = useMemo(() => {
+    if (loading) {
+      return [{
+        id: 'loading',
+        label: 'Loading calendars...',
+        icon: Images.calendarIcon,
+        status: 'connecting',
+      }];
+    }
+
+    return availableCalendars.map(provider => ({
       id: provider.id,
       label: provider.name,
       icon: provider.icon,
       status: provider.status,
-    })), [providers]
-  );
+    }));
+  }, [availableCalendars, loading]);
 
   const selectedItem = selectedProvider ? {
     id: selectedProvider,
-    label: providers.find(p => p.id === selectedProvider)?.name || 'Unknown',
-    icon: providers.find(p => p.id === selectedProvider)?.icon,
+    label: availableCalendars.find(p => p.id === selectedProvider)?.name || 'Unknown',
+    icon: availableCalendars.find(p => p.id === selectedProvider)?.icon,
   } : null;
 
   useImperativeHandle(ref, () => ({
@@ -69,8 +141,9 @@ export const CalendarSyncBottomSheet = forwardRef<
   }));
 
   const handleSave = (item: SelectItem | null) => {
-    if (item) {
-      onSelect(item.id as 'google' | 'icloud');
+    if (item && item.id !== 'loading') {
+      const selectedCal = availableCalendars.find(p => p.id === item.id);
+      onSelect(item.id, selectedCal?.name || item.label);
     }
   };
 
@@ -111,7 +184,11 @@ export const CalendarSyncBottomSheet = forwardRef<
     return (
       <View style={containerStyle}>
         {item.icon && (
-          <Image source={item.icon} style={iconStyle} />
+          <Image
+            testID="calendar-provider-icon"
+            source={item.icon}
+            style={iconStyle}
+          />
         )}
         <View style={styles.flexOne}>
           <Text style={nameTextStyle}>
@@ -132,6 +209,16 @@ export const CalendarSyncBottomSheet = forwardRef<
     );
   };
 
+  const getEmptyMessage = () => {
+    if (loading) {
+      return 'Loading calendars...';
+    }
+    if (permissionGranted) {
+      return 'No writable calendars found';
+    }
+    return 'Enable calendar permission to pick a calendar';
+  };
+
   return (
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
@@ -142,8 +229,8 @@ export const CalendarSyncBottomSheet = forwardRef<
       hasSearch={false}
       mode="select"
       renderItem={renderProviderItem}
-      snapPoints={['30%', '40%']}
-      emptyMessage="No calendar providers available"
+      snapPoints={['50%', '60%']}
+      emptyMessage={getEmptyMessage()}
       onSheetChange={onSheetChange}
     />
   );

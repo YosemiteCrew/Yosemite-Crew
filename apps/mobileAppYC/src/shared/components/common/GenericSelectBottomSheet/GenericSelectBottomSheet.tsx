@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   StyleSheet,
   FlatList,
   Image,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type { BottomSheetRef } from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -67,12 +69,43 @@ export const GenericSelectBottomSheet = forwardRef<
 
   // Track whether the sheet is open so we only render the backdrop when visible.
   const [isSheetVisible, setIsSheetVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme, maxListHeight);
   const searchIconSource = Images?.searchIcon ?? null;
+
+  // Listen to keyboard events to adjust snap points
+  useEffect(() => {
+    const keyboardDidShow = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+      }
+    );
+    const keyboardDidHide = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidShow.remove();
+      keyboardDidHide.remove();
+    };
+  }, []);
+
+  // Dynamic snap points based on keyboard visibility
+  const dynamicSnapPoints = useMemo(() => {
+    if (isKeyboardVisible) {
+      // When keyboard is open, expand to accommodate it
+      return ['95%', '95%'];
+    }
+    return snapPoints;
+  }, [isKeyboardVisible, snapPoints]);
 
   const filteredItems = useMemo(() => {
     if (!hasSearch || !searchQuery.trim()) return items;
@@ -92,6 +125,9 @@ export const GenericSelectBottomSheet = forwardRef<
   );
 
   const handleItemPress = (item: SelectItem) => {
+    // Dismiss keyboard when selecting an item
+    Keyboard.dismiss();
+
     if (mode === 'select') {
       // Auto-select mode: immediately save and close
       onSave(item);
@@ -133,31 +169,51 @@ export const GenericSelectBottomSheet = forwardRef<
   bottomSheetRef.current?.snapToIndex(0);
     },
     close: () => {
+  Keyboard.dismiss();
   bottomSheetRef.current?.close();
     },
   }));
 
   const handleSave = () => {
+    Keyboard.dismiss();
     onSave(tempItem);
     bottomSheetRef.current?.close();
   };
 
   const handleCancel = () => {
+    Keyboard.dismiss();
     setTempItem(selectedItem);
     setSearchQuery('');
     bottomSheetRef.current?.close();
   };
 
+  const handleBackdropPress = () => {
+    Keyboard.dismiss();
+  };
+
+  const handleSheetAnimate = () => {
+    // Only dismiss keyboard when closing, not when animating between snap points
+    if (!isKeyboardVisible) {
+      Keyboard.dismiss();
+    }
+  };
+
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={snapPoints}
+      snapPoints={dynamicSnapPoints}
       initialIndex={-1}
+      zIndex={100}
       onChange={index => {
         // Gorhom BottomSheet returns -1 when fully closed
         setIsSheetVisible(index !== -1);
+        if (index === -1) {
+          Keyboard.dismiss();
+          setIsKeyboardVisible(false);
+        }
         onSheetChange?.(index);
       }}
+      onAnimate={handleSheetAnimate}
       enablePanDownToClose
       enableDynamicSizing={false}
       enableContentPanningGesture={false}
@@ -169,13 +225,15 @@ export const GenericSelectBottomSheet = forwardRef<
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
+      onBackdropPress={handleBackdropPress}
       contentType="view"
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <View style={styles.container}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
         {/* Header */}
         <BottomSheetHeader
           title={title}
@@ -229,6 +287,8 @@ export const GenericSelectBottomSheet = forwardRef<
             showsVerticalScrollIndicator
             contentContainerStyle={styles.listContent}
             nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}
             ListEmptyComponent={renderEmptyList}
           />
         </View>
@@ -263,7 +323,8 @@ export const GenericSelectBottomSheet = forwardRef<
             />
           </View>
         )}
-      </View>
+        </View>
+      </TouchableWithoutFeedback>
     </CustomBottomSheet>
   );
 });
@@ -301,6 +362,8 @@ const createStyles = (theme: any, maxListHeight: number) =>
     },
     listWrapper: {
       maxHeight: maxListHeight,
+      minHeight: maxListHeight,
+      flexShrink: 0,
       marginBottom: theme.spacing['2'],
     },
     listContent: {

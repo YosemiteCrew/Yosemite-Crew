@@ -101,7 +101,8 @@ export const AppointmentCard = ({
       cardProps={{
         glassEffect: 'clear',
         interactive: true,
-        shadow: 'none',
+        shadow: 'base',
+        colorScheme: 'light',
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}
@@ -203,23 +204,18 @@ const createStyles = (theme: any) =>
       width: '100%',
       alignSelf: 'center',
       borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
     },
     card: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      overflow: 'hidden',
       backgroundColor: theme.colors.cardBackground,
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
       padding: theme.spacing['4'],
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
       borderColor: theme.colors.border,
-      overflow: 'hidden',
     },
     topRow: {
       flexDirection: 'row',

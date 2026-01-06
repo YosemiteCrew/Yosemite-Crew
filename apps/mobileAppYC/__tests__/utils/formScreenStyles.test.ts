@@ -63,7 +63,7 @@ describe('createFormScreenStyles', () => {
         borderRadius: mockTheme.borderRadius.lg,
         paddingVertical: mockTheme.spacing['2'],
         overflow: 'hidden',
-        ...mockTheme.shadows.md,
+        ...mockTheme.shadows.sm,
       },
       glassFallback: {
         borderRadius: mockTheme.borderRadius.lg,

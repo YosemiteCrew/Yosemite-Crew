@@ -26,6 +26,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
     const [tempDosages, setTempDosages] = useState<DosageSchedule[]>(dosages);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [editingDosageId, setEditingDosageId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
 
     // Sync tempDosages when dosages prop changes
     React.useEffect(() => {
@@ -106,9 +107,20 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
       }
     };
 
-    const handleSave = () => {
-      onSave(tempDosages);
-      bottomSheetRef.current?.close();
+    const handleSave = async () => {
+      if (saving) {
+        return;
+      }
+
+      try {
+        setSaving(true);
+        await Promise.resolve(onSave(tempDosages));
+        bottomSheetRef.current?.close();
+      } catch (error) {
+        console.warn('[DosageBottomSheet] Failed to save dosages', error);
+      } finally {
+        setSaving(false);
+      }
     };
 
     const currentEditingDosage = tempDosages.find(d => d.id === editingDosageId);
@@ -133,14 +145,20 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
 
     return (
       <ConfirmActionBottomSheet
-      ref={bottomSheetRef}
-      title="Dosage"
-      snapPoints={['80%']}
-      onSheetChange={onSheetChange}
-      primaryButton={{
-        label: "Save",
-        onPress: handleSave,
-      }}>
+        ref={bottomSheetRef}
+        title="Dosage"
+        snapPoints={['80%']}
+        onSheetChange={onSheetChange}
+        primaryButton={{
+          label: 'Save',
+          onPress: handleSave,
+          loading: saving,
+          disabled: saving,
+          tintColor: theme.colors.secondary,
+          style: styles.saveButton,
+          textStyle: styles.saveButtonText,
+          shadowIntensity: 'none',
+        }}>
         <View style={styles.container}>
           <ScrollView
             style={styles.scrollView}
@@ -204,7 +222,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
   },
 );
 
-const createStyles = (theme: any) =>
+  const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -213,7 +231,8 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: theme.spacing['6'],
+      paddingBottom: theme.spacing['12'],
+      paddingTop: theme.spacing['2'],
     },
     dosageRow: {
       flexDirection: 'row',
@@ -262,6 +281,13 @@ const createStyles = (theme: any) =>
     addText: {
       ...theme.typography.button,
       color: theme.colors.secondary,
+    },
+    saveButton: {
+      height: 56,
+    },
+    saveButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.white,
     },
   });
 

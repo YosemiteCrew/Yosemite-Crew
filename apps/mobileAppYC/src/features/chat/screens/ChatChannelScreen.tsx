@@ -169,7 +169,7 @@ export const ChatChannelScreen: React.FC = () => {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title={doctorName}
           showBackButton
@@ -185,7 +185,7 @@ export const ChatChannelScreen: React.FC = () => {
   // Error state
   if (error || !channel || !client) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title={doctorName}
           showBackButton
@@ -205,7 +205,7 @@ export const ChatChannelScreen: React.FC = () => {
 
   // Chat UI
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <Header
         title={doctorName}
         showBackButton
@@ -255,6 +255,7 @@ const createStyles = (theme: any) =>
     chatWrapper: {
       flex: 1,
       backgroundColor: theme.colors.background || '#fff',
+      paddingBottom: theme.spacing['6'],
     },
     // Loading/Error states
     container: {

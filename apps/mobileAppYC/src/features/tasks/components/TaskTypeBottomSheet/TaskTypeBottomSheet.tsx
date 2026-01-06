@@ -136,7 +136,7 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
     return (
       <CustomBottomSheet
         ref={bottomSheetRef}
-        snapPoints={['50%', '80%']}
+        snapPoints={['75%', '85%']}
         initialIndex={-1}
         enablePanDownToClose
         enableDynamicSizing={false}

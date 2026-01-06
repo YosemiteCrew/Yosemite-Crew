@@ -12,8 +12,13 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 
-const LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.65)';
-const DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
+// Crystal clear glass defaults - minimal tint for maximum clarity
+const IOS_LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.5)';
+const IOS_DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
+const ANDROID_LIGHT_CARD_TINT_CLEAR = 'rgba(255, 255, 255, 0.92)';
+const ANDROID_DARK_CARD_TINT_CLEAR = 'rgba(28, 28, 30, 0.82)';
+const ANDROID_LIGHT_CARD_TINT_REGULAR = 'rgba(255, 255, 255, 0.86)';
+const ANDROID_DARK_CARD_TINT_REGULAR = 'rgba(28, 28, 30, 0.74)';
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
 
@@ -43,24 +48,31 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   fallbackStyle,
 }) => {
   const {theme, isDark} = useTheme();
-  const clipStyles = React.useMemo(
-    () => StyleSheet.create({clip: {overflow: 'hidden'}}),
-    [],
-  );
+  const resolvedColorScheme = React.useMemo(() => {
+    if (colorScheme === 'system') {
+      return 'light';
+    }
+    return colorScheme;
+  }, [colorScheme]);
 
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
       return tintColor;
     }
-    return isDark ? DARK_CARD_TINT : LIGHT_CARD_TINT;
-  }, [isDark, tintColor]);
-
-  const resolvedColorScheme = React.useMemo(() => {
-    if (colorScheme !== 'system') {
-      return colorScheme;
+    if (Platform.OS === 'android') {
+      const wantsClear = glassEffect === 'clear';
+      const isSchemeDark = resolvedColorScheme === 'dark';
+      if (wantsClear) {
+        return isSchemeDark
+          ? ANDROID_DARK_CARD_TINT_CLEAR
+          : ANDROID_LIGHT_CARD_TINT_CLEAR;
+      }
+      return isSchemeDark
+        ? ANDROID_DARK_CARD_TINT_REGULAR
+        : ANDROID_LIGHT_CARD_TINT_REGULAR;
     }
-    return isDark ? 'dark' : 'light';
-  }, [colorScheme, isDark]);
+    return resolvedColorScheme === 'dark' ? IOS_DARK_CARD_TINT : IOS_LIGHT_CARD_TINT;
+  }, [glassEffect, resolvedColorScheme, tintColor]);
 
   const defaultBackgroundColor = isDark
     ? 'rgba(28, 28, 30, 0.72)'
@@ -74,7 +86,11 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
     ...theme.shadows[shadow],
-    overflow: 'hidden',
+  };
+
+  const baseStyleWithoutShadow: ViewStyle = {
+    padding: theme.spacing[padding],
+    borderRadius: theme.borderRadius[borderRadius],
   };
 
   const mergedStyleOverrides = React.useMemo(
@@ -137,14 +153,14 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
 
   if (useNativeGlass) {
     const iosGlassStyle = StyleSheet.flatten([
-      baseStyle,
+      baseStyleWithoutShadow,
       overlayShapeStyle,
       fallbackStyle,
       style,
       {
         backgroundColor: 'transparent',
-        borderColor: 'transparent',
-        borderWidth: 0,
+        borderColor: overlayBorderColor,
+        borderWidth: overlayBorderWidth,
       },
     ]);
 
@@ -155,19 +171,6 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         effect={glassEffect}
         tintColor={resolvedTintColor}
         colorScheme={resolvedColorScheme}>
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            overlayShapeStyle,
-            {
-              backgroundColor: overlayBackgroundColor,
-              borderColor: overlayBorderColor,
-              borderWidth: overlayBorderWidth,
-            },
-            clipStyles.clip,
-          ]}
-        />
         {children}
       </LiquidGlassView>
     );

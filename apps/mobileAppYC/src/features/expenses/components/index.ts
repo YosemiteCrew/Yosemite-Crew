@@ -1,3 +1,8 @@
 export {ExpenseCard} from './ExpenseCard/ExpenseCard';
-export {ExpenseForm} from './ExpenseForm/ExpenseForm';
-export type {ExpenseFormData, ExpenseFormErrors, ExpenseFormProps} from './ExpenseForm/ExpenseForm';
+export {ExpenseForm, ExpenseFormSheets} from './ExpenseForm/ExpenseForm';
+export type {
+  ExpenseFormData,
+  ExpenseFormErrors,
+  ExpenseFormProps,
+  ExpenseFormFileOperations,
+} from './ExpenseForm/ExpenseForm';

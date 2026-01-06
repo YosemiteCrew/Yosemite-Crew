@@ -1,6 +1,5 @@
 import React, {useState, useCallback, useMemo} from 'react';
 import {View, StyleSheet, ScrollView, Image, Text, KeyboardAvoidingView, Platform, Alert} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import {useForm, Controller} from 'react-hook-form';
@@ -10,6 +9,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {Input} from '@/shared/components/common';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {addCoParent} from '../../index';
 import type {CoParentStackParamList} from '@/navigation/types';
 import AddCoParentBottomSheet, {
@@ -108,16 +108,16 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header title="Add co-parent" showBackButton onBack={handleBack} />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}>
-        <View style={styles.mainContent}>
-          {/* Scrollable Content */}
+    <LiquidGlassHeaderScreen
+      header={<Header title="Add co-parent" showBackButton onBack={handleBack} glass={false} />}
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}>
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
 
@@ -223,17 +223,17 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
               </View>
             </View>
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
 
-      <AddCoParentBottomSheet
-        ref={addCoParentSheetRef}
-        coParentEmail={submittedData.email}
-        coParentPhone={submittedData.phoneNumber}
-        coParentName={submittedData.candidateName}
-        onConfirm={handleAddCoParentClose}
-      />
-    </SafeAreaView>
+          <AddCoParentBottomSheet
+            ref={addCoParentSheetRef}
+            coParentEmail={submittedData.email}
+            coParentPhone={submittedData.phoneNumber}
+            coParentName={submittedData.candidateName}
+            onConfirm={handleAddCoParentClose}
+          />
+        </KeyboardAvoidingView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -241,15 +241,10 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    mainContent: {
-      flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
-      paddingTop: theme.spacing['3'],
     },
     heroImage: {
       width: '100%',

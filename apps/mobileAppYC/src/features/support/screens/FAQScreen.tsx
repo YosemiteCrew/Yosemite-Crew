@@ -10,14 +10,14 @@ import {
   UIManager,
   Image,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
 import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
@@ -95,7 +95,7 @@ const FAQCard: React.FC<{
               interactive
               borderRadius="xl"
               forceBorder
-              tintColor={theme.colors.background}
+              tintColor={theme.colors.white}
               borderColor={theme.colors.secondary}
               style={styles.glassButtonLight}
               textStyle={styles.glassButtonLightText}
@@ -212,80 +212,88 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   }, [selectedCategory]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <Header
-        title="FAQs"
-        showBackButton
-        onBack={() => navigation.goBack()}
-        rightIcon={Images.accountMailIcon}
-        onRightPress={() => navigation.navigate('ContactUs')}
-      />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        <SearchBar
-          mode="input"
-          placeholder="Search FAQs..."
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          containerStyle={styles.searchContainer}
-        />
-
-        <PillSelector
-          options={categoryOptions}
-          selectedId={selectedCategory}
-          onSelect={handleCategoryChange}
-          containerStyle={styles.pillContainer}
-        />
-
-        <View style={styles.faqList}>
-          {filteredFaqs.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                {searchQuery.trim()
-                  ? `No FAQs found for "${searchQuery}"`
-                  : 'No FAQs available in this category'}
-              </Text>
-              {Boolean(searchQuery.trim()) && (
-                <Text style={styles.emptyStateSubtext}>
-                  Try searching with different keywords or browse by category
+    <LiquidGlassHeaderScreen
+      header={
+        <>
+          <Header
+            title="FAQs"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+          <SearchBar
+            mode="input"
+            placeholder="Search FAQs..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            containerStyle={styles.searchContainer}
+          />
+          <PillSelector
+            options={categoryOptions}
+            selectedId={selectedCategory}
+            onSelect={handleCategoryChange}
+            containerStyle={styles.pillContainer}
+            autoScroll={true}
+          />
+        </>
+      }
+      contentPadding={theme.spacing['3']}
+      cardGap={theme.spacing['3']}
+      useSafeAreaView
+      containerStyle={styles.safeArea}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.faqList}>
+            {filteredFaqs.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  {searchQuery.trim()
+                    ? `No FAQs found for "${searchQuery}"`
+                    : 'No FAQs available in this category'}
                 </Text>
-              )}
-            </View>
-          ) : (
-            filteredFaqs.map(faq => {
-              const isExpanded = expandedFaqId === faq.id;
-              const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
-                .map(id => relatedLookup.get(id))
-                .filter(Boolean) as FAQEntry[];
-              const helpfulSelection = helpfulState[faq.id] ?? null;
+                {Boolean(searchQuery.trim()) && (
+                  <Text style={styles.emptyStateSubtext}>
+                    Try searching with different keywords or browse by category
+                  </Text>
+                )}
+              </View>
+            ) : (
+              filteredFaqs.map(faq => {
+                const isExpanded = expandedFaqId === faq.id;
+                const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
+                  .map(id => relatedLookup.get(id))
+                  .filter(Boolean) as FAQEntry[];
+                const helpfulSelection = helpfulState[faq.id] ?? null;
 
-              return (
-                <FAQCard
-                  key={faq.id}
-                  faq={faq}
-                  isExpanded={isExpanded}
-                  relatedEntries={relatedEntries}
-                  helpfulSelection={helpfulSelection}
-                  onToggle={handleToggle}
-                  onHelpfulSelect={handleHelpfulSelection}
-                  onRelatedPress={onRelatedPress}
-                  styles={styles}
-                  theme={theme}
-                />
-              );
-            })
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+                return (
+                  <FAQCard
+                    key={faq.id}
+                    faq={faq}
+                    isExpanded={isExpanded}
+                    relatedEntries={relatedEntries}
+                    helpfulSelection={helpfulSelection}
+                    onToggle={handleToggle}
+                    onHelpfulSelect={handleHelpfulSelection}
+                    onRelatedPress={onRelatedPress}
+                    styles={styles}
+                    theme={theme}
+                  />
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  return StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -296,14 +304,13 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['8'],
-      paddingTop: theme.spacing['3'],
       gap: theme.spacing['4'],
     },
     searchContainer: {
-      marginBottom: theme.spacing['4'],
+      marginHorizontal: theme.spacing['6'],
     },
     pillContainer: {
-      marginBottom: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['6'],
     },
     faqList: {
       gap: theme.spacing['4'],
@@ -353,8 +360,8 @@ const createStyles = (theme: any) =>
     toggleSymbol: {
       fontFamily: theme.typography.paragraphBold.fontFamily,
       fontWeight: theme.typography.paragraphBold.fontWeight,
-      fontSize: theme.typography['2xl'].fontSize,
-      lineHeight: theme.typography['2xl'].fontSize,
+      fontSize: theme.typography.titleLarge.fontSize,
+      lineHeight: theme.typography.titleLarge.lineHeight,
       color: theme.colors.text,
     },
     answerSection: {
@@ -441,5 +448,6 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
   });
+};
 
 export default FAQScreen;

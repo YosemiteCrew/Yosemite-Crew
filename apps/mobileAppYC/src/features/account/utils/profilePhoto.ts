@@ -1,4 +1,5 @@
 import RNFS from 'react-native-fs';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 const REMOTE_URI_REGEX = /^https?:\/\//i;
 
@@ -65,6 +66,11 @@ export const preparePhotoPayload = async ({
 
   if (isRemoteUri(imageUri)) {
     return {remoteUrl: imageUri, localFile: null};
+  }
+
+  const normalizedRemote = normalizeImageUri(imageUri);
+  if (normalizedRemote && normalizedRemote !== imageUri && isRemoteUri(normalizedRemote)) {
+    return {remoteUrl: normalizedRemote, localFile: null};
   }
 
   try {

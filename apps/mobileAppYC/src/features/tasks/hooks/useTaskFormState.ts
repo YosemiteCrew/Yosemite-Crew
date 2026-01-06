@@ -18,6 +18,7 @@ const DEFAULT_FORM_DATA: TaskFormData = {
   reminderOptions: null,
   syncWithCalendar: false,
   calendarProvider: null,
+  calendarProviderName: null,
   attachDocuments: false,
   attachments: [],
   additionalNote: '',

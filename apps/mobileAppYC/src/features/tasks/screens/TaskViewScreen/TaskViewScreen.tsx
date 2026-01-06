@@ -1,13 +1,15 @@
-import React, {useMemo} from 'react';
-import {ScrollView, StyleSheet, Text, View, Image, Switch} from 'react-native';
+import React, {useEffect, useMemo, useState} from 'react';
+import {Alert, ScrollView, StyleSheet, Text, View, Image, Switch} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {RouteProp} from '@react-navigation/native';
-import {useSelector} from 'react-redux';
-import {SafeArea, Input, TouchableInput} from '@/shared/components/common';
+import type {RouteProp, NavigationProp} from '@react-navigation/native';
+import {useSelector, useDispatch} from 'react-redux';
+import type {AppDispatch, RootState} from '@/app/store';
+import {Input, TouchableInput} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
+import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {ViewField, ViewTouchField} from './components/ViewField';
 import {ViewDateTimeRow} from './components/ViewDateTimeRow';
@@ -17,8 +19,8 @@ import {createIconStyles} from '@/shared/utils/iconStyles';
 import {createFormStyles} from '@/shared/utils/formStyles';
 import {selectTaskById} from '@/features/tasks/selectors';
 import {selectAuthUser} from '@/features/auth/selectors';
-import type {TaskStackParamList} from '@/navigation/types';
-import type {RootState} from '@/app/store';
+import {markTaskStatus} from '@/features/tasks/thunks';
+import type {TaskStackParamList, TabParamList} from '@/navigation/types';
 import {
   resolveCategoryLabel,
   resolveMedicationTypeLabel,
@@ -29,6 +31,12 @@ import {
 } from '@/features/tasks/utils/taskLabels';
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import type {MedicationTaskDetails, ObservationalToolTaskDetails} from '@/features/tasks/types';
+import {openCalendarEvent} from '@/features/tasks/services/calendarSyncService';
+import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
+import {fetchBusinesses} from '@/features/appointments/businessesSlice';
+import type {VetService} from '@/features/appointments/types';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TaskView'>;
 type Route = RouteProp<TaskStackParamList, 'TaskView'>;
@@ -36,6 +44,7 @@ type Route = RouteProp<TaskStackParamList, 'TaskView'>;
 export const TaskViewScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
+  const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const iconStyles = useMemo(() => createIconStyles(theme), [theme]);
@@ -45,50 +54,212 @@ export const TaskViewScreen: React.FC = () => {
   const companion = useSelector((state: RootState) =>
     state.companion.companions.find(c => c.id === task?.companionId),
   );
+  const businesses = useSelector((state: RootState) => state.businesses.businesses);
+  const services = useSelector((state: RootState) => state.businesses.services);
   const currentUser = useSelector(selectAuthUser);
+  const preparedAttachments = useMemo(() => {
+    const guessMimeFromName = (fileName?: string | null): string | undefined => {
+      if (!fileName) return undefined;
+      const lower = fileName.toLowerCase();
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+      if (lower.endsWith('.png')) return 'image/png';
+      if (lower.endsWith('.webp')) return 'image/webp';
+      if (lower.endsWith('.pdf')) return 'application/pdf';
+      if (lower.endsWith('.doc')) return 'application/msword';
+      if (lower.endsWith('.docx'))
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      return undefined;
+    };
+
+    return (task?.attachments ?? []).map(att => {
+      const attSource =
+        normalizeImageUri(att.viewUrl ?? att.downloadUrl ?? att.uri) ??
+        normalizeImageUri(buildCdnUrlFromKey(att.key ?? att.id));
+
+      return {
+        ...att,
+        type: att.type ?? guessMimeFromName(att.name),
+        uri: attSource ?? att.uri,
+        viewUrl: attSource ?? att.viewUrl ?? null,
+        downloadUrl: att.downloadUrl ?? attSource ?? null,
+      };
+    });
+  }, [task?.attachments]);
+
+  const taskDescription = useMemo(() => {
+    if (task?.details && 'description' in task.details && task.details.description) {
+      return task.details.description;
+    }
+    return task?.description || '';
+  }, [task?.details, task?.description]);
+
+  const isObservationalTool =
+    !!(
+      task?.details &&
+      'taskType' in task.details &&
+      task.details.taskType === 'take-observational-tool'
+    );
+
+  const isMedication =
+    !!(task?.details && 'taskType' in task.details && task.details.taskType === 'give-medication');
+
+  const isCompleted = task ? String(task.status).toUpperCase() === 'COMPLETED' : false;
+  const isCancelled = task ? String(task.status).toUpperCase() === 'CANCELLED' : false;
+  const isPending = task ? String(task.status).toUpperCase() === 'PENDING' : false;
+
+  const [otLabel, setOtLabel] = useState<string>(() => {
+    if (!isObservationalTool || !task) return '';
+    const raw = task.observationToolId ?? (task.details as ObservationalToolTaskDetails).toolType;
+    const resolved = resolveObservationalToolLabel(raw as any);
+    const looksLikeId = /^[a-f0-9]{24}$/i.test(resolved ?? '');
+    return looksLikeId ? 'Observational tool' : resolved;
+  });
+
+  useEffect(() => {
+    if (isObservationalTool) {
+      const otId =
+        task.observationToolId ??
+        ((task.details as ObservationalToolTaskDetails).toolType ?? null);
+      if (otId) {
+        observationToolApi
+          .get(otId)
+          .then(def => {
+            if (def?.name) {
+              setOtLabel(def.name);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [isObservationalTool, task?.details, task?.observationToolId]);
+
+  useEffect(() => {
+    if (!isObservationalTool) return;
+    if (!businesses.length || !services.length) {
+      dispatch(fetchBusinesses());
+    }
+  }, [businesses.length, dispatch, isObservationalTool, services.length]);
+
+  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+
+  const resolveOtServices = useMemo(() => {
+    if (!isObservationalTool) {
+      return [] as VetService[];
+    }
+    const normalizedName = (otLabel ?? '').toLowerCase();
+    const speciesToken = (companion?.category ?? '').toLowerCase();
+    return services.filter(service => {
+      const specialtyMatch = (service.specialty ?? '').toLowerCase().includes('observation');
+      const nameMatch = normalizedName
+        ? service.name.toLowerCase().includes(normalizedName)
+        : false;
+      const speciesMatch = speciesToken
+        ? service.name.toLowerCase().includes(speciesToken)
+        : true;
+      return specialtyMatch && (nameMatch || speciesMatch || !normalizedName);
+    });
+  }, [companion?.category, isObservationalTool, otLabel, services]);
 
   if (!task) {
     return (
-      <SafeArea>
-        <Header title="Task" showBackButton onBack={() => navigation.goBack()} />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Task not found</Text>
-        </View>
-      </SafeArea>
+      <LiquidGlassHeaderScreen
+        header={<Header title="Task" showBackButton onBack={() => navigation.goBack()} glass={false} />}
+        contentPadding={theme.spacing['3']}>
+        {() => (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Task not found</Text>
+          </View>
+        )}
+      </LiquidGlassHeaderScreen>
     );
   }
 
-  const isObservationalTool =
-    task.details &&
-    'taskType' in task.details &&
-    task.details.taskType === 'take-observational-tool';
-
-  const isMedication =
-    task.details && 'taskType' in task.details && task.details.taskType === 'give-medication';
-
-  const isCompleted = task.status === 'completed';
-
   const handleEdit = () => {
-    if (!isCompleted) {
+    if (!isCompleted && !isCancelled) {
       // Pass source to EditTask so it knows where to go back
       navigation.navigate('EditTask', {taskId: task.id, source});
     }
   };
 
-  const handleBack = () => {
-    if (source === 'home') {
-      // Reset tab stack and go back to HomeStack
-      navigation.getParent()?.reset({
-        index: 0,
-        routes: [{name: 'HomeStack'}],
-      });
-    } else {
-      // Default behavior - came from Tasks tab, reset to TasksMain
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'TasksMain'}],
-      });
+  const handleReuse = () => {
+    // Navigate to AddTask with pre-filled data from current task
+    navigation.navigate('AddTask', {
+      reuseTaskId: task.id,
+    });
+  };
+
+  const handleCompleteTask = () => {
+    dispatch(markTaskStatus({taskId: task.id, status: 'completed'}));
+  };
+
+  const handleOpenOtPreview = () => {
+    navigation.navigate('ObservationalToolPreview', {
+      taskId: task.id,
+      submissionId: task.otSubmissionId ?? undefined,
+      toolId: task.observationToolId ?? (task.details as ObservationalToolTaskDetails).toolType,
+    });
+  };
+
+  const handleBookAppointment = async () => {
+    if (!task) {
+      return;
     }
+    let submissionId = task.otSubmissionId ?? null;
+    if (!submissionId) {
+      try {
+        const preview = await observationToolApi.previewTaskSubmission(task.id);
+        submissionId = preview.id || null;
+      } catch {
+        Alert.alert('Submission required', 'Complete the observational tool before booking.');
+        return;
+      }
+    }
+    if (!submissionId) {
+      Alert.alert('Submission required', 'Complete the observational tool before booking.');
+      return;
+    }
+    const service = resolveOtServices[0];
+    if (!service) {
+      Alert.alert('No providers available', 'We could not find a clinic offering this tool yet.');
+      return;
+    }
+    const business = businesses.find(biz => biz.id === service.businessId);
+    if (!business) {
+      Alert.alert('No providers available', 'We could not find a clinic offering this tool yet.');
+      return;
+    }
+    const toolType = (task.details as ObservationalToolTaskDetails).toolType;
+    tabNavigation?.navigate('Appointments', {
+      screen: 'BookingForm',
+      params: {
+        businessId: business.id,
+        serviceId: service.id,
+        serviceName: service.name,
+        serviceSpecialty: service.specialty ?? 'Observational Tool',
+        serviceSpecialtyId: service.specialityId ?? undefined,
+        employeeId: undefined,
+        appointmentType: 'Observational Tool',
+        otContext: {
+          toolId: task.observationToolId ?? toolType,
+          responses: {},
+          submissionId,
+        },
+      },
+    });
+  };
+
+  const handleBack = () => {
+    // Prefer a simple back to avoid reloading stacks
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    const tabNav = navigation.getParent<NavigationProp<TabParamList>>();
+    if (source === 'home') {
+      tabNav?.navigate('HomeStack', {screen: 'Home'});
+      return;
+    }
+    tabNav?.navigate('Tasks', {screen: 'TasksMain'});
   };
 
   const formatTime = (timeStr?: string) => {
@@ -158,28 +329,41 @@ export const TaskViewScreen: React.FC = () => {
 
   const getAssignedToName = () => {
     if (!task.assignedTo) return '';
-    // For now, only the current user can be assigned. In future, support co-users
-    if (currentUser && task.assignedTo === currentUser.id) {
+    const selfId = currentUser?.parentId ?? currentUser?.id;
+    if (selfId && task.assignedTo === selfId && currentUser) {
       return currentUser.firstName || currentUser.email || 'You';
     }
     return 'Unknown';
   };
 
   return (
-    <SafeArea>
-      <Header
-        title="Task"
-        showBackButton
-        onBack={handleBack}
-        rightIcon={isCompleted ? undefined : Images.editIcon}
-        onRightPress={isCompleted ? undefined : handleEdit}
-      />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        {isObservationalTool && (
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Task"
+          showBackButton
+          onBack={handleBack}
+          rightIcon={isCompleted || isCancelled ? undefined : Images.editIcon}
+          onRightPress={isCompleted || isCancelled ? undefined : handleEdit}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['4']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[
+            styles.contentContainer,
+            contentPaddingStyle,
+            {
+              paddingTop: (typeof contentPaddingStyle?.paddingTop === 'number' ? contentPaddingStyle.paddingTop : theme.spacing['14']) + theme.spacing['4'],
+              paddingBottom: theme.spacing['24'],
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+        {isObservationalTool && !isCancelled && (
           <LiquidGlassCard
             glassEffect="regular"
             interactive
@@ -205,6 +389,32 @@ export const TaskViewScreen: React.FC = () => {
                   textStyle={styles.otCtaButtonText}
                 />
               </View>
+            )}
+            {(isCompleted || task.otSubmissionId) && (
+              <>
+                <View style={styles.otCtaButtonWrapper}>
+                  <LiquidGlassButton
+                    title="OT submission"
+                    onPress={handleOpenOtPreview}
+                    glassEffect="clear"
+                    borderRadius="lg"
+                    tintColor={theme.colors.secondary}
+                    style={styles.otCtaButton}
+                    textStyle={styles.otCtaButtonText}
+                  />
+                </View>
+                <View style={styles.otCtaButtonWrapper}>
+                  <LiquidGlassButton
+                    title="Book appointment"
+                    onPress={handleBookAppointment}
+                    glassEffect="clear"
+                    borderRadius="lg"
+                    tintColor={theme.colors.secondary}
+                    style={styles.otCtaButton}
+                    textStyle={styles.otCtaButtonText}
+                  />
+                </View>
+              </>
             )}
           </LiquidGlassCard>
         )}
@@ -234,6 +444,14 @@ export const TaskViewScreen: React.FC = () => {
               value={task.title}
               fieldGroupStyle={styles.fieldGroup}
             />
+
+            {taskDescription ? (
+              <ViewField
+                label="Task description"
+                value={taskDescription}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+            ) : null}
 
             {/* Medicine Name */}
             <ViewField
@@ -351,12 +569,18 @@ export const TaskViewScreen: React.FC = () => {
               fieldGroupStyle={styles.fieldGroup}
             />
 
+            {taskDescription ? (
+              <ViewField
+                label="Task description"
+                value={taskDescription}
+                fieldGroupStyle={styles.fieldGroup}
+              />
+            ) : null}
+
             {/* Observational Tool */}
             <ViewTouchField
               label="Select observational tool"
-              value={resolveObservationalToolLabel(
-                (task.details as ObservationalToolTaskDetails).toolType,
-              )}
+              value={otLabel}
               icon={Images.dropdownIcon}
               iconStyle={iconStyles.dropdownIcon}
               fieldGroupStyle={styles.fieldGroup}
@@ -409,16 +633,16 @@ export const TaskViewScreen: React.FC = () => {
             />
 
             {/* Task Description */}
-            {task.details && 'description' in task.details && task.details.description && (
+            {taskDescription ? (
               <ViewField
                 label="Task description"
-                value={task.details.description}
+                value={taskDescription}
                 multiline
                 numberOfLines={3}
                 textAreaStyle={styles.textArea}
                 fieldGroupStyle={styles.fieldGroup}
               />
-            )}
+            ) : null}
 
             {/* Date and Time */}
             <ViewDateTimeRow
@@ -489,7 +713,11 @@ export const TaskViewScreen: React.FC = () => {
             <TouchableInput
               label="Calendar provider"
               value={getCalendarProviderLabel(task.calendarProvider)}
-              onPress={() => {}} // View only
+              onPress={() => {
+                if (task.calendarEventId) {
+                  openCalendarEvent(task.calendarEventId, task.dueAt ?? task.date);
+                }
+              }}
               rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
             />
           </View>
@@ -507,15 +735,12 @@ export const TaskViewScreen: React.FC = () => {
           />
         </View>
 
-        {task.attachDocuments && task.attachments.length > 0 && (
+        {task.attachDocuments && preparedAttachments.length > 0 && (
           <View style={styles.fieldGroup}>
-            <DocumentAttachmentsSection
-              files={task.attachments as any}
-              onAddPress={() => {}} // View only
-              onRequestRemove={() => {}} // View only
-              emptyTitle="No documents attached"
-              emptySubtitle=""
-              hideAddButton={true}
+            <DocumentAttachmentViewer
+              attachments={preparedAttachments as any}
+              documentTitle={task.title}
+              companionName={companion?.name}
             />
           </View>
         )}
@@ -534,6 +759,21 @@ export const TaskViewScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Complete Button for non-observational tool tasks */}
+        {!isObservationalTool && isPending && !isCancelled && (
+          <View style={styles.completeButtonContainer}>
+            <LiquidGlassButton
+              title="Complete"
+              onPress={handleCompleteTask}
+              glassEffect="clear"
+              borderRadius="lg"
+              tintColor={theme.colors.secondary}
+              style={styles.completeButton}
+              textStyle={styles.completeButtonText}
+            />
+          </View>
+        )}
+
         {/* Completed Badge */}
         {isCompleted && task.completedAt && (
           <View style={styles.completedBadge}>
@@ -542,8 +782,33 @@ export const TaskViewScreen: React.FC = () => {
             </Text>
           </View>
         )}
-      </ScrollView>
-    </SafeArea>
+
+        {/* Cancelled Badge */}
+        {isCancelled && task.statusUpdatedAt && (
+          <View style={styles.cancelledBadge}>
+            <Text style={styles.cancelledText}>
+              Cancelled on {formatDateForDisplay(new Date(task.statusUpdatedAt))}
+            </Text>
+          </View>
+        )}
+
+        {/* Reuse Button for Completed Tasks */}
+        {isCompleted && (
+          <View style={styles.reuseButtonContainer}>
+            <LiquidGlassButton
+              title="Reuse"
+              onPress={handleReuse}
+              glassEffect="clear"
+              borderRadius="lg"
+              tintColor={theme.colors.secondary}
+              style={styles.reuseButton}
+              textStyle={styles.reuseButtonText}
+            />
+          </View>
+        )}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -641,6 +906,44 @@ const createStyles = (theme: any) => {
       ...theme.typography.bodyMedium,
       color: theme.colors.success,
       fontWeight: '600',
+    },
+    cancelledBadge: {
+      backgroundColor: theme.colors.errorSurface,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing['3'],
+      marginTop: theme.spacing['4'],
+      alignItems: 'center',
+    },
+    cancelledText: {
+      ...theme.typography.bodyMedium,
+      color: theme.colors.error,
+      fontWeight: '600',
+    },
+    completeButtonContainer: {
+      marginTop: theme.spacing['6'],
+      marginBottom: theme.spacing['4'],
+    },
+    completeButton: {
+      width: '100%',
+      height: 56,
+    },
+    completeButtonText: {
+      ...theme.typography.buttonH6Clash19,
+      color: theme.colors.white,
+      textAlign: 'center',
+    },
+    reuseButtonContainer: {
+      marginTop: theme.spacing['6'],
+      marginBottom: theme.spacing['4'],
+    },
+    reuseButton: {
+      width: '100%',
+      height: 56,
+    },
+    reuseButtonText: {
+      ...theme.typography.buttonH6Clash19,
+      color: theme.colors.white,
+      textAlign: 'center',
     },
     errorContainer: {
       flex: 1,

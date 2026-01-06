@@ -12,6 +12,7 @@ import {fetchDocuments} from '../../../../../src/features/documents/documentSlic
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockCategoryId = 'medical-records';
 
 // Mock Navigation
@@ -19,6 +20,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
     goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
   }),
   useRoute: () => ({
     params: {categoryId: mockCategoryId},
@@ -31,6 +33,12 @@ jest.mock('@/shared/utils/screenStyles', () => ({
   createErrorContainerStyles: () => ({errorContainer: {}, errorText: {}}),
   createEmptyStateStyles: () => ({emptyContainer: {}, emptyText: {}}),
   createSearchAndSelectorStyles: () => ({searchBar: {}, companionSelector: {}}),
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
+  useCommonScreenStyles: () => ({container: {}, contentContainer: {}}),
 }));
 
 // Mock Hooks

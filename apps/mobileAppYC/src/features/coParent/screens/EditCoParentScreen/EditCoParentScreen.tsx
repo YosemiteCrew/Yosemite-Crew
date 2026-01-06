@@ -146,7 +146,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   if (!currentCoParent || !permissions) {
     if (!loading) {
       return (
-        <SafeAreaView style={commonStyles.container}>
+        <SafeAreaView style={commonStyles.container} edges={['top']}>
           <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
           <View style={commonStyles.centerContent}>
             <Text style={styles.profileEmail}>Unable to load co-parent details.</Text>
@@ -155,7 +155,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       );
     }
     return (
-      <SafeAreaView style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
         <View style={commonStyles.centerContent}>
           <GifLoader />
@@ -330,7 +330,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       <Header
         title="Co-Parent permissions"
         showBackButton

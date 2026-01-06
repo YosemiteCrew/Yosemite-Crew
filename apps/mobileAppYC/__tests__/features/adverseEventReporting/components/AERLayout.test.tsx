@@ -71,7 +71,7 @@ describe('AERLayout', () => {
 
   // --- 1. Basic Rendering & Default Props ---
   it('renders children and default header configuration', () => {
-    const {getByText, getByTestId, queryByText} = render(
+    const {getByText, queryByText} = render(
       <AERLayout>
         <ChildComponent />
       </AERLayout>,
@@ -79,9 +79,6 @@ describe('AERLayout', () => {
 
     // Assert children are rendered
     expect(getByText('Child Content')).toBeTruthy();
-
-    // Assert SafeArea wrapper
-    expect(getByTestId('safe-area')).toBeTruthy();
 
     // Assert Default Header Props
     expect(getByText('Adverse event reporting')).toBeTruthy(); // Default title

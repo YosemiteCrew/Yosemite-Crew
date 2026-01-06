@@ -22,11 +22,6 @@ describe('cardStyles', () => {
         borderColor: 'rgba(234, 234, 234, 0.9)', // from theme.colors.borderMuted
         overflow: 'hidden',
         backgroundColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 4 }, // from theme.shadows.md
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 4,
-        shadowColor: 'rgba(71, 56, 39, 0.15)', // from theme.colors.neutralShadow
         padding: 16, // from theme.spacing[4]
       });
       expect(styles.fallback).toEqual({
@@ -58,9 +53,7 @@ describe('cardStyles', () => {
         borderColor: '#EAEAEA', // fallback
         overflow: 'hidden',
         backgroundColor: '#FFFFFF', // fallback
-        shadowColor: 'rgba(71, 56, 39, 0.15)', // fallback to neutralShadow
         padding: 16, // fallback
-        // No shadow properties, as theme.shadows is undefined
       });
       expect(styles.fallback).toEqual({
         borderRadius: 16,

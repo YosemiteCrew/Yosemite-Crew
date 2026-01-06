@@ -8,7 +8,7 @@ import {
   Image,
   RefreshControl,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
@@ -260,63 +260,80 @@ export const NotificationsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top','bottom']}>
-      <Header
-        title="Notifications"
-        showBackButton
-        onBack={() => (navigation as any).goBack?.()}
-      />
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Notifications"
+          showBackButton
+          onBack={() => (navigation as any).goBack?.()}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['2']}
+      useSafeAreaView
+      containerStyle={styles.container}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <>
+          {/* Header content placed above FlatList to preserve internal scroll state */}
+          <View style={[styles.headerContent, contentPaddingStyle]}>
+            <View style={styles.filtersWrapper}>
+              <NotificationFilterPills
+                selectedFilter={filter}
+                onFilterChange={handleFilterChange}
+                unreadCounts={unreadCounts as any}
+              />
+            </View>
 
-      {/* Header content placed above FlatList to preserve internal scroll state */}
-      <View style={styles.headerContent}>
-        <View style={styles.filtersWrapper}>
-          <NotificationFilterPills
-            selectedFilter={filter}
-            onFilterChange={handleFilterChange}
-            unreadCounts={unreadCounts as any}
-          />
-        </View>
-
-        <View style={styles.segmentContainer}>
-          <View style={styles.segmentInner}>
-            {(['new', 'seen'] as const).map(option => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => handleSortChange(option)}
-                activeOpacity={0.9}
-                style={[styles.segmentItem, sortBy === option && styles.segmentItemActive]}>
-                <Text style={[styles.segmentText, sortBy === option && styles.segmentTextActive]}>
-                  {option === 'new' ? 'New' : 'Seen'}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <View style={styles.segmentContainer}>
+              <View style={styles.segmentInner}>
+                {(['new', 'seen'] as const).map(option => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => handleSortChange(option)}
+                    activeOpacity={0.9}
+                    style={[
+                      styles.segmentItem,
+                      sortBy === option && styles.segmentItemActive,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        sortBy === option && styles.segmentTextActive,
+                      ]}>
+                      {option === 'new' ? 'New' : 'Seen'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
 
-      <FlatList
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        data={notifications}
-        renderItem={renderNotificationItem}
-        keyExtractor={item => item.id}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing || loading}
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
+          <FlatList
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            data={notifications}
+            renderItem={renderNotificationItem}
+            keyExtractor={item => item.id}
+            ListEmptyComponent={renderEmptyState}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing || loading}
+                onRefresh={handleRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
           />
-        }
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-      />
-    </SafeAreaView>
+        </>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -326,7 +343,6 @@ const createStyles = (theme: any) =>
     },
     listContent: {
       paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['3'],
     },
@@ -399,3 +415,4 @@ const createStyles = (theme: any) =>
       lineHeight: theme.typography.subtitleRegular14.lineHeight,
     },
   });
+};

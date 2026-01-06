@@ -17,11 +17,6 @@ import {
   type CoParentPermissions,
   type ParentCompanionAccess,
 } from '@/features/coParent';
-import {GifLoader} from '@/shared/components/common';
-import {
-  GlobalLoaderProvider,
-  useGlobalLoader,
-} from '@/context/GlobalLoaderContext';
 type NestedNavState = {
   key?: string;
   index?: number;
@@ -93,7 +88,6 @@ const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 const TabNavigatorInner: React.FC = () => {
   const {theme} = useTheme();
-  const {isLoading: showGlobalLoader} = useGlobalLoader();
   const selectedCompanionId = useSelector(selectSelectedCompanionId);
   const hasCompanions = useSelector(
     (state: RootState) => (state.companion?.companions?.length ?? 0) > 0,
@@ -165,7 +159,10 @@ const TabNavigatorInner: React.FC = () => {
         <Tab.Screen
           name="HomeStack"
           component={HomeStackNavigator}
-          options={{headerShown: false}}
+          options={{headerShown: false, popToTopOnBlur: true}}
+          listeners={({navigation, route}) =>
+            createTabPressListener(navigation, route)
+          }
         />
         <Tab.Screen
           name="Appointments"
@@ -201,33 +198,16 @@ const TabNavigatorInner: React.FC = () => {
         />
       </Tab.Navigator>
 
-      {/* Global loader overlay - displays above the FloatingTabBar */}
-      {showGlobalLoader && (
-        <View style={styles.loaderOverlay}>
-          <GifLoader size="medium" />
-        </View>
-      )}
     </View>
   );
 };
 
 export const TabNavigator: React.FC = () => {
-  return (
-    <GlobalLoaderProvider>
-      <TabNavigatorInner />
-    </GlobalLoaderProvider>
-  );
+  return <TabNavigatorInner />;
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  loaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
   },
 });

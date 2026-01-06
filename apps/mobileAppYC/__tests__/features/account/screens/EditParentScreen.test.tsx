@@ -115,6 +115,12 @@ jest.mock('@/features/auth', () => ({
   authReducer: jest.fn(),
 }));
 
+jest.mock('@/features/auth/sessionManager', () => ({
+  __esModule: true,
+  getFreshStoredTokens: jest.fn(() => new Promise(() => {})),
+  isTokenExpired: jest.fn(() => true),
+}));
+
 // --- Component Mocks ---
 
 jest.mock('@/shared/components/common/Header/Header', () => {
@@ -295,6 +301,7 @@ jest.mock('react-native-safe-area-context', () => {
   const {View: MockView} = require('react-native');
   return {
     SafeAreaView: jest.fn(({children}: any) => <MockView>{children}</MockView>),
+    useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
   };
 });
 
@@ -418,7 +425,7 @@ describe('EditParentScreen', () => {
     });
 
     it('renders all user data correctly', () => {
-      const {getByTestId} = renderComponent();
+      const {getByTestId, getByText} = renderComponent();
 
       expect(getByTestId('mock-inline-edit-First name').props.value).toBe(
         'Test',
@@ -427,9 +434,8 @@ describe('EditParentScreen', () => {
         'User',
       );
       expect(getByTestId('mock-row-Phone').props.value).toBe('+1 8005551212');
-      expect(getByTestId('mock-row-Email').props.value).toBe(
-        'test@example.com',
-      );
+      expect(getByText('Email')).toBeTruthy();
+      expect(getByText('test@example.com')).toBeTruthy();
       expect(getByTestId('mock-row-Date of birth').props.value).toBe(
         new Date(mockUser.dateOfBirth!).toLocaleDateString('en-US'),
       );
