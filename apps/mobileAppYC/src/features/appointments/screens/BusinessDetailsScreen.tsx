@@ -131,8 +131,8 @@ export const BusinessDetailsScreen: React.FC = () => {
           glass={false}
         />
       }
-      cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      cardGap={theme.spacing['4']}
+      contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
         <ScrollView
           style={styles.scrollView}
@@ -141,7 +141,6 @@ export const BusinessDetailsScreen: React.FC = () => {
         >
           {/* Business Card */}
           <VetBusinessCard
-            style={styles.businessCard}
             name={business?.name || ''}
             openHours={business?.openHours}
             distance={displayDistance}
@@ -203,11 +202,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
-    paddingHorizontal: theme.spacing['6'],
+    paddingHorizontal: theme.spacing['5'],
+    paddingTop: theme.spacing['6'],
     paddingBottom: theme.spacing['24'],
-  },
-  businessCard: {
-    marginBottom: theme.spacing['5'],
+    gap: theme.spacing['6'],
   },
   footer: {
     marginTop: theme.spacing['2'],
@@ -224,7 +222,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     padding: theme.spacing['4'],
     gap: theme.spacing['2'],
-    marginBottom: theme.spacing['4'],
   },
   emptyServicesTitle: {
     ...theme.typography.titleSmall,

@@ -1021,8 +1021,8 @@ export const ViewAppointmentScreen: React.FC = () => {
         header={
           <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
         }
-        cardGap={theme.spacing['3']}
-        contentPadding={theme.spacing['6']}>
+        cardGap={theme.spacing['4']}
+        contentPadding={theme.spacing['4']}>
         {contentPaddingStyle => (
           <ScrollView
             contentContainerStyle={[styles.container, contentPaddingStyle]}
@@ -1043,6 +1043,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           employee={employeeToShow}
           employeeDepartment={department}
           cardStyle={styles.summaryCard}
+          interactive={false}
         />
 
         <DetailsCard title="Appointment Details" items={appointmentDetailItems} />
@@ -1216,9 +1217,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
-    padding: theme.spacing['4'],
+    paddingHorizontal: theme.spacing['5'],
+    paddingTop: theme.spacing['6'],
     paddingBottom: theme.spacing['24'],
-    gap: theme.spacing['3'],
+    gap: theme.spacing['6'],
   },
   statusNote: {
     ...theme.typography.body12,
@@ -1246,7 +1248,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...theme.typography.labelSmallBold,
   },
   summaryCard: {
-    // Spacing handled by container gap
+    marginBottom: theme.spacing['1'],
   },
   detailsCard: {
     borderRadius: theme.borderRadius.lg,

@@ -98,20 +98,20 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
         header={
           <Header
             title="Co-Parents"
-            showBackButton
-            onBack={handleBack}
-            rightIcon={canAddCoParent ? Images.addIconDark : undefined}
-            onRightPress={canAddCoParent ? handleAdd : undefined}
-            glass={false}
-          />
-        }
-        cardGap={theme.spacing['3']}
-        contentPadding={theme.spacing['1']}>
-        {contentPaddingStyle => (
-          <View style={[styles.container, contentPaddingStyle]}>
-            <View style={styles.emptyContainer}>
-              <Image source={Images.coparentEmpty} style={styles.illustration} />
-              <Text style={styles.emptyTitle}>
+          showBackButton
+          onBack={handleBack}
+          rightIcon={canAddCoParent ? Images.addIconDark : undefined}
+          onRightPress={canAddCoParent ? handleAdd : undefined}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['4']}
+      contentPadding={theme.spacing['4']}>
+      {contentPaddingStyle => (
+        <View style={[styles.container, contentPaddingStyle]}>
+          <View style={styles.emptyContainer}>
+            <Image source={Images.coparentEmpty} style={styles.illustration} />
+            <Text style={styles.emptyTitle}>
                 Looks like your friends{'\n'}are busy!
               </Text>
               <Text style={styles.emptySubtitle}>
@@ -136,8 +136,8 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
           glass={false}
         />
       }
-      cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      cardGap={theme.spacing['4']}
+      contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
         <>
           {loading ? (
@@ -183,9 +183,10 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingTop: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['6'],
     },
     selectorContainer: {
       paddingBottom: theme.spacing['4'],

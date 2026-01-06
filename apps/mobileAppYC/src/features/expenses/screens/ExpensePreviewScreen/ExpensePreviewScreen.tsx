@@ -341,7 +341,7 @@ export const ExpensePreviewScreen: React.FC = () => {
           glass={false}
         />
       }
-      cardGap={theme.spacing['3']}
+      cardGap={theme.spacing['4']}
       contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
         <ScrollView
@@ -349,7 +349,7 @@ export const ExpensePreviewScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
-            <SummaryCards businessSummary={businessSummary as any} />
+            <SummaryCards businessSummary={businessSummary as any} interactive={false} cardStyle={styles.summaryCard} />
           )}
 
           <DetailsCard title="Expense Details" items={detailItems} badges={badges} />
@@ -385,9 +385,10 @@ export const ExpensePreviewScreen: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     contentContainer: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['12'],
-      gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['6'],
     },
     errorContainer: {
       flex: 1,
@@ -399,13 +400,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     summaryCard: {
-      // Spacing handled by container gap
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['4'],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['1'],
     },
     summaryTitle: {
       ...theme.typography.titleLarge,

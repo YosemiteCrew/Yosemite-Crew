@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {useNavigation} from '@react-navigation/native';
@@ -98,9 +99,14 @@ export const BookingSummaryCard: React.FC<Props> = ({
 
   if (!interactive) {
     return (
-      <View style={[styles.shadowWrapper, style]}>
-        <View style={styles.card}>{content}</View>
-      </View>
+      <LiquidGlassCard
+        glassEffect="clear"
+        interactive={false}
+        style={[styles.card, style]}
+        fallbackStyle={styles.fallback}
+        padding="0">
+        {content}
+      </LiquidGlassCard>
     );
   }
 

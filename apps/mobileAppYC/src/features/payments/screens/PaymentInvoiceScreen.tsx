@@ -1157,7 +1157,8 @@ export const PaymentInvoiceScreen: React.FC = () => {
         />
       }
       edges={[]}
-      contentPadding={20}>
+      cardGap={theme.spacing['4']}
+      contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
         <ScrollView
           contentContainerStyle={[
@@ -1170,6 +1171,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
             service={service}
             serviceName={apt?.serviceName}
             cardStyle={styles.summaryCard}
+            interactive={false}
           />
           {content}
         </ScrollView>
@@ -1231,11 +1233,12 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       paddingBottom: theme.spacing['24'],
-      paddingHorizontal: theme.spacing['4'],
-      gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      gap: theme.spacing['6'],
     },
     summaryCard: {
-      // Spacing handled by container gap
+      marginBottom: theme.spacing['1'],
     },
     loadingBox: {
       flexDirection: 'row',
