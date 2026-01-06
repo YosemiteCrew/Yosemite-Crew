@@ -8,6 +8,7 @@ type SlotProps = {
   height: number;
   handleViewAppointment: (appt: Appointment) => void;
   dayIndex: number;
+  length: number;
 };
 
 const Slot: React.FC<SlotProps> = ({
@@ -15,18 +16,19 @@ const Slot: React.FC<SlotProps> = ({
   height,
   handleViewAppointment,
   dayIndex,
+  length,
 }) => {
   if (slotEvents.length === 0) {
     return (
       <div
-        className={`relative border-l border-grey-light ${dayIndex === 6 && "border-r"}`}
+        className={`relative border-l border-grey-light ${dayIndex === length && "border-r"}`}
         style={{ height: `${height}px` }}
       />
     );
   }
   return (
     <div
-      className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === 6 && "border-r"}`}
+      className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && "border-r"}`}
       style={{ height: `${height}px` }}
     >
       <div className="flex flex-col gap-1 rounded-2xl border border-grey-light p-2 mt-2 bg-white">

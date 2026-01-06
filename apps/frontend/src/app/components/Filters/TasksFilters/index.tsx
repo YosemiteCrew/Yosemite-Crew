@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Search from "../../Inputs/Search";
-import { TasksProps } from "@/app/types/tasks";
+import { Task } from "@/app/types/task";
 
 const Types = [
   {
@@ -9,24 +9,24 @@ const Types = [
   },
   {
     name: "Organizations",
-    key: "organizations",
+    key: "employee_task",
   },
   {
     name: "Companions",
-    key: "companions",
+    key: "parent_task",
   },
 ];
 
 const Statuses = [
   {
-    name: "Upcoming",
-    key: "upcoming",
-    bg: "#247AED",
-    text: "#fff",
+    name: "Pending",
+    key: "pending",
+    bg: "#eaeaea",
+    text: "#302f2e",
   },
   {
     name: "In progress",
-    key: "in-progress",
+    key: "in_progress",
     bg: "#E6F4EF",
     text: "#54B492",
   },
@@ -36,10 +36,16 @@ const Statuses = [
     bg: "#008F5D",
     text: "#fff",
   },
+  {
+    name: "Cancelled",
+    key: "cancelled",
+    bg: "#008F5D",
+    text: "#fff",
+  },
 ];
 
 type TaskFiltersProps = {
-  list: TasksProps[];
+  list: Task[];
   setFilteredList: any;
 };
 
@@ -52,8 +58,10 @@ const TaskFilters = ({ list, setFilteredList }: TaskFiltersProps) => {
     return list.filter((item) => {
       const matchesStatus =
         item.status.toLowerCase() === activeStatus.toLowerCase();
-      const matchesType = activeType === "all";
-      const matchesSearch = item.task
+      const matchesType =
+        activeType === "all" ||
+        item.audience.toLowerCase() === activeType.toLowerCase();
+      const matchesSearch = item.name
         .toLowerCase()
         .includes(search.toLowerCase());
       return matchesStatus && matchesType && matchesSearch;

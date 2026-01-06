@@ -1,5 +1,6 @@
 import { LaidOutEvent } from "@/app/types/calendar";
-import { TasksProps } from "@/app/types/tasks";
+import { Task } from "@/app/types/task";
+import { Team } from "@/app/types/team";
 import { Appointment } from "@yosemite-crew/types";
 
 export function isSameDay(a?: Date | null, b?: Date | null) {
@@ -202,13 +203,33 @@ export function isAllDayForDate(ev: Appointment, day: Date): boolean {
   return ev.startTime <= startOfDay && ev.endTime >= endOfDay;
 }
 
-export function eventsForDay(events: TasksProps[], day: Date): TasksProps[] {
+export function eventsForDay(events: Task[], day: Date): Task[] {
   const y = day.getFullYear();
   const m = day.getMonth();
   const d = day.getDate();
 
   return events.filter((event) => {
-    const s = event.due;
-    return s.getFullYear() === y && s.getMonth() === m && s.getDate() === d;
+    const s = event.dueAt;
+    const t = new Date(s);
+    return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
+  });
+}
+
+export function eventsForUser(events: Task[], user: Team): Task[] {
+  const id = user._id;
+  return events.filter((event) => {
+    const assignedTo = event.assignedTo?.toLowerCase() || "";
+    return assignedTo === id;
+  });
+}
+
+export function appointentsForUser(
+  events: Appointment[],
+  user: Team
+): Appointment[] {
+  const name = user.name?.toLowerCase() || "";
+  return events.filter((event) => {
+    const assignedTo = event.lead?.name?.toLowerCase() || "";
+    return assignedTo === name;
   });
 }

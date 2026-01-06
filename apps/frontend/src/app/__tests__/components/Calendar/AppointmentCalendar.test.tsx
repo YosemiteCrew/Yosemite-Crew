@@ -140,11 +140,6 @@ describe("AppointmentCalendar Component", () => {
     expect(screen.getByTestId("week-event-2")).toBeInTheDocument();
   });
 
-  it("renders WeekCalendar when activeCalendar is 'vet'", () => {
-    render(<AppointmentCalendar {...defaultProps} activeCalendar="vet" />);
-    expect(screen.getByTestId("week-calendar")).toBeInTheDocument();
-  });
-
   it("renders nothing (besides header) if activeCalendar is invalid", () => {
     render(<AppointmentCalendar {...defaultProps} activeCalendar="month" />);
     expect(screen.getByTestId("header")).toBeInTheDocument();

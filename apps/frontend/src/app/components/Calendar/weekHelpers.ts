@@ -58,7 +58,8 @@ export function getDateNumberPadded(date: Date): string {
 }
 
 export function getFormattedDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
+  const t = new Date(date);
+  return t.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",

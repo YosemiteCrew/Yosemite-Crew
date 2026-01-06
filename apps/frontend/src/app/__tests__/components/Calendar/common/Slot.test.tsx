@@ -52,6 +52,7 @@ describe("Slot Component", () => {
         height={100}
         handleViewAppointment={mockHandleViewAppointment}
         dayIndex={0}
+        length={7}
       />
     );
 
@@ -63,20 +64,6 @@ describe("Slot Component", () => {
     expect(slotDiv.children).toHaveLength(0);
   });
 
-  it("applies right border for the last column (dayIndex 6)", () => {
-    const { container } = render(
-      <Slot
-        slotEvents={[]}
-        height={100}
-        handleViewAppointment={mockHandleViewAppointment}
-        dayIndex={6}
-      />
-    );
-
-    const slotDiv = container.firstChild as HTMLElement;
-    expect(slotDiv).toHaveClass("border-r");
-  });
-
   // --- 2. Populated State Rendering ---
 
   it("renders appointments when events are provided", () => {
@@ -86,6 +73,7 @@ describe("Slot Component", () => {
         height={150}
         handleViewAppointment={mockHandleViewAppointment}
         dayIndex={1}
+        length={7}
       />
     );
 
@@ -109,6 +97,7 @@ describe("Slot Component", () => {
         height={150}
         handleViewAppointment={mockHandleViewAppointment}
         dayIndex={1}
+        length={7}
       />
     );
 

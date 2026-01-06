@@ -18,7 +18,7 @@ import {
   MINUTES_PER_STEP,
 } from "@/app/components/Calendar/helpers";
 import { Appointment } from "@yosemite-crew/types";
-import { TasksProps } from "@/app/types/tasks";
+import { Task } from "@/app/types/task";
 
 describe("Calendar Helpers", () => {
   // --- Date Comparison Helpers ---
@@ -319,13 +319,13 @@ describe("Calendar Helpers", () => {
     it("filters tasks matching the day", () => {
       const day = new Date(2023, 0, 1);
       const tasks = [
-        { due: new Date(2023, 0, 1, 10, 0) }, // Match
-        { due: new Date(2023, 0, 2, 10, 0) }, // Diff day
-      ] as TasksProps[];
+        { dueAt: new Date(2023, 0, 1, 10, 0) }, // Match
+        { dueAt: new Date(2023, 0, 2, 10, 0) }, // Diff day
+      ] as Task[];
 
       const res = eventsForDay(tasks, day);
       expect(res).toHaveLength(1);
-      expect(res[0].due.getDate()).toBe(1);
+      expect(res[0].dueAt.getDate()).toBe(1);
     });
   });
 });

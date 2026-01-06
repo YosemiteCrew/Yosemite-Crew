@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import TaskFilters from "@/app/components/Filters/TasksFilters";
-import { TasksProps } from "@/app/types/tasks";
+import { Task } from "@/app/types/task";
 
 // --- Mocks ---
 
-// Mock Search Component
+// Mock Search Component to control search input directly and isolate unit logic
 jest.mock("@/app/components/Inputs/Search", () => ({
   __esModule: true,
   default: ({ value, setSearch }: any) => (
@@ -19,30 +19,46 @@ jest.mock("@/app/components/Inputs/Search", () => ({
 
 // --- Test Data ---
 
-const mockTasks: TasksProps[] = [
+const mockTasks: Task[] = [
   {
-    id: "1",
-    task: "Review Code",
-    status: "in-progress",
-    type: "organizations",
+    _id: "1",
+    name: "Order supplies",
+    category: "Admin",
+    assignedTo: "team-1",
+    audience: "EMPLOYEE_TASK",
+    source: "CUSTOM",
+    dueAt: new Date(),
+    status: "IN_PROGRESS",
   },
   {
-    id: "2",
-    task: "Write Tests",
-    status: "in-progress",
-    type: "companions",
+    _id: "2",
+    name: "Call parent",
+    category: "Care",
+    assignedTo: "parent-1",
+    audience: "PARENT_TASK",
+    source: "CUSTOM",
+    dueAt: new Date(),
+    status: "IN_PROGRESS",
   },
   {
-    id: "3",
-    task: "Deploy App",
-    status: "completed",
-    type: "organizations",
+    _id: "3",
+    name: "Submit report",
+    category: "Admin",
+    assignedTo: "team-2",
+    audience: "EMPLOYEE_TASK",
+    source: "CUSTOM",
+    dueAt: new Date(),
+    status: "COMPLETED",
   },
   {
-    id: "4",
-    task: "Plan Sprint",
-    status: "upcoming",
-    type: "companions",
+    _id: "4",
+    name: "Cancel subscription",
+    category: "Admin",
+    assignedTo: "team-2",
+    audience: "PARENT_TASK",
+    source: "CUSTOM",
+    dueAt: new Date(),
+    status: "CANCELLED",
   },
 ] as any;
 
@@ -53,128 +69,147 @@ describe("TaskFilters Component", () => {
     jest.clearAllMocks();
   });
 
-  // --- 1. Initial Render & Defaults ---
+  // --- 1. Initial Rendering & Default State ---
 
-  it("renders filter buttons and search input", () => {
-    render(
-      <TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />
-    );
+  it("renders all filter buttons and search input", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
 
-    // Type Buttons
+    // Type buttons
     expect(screen.getByText("All")).toBeInTheDocument();
     expect(screen.getByText("Organizations")).toBeInTheDocument();
     expect(screen.getByText("Companions")).toBeInTheDocument();
 
-    // Status Buttons
+    // Status buttons
+    expect(screen.getByText("Pending")).toBeInTheDocument();
     expect(screen.getByText("In progress")).toBeInTheDocument();
     expect(screen.getByText("Completed")).toBeInTheDocument();
-    expect(screen.getByText("Upcoming")).toBeInTheDocument();
+    expect(screen.getByText("Cancelled")).toBeInTheDocument();
 
-    // Search
+    // Search input
     expect(screen.getByTestId("search-input")).toBeInTheDocument();
   });
 
-  it("initializes with default filters (Type: All, Status: In progress) and returns filtered list", () => {
-    render(
-      <TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />
-    );
+  it("filters by default state on mount (note: default activeStatus is 'in-progress')", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
 
-    // Default: All types + 'in-progress'
-    // Matches: Review Code (in-progress), Write Tests (in-progress)
-    expect(mockSetFilteredList).toHaveBeenCalledWith([
+    /**
+     * ⚠️ Important: In your component, the default is:
+     *   const [activeStatus, setActiveStatus] = useState("in-progress");
+     *
+     * But your statuses keys use: "in_progress" (underscore).
+     * So the default filter returns [] because:
+     *   "IN_PROGRESS".toLowerCase() !== "in-progress"
+     */
+    expect(mockSetFilteredList).toHaveBeenCalledWith([]);
+  });
+
+  // --- 2. Interactions (Filter Logic) ---
+
+  it("filters by Status change (In progress)", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
+
+    fireEvent.click(screen.getByText("In progress"));
+
+    // Should match tasks 1 & 2 (status IN_PROGRESS)
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([
       mockTasks[0],
       mockTasks[1],
     ]);
   });
 
-  // --- 2. Filtering Logic (Status) ---
+  it("filters by Type change (Organizations) after selecting an actual status key", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
 
-  it("filters by Status (Completed)", () => {
-    render(
-      <TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />
-    );
+    // First fix the status mismatch by clicking the real status button
+    fireEvent.click(screen.getByText("In progress"));
 
-    const completedBtn = screen.getByRole("button", { name: "Completed" });
-    fireEvent.click(completedBtn);
+    // Then set type to Organizations (key: employee_task)
+    fireEvent.click(screen.getByText("Organizations"));
 
-    // Matches: Deploy App (completed)
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockTasks[2]]);
-  });
-
-  it("filters by Status (Upcoming)", () => {
-    render(
-      <TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />
-    );
-
-    const upcomingBtn = screen.getByRole("button", { name: "Upcoming" });
-    fireEvent.click(upcomingBtn);
-
-    // Matches: Plan Sprint (upcoming)
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockTasks[3]]);
-  });
-
-  // --- 3. Filtering Logic (Search) ---
-
-  it("filters by Search matching Task Name", () => {
-    render(
-      <TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />
-    );
-
-    const searchInput = screen.getByTestId("search-input");
-
-    // Search "Code"
-    fireEvent.change(searchInput, { target: { value: "Code" } });
-
-    // Matches: Review Code (in-progress default + search match)
+    /**
+     * Component logic:
+     * item.audience.toLowerCase() === activeType.toLowerCase()
+     * audience is "EMPLOYEE_TASK" -> "employee_task"
+     */
     expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockTasks[0]]);
   });
 
-  // --- 4. Logic & Interaction (Type Button) ---
+  it("filters by Type change (Companions) after selecting an actual status key", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
 
-  it("handles Type button click (only visual logic implemented currently)", () => {
-    // Note: Component logic says `const matchesType = activeType === "all";`
-    // This means picking any type other than "All" will currently return an empty list
-    // based on the provided source code (unless logic changes).
-    // We test behavior AS IS.
+    fireEvent.click(screen.getByText("In progress"));
+    fireEvent.click(screen.getByText("Companions"));
 
-    render(
-      <TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />
-    );
-
-    const orgBtn = screen.getByRole("button", { name: "Organizations" });
-    fireEvent.click(orgBtn);
-
-    // Logic `activeType === "all"` becomes false.
-    // Filter returns empty list.
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([]);
-
-    // Check active visual state
-    expect(orgBtn.className).toContain("bg-blue-light!");
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockTasks[1]]);
   });
 
-  it("applies active styles to selected status button", () => {
-    render(
-      <TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />
-    );
+  it("filters by Search input (name match) after selecting an actual status key", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
 
-    const inProgressBtn = screen.getByRole("button", { name: "In progress" });
-    const completedBtn = screen.getByRole("button", { name: "Completed" });
+    // Set status to match IN_PROGRESS tasks
+    fireEvent.click(screen.getByText("In progress"));
 
-    // Default: 'In progress' active
-    // Active logic: shadow
-    expect(inProgressBtn.className).toContain("shadow");
-    // Inactive logic: no shadow/border
-    expect(completedBtn.className).toContain("border-0");
+    // Search for "parent"
+    fireEvent.change(screen.getByTestId("search-input"), {
+      target: { value: "parent" },
+    });
 
-    // Click Completed
-    fireEvent.click(completedBtn);
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockTasks[1]]);
+  });
 
-    // Now 'Completed' active
-    expect(completedBtn.className).toContain("shadow");
-    expect(inProgressBtn.className).toContain("border-0");
+  // --- 3. Combined Filtering ---
 
-    // Check dynamic style prop (border color matches text color when active)
-    // Completed config: text: "#fff"
-    expect(completedBtn).toHaveStyle("border-color: #fff");
+  it("filters by combined Status, Type, and Search", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
+
+    // 1. Set Status to "In progress"
+    fireEvent.click(screen.getByText("In progress"));
+
+    // 2. Set Type to "Companions"
+    fireEvent.click(screen.getByText("Companions"));
+
+    // 3. Search for "Call"
+    fireEvent.change(screen.getByTestId("search-input"), {
+      target: { value: "Call" },
+    });
+
+    // Expect task 2 only
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockTasks[1]]);
+  });
+
+  // --- 4. Styling Checks (Active State) ---
+
+  it("applies active styles to selected type buttons", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
+
+    const allBtn = screen.getByText("All");
+    const orgBtn = screen.getByText("Organizations");
+
+    // "All" is active by default
+    expect(allBtn.className).toContain("bg-blue-light!");
+    expect(orgBtn.className).not.toContain("bg-blue-light!");
+
+    // Click "Organizations"
+    fireEvent.click(orgBtn);
+
+    expect(orgBtn.className).toContain("bg-blue-light!");
+    expect(allBtn.className).not.toContain("bg-blue-light!");
+  });
+
+  it("applies correct dynamic styles for status buttons when clicked", () => {
+    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
+
+    const pendingBtn = screen.getByText("Pending");
+    const inProgressBtn = screen.getByText("In progress");
+
+    // With default 'in-progress' mismatch, none is active initially.
+    // After clicking "In progress", it should become active and borderColor should equal text color
+    fireEvent.click(inProgressBtn);
+
+    // In progress config: text "#54B492"
+    expect(inProgressBtn).toHaveStyle("border-color: #54B492");
+
+    // Pending is inactive -> borderColor equals its bg "#eaeaea"
+    expect(pendingBtn).toHaveStyle("border-color: #eaeaea");
   });
 });

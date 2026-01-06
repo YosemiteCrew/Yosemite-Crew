@@ -1,51 +1,49 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import TaskCard from "@/app/components/Cards/TaskCard";
-import { TasksProps } from "@/app/types/tasks";
+import { Task } from "@/app/types/task";
 
 // --- Mocks ---
 
 jest.mock("@/app/components/DataTable/Tasks", () => ({
-  getStatusStyle: jest.fn(() => ({ color: "orange" })),
+  getStatusStyle: jest.fn(() => ({ color: "green" })),
 }));
 
 jest.mock("@/app/components/Calendar/weekHelpers", () => ({
-  getFormattedDate: jest.fn(() => "Jan 01, 2024"),
+  getFormattedDate: jest.fn((date: any) => `Formatted ${String(date)}`),
 }));
 
 import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
 
-// --- Test Data ---
-
-const mockTask: TasksProps = {
+const mockTask: Task = {
   _id: "task-1",
-  task: "Weekly Report",
-  description: "Compile sales numbers",
+  name: "Order supplies",
+  description: "Buy gloves and masks",
   category: "Admin",
-  from: "Manager A",
-  to: "Director B",
-  due: new Date("2024-01-01"),
-  status: "In Progress",
+  assignedBy: "Alice",
+  assignedTo: "Bob",
+  audience: "EMPLOYEE_TASK",
+  source: "CUSTOM",
+  dueAt: new Date("2025-01-10T00:00:00.000Z"),
+  status: "IN_PROGRESS",
 } as any;
 
 describe("TaskCard Component", () => {
-  const mockHandleViewTask = jest.fn();
+  const mockHandleView = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // --- 1. Rendering Details ---
-
   it("renders task details correctly", () => {
-    render(<TaskCard item={mockTask} handleViewTask={mockHandleViewTask} />);
+    render(<TaskCard item={mockTask} handleViewTask={mockHandleView} />);
 
-    // Title
-    expect(screen.getByText("Weekly Report")).toBeInTheDocument();
+    // Header
+    expect(screen.getByText("Order supplies")).toBeInTheDocument();
 
     // Description
     expect(screen.getByText("Description:")).toBeInTheDocument();
-    expect(screen.getByText("Compile sales numbers")).toBeInTheDocument();
+    expect(screen.getByText("Buy gloves and masks")).toBeInTheDocument();
 
     // Category
     expect(screen.getByText("Category:")).toBeInTheDocument();
@@ -53,37 +51,46 @@ describe("TaskCard Component", () => {
 
     // From / To
     expect(screen.getByText("From:")).toBeInTheDocument();
-    expect(screen.getByText("Manager A")).toBeInTheDocument();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+
     expect(screen.getByText("To:")).toBeInTheDocument();
-    expect(screen.getByText("Director B")).toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
 
-    // Due Date (via Helper Mock)
+    // Due date (formatter)
+    expect(getFormattedDate).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Formatted/)).toBeInTheDocument();
+
+    // Status badge text
+    expect(screen.getByText("IN_PROGRESS")).toBeInTheDocument();
+
+    // View button exists
+    expect(screen.getByText("View")).toBeInTheDocument();
+  });
+
+  it("handles missing optional fields gracefully", () => {
+    const incompleteTask: Task = {
+      ...mockTask,
+      description: undefined,
+      assignedBy: undefined,
+    } as any;
+
+    render(<TaskCard item={incompleteTask} handleViewTask={mockHandleView} />);
+
+    // Still renders labels and doesn't crash
+    expect(screen.getByText("Description:")).toBeInTheDocument();
+    expect(screen.getByText("Category:")).toBeInTheDocument();
+    expect(screen.getByText("From:")).toBeInTheDocument();
+    expect(screen.getByText("To:")).toBeInTheDocument();
     expect(screen.getByText("Due date:")).toBeInTheDocument();
-    expect(getFormattedDate).toHaveBeenCalledWith(mockTask.due);
-    expect(screen.getByText("Jan 01, 2024")).toBeInTheDocument();
+    expect(screen.getByText("IN_PROGRESS")).toBeInTheDocument();
   });
 
-  // --- 2. Styling Logic ---
+  it("calls handleViewTask with the task when clicking View", () => {
+    render(<TaskCard item={mockTask} handleViewTask={mockHandleView} />);
 
-  it("applies correct status styling", () => {
-    render(<TaskCard item={mockTask} handleViewTask={mockHandleViewTask} />);
+    fireEvent.click(screen.getByText("View"));
 
-    const statusBadge = screen.getByText("In Progress");
-    expect(statusBadge).toBeInTheDocument();
-
-    // Check style from mock: JSDOM converts "orange" to "rgb(255, 165, 0)"
-    expect(statusBadge).toHaveStyle({ color: "rgb(255, 165, 0)" });
-  });
-
-  // --- 3. Interaction ---
-
-  it("calls handleViewTask when View button is clicked", () => {
-    render(<TaskCard item={mockTask} handleViewTask={mockHandleViewTask} />);
-
-    const viewBtn = screen.getByText("View");
-    fireEvent.click(viewBtn);
-
-    expect(mockHandleViewTask).toHaveBeenCalledTimes(1);
-    expect(mockHandleViewTask).toHaveBeenCalledWith(mockTask);
+    expect(mockHandleView).toHaveBeenCalledTimes(1);
+    expect(mockHandleView).toHaveBeenCalledWith(expect.objectContaining({ _id: "task-1" }));
   });
 });
