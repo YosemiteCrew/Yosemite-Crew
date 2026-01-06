@@ -33,7 +33,7 @@ export function createApp() {
 
   app.use(fileUpload());
 
-  if (!process.env.LOCAL_DEVELOPMENT) {
+  if (process.env.LOCAL_DEVELOPMENT) {
     const allowedOrigins = [
       "http://localhost:3000", // Next.js / React
       "http://127.0.0.1:3000",

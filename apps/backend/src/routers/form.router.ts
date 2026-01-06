@@ -108,7 +108,7 @@ router.get(
 );
 
 router.get(
-  "/mobile/appointments/:appointmentId/:organisationId/forms",
+  "/mobile/appointments/:appointmentId/forms",
   authorizeCognitoMobile,
   FormController.getFormsForAppointment,
 );

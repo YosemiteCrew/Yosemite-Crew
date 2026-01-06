@@ -67,7 +67,7 @@ export class FormSigningService {
       signerEmail = parent.email;
       signerName = parent.firstName + " " + parent.lastName;
     } else {
-      const user = await UserModel.findById(submission.submittedBy).lean();
+      const user = await UserModel.findOne({userId: initiatedBy}).lean();
       if (!user) {
         throw new Error("Unable to find submitting user");
       }
