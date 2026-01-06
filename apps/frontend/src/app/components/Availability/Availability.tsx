@@ -8,6 +8,7 @@ import {
   TimeOption,
   Interval,
   SetAvailability,
+  ApiOverrides,
 } from "./utils";
 import TimeSlot from "./TimeSlot";
 import { FaCirclePlus, FaCircleMinus } from "react-icons/fa6";
@@ -18,11 +19,15 @@ import "./Availability.css";
 type AvailabilityProps = {
   availability: AvailabilityState;
   setAvailability: SetAvailability;
+  overides?: ApiOverrides[];
+  setOverides?: React.Dispatch<React.SetStateAction<ApiOverrides[]>>;
 };
 
 const Availability: React.FC<AvailabilityProps> = ({
   availability,
   setAvailability,
+  overides,
+  setOverides,
 }) => {
   const toggleDay = (day: string) => {
     setAvailability((prev: AvailabilityState) => ({

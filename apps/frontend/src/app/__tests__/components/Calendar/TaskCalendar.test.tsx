@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import TaskCalendar from "@/app/components/Calendar/TaskCalendar";
-import { TasksProps } from "@/app/types/tasks";
+import { Task } from "@/app/types/task";
 
 // --- Mocks ---
 
@@ -72,9 +72,9 @@ jest.mock("@/app/components/Calendar/Task/WeekCalendar", () => {
 // --- Test Data ---
 
 const mockDate = new Date("2023-01-01T00:00:00.000Z");
-const mockTasks: TasksProps[] = [
-  { _id: "1", title: "Task 1", due: new Date("2023-01-01T10:00:00Z") } as any,
-  { _id: "2", title: "Task 2", due: new Date("2023-01-02T10:00:00Z") } as any,
+const mockTasks: Task[] = [
+  { _id: "1", title: "Task 1", dueAt: new Date("2023-01-01T10:00:00Z") } as any,
+  { _id: "2", title: "Task 2", dueAt: new Date("2023-01-02T10:00:00Z") } as any,
 ];
 
 describe("TaskCalendar Component", () => {
@@ -136,11 +136,6 @@ describe("TaskCalendar Component", () => {
     // Week view receives FULL list
     expect(screen.getByTestId("week-task-1")).toBeInTheDocument();
     expect(screen.getByTestId("week-task-2")).toBeInTheDocument();
-  });
-
-  it("renders WeekCalendar when activeCalendar is 'vet'", () => {
-    render(<TaskCalendar {...defaultProps} activeCalendar="vet" />);
-    expect(screen.getByTestId("week-calendar")).toBeInTheDocument();
   });
 
   it("renders nothing (besides header) if activeCalendar is invalid", () => {

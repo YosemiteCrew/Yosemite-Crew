@@ -193,8 +193,8 @@ p {
 }
 
 input[type="checkbox"] {
-  width: 21px;
-  height: 21px;
+  width: 20px;
+  height: 20px;
   -moz-appearance: none;
   -webkit-appearance: none;
   appearance: none;
@@ -260,4 +260,17 @@ input::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+.yc-big-title {
+  @apply font-grotesk text-5xl font-medium leading-[120%] tracking-[-0.96px] text-black-text;
+}
+.yc-h1 {
+  @apply font-grotesk text-[2rem] font-medium leading-[120%] tracking-[-0.96px] text-black-text;
+}
+.yc-h3 {
+  @apply font-satoshi text-xl font-bold leading-[120%] tracking-[-0.4px] text-black-text;
+}
+.yc-m {
+  @apply font-satoshi text-sm font-normal leading-[120%] tracking-[-0.28px] text-black-text;
 }

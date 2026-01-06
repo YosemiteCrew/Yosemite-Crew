@@ -116,6 +116,30 @@ export type ApiDayAvailability = {
   __v?: number;
 };
 
+export type ApiOverridesSlot = {
+  startTime: string;
+  endTime: string;
+  _id?: string;
+}
+
+export type ApiOverridesDay = {
+  dayOfWeek: string;
+  slots: ApiOverridesSlot[];
+  _id?: string;
+}
+
+export type ApiOverrides = {
+  _id: string;
+  userId?: string;
+  organisationId: string;
+  weekStartDate: Date
+  dayOfWeek: string;
+  overrides: ApiOverridesDay[];
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+};
+
 export type GetAvailabilityResponse = {
   message?: string;
   data: ApiDayAvailability[];

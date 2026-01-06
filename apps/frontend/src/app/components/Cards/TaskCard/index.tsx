@@ -1,10 +1,10 @@
 import React from "react";
 import { getStatusStyle } from "../../DataTable/Tasks";
-import { TasksProps } from "@/app/types/tasks";
 import { getFormattedDate } from "../../Calendar/weekHelpers";
+import { Task } from "@/app/types/task";
 
 type TaskCardProps = {
-  item: TasksProps;
+  item: Task;
   handleViewTask: any;
 };
 
@@ -13,7 +13,7 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-[23px] font-satoshi font-bold text-black-text">
-          {item.task}
+          {item.name}
         </div>
       </div>
       <div className="flex gap-1">
@@ -37,7 +37,7 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
           From:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.from}
+          {item.assignedBy}
         </div>
       </div>
       <div className="flex gap-1">
@@ -45,7 +45,7 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
           To:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {item.to}
+          {item.assignedTo}
         </div>
       </div>
       <div className="flex gap-1">
@@ -53,7 +53,7 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
           Due date:
         </div>
         <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {getFormattedDate(item.due)}
+          {getFormattedDate(item.dueAt)}
         </div>
       </div>
       <div

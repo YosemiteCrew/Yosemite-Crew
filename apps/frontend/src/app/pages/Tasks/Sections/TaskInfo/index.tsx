@@ -1,13 +1,15 @@
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import Modal from "@/app/components/Modal";
-import { TasksProps } from "@/app/types/tasks";
-import React from "react";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Task } from "@/app/types/task";
+import { Team } from "@/app/types/team";
+import React, { useMemo } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 
 type TaskInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  activeTask: TasksProps;
+  activeTask: Task;
 };
 
 const TaskFields = [
@@ -15,17 +17,43 @@ const TaskFields = [
   {
     label: "Category",
     key: "category",
-    type: "select",
-    options: ["Custom", "Template", "Library"],
+    type: "text",
   },
   { label: "Description", key: "description", type: "text" },
-  { label: "From", key: "from", type: "text" },
-  { label: "To", key: "to", type: "text" },
-  { label: "Due", key: "due", type: "date" },
-  { label: "Status", key: "status", type: "text" },
+  { label: "From", key: "assignedBy", type: "text", editable: false },
+  { label: "To", key: "assignedTo", type: "text" },
+  { label: "Due", key: "dueAt", type: "date" },
+  {
+    label: "Status",
+    key: "status",
+    type: "dropdown",
+    options: ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+  },
 ];
 
 const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
+  const teams = useTeamForPrimaryOrg();
+
+  const memberMap = useMemo(() => {
+    const map = new Map<string, string>();
+    teams?.forEach((member: Team) => {
+      map.set(member._id, member.name || "-");
+    });
+    return map;
+  }, [teams]);
+
+  const resolveMemberName = (id?: string) =>
+    id ? (memberMap.get(id) ?? "-") : "-";
+
+  const taskData = useMemo(
+    () => ({
+      ...activeTask,
+      assignedBy: resolveMemberName(activeTask.assignedBy),
+      assignedTo: resolveMemberName(activeTask.assignedTo),
+    }),
+    [activeTask, teams]
+  );
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
@@ -50,7 +78,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
             key={"task-key"}
             title={"Task details"}
             fields={TaskFields}
-            data={activeTask}
+            data={taskData}
             defaultOpen={true}
           />
         </div>
