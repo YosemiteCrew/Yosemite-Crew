@@ -8,6 +8,7 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -37,6 +38,7 @@ import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {resolveCurrencyForBusiness, normalizeCurrencyCode} from '@/shared/utils/currencyResolver';
 import {isDummyPhoto as isDummyPhotoUrl} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {AvatarGroup} from '@/shared/components/common/AvatarGroup/AvatarGroup';
 
@@ -210,7 +212,12 @@ const InvoiceDetailsCard = ({
   apt: any;
   styles: any;
 }) => (
-  <View style={styles.metaCard}>
+  <LiquidGlassCard
+    glassEffect="clear"
+    padding="4"
+    shadow="sm"
+    style={styles.glassCard}
+    fallbackStyle={styles.cardFallback}>
     <Text style={styles.metaTitle}>Invoice details</Text>
     <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
     <MetaRow
@@ -225,7 +232,7 @@ const InvoiceDetailsCard = ({
       label="Due till"
       value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
     />
-  </View>
+  </LiquidGlassCard>
 );
 
 const RefundSection = ({
@@ -291,7 +298,12 @@ const InvoiceForCard = ({
   companionName: string;
   styles: any;
 }) => (
-  <View style={styles.invoiceForCard}>
+  <LiquidGlassCard
+    glassEffect="clear"
+    padding="4"
+    shadow="sm"
+    style={styles.glassCard}
+    fallbackStyle={styles.cardFallback}>
     <Text style={styles.metaTitle}>Invoice for</Text>
     <View style={styles.invoiceForRow}>
       <AvatarGroup
@@ -319,7 +331,7 @@ const InvoiceForCard = ({
         </Text>
       </View>
     </View>
-  </View>
+  </LiquidGlassCard>
 );
 
 const BreakdownCard = ({
@@ -341,7 +353,12 @@ const BreakdownCard = ({
   currency: string;
   styles: any;
 }) => (
-  <View style={styles.breakdownCard}>
+  <LiquidGlassCard
+    glassEffect="clear"
+    padding="4"
+    shadow="sm"
+    style={styles.glassCard}
+    fallbackStyle={styles.cardFallback}>
     <Text style={styles.metaTitle}>Description</Text>
     {effectiveInvoice?.items?.map((item: InvoiceItem) => (
       <BreakdownRow
@@ -398,7 +415,7 @@ const BreakdownCard = ({
       Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts +
       Taxes.
     </Text>
-  </View>
+  </LiquidGlassCard>
 );
 
 const ReceiptCard = ({
@@ -412,7 +429,12 @@ const ReceiptCard = ({
 }) => {
   if (!receiptUrl) return null;
   return (
-    <View style={styles.previewCard}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="sm"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
       <Text style={styles.metaTitle}>Invoice & receipt</Text>
       <LiquidGlassButton
         title="View invoice"
@@ -440,7 +462,7 @@ const ReceiptCard = ({
       <Text style={styles.missingSubtitle}>
         You will be redirected to the secure Stripe receipt in your browser.
       </Text>
-    </View>
+    </LiquidGlassCard>
   );
 };
 
@@ -455,7 +477,12 @@ const TermsCard = ({
   businessAddress?: string;
   styles: any;
 }) => (
-  <View style={styles.termsCard}>
+  <LiquidGlassCard
+    glassEffect="clear"
+    padding="4"
+    shadow="sm"
+    style={styles.glassCard}
+    fallbackStyle={styles.cardFallback}>
     <Text style={styles.metaTitle}>Payment terms & legal</Text>
     <Text style={styles.termsLine}>
       Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
@@ -468,9 +495,9 @@ const TermsCard = ({
       Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
     </Text>
     <Text style={styles.termsLine}>
-      This invoice is not emergency advice. If your pet needs urgent care, contact the clinic or local emergency services immediately.
+      This invoice is not emergency advice. If your companion needs urgent care, contact the clinic or local emergency services immediately.
     </Text>
-  </View>
+  </LiquidGlassCard>
 );
 
 const PayButton = ({
@@ -819,14 +846,19 @@ const buildInvoiceContent = ({
       />
 
       {hasRefund ? (
-        <View style={styles.metaCard}>
+        <LiquidGlassCard
+          glassEffect="clear"
+          padding="4"
+          shadow="sm"
+          style={styles.glassCard}
+          fallbackStyle={styles.cardFallback}>
           <RefundSection
             effectiveInvoice={effectiveInvoice}
             refundAmountDisplay={refundAmountDisplay}
             theme={theme}
             styles={styles}
           />
-        </View>
+        </LiquidGlassCard>
       ) : null}
 
       {!isInvoiceBasedFlow && (
@@ -1240,6 +1272,18 @@ const createStyles = (theme: any) =>
     },
     summaryCard: {
       marginBottom: theme.spacing['1'],
+    },
+    glassCard: {
+      backgroundColor: theme.colors.cardBackground,
+      gap: theme.spacing['2'],
+    },
+    cardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
+      gap: theme.spacing['2'],
     },
     loadingBox: {
       flexDirection: 'row',

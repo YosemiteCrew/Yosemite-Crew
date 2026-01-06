@@ -3,7 +3,7 @@
  * This file contains shared style patterns used throughout the app
  */
 import {useMemo} from 'react';
-import {StyleSheet} from 'react-native';
+import {StyleSheet, Platform} from 'react-native';
 
 /**
  * Creates standard container styles for screens
@@ -205,8 +205,10 @@ export const createStatusCardStyles = (theme: any) => ({
   cardFallback: {
     borderRadius: theme.borderRadius.lg,
     backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
+    borderWidth: Platform.OS === 'android' ? 1 : 0,
     borderColor: theme.colors.borderMuted,
+    ...theme.shadows.base,
+    shadowColor: theme.colors.neutralShadow,
   },
 });
 

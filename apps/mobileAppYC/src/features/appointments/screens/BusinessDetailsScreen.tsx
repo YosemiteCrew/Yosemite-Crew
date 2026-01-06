@@ -1,8 +1,9 @@
 import React, {useMemo} from 'react';
-import {ScrollView, View, StyleSheet, Text} from 'react-native';
+import {ScrollView, View, StyleSheet, Text, Platform} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {SpecialtyAccordion} from '@/features/appointments/components/SpecialtyAccordion';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -161,12 +162,17 @@ export const BusinessDetailsScreen: React.FC = () => {
               onSelectService={handleSelectService}
             />
           ) : (
-            <View style={styles.emptyServicesCard}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              padding="4"
+              shadow="sm"
+              style={styles.emptyServicesCard}
+              fallbackStyle={styles.emptyServicesCardFallback}>
               <Text style={styles.emptyServicesTitle}>Services coming soon</Text>
               <Text style={styles.emptyServicesSubtitle}>
                 This business has not published individual services yet. Please contact them directly for availability.
               </Text>
-            </View>
+            </LiquidGlassCard>
           )}
 
           {/* Get Directions Button */}
@@ -216,12 +222,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.white,
   },
   emptyServicesCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing['4'],
     gap: theme.spacing['2'],
+  },
+  emptyServicesCardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: Platform.OS === 'android' ? 1 : 0,
+    borderColor: theme.colors.borderMuted,
+    ...theme.shadows.base,
+    shadowColor: theme.colors.neutralShadow,
   },
   emptyServicesTitle: {
     ...theme.typography.titleSmall,

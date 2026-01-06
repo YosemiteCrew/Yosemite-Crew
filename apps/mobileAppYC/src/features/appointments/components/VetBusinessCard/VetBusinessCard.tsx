@@ -1,8 +1,9 @@
 import React, {useMemo} from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity, ViewStyle, ImageSourcePropType} from 'react-native';
+import {View, Text, StyleSheet, Image, TouchableOpacity, ViewStyle, ImageSourcePropType, Platform} from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 export interface VetBusinessCardProps {
   photo?: ImageSourcePropType | number | string;
@@ -52,7 +53,12 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
   }, [name, fallbackPhoto, imageSource, photo, onImageLoadError]);
 
   return (
-    <View style={[styles.card, style]}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="0"
+      shadow="sm"
+      style={[styles.card, style]}
+      fallbackStyle={styles.cardFallback}>
       <Image source={resolvedImageSource} style={styles.photo} resizeMode="cover" defaultSource={Images.hospitalIcon} onError={handleImageLoadError} />
       <View style={styles.contentPadding}>
         <View style={styles.infoContainer}>
@@ -108,7 +114,7 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
         )}
         </View>
       </View>
-    </View>
+    </LiquidGlassCard>
   );
 };
 
@@ -116,11 +122,15 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     card: {
       flexDirection: 'column',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
       overflow: 'hidden',
+    },
+    cardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     photo: {
       width: '100%',

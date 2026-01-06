@@ -25,14 +25,18 @@ export const useNavigateToLegalPages = () => {
 
   const navigateToRoute = useCallback(
     (screen: 'TermsAndConditions' | 'PrivacyPolicy') => {
-      // Don't pop the current stack - we want to preserve the navigation history
-      // so users can return to where they were (e.g., BookingFormScreen)
-      const nav =
+      const navWithTarget = findNavigatorWithRoute(screen);
+      if (navWithTarget) {
+        navWithTarget.navigate?.(screen as never);
+        return;
+      }
+
+      const fallbackNav =
         findNavigatorWithRoute('HomeStack') ??
         rootNavigation ??
         tabNavigation ??
         (navigation as any).getParent?.();
-      nav?.navigate?.('HomeStack', {screen});
+      fallbackNav?.navigate?.('HomeStack', {screen});
     },
     [findNavigatorWithRoute, navigation, rootNavigation, tabNavigation],
   );

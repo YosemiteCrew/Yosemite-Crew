@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Image, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Image, ScrollView, StyleSheet, Text, View, Platform} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -160,8 +160,9 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
           {!loading && !error && submission && (
             <>
               <LiquidGlassCard
-                glassEffect="regular"
-                interactive
+                glassEffect="clear"
+                padding="4"
+                shadow="sm"
                 style={styles.summaryCard}
                 fallbackStyle={styles.glassFallback}>
                 <Image source={heroImage} style={styles.heroImage} />
@@ -178,8 +179,9 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
               </LiquidGlassCard>
 
               <LiquidGlassCard
-                glassEffect="regular"
-                interactive
+                glassEffect="clear"
+                padding="4"
+                shadow="sm"
                 style={styles.answersCard}
                 fallbackStyle={styles.glassFallback}>
                 <Text style={styles.sectionTitle}>Responses</Text>
@@ -215,17 +217,18 @@ const createStyles = (theme: any) =>
     summaryCard: {
       gap: theme.spacing['2'],
       alignItems: 'center',
-      // Spacing handled by container gap
+      backgroundColor: theme.colors.cardBackground,
     },
     answersCard: {
       gap: theme.spacing['3'],
-      // Spacing handled by container gap
+      backgroundColor: theme.colors.cardBackground,
     },
     glassFallback: {
-      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
       borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     heroImage: {
       width: theme.spacing['28'],

@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Alert, ScrollView, StyleSheet, Text, View, Image, Switch} from 'react-native';
+import {Alert, ScrollView, StyleSheet, Text, View, Image, Switch, Platform} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp, NavigationProp} from '@react-navigation/native';
@@ -365,8 +365,9 @@ export const TaskViewScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled">
         {isObservationalTool && !isCancelled && (
           <LiquidGlassCard
-            glassEffect="regular"
-            interactive
+            glassEffect="clear"
+            padding="4"
+            shadow="sm"
             style={styles.otCtaContainer}
             fallbackStyle={styles.otCtaFallback}>
             <Text style={styles.otCtaTitle}>
@@ -827,10 +828,14 @@ const createStyles = (theme: any) => {
     otCtaContainer: {
       marginBottom: theme.spacing['6'],
       gap: theme.spacing['3'],
+      backgroundColor: theme.colors.cardBackground,
     },
     otCtaFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     otCtaTitle: {
       ...theme.typography.titleMedium,

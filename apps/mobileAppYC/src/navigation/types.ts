@@ -129,6 +129,8 @@ export type AppointmentStackParamList = {
   };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
   BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
+  TermsAndConditions: undefined;
+  PrivacyPolicy: undefined;
   OrganisationDocument: {
     organisationId: string;
     organisationName?: string | null;
@@ -147,6 +149,11 @@ export type AppointmentStackParamList = {
     formTitle?: string | null;
   };
 };
+
+export type LegalStackParamList =
+  HomeStackParamList &
+  AppointmentStackParamList &
+  AuthStackParamList;
 
 export type ExpenseStackParamList = {
   ExpensesMain: undefined;

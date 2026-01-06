@@ -126,8 +126,9 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   } else if (error) {
     content = (
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={styles.statusCard}
         fallbackStyle={styles.cardFallback}>
         <Text style={styles.statusTitle}>Unable to load</Text>
@@ -146,8 +147,9 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   } else {
     content = (
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={styles.statusCard}
         fallbackStyle={styles.cardFallback}>
         <Text style={styles.statusTitle}>No content available</Text>

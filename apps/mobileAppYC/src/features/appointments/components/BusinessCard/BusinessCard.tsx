@@ -118,12 +118,10 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
           <LiquidGlassButton
             title="Book an appointment"
             onPress={onBook}
-            tintColor={theme.colors.white}
+            tintColor={theme.colors.secondary}
             textStyle={styles.buttonText}
             style={styles.button}
-            forceBorder
-            borderColor={theme.colors.secondary}
-            height={theme.spacing['10']}
+            height={theme.spacing['12']}
             borderRadius={theme.borderRadius.lg}
           />
         )}
@@ -209,12 +207,10 @@ const createStyles = (theme: any) =>
     },
     button: {
       backgroundColor: theme.colors.white,
-      borderWidth: 1,
-      borderColor: theme.colors.secondary,
       marginTop: theme.spacing['2'],
     },
     buttonText: {
-      color: theme.colors.secondary,
+      color: theme.colors.white,
       fontFamily: theme.typography.titleSmall.fontFamily,
       fontSize: theme.typography.titleSmall.fontSize,
       fontWeight: '500',
