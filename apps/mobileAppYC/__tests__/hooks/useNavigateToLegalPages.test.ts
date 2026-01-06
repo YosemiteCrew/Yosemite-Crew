@@ -39,8 +39,8 @@ describe('useNavigateToLegalPages Hook', () => {
 
     result.current.handleOpenTerms();
 
-    // Should pop to top on current nav
-    expect(mockNav.popToTop).toHaveBeenCalledTimes(1);
+    // Should NOT pop to top - we preserve navigation history
+    expect(mockNav.popToTop).not.toHaveBeenCalled();
     // Should navigate using the found navigator
     expect(mockNav.navigate).toHaveBeenCalledWith('HomeStack', {
       screen: 'TermsAndConditions',
@@ -58,8 +58,8 @@ describe('useNavigateToLegalPages Hook', () => {
 
     result.current.handleOpenPrivacy();
 
-    // Should pop on CURRENT nav
-    expect(childNav.popToTop).toHaveBeenCalledTimes(1);
+    // Should NOT pop - we preserve navigation history
+    expect(childNav.popToTop).not.toHaveBeenCalled();
     // Should navigate on PARENT nav (because traversal found it)
     expect(parentNav.navigate).toHaveBeenCalledWith('HomeStack', {
       screen: 'PrivacyPolicy',
@@ -123,13 +123,13 @@ describe('useNavigateToLegalPages Hook', () => {
     // Should not crash even though no parent/root exists
     expect(() => result.current.handleOpenTerms()).not.toThrow();
 
-    // popToTop still called on current
-    expect(isolatedNav.popToTop).toHaveBeenCalled();
+    // popToTop should NOT be called
+    expect(isolatedNav.popToTop).not.toHaveBeenCalled();
     // navigate never called because no valid 'nav' target resolved
     expect(isolatedNav.navigate).not.toHaveBeenCalled();
   });
 
-  it('skips popToTop if the method does not exist', () => {
+  it('navigates successfully even when popToTop does not exist (no longer used)', () => {
     const mockNav = createMockNavigator('current', ['HomeStack']);
     // Simulate popToTop being undefined (e.g. strict type mock or diff navigator type)
     // @ts-ignore
@@ -138,7 +138,7 @@ describe('useNavigateToLegalPages Hook', () => {
 
     const { result } = renderHook(() => useNavigateToLegalPages());
 
-    // Should proceed to navigate without throwing
+    // Should proceed to navigate without throwing (popToTop no longer called)
     result.current.handleOpenTerms();
     expect(mockNav.navigate).toHaveBeenCalled();
   });

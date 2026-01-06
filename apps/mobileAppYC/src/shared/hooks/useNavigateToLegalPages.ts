@@ -25,7 +25,8 @@ export const useNavigateToLegalPages = () => {
 
   const navigateToRoute = useCallback(
     (screen: 'TermsAndConditions' | 'PrivacyPolicy') => {
-      (navigation as any).popToTop?.();
+      // Don't pop the current stack - we want to preserve the navigation history
+      // so users can return to where they were (e.g., BookingFormScreen)
       const nav =
         findNavigatorWithRoute('HomeStack') ??
         rootNavigation ??
