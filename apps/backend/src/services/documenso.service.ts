@@ -1,13 +1,15 @@
 import { Documenso } from "@documenso/sdk-typescript";
 import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
+import axios from "axios";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
 const BASE_URL =
   process.env["DOCUMENSO_BASE_URL"] ?? "your-documenso-domain.com";
 
+const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? ""
 const documenso = new Documenso({
-  apiKey: process.env["DOCUMENSO_API_KEY"] ?? "", // Ensure API key is set in environment variables
+  apiKey: API_KEY, // Ensure API key is set in environment variables
   serverURL: BASE_URL,
 });
 
@@ -24,6 +26,12 @@ async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
   if (!response.ok) {
     throw new Error(`Upload failed: ${response.status}`);
   }
+}
+
+export type SignedDocument = {
+  downloadUrl? :string;
+  filename?: string;
+  contentType?: string;
 }
 
 export class DocumensoService {
@@ -92,20 +100,24 @@ export class DocumensoService {
     }
   }
 
-  static async downloadSignedDocument(documentId: number) {
+  static async downloadSignedDocument(documentId: number) : Promise<SignedDocument | undefined> {
     try {
-      const downloadResponse = await documenso.documents.download({
-        documentId: documentId,
-      });
-      return downloadResponse;
+      const downloadResponse = await axios.get(
+        `${BASE_URL}/document/${documentId}/download-beta`,
+        {
+          params: {
+            version: "signed",
+          },
+          headers: {
+            Authorization: API_KEY,
+          },
+        }
+      );
+
+      const signeDocument = downloadResponse.data as SignedDocument;
+      return signeDocument;
     } catch (error) {
-      if (error instanceof errors.DocumensoError) {
-        logger.error("API error:", error.message);
-        logger.error("Status code:", error.statusCode);
-        logger.error("Body:", error.body);
-      } else {
-        logger.error("An unexpected error occurred:", error);
-      }
+      logger.error("An unexpected error occurred:", error);
     }
   }
 }

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import crypto from "node:crypto";
 import { HydratedDocument } from "mongoose";
 import { FormSubmissionDocument, FormSubmissionModel } from "src/models/form";
+import { DocumensoService } from "src/services/documenso.service";
 
 interface DocumensoWebhookBody {
   event?: string;
@@ -109,6 +110,15 @@ async function handleDocumentCompleted(
   if (!submission.signing) return;
   if (submission.signing.status === "SIGNED") return;
 
+  const signedDocument = await DocumensoService.downloadSignedDocument(
+    Number.parseInt(submission.signing.documentId!, 10),
+  );
+
+  if( signedDocument ) {
+    submission.signing.pdf = {
+      url: signedDocument.downloadUrl,
+    };
+  }
   submission.signing.status = "SIGNED";
 
   await submission.save();
