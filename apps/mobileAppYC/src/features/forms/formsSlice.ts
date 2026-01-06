@@ -95,6 +95,14 @@ const mergeEntries = (
         }
       });
     }
+    if (!submissionKey) {
+      const hasSubmittedForForm = Array.from(byKey.values()).some(
+        existingEntry => existingEntry.form._id === entry.form._id && existingEntry.submission,
+      );
+      if (hasSubmittedForForm) {
+        return;
+      }
+    }
     const current = byKey.get(key);
     if (!current) {
       byKey.set(key, entry);
@@ -190,6 +198,7 @@ export const fetchAppointmentForms = createAsyncThunk<
     const {accessToken} = await ensureAccessToken();
     const forms: AppointmentFormEntry[] = [];
     const existingCache = getState().forms.formsCache ?? {};
+    const existingEntries = getState().forms.byAppointmentId[appointmentId] ?? [];
     const cache = new Map<string, Form>();
     Object.values(existingCache).forEach(form => {
       cache.set(form._id, form);
@@ -234,15 +243,18 @@ export const fetchAppointmentForms = createAsyncThunk<
           accessToken,
         });
         const normalizedConsent = normalizeFormForState(consentForm);
-        forms.push(
-          buildEntry({
-            form: normalizedConsent,
-            submission: null,
-            source: 'service',
-            formVersion: 1,
-          }),
-        );
-        cache.set(normalizedConsent._id, normalizedConsent);
+        const alreadyHasForm = existingEntries.some(e => e.form._id === normalizedConsent._id);
+        if (!alreadyHasForm) {
+          forms.push(
+            buildEntry({
+              form: normalizedConsent,
+              submission: null,
+              source: 'service',
+              formVersion: 1,
+            }),
+          );
+          cache.set(normalizedConsent._id, normalizedConsent);
+        }
       } catch (error) {
         console.warn('[Forms] Unable to load consent form for service', {organisationId, serviceId}, error);
       }

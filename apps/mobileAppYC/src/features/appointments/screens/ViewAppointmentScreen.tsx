@@ -53,6 +53,7 @@ import {
   type AppointmentFormEntry,
 } from '@/features/forms';
 import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import type {FormField} from '@yosemite-crew/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
@@ -495,14 +496,19 @@ const StatusCard = ({
   cancellationNote: string | null;
   statusHelpText: string | null;
 }) => (
-  <View style={styles.statusCard}>
+  <LiquidGlassCard
+    glassEffect="clear"
+    padding="4"
+    shadow="sm"
+    style={styles.glassCard}
+    fallbackStyle={styles.cardFallback}>
     <Text style={styles.statusLabel}>Status</Text>
     <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
       <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
     </View>
     {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
     {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
-  </View>
+  </LiquidGlassCard>
 );
 
 const ActionButtons = ({
@@ -911,6 +917,11 @@ export const ViewAppointmentScreen: React.FC = () => {
     (entry: AppointmentFormEntry) => {
       const status = getFormStatusDisplay(entry);
       const isSigned = entry.status === 'signed';
+      const showAnswers =
+        entry.submission &&
+        !entry.signingRequired &&
+        entry.status !== 'signing' &&
+        entry.status !== 'submitted';
       const action =
         entry.submission && (entry.signingRequired || isSigned)
           ? {label: isSigned ? 'View form' : 'View & Sign', mode: 'view' as const, allowSign: !isSigned}
@@ -919,18 +930,24 @@ export const ViewAppointmentScreen: React.FC = () => {
             : {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};
 
       return (
-        <View key={`${entry.form._id}-${entry.submission?._id ?? 'new'}`} style={styles.formCard}>
+        <LiquidGlassCard
+          key={`${entry.form._id}-${entry.submission?._id ?? 'new'}`}
+          glassEffect="clear"
+          padding="4"
+          colorScheme="light"
+          shadow="sm"
+          style={styles.formCard}
+          fallbackStyle={styles.cardFallback}>
           <View style={styles.formHeader}>
             <View style={styles.formTitleContainer}>
               <Text style={styles.formTitle}>{entry.form.name}</Text>
-              {entry.form.category ? <Text style={styles.formMeta}>{entry.form.category}</Text> : null}
             </View>
             <View style={[styles.formStatusBadge, {backgroundColor: status.backgroundColor}]}>
               <Text style={[styles.formStatusText, {color: status.color}]}>{status.label}</Text>
             </View>
           </View>
           {entry.form.description ? <Text style={styles.formDescription}>{entry.form.description}</Text> : null}
-          {entry.submission && !isSigned ? <View style={styles.formAnswers}>{renderAnswerSummary(entry)}</View> : null}
+          {showAnswers ? <View style={styles.formAnswers}>{renderAnswerSummary(entry)}</View> : null}
           <LiquidGlassButton
             title={action.label}
             onPress={() => handleOpenForm(entry, action.mode, action.allowSign)}
@@ -940,7 +957,7 @@ export const ViewAppointmentScreen: React.FC = () => {
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
           />
-        </View>
+        </LiquidGlassCard>
       );
     },
     [getFormStatusDisplay, handleOpenForm, renderAnswerSummary, styles, theme],
@@ -1042,7 +1059,7 @@ export const ViewAppointmentScreen: React.FC = () => {
           serviceName={apt.serviceName}
           employee={employeeToShow}
           employeeDepartment={department}
-          cardStyle={styles.summaryCard}
+          cardStyle={styles.glassCard}
           interactive={false}
         />
 
@@ -1220,7 +1237,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: theme.spacing['5'],
     paddingTop: theme.spacing['6'],
     paddingBottom: theme.spacing['24'],
-    gap: theme.spacing['6'],
+    gap: theme.spacing['4'],
   },
   statusNote: {
     ...theme.typography.body12,
@@ -1316,6 +1333,19 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   formCard: {
     gap: theme.spacing['2'],
+    marginBottom: theme.spacing['3'],
+    backgroundColor: theme.colors.cardBackground,
+  },
+  glassCard: {
+    backgroundColor: theme.colors.cardBackground,
+    marginBottom: theme.spacing['2'],
+  },
+  cardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: Platform.OS === 'android' ? 1 : 0,
+    borderColor: theme.colors.borderMuted,
+    ...theme.shadows.base,
+    shadowColor: theme.colors.neutralShadow,
   },
   formHeader: {
     flexDirection: 'row',

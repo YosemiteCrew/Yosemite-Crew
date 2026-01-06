@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
-import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
+import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
@@ -82,6 +82,7 @@ export const AppointmentFormScreen: React.FC = () => {
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
   const {appointmentId, formId, mode, allowSign} = route.params;
+  const isFocused = useIsFocused();
   const appointment: Appointment | undefined = useSelector((state: RootState) =>
     state.appointments.items.find(a => a.id === appointmentId),
   );
@@ -93,9 +94,10 @@ export const AppointmentFormScreen: React.FC = () => {
   const entry = forms.find(item => item.form._id === formId);
   const loading = useSelector((state: RootState) => selectFormsLoading(state, appointmentId));
   const submitting = useSelector((state: RootState) => selectFormSubmitting(state, formId));
-  const signing = entry?.submission?._id
-    ? useSelector((state: RootState) => selectSigningStatus(state, entry.submission!._id))
-    : false;
+  const submissionId = entry?.submission?._id ?? null;
+  const signing = useSelector((state: RootState) =>
+    submissionId ? selectSigningStatus(state, submissionId) : false,
+  );
 
   const [values, setValues] = useState<Record<string, any>>(entry?.submission?.answers ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -131,7 +133,9 @@ export const AppointmentFormScreen: React.FC = () => {
 
       const fill = (field: FormField) => {
         if (field.type === 'group') {
-          field.fields.forEach(fill);
+          if (Array.isArray((field as any).fields)) {
+            (field as any).fields.forEach(fill);
+          }
           return;
         }
         const isCheckboxField = field.type === 'choice' || field.type === 'checkbox';
@@ -178,20 +182,21 @@ export const AppointmentFormScreen: React.FC = () => {
     user?.lastName,
   ]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!entry && appointment) {
-        dispatch(
-          fetchAppointmentForms({
-            appointmentId,
-            serviceId: appointment.serviceId ?? null,
-            organisationId: appointment.businessId ?? null,
-            species: appointment.species ?? null,
-          }),
-        ).catch(() => {});
-      }
-    }, [appointment, appointmentId, dispatch, entry]),
-  );
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+    if (!entry && appointment) {
+      dispatch(
+        fetchAppointmentForms({
+          appointmentId,
+          serviceId: appointment.serviceId ?? null,
+          organisationId: appointment.businessId ?? null,
+          species: appointment.species ?? null,
+        }),
+      ).catch(() => {});
+    }
+  }, [appointment, appointmentId, dispatch, entry, isFocused]);
 
   const handleChange = (fieldId: string, value: any) => {
     setValues(prev => ({...prev, [fieldId]: value}));
@@ -200,7 +205,11 @@ export const AppointmentFormScreen: React.FC = () => {
 
   const validateField = (field: FormField): boolean => {
     if (field.type === 'group') {
-      return field.fields.every(validateField);
+      const groupFields = (field as any).fields;
+      if (!Array.isArray(groupFields)) {
+        return true;
+      }
+      return groupFields.every(validateField);
     }
     if (field.type === 'signature') {
       // Signature will be captured during signing
@@ -371,11 +380,12 @@ export const AppointmentFormScreen: React.FC = () => {
     const error = errors[field.id];
 
     if (field.type === 'group') {
+      const groupFields = Array.isArray((field as any).fields) ? (field as any).fields : [];
       return (
         <View key={field.id} style={styles.groupContainer}>
           <Text style={styles.groupLabel}>{field.label}</Text>
           <View style={styles.groupFields}>
-            {field.fields.map(child => renderField(child))}
+            {groupFields.map((child: any) => renderField(child))}
           </View>
         </View>
       );

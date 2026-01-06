@@ -1,15 +1,15 @@
-import React, {useCallback, useMemo} from 'react';
-import {View, ActivityIndicator, Text, StyleSheet} from 'react-native';
-import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
+import React, {useCallback, useMemo, useState} from 'react';
+import {View, ActivityIndicator, Text, StyleSheet, Linking} from 'react-native';
+import {useNavigation, useRoute, useFocusEffect, useIsFocused} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import WebView from 'react-native-webview';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import type {RootState, AppDispatch} from '@/app/store';
-import {fetchAppointmentForms} from '@/features/forms';
+import {fetchAppointmentForms, selectFormsForAppointment} from '@/features/forms';
 import {useTheme} from '@/hooks';
 import type {Appointment} from '@/features/appointments/types';
 
@@ -23,27 +23,89 @@ export const FormSigningScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const {appointmentId, submissionId, signingUrl, formTitle} = route.params;
+  const openedRef = React.useRef(false);
+  const isFocused = useIsFocused();
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasOpenedOnce, setHasOpenedOnce] = useState(false);
 
   const appointment: Appointment | undefined = useSelector((state: RootState) =>
     state.appointments.items.find(a => a.id === appointmentId),
   );
+  const forms = useSelector((state: RootState) => selectFormsForAppointment(state, appointmentId));
+  const currentEntry = React.useMemo(
+    () => forms.find(entry => entry.submission?._id === submissionId),
+    [forms, submissionId],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      return () => {
-        if (appointment) {
-          dispatch(
-            fetchAppointmentForms({
-              appointmentId,
-              serviceId: appointment.serviceId ?? null,
-              organisationId: appointment.businessId ?? null,
-              species: appointment.species ?? null,
-            }),
-          ).catch(() => {});
-        }
-      };
+      if (appointment) {
+        dispatch(
+          fetchAppointmentForms({
+            appointmentId,
+            serviceId: appointment.serviceId ?? null,
+            organisationId: appointment.businessId ?? null,
+            species: appointment.species ?? null,
+          }),
+        ).catch(() => {});
+      }
     }, [appointment, appointmentId, dispatch]),
   );
+
+  React.useEffect(() => {
+    if (!isFocused) return;
+    if (appointment) {
+      dispatch(
+        fetchAppointmentForms({
+          appointmentId,
+          serviceId: appointment.serviceId ?? null,
+          organisationId: appointment.businessId ?? null,
+          species: appointment.species ?? null,
+        }),
+      ).catch(() => {});
+    }
+  }, [appointment, appointmentId, dispatch, isFocused]);
+
+  React.useEffect(() => {
+    if (currentEntry?.status === 'signed') {
+      navigation.goBack();
+    }
+  }, [currentEntry?.status, navigation]);
+
+  React.useEffect(() => {
+    if (!signingUrl || openedRef.current) {
+      return;
+    }
+    openedRef.current = true;
+    Linking.openURL(signingUrl)
+      .then(() => setHasOpenedOnce(true))
+      .catch(() => {
+        openedRef.current = false;
+        setHasOpenedOnce(false);
+      });
+  }, [signingUrl]);
+
+  const handleRefresh = useCallback(() => {
+    if (!appointment) return;
+    setRefreshing(true);
+    dispatch(
+      fetchAppointmentForms({
+        appointmentId,
+        serviceId: appointment.serviceId ?? null,
+        organisationId: appointment.businessId ?? null,
+        species: appointment.species ?? null,
+      }),
+    )
+      .catch(() => {})
+      .finally(() => setRefreshing(false));
+  }, [appointment, appointmentId, dispatch]);
+
+  const handleReopenLink = useCallback(() => {
+    if (!signingUrl) return;
+    Linking.openURL(signingUrl)
+      .then(() => setHasOpenedOnce(true))
+      .catch(() => {});
+  }, [signingUrl]);
 
   const renderContent = () => {
     if (!signingUrl) {
@@ -56,16 +118,48 @@ export const FormSigningScreen: React.FC = () => {
       );
     }
 
+    if (!hasOpenedOnce && !refreshing) {
+      return (
+        <View style={styles.centered}>
+          <ActivityIndicator />
+          <Text style={styles.message}>
+            We opened the signing link in your browser. Complete signing, then return here to refresh the status.
+          </Text>
+        </View>
+      );
+    }
+
     return (
-      <WebView
-        source={{uri: signingUrl}}
-        startInLoadingState
-        renderLoading={() => (
-          <View style={styles.centered}>
-            <ActivityIndicator />
-          </View>
-        )}
-      />
+      <View style={styles.centered}>
+        {refreshing ? <ActivityIndicator style={styles.refreshSpinner} /> : null}
+        <Text style={styles.message}>
+          Complete signing in your browser. When you come back, tap Refresh status to update this screen.
+        </Text>
+        <View style={styles.buttonGroup}>
+          <LiquidGlassButton
+            title="Refresh status"
+            onPress={handleRefresh}
+            height={56}
+            borderRadius={theme.borderRadius.lg}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            loading={refreshing}
+            disabled={refreshing}
+            textStyle={styles.buttonText}
+          />
+          <LiquidGlassButton
+            title="Open signing link again"
+            onPress={handleReopenLink}
+            height={48}
+            borderRadius={theme.borderRadius.md}
+            glassEffect="clear"
+            forceBorder
+            borderColor={theme.colors.secondary}
+            textStyle={styles.secondaryButtonText}
+            shadowIntensity="light"
+          />
+        </View>
+      </View>
     );
   };
 
@@ -107,12 +201,30 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },
+    buttonGroup: {
+      marginTop: theme.spacing['4'],
+      gap: theme.spacing['3'],
+      alignSelf: 'stretch',
+    },
+    buttonText: {
+      ...theme.typography.button,
+      color: theme.colors.white,
+      textAlign: 'center',
+    },
+    secondaryButtonText: {
+      ...theme.typography.titleSmall,
+      color: theme.colors.secondary,
+      textAlign: 'center',
+    },
+    refreshSpinner: {
+      marginBottom: theme.spacing['2'],
+    },
     surface: {
       flex: 1,
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderWidth: 0,
+      borderColor: 'transparent',
       overflow: 'hidden',
       minHeight: 320,
     },

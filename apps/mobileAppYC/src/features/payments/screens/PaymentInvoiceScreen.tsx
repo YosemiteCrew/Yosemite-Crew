@@ -563,6 +563,7 @@ const useEnsurePaymentData = ({
   invoiceRequestedRef,
   isInvoiceIncomplete,
   isInvoiceBasedFlow,
+  setInvoiceLoading,
 }: {
   appointmentId: string;
   aptStatus?: string;
@@ -573,6 +574,7 @@ const useEnsurePaymentData = ({
   invoiceRequestedRef: React.RefObject<boolean>;
   isInvoiceIncomplete: boolean;
   isInvoiceBasedFlow: boolean;
+  setInvoiceLoading: (value: boolean) => void;
 }) => {
   useEffect(() => {
     if (isInvoiceBasedFlow) {
@@ -599,7 +601,13 @@ const useEnsurePaymentData = ({
 
       if (shouldFetchInvoice) {
         invoiceRequestedRef.current = true;
-        dispatch(fetchInvoiceForAppointment({appointmentId}));
+        setInvoiceLoading(true);
+        dispatch(fetchInvoiceForAppointment({appointmentId}))
+          .unwrap()
+          .catch(() => {
+            // best-effort; missing invoice handled in UI
+          })
+          .finally(() => setInvoiceLoading(false));
       }
     }
   }, [
@@ -612,6 +620,7 @@ const useEnsurePaymentData = ({
     invoiceRequestedRef,
     isInvoiceIncomplete,
     isInvoiceBasedFlow,
+    setInvoiceLoading,
   ]);
 };
 
@@ -739,39 +748,22 @@ const resolveShouldShowPay = ({
 
 const useInvoiceLoadingState = ({
   effectiveInvoice,
-  isPaymentPendingStatus,
-  invoiceRequestedRef,
-  paymentIntentRequestedRef,
-  paymentIntent,
+  invoiceLoading,
+  paymentIntentLoading,
 }: {
   effectiveInvoice: Invoice | null;
-  isPaymentPendingStatus: boolean;
-  invoiceRequestedRef: React.RefObject<boolean>;
-  paymentIntentRequestedRef: React.RefObject<boolean>;
-  paymentIntent: PaymentIntentInfo | null;
+  invoiceLoading: boolean;
+  paymentIntentLoading: boolean;
 }) => {
-  const invoiceRequested = invoiceRequestedRef.current;
-  const paymentIntentRequested = paymentIntentRequestedRef.current;
-
   return useMemo(() => {
     const isInvoiceLoaded = Boolean(effectiveInvoice);
-    const isPaymentIntentLoading =
-      paymentIntentRequested &&
-      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId);
-    const isInvoiceLoading =
-      (!isInvoiceLoaded && (isPaymentPendingStatus || invoiceRequested)) ||
-      (!isInvoiceLoaded && isPaymentIntentLoading);
-    const shouldShowLoadingNotice =
-      isInvoiceLoading || isPaymentIntentLoading || (!isInvoiceLoaded && isPaymentPendingStatus);
+    const shouldShowLoadingNotice = invoiceLoading || paymentIntentLoading;
 
-    return {isInvoiceLoaded, isPaymentIntentLoading, shouldShowLoadingNotice};
+    return {isInvoiceLoaded, isPaymentIntentLoading: paymentIntentLoading, shouldShowLoadingNotice};
   }, [
     effectiveInvoice,
-    invoiceRequested,
-    isPaymentPendingStatus,
-    paymentIntent?.clientSecret,
-    paymentIntent?.paymentIntentId,
-    paymentIntentRequested,
+    invoiceLoading,
+    paymentIntentLoading,
   ]);
 };
 
@@ -910,11 +902,15 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const routeIntent = routeParams.paymentIntent;
   const invoiceRequestedRef = useRef(false);
   const paymentIntentRequestedRef = useRef(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [paymentIntentLoading, setPaymentIntentLoading] = useState(false);
 
   // Reset one-shot guards when navigating between different appointments
   useEffect(() => {
     invoiceRequestedRef.current = false;
     paymentIntentRequestedRef.current = false;
+    setInvoiceLoading(false);
+    setPaymentIntentLoading(false);
   }, [appointmentId]);
 
   const invoiceFromStore = useSelector(
@@ -1021,6 +1017,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoiceRequestedRef,
     isInvoiceIncomplete: invoiceIncomplete,
     isInvoiceBasedFlow,
+    setInvoiceLoading,
   });
 
   useEffect(() => {
@@ -1033,7 +1030,13 @@ export const PaymentInvoiceScreen: React.FC = () => {
       return;
     }
     paymentIntentRequestedRef.current = true;
-    dispatch(fetchPaymentIntentForAppointment({appointmentId}));
+    setPaymentIntentLoading(true);
+    dispatch(fetchPaymentIntentForAppointment({appointmentId}))
+      .unwrap()
+      .catch(() => {
+        // best-effort
+      })
+      .finally(() => setPaymentIntentLoading(false));
   }, [
     appointmentId,
     dispatch,
@@ -1059,10 +1062,8 @@ export const PaymentInvoiceScreen: React.FC = () => {
   const headerTitle = getHeaderTitle(isInvoiceBasedFlow, isPaymentPendingStatus);
   const {shouldShowLoadingNotice} = useInvoiceLoadingState({
     effectiveInvoice,
-    isPaymentPendingStatus,
-    invoiceRequestedRef,
-    paymentIntentRequestedRef,
-    paymentIntent,
+    invoiceLoading,
+    paymentIntentLoading,
   });
   const paymentDueLabel = formatDateOnlyDisplay(effectiveInvoice?.dueDate ?? apt?.date ?? null);
 
