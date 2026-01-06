@@ -696,7 +696,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.primaryTint,
     },
     statusBadgeText: {
-      ...theme.typography.title,
+      ...theme.typography.labelSmallBold,
       color: theme.colors.secondary,
     },
     reviewButtonCard: {marginTop: theme.spacing['1']},
@@ -745,7 +745,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.success,
     },
     pastStatusBadgeText: {
-      ...theme.typography.title,
+      ...theme.typography.labelSmallBold,
       color: theme.colors.text,
     },
     pastStatusBadgeCanceled: {

@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, Image} from 'react-native';
 import {TouchableInput} from '@/shared/components/common';
-import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
@@ -15,10 +15,12 @@ interface TaskFormFieldsProps {
     frequency: TaskFrequency | null;
   };
   errors: {
+    date?: string;
     time?: string;
     frequency?: string;
   };
   updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
+  onOpenDatePicker: () => void;
   onOpenTimePicker: () => void;
   onOpenTaskFrequencySheet: () => void;
   theme: any;
@@ -28,6 +30,7 @@ export const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
   formData,
   errors,
   updateField,
+  onOpenDatePicker,
   onOpenTimePicker,
   onOpenTaskFrequencySheet,
   theme,
@@ -38,9 +41,15 @@ export const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
   return (
     <>
       <View style={styles.fieldGroup}>
-        <CalendarMonthStrip
-          selectedDate={formData.date || new Date()}
-          onChange={(date: Date) => updateField('date', date)}
+        <TouchableInput
+          label={formData.date ? 'Date' : undefined}
+          value={formData.date ? formatDateForDisplay(formData.date) : undefined}
+          placeholder="Date"
+          onPress={onOpenDatePicker}
+          rightComponent={
+            <Image source={Images.calendarIcon} style={styles.calendarIcon} />
+          }
+          error={errors.date}
         />
       </View>
 

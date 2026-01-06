@@ -111,6 +111,8 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
               themeVariant={isDarkMode ? 'dark' : 'light'}
               textColor={pickerTextColor}
               style={[styles.picker, {backgroundColor: sheetBackground}]}
+              is24Hour={false}
+              locale="en_US"
             />
           </View>
         </View>
@@ -127,6 +129,8 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
       onChange={handleDateChange}
       minimumDate={minimumDate}
       maximumDate={maximumDate}
+      is24Hour={false}
+      locale="en_US"
     />
   );
 };

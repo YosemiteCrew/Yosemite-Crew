@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo} from 'react';
-import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid} from 'react-native';
+import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid, ActivityIndicator} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -46,6 +46,14 @@ import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import {fetchTasksForCompanion} from '@/features/tasks/thunks';
 import {resolveCategoryLabel as resolveTaskCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {DetailsCard, type DetailItem} from '@/shared/components/common/DetailsCard';
+import {
+  fetchAppointmentForms,
+  selectFormsForAppointment,
+  selectFormsLoading,
+  type AppointmentFormEntry,
+} from '@/features/forms';
+import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
+import type {FormField} from '@yosemite-crew/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -633,6 +641,23 @@ export const ViewAppointmentScreen: React.FC = () => {
   const tasksHydrated = useSelector(
     (s: RootState) => (companionId ? s.tasks.hydratedCompanions[companionId] : false),
   );
+  const appointmentFormsSelector = React.useMemo(
+    () => (state: RootState) => selectFormsForAppointment(state, appointmentId),
+    [appointmentId],
+  );
+  const formsLoadingSelector = React.useMemo(
+    () => (state: RootState) => selectFormsLoading(state, appointmentId),
+    [appointmentId],
+  );
+  const appointmentForms = useSelector(appointmentFormsSelector);
+  const formsLoading = useSelector(formsLoadingSelector);
+  const formsByType = useMemo(
+    () => ({
+      soap: appointmentForms.filter(entry => entry.source === 'soap'),
+      regular: appointmentForms.filter(entry => entry.source !== 'soap'),
+    }),
+    [appointmentForms],
+  );
   const appointmentTasks = useMemo(
     () => tasks.filter(task => task.appointmentId === appointmentId),
     [appointmentId, tasks],
@@ -647,6 +672,8 @@ export const ViewAppointmentScreen: React.FC = () => {
   const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
   const CHECKIN_RADIUS_METERS = 200;
   const CHECKIN_BUFFER_MS = 5 * 60 * 1000;
+  const formsFetchedRef = React.useRef(false);
+  const lastFormsFetchTsRef = React.useRef(0);
 
   useEnsureAppointmentLoaded({apt, appointmentId, dispatch});
   useAppointmentDocumentsEffect({companionId: apt?.companionId, dispatch});
@@ -660,12 +687,47 @@ export const ViewAppointmentScreen: React.FC = () => {
       dispatch(fetchTasksForCompanion({companionId}));
     }
   }, [companionId, dispatch, tasksHydrated]);
+  useEffect(() => {
+    formsFetchedRef.current = false;
+    lastFormsFetchTsRef.current = 0;
+  }, [appointmentId]);
+
+  useEffect(() => {
+    if (apt && !formsFetchedRef.current) {
+      formsFetchedRef.current = true;
+      lastFormsFetchTsRef.current = Date.now();
+      dispatch(
+        fetchAppointmentForms({
+          appointmentId,
+          serviceId: apt.serviceId ?? null,
+          organisationId: apt.businessId ?? null,
+          species: apt.species ?? null,
+        }),
+      );
+    }
+  }, [apt, appointmentId, dispatch]);
   useFocusEffect(
     React.useCallback(() => {
       if (companionId) {
         dispatch(fetchExpensesForCompanion({companionId}));
       }
-    }, [companionId, dispatch]),
+      if (apt) {
+        const now = Date.now();
+        const shouldFetch = !formsFetchedRef.current || now - lastFormsFetchTsRef.current > 3000;
+        if (shouldFetch) {
+          formsFetchedRef.current = true;
+          lastFormsFetchTsRef.current = now;
+          dispatch(
+            fetchAppointmentForms({
+              appointmentId,
+              serviceId: apt.serviceId ?? null,
+              organisationId: apt.businessId ?? null,
+              species: apt.species ?? null,
+            }),
+          );
+        }
+      }
+    }, [apt, appointmentId, companionId, dispatch]),
   );
 
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
@@ -730,6 +792,194 @@ export const ViewAppointmentScreen: React.FC = () => {
       navigation.navigate('Tasks' as any, params as any);
     },
     [navigation, tabNavigation],
+  );
+
+  const getFormStatusDisplay = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      switch (entry.status) {
+        case 'signed':
+          return {label: 'Signed', color: theme.colors.success, backgroundColor: theme.colors.successSurface};
+        case 'completed':
+          return {label: 'Completed', color: theme.colors.success, backgroundColor: theme.colors.successSurface};
+        case 'signing':
+          return {label: 'Signature pending', color: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
+        case 'submitted':
+          return {label: 'Submitted', color: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
+        default:
+          return {label: 'Pending', color: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
+      }
+    },
+    [theme.colors.primaryTint, theme.colors.secondary, theme.colors.success, theme.colors.successSurface, theme.colors.warning, theme.colors.warningSurface],
+  );
+
+  const handleOpenForm = React.useCallback(
+    (entry: AppointmentFormEntry, mode: 'fill' | 'view', allowSign: boolean) => {
+      navigation.navigate('AppointmentForm', {
+        appointmentId,
+        formId: entry.form._id,
+        mode,
+        allowSign,
+      });
+    },
+    [appointmentId, navigation],
+  );
+
+  const formatFormValue = React.useCallback((field: FormField, value: any): string => {
+    if (value === undefined || value === null) {
+      return '—';
+    }
+    if (field.type === 'date') {
+      const dateObj = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(dateObj.getTime()) ? '—' : dateObj.toLocaleDateString();
+    }
+    if (field.type === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    if (Array.isArray(value)) {
+      return value.map(v => `${v}`).join(', ') || '—';
+    }
+    if (typeof value === 'object') {
+      if ('url' in value && (value as any).url) {
+        return (value as any).url as string;
+      }
+      return JSON.stringify(value);
+    }
+    return `${value}`;
+  }, []);
+
+  const getAnswerRows = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      if (!entry.submission) {
+        return [];
+      }
+      const rows: Array<{id: string; label: string; value: string}> = [];
+      const collect = (fields: FormField[]) => {
+        fields.forEach(f => {
+          if (f.type === 'group') {
+            collect(f.fields);
+            return;
+          }
+          rows.push({
+            id: f.id,
+            label: f.label ?? f.id,
+            value: formatFormValue(f, entry.submission?.answers?.[f.id]),
+          });
+        });
+      };
+      if (entry.form.schema?.length) {
+        collect(entry.form.schema);
+      }
+      const filtered = rows.filter(r => r.value !== '—' && r.value !== '');
+      if (filtered.length) {
+        return filtered;
+      }
+      // Fallback: show any answers even if schema was missing
+      const rawAnswers = entry.submission.answers ?? {};
+      const capitalize = (text: string) => {
+        if (!text.length) return text;
+        return text.charAt(0).toUpperCase() + text.slice(1);
+      };
+      return Object.entries(rawAnswers)
+        .filter(([, val]) => val !== undefined && val !== null && `${val}`.trim?.() !== '')
+        .map(([key, val]) => ({
+          id: key,
+          label: capitalize(key.replace(/_/g, ' ')),
+          value: `${val}`,
+        }));
+    },
+    [formatFormValue],
+  );
+
+  const renderAnswerSummary = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      const filtered = getAnswerRows(entry);
+      if (!filtered.length) {
+        return <Text style={styles.emptyDocsText}>No responses captured yet.</Text>;
+      }
+
+      return filtered.map(row => (
+        <View key={`${entry.form._id}-${row.id}`} style={styles.answerRow}>
+          <Text style={styles.answerLabel}>{row.label}</Text>
+          <Text style={styles.answerValue}>{row.value}</Text>
+        </View>
+      ));
+    },
+    [getAnswerRows, styles.answerLabel, styles.answerRow, styles.answerValue, styles.emptyDocsText],
+  );
+
+  const renderFormCard = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      const status = getFormStatusDisplay(entry);
+      const isSigned = entry.status === 'signed';
+      const action =
+        entry.submission && (entry.signingRequired || isSigned)
+          ? {label: isSigned ? 'View form' : 'View & Sign', mode: 'view' as const, allowSign: !isSigned}
+          : entry.submission
+            ? {label: 'View form', mode: 'view' as const, allowSign: false}
+            : {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};
+
+      return (
+        <View key={`${entry.form._id}-${entry.submission?._id ?? 'new'}`} style={styles.formCard}>
+          <View style={styles.formHeader}>
+            <View style={styles.formTitleContainer}>
+              <Text style={styles.formTitle}>{entry.form.name}</Text>
+              {entry.form.category ? <Text style={styles.formMeta}>{entry.form.category}</Text> : null}
+            </View>
+            <View style={[styles.formStatusBadge, {backgroundColor: status.backgroundColor}]}>
+              <Text style={[styles.formStatusText, {color: status.color}]}>{status.label}</Text>
+            </View>
+          </View>
+          {entry.form.description ? <Text style={styles.formDescription}>{entry.form.description}</Text> : null}
+          {entry.submission && !isSigned ? <View style={styles.formAnswers}>{renderAnswerSummary(entry)}</View> : null}
+          <LiquidGlassButton
+            title={action.label}
+            onPress={() => handleOpenForm(entry, action.mode, action.allowSign)}
+            height={48}
+            borderRadius={theme.borderRadius.md}
+            textStyle={styles.formButtonText}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+          />
+        </View>
+      );
+    },
+    [getFormStatusDisplay, handleOpenForm, renderAnswerSummary, styles, theme],
+  );
+
+  const pickText = (...values: Array<string | undefined | null>) =>
+    values.find(v => typeof v === 'string' && v.trim().length > 0) ?? '';
+
+  const renderSoapAccordion = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      const rows = getAnswerRows(entry);
+      if (!entry.submission) {
+        return null;
+      }
+      const formLabel = pickText(entry.form.title, entry.form.name, entry.form.category);
+      const sectionLabel = pickText(entry.soapSection);
+      const title = pickText(sectionLabel, formLabel, 'SOAP note');
+      const subtitle = pickText(formLabel !== title ? formLabel : undefined, sectionLabel !== title ? sectionLabel : undefined);
+      return (
+        <SubcategoryAccordion
+          key={`${entry.form._id}-${entry.submission._id}-soap`}
+          title={title}
+          subtitle={subtitle}>
+          <View style={styles.formAccordionContent}>
+            {rows.length ? (
+              rows.map(row => (
+                <View key={`${entry.form._id}-${row.id}`} style={styles.answerRow}>
+                  <Text style={styles.answerLabel}>{row.label}</Text>
+                  <Text style={styles.answerValue}>{row.value}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyDocsText}>No responses captured yet.</Text>
+            )}
+          </View>
+        </SubcategoryAccordion>
+      );
+    },
+    [getAnswerRows, pickText, styles.answerLabel, styles.answerRow, styles.answerValue, styles.formAccordionContent],
   );
 
   if (!apt) {
@@ -835,6 +1085,28 @@ export const ViewAppointmentScreen: React.FC = () => {
             <Text style={styles.emptyDocsText}>No documents shared for this appointment yet.</Text>
           )}
         </View>
+
+        <View style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>Forms</Text>
+          {formsLoading ? (
+            <ActivityIndicator />
+          ) : formsByType.regular.length ? (
+            formsByType.regular.map(renderFormCard)
+          ) : (
+            <Text style={styles.emptyDocsText}>No forms for this appointment yet.</Text>
+          )}
+        </View>
+
+        {formsByType.soap.length ? (() => {
+          const accordions = formsByType.soap.map(renderSoapAccordion).filter(Boolean);
+          if (!accordions.length) return null;
+          return (
+          <View style={styles.detailsCard}>
+            <Text style={styles.sectionTitle}>SOAP Notes</Text>
+              {accordions}
+          </View>
+        );
+        })() : null}
 
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>Tasks</Text>
@@ -971,7 +1243,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    ...theme.typography.title,
+    ...theme.typography.labelSmallBold,
   },
   summaryCard: {
     // Spacing handled by container gap
@@ -1039,6 +1311,60 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...theme.typography.titleSmall,
     color: theme.colors.error,
     textAlign: 'center',
+  },
+  formCard: {
+    gap: theme.spacing['2'],
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing['2'],
+  },
+  formTitleContainer: {
+    flex: 1,
+    gap: theme.spacing['1'],
+  },
+  formTitle: {
+    ...theme.typography.titleSmall,
+    color: theme.colors.secondary,
+  },
+  formMeta: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
+  },
+  formStatusBadge: {
+    paddingHorizontal: theme.spacing['2.5'],
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  formStatusText: {
+    ...theme.typography.labelXxsBold,
+  },
+  formDescription: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
+  },
+  formAnswers: {
+    gap: theme.spacing['2'],
+  },
+  formButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.white,
+  },
+  formAccordionContent: {
+    gap: theme.spacing['2'],
+  },
+  answerRow: {
+    gap: theme.spacing['1'],
+  },
+  answerLabel: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
+  },
+  answerValue: {
+    ...theme.typography.body14,
+    color: theme.colors.secondary,
   },
 });
 

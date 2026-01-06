@@ -134,6 +134,18 @@ export type AppointmentStackParamList = {
     organisationName?: string | null;
     category: OrganisationDocumentCategory;
   };
+  AppointmentForm: {
+    appointmentId: string;
+    formId: string;
+    mode?: 'fill' | 'view';
+    allowSign?: boolean;
+  };
+  FormSigning: {
+    appointmentId: string;
+    submissionId: string;
+    signingUrl?: string | null;
+    formTitle?: string | null;
+  };
 };
 
 export type ExpenseStackParamList = {

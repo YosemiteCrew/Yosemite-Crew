@@ -18,6 +18,8 @@ import {OrganisationDocumentScreen} from '@/features/legal/screens/OrganisationD
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
+import {AppointmentFormScreen} from '@/features/forms/screens/AppointmentFormScreen';
+import {FormSigningScreen} from '@/features/forms/screens/FormSigningScreen';
 
 const Stack = createNativeStackNavigator<AppointmentStackParamList>();
 
@@ -63,6 +65,8 @@ export const AppointmentStackNavigator: React.FC = () => {
       <Stack.Screen name="EditAppointment" component={EditAppointmentScreen} />
       <Stack.Screen name="BusinessesList" component={BusinessesListScreen} />
       <Stack.Screen name="OrganisationDocument" component={OrganisationDocumentScreen} />
+      <Stack.Screen name="AppointmentForm" component={AppointmentFormScreen} />
+      <Stack.Screen name="FormSigning" component={FormSigningScreen} />
     </Stack.Navigator>
   );
 };

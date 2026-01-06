@@ -128,9 +128,9 @@ const createStyles = (theme: any) =>
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      ...theme.shadows.md,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.base,
       shadowColor: theme.colors.neutralShadow,
     },
     card: {
@@ -143,8 +143,8 @@ const createStyles = (theme: any) =>
     fallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     inner: {
       flexDirection: 'row',

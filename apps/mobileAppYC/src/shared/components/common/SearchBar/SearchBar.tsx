@@ -10,6 +10,7 @@ import {
   ViewStyle,
   StyleProp,
   useColorScheme,
+  Platform,
 } from 'react-native';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
@@ -110,11 +111,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['3'],
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      height: 48,
+      paddingHorizontal: 20,
+      paddingVertical: 13,
+      borderRadius: 16,
+      borderWidth: Platform.OS === 'ios' ? 0 : 0.5,
+      borderColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.text,
       backgroundColor: theme.colors.cardBackground,
       overflow: 'hidden',
       ...theme.shadows.base,
@@ -122,8 +124,9 @@ const createStyles = (theme: any) =>
     },
     fallback: {
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.lg,
+      borderColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.text,
+      borderWidth: Platform.OS === 'ios' ? 0 : 0.5,
+      borderRadius: 16,
       overflow: 'hidden',
       ...theme.shadows.base,
       shadowColor: theme.colors.neutralShadow,
@@ -148,12 +151,12 @@ const createStyles = (theme: any) =>
     },
     placeholder: {
       flex: 1,
-      fontFamily: theme.typography.paragraph.fontFamily,
-      fontSize: theme.typography.paragraph.fontSize,
-      fontWeight: theme.typography.paragraph.fontWeight,
-      lineHeight: theme.typography.paragraph.lineHeight,
-      letterSpacing: theme.typography.paragraph.letterSpacing,
-      color: theme.colors.textSecondary,
+      fontFamily: theme.typography.body.fontFamily,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: '400',
+      color: theme.colors.text,
+      includeFontPadding: false,
     },
     inputWrapper: {
       flexDirection: 'row',
@@ -163,11 +166,13 @@ const createStyles = (theme: any) =>
     },
     input: {
       flex: 1,
-      fontFamily: theme.typography.paragraph.fontFamily,
-      fontSize: theme.typography.paragraph.fontSize,
-      lineHeight: theme.typography.paragraph.lineHeight,
-      letterSpacing: theme.typography.paragraph.letterSpacing,
+      fontFamily: theme.typography.body.fontFamily,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: '400',
       color: theme.colors.text,
       padding: 0,
+      textAlignVertical: 'center',
+      includeFontPadding: false,
     },
   });

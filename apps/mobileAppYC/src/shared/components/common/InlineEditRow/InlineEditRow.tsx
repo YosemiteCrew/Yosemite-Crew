@@ -116,8 +116,8 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'],
     },
     label: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
       flex: 1,
     },
     valueContainer: {
@@ -127,8 +127,8 @@ const createStyles = (theme: any) =>
       maxWidth: '60%',
     },
     value: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.secondary,
       textAlign: 'right',
     },
     rightArrow: {

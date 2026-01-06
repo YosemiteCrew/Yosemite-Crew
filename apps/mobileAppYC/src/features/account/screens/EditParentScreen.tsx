@@ -570,13 +570,13 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'],
     },
     rowButtonLabel: {
-      ...theme.typography.pillSubtitleBold15,
+      ...theme.typography.body,
       color: theme.colors.textSecondary,
       flex: 1,
     },
     rowButtonValue: {
-      ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.placeholder,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.secondary,
       marginRight: theme.spacing['2'],
       flexShrink: 1,
       flex: 1,
