@@ -1,43 +1,39 @@
-import React, { useMemo } from "react";
-import { getNextWeek, getPrevWeek, getWeekDays } from "../weekHelpers";
-import DayLabels from "./DayLabels";
+import React from "react";
 import TaskSlot from "./TaskSlot";
-import { eventsForDay } from "../helpers";
+import { eventsForUser } from "../helpers";
 import { GrNext, GrPrevious } from "react-icons/gr";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import UserLabels from "./UserLabels";
 import { Task } from "@/app/types/task";
 
-type WeekCalendarProps = {
+type UserCalendarProps = {
   events: Task[];
   date: Date;
   handleViewTask: any;
-  weekStart: Date;
-  setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
 };
 
-const WeekCalendar: React.FC<WeekCalendarProps> = ({
+const UserCalendar: React.FC<UserCalendarProps> = ({
   events,
   date,
   handleViewTask,
-  weekStart,
-  setWeekStart,
   setCurrentDate,
 }) => {
-  const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
+  const team = useTeamForPrimaryOrg();
 
-  const handlePrevWeek = () => {
-    setWeekStart((prev) => {
-      const nextWeekStart = getPrevWeek(prev);
-      setCurrentDate(nextWeekStart);
-      return nextWeekStart;
+  const handleNextDay = () => {
+    setCurrentDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 1);
+      return d;
     });
   };
 
-  const handleNextWeek = () => {
-    setWeekStart((prev) => {
-      const nextWeekStart = getNextWeek(prev);
-      setCurrentDate(nextWeekStart);
-      return nextWeekStart;
+  const handlePrevDay = () => {
+    setCurrentDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 1);
+      return d;
     });
   };
 
@@ -49,18 +45,18 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             size={20}
             color="#302f2e"
             className="cursor-pointer"
-            onClick={handlePrevWeek}
+            onClick={handlePrevDay}
           />
         </div>
         <div className="overflow-x-auto">
           <div className="min-w-max">
-            <DayLabels days={days} />
+            <UserLabels team={team} currentDate={date} />
             <div className="max-h-[500px] overflow-y-auto">
               <div className="grid grid-flow-col auto-cols-[200px] gap-x-2 min-w-max">
-                {days.map((day) => (
+                {team?.map((user, index) => (
                   <TaskSlot
-                    key={day.getTime()}
-                    slotEvents={eventsForDay(events, day)}
+                    key={user._id || index}
+                    slotEvents={eventsForUser(events, user)}
                     handleViewTask={handleViewTask}
                   />
                 ))}
@@ -73,7 +69,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             size={20}
             color="#302f2e"
             className="cursor-pointer"
-            onClick={handleNextWeek}
+            onClick={handleNextDay}
           />
         </div>
       </div>
@@ -81,4 +77,4 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   );
 };
 
-export default WeekCalendar;
+export default UserCalendar;

@@ -2,24 +2,27 @@
 import React, { useEffect, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import TasksTable from "../../components/DataTable/Tasks";
-import { demoTasks } from "./demo";
 import AddTask from "./Sections/AddTask";
 import TaskInfo from "./Sections/TaskInfo";
-import { TasksProps } from "@/app/types/tasks";
 import TaskFilters from "@/app/components/Filters/TasksFilters";
 import TitleCalendar from "@/app/components/TitleCalendar";
 import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
 import TaskCalendar from "@/app/components/Calendar/TaskCalendar";
 import OrgGuard from "@/app/components/OrgGuard";
+import {
+  useLoadTasksForPrimaryOrg,
+  useTasksForPrimaryOrg,
+} from "@/app/hooks/useTask";
+import { Task } from "@/app/types/task";
 
 const Tasks = () => {
-  const [list] = useState<TasksProps[]>(demoTasks);
-  const [filteredList, setFilteredList] = useState<TasksProps[]>(demoTasks);
+  useLoadTasksForPrimaryOrg();
+  const tasks = useTasksForPrimaryOrg();
+
+  const [filteredList, setFilteredList] = useState<Task[]>(tasks);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
-  const [activeTask, setActiveTask] = useState<TasksProps | null>(
-    demoTasks[0] ?? null
-  );
+  const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
   const [activeCalendar, setActiveCalendar] = useState("week");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
@@ -29,12 +32,15 @@ const Tasks = () => {
   }, [currentDate, activeCalendar]);
 
   useEffect(() => {
-    if (filteredList.length > 0) {
-      setActiveTask(filteredList[0]);
-    } else {
-      setActiveTask(null);
-    }
-  }, [filteredList]);
+    setActiveTask((prev) => {
+      if (tasks.length === 0) return null;
+      if (prev?._id) {
+        const updated = tasks.find((s) => s._id === prev._id);
+        if (updated) return updated;
+      }
+      return tasks[0];
+    });
+  }, [tasks]);
 
   return (
     <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
@@ -48,9 +54,9 @@ const Tasks = () => {
       />
 
       <div className="w-full flex flex-col gap-6">
-        <TaskFilters list={list} setFilteredList={setFilteredList} />
+        <TaskFilters list={tasks} setFilteredList={setFilteredList} />
         <TaskCalendar
-          filteredList={list}
+          filteredList={tasks}
           setActiveTask={setActiveTask}
           setViewPopup={setViewPopup}
           activeCalendar={activeCalendar}

@@ -1,11 +1,12 @@
 import {
   ApiAvailability,
   ApiDayAvailability,
+  ApiOverrides,
   GetAvailabilityResponse,
 } from "../components/Availability/utils";
 import { useAvailabilityStore } from "../stores/availabilityStore";
 import { useOrgStore } from "../stores/orgStore";
-import { getData, postData } from "./axios";
+import { deleteData, getData, postData } from "./axios";
 
 export const upsertAvailability = async (
   formData: ApiAvailability,
@@ -30,8 +31,7 @@ export const upsertAvailability = async (
 
 export const loadAvailability = async (opts?: { silent?: boolean }) => {
   const { orgIds } = useOrgStore.getState();
-  const { startLoading, setAvailabilities } =
-    useAvailabilityStore.getState();
+  const { startLoading, setAvailabilities } = useAvailabilityStore.getState();
   if (!opts?.silent) {
     startLoading();
   }
@@ -58,6 +58,69 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
     setAvailabilities(temp);
   } catch (err: unknown) {
     console.error("Failed to load orgs:", err);
+    throw err;
+  }
+};
+
+export const getOveridesForPrimaryDate = async (date: Date) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  const { upsertOverideStore } = useAvailabilityStore.getState();
+  try {
+    if (!primaryOrgId) {
+      throw new Error(
+        "No primary organization selected. Cannot load overides."
+      );
+    }
+    const normalDate = date.toISOString().split("T")[0];
+    const res = await getData<{ data: ApiOverrides }>(
+      "/fhir/v1/availability/" +
+        primaryOrgId +
+        "/weekly?weekStartDate=" +
+        normalDate
+    );
+    const override = res.data?.data ?? [];
+    upsertOverideStore(override);
+  } catch (err: unknown) {
+    console.error("Failed to load overides:", err);
+    throw err;
+  }
+};
+
+export const createOveride = async (override: ApiOverrides) => {
+  const { primaryOrgId } = useOrgStore.getState();
+  const { upsertOverideStore } = useAvailabilityStore.getState();
+  try {
+    if (!primaryOrgId) {
+      throw new Error(
+        "No primary organization selected. Cannot create overides."
+      );
+    }
+    await postData(
+      "/fhir/v1/availability/" + primaryOrgId + "/weekly",
+      override
+    );
+    upsertOverideStore(override);
+  } catch (err: unknown) {
+    console.error("Failed to load overides:", err);
+    throw err;
+  }
+};
+
+export const deleteOveride = async (override: ApiOverrides) => {
+  const { removeOverride } = useAvailabilityStore.getState();
+  try {
+    if (!override._id || !override.dayOfWeek || !override.organisationId) {
+      throw new Error("Cannot delete overides.");
+    }
+    await deleteData(
+      "/fhir/v1/availability/" +
+        override.organisationId +
+        "/weekly?weekStartDate=" +
+        override.dayOfWeek
+    );
+    removeOverride(override._id);
+  } catch (err: unknown) {
+    console.error("Failed to load overides:", err);
     throw err;
   }
 };

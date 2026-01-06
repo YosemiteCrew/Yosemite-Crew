@@ -1,11 +1,13 @@
 import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
-import { TasksProps } from "@/app/types/tasks";
 import { IoEye } from "react-icons/io5";
 import TaskCard from "../Cards/TaskCard";
+import { getFormattedDate } from "../Calendar/weekHelpers";
+import { Task } from "@/app/types/task";
 
 import "./DataTable.css";
-import { getFormattedDate } from "../Calendar/weekHelpers";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Team } from "@/app/types/team";
 
 type Column<T> = {
   label: string;
@@ -15,20 +17,22 @@ type Column<T> = {
 };
 
 type TaskTableProps = {
-  filteredList: TasksProps[];
-  setActiveTask?: (inventory: TasksProps) => void;
+  filteredList: Task[];
+  setActiveTask?: (inventory: Task) => void;
   setViewPopup?: (open: boolean) => void;
   hideActions?: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case "in-progress":
+    case "pending":
+      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+    case "in_progress":
       return { color: "#54B492", backgroundColor: "#E6F4EF" };
     case "completed":
       return { color: "#fff", backgroundColor: "#008F5D" };
     default:
-      return { color: "#fff", backgroundColor: "#247AED" };
+      return { color: "#fff", backgroundColor: "#008F5D" };
   }
 };
 
@@ -38,24 +42,38 @@ const Tasks = ({
   setViewPopup,
   hideActions = false,
 }: TaskTableProps) => {
-  const handleViewTask = (task: TasksProps) => {
+  const teams = useTeamForPrimaryOrg();
+
+  const memberMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    teams?.forEach((member: Team) => {
+      map.set(member._id, member.name || "-");
+    });
+    return map;
+  }, [teams]);
+
+  const getMemberNameById = (id?: string) =>
+    id ? (memberMap.get(id) ?? "-") : "-";
+
+  const handleViewTask = (task: Task) => {
     setActiveTask?.(task);
     setViewPopup?.(true);
   };
-  const columns: Column<TasksProps>[] = [
+
+  const columns: Column<Task>[] = [
     {
       label: "Task",
       key: "task",
       width: "15%",
-      render: (item: TasksProps) => (
-        <div className="appointment-profile-title">{item.task}</div>
+      render: (item: Task) => (
+        <div className="appointment-profile-title">{item.name}</div>
       ),
     },
     {
       label: "Description",
       key: "description",
       width: "20%",
-      render: (item: TasksProps) => (
+      render: (item: Task) => (
         <div className="appointment-profile-title">{item.description}</div>
       ),
     },
@@ -63,7 +81,7 @@ const Tasks = ({
       label: "Category",
       key: "category",
       width: "10%",
-      render: (item: TasksProps) => (
+      render: (item: Task) => (
         <div className="appointment-profile-title">{item.category}</div>
       ),
     },
@@ -71,18 +89,19 @@ const Tasks = ({
       label: "From",
       key: "from",
       width: "10%",
-      render: (item: TasksProps) => (
-        <div className="appointment-profile-title">{item.from}</div>
+      render: (item: Task) => (
+        <div className="appointment-profile-title">
+          {getMemberNameById(item.assignedBy)}
+        </div>
       ),
     },
     {
       label: "To",
       key: "to",
       width: "10%",
-      render: (item: TasksProps) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{item.to}</div>
-          <div className="appointment-profile-sub">{item.toLabel}</div>
+      render: (item: Task) => (
+        <div className="appointment-profile-title">
+          {getMemberNameById(item.assignedTo)}
         </div>
       ),
     },
@@ -90,9 +109,9 @@ const Tasks = ({
       label: "Due date",
       key: "due",
       width: "10%",
-      render: (item: TasksProps) => (
+      render: (item: Task) => (
         <div className="appointment-profile-title">
-          {getFormattedDate(item.due)}
+          {getFormattedDate(item.dueAt)}
         </div>
       ),
     },
@@ -100,7 +119,7 @@ const Tasks = ({
       label: "Status",
       key: "status",
       width: "15%",
-      render: (item: TasksProps) => (
+      render: (item: Task) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {item.status}
         </div>
@@ -111,7 +130,7 @@ const Tasks = ({
     label: "Actions",
     key: "actions",
     width: "10%",
-    render: (item: TasksProps) => (
+    render: (item: Task) => (
       <div className="action-btn-col">
         <button
           onClick={() => handleViewTask(item)}
@@ -143,10 +162,14 @@ const Tasks = ({
               </div>
             );
           }
-          return filteredList.map((item: TasksProps, i) => (
+          return filteredList.map((item: Task, i) => (
             <TaskCard
-              key={item.task + i}
-              item={item}
+              key={item.name + i}
+              item={{
+                ...item,
+                assignedTo: getMemberNameById(item.assignedTo),
+                assignedBy: getMemberNameById(item.assignedBy),
+              }}
               handleViewTask={handleViewTask}
             />
           ));
