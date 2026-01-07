@@ -55,6 +55,13 @@ export interface DemoLoginConfig {
   password?: string;
 }
 
+export interface UiFeatureFlags {
+  /**
+   * Forces a 1px black outline on all liquid glass surfaces (cards/buttons) to aid visibility.
+   */
+  forceLiquidGlassBorder: boolean;
+}
+
 // Default/test configuration (safe for CI/CD)
 const DEFAULT_PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   profileServiceUrl: '',
@@ -97,6 +104,10 @@ const DEFAULT_DEMO_LOGIN_CONFIG: DemoLoginConfig = {
   password: '',
 };
 
+const DEFAULT_UI_FEATURE_FLAGS: UiFeatureFlags = {
+  forceLiquidGlassBorder: false,
+};
+
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
 let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
 let apiOverrides: Partial<ApiConfig> | undefined;
@@ -104,6 +115,7 @@ let streamChatOverrides: Partial<StreamChatConfig> | undefined;
 let stripeOverrides: Partial<StripeConfig> | undefined;
 let authFlagsOverrides: Partial<AuthFeatureFlags> | undefined;
 let demoLoginOverrides: Partial<DemoLoginConfig> | undefined;
+let uiFlagsOverrides: Partial<UiFeatureFlags> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
@@ -142,6 +154,9 @@ try {
   }
   if (localConfig.DEMO_LOGIN_CONFIG) {
     demoLoginOverrides = localConfig.DEMO_LOGIN_CONFIG;
+  }
+  if (localConfig.UI_FEATURE_FLAGS) {
+    uiFlagsOverrides = localConfig.UI_FEATURE_FLAGS;
   }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
@@ -190,6 +205,11 @@ export const AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
 export const DEMO_LOGIN_CONFIG: DemoLoginConfig = {
   ...DEFAULT_DEMO_LOGIN_CONFIG,
   ...demoLoginOverrides,
+};
+
+export const UI_FEATURE_FLAGS: UiFeatureFlags = {
+  ...DEFAULT_UI_FEATURE_FLAGS,
+  ...uiFlagsOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

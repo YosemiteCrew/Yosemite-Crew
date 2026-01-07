@@ -150,7 +150,7 @@ export const FormSigningScreen: React.FC = () => {
           <LiquidGlassButton
             title="Open signing link again"
             onPress={handleReopenLink}
-            height={48}
+            height={56}
             borderRadius={theme.borderRadius.md}
             glassEffect="clear"
             forceBorder
@@ -212,7 +212,7 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     secondaryButtonText: {
-      ...theme.typography.titleSmall,
+      ...theme.typography.button,
       color: theme.colors.secondary,
       textAlign: 'center',
     },

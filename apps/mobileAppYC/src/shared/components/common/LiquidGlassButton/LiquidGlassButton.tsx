@@ -18,6 +18,7 @@ import {
   isLiquidGlassSupported,
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
+import {UI_FEATURE_FLAGS} from '@/config/variables';
 
 // Crystal clear glass defaults - minimal tint for maximum clarity
 const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.5)';
@@ -343,6 +344,9 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   shadowIntensity = 'light',
 }) => {
   const {theme, isDark} = useTheme();
+  const forceGlobalBorder = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
+  const forceBorderEnabled = forceBorder || forceGlobalBorder;
+  const forcedBorderColor = forceBorderEnabled ? '#EAEAEA' : borderColor;
   const useNativeGlass =
     Platform.OS === 'ios' && isLiquidGlassSupported && !LOCK_IOS_GLASS_APPEARANCE;
   const resolvedColorScheme = React.useMemo(() => {
@@ -399,9 +403,9 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   const surfaceStyle = React.useMemo(() => {
     if (useNativeGlass) {
       return buildGlassSurfaceStyle({
-        borderColor,
+        borderColor: forcedBorderColor,
         isLightTint,
-        forceBorder,
+        forceBorder: forceBorderEnabled,
         shadowIntensity,
         themeShadows: theme.shadows,
       });
@@ -410,12 +414,12 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     return buildFallbackSurfaceStyle({
       tintColor: resolvedTintColor,
       isDark,
-      borderColor,
+      borderColor: forcedBorderColor,
       isLightTint,
     });
   }, [
-    borderColor,
-    forceBorder,
+    forcedBorderColor,
+    forceBorderEnabled,
     isLightTint,
     resolvedTintColor,
     shadowIntensity,
