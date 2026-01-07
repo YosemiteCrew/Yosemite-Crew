@@ -34,13 +34,20 @@ const SUBCATEGORY_API_MAP: Record<string, string> = {
   'nutrition-plans': 'NUTRITION_PLANS',
 };
 
-const normalizeKey = (value?: string | null): string =>
-  (value ?? '')
-    .toString()
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
+const normalizeKey = (value?: string | null): string => {
+  const str = (value ?? '').toString().toLowerCase().replaceAll('&', 'and');
+  // Replace non-alphanumeric characters with underscores
+  const withUnderscores = str.replaceAll(/[^a-z0-9]+/g, '_');
+  // Remove leading and trailing underscores (ReDoS-safe)
+  let result = withUnderscores;
+  while (result.startsWith('_')) {
+    result = result.slice(1);
+  }
+  while (result.endsWith('_')) {
+    result = result.slice(0, -1);
+  }
+  return result;
+};
 
 const SUBCATEGORY_API_TO_UI: Record<string, string> = (() => {
   const map: Record<string, string> = {};

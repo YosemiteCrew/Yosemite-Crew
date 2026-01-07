@@ -175,7 +175,7 @@ const createStyles = (theme: any) =>
     specialtyItem: {
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
-      borderWidth: Platform.OS === 'android' ? 1 : 1,
+      borderWidth: 1,
       borderColor: theme.colors.borderMuted,
       ...theme.shadows.base,
       shadowColor: theme.colors.neutralShadow,

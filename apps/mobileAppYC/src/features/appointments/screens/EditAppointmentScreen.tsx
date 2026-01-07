@@ -155,16 +155,25 @@ const buildBusinessCard = ({
   apt: any;
   fallbackPhoto: string | null;
   businessPhoto: string | null;
-}) => ({
-  title: business?.name ?? apt?.organisationName ?? '',
-  subtitlePrimary: business?.address ?? apt?.organisationAddress ?? undefined,
-  subtitleSecondary: business?.description ?? undefined,
-  image: fallbackPhoto || (isDummyPhoto(businessPhoto) ? undefined : businessPhoto) ? {uri: fallbackPhoto || businessPhoto || undefined} : undefined,
-  interactive: false,
-  maxTitleLines: 2,
-  maxSubtitleLines: 2,
-  avatarSize: 96,
-});
+}) => {
+  let imageUri: string | undefined;
+  if (fallbackPhoto) {
+    imageUri = fallbackPhoto;
+  } else if (!isDummyPhoto(businessPhoto) && businessPhoto) {
+    imageUri = businessPhoto;
+  }
+
+  return {
+    title: business?.name ?? apt?.organisationName ?? '',
+    subtitlePrimary: business?.address ?? apt?.organisationAddress ?? undefined,
+    subtitleSecondary: business?.description ?? undefined,
+    image: imageUri ? {uri: imageUri} : undefined,
+    interactive: false,
+    maxTitleLines: 2,
+    maxSubtitleLines: 2,
+    avatarSize: 96,
+  };
+};
 
 const buildServiceCard = (service: any, apt: any) => {
   if (!service && !apt?.serviceName) {
@@ -370,16 +379,14 @@ export const EditAppointmentScreen: React.FC = () => {
   };
 
   const isCancellable = isAppointmentCancellable(apt?.status);
-  const businessCard = useMemo(
-    () =>
-      buildBusinessCard({
-        business,
-        apt,
-        fallbackPhoto,
-        businessPhoto,
-      }),
-    [apt, business, businessPhoto, fallbackPhoto],
-  );
+  const businessCard = useMemo(() => {
+    return buildBusinessCard({
+      business,
+      apt,
+      fallbackPhoto,
+      businessPhoto,
+    });
+  }, [apt, business, businessPhoto, fallbackPhoto]);
   const serviceCard = useMemo(() => buildServiceCard(service, apt), [apt, service]);
   const employeeCard = useMemo(
     () => buildEmployeeCard(employee, () => navigation.goBack()),

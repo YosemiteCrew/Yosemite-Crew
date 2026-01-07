@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo, useEffect } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import type { BottomSheetRef } from '@/shared/components/common/BottomSheet/Bott
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import { Input } from '@/shared/components/common/Input/Input';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import { useTheme } from '@/hooks';
+import { useTheme, useKeyboardVisible } from '@/hooks';
 import { Images } from '@/assets/images';
 
 export interface GenericSelectBottomSheetRef {
@@ -66,37 +66,16 @@ export const GenericSelectBottomSheet = forwardRef<
 }, ref) => {
   const { theme } = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const isKeyboardVisible = useKeyboardVisible();
 
   // Track whether the sheet is open so we only render the backdrop when visible.
   const [isSheetVisible, setIsSheetVisible] = useState(false);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme, maxListHeight);
   const searchIconSource = Images?.searchIcon ?? null;
-
-  // Listen to keyboard events to adjust snap points
-  useEffect(() => {
-    const keyboardDidShow = Keyboard.addListener(
-      'keyboardDidShow',
-      () => {
-        setIsKeyboardVisible(true);
-      }
-    );
-    const keyboardDidHide = Keyboard.addListener(
-      'keyboardDidHide',
-      () => {
-        setIsKeyboardVisible(false);
-      }
-    );
-
-    return () => {
-      keyboardDidShow.remove();
-      keyboardDidHide.remove();
-    };
-  }, []);
 
   // Dynamic snap points based on keyboard visibility
   const dynamicSnapPoints = useMemo(() => {
@@ -209,7 +188,6 @@ export const GenericSelectBottomSheet = forwardRef<
         setIsSheetVisible(index !== -1);
         if (index === -1) {
           Keyboard.dismiss();
-          setIsKeyboardVisible(false);
         }
         onSheetChange?.(index);
       }}

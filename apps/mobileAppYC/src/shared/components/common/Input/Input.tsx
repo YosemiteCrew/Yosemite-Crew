@@ -18,6 +18,11 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useTheme } from '@/hooks';
+import {
+  getFloatingLabelAnimatedStyle,
+  getInputContainerBaseStyle,
+  getValueTextStyle,
+} from '@/shared/components/common/shared/floatingLabelStyles';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -60,7 +65,6 @@ export const Input: React.FC<InputProps> = ({
     keyboardAppearance: keyboardAppearanceProp,
     returnKeyType: returnKeyTypeProp,
     returnKeyLabel: returnKeyLabelProp,
-    blurOnSubmit: blurOnSubmitProp,
     onSubmitEditing,
     ...restTextInputProps
   } = textInputProps;
@@ -71,8 +75,6 @@ export const Input: React.FC<InputProps> = ({
     keyboardAppearanceProp ?? keyboardAppearance;
   const resolvedReturnKeyType = returnKeyTypeProp ?? 'done';
   const resolvedReturnKeyLabel = returnKeyLabelProp ?? 'Done';
-  const resolvedBlurOnSubmit =
-    blurOnSubmitProp ?? !isMultiline;
 
   const animateLabel = useCallback((toValue: number) => {
     Animated.timing(animatedValue, {
@@ -120,92 +122,54 @@ export const Input: React.FC<InputProps> = ({
   }, [value, hasValue, animateLabel]);
 
   const getInputContainerStyle = (): ViewStyle => {
-    let borderColor = theme.colors.border;
-    if (error) {
-      borderColor = theme.colors.error;
-    } else if (isFocused) {
+    const baseStyle = getInputContainerBaseStyle(theme, error);
+    let borderColor = baseStyle.borderColor;
+
+    if (isFocused && !error) {
       borderColor = theme.colors.primary;
     }
 
     return {
-      borderWidth: 1,
+      ...baseStyle,
       borderColor,
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: theme.spacing['5'],
-      minHeight: theme.spacing['14'],
-      position: 'relative',
-      justifyContent: 'center',
       flexDirection: 'row',
       alignItems: 'center',
     };
   };
 
-  const getInputStyle = (): TextStyle => ({
-    ...theme.typography.input,
-    color: hasValue || isFocused ? theme.colors.text : theme.colors.placeholder,
-    fontFamily: hasValue || isFocused
-      ? theme.typography.inputFilled.fontFamily
-      : theme.typography.input.fontFamily,
-    fontWeight: hasValue || isFocused
-      ? theme.typography.inputFilled.fontWeight
-      : theme.typography.input.fontWeight,
-    letterSpacing: hasValue || isFocused
-      ? theme.typography.inputFilled.letterSpacing
-      : theme.typography.input.letterSpacing,
-    flex: 1,
-    ...(Platform.OS === 'ios'
-      ? {
-          paddingTop: label ? theme.spacing['2.5'] : theme.spacing['3'],
-          paddingBottom: label ? theme.spacing['2'] : theme.spacing['3'],
-          lineHeight: undefined,
-        }
-      : {
-          paddingTop: label ? theme.spacing['2.5'] : theme.spacing['2'],
-          paddingBottom: theme.spacing['2'],
-          textAlignVertical: 'center',
-        }
-    ),
-    paddingHorizontal: 0,
-    margin: 0,
-    minHeight: Platform.OS === 'ios' ? theme.spacing['5'] : theme.spacing['6'],
-    height: undefined,
-  });
+  const getInputStyle = (): TextStyle => {
+    const baseStyle = getValueTextStyle(theme, hasValue || isFocused);
+    return {
+      ...baseStyle,
+      color: hasValue || isFocused ? theme.colors.text : theme.colors.placeholder,
+      fontFamily: hasValue || isFocused
+        ? theme.typography.inputFilled.fontFamily
+        : theme.typography.input.fontFamily,
+      fontWeight: hasValue || isFocused
+        ? theme.typography.inputFilled.fontWeight
+        : theme.typography.input.fontWeight,
+      letterSpacing: hasValue || isFocused
+        ? theme.typography.inputFilled.letterSpacing
+        : theme.typography.input.letterSpacing,
+      lineHeight: Platform.OS === 'ios' ? undefined : baseStyle.lineHeight,
+      height: undefined,
+    };
+  };
 
-  // We no longer adjust the TextInput padding for placeholderOffset.
-  // Instead we shift the floating label's absolute left position when
-  // the label is in the placeholder state. This gives visual offset
-  // for the placeholder text without affecting entered text alignment.
   const effectivePlaceholderOffset = placeholderOffset ?? 0;
-  const placeholderLineHeight =
-    (theme.typography.input.lineHeight ?? theme.typography.input.fontSize) ?? 16;
-  const placeholderTop =
-    (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
-  const labelLineHeight =
-    (theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize) ?? 12;
-  const floatingTop = -Math.round(labelLineHeight / 2) - 2;
 
   const getFloatingLabelStyle = () => {
-    const baseStyle = {
-      position: 'absolute' as const,
-      // left will be animated between placeholder position (20 + offset)
-      // when not floated and the regular left (20) when floated.
+    const baseStyle = getFloatingLabelAnimatedStyle({
+      animatedValue,
+      theme,
+    });
+
+    // Apply placeholder offset for the left position animation
+    return {
+      ...baseStyle,
       left: animatedValue.interpolate({
         inputRange: [0, 1],
         outputRange: [theme.spacing['5'] + effectivePlaceholderOffset, theme.spacing['5']],
-      }),
-      fontFamily: theme.typography.input.fontFamily,
-      fontWeight: theme.typography.input.fontWeight,
-      fontSize: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [theme.typography.input.fontSize ?? 16, theme.typography.inputLabel.fontSize ?? 12],
-      }),
-      top: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [
-          placeholderTop,
-          floatingTop,
-        ],
       }),
       color: animatedValue.interpolate({
         inputRange: [0, 1],
@@ -214,29 +178,7 @@ export const Input: React.FC<InputProps> = ({
           isFocused ? theme.colors.primary : theme.colors.textSecondary,
         ],
       }),
-      letterSpacing: theme.typography.inputLabel.letterSpacing,
-      backgroundColor: theme.colors.surface || theme.colors.background,
-      paddingHorizontal: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, theme.spacing['1']],
-      }),
-      paddingVertical: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [1, 0],
-      }),
-      zIndex: 1,
-        pointerEvents: 'none' as const,
     };
-
-    if (Platform.OS === 'ios') {
-      return {
-        ...baseStyle,
-        includeFontPadding: false,
-        textAlignVertical: 'center' as const,
-      };
-    }
-
-    return baseStyle;
   };
 
   const getErrorStyle = (): TextStyle => ({
@@ -264,7 +206,6 @@ export const Input: React.FC<InputProps> = ({
           style={[getInputStyle(), inputStyle]}
           placeholderTextColor={theme.colors.placeholder}
           keyboardAppearance={resolvedKeyboardAppearance}
-          blurOnSubmit={resolvedBlurOnSubmit}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChangeText={handleChangeText}

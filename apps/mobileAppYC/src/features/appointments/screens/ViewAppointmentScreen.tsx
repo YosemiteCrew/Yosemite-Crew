@@ -864,8 +864,8 @@ export const ViewAppointmentScreen: React.FC = () => {
       return value.map(v => `${v}`).join(', ') || '—';
     }
     if (typeof value === 'object') {
-      if ('url' in value && (value as any).url) {
-        return (value as any).url as string;
+      if ('url' in value && value.url) {
+        return String(value.url);
       }
       return JSON.stringify(value);
     }
@@ -905,10 +905,10 @@ export const ViewAppointmentScreen: React.FC = () => {
         return text.charAt(0).toUpperCase() + text.slice(1);
       };
       return Object.entries(rawAnswers)
-        .filter(([, val]) => val !== undefined && val !== null && `${val}`.trim?.() !== '')
+        .filter(([, val]) => val !== undefined && val !== null && `${val}`.trim() !== '')
         .map(([key, val]) => ({
           id: key,
-          label: capitalize(key.replace(/_/g, ' ')),
+          label: capitalize(key.replaceAll('_', ' ')),
           value: `${val}`,
         }));
     },
@@ -941,14 +941,16 @@ export const ViewAppointmentScreen: React.FC = () => {
         !entry.signingRequired &&
         entry.status !== 'signing' &&
         entry.status !== 'submitted';
-      const action =
-        isSigned
-          ? {label: 'View form', mode: 'view' as const, allowSign: false}
-          : entry.submission && entry.signingRequired
-            ? {label: 'View & Sign', mode: 'view' as const, allowSign: true}
-            : entry.submission
-              ? {label: 'View form', mode: 'view' as const, allowSign: false}
-              : {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};
+      let action;
+      if (isSigned) {
+        action = {label: 'View form', mode: 'view' as const, allowSign: false};
+      } else if (entry.submission && entry.signingRequired) {
+        action = {label: 'View & Sign', mode: 'view' as const, allowSign: true};
+      } else if (entry.submission) {
+        action = {label: 'View form', mode: 'view' as const, allowSign: false};
+      } else {
+        action = {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};
+      }
 
       return (
         <LiquidGlassCard
@@ -995,8 +997,15 @@ export const ViewAppointmentScreen: React.FC = () => {
       }
       const formLabel = pickText(entry.form.name, entry.form.category);
       const sectionLabel = pickText(entry.soapSection);
-      const title = pickText(sectionLabel, formLabel, 'SOAP note');
-      const subtitle = pickText(formLabel !== title ? formLabel : undefined, sectionLabel !== title ? sectionLabel : undefined);
+
+      let title = sectionLabel || formLabel || 'SOAP note';
+      let subtitle = '';
+      if (formLabel && formLabel !== title) {
+        subtitle = formLabel;
+      } else if (sectionLabel && sectionLabel !== title) {
+        subtitle = sectionLabel;
+      }
+
       return (
         <SubcategoryAccordion
           key={`${entry.form._id}-${entry.submission._id}-soap`}
@@ -1127,13 +1136,15 @@ export const ViewAppointmentScreen: React.FC = () => {
 
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>Forms</Text>
-          {formsLoading ? (
-            <ActivityIndicator />
-          ) : formsByType.regular.length ? (
-            formsByType.regular.map(renderFormCard)
-          ) : (
-            <Text style={styles.emptyDocsText}>No forms for this appointment yet.</Text>
-          )}
+          {(() => {
+            if (formsLoading) {
+              return <ActivityIndicator />;
+            }
+            if (formsByType.regular.length > 0) {
+              return formsByType.regular.map(renderFormCard);
+            }
+            return <Text style={styles.emptyDocsText}>No forms for this appointment yet.</Text>;
+          })()}
         </View>
 
         {formsByType.soap.length ? (() => {

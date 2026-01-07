@@ -18,7 +18,7 @@ import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomShee
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
-import {useTheme, useAddressAutocomplete} from '@/hooks';
+import {useTheme, useAddressAutocomplete, useKeyboardVisible} from '@/hooks';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import {AddressFields, type AddressFieldValues} from '@/shared/components/forms/AddressFields';
 import {Images} from '@/assets/images';
@@ -50,7 +50,7 @@ export const AddressBottomSheet = forwardRef<
   const closeButtonSize = theme.spacing['9'];
   const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const isKeyboardVisible = useKeyboardVisible();
 
   const [tempAddress, setTempAddress] = useState<Address>(selectedAddress);
   const {
@@ -62,20 +62,6 @@ export const AddressBottomSheet = forwardRef<
     selectSuggestion,
     resetError,
   } = useAddressAutocomplete();
-
-  React.useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => {
-      setIsKeyboardVisible(true);
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setIsKeyboardVisible(false);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   // Helper to reset state and close bottom sheet
   const closeSheet = () => {

@@ -85,8 +85,8 @@ const sanitizeAnswerValue = (value: any): any => {
     return value.map(sanitizeAnswerValue);
   }
   if (value && typeof value === 'object') {
-    if ('url' in value && (value as any).url) {
-      return (value as any).url;
+    if ('url' in value && value.url) {
+      return String(value.url);
     }
     if (Object.keys(value).length === 0) {
       return '';

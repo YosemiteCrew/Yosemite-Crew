@@ -68,12 +68,12 @@ const cleanPlaceholder = (value?: string | null): string | undefined => {
   if (!value) {
     return undefined;
   }
-  return value.replace(/pet/gi, 'companion');
+  return value.replaceAll(/pet/gi, 'companion');
 };
 
 const cleanLabel = (value?: string | null): string | undefined => {
   if (!value) return value ?? undefined;
-  return value.replace(/pet/gi, 'Companion');
+  return value.replaceAll(/pet/gi, 'Companion');
 };
 
 export const AppointmentFormScreen: React.FC = () => {
@@ -387,70 +387,53 @@ export const AppointmentFormScreen: React.FC = () => {
     );
   };
 
-  const renderField = (field: FormField) => {
-    const value = values[field.id];
-    const error = errors[field.id];
+  const renderReadOnlyCheckbox = (field: FormField, value: any) => {
+    const options = (field as any).options ?? [];
+    const firstLabel =
+      options[0]?.label ?? options[0]?.display ?? options[0]?.value ?? cleanLabel(field.label);
+    let resolvedValue;
+    if (value !== undefined && value !== null && `${value}` !== '') {
+      resolvedValue = value;
+    } else if (entry?.status === 'signed') {
+      resolvedValue = true;
+    } else {
+      resolvedValue = false;
+    }
+    const checked = Array.isArray(resolvedValue)
+      ? resolvedValue.length > 0
+      : Boolean(resolvedValue);
+    return (
+      <View key={field.id} style={styles.fieldContainer}>
+        <Checkbox value={checked} onValueChange={() => {}} label={firstLabel} />
+      </View>
+    );
+  };
 
-    if (field.type === 'group') {
-      const groupFields = Array.isArray((field as any).fields) ? (field as any).fields : [];
-      return (
-        <View key={field.id} style={styles.groupContainer}>
-          <Text style={styles.groupLabel}>{field.label}</Text>
-          <View style={styles.groupFields}>
-            {groupFields.map((child: any) => renderField(child))}
-          </View>
-        </View>
-      );
+  const renderReadOnlyField = (field: FormField, value: any) => {
+    const displayValue = renderValueForDisplay(field, value);
+    const displayWithFallback =
+      displayValue === '—' ? cleanPlaceholder((field as any).placeholder) ?? displayValue : displayValue;
+    const isCheckboxField = field.type === 'checkbox';
+
+    if (isCheckboxField) {
+      return renderReadOnlyCheckbox(field, value);
     }
 
-    const hideInSignedView =
-      isReadOnly &&
-      entry?.status === 'signed' &&
-      (field.type === 'signature' || textIncludes(field.id, ['date']) || textIncludes(field.label, ['date']));
-    if (hideInSignedView) {
-      return null;
-    }
+    return (
+      <View key={field.id} style={styles.fieldContainer}>
+        <Input
+          label={cleanLabel(field.label)}
+          value={displayWithFallback}
+          editable={false}
+          multiline={field.type === 'textarea'}
+          inputStyle={field.type === 'textarea' ? styles.textArea : undefined}
+          containerStyle={styles.readOnlyInputContainer}
+        />
+      </View>
+    );
+  };
 
-    if (isReadOnly) {
-      const displayValue = renderValueForDisplay(field, value);
-      const displayWithFallback =
-        displayValue === '—' ? cleanPlaceholder((field as any).placeholder) ?? displayValue : displayValue;
-      const isCheckboxField = field.type === 'checkbox';
-      // Render checkbox as a locked checkbox instead of a text input
-      if (isCheckboxField) {
-        const options = (field as any).options ?? [];
-        const firstLabel =
-          options[0]?.label ?? options[0]?.display ?? options[0]?.value ?? cleanLabel(field.label);
-        const resolvedValue =
-          value !== undefined && value !== null && `${value}` !== ''
-            ? value
-            : entry?.status === 'signed'
-              ? true
-              : false;
-        const checked = Array.isArray(resolvedValue)
-          ? resolvedValue.length > 0
-          : Boolean(resolvedValue);
-        return (
-          <View key={field.id} style={styles.fieldContainer}>
-            <Checkbox value={checked} onValueChange={() => {}} label={firstLabel} />
-          </View>
-        );
-      }
-
-      return (
-        <View key={field.id} style={styles.fieldContainer}>
-          <Input
-            label={cleanLabel(field.label)}
-            value={displayWithFallback}
-            editable={false}
-            multiline={field.type === 'textarea'}
-            inputStyle={field.type === 'textarea' ? styles.textArea : undefined}
-            containerStyle={styles.readOnlyInputContainer}
-          />
-        </View>
-      );
-    }
-
+  const renderEditableField = (field: FormField, value: any, error: string) => {
     const labelText = cleanLabel(field.label);
 
     switch (field.type) {
@@ -503,8 +486,12 @@ export const AppointmentFormScreen: React.FC = () => {
       case 'date':
         return (
           <View key={field.id} style={styles.fieldContainer}>
-            <Text style={styles.label}>{labelText}</Text>
-            <Text style={styles.dateValue}>{getDisplayDate(value) || getDisplayDate(new Date())}</Text>
+            <Input
+              label={labelText}
+              value={getDisplayDate(value)}
+              editable={false}
+              placeholder="Select date"
+            />
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
@@ -512,25 +499,43 @@ export const AppointmentFormScreen: React.FC = () => {
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Text style={styles.label}>{labelText}</Text>
-            <Text style={styles.helperText}>Signature will be captured during signing.</Text>
+            <Text style={styles.helperText}>Signature will be captured during the signing process</Text>
           </View>
         );
-      default: {
-        const anyField = field as any;
-        return (
-          <View key={anyField.id} style={styles.fieldContainer}>
-            <Input
-              label={labelText}
-              value={value ?? ''}
-              placeholder={lockNonCheckboxInputs ? undefined : cleanPlaceholder(anyField.placeholder)}
-              onChangeText={text => handleChange(anyField.id, text)}
-              error={error}
-              editable={!lockNonCheckboxInputs}
-            />
-          </View>
-        );
-      }
+      default:
+        return null;
     }
+  };
+
+  const renderField = (field: FormField) => {
+    const value = values[field.id];
+    const error = errors[field.id];
+
+    if (field.type === 'group') {
+      const groupFields = Array.isArray((field as any).fields) ? (field as any).fields : [];
+      return (
+        <View key={field.id} style={styles.groupContainer}>
+          <Text style={styles.groupLabel}>{field.label}</Text>
+          <View style={styles.groupFields}>
+            {groupFields.map((child: any) => renderField(child))}
+          </View>
+        </View>
+      );
+    }
+
+    const hideInSignedView =
+      isReadOnly &&
+      entry?.status === 'signed' &&
+      (field.type === 'signature' || textIncludes(field.id, ['date']) || textIncludes(field.label, ['date']));
+    if (hideInSignedView) {
+      return null;
+    }
+
+    if (isReadOnly) {
+      return renderReadOnlyField(field, value);
+    }
+
+    return renderEditableField(field, value, error);
   };
 
   if (!entry && loading) {
@@ -581,7 +586,7 @@ export const AppointmentFormScreen: React.FC = () => {
                   {entry.form.schema.map(field => renderField(field))}
                 </View>
 
-                {!isReadOnly ? (
+                {isReadOnly ? null : (
                   <LiquidGlassButton
                     title={entry.signingRequired ? 'Submit & Continue' : 'Submit'}
                     onPress={handleSubmit}
@@ -592,7 +597,7 @@ export const AppointmentFormScreen: React.FC = () => {
                     disabled={submitting}
                     loading={submitting}
                   />
-                ) : null}
+                )}
 
                 {isReadOnly && canStartSigning ? (
                   <LiquidGlassButton
@@ -657,8 +662,8 @@ const renderValueForDisplay = (field: FormField, value: any): string => {
     }
   }
   if (typeof value === 'object') {
-    if ('url' in value && (value as any).url) {
-      return (value as any).url;
+    if ('url' in value && value.url) {
+      return String(value.url);
     }
     return JSON.stringify(value);
   }
