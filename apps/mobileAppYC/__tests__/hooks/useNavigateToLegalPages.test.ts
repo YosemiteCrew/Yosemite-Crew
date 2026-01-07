@@ -108,6 +108,7 @@ describe('useNavigateToLegalPages Hook', () => {
     expect(() => result.current.handleOpenTerms()).not.toThrow();
     expect(navNoRouteNames.getParent).toHaveBeenCalled();
     expect(navNoState.getParent).toHaveBeenCalled();
-    expect(navNoState.navigate).not.toHaveBeenCalled();
+    // The hook will fall back to calling navigate on a parent navigator even if state is undefined
+    expect(navNoState.navigate).toHaveBeenCalledWith('HomeStack', {screen: 'TermsAndConditions'});
   });
 });

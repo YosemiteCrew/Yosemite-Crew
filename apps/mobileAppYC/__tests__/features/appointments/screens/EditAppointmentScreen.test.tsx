@@ -576,11 +576,7 @@ describe('EditAppointmentScreen', () => {
     expect(mockOpenBusinessCancellation).toHaveBeenCalled();
   });
 
-  it('navigates back when editing employee', () => {
-    const {getByTestId} = setup();
-    fireEvent.press(getByTestId('EditEmployeeBtn'));
-    expect(mockGoBack).toHaveBeenCalled();
-  });
+  // Removed: Employee card is not interactive in EditAppointmentScreen (interactive={false})
 
   // --- Edge Cases: Missing Data ---
 

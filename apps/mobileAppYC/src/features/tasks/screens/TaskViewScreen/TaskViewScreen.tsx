@@ -106,6 +106,7 @@ export const TaskViewScreen: React.FC = () => {
   const isCompleted = task ? String(task.status).toUpperCase() === 'COMPLETED' : false;
   const isCancelled = task ? String(task.status).toUpperCase() === 'CANCELLED' : false;
   const isPending = task ? String(task.status).toUpperCase() === 'PENDING' : false;
+  const hasLinkedAppointment = Boolean(task?.appointmentId);
 
   const [otLabel, setOtLabel] = useState<string>(() => {
     if (!isObservationalTool || !task) return '';
@@ -202,6 +203,13 @@ export const TaskViewScreen: React.FC = () => {
 
   const handleBookAppointment = async () => {
     if (!task) {
+      return;
+    }
+    if (hasLinkedAppointment) {
+      tabNavigation?.navigate('Appointments', {
+        screen: 'ViewAppointment',
+        params: {appointmentId: task.appointmentId as string},
+      });
       return;
     }
     let submissionId = task.otSubmissionId ?? null;
@@ -406,7 +414,7 @@ export const TaskViewScreen: React.FC = () => {
                 </View>
                 <View style={styles.otCtaButtonWrapper}>
                   <LiquidGlassButton
-                    title="Book appointment"
+                    title={hasLinkedAppointment ? 'Show appointment' : 'Book appointment'}
                     onPress={handleBookAppointment}
                     glassEffect="clear"
                     borderRadius="lg"

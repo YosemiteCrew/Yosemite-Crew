@@ -67,7 +67,7 @@ describe('cardStyles', () => {
         expect.objectContaining({
           width: '100%',
           alignSelf: 'center',
-          marginBottom: mockTheme.spacing[3],
+          marginBottom: mockTheme.spacing[4],
         })
       );
 
@@ -76,8 +76,10 @@ describe('cardStyles', () => {
         expect.objectContaining({
           borderRadius: mockTheme.borderRadius.lg,
           paddingHorizontal: mockTheme.spacing[4],
-          backgroundColor: mockTheme.colors.surface,
-          borderColor: mockTheme.colors.borderMuted,
+          paddingVertical: mockTheme.spacing[4],
+          backgroundColor: mockTheme.colors.cardBackground,
+          borderWidth: 0,
+          borderColor: 'transparent',
         })
       );
 
@@ -85,16 +87,19 @@ describe('cardStyles', () => {
       expect(styles.fallback).toEqual(
         expect.objectContaining({
           borderRadius: mockTheme.borderRadius.lg,
-          backgroundColor: mockTheme.colors.surface,
-          borderColor: mockTheme.colors.borderMuted,
+          paddingHorizontal: mockTheme.spacing[4],
+          paddingVertical: mockTheme.spacing[4],
+          backgroundColor: mockTheme.colors.cardBackground,
+          borderWidth: 0,
+          borderColor: 'transparent',
         })
       );
 
       // 4. Verify action dimensions
       expect(styles.actionIcon).toEqual(
         expect.objectContaining({
-          width: 30,
-          height: 30,
+          width: mockTheme.spacing[7],
+          height: mockTheme.spacing[7],
           resizeMode: 'contain',
         })
       );
@@ -125,8 +130,8 @@ describe('cardStyles', () => {
       // 7. Verify thumbnail container
       expect(styles.thumbnailContainer).toEqual(
         expect.objectContaining({
-          width: 54,
-          height: 54,
+          width: mockTheme.spacing[14],
+          height: mockTheme.spacing[14],
           backgroundColor: mockTheme.colors.primarySurface,
         })
       );

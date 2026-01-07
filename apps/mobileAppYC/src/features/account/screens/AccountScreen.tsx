@@ -386,88 +386,94 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
               contentContainerStyle={[styles.content, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
               {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
-              <LiquidGlassCard
-                glassEffect="clear"
-                interactive
-                style={styles.companionsCard}
-                fallbackStyle={styles.companionsCardFallback}>
-                {profiles.map((profile, index) => (
-                  <View
-                    key={profile.id}
-                    style={[
-                      styles.companionRow,
-                      index < profiles.length - 1 && styles.companionRowDivider,
-                    ]}>
-                    <View style={styles.companionInfo}>
-                      {renderProfileAvatar(profile, index)}
-                      <View>
-                        <Text
-                          style={styles.companionName}
-                          numberOfLines={1}
-                          ellipsizeMode="tail">
-                          {truncateText(profile.name, 18)}{' '}
-                          {/* limit name to ~18 chars */}
-                        </Text>
-                        <Text
-                          style={styles.companionMeta}
-                          numberOfLines={1}
-                          ellipsizeMode="tail">
-                          {truncateText(profile.subtitle, 30)}{' '}
-                          {/* limit subtitle to ~30 chars */}
-                        </Text>
+              <View style={styles.cardShadowWrapper}>
+                <LiquidGlassCard
+                  glassEffect="clear"
+                  interactive
+                  shadow="base"
+                  style={styles.companionsCard}
+                  fallbackStyle={styles.companionsCardFallback}>
+                  {profiles.map((profile, index) => (
+                    <View
+                      key={profile.id}
+                      style={[
+                        styles.companionRow,
+                        index < profiles.length - 1 && styles.companionRowDivider,
+                      ]}>
+                      <View style={styles.companionInfo}>
+                        {renderProfileAvatar(profile, index)}
+                        <View>
+                          <Text
+                            style={styles.companionName}
+                            numberOfLines={1}
+                            ellipsizeMode="tail">
+                            {truncateText(profile.name, 18)}{' '}
+                            {/* limit name to ~18 chars */}
+                          </Text>
+                          <Text
+                            style={styles.companionMeta}
+                            numberOfLines={1}
+                            ellipsizeMode="tail">
+                            {truncateText(profile.subtitle, 30)}{' '}
+                            {/* limit subtitle to ~30 chars */}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                    {/* Edit Button with conditional navigation */}
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      style={styles.editButton}
-                      onPress={() => {
-                        // Index 0 is the primary user profile
-                        if (index === 0) {
-                          // Navigate to User Profile Edit screen
-                          navigation.navigate('EditParentOverview', {
-                            companionId: profile.id,
-                          });
-                          // e.g., navigation.navigate('EditUserProfile');
-                        } else {
-                          const access = accessByCompanionId[profile.id] ?? defaultAccess ?? null;
-                          const role = (access?.role ?? globalRole ?? '').toUpperCase();
-                          const isPrimary = role.includes('PRIMARY');
-                          const permissions =
-                            access?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
-                          const canEdit =
-                            isPrimary ||
-                            (permissions ? Boolean(permissions.companionProfile) : false);
-                          if (!canEdit) {
-                            showPermissionToast('companion profile');
-                            return;
+                      {/* Edit Button with conditional navigation */}
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={styles.editButton}
+                        onPress={() => {
+                          // Index 0 is the primary user profile
+                          if (index === 0) {
+                            // Navigate to User Profile Edit screen
+                            navigation.navigate('EditParentOverview', {
+                              companionId: profile.id,
+                            });
+                            // e.g., navigation.navigate('EditUserProfile');
+                          } else {
+                            const access = accessByCompanionId[profile.id] ?? defaultAccess ?? null;
+                            const role = (access?.role ?? globalRole ?? '').toUpperCase();
+                            const isPrimary = role.includes('PRIMARY');
+                            const permissions =
+                              access?.permissions ?? defaultAccess?.permissions ?? globalPermissions;
+                            const canEdit =
+                              isPrimary ||
+                              (permissions ? Boolean(permissions.companionProfile) : false);
+                            if (!canEdit) {
+                              showPermissionToast('companion profile');
+                              return;
+                            }
+                            dispatch(setSelectedCompanion(profile.id));
+                            navigation.navigate('ProfileOverview', {
+                              companionId: profile.id,
+                            });
                           }
-                          dispatch(setSelectedCompanion(profile.id));
-                          navigation.navigate('ProfileOverview', {
-                            companionId: profile.id,
-                          });
-                        }
-                      }}>
-                      <Image source={Images.blackEdit} style={styles.editIcon} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </LiquidGlassCard>
+                        }}>
+                        <Image source={Images.blackEdit} style={styles.editIcon} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </LiquidGlassCard>
+              </View>
 
-              <LiquidGlassCard
-                glassEffect="clear"
-                interactive
-                style={styles.menuContainer}
-                fallbackStyle={styles.menuContainerFallback}>
-                <AccountMenuList
-                  items={menuItems}
-                  rightArrowIcon={Images.rightArrow}
-                  onItemPress={(id: string) => {
-                    const it = menuItems.find(m => m.id === id);
-                    it?.onPress();
-                  }}
-                />
-              </LiquidGlassCard>
+              <View style={styles.cardShadowWrapper}>
+                <LiquidGlassCard
+                  glassEffect="clear"
+                  interactive
+                  shadow="base"
+                  style={styles.menuContainer}
+                  fallbackStyle={styles.menuContainerFallback}>
+                  <AccountMenuList
+                    items={menuItems}
+                    rightArrowIcon={Images.rightArrow}
+                    onItemPress={(id: string) => {
+                      const it = menuItems.find(m => m.id === id);
+                      it?.onPress();
+                    }}
+                  />
+                </LiquidGlassCard>
+              </View>
 
               <LiquidGlassButton
                 title="Logout"
@@ -477,6 +483,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                 borderRadius="lg"
                 forceBorder
                 borderColor={theme.colors.secondary}
+                shadowIntensity="strong"
                 style={styles.logoutButton}
                 textStyle={styles.logoutText}
               />
@@ -521,10 +528,10 @@ const createStyles = (theme: any) => {
     },
     companionsCardFallback: {
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: Platform.OS === 'android' ? 1 : 0,
-      borderColor: theme.colors.borderMuted,
-      ...theme.shadows.base,
-      shadowColor: theme.colors.neutralShadow,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
     },
     companionRow: {
       flexDirection: 'row',
@@ -591,10 +598,10 @@ const createStyles = (theme: any) => {
     },
     menuContainerFallback: {
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: Platform.OS === 'android' ? 1 : 0,
-      borderColor: theme.colors.borderMuted,
-      ...theme.shadows.base,
-      shadowColor: theme.colors.neutralShadow,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'hidden',
     },
     logoutButton: {
       width: '100%',
@@ -610,6 +617,13 @@ const createStyles = (theme: any) => {
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginTop: theme.spacing['2'],
+    },
+    cardShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.lg,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'visible',
     },
   });
 };

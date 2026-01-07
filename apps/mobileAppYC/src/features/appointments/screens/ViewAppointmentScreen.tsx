@@ -1377,9 +1377,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   cardFallback: {
     backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: Platform.OS === 'android' ? 1 : 0,
     borderColor: theme.colors.borderMuted,
-    ...theme.shadows.base,
+    ...theme.shadows.md,
     shadowColor: theme.colors.neutralShadow,
   },
   formHeader: {

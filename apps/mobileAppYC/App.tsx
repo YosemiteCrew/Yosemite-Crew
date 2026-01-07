@@ -34,14 +34,18 @@ import {
   initializeNotifications,
   type NotificationNavigationIntent,
 } from '@/shared/services/firebaseNotifications';
-import {fetchMobileConfig, type MobileConfig} from '@/shared/services/mobileConfig';
+import {
+  fetchMobileConfig,
+  isProductionMobileEnv,
+  type MobileConfig,
+} from '@/shared/services/mobileConfig';
 import {
   registerDeviceToken,
   unregisterDeviceToken,
 } from '@/shared/services/deviceTokenRegistry';
 import {useAppDispatch} from '@/app/hooks';
 import type {RootStackParamList} from '@/navigation/types';
-import {STRIPE_CONFIG} from '@/config/variables';
+import {AUTH_FEATURE_FLAGS, STRIPE_CONFIG} from '@/config/variables';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 Amplify.configure(outputs);
@@ -76,6 +80,9 @@ function App(): React.JSX.Element {
       try {
         const config = await fetchMobileConfig();
         if (mounted) {
+          if (isProductionMobileEnv(config.env)) {
+            AUTH_FEATURE_FLAGS.enableReviewLogin = false;
+          }
           setMobileConfig(config);
         }
       } catch (error) {

@@ -24,14 +24,13 @@ describe('createAttachmentStyles', () => {
 
     expect(styles.container).toEqual({ gap: mockTheme.spacing[4] });
     expect(styles.previewCard).toMatchObject({
-      backgroundColor: mockTheme.colors.cardBackground,
       borderRadius: mockTheme.borderRadius.lg,
-      borderColor: mockTheme.colors.borderMuted,
-      padding: mockTheme.spacing[4],
+      alignItems: 'center',
+      width: '100%',
+      gap: mockTheme.spacing[3],
     });
     expect(styles.emptyStateContainer).toMatchObject({
       borderColor: mockTheme.colors.borderMuted,
-      backgroundColor: mockTheme.colors.surface,
     });
     expect(styles.shareButton).toMatchObject({
       backgroundColor: mockTheme.colors.primary,

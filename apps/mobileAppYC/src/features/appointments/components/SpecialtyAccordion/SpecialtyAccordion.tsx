@@ -108,7 +108,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
                 style={styles.selectButton}
                 textStyle={styles.selectButtonText}
                 tintColor={theme.colors.secondary}
-                shadowIntensity="none"
+                shadowIntensity="light"
               />
             </LiquidGlassCard>
           ))}
@@ -220,9 +220,10 @@ const createStyles = (theme: any) =>
     },
     serviceCardFallback: {
       backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: Platform.OS === 'android' ? 1 : 0,
       borderColor: theme.colors.borderMuted,
-      ...theme.shadows.base,
+      ...theme.shadows.md,
       shadowColor: theme.colors.neutralShadow,
     },
     serviceTopRow: {
@@ -257,7 +258,6 @@ const createStyles = (theme: any) =>
       width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.white,
       borderRadius: theme.borderRadius.lg,
     },
     selectButtonText: {

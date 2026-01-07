@@ -143,6 +143,8 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
       borderWidth: 1,
       borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
     },
     compact: {
       width: theme.spacing['72'],
@@ -206,7 +208,6 @@ const createStyles = (theme: any) =>
       lineHeight: theme.spacing['4'],
     },
     button: {
-      backgroundColor: theme.colors.white,
       marginTop: theme.spacing['2'],
     },
     buttonText: {
