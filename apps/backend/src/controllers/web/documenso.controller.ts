@@ -114,7 +114,7 @@ async function handleDocumentCompleted(
     Number.parseInt(submission.signing.documentId!, 10),
   );
 
-  if( signedDocument ) {
+  if (signedDocument) {
     submission.signing.pdf = {
       url: signedDocument.downloadUrl,
     };
