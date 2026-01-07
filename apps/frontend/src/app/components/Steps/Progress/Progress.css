@@ -16,12 +16,12 @@
   flex-wrap: wrap;
 }
 .step-heading {
-  color: #a09f9f;
-  font-family: var(--grotesk-font);
+  color: #A09F9F;
+  font-family: var(--font-satoshi);
   font-size: 16px;
   font-style: normal;
   font-weight: 500;
-  line-height: 100%;
+  line-height: 112.5%;
   letter-spacing: -0.32px;
 }
 .step-logo {
@@ -37,7 +37,7 @@
   width: 48px;
   height: 2px;
   border-radius: 2px;
-  background: #a09f9f;
+  background: #A09F9F;
 }
 .activestep {
   color: var(--black-text);

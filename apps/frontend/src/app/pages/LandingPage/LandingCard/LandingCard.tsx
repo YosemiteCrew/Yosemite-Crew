@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { Primary } from "@/app/components/Buttons";
 import { InfoCard } from "../data";
+import { TextFade } from "@/app/components/Animations/TextFade";
 
 import "./LandingCard.css";
 
@@ -10,24 +11,26 @@ const LandingCard = ({ item }: { item: InfoCard }) => {
   return (
     <section className="landingSection" style={{ background: item.background }}>
       <div className="landingContainer">
-        <div className="landingTop">
+        <TextFade direction="up" className="landingTop">
           <span>{item.target}</span>
-        </div>
+        </TextFade>
         <div className="LandingData">
           <div className="LeftLanding">
             <div className="landingTexed">
-              <div className="landinginnerTexed">
+              <TextFade direction="up" className="landinginnerTexed">
                 <h2>{item.title}</h2>
                 <p>{item.description}</p>
-              </div>
-              <Primary
-                style={{ width: "211px" }}
-                text="Learn more"
-                href={item.href}
-              />
+              </TextFade>
+              <TextFade direction="up">
+                <Primary
+                  style={{ width: "211px" }}
+                  text="Learn more"
+                  href={item.href}
+                />
+              </TextFade>
             </div>
           </div>
-          <div className="RightLanding">
+          <TextFade direction="up" className="RightLanding">
             <Image
               aria-hidden
               src={item.image}
@@ -35,7 +38,7 @@ const LandingCard = ({ item }: { item: InfoCard }) => {
               width={884}
               height={600}
             />
-          </div>
+          </TextFade>
         </div>
       </div>
     </section>

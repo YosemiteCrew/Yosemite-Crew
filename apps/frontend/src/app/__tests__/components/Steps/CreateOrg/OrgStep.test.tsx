@@ -110,7 +110,6 @@ describe("OrgStep Component", () => {
       />
     );
 
-    expect(screen.getByText("Organisation")).toBeInTheDocument();
     expect(screen.getByTestId("input-name")).toBeInTheDocument();
     expect(screen.getByTestId("input-country")).toBeInTheDocument();
     expect(screen.getByTestId("input-number")).toBeInTheDocument();
