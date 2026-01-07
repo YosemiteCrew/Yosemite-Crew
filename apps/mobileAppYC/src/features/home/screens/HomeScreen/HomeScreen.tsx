@@ -1557,18 +1557,18 @@ const createStyles = (theme: any) =>
       shadowColor: theme.colors.neutralShadow,
     },
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
-  upcomingFooter: {
-    gap: theme.spacing['2'],
-  },
-  requestedBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: theme.spacing['2.5'],
-    paddingVertical: theme.spacing['2'],
-    borderRadius: theme.borderRadius.lg,
-    backgroundColor: theme.colors.primaryTint,
-  },
-  requestedBadgeText: {
-    ...theme.typography.title,
-    color: theme.colors.primary,
-  },
+    upcomingFooter: {
+      gap: theme.spacing['2'],
+    },
+    requestedBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['2'],
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.primaryTint,
+    },
+    requestedBadgeText: {
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.primary,
+    },
   });

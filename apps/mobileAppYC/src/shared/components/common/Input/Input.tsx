@@ -56,9 +56,23 @@ export const Input: React.FC<InputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const [hasValue, setHasValue] = useState(!!value);
   const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
-  const isMultiline = Boolean(textInputProps.multiline);
+  const {
+    keyboardAppearance: keyboardAppearanceProp,
+    returnKeyType: returnKeyTypeProp,
+    returnKeyLabel: returnKeyLabelProp,
+    blurOnSubmit: blurOnSubmitProp,
+    onSubmitEditing,
+    ...restTextInputProps
+  } = textInputProps;
+  const isMultiline = Boolean(restTextInputProps.multiline);
   const keyboardAppearance =
     systemColorScheme === 'dark' ? 'dark' : 'light';
+  const resolvedKeyboardAppearance =
+    keyboardAppearanceProp ?? keyboardAppearance;
+  const resolvedReturnKeyType = returnKeyTypeProp ?? 'done';
+  const resolvedReturnKeyLabel = returnKeyLabelProp ?? 'Done';
+  const resolvedBlurOnSubmit =
+    blurOnSubmitProp ?? !isMultiline;
 
   const animateLabel = useCallback((toValue: number) => {
     Animated.timing(animatedValue, {
@@ -249,23 +263,23 @@ export const Input: React.FC<InputProps> = ({
         <TextInput
           style={[getInputStyle(), inputStyle]}
           placeholderTextColor={theme.colors.placeholder}
-          keyboardAppearance={
-            textInputProps.keyboardAppearance ?? keyboardAppearance
-          }
+          keyboardAppearance={resolvedKeyboardAppearance}
+          blurOnSubmit={resolvedBlurOnSubmit}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChangeText={handleChangeText}
           value={value}
           clearButtonMode="while-editing"
           enablesReturnKeyAutomatically={true}
-          returnKeyType={textInputProps.returnKeyType ?? 'done'}
+          returnKeyType={resolvedReturnKeyType}
+          returnKeyLabel={resolvedReturnKeyLabel}
           onSubmitEditing={(event) => {
-            textInputProps.onSubmitEditing?.(event);
+            onSubmitEditing?.(event);
             if (!isMultiline) {
               Keyboard.dismiss();
             }
           }}
-          {...textInputProps}
+          {...restTextInputProps}
         />
         {icon && IconWrapper && (
           <IconWrapper onPress={onIconPress} activeOpacity={0.7}>

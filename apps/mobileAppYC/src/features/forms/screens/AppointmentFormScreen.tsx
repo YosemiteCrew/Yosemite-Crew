@@ -104,7 +104,9 @@ export const AppointmentFormScreen: React.FC = () => {
   const [values, setValues] = useState<Record<string, any>>(entry?.submission?.answers ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const isReadOnly = Boolean(entry?.submission && mode !== 'fill');
+  const isReadOnly = Boolean(
+    entry?.submission && (mode !== 'fill' || entry.status === 'signed' || entry.status === 'completed'),
+  );
   const canStartSigning =
     allowSign && entry?.signingRequired && entry.submission && entry.status !== 'signed';
 

@@ -34,6 +34,25 @@ const SUBCATEGORY_API_MAP: Record<string, string> = {
   'nutrition-plans': 'NUTRITION_PLANS',
 };
 
+const normalizeKey = (value?: string | null): string =>
+  (value ?? '')
+    .toString()
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const SUBCATEGORY_API_TO_UI: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  Object.entries(SUBCATEGORY_API_MAP).forEach(([uiSlug, apiSlug]) => {
+    map[normalizeKey(apiSlug)] = uiSlug;
+    map[normalizeKey(uiSlug)] = uiSlug;
+  });
+  map[normalizeKey('training-and-behaviour-reports')] = 'training-behaviour';
+  map[normalizeKey('training & behaviour reports')] = 'training-behaviour';
+  return map;
+})();
+
 const toUiSlug = (value?: string | null): string => {
   if (!value) {
     return '';
@@ -71,6 +90,10 @@ const normalizeSubcategoryFromApi = (
     return normalizedCategory === 'others' ? 'other' : '';
   }
   const lower = subcategory.toString().toLowerCase();
+  const mapped = SUBCATEGORY_API_TO_UI[normalizeKey(subcategory)];
+  if (mapped) {
+    return mapped;
+  }
   if (lower === 'other' || lower === 'others') {
     return 'other';
   }

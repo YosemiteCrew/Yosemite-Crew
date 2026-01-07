@@ -1,4 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
+import {useDispatch, useSelector} from 'react-redux';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {
   getFocusedRouteNameFromRoute,
@@ -18,6 +19,9 @@ import {
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import type {RootState, AppDispatch} from '@/app/store';
+import {fetchDocuments} from '@/features/documents/documentSlice';
+import {fetchTasksForCompanion} from '@/features/tasks';
 
 const ICON_MAP: Record<
   string,
@@ -45,9 +49,28 @@ interface TabLayout {
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
+  const dispatch = useDispatch<AppDispatch>();
+  const companions = useSelector((s: RootState) => s.companion.companions);
+  const selectedCompanionIdFromState = useSelector((s: RootState) => s.companion.selectedCompanionId);
+  const companionId = selectedCompanionIdFromState ?? companions[0]?.id ?? null;
   const isIOS = Platform.OS === 'ios';
   const useGlass = isIOS && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme, isIOS), [theme, isIOS]);
+
+  const refreshTabData = React.useCallback(
+    (routeName: string) => {
+      if (!companionId) {
+        return;
+      }
+      if (routeName === 'Documents') {
+        dispatch(fetchDocuments({companionId}));
+      }
+      if (routeName === 'Tasks') {
+        dispatch(fetchTasksForCompanion({companionId}));
+      }
+    },
+    [companionId, dispatch],
+  );
 
   // Animated values for sliding pill - using JS driver for both since we need width
   const pillLeft = useRef(new Animated.Value(0)).current;
@@ -155,6 +178,13 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     state.routes.length,
   ]);
 
+  useEffect(() => {
+    const activeRoute = state.routes[state.index];
+    if (activeRoute) {
+      refreshTabData(activeRoute.name);
+    }
+  }, [refreshTabData, state.index, state.routes]);
+
   if (shouldHideTabBar) {
     return null;
   }
@@ -206,6 +236,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
 
         if (!isFocused && !event.defaultPrevented) {
           const rootScreen = ROOT_ROUTE_MAP[route.name];
+          refreshTabData(route.name);
           if (rootScreen) {
             navigation.navigate(route.name, {screen: rootScreen});
           } else {

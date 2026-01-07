@@ -682,6 +682,8 @@ export const ViewAppointmentScreen: React.FC = () => {
   const CHECKIN_BUFFER_MS = 5 * 60 * 1000;
   const formsFetchedRef = React.useRef(false);
   const lastFormsFetchTsRef = React.useRef(0);
+  const lastTasksFetchTsRef = React.useRef(0);
+  const lastDocumentsFetchTsRef = React.useRef(0);
 
   useEnsureAppointmentLoaded({apt, appointmentId, dispatch});
   useAppointmentDocumentsEffect({companionId: apt?.companionId, dispatch});
@@ -698,6 +700,8 @@ export const ViewAppointmentScreen: React.FC = () => {
   useEffect(() => {
     formsFetchedRef.current = false;
     lastFormsFetchTsRef.current = 0;
+    lastTasksFetchTsRef.current = 0;
+    lastDocumentsFetchTsRef.current = 0;
   }, [appointmentId]);
 
   useEffect(() => {
@@ -733,6 +737,19 @@ export const ViewAppointmentScreen: React.FC = () => {
               species: apt.species ?? null,
             }),
           );
+        }
+        if (companionId) {
+          const shouldFetchTasks = !lastTasksFetchTsRef.current || now - lastTasksFetchTsRef.current > 3000;
+          if (shouldFetchTasks) {
+            lastTasksFetchTsRef.current = now;
+            dispatch(fetchTasksForCompanion({companionId}));
+          }
+          const shouldFetchDocuments =
+            !lastDocumentsFetchTsRef.current || now - lastDocumentsFetchTsRef.current > 3000;
+          if (shouldFetchDocuments) {
+            lastDocumentsFetchTsRef.current = now;
+            dispatch(fetchDocuments({companionId}));
+          }
         }
       }
     }, [apt, appointmentId, companionId, dispatch]),

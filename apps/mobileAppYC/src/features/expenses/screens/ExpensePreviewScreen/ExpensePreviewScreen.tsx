@@ -185,6 +185,9 @@ export const ExpensePreviewScreen: React.FC = () => {
   const userCurrencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? 'USD',
   );
+  const companion = useSelector((state: RootState) =>
+    expense?.companionId ? state.companion.companions.find(c => c.id === expense.companionId) : null,
+  );
   const currencyCode = expense?.currencyCode ?? userCurrencyCode;
 
   const {
@@ -284,7 +287,12 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   const detailItems: DetailItem[] = [
     {label: 'Title', value: expense.title},
-    {label: 'Business', value: businessNameFromOrg ?? expense.businessName ?? '—'},
+    {label: 'Provider', value: businessNameFromOrg ?? expense.businessName ?? '—'},
+    {
+      label: 'Companion',
+      value: companion?.name ?? expense.companionName ?? '',
+      hidden: !companion?.name && !expense.companionName,
+    },
     {label: 'Category', value: resolveCategoryLabel(expense.category)},
     {
       label: 'Sub category',

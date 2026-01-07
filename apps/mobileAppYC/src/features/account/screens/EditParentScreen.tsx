@@ -278,7 +278,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           resolvedCountry.dial_code.replaceAll('+', '').length,
         )
       : normalizedPhoneDigits;
-    const localPhoneNumber = localPhoneRaw.slice(-10);
+    const localPhoneNumber = localPhoneRaw.slice(-12); // Support up to 12-digit phone numbers
     return { dialCode: resolvedCountry.dial_code, localNumber: localPhoneNumber };
   }, [safeUser.phone]);
 
