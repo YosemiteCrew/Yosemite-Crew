@@ -58,6 +58,8 @@ const FAQCard: React.FC<{
   <LiquidGlassCard
     glassEffect="clear"
     interactive
+    padding="4"
+    shadow="sm"
     style={styles.faqCard}
     fallbackStyle={styles.cardFallback}>
     <TouchableOpacity
@@ -65,7 +67,13 @@ const FAQCard: React.FC<{
       onPress={() => onToggle(faq.id)}
       activeOpacity={0.8}>
       <Text style={styles.questionText}>{faq.question}</Text>
-      <Text style={styles.toggleSymbol}>{isExpanded ? '−' : '+'}</Text>
+      <Image
+        source={Images.downArrow}
+        style={[
+          styles.toggleIcon,
+          isExpanded && styles.toggleIconExpanded
+        ]}
+      />
     </TouchableOpacity>
 
     {isExpanded && (
@@ -235,8 +243,8 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
           />
         </>
       }
-      contentPadding={theme.spacing['3']}
-      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['4']}
+      cardGap={theme.spacing['4']}
       useSafeAreaView
       containerStyle={styles.safeArea}
       showBottomFade={false}>
@@ -301,7 +309,8 @@ const createStyles = (theme: any) => {
     },
     contentContainer: {
       paddingHorizontal: theme.spacing['5'],
-      paddingBottom: theme.spacing['8'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
       gap: theme.spacing['4'],
     },
     searchContainer: {
@@ -336,15 +345,14 @@ const createStyles = (theme: any) => {
       opacity: 0.7,
     },
     faqCard: {
-      gap: theme.spacing['3'],
-      padding: theme.spacing['4'],
+      backgroundColor: theme.colors.cardBackground,
     },
     cardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      ...theme.shadows.none,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     questionRow: {
       flexDirection: 'row',
@@ -357,12 +365,15 @@ const createStyles = (theme: any) => {
       ...theme.typography.paragraphBold,
       color: theme.colors.text,
     },
-    toggleSymbol: {
-      fontFamily: theme.typography.paragraphBold.fontFamily,
-      fontWeight: theme.typography.paragraphBold.fontWeight,
-      fontSize: theme.typography.titleLarge.fontSize,
-      lineHeight: theme.typography.titleLarge.lineHeight,
-      color: theme.colors.text,
+    toggleIcon: {
+      width: 20,
+      height: 20,
+      resizeMode: 'contain',
+      tintColor: theme.colors.text,
+      transform: [{rotate: '0deg'}],
+    },
+    toggleIconExpanded: {
+      transform: [{rotate: '180deg'}],
     },
     answerSection: {
       gap: theme.spacing['3'],

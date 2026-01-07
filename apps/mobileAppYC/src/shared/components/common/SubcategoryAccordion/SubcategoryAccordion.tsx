@@ -104,7 +104,7 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
             )}
           </View>
           <Animated.Image
-            source={Images.dropdownIcon}
+            source={Images.downArrow}
             style={[styles.chevron, chevronAnimatedStyle]}
           />
         </TouchableOpacity>

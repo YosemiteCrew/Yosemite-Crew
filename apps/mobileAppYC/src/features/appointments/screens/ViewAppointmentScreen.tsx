@@ -924,7 +924,7 @@ export const ViewAppointmentScreen: React.FC = () => {
         entry.status !== 'submitted';
       const action =
         entry.submission && (entry.signingRequired || isSigned)
-          ? {label: isSigned ? 'View form' : 'View & Sign', mode: 'view' as const, allowSign: !isSigned}
+          ? {label: isSigned ? 'View Submission' : 'View & Sign', mode: 'view' as const, allowSign: !isSigned}
           : entry.submission
             ? {label: 'View form', mode: 'view' as const, allowSign: false}
             : {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};

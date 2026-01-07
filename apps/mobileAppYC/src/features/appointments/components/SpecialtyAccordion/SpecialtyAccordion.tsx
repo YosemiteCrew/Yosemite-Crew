@@ -68,7 +68,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
           </Text>
         </View>
         <Animated.Image
-          source={Images.arrowDown}
+          source={Images.downArrow}
           style={[
             styles.chevronIcon,
             {transform: [{rotate: rotateInterpolate}]},

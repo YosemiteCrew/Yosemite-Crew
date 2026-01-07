@@ -375,7 +375,8 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
             glass={false}
           />
         }
-        contentPadding={theme.spacing['3']}
+        contentPadding={theme.spacing['4']}
+        cardGap={theme.spacing['4']}
         useSafeAreaView
         containerStyle={styles.container}
         showBottomFade={false}>
@@ -509,15 +510,21 @@ const createStyles = (theme: any) => {
     content: {
       flexGrow: 1,
       paddingHorizontal: theme.spacing['5'],
-      paddingBottom: theme.spacing['10'],
-      gap: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['4'],
     },
     companionsCard: {
+      backgroundColor: theme.colors.cardBackground,
+      padding: theme.spacing['4'],
       gap: theme.spacing['4'],
     },
     companionsCardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     companionRow: {
       flexDirection: 'row',
@@ -579,14 +586,15 @@ const createStyles = (theme: any) => {
       resizeMode: 'contain',
     },
     menuContainer: {
-      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
       overflow: 'hidden',
     },
     menuContainerFallback: {
-      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     logoutButton: {
       width: '100%',
