@@ -8,6 +8,10 @@ import classNames from "classnames";
 import { useSignOut } from "@/app/hooks/useAuth";
 
 import "./UserHeader.css";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
+import { isHttpsImageUrl } from "@/app/utils/urls";
+import { FaCaretDown } from "react-icons/fa6";
 
 const appRoutes = [
   { name: "Dashboard", href: "/dashboard" },
@@ -41,6 +45,10 @@ const UserHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const isDev = pathname.startsWith("/developers");
   const routes = isDev ? devRoutes : appRoutes;
+  const [selectOrg, setSelectOrg] = useState(false);
+  const orgs = useOrgList();
+  const primaryOrg = usePrimaryOrg();
+  const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
@@ -56,6 +64,12 @@ const UserHeader = () => {
     } catch (error) {
       console.error("⚠️ Cognito signout error:", error);
     }
+  };
+
+  const handleOrgClick = (orgId: string) => {
+    setPrimaryOrg(orgId);
+    setSelectOrg(false);
+    router.push("/dashboard");
   };
 
   const handleClick = (item: any) => {
@@ -120,6 +134,55 @@ const UserHeader = () => {
           size={28}
           style={{ cursor: "pointer" }}
         />
+        {primaryOrg && (
+          <div className="relative">
+            <button
+              className="flex items-center gap-2.5"
+              onClick={() => setSelectOrg((e) => !e)}
+            >
+              <Image
+                src={
+                  isHttpsImageUrl(primaryOrg.imageURL)
+                    ? primaryOrg.imageURL
+                    : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                }
+                alt="Logo"
+                height={42}
+                width={42}
+                className="rounded-full min-w-[42px] max-h-[42px] h-[42px] object-cover"
+              />
+              <div className="font-satoshi font-medium text-black-text text-[16px] tracking-tight leading-6">
+                Manipal Hospital
+              </div>
+              <FaCaretDown
+                size={20}
+                className={`text-black-text transition-transform cursor-pointer`}
+              />
+            </button>
+            {selectOrg && (
+              <div className="absolute top-[120%] left-0 rounded-2xl border border-grey-noti bg-white shadow-md! flex flex-col items-center w-full px-3">
+                {orgs.slice(0, 3).map((org, i) => (
+                  <button
+                    key={org.name + i}
+                    className="text-grey-noti font-grotesk font-medium text-[16px] text-center py-2 w-full"
+                    onClick={() =>
+                      handleOrgClick(org._id?.toString() || org.name)
+                    }
+                  >
+                    {org.name}
+                  </button>
+                ))}
+                <Link
+                  href={"/organizations"}
+                  onClick={() => setSelectOrg(false)}
+                  className="text-blue-text font-grotesk font-medium text-[16px] text-center py-2 border-t! border-t-grey-light! w-full"
+                >
+                  View all
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className="menu-toggle"

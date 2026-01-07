@@ -59,7 +59,7 @@ describe("CreateOrg page", () => {
     render(<ProtectedCreateOrg />);
 
     expect(screen.getByTestId("protected-route")).toBeInTheDocument();
-    expect(screen.getByText("Create organisation")).toBeInTheDocument();
+    expect(screen.getByText("Create organization")).toBeInTheDocument();
     expect(screen.getByTestId("create-org-progress")).toBeInTheDocument();
     expect(latestProgressProps?.steps).toHaveLength(3);
     expect(screen.getByTestId("org-step")).toBeInTheDocument();

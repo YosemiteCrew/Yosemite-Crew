@@ -8,6 +8,7 @@ import Footer from "@/app/components/Footer/Footer";
 import LandingCard from "./LandingCard/LandingCard";
 import { Primary } from "@/app/components/Buttons";
 import { InfoCards, SlidesData } from "./data";
+import { TextFade } from "@/app/components/Animations/TextFade";
 
 import "./LandingPage.css";
 
@@ -23,21 +24,21 @@ const LandingPage = () => {
       <section className="HeroSection">
         <div className="HeroContainer">
           <div className="LeftHeroSection">
-            <div className="LeftHeroText">
+            <TextFade direction="up" className="LeftHeroText">
               <h2>Open source operating system for animal health</h2>
               <p>
                 Designed for pet businesses, pet parents, and developers to
                 collaborate in improving animal care. Streamline workflows while
                 enhancing health outcomes, in one unified system.
               </p>
-            </div>
-            <div className="LeftHeroButtons">
+            </TextFade>
+            <TextFade direction="up" className="LeftHeroButtons">
               <Primary
                 style={{ width: "211px" }}
                 text="Book demo"
                 href="/book-demo"
               />
-            </div>
+            </TextFade>
           </div>
 
           <div className="RightHeroSection">

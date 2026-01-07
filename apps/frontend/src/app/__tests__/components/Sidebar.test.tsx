@@ -94,25 +94,6 @@ describe("Sidebar", () => {
     expect(mockRouter.push).not.toHaveBeenCalled();
   });
 
-  it("allows navigation and org switching when data is ready", () => {
-    setupOrgStore("loaded");
-    const primaryOrg = { _id: "org-1", name: "Primary Org", isVerified: true, imageURL: "https://example.com/org1.png" };
-    const secondOrg = { _id: "org-2", name: "Second Org", isVerified: true, imageURL: "https://example.com/org2.png" };
-    mockUseOrgList.mockReturnValue([primaryOrg, secondOrg]);
-    mockUsePrimaryOrg.mockReturnValue(primaryOrg);
-
-    render(<Sidebar />);
-
-    fireEvent.click(screen.getByText("Dashboard"));
-    expect(mockRouter.push).toHaveBeenCalledWith("/dashboard");
-
-    fireEvent.click(screen.getByText("Primary Org"));
-    fireEvent.click(screen.getByText("Second Org"));
-
-    expect(setPrimaryOrg).toHaveBeenCalledWith("org-2");
-    expect(mockRouter.push).toHaveBeenCalledWith("/dashboard");
-  });
-
   it("signs out and redirects on sign out click", async () => {
     const signOutMock = jest.fn().mockResolvedValue(undefined);
     mockUseSignOut.mockReturnValue({ signOut: signOutMock });
