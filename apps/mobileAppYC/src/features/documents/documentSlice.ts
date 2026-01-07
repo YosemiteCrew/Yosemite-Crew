@@ -46,22 +46,35 @@ const ensureAccessToken = async (): Promise<string> => {
 export const fetchDocuments = createAsyncThunk<
   {companionId: string; documents: Document[]},
   {companionId: string},
-  {rejectValue: string}
->('documents/fetchDocuments', async ({companionId}, {rejectWithValue}) => {
-  try {
-    if (!companionId) {
-      throw new Error('Please select a pet to load documents.');
-    }
+  {state: RootState; rejectValue: string}
+>(
+  'documents/fetchDocuments',
+  async ({companionId}, {rejectWithValue}) => {
+    try {
+      if (!companionId) {
+        throw new Error('Please select a pet to load documents.');
+      }
 
-    const accessToken = await ensureAccessToken();
-    const documents = await documentApi.list({companionId, accessToken});
-    return {companionId, documents};
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to fetch documents',
-    );
-  }
-});
+      const accessToken = await ensureAccessToken();
+      const documents = await documentApi.list({companionId, accessToken});
+      return {companionId, documents};
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch documents',
+      );
+    }
+  },
+  {
+    condition: ({companionId}, {getState}) => {
+      if (!companionId) {
+        return false;
+      }
+      const state = getState();
+      // Avoid duplicate calls while a fetch is already running
+      return state.documents.fetching === false;
+    },
+  },
+);
 
 export const uploadDocumentFiles = createAsyncThunk<
   DocumentFile[],
