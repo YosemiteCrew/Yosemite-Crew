@@ -369,7 +369,7 @@ const createStyles = (theme: any, maxListHeight: number) =>
     checkmark: {
       width: theme.spacing['5'],
       height: theme.spacing['5'],
-      borderRadius: theme.spacing['5'] / 2,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',

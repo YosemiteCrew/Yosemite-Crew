@@ -1,4 +1,3 @@
-import {Platform} from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import * as sessionManager from '../../src/features/auth/sessionManager';
 import {
@@ -7,12 +6,18 @@ import {
 
 // --- Mocks ---
 
+// Define a mutable Platform mock
+const mockPlatform = {
+  OS: 'ios' as 'ios' | 'android', // Default, will change in tests
+  select: jest.fn(),
+};
+
+// Mock React Native Platform at the Libraries path
+jest.mock('react-native/Libraries/Utilities/Platform', () => mockPlatform);
+
 // Mock React Native Platform
 jest.mock('react-native', () => ({
-  Platform: {
-    OS: 'ios', // Default, will change in tests
-    select: jest.fn(),
-  },
+  Platform: mockPlatform,
 }));
 
 // Mock Device Info
@@ -61,7 +66,7 @@ describe('deviceTokenRegistry', () => {
 
   describe('shouldSkipDeviceTokenCalls (Internal Logic)', () => {
     it('returns false immediately if Platform is not iOS (Android)', async () => {
-      Platform.OS = 'android';
+      mockPlatform.OS = 'android';
       // Even if isEmulator returns true, Android should NOT skip
       (DeviceInfo.isEmulator as jest.Mock).mockResolvedValue(true);
 
@@ -73,7 +78,7 @@ describe('deviceTokenRegistry', () => {
     });
 
     it('returns true if iOS and isEmulator is true', async () => {
-      Platform.OS = 'ios';
+      mockPlatform.OS = 'ios';
       // We need to reset the module to clear 'cachedIsEmulator' if previously set
       jest.resetModules();
       const {isRunningOnIosSimulator: runCheck} = require('../../src/shared/services/deviceTokenRegistry');
@@ -86,7 +91,7 @@ describe('deviceTokenRegistry', () => {
     });
 
     it('returns false if iOS and isEmulator is false', async () => {
-      Platform.OS = 'ios';
+      mockPlatform.OS = 'ios';
       jest.resetModules();
       const {isRunningOnIosSimulator: runCheck} = require('../../src/shared/services/deviceTokenRegistry');
       const {isEmulator} = require('react-native-device-info');
@@ -98,7 +103,7 @@ describe('deviceTokenRegistry', () => {
     });
 
     it('handles error in isEmulator check and defaults to false (not skipping)', async () => {
-      Platform.OS = 'ios';
+      mockPlatform.OS = 'ios';
       jest.resetModules();
       const {isRunningOnIosSimulator: runCheck} = require('../../src/shared/services/deviceTokenRegistry');
       const {isEmulator} = require('react-native-device-info');
@@ -119,7 +124,7 @@ describe('deviceTokenRegistry', () => {
     });
 
     it('uses cached value on subsequent calls', async () => {
-      Platform.OS = 'ios';
+      mockPlatform.OS = 'ios';
       jest.resetModules();
       const {isRunningOnIosSimulator: runCheck} = require('../../src/shared/services/deviceTokenRegistry');
       const {isEmulator} = require('react-native-device-info');
@@ -141,7 +146,7 @@ describe('deviceTokenRegistry', () => {
     beforeEach(() => {
         // Ensure we are in a clean state regarding the cache for these tests
         jest.resetModules();
-        Platform.OS = 'ios'; // Default
+        mockPlatform.OS = 'ios'; // Default
         // Re-setup basic mocks since resetModules cleared them
         const {isEmulator} = require('react-native-device-info');
         isEmulator.mockResolvedValue(false); // Default to real device
@@ -195,7 +200,7 @@ describe('deviceTokenRegistry', () => {
     });
 
     it('successfully registers on Android (skips emulator check logic)', async () => {
-        Platform.OS = 'android';
+        mockPlatform.OS = 'android';
         const {registerDeviceToken: register} = require('../../src/shared/services/deviceTokenRegistry');
         const {getFreshStoredTokens: getTokens} = require('../../src/features/auth/sessionManager');
 
@@ -226,7 +231,7 @@ describe('deviceTokenRegistry', () => {
   describe('unregisterDeviceToken', () => {
     beforeEach(() => {
         jest.resetModules();
-        Platform.OS = 'ios';
+        mockPlatform.OS = 'ios';
         const {isEmulator} = require('react-native-device-info');
         isEmulator.mockResolvedValue(false);
     });
@@ -301,7 +306,7 @@ describe('deviceTokenRegistry', () => {
 
     beforeEach(() => {
         jest.resetModules();
-        Platform.OS = 'ios';
+        mockPlatform.OS = 'ios';
         const {isEmulator} = require('react-native-device-info');
         isEmulator.mockResolvedValue(false);
     });

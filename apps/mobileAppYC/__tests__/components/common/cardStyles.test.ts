@@ -9,6 +9,11 @@ import {
 } from '@/shared/components/common/cardStyles.ts';
 import {mockTheme} from '../../setup/mockTheme';
 
+jest.mock('react-native/Libraries/Utilities/Platform', () => ({
+  OS: 'ios',
+  select: jest.fn((options) => options.ios),
+}));
+
 // Mock a theme object matching the structure used in your file
 
 

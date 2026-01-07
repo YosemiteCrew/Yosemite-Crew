@@ -641,7 +641,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   emptyState: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
     backgroundColor: theme.colors.cardBackground,

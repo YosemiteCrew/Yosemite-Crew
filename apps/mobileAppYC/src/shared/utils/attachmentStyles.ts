@@ -79,7 +79,7 @@ export const createAttachmentStyles = (theme: Theme) =>
     shareButton: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.spacing['6'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
       alignSelf: 'center',
       alignItems: 'center',
@@ -91,7 +91,7 @@ export const createAttachmentStyles = (theme: Theme) =>
     downloadButton: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.spacing['6'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.secondary,
       alignItems: 'center',
       justifyContent: 'center',

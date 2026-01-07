@@ -158,7 +158,7 @@ const createStyles = (theme: any, top: number, maxHeight?: number) => {
     itemAvatar: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.spacing['6'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.lightBlueBackground,
       justifyContent: 'center',
       alignItems: 'center',

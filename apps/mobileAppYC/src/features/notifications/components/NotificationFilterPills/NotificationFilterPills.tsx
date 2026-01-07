@@ -150,7 +150,7 @@ const createStyles = (theme: any) =>
     badge: {
       minWidth: theme.spacing['5'],
       height: theme.spacing['5'],
-      borderRadius: theme.spacing['2.5'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.secondary,
       justifyContent: 'center',
       alignItems: 'center',

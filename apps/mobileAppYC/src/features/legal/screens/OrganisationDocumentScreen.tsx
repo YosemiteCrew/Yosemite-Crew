@@ -137,7 +137,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
           title="Retry"
           onPress={loadDocuments}
           height={48}
-          borderRadius={14}
+          borderRadius={16}
           shadowIntensity="medium"
         />
       </LiquidGlassCard>

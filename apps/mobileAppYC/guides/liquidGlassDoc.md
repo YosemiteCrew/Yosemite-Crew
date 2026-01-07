@@ -49,7 +49,7 @@ function MyComponent() {
   return (
     <LiquidGlassView
       style={[
-        { width: 200, height: 100, borderRadius: 20 },
+        { width: 200, height: 100, borderRadius: 16 },
         !isLiquidGlassSupported && { backgroundColor: 'rgba(255,255,255,0.5)' },
       ]}
       interactive
@@ -64,8 +64,8 @@ function MyComponent() {
 function MergingGlassElements() {
   return (
     <LiquidGlassContainerView spacing={20}>
-      <LiquidGlassView style={{ width: 100, height: 100, borderRadius: 50 }} />
-      <LiquidGlassView style={{ width: 100, height: 100, borderRadius: 50 }} />
+      <LiquidGlassView style={{ width: 100, height: 100, borderRadius: 16 }} />
+      <LiquidGlassView style={{ width: 100, height: 100, borderRadius: 16 }} />
     </LiquidGlassContainerView>
   );
 }
@@ -84,7 +84,7 @@ import { LiquidGlassView } from '@callstack/liquid-glass';
 
 function MyComponent() {
   return (
-    <LiquidGlassView style={{ padding: 20, borderRadius: 20 }}>
+    <LiquidGlassView style={{ padding: 20, borderRadius: 16 }}>
       <Text style={{ color: PlatformColor('labelColor') }}>Hello World</Text>
     </LiquidGlassView>
   );

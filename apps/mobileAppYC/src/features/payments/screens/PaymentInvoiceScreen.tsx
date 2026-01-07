@@ -269,7 +269,7 @@ const RefundSection = ({
             }
           }}
           height={48}
-          borderRadius={12}
+          borderRadius={16}
           tintColor={theme.colors.secondary}
           shadowIntensity="light"
           textStyle={styles.confirmPrimaryButtonText}
@@ -454,7 +454,7 @@ const ReceiptCard = ({
             );
         }}
         height={48}
-        borderRadius={12}
+        borderRadius={16}
         tintColor={theme.colors.secondary}
         shadowIntensity="medium"
         textStyle={styles.confirmPrimaryButtonText}

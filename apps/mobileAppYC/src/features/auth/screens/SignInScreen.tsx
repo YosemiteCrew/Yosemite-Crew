@@ -226,7 +226,7 @@ const SocialAuthSection: React.FC<{
         tintColor={getSocialButtonTintColor(theme, theme.colors.cardBackground)}
         height={60}
         width={112}
-        borderRadius={20}
+        borderRadius={16}
         forceBorder
         borderColor={theme.colors.border}
         style={getSocialButtonStyle(styles, theme, theme.colors.cardBackground)}
@@ -239,7 +239,7 @@ const SocialAuthSection: React.FC<{
         tintColor={getSocialButtonTintColor(theme, theme.colors.primary)}
         height={60}
         width={112}
-        borderRadius={20}
+        borderRadius={16}
         style={getSocialButtonStyle(styles, theme, theme.colors.primary)}
       />
       <LiquidGlassButton
@@ -250,7 +250,7 @@ const SocialAuthSection: React.FC<{
         tintColor={getSocialButtonTintColor(theme, theme.colors.secondary)}
         height={60}
         width={112}
-        borderRadius={20}
+        borderRadius={16}
         style={getSocialButtonStyle(styles, theme, theme.colors.secondary)}
       />
     </View>

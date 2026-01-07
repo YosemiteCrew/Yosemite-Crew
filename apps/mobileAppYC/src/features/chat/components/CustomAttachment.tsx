@@ -140,7 +140,7 @@ const createStyles = (theme: any) =>
     playButton: {
       width: theme.spacing['14'],
       height: theme.spacing['14'],
-      borderRadius: theme.spacing['7'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: 'rgba(255,255,255,0.3)',
       justifyContent: 'center',
       alignItems: 'center',

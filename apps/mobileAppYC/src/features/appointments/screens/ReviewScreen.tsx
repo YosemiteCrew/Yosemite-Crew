@@ -193,7 +193,7 @@ const createStyles = (theme: any) => {
   checkmarkContainer: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: theme.borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: theme.spacing['6'],
@@ -233,7 +233,7 @@ const createStyles = (theme: any) => {
     marginBottom: theme.spacing['3'],
   },
   textArea: {
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: theme.spacing['3'],

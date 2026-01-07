@@ -1,10 +1,18 @@
 import { createAttachmentStyles } from '@/shared/utils/attachmentStyles';
 import {mockTheme} from '../setup/mockTheme';
 
+jest.mock('react-native/Libraries/Utilities/Platform', () => ({
+  OS: 'ios',
+  select: jest.fn((options) => options.ios),
+}));
 
 jest.mock('react-native', () => ({
   StyleSheet: {
     create: jest.fn(styles => styles),
+  },
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((options) => options.ios),
   },
 }));
 

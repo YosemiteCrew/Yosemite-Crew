@@ -894,7 +894,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               })
           }
           height={48}
-          borderRadius={12}
+          borderRadius={16}
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}

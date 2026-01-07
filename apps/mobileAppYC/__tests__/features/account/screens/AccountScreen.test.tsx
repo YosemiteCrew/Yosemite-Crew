@@ -17,7 +17,6 @@ import {
   Alert,
   Image,
   BackHandler,
-  Platform,
   ToastAndroid,
 } from 'react-native';
 import {deleteParentProfile} from '../../../../src/features/account/services/profileService';
@@ -31,6 +30,10 @@ import {setSelectedCompanion} from '../../../../src/features/companion';
 import {isTokenExpired} from '../../../../src/features/auth/sessionManager';
 
 // --- Mocks ---
+
+// Platform Mock - must be before other mocks that use Platform
+const mockPlatform = {OS: 'ios'};
+jest.mock('react-native/Libraries/Utilities/Platform', () => mockPlatform);
 
 // Navigation
 const mockNavigate = jest.fn();
@@ -259,7 +262,7 @@ describe('AccountScreen', () => {
         },
         spacing: {'2': 8, '3': 12, '4': 16, '5': 20, '10': 40},
         typography: {h4: {}, caption: {}, button: {}, bodySmall: {}},
-        borderRadius: {lg: 12, full: 999},
+        borderRadius: {lg: 16, full: 999},
       },
     });
 
@@ -418,7 +421,7 @@ describe('AccountScreen', () => {
       },
     });
 
-    Platform.OS = 'android';
+    mockPlatform.OS = 'android';
     const toastSpy = jest.spyOn(ToastAndroid, 'show');
 
     renderScreen(store);
@@ -449,7 +452,7 @@ describe('AccountScreen', () => {
         lastFetchedRole: 'EDITOR',
       },
     });
-    Platform.OS = 'ios';
+    mockPlatform.OS = 'ios';
     renderScreen(store);
 
     const allImages = screen.UNSAFE_getAllByType(Image);

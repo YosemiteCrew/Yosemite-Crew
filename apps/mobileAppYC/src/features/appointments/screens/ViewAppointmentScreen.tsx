@@ -1294,7 +1294,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: theme.spacing['2.5'],
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
   },
   statusText: {
     ...theme.typography.labelSmallBold,
@@ -1403,7 +1403,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   formStatusBadge: {
     paddingHorizontal: theme.spacing['2.5'],
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
   },
   formStatusText: {
     ...theme.typography.labelXxsBold,

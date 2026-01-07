@@ -1,22 +1,25 @@
-import {Linking, Platform} from 'react-native';
+import {Linking} from 'react-native';
 import {openMapsToAddress, openMapsToPlaceId} from '../../src/shared/utils/openMaps';
 
 // --- Mocks ---
 
+// Define a local mock for Platform that we can control
+const mockPlatform = {
+  OS: 'ios' as 'ios' | 'android', // default
+  select: jest.fn((objs: any) => objs[mockPlatform.OS]),
+};
+
+// Mock React Native Platform at the Libraries path
+jest.mock('react-native/Libraries/Utilities/Platform', () => mockPlatform);
+
 // Mock React Native
 jest.mock('react-native', () => {
-  // Define a local mock for Platform that we can control
-  const PlatformMock = {
-    OS: 'ios', // default
-    select: jest.fn((objs) => objs[PlatformMock.OS]),
-  };
-
   return {
     Linking: {
       canOpenURL: jest.fn(),
       openURL: jest.fn(),
     },
-    Platform: PlatformMock,
+    Platform: mockPlatform,
   };
 });
 
@@ -26,7 +29,7 @@ describe('openMaps Utilities', () => {
 
   // Helper to set platform
   const setPlatform = (os: 'ios' | 'android') => {
-    Platform.OS = os;
+    mockPlatform.OS = os;
   };
 
   beforeEach(() => {

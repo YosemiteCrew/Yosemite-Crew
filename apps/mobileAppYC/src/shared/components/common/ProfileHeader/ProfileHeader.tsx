@@ -79,7 +79,7 @@ const createStyles = (theme: any) =>
       right: 0,
       width: 36,
       height: 36,
-      borderRadius: 18,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.secondary,
       alignItems: 'center',
       justifyContent: 'center',
