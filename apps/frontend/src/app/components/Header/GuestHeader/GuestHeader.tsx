@@ -148,7 +148,6 @@ const GuestHeader = () => {
                 role === "developer" ? "/developers/home" : "/organizations"
               }
               text="Go to app"
-              style={{ width: "160px", maxHeight: "60px" }}
             />
           </div>
         ) : (
@@ -156,7 +155,6 @@ const GuestHeader = () => {
             <Primary
               href="/signup"
               text="Sign up"
-              style={{ width: "160px", maxHeight: "60px" }}
             />
           </div>
         ))}
