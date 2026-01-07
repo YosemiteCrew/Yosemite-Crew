@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import AddressFields from '../../../src/shared/components/forms/AddressFields';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -27,28 +28,7 @@ jest.mock('../../../src/shared/components/common/Input/Input', () => ({
 
 // 2. Mock useTheme hook
 jest.mock('../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: '#007AFF',
-        border: '#E5E5E5',
-        surface: '#FFFFFF',
-        secondary: '#000000',
-        textSecondary: '#666666',
-      },
-      spacing: {
-        '2': 8,
-        '3': 12,
-        '4': 16,
-        '24': 96,
-      },
-      borderRadius: {lg: 8},
-      typography: {
-        labelXsBold: {fontSize: 12, fontWeight: '700'},
-        bodyBold: {fontSize: 14, fontWeight: '700'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // --- Test Suite ---

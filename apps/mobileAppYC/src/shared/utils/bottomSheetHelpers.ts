@@ -58,7 +58,6 @@ export const createBottomSheetContainerStyles = (theme: any) => ({
   closeButton: {
     position: 'absolute' as const,
     right: 0,
-    padding: theme.spacing['2'],
   },
   closeIcon: {
     width: theme.spacing['6'],

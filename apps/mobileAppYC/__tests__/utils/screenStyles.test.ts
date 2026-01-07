@@ -4,24 +4,10 @@ import {
   createEmptyStateStyles,
   createSearchAndSelectorStyles,
 } from '@/shared/utils/screenStyles';
+import {mockTheme} from '../setup/mockTheme';
 
 // Define a mock theme
-const mockTheme = {
-  colors: {
-    background: '#F0F0F0',
-    error: '#FF0000',
-    textSecondary: '#666666',
-  },
-  spacing: {
-    2: 8,
-    4: 16,
-    6: 24,
-  },
-  typography: {
-    bodyLarge: { fontSize: 18 },
-    bodyMedium: { fontSize: 16 },
-  },
-};
+
 
 describe('screenStyles', () => {
   describe('createScreenContainerStyles', () => {
@@ -30,11 +16,15 @@ describe('screenStyles', () => {
       expect(styles).toEqual({
         container: {
           flex: 1,
-          backgroundColor: '#F0F0F0',
+          backgroundColor: '#FFFEFE',
         },
         contentContainer: {
           paddingHorizontal: 16,
           paddingBottom: 24,
+        },
+        safeArea: {
+          flex: 1,
+          backgroundColor: '#FFFEFE',
         },
       });
     });
@@ -48,11 +38,15 @@ describe('screenStyles', () => {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
+          paddingHorizontal: 16,
         },
-        errorText: {
+        errorText: expect.objectContaining({
           fontSize: 18,
-          color: '#FF0000',
-        },
+          fontWeight: '400',
+          lineHeight: 29.25,
+          fontFamily: 'Satoshi-Regular',
+          color: '#F44336',
+        }),
       });
     });
   });
@@ -60,31 +54,40 @@ describe('screenStyles', () => {
   describe('createEmptyStateStyles', () => {
     it('should create correct empty state styles', () => {
       const styles = createEmptyStateStyles(mockTheme);
-      expect(styles).toEqual({
+      expect(styles).toMatchObject({
         emptyContainer: {
           paddingVertical: 16,
           alignItems: 'center',
         },
-        emptyText: {
-          fontSize: 16,
-          color: '#666666',
-        },
+        emptyText: expect.objectContaining({
+          fontSize: 14,
+          fontWeight: '400',
+          fontFamily: 'Satoshi-Regular',
+          color: '#747473',
+        }),
       });
+      // Also check for the new properties
+      expect(styles).toHaveProperty('emptyStateContainer');
+      expect(styles).toHaveProperty('emptyStateTitle');
+      expect(styles).toHaveProperty('emptyStateText');
     });
   });
 
   describe('createSearchAndSelectorStyles', () => {
     it('should create correct search and selector styles', () => {
       const styles = createSearchAndSelectorStyles(mockTheme);
-      expect(styles).toEqual({
+      expect(styles).toMatchObject({
         searchBar: {
-          marginTop: 16,
           marginBottom: 8,
+          marginInline: 24,
         },
         companionSelector: {
+          marginTop: 8,
           marginBottom: 16,
         },
       });
+      // Also check for the new property
+      expect(styles).toHaveProperty('companionSelectorTask');
     });
   });
 });

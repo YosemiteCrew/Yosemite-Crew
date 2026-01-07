@@ -18,6 +18,7 @@ import LocationService from '../../../../src/shared/services/LocationService';
 import * as GeoDistance from '../../../../src/shared/utils/geoDistance';
 import {useRoute} from '@react-navigation/native';
 import * as ExpensePaymentHook from '../../../../src/features/expenses/hooks/useExpensePayment';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Helper: Deep Clone (Lint compliant & Type Safe) ---
 const clone = <T,>(obj: T): T => {
@@ -75,31 +76,7 @@ jest.mock('../../../../src/shared/utils/geoDistance', () => ({
 
 // 5. Hooks
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        primaryTint: '#eef',
-        secondary: 'black',
-        textSecondary: 'gray',
-        border: '#ccc',
-        cardBackground: 'white',
-        surface: 'white',
-        white: '#fff',
-      },
-      spacing: {2: 8, 3: 12, 4: 16, 2.5: 10, 24: 96},
-      borderRadius: {lg: 8},
-      typography: {
-        body12: {fontSize: 12},
-        body14: {fontSize: 14},
-        paragraphBold: {fontWeight: 'bold'},
-        title: {fontSize: 18},
-        titleMedium: {fontSize: 16},
-        titleSmall: {fontSize: 14},
-        button: {fontSize: 16},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 6. Components
@@ -351,6 +328,10 @@ describe('ViewAppointmentScreen', () => {
     },
     expenses: {
       expenses: [],
+    },
+    tasks: {
+      items: [],
+      hydratedCompanions: {},
     },
   };
 

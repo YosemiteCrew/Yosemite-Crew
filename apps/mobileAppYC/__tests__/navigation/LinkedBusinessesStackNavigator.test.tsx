@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render} from '@testing-library/react-native';
 import {LinkedBusinessesStackNavigator} from '../../src/navigation/LinkedBusinessesStackNavigator';
 
@@ -6,21 +7,7 @@ import {LinkedBusinessesStackNavigator} from '../../src/navigation/LinkedBusines
 
 // 1. Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#ffffff',
-        secondary: '#000000',
-      },
-      typography: {
-        screenTitle: {
-          fontFamily: 'System',
-          fontSize: 20,
-          fontWeight: 'bold',
-        },
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Screens
@@ -68,9 +55,9 @@ describe('LinkedBusinessesStackNavigator', () => {
     // Verify theme options are passed (by checking the accessibilityLabel hack in our mock)
     // This ensures lines 15-24 are covered
     const options = JSON.parse(navigator.props.accessibilityLabel);
-    expect(options.headerStyle.backgroundColor).toBe('#ffffff');
-    expect(options.headerTintColor).toBe('#000000');
-    expect(options.headerTitleStyle.fontSize).toBe(20);
+    expect(options.headerStyle.backgroundColor).toBe(mockTheme.colors.background);
+    expect(options.headerTintColor).toBe(mockTheme.colors.secondary);
+    expect(options.headerTitleStyle.fontSize).toBe(mockTheme.typography.screenTitle.fontSize);
 
     // Verify all screens are registered in the stack
     expect(getByTestId('screen-placeholder-BusinessSearch')).toBeTruthy();

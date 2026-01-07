@@ -6,6 +6,7 @@ import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
 import {useSocialAuth, useTheme} from '@/hooks';
 import * as ConstantsUtil from '@/shared/constants/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {mockTheme} from '../../setup/mockTheme';
 
 type MockAuthStackParamList = {
   SignIn: {email?: string; statusMessage?: string} | undefined;
@@ -52,26 +53,7 @@ jest.mock('@/features/auth/services/passwordlessAuth', () => ({
   formatAuthError: jest.fn(error => error.message || String(error)),
 }));
 
-const mockTheme = {
-  colors: {
-    background: '#FFF',
-    secondary: '#000',
-    textSecondary: '#555',
-    primary: '#123',
-    white: '#FFF',
-    cardBackground: '#EEE',
-    border: '#DDD',
-    success: 'green',
-    error: 'red',
-  },
-  typography: {
-    h3: {},
-    paragraph: {},
-    paragraphBold: {},
-    cta: {},
-    screenTitle: {},
-  },
-};
+
 jest.mock('@/shared/hooks/useTheme', () => ({
   useTheme: jest.fn(() => ({
     theme: mockTheme,
@@ -473,7 +455,7 @@ describe('SignInScreen', () => {
     });
 
     expect(
-      await findByText('We couldn’t sign you in. Kindly retry.'),
+      await findByText("We couldn't sign you in. Kindly retry."),
     ).toBeTruthy();
   });
 

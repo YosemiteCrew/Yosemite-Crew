@@ -178,7 +178,7 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['2'],
     },
     suggestionTitle: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.secondary,
     },
     suggestionLoader: {
@@ -199,11 +199,11 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     suggestionSecondary: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
     },
     suggestionEmpty: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
       textAlign: 'center',
       paddingVertical: theme.spacing['3'],
@@ -212,7 +212,7 @@ const createStyles = (theme: any) =>
       borderBottomWidth: 0,
     },
     suggestionFooter: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
       textAlign: 'right',
       paddingTop: theme.spacing['2'],

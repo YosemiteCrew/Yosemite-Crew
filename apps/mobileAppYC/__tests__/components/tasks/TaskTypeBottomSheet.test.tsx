@@ -10,6 +10,7 @@ import type {
 } from '@/features/tasks/components/TaskTypeBottomSheet/types';
 // FIX 3: Update helper import path
 import {buildSelectionFromOption} from '@/features/tasks/components/TaskTypeBottomSheet/helpers';
+import {mockTheme} from '../../setup/mockTheme';
 
 const mockCategorySections: CategorySection[] = [
   {
@@ -179,17 +180,7 @@ jest.mock(
 
 // FIX 9: Update mocked hook path
 jest.mock('@/shared/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      spacing: {'1': 4, '2': 8, '3': 12, '5': 20},
-      colors: {
-        background: 'white',
-        text: 'black',
-        textSecondary: 'gray',
-      },
-      typography: {bodySmall: {}, labelSmall: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // FIX 10: Update mocked util path

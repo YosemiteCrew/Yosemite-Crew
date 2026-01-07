@@ -1,15 +1,17 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Alert, BackHandler} from 'react-native';
-import {useNavigation, useRoute, CommonActions} from '@react-navigation/native';
-import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {useRoute, CommonActions} from '@react-navigation/native';
 import type {RouteProp} from '@react-navigation/native';
-import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
+import {useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
-import {ExpenseForm, type ExpenseFormData} from '@/features/expenses/components';
+import {
+  ExpenseForm,
+  ExpenseFormSheets,
+  type ExpenseFormData,
+} from '@/features/expenses/components';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useExpenseForm} from '@/features/expenses/hooks/useExpenseForm';
-import type {AppDispatch, RootState} from '@/app/store';
+import type {RootState} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {
   deleteExternalExpense,
@@ -22,21 +24,27 @@ import {
   DeleteDocumentBottomSheet,
   type DeleteDocumentBottomSheetRef,
 } from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
 
-type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'EditExpense'>;
 type Route = RouteProp<ExpenseStackParamList, 'EditExpense'>;
 
 export const EditExpenseScreen: React.FC = () => {
-  const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
-  const dispatch = useDispatch<AppDispatch>();
+  const {
+    theme,
+    dispatch,
+    navigation,
+    formSheets,
+    handleGoBack: handleGoBackBase,
+    discardSheetRef,
+    markAsChanged,
+    companions,
+    selectedCompanionId,
+  } = useCompanionFormScreen();
 
   const {expenseId} = route.params;
   const expense = useSelector(selectExpenseById(expenseId));
-  const companions = useSelector((state: RootState) => state.companion.companions);
-  const selectedCompanionId = useSelector(
-    (state: RootState) => state.companion.selectedCompanionId,
-  );
   const currencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? 'USD',
   );
@@ -45,9 +53,7 @@ export const EditExpenseScreen: React.FC = () => {
   const {formData, setFormData, errors, handleChange, handleErrorClear, validate} =
     useExpenseForm(null);
   const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
-  const discardSheetRef = useRef<any>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (!expense) {
@@ -164,47 +170,75 @@ export const EditExpenseScreen: React.FC = () => {
     }
   };
 
-  const handleChangeWithTracking = <K extends keyof ExpenseFormData>(field: K, value: ExpenseFormData[K]) => {
+  const handleChangeWithTracking = <K extends keyof ExpenseFormData>(
+    field: K,
+    value: ExpenseFormData[K],
+  ) => {
     handleChange(field, value);
-    setHasUnsavedChanges(true);
+    markAsChanged();
   };
 
-  const handleGoBack = () => {
-    if (hasUnsavedChanges) {
-      discardSheetRef.current?.open();
-    } else if (navigation.canGoBack()) {
-      navigation.goBack();
-    }
-  };
+  const fileOps = useFormFileOperations(
+    formData?.attachments ?? [],
+    'attachments' as keyof ExpenseFormData,
+    handleChangeWithTracking,
+    handleErrorClear,
+    formSheets,
+  );
+
+  const handleGoBack = handleGoBackBase;
 
   if (!expense || !formData) {
     return null;
   }
 
   return (
-    <SafeArea>
-      <Header
-        title="Edit Expense"
-        showBackButton
-        onBack={handleGoBack}
-        rightIcon={Images.deleteIconRed}
-        onRightPress={handleDelete}
-      />
-      <ExpenseForm
-        companions={companions}
-        selectedCompanionId={expense.companionId || selectedCompanionId}
-        onCompanionSelect={id => {
-          dispatch(setSelectedCompanion(id));
-          setHasUnsavedChanges(true);
-        }}
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Edit Expense"
+            showBackButton
+            onBack={handleGoBack}
+            rightIcon={Images.deleteIconRed}
+            onRightPress={handleDelete}
+            glass={false}
+          />
+        }
+        contentPadding={theme.spacing['3']}
+        useSafeAreaView>
+        {contentPaddingStyle => (
+          <ExpenseForm
+            companions={companions}
+            selectedCompanionId={expense.companionId || selectedCompanionId}
+            onCompanionSelect={id => {
+              dispatch(setSelectedCompanion(id));
+              markAsChanged();
+            }}
+            formData={formData}
+            onFormChange={handleChangeWithTracking}
+            errors={errors}
+            onErrorClear={handleErrorClear}
+            loading={loading}
+            onSave={handleSave}
+            currencyCode={currencyCode}
+            saveButtonText="Save"
+            contentContainerStyle={contentPaddingStyle}
+            formSheetRefs={formSheets.refs}
+            openSheet={formSheets.openSheet}
+            closeSheet={formSheets.closeSheet}
+            fileOperations={fileOps}
+            renderBottomSheets={false}
+          />
+        )}
+      </LiquidGlassHeaderScreen>
+      <ExpenseFormSheets
         formData={formData}
         onFormChange={handleChangeWithTracking}
-        errors={errors}
         onErrorClear={handleErrorClear}
-        loading={loading}
-        onSave={handleSave}
-        currencyCode={currencyCode}
-        saveButtonText="Save"
+        fileOperations={fileOps}
+        formSheetRefs={formSheets.refs}
+        closeSheet={formSheets.closeSheet}
       />
       <DeleteDocumentBottomSheet
         ref={deleteSheetRef}
@@ -228,7 +262,7 @@ export const EditExpenseScreen: React.FC = () => {
           }
         }}
       />
-    </SafeArea>
+    </>
   );
 };
 

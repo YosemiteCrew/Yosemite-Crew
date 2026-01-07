@@ -101,7 +101,8 @@ export const AppointmentCard = ({
       cardProps={{
         glassEffect: 'clear',
         interactive: true,
-        shadow: 'none',
+        shadow: 'base',
+        colorScheme: 'light',
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}
@@ -150,8 +151,8 @@ export const AppointmentCard = ({
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               textStyle={styles.directionsButtonText}
-              height={48}
-              borderRadius={12}
+              height={theme.spacing['12']}
+              borderRadius={theme.borderRadius.md}
             />
           </View>
           <View style={styles.inlineButtons}>
@@ -168,9 +169,9 @@ export const AppointmentCard = ({
                 tintColor={theme.colors.white}
                 shadowIntensity="light"
                 forceBorder
-                borderColor="#302F2E"
-                height={52}
-                borderRadius={16}
+                borderColor={theme.colors.secondary}
+                height={theme.spacing['12']}
+                borderRadius={theme.borderRadius.lg}
               />
             </View>
             <View style={styles.actionButtonWrapper} testID={testIDs?.checkIn}>
@@ -182,9 +183,9 @@ export const AppointmentCard = ({
                 tintColor={theme.colors.white}
                 shadowIntensity="light"
                 forceBorder
-                borderColor="#302F2E"
-                height={52}
-                borderRadius={16}
+                borderColor={theme.colors.secondary}
+                height={theme.spacing['12']}
+                borderRadius={theme.borderRadius.lg}
                 disabled={checkInDisabled}
               />
             </View>
@@ -203,52 +204,45 @@ const createStyles = (theme: any) =>
       width: '100%',
       alignSelf: 'center',
       borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
     },
     card: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      overflow: 'hidden',
       backgroundColor: theme.colors.cardBackground,
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
-      padding: theme.spacing[4],
+      padding: theme.spacing['4'],
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
       borderColor: theme.colors.border,
-      overflow: 'hidden',
     },
     topRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[4],
-      marginBottom: theme.spacing[3],
+      gap: theme.spacing['4'],
+      marginBottom: theme.spacing['3'],
     }, // Added marginBottom
     avatar: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: theme.spacing['16'],
+      height: theme.spacing['16'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primarySurface,
     },
     actionButton: {
       flex: 1,
-      minWidth: 100,
+      minWidth: theme.spacing['24'],
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: theme.colors.white,
       borderWidth: 1,
-      borderColor: '#302F2E',
-      borderRadius: 16,
-      paddingHorizontal: 20,
+      borderColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
+      paddingHorizontal: theme.spacing['5'],
     },
     actionButtonText: {
-      ...theme.typography.businessTitle16,
-      color: '#302F2E',
-      lineHeight: 19.2,
-      letterSpacing: -0.16,
+      ...theme.typography.labelSmall,
+      color: theme.colors.secondary,
     },
     directionsButtonText: {
       ...theme.typography.paragraphBold,
@@ -256,23 +250,23 @@ const createStyles = (theme: any) =>
     },
     textBlock: {flex: 1, gap: 2},
     name: {...theme.typography.titleMedium, color: theme.colors.secondary},
-    sub: {...theme.typography.labelXsBold, color: theme.colors.placeholder},
-    date: {...theme.typography.labelXsBold, color: theme.colors.secondary},
+    sub: {...theme.typography.labelSmallBold, color: theme.colors.placeholder},
+    date: {...theme.typography.labelSmallBold, color: theme.colors.secondary},
     noteContainer: {
-      marginBottom: theme.spacing[4], // Tighter spacing to the next section
+      marginBottom: theme.spacing['4'], // Tighter spacing to the next section
     },
-    note: {...theme.typography.labelXsBold, color: theme.colors.placeholder},
+    note: {...theme.typography.labelSmallBold, color: theme.colors.placeholder},
     noteLabel: {color: theme.colors.primary},
-    buttonContainer: {gap: theme.spacing[4]}, // Reduced gap to bring sections closer
+    buttonContainer: {gap: theme.spacing['4']}, // Reduced gap to bring sections closer
     inlineButtons: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     actionButtonWrapper: {
       flex: 1,
     },
-    footer: {marginTop: theme.spacing[2]},
+    footer: {marginTop: theme.spacing['2']},
     touchWrapper: {
       flex: 1,
     },

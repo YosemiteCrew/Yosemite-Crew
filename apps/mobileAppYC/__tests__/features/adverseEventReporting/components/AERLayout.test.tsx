@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {Text} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import AERLayout from '../../../../src/features/adverseEventReporting/components/AERLayout';
@@ -7,17 +8,7 @@ import AERLayout from '../../../../src/features/adverseEventReporting/components
 
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      spacing: {4: 16, 24: 96},
-      colors: {
-        placeholder: '#888',
-      },
-      typography: {
-        subtitleBold12: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Shared Components
@@ -80,7 +71,7 @@ describe('AERLayout', () => {
 
   // --- 1. Basic Rendering & Default Props ---
   it('renders children and default header configuration', () => {
-    const {getByText, getByTestId, queryByText} = render(
+    const {getByText, queryByText} = render(
       <AERLayout>
         <ChildComponent />
       </AERLayout>,
@@ -88,9 +79,6 @@ describe('AERLayout', () => {
 
     // Assert children are rendered
     expect(getByText('Child Content')).toBeTruthy();
-
-    // Assert SafeArea wrapper
-    expect(getByTestId('safe-area')).toBeTruthy();
 
     // Assert Default Header Props
     expect(getByText('Adverse event reporting')).toBeTruthy(); // Default title

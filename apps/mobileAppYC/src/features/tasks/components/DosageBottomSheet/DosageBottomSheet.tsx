@@ -26,6 +26,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
     const [tempDosages, setTempDosages] = useState<DosageSchedule[]>(dosages);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [editingDosageId, setEditingDosageId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
 
     // Sync tempDosages when dosages prop changes
     React.useEffect(() => {
@@ -106,9 +107,20 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
       }
     };
 
-    const handleSave = () => {
-      onSave(tempDosages);
-      bottomSheetRef.current?.close();
+    const handleSave = async () => {
+      if (saving) {
+        return;
+      }
+
+      try {
+        setSaving(true);
+        await Promise.resolve(onSave(tempDosages));
+        bottomSheetRef.current?.close();
+      } catch (error) {
+        console.warn('[DosageBottomSheet] Failed to save dosages', error);
+      } finally {
+        setSaving(false);
+      }
     };
 
     const currentEditingDosage = tempDosages.find(d => d.id === editingDosageId);
@@ -133,14 +145,20 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
 
     return (
       <ConfirmActionBottomSheet
-      ref={bottomSheetRef}
-      title="Dosage"
-      snapPoints={['80%']}
-      onSheetChange={onSheetChange}
-      primaryButton={{
-        label: "Save",
-        onPress: handleSave,
-      }}>
+        ref={bottomSheetRef}
+        title="Dosage"
+        snapPoints={['80%']}
+        onSheetChange={onSheetChange}
+        primaryButton={{
+          label: 'Save',
+          onPress: handleSave,
+          loading: saving,
+          disabled: saving,
+          tintColor: theme.colors.secondary,
+          style: styles.saveButton,
+          textStyle: styles.saveButtonText,
+          shadowIntensity: 'none',
+        }}>
         <View style={styles.container}>
           <ScrollView
             style={styles.scrollView}
@@ -204,7 +222,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
   },
 );
 
-const createStyles = (theme: any) =>
+  const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -213,14 +231,15 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: theme.spacing[6],
+      paddingBottom: theme.spacing['12'],
+      paddingTop: theme.spacing['2'],
     },
     dosageRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: theme.spacing[3],
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[4],
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.borderMuted,
     },
@@ -231,17 +250,17 @@ const createStyles = (theme: any) =>
       marginBottom: 0,
     },
     clockIconInput: {
-      width: 18,
-      height: 18,
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
       resizeMode: 'contain',
     },
     removeButton: {
-      padding: theme.spacing[2],
-      marginTop: theme.spacing[2],
+      padding: theme.spacing['2'],
+      marginTop: theme.spacing['2'],
     },
     deleteIcon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       resizeMode: 'contain',
       tintColor: theme.colors.error,
     },
@@ -249,19 +268,26 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: theme.spacing[2],
-      paddingVertical: theme.spacing[4],
-      marginTop: theme.spacing[2],
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['4'],
+      marginTop: theme.spacing['2'],
     },
     addIcon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       resizeMode: 'contain',
       tintColor: theme.colors.secondary,
     },
     addText: {
       ...theme.typography.button,
       color: theme.colors.secondary,
+    },
+    saveButton: {
+      height: 56,
+    },
+    saveButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.white,
     },
   });
 

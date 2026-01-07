@@ -9,6 +9,7 @@ import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
 } from '@/config/variables';
+import {mockTheme} from '../../setup/mockTheme';
 
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
 
@@ -44,24 +45,7 @@ jest.mock('@/features/auth/services/passwordlessAuth', () => ({
 }));
 
 jest.mock('@/shared/hooks/useTheme', () => ({
-  useTheme: jest.fn(() => ({
-    theme: {
-      colors: {
-        background: '#FFF',
-        secondary: '#000',
-        textSecondary: '#555',
-        primary: '#123',
-        white: '#FFF',
-        error: 'red',
-      },
-      typography: {
-        h3: {},
-        paragraph: {},
-        paragraphBold: {},
-        cta: {},
-      },
-    },
-  })),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/features/auth/context/AuthContext', () => ({

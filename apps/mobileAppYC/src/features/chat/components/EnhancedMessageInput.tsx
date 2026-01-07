@@ -300,7 +300,7 @@ export const EnhancedMessageInput: React.FC = () => {
             }}
             style={[styles.recordButton, styles.cancelButton]}
             disabled={isRecordingLoading}>
-            <Icon name="close" size={24} color="#fff" />
+            <Icon name="close" size={24} color={theme.colors.white} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
@@ -309,9 +309,9 @@ export const EnhancedMessageInput: React.FC = () => {
             style={[styles.recordButton, styles.stopButton]}
             disabled={isRecordingLoading}>
             {isRecordingLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={theme.colors.white} />
             ) : (
-              <Icon name="send" size={24} color="#fff" />
+              <Icon name="send" size={24} color={theme.colors.white} />
             )}
           </TouchableOpacity>
         </View>
@@ -351,21 +351,21 @@ export const EnhancedMessageInput: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      backgroundColor: theme.colors.background || '#fff',
+      backgroundColor: theme.colors.background,
     },
     actionsRow: {
       flexDirection: 'row',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['2'],
       borderTopWidth: 1,
-      borderTopColor: theme.colors.border || '#e0e0e0',
-      gap: 12,
+      borderTopColor: theme.colors.border,
+      gap: theme.spacing['3'],
     },
     actionButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.primaryTint || '#E6F0FE',
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.spacing['5'],
+      backgroundColor: theme.colors.primaryTint,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -373,43 +373,42 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: 16,
-      backgroundColor: '#f5f5f5',
+      padding: theme.spacing['4'],
+      backgroundColor: theme.colors.backgroundSecondary,
       borderTopWidth: 1,
-      borderTopColor: '#e0e0e0',
+      borderTopColor: theme.colors.border,
     },
     recordingInfo: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: theme.spacing['3'],
     },
     recordingDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: '#ff0000',
+      width: theme.spacing['3'],
+      height: theme.spacing['3'],
+      borderRadius: theme.spacing['1.25'],
+      backgroundColor: theme.colors.error,
     },
     recordingText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#000',
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.text,
     },
     recordingActions: {
       flexDirection: 'row',
-      gap: 12,
+      gap: theme.spacing['3'],
     },
     recordButton: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+      width: theme.spacing['12'],
+      height: theme.spacing['12'],
+      borderRadius: theme.spacing['6'],
       justifyContent: 'center',
       alignItems: 'center',
     },
     cancelButton: {
-      backgroundColor: '#999',
+      backgroundColor: theme.colors.textSecondary,
     },
     stopButton: {
-      backgroundColor: '#007AFF',
+      backgroundColor: theme.colors.primary,
     },
   });
 

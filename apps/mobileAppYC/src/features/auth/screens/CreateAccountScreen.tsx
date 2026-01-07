@@ -14,7 +14,8 @@ import {
   BackHandler,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
-import {SafeArea, Input, Header} from '@/shared/components/common';
+import {Input, Header} from '@/shared/components/common';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {
   SimpleDatePicker,
   formatDateForDisplay,
@@ -977,113 +978,121 @@ const handleGoBack = useCallback(async () => {
   };
 
   return (
-    <SafeArea style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}>
-      <Header
-  title="Create account"
-  showBackButton
-  onBack={handleGoBack}
-/>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-          {currentStep === 1 ? renderStep1() : renderStep2()}
-        </ScrollView>
-
-        {submissionError ? (
-          <Text style={styles.submissionError}>{submissionError}</Text>
-        ) : null}
-
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title={(() => {
-              if (currentStep === 1) {
-                return 'Next';
-              }
-              if (isSubmitting) {
-                return 'Creating account...';
-              }
-              return 'Create account';
-            })()}
-            onPress={currentStep === 1 ? handleNext : handleSignUp}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
-            loading={currentStep === 2 && isSubmitting}
-            disabled={currentStep === 2 && isSubmitting}
-          />
-        </View>
-
-        <SimpleDatePicker
-          value={step1Data.dateOfBirth}
-          onDateChange={handleDateChange}
-          show={showDatePicker}
-          onDismiss={handleDatePickerDismiss}
-          maximumDate={getMaximumDate()}
-          mode="date"
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Create account"
+          showBackButton
+          onBack={handleGoBack}
+          glass={false}
         />
-      </KeyboardAvoidingView>
-      {isOtpSuccessVisible && (
-        <View style={styles.bottomSheetContainer}>
-          <CustomBottomSheet
-            ref={successBottomSheetRef}
-            snapPoints={['35%', '50%']}
-            initialIndex={1}
-            enablePanDownToClose
-            enableBackdrop
-            backdropOpacity={0.5}
-            backdropAppearsOnIndex={0}
-            backdropDisappearsOnIndex={-1}
-            backdropPressBehavior="close"
-            enableHandlePanningGesture
-            enableContentPanningGesture={false}
-            enableOverDrag
-            backgroundStyle={styles.bottomSheetBackground}
-            handleIndicatorStyle={styles.bottomSheetHandle}>
-            <View style={styles.successContent}>
-              <Image
-                source={Images.verificationSuccess}
-                style={styles.successIllustration}
-                resizeMode="contain"
-              />
-              <Text style={styles.successTitle}>Code verified</Text>
-              <Text style={styles.successMessage}>
-                Nice! Now let's finish setting up your Yosemite Crew profile.
-              </Text>
-              <LiquidGlassButton
-                title="Continue"
-                onPress={handleSuccessClose}
-                style={styles.successButton}
-                textStyle={styles.successButtonText}
-                tintColor={theme.colors.secondary}
-                shadowIntensity="medium"
-                forceBorder
-                borderColor="rgba(255, 255, 255, 0.35)"
-                height={56}
-                borderRadius={16}
-              />
-            </View>
-          </CustomBottomSheet>
-        </View>
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <>
+          <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardAvoidingView}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            {currentStep === 1 ? renderStep1() : renderStep2()}
+          </ScrollView>
+
+          {submissionError ? (
+            <Text style={styles.submissionError}>{submissionError}</Text>
+          ) : null}
+
+          <View style={styles.buttonContainer}>
+            <LiquidGlassButton
+              title={(() => {
+                if (currentStep === 1) {
+                  return 'Next';
+                }
+                if (isSubmitting) {
+                  return 'Creating account...';
+                }
+                return 'Create account';
+              })()}
+              onPress={currentStep === 1 ? handleNext : handleSignUp}
+              style={styles.button}
+              textStyle={styles.buttonText}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor="rgba(255, 255, 255, 0.35)"
+              height={56}
+              borderRadius={16}
+              loading={currentStep === 2 && isSubmitting}
+              disabled={currentStep === 2 && isSubmitting}
+            />
+          </View>
+
+          <SimpleDatePicker
+            value={step1Data.dateOfBirth}
+            onDateChange={handleDateChange}
+            show={showDatePicker}
+            onDismiss={handleDatePickerDismiss}
+            maximumDate={getMaximumDate()}
+            mode="date"
+          />
+        </KeyboardAvoidingView>
+        {isOtpSuccessVisible && (
+          <View style={styles.bottomSheetContainer}>
+            <CustomBottomSheet
+              ref={successBottomSheetRef}
+              snapPoints={['35%', '50%']}
+              initialIndex={1}
+              enablePanDownToClose
+              enableBackdrop
+              backdropOpacity={0.5}
+              backdropAppearsOnIndex={0}
+              backdropDisappearsOnIndex={-1}
+              backdropPressBehavior="close"
+              enableHandlePanningGesture
+              enableContentPanningGesture={false}
+              enableOverDrag
+              backgroundStyle={styles.bottomSheetBackground}
+              handleIndicatorStyle={styles.bottomSheetHandle}>
+              <View style={styles.successContent}>
+                <Image
+                  source={Images.verificationSuccess}
+                  style={styles.successIllustration}
+                  resizeMode="contain"
+                />
+                <Text style={styles.successTitle}>Code verified</Text>
+                <Text style={styles.successMessage}>
+                  Nice! Now let's finish setting up your Yosemite Crew profile.
+                </Text>
+                <LiquidGlassButton
+                  title="Continue"
+                  onPress={handleSuccessClose}
+                  style={styles.successButton}
+                  textStyle={styles.successButtonText}
+                  tintColor={theme.colors.secondary}
+                  shadowIntensity="medium"
+                  forceBorder
+                  borderColor="rgba(255, 255, 255, 0.35)"
+                  height={56}
+                  borderRadius={16}
+                />
+              </View>
+            </CustomBottomSheet>
+          </View>
+        )}
+          <CountryMobileBottomSheet
+            ref={countryMobileRef}
+            countries={COUNTRIES}
+            selectedCountry={selectedCountry}
+            mobileNumber={step1Data.mobileNumber}
+            onSave={handleCountryMobileSave}
+          />
+        </>
       )}
-      <CountryMobileBottomSheet
-        ref={countryMobileRef}
-        countries={COUNTRIES}
-        selectedCountry={selectedCountry}
-        mobileNumber={step1Data.mobileNumber}
-        onSave={handleCountryMobileSave}
-      />
-    </SafeArea>
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -1093,13 +1102,13 @@ const createStyles = (theme: any) =>
     countrySection: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingRight: theme.spacing['3'], // 12
+      paddingRight: theme.spacing['3'],
       borderRightWidth: 1,
       borderRightColor: theme.colors.border,
     },
     flagText: {
-      fontSize: theme.spacing['6'], // 24
-      marginRight: theme.spacing['2'], // 8
+      fontSize: theme.spacing['6'],
+      marginRight: theme.spacing['2'],
     },
     dialCodeText: {
       ...theme.typography.body,
@@ -1107,37 +1116,34 @@ const createStyles = (theme: any) =>
       fontWeight: '500',
     },
     checkboxWrapper: {
-      marginBottom: theme.spacing['5'], // 20
+      marginBottom: theme.spacing['5'],
     },
     checkboxContainer: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginVertical: theme.spacing['5'], // 20
-      paddingRight: theme.spacing['2'], // 8
+      marginVertical: theme.spacing['5'],
+      paddingRight: theme.spacing['2'],
     },
     checkboxText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
-      fontSize: 14,
     },
     errorText: {
       ...theme.typography.caption,
       color: theme.colors.error,
-      marginTop: theme.spacing['1'], // 4
-      marginLeft: theme.spacing['8'], // 32 - align with checkbox text
-      fontSize: 12,
+      marginTop: theme.spacing['1'],
+      marginLeft: theme.spacing['8'],
     },
     termsTextContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       flex: 1,
-      marginLeft: theme.spacing['2'], // 8
+      marginLeft: theme.spacing['2'],
     },
     linkText: {
       ...theme.typography.body,
       color: theme.colors.primary,
       textDecorationLine: 'underline',
-      fontSize: 14,
     },
     bottomSheetContainer: {
       position: 'absolute',
@@ -1151,26 +1157,26 @@ const createStyles = (theme: any) =>
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: theme.borderRadius.xl,
+      borderTopRightRadius: theme.borderRadius.xl,
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.black,
-      width: 80,
-      height: 6,
+      width: theme.spacing['20'],
+      height: theme.spacing['2'],
       opacity: 0.2,
     },
     successContent: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 24,
-      paddingBottom: 40,
-      gap: 16,
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['10'],
+      gap: theme.spacing['4'],
     },
     successIllustration: {
-      height: 170,
-      marginBottom: 16,
+      height: theme.spacing['44'],
+      marginBottom: theme.spacing['4'],
     },
     successTitle: {
       ...theme.typography.h3,
@@ -1181,19 +1187,15 @@ const createStyles = (theme: any) =>
       ...theme.typography.paragraph,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: theme.spacing['6'],
     },
     successButton: {
       width: '100%',
       backgroundColor: theme.colors.secondary,
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
+      borderColor: theme.colors.whiteOverlay70,
+      ...theme.shadows.sm,
     },
     successButtonText: {
       color: theme.colors.white,

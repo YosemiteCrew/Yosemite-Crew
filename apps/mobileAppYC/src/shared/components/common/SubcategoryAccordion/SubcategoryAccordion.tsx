@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 export interface SubcategoryAccordionProps {
   title: string;
@@ -73,34 +74,43 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
   });
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      <TouchableOpacity
-        style={styles.header}
-        onPress={toggleExpanded}
-        activeOpacity={0.7}>
-        {icon && (
-          <Image
-            source={icon}
-            style={styles.icon}
+    <View style={[styles.shadowWrapper, containerStyle]}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        interactive={false}
+        shadow="none"
+        padding="0"
+        colorScheme="light"
+        style={styles.container}
+        fallbackStyle={styles.fallback}>
+        <TouchableOpacity
+          style={styles.header}
+          onPress={toggleExpanded}
+          activeOpacity={0.7}>
+          {icon && (
+            <Image
+              source={icon}
+              style={styles.icon}
+            />
+          )}
+          <View style={styles.headerContent}>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
+            </Text>
+            <Text style={styles.subtitle} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
+          <Animated.Image
+            source={Images.dropdownIcon}
+            style={[styles.chevron, chevronAnimatedStyle]}
           />
-        )}
-        <View style={styles.headerContent}>
-          <Text style={styles.title} numberOfLines={2}>
-            {title}
-          </Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        </View>
-        <Animated.Image
-          source={Images.dropdownIcon}
-          style={[styles.chevron, chevronAnimatedStyle]}
-        />
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <Animated.View style={[contentAnimatedStyle]}>
-        <View style={styles.content}>{children}</View>
-      </Animated.View>
+        <Animated.View style={[contentAnimatedStyle]}>
+          <View style={styles.content}>{children}</View>
+        </Animated.View>
+      </LiquidGlassCard>
     </View>
   );
 };
@@ -108,37 +118,48 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginBottom: theme.spacing[3],
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
-      overflow: 'hidden',
+      overflow: 'visible',
+    },
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.sm,
+      backgroundColor: theme.colors.cardBackground,
+      marginBottom: theme.spacing['3'],
+    },
+    fallback: {
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.cardBackground,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
+      padding: theme.spacing['4'],
+      backgroundColor: 'transparent',
     },
     icon: {
       width: 40,
       height: 40,
       resizeMode: 'contain',
-      marginRight: theme.spacing[3],
+      marginRight: theme.spacing['3'],
     },
     headerContent: {
       flex: 1,
-      gap: theme.spacing[1],
-      marginRight: theme.spacing[3],
+      gap: theme.spacing['1'],
+      marginRight: theme.spacing['3'],
     },
     title: {
       ...theme.typography.titleMedium,
       color: theme.colors.secondary,
     },
     subtitle: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
     },
     chevron: {
@@ -148,8 +169,9 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.textSecondary,
     },
     content: {
-      padding: theme.spacing[4],
-      paddingTop: theme.spacing[2],
-      gap: theme.spacing[2],
+      padding: theme.spacing['4'],
+      paddingTop: theme.spacing['2'],
+      gap: theme.spacing['2'],
+      backgroundColor: 'transparent',
     },
   });

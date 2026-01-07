@@ -110,7 +110,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <Header title="Profile" showBackButton onBack={handleBack} />
         <View style={commonStyles.centerContent}>
           <GifLoader />
@@ -121,7 +121,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (!coParent) {
     return (
-      <SafeAreaView style={commonStyles.container}>
+      <SafeAreaView style={commonStyles.container} edges={['top']}>
         <Header title="Profile" showBackButton onBack={handleBack} />
         <View style={commonStyles.centerContent}>
           <Text style={styles.errorText}>Co-Parent not found</Text>
@@ -133,7 +133,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const displayName = `${coParent.firstName} ${coParent.lastName}`.trim();
 
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
       <Header title="Profile" showBackButton onBack={handleBack} />
 
       <ScrollView
@@ -271,13 +271,13 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     content: {
-      paddingBottom: theme.spacing[10],
+      paddingBottom: theme.spacing['10'],
     },
     profileSection: {
       position: 'relative',
       alignItems: 'center',
-      paddingBottom: theme.spacing[6],
-      marginBottom: theme.spacing[4],
+      paddingBottom: theme.spacing['6'],
+      marginBottom: theme.spacing['4'],
     },
     backgroundImage: {
       width: '100%',
@@ -291,17 +291,17 @@ const createStyles = (theme: any) =>
       height: 120,
     },
     profileImage: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      borderWidth: 4,
+      width: theme.spacing['30'],
+      height: theme.spacing['30'],
+      borderRadius: theme.borderRadius.full,
+      borderWidth: theme.spacing['1'],
       borderColor: theme.colors.white,
     },
     profileImageInitials: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      borderWidth: 4,
+      width: theme.spacing['30'],
+      height: theme.spacing['30'],
+      borderRadius: theme.borderRadius.full,
+      borderWidth: theme.spacing['1'],
       borderColor: theme.colors.white,
       backgroundColor: theme.colors.lightBlueBackground,
       justifyContent: 'center',
@@ -312,18 +312,18 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     sectionContainer: {
-      paddingHorizontal: theme.spacing[5],
-      marginBottom: theme.spacing[5],
+      paddingHorizontal: theme.spacing['5'],
+      marginBottom: theme.spacing['5'],
     },
     sectionTitle: {
       ...theme.typography.paragraphBold,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     card: {
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[4],
-      gap: theme.spacing[2],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+      gap: theme.spacing['2'],
     },
     cardFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -333,7 +333,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing[2],
+      paddingVertical: theme.spacing['2'],
     },
     detailLabel: {
       ...theme.typography.pillSubtitleBold15,
@@ -349,23 +349,23 @@ const createStyles = (theme: any) =>
     detailDivider: {
       height: 1,
       backgroundColor: theme.colors.border,
-      marginVertical: theme.spacing[2],
+      marginVertical: theme.spacing['2'],
     },
     companionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing[2],
-      gap: theme.spacing[3],
+      paddingVertical: theme.spacing['2'],
+      gap: theme.spacing['3'],
     },
     companionAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: theme.spacing['12'],
+      height: theme.spacing['12'],
+      borderRadius: theme.borderRadius.full,
     },
     companionAvatarInitials: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: theme.spacing['12'],
+      height: theme.spacing['12'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.lightBlueBackground,
       justifyContent: 'center',
       alignItems: 'center',
@@ -386,9 +386,9 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     sendButtonContainer: {
-      paddingHorizontal: theme.spacing[5],
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
+      paddingHorizontal: theme.spacing['5'],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
     },
     errorText: {
       ...theme.typography.body,

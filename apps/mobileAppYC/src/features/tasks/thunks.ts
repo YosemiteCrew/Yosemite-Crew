@@ -1,25 +1,26 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
-import {v4 as uuidv4} from 'uuid';
-import type {Task, TaskStatus} from './types';
+import type {Task, TaskStatus, TaskStatusApi} from './types';
+import {taskApi, type TaskDraftPayload} from './services/taskService';
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const normalizeStatusForApi = (status: TaskStatus): TaskStatusApi => {
+  const upper = String(status).toUpperCase();
+  if (upper === 'PENDING') return 'PENDING';
+  if (upper === 'IN_PROGRESS' || upper === 'INPROGRESS') return 'IN_PROGRESS';
+  if (upper === 'COMPLETED' || upper === 'COMPLETE') return 'COMPLETED';
+  if (upper === 'CANCELLED' || upper === 'CANCELED') return 'CANCELLED';
+  return 'PENDING';
+};
 
-// Mock API: Fetch tasks for a companion
 export const fetchTasksForCompanion = createAsyncThunk<
   {companionId: string; tasks: Task[]},
-  {companionId: string},
+  {companionId?: string},
   {rejectValue: string}
 >(
   'tasks/fetchTasksForCompanion',
   async ({companionId}, {rejectWithValue}) => {
     try {
-      await delay(800);
-
-    // Mock data - in production, this would be an API call
-    const mockTasks: Task[] = [];
-
-      return {companionId, tasks: mockTasks};
+      const tasks = await taskApi.list({companionId});
+      return {companionId: companionId ?? '', tasks};
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : 'Failed to fetch tasks',
@@ -28,23 +29,13 @@ export const fetchTasksForCompanion = createAsyncThunk<
   },
 );
 
-// Mock API: Add a new task
 export const addTask = createAsyncThunk<
   Task,
-  Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'completedAt'>,
+  TaskDraftPayload,
   {rejectValue: string}
 >('tasks/addTask', async (taskData, {rejectWithValue}) => {
   try {
-    await delay(600);
-
-    const newTask: Task = {
-      ...taskData,
-      id: uuidv4(),
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
+    const newTask = await taskApi.create(taskData);
     return newTask;
   } catch (error) {
     return rejectWithValue(
@@ -53,21 +44,14 @@ export const addTask = createAsyncThunk<
   }
 });
 
-// Mock API: Update an existing task
 export const updateTask = createAsyncThunk<
-  {taskId: string; updates: Partial<Task>},
-  {taskId: string; updates: Partial<Task>},
+  Task,
+  {taskId: string; updates: Partial<TaskDraftPayload>},
   {rejectValue: string}
 >('tasks/updateTask', async ({taskId, updates}, {rejectWithValue}) => {
   try {
-    await delay(600);
-
-    const updatedData = {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    return {taskId, updates: updatedData};
+    const updatedTask = await taskApi.update(taskId, updates);
+    return updatedTask;
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to update task',
@@ -75,16 +59,14 @@ export const updateTask = createAsyncThunk<
   }
 });
 
-// Mock API: Delete a task
 export const deleteTask = createAsyncThunk<
-  {taskId: string; companionId: string},
-  {taskId: string; companionId: string},
+  Task,
+  {taskId: string; companionId?: string},
   {rejectValue: string}
->('tasks/deleteTask', async ({taskId, companionId}, {rejectWithValue}) => {
+>('tasks/deleteTask', async ({taskId}, {rejectWithValue}) => {
   try {
-    await delay(400);
-
-    return {taskId, companionId};
+    const cancelled = await taskApi.changeStatus(taskId, 'CANCELLED');
+    return cancelled;
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to delete task',
@@ -92,20 +74,18 @@ export const deleteTask = createAsyncThunk<
   }
 });
 
-// Mock API: Mark task as completed/pending
 export const markTaskStatus = createAsyncThunk<
-  {taskId: string; status: TaskStatus; completedAt?: string},
-  {taskId: string; status: TaskStatus},
+  Task,
+  {taskId: string; status: TaskStatus; completion?: any},
   {rejectValue: string}
->('tasks/markTaskStatus', async ({taskId, status}, {rejectWithValue}) => {
+>('tasks/markTaskStatus', async ({taskId, status, completion}, {rejectWithValue}) => {
   try {
-    await delay(400);
-
-    return {
+    const updated = await taskApi.changeStatus(
       taskId,
-      status,
-      completedAt: status === 'completed' ? new Date().toISOString() : undefined,
-    };
+      normalizeStatusForApi(status),
+      completion,
+    );
+    return updated;
   } catch (error) {
     return rejectWithValue(
       error instanceof Error ? error.message : 'Failed to update task status',

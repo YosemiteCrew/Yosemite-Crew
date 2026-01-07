@@ -1,10 +1,20 @@
 import React, {useMemo, useState} from 'react';
-import {FlatList, View, Text, StyleSheet, TextInput, TouchableOpacity} from 'react-native';
-import {SafeArea} from '@/shared/components/common';
+import {
+  FlatList,
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
 import {useNavigation} from '@react-navigation/native';
 import {nanoid} from '@reduxjs/toolkit';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Message = { id: string; sender: 'you' | 'vet'; text: string; time: string };
 
@@ -28,37 +38,61 @@ export const ChatScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Dr. David Brown" showBackButton onBack={() => navigation.goBack()} />
-      <FlatList
-        contentContainerStyle={styles.list}
-        data={messages}
-        keyExtractor={m => m.id}
-        renderItem={({item}) => (
-          <View style={[styles.bubble, item.sender === 'you' ? styles.you : styles.vet]}>
-            <Text style={styles.text}>{item.text}</Text>
-            <Text style={styles.time}>{item.time}</Text>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Dr. David Brown"
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+          <FlatList
+            contentContainerStyle={[styles.list, contentPaddingStyle]}
+            data={messages}
+            keyExtractor={m => m.id}
+            renderItem={({item}) => (
+              <View style={[styles.bubble, item.sender === 'you' ? styles.you : styles.vet]}>
+                <Text style={styles.text}>{item.text}</Text>
+                <Text style={styles.time}>{item.time}</Text>
+              </View>
+            )}
+          />
+          <View style={styles.composer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Type a message"
+              value={text}
+              onChangeText={setText}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+            <TouchableOpacity style={styles.send} onPress={send}><Text style={styles.sendText}>→</Text></TouchableOpacity>
           </View>
-        )}
-      />
-      <View style={styles.composer}>
-        <TextInput style={styles.input} placeholder="Type a message" value={text} onChangeText={setText} />
-        <TouchableOpacity style={styles.send} onPress={send}><Text style={styles.sendText}>→</Text></TouchableOpacity>
-      </View>
-    </SafeArea>
+        </KeyboardAvoidingView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) => StyleSheet.create({
-  list: {padding: 16, gap: 8},
-  bubble: {maxWidth: '80%', padding: 12, borderRadius: 14, marginVertical: 6},
-  you: {alignSelf: 'flex-end', backgroundColor: '#E6F0FE'},
-  vet: {alignSelf: 'flex-start', backgroundColor: '#F0F0F0'},
+  keyboardAvoiding: {flex: 1},
+  list: {padding: theme.spacing['4'], gap: theme.spacing['2'], paddingBottom: theme.spacing['10']},
+  bubble: {maxWidth: '80%', padding: theme.spacing['3'], borderRadius: theme.borderRadius.md, marginVertical: theme.spacing['2']},
+  you: {alignSelf: 'flex-end', backgroundColor: theme.colors.lightBlueBackground},
+  vet: {alignSelf: 'flex-start', backgroundColor: theme.colors.surface},
   text: {...theme.typography.bodySmall, color: theme.colors.secondary},
-  time: {...theme.typography.caption, color: theme.colors.textSecondary, marginTop: 4},
-  composer: {flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderTopWidth: 1, borderColor: theme.colors.border},
-  input: {flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground},
-  send: {paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.colors.secondary},
+  time: {...theme.typography.caption, color: theme.colors.textSecondary, marginTop: theme.spacing['1']},
+  composer: {flexDirection: 'row', alignItems: 'center', gap: theme.spacing['2'], padding: theme.spacing['3'], borderTopWidth: 1, borderColor: theme.colors.border},
+  input: {flex: 1, paddingVertical: theme.spacing['2.5'], paddingHorizontal: theme.spacing['3'], borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground},
+  send: {paddingHorizontal: theme.spacing['4'], paddingVertical: theme.spacing['2.5'], borderRadius: theme.borderRadius.lg, backgroundColor: theme.colors.secondary},
   sendText: {...theme.typography.buttonSmall, color: theme.colors.white},
 });
 

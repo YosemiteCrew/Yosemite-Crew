@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {Step4Screen} from '../../../../src/features/adverseEventReporting/screens/Step4Screen';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -24,16 +25,7 @@ jest.mock('react-redux', () => ({
 
 // 3. Hooks
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-      },
-      typography: {
-        titleMedium: {fontSize: 16},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Utils

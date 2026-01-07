@@ -9,6 +9,7 @@ import {
   searchDocuments,
   clearSearchResults,
 } from '../../../../../src/features/documents/documentSlice';
+import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -26,23 +27,7 @@ const mockUseSelector = jest.spyOn(Redux, 'useSelector');
 
 // 3. Hooks & Styles
 jest.mock('../../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'black',
-        textSecondary: 'gray',
-        cardBackground: 'white',
-        borderMuted: 'lightgray',
-        error: 'red',
-      },
-      spacing: new Array(20).fill(8),
-      borderRadius: {lg: 8},
-      typography: {
-        titleMedium: {fontSize: 18},
-        bodySmall: {fontSize: 12},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('../../../../../src/shared/utils/screenStyles', () => ({
@@ -53,6 +38,12 @@ jest.mock('../../../../../src/shared/utils/screenStyles', () => ({
   }),
   createEmptyStateStyles: () => ({emptyState: {padding: 20}}),
   createSearchAndSelectorStyles: () => ({searchBar: {margin: 10}}),
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
+  createAllCommonStyles: () => ({container: {}, contentContainer: {}, errorContainer: {}, errorText: {}}),
 }));
 
 // 4. Components (Inline requires to avoid ReferenceError due to hoisting)

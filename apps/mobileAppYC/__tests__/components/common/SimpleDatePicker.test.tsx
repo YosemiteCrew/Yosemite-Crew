@@ -10,6 +10,14 @@ import {
 
 // --- Mocks ---
 
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
+
 // 1. Mock DateTimePicker
 // We use a mock component that passes props through so we can inspect them in tests
 jest.mock('@react-native-community/datetimepicker', () => {

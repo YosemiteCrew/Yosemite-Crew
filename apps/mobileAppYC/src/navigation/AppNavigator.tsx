@@ -10,7 +10,7 @@ import type {AuthStackParamList} from './AuthNavigator';
 import {TabNavigator} from './TabNavigator';
 import {OnboardingScreen} from '@/features/onboarding/screens/OnboardingScreen';
 import {useAuth, type AuthTokens} from '@/features/auth/context/AuthContext';
-import {Loading} from '@/shared/components/common';
+import {useGlobalLoader} from '@/context/GlobalLoaderContext';
 import {EmergencyProvider, useEmergency} from '@/features/home/context/EmergencyContext';
 import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSheet';
 import CoParentInviteBottomSheet, {
@@ -42,6 +42,7 @@ export const AppNavigator: React.FC = () => {
   const {isLoggedIn, isLoading: authLoading, user} = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const {showLoader, hideLoader} = useGlobalLoader();
   const [pendingProfile, setPendingProfile] = useState<
     AuthStackParamList['CreateAccount'] | null
   >(null);
@@ -182,8 +183,17 @@ const checkOnboardingStatus = async () => {
     }
   };
 
-  if (isLoading || authLoading) {
-    return <Loading />;
+  const isNavigatorLoading = isLoading || authLoading;
+  useEffect(() => {
+    if (isNavigatorLoading) {
+      showLoader();
+    } else {
+      hideLoader();
+    }
+  }, [hideLoader, isNavigatorLoading, showLoader]);
+
+  if (isNavigatorLoading) {
+    return null;
   }
 
   console.log(
@@ -380,20 +390,24 @@ const AppNavigatorEmergencySheet: React.FC = () => {
 
 const AppNavigatorCoParentInviteSheet: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const {user} = useAuth();
+  const {user, isLoggedIn, isLoading} = useAuth();
   const pendingInvites = useSelector(
     (state: RootState) => (state as any)?.coParent?.pendingInvites ?? [],
   );
   const [currentInviteIndex, setCurrentInviteIndex] = React.useState(0);
   const sheetRef = React.useRef<CoParentInviteBottomSheetRef>(null);
+  const isProfileComplete = React.useMemo(
+    () => Boolean(user?.parentId || user?.profileCompleted),
+    [user],
+  );
 
   React.useEffect(() => {
-    if (!user?.id) {
+    if (!isLoggedIn || isLoading || !user?.id || !isProfileComplete) {
       sheetRef.current?.close();
       return;
     }
     dispatch(fetchPendingInvites());
-  }, [dispatch, user?.id]);
+  }, [dispatch, isLoggedIn, isLoading, isProfileComplete, user?.id]);
 
   React.useEffect(() => {
     if (pendingInvites.length === 0) {

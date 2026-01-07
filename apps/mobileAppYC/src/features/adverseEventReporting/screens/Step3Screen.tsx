@@ -77,19 +77,19 @@ const createStyles = (theme: any) =>
     title: {
       ...theme.typography.h6Clash,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     listContent: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     buttonText: {
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
-      marginTop: theme.spacing[1],
-      marginLeft: theme.spacing[1],
+      marginTop: theme.spacing['1'],
+      marginLeft: theme.spacing['1'],
     },
   });

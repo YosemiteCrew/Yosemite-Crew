@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 // FIX: Corrected path depth (5 levels up instead of 6)
 import {DocumentPreviewScreen} from '../../../../../src/features/documents/screens/DocumentPreviewScreen/DocumentPreviewScreen';
@@ -10,6 +11,7 @@ import {fetchDocumentView} from '../../../../../src/features/documents/documentS
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockDocumentId = 'doc-123';
 
 // 1. Navigation
@@ -17,6 +19,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
     goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
   }),
   useRoute: () => ({
     params: {documentId: mockDocumentId},
@@ -27,18 +30,17 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('@/shared/utils/screenStyles', () => ({
   createScreenContainerStyles: () => ({container: {}, contentContainer: {}}),
   createErrorContainerStyles: () => ({errorContainer: {}, errorText: {}}),
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
+  createAllCommonStyles: () => ({container: {}, contentContainer: {}, errorContainer: {}, errorText: {}}),
 }));
 
 // 3. Theme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {cardBackground: 'white', textSecondary: 'grey'},
-      spacing: {2: 8, 4: 16},
-      borderRadius: {lg: 8},
-      typography: {titleLarge: {}, bodyMedium: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Assets
@@ -147,15 +149,21 @@ describe('DocumentPreviewScreen', () => {
 
   describe('Rendering', () => {
     it('renders the header with document title', () => {
-      const {getByText, getByTestId} = renderWithRedux();
-      expect(getByText('Vaccination Report')).toBeTruthy();
+      const {getAllByText, getByTestId} = renderWithRedux();
+      // Title appears in both header and details card
+      expect(getAllByText('Vaccination Report').length).toBeGreaterThan(0);
       expect(getByTestId('mock-header')).toBeTruthy();
     });
 
     it('renders info card with correct details', () => {
-      const {getByText} = renderWithRedux();
-      // Title logic: {title} for {companionName}
-      expect(getByText('Vaccination Report for Buddy')).toBeTruthy();
+      const {getByText, getAllByText} = renderWithRedux();
+      // DetailsCard shows Document Details title
+      expect(getByText('Document Details')).toBeTruthy();
+      // Title (appears in both header and details card)
+      expect(getAllByText('Vaccination Report').length).toBeGreaterThan(0);
+      // Companion name
+      expect(getByText('Buddy')).toBeTruthy();
+      // Business name
       expect(getByText('Happy Vet Clinic')).toBeTruthy();
       // Date formatting: Jan 15, 2023
       expect(getByText('Jan 15, 2023')).toBeTruthy();
@@ -167,7 +175,7 @@ describe('DocumentPreviewScreen', () => {
         companion: {companions: []},
       };
       const {getByText} = renderWithRedux(stateNoCompanion);
-      expect(getByText('Vaccination Report for Unknown')).toBeTruthy();
+      expect(getByText('Unknown')).toBeTruthy();
     });
 
     it('renders dashes if businessName or date are missing', () => {

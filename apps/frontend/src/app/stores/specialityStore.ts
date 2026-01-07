@@ -15,6 +15,7 @@ type SpecialityState = {
   setSpecialitiesForOrg: (orgId: string, items: Speciality[]) => void;
   addSpeciality: (speciality: Speciality) => void;
   updateSpeciality: (speciality: Speciality) => void;
+  deleteSpecialityById: (id: string) => void;
   clearSpecialitiesForOrg: (orgId: string) => void;
   getSpecialitiesByOrgId: (orgId: string) => Speciality[];
   clearSpecialities: () => void;
@@ -131,6 +132,35 @@ export const useSpecialityStore = create<SpecialityState>()((set, get) => ({
           },
         },
         status: "loaded",
+      };
+    }),
+
+  deleteSpecialityById: (id) =>
+    set((state) => {
+      const speciality = state.specialitiesById[id];
+      if (!speciality) {
+        console.warn("deleteSpecialityById: speciality not found:", id);
+        return state;
+      }
+      const orgId = speciality.organisationId;
+      const { [id]: _, ...restById } = state.specialitiesById;
+      const updatedIdsForOrg = (state.specialityIdsByOrgId[orgId] ?? []).filter(
+        (specId) => specId !== id
+      );
+      const specialityIdsByOrgId = {
+        ...state.specialityIdsByOrgId,
+        [orgId]: updatedIdsForOrg,
+      };
+      if (updatedIdsForOrg.length === 0) {
+        const { [orgId]: __, ...rest } = specialityIdsByOrgId;
+        return {
+          specialitiesById: restById,
+          specialityIdsByOrgId: rest,
+        };
+      }
+      return {
+        specialitiesById: restById,
+        specialityIdsByOrgId,
       };
     }),
 

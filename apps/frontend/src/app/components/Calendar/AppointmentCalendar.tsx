@@ -4,6 +4,7 @@ import DayCalendar from "./common/DayCalendar";
 import Header from "./common/Header";
 import WeekCalendar from "./common/WeekCalendar";
 import { Appointment } from "@yosemite-crew/types";
+import UserCalendar from "./common/UserCalendar";
 
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
@@ -61,12 +62,10 @@ const AppointmentCalendar = ({
         />
       )}
       {activeCalendar === "vet" && (
-        <WeekCalendar
-          events={filteredList}
+        <UserCalendar
+          events={dayEvents}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
-          weekStart={weekStart}
-          setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
         />
       )}

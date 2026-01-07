@@ -43,6 +43,7 @@ setup_permissions([
   'Camera',
   'PhotoLibrary',
   'LocationWhenInUse',
+  'Calendars',
 ])
 
 target 'mobileAppYC' do

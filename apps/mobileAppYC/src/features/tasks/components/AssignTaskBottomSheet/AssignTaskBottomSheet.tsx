@@ -4,6 +4,9 @@ import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/com
 import {useSelector} from 'react-redux';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {useTheme} from '@/hooks';
+import type {RootState} from '@/app/store';
+import {selectAcceptedCoParents} from '@/features/coParent/selectors';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 
 export interface AssignTaskBottomSheetRef {
   open: () => void;
@@ -23,31 +26,80 @@ export const AssignTaskBottomSheet = forwardRef<
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
   const currentUser = useSelector(selectAuthUser);
+  const coParents = useSelector(selectAcceptedCoParents);
+  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
 
-  // For now, only show current user. In future, co-users will be added here
-  const users = useMemo(() => currentUser
-    ? [
-        {
-          id: currentUser.id,
-          name: currentUser.firstName || currentUser.email || 'You',
-          avatar: currentUser.profilePicture,
-        },
-      ]
-    : [], [currentUser]);
+  const normalizedCurrentUser = useMemo(() => {
+    if (!currentUser) {
+      return null;
+    }
+    return {
+      id: currentUser.parentId ?? currentUser.id,
+      name: currentUser.firstName || currentUser.email || 'You',
+      avatar: normalizeImageUri(currentUser.profilePicture) ?? undefined,
+    };
+  }, [currentUser]);
+
+  const assignableCoParents = useMemo(() => {
+    if (!selectedCompanionId) {
+      return [];
+    }
+    return coParents.filter(
+      cp =>
+        cp.companionId === selectedCompanionId &&
+        (cp.role ?? '').toLowerCase() !== 'primary' &&
+        (cp.permissions?.tasks ?? true) &&
+        (cp.status ?? '').toLowerCase() === 'accepted',
+    );
+  }, [coParents, selectedCompanionId]);
+
+  const coParentUsers = useMemo(
+    () =>
+      assignableCoParents.map(cp => ({
+        id: cp.parentId || cp.id || cp.userId,
+        name:
+          [cp.firstName, cp.lastName].filter(Boolean).join(' ').trim() ||
+          cp.email ||
+          'Co-parent',
+        avatar: normalizeImageUri(cp.profilePicture) ?? undefined,
+      })),
+    [assignableCoParents],
+  );
+
+  const users = useMemo(() => {
+    const list = [];
+    if (normalizedCurrentUser) {
+      list.push(normalizedCurrentUser);
+    }
+    list.push(...coParentUsers);
+    // Deduplicate by id to avoid showing current user twice
+    const seen = new Set<string>();
+    return list.filter(user => {
+      if (!user.id) return false;
+      if (seen.has(user.id)) return false;
+      seen.add(user.id);
+      return true;
+    });
+  }, [coParentUsers, normalizedCurrentUser]);
 
   const userItems: SelectItem[] = useMemo(() =>
     users.map(user => ({
-      id: user.id,
+      id: user.id!,
       label: user.name,
       avatar: user.avatar,
     })), [users]
   );
 
-  const selectedItem = selectedUserId ? {
-    id: selectedUserId,
-    label: users.find(u => u.id === selectedUserId)?.name || 'Unknown',
-    avatar: users.find(u => u.id === selectedUserId)?.avatar,
-  } : null;
+  const selectedItem = selectedUserId
+    ? (() => {
+        const user = users.find(u => u.id === selectedUserId);
+        return {
+          id: selectedUserId,
+          label: user?.name || 'Unknown',
+          avatar: user?.avatar,
+        };
+      })()
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -68,38 +120,38 @@ export const AssignTaskBottomSheet = forwardRef<
     const containerStyle = {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: 12,
+      gap: theme.spacing['3'],
       flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 16,
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: '#EAEAEA',
+      borderColor: theme.colors.borderMuted,
     };
 
-    const avatarStyle = {width: 40, height: 40, borderRadius: 20, resizeMode: 'cover' as const};
+    const avatarStyle = {width: 40, height: 40, borderRadius: theme.borderRadius.full, resizeMode: 'cover' as const};
     const avatarPlaceholderStyle = {
       width: 40,
       height: 40,
-      borderRadius: 20,
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.lightBlueBackground,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const avatarTextStyle = {fontSize: 18, fontWeight: '700' as const, color: theme.colors.primary};
+    const avatarTextStyle = {...theme.typography.bodyLarge, fontWeight: '700' as const, color: theme.colors.primary};
     const nameTextStyle = {
+      ...theme.typography.bodyMedium,
       fontWeight: isSelected ? '600' as const : '500' as const,
-      fontSize: 16,
     };
     const checkmarkContainerStyle = {
       width: 20,
       height: 20,
       backgroundColor: theme.colors.primary,
-      borderRadius: 10,
+      borderRadius: theme.borderRadius.full,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const checkmarkTextStyle = {color: 'white', fontSize: 12, fontWeight: '700' as const};
+    const checkmarkTextStyle = {...theme.typography.labelSmall, color: theme.colors.white, fontWeight: '700' as const};
 
     return (
       <View style={containerStyle}>

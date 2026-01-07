@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {Step1Screen} from '@/features/adverseEventReporting/screens/Step1Screen';
 import * as reactRedux from 'react-redux';
@@ -14,31 +15,7 @@ const mockNavigation = {
 };
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        secondary: 'black',
-        text: 'grey',
-        textSecondary: 'lightgrey',
-        textTertiary: 'darkgrey',
-        placeholder: 'silver',
-        error: 'red',
-        borderMuted: 'lightgray',
-      },
-      spacing: {1: 4, 2: 8, 3: 12, 4: 16, 6: 24, 8: 32, 16: 64},
-      typography: {
-        h4Alt: {fontSize: 24},
-        subtitleBold14: {fontSize: 14, fontWeight: 'bold'},
-        businessTitle16: {fontSize: 16},
-        body: {fontSize: 14},
-        paragraph: {fontSize: 12},
-        paragraphBold: {fontSize: 12, fontWeight: 'bold'},
-        labelXsBold: {fontSize: 10, fontWeight: 'bold'},
-        pillSubtitleBold15: {fontSize: 15, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({

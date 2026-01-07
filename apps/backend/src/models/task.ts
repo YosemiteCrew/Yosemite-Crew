@@ -7,7 +7,7 @@ interface TaskMongo {
   organisationId?: string;
   appointmentId?: string;
 
-  companionId: string;
+  companionId?: string;
 
   createdBy: string;
   assignedBy?: string;
@@ -22,12 +22,17 @@ interface TaskMongo {
   category: string;
   name: string;
   description?: string;
+  additionalNotes?: string;
 
   medication?: {
     name?: string;
     type?: string;
-    dosage?: string;
-    frequency?: string;
+    notes?: string;
+    doses?: {
+      dosage?: string;
+      time?: string;
+      frequency?: string;
+    }[];
   };
 
   observationToolId?: string;
@@ -65,12 +70,28 @@ interface TaskMongo {
   updatedAt?: Date;
 }
 
+const MedicationDoseSchema = new Schema(
+  {
+    dosage: { type: String, required: true },
+    time: { type: String }, // Optional: HH:mm
+    frequency: { type: String }, // Optional: BID, TID, DAILY
+  },
+  { _id: false },
+);
+
 const MedicationSchema = new Schema(
   {
-    name: String,
+    name: { type: String, required: true },
     type: String,
-    dosage: String,
-    frequency: String,
+    notes: String,
+    doses: {
+      type: [MedicationDoseSchema],
+      required: true,
+      validate: [
+        (v: unknown[]) => Array.isArray(v) && v.length > 0,
+        "At least one dose is required for medication task",
+      ],
+    },
   },
   { _id: false },
 );
@@ -108,7 +129,7 @@ const TaskSchema = new Schema<TaskMongo>(
     organisationId: String,
     appointmentId: String,
 
-    companionId: { type: String, required: true },
+    companionId: String,
 
     createdBy: { type: String, required: true },
     assignedBy: String,
@@ -131,7 +152,7 @@ const TaskSchema = new Schema<TaskMongo>(
     category: String,
     name: String,
     description: String,
-
+    additionalNotes: String,
     medication: MedicationSchema,
     observationToolId: String,
 

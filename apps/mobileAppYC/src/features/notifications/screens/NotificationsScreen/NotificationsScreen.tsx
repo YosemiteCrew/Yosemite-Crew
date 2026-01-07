@@ -8,7 +8,7 @@ import {
   Image,
   RefreshControl,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
@@ -260,63 +260,80 @@ export const NotificationsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top','bottom']}>
-      <Header
-        title="Notifications"
-        showBackButton
-        onBack={() => (navigation as any).goBack?.()}
-      />
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Notifications"
+          showBackButton
+          onBack={() => (navigation as any).goBack?.()}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['2']}
+      useSafeAreaView
+      containerStyle={styles.container}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <>
+          {/* Header content placed above FlatList to preserve internal scroll state */}
+          <View style={[styles.headerContent, contentPaddingStyle]}>
+            <View style={styles.filtersWrapper}>
+              <NotificationFilterPills
+                selectedFilter={filter}
+                onFilterChange={handleFilterChange}
+                unreadCounts={unreadCounts as any}
+              />
+            </View>
 
-      {/* Header content placed above FlatList to preserve internal scroll state */}
-      <View style={styles.headerContent}>
-        <View style={styles.filtersWrapper}>
-          <NotificationFilterPills
-            selectedFilter={filter}
-            onFilterChange={handleFilterChange}
-            unreadCounts={unreadCounts as any}
-          />
-        </View>
-
-        <View style={styles.segmentContainer}>
-          <View style={styles.segmentInner}>
-            {(['new', 'seen'] as const).map(option => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => handleSortChange(option)}
-                activeOpacity={0.9}
-                style={[styles.segmentItem, sortBy === option && styles.segmentItemActive]}>
-                <Text style={[styles.segmentText, sortBy === option && styles.segmentTextActive]}>
-                  {option === 'new' ? 'New' : 'Seen'}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <View style={styles.segmentContainer}>
+              <View style={styles.segmentInner}>
+                {(['new', 'seen'] as const).map(option => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => handleSortChange(option)}
+                    activeOpacity={0.9}
+                    style={[
+                      styles.segmentItem,
+                      sortBy === option && styles.segmentItemActive,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        sortBy === option && styles.segmentTextActive,
+                      ]}>
+                      {option === 'new' ? 'New' : 'Seen'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
 
-      <FlatList
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        data={notifications}
-        renderItem={renderNotificationItem}
-        keyExtractor={item => item.id}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing || loading}
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
+          <FlatList
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            data={notifications}
+            renderItem={renderNotificationItem}
+            keyExtractor={item => item.id}
+            ListEmptyComponent={renderEmptyState}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing || loading}
+                onRefresh={handleRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
           />
-        }
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-      />
-    </SafeAreaView>
+        </>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -325,36 +342,35 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     listContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[10],
-      gap: theme.spacing[3],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['10'],
+      gap: theme.spacing['3'],
     },
     headerContent: {
-      marginBottom: theme.spacing[2],
-      paddingHorizontal: theme.spacing[4],
+      marginBottom: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['4'],
     },
     filtersWrapper: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[3],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['3'],
     },
     segmentContainer: {
-      marginTop: theme.spacing[2],
-      marginBottom: theme.spacing[3],
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['3'],
       // horizontal padding inherited from headerContent
     },
     segmentInner: {
       flexDirection: 'row',
-      backgroundColor: '#EAEAEA',
-      borderRadius: 12,
-      padding: 4,
+      backgroundColor: theme.colors.border,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing['1'],
       borderColor: theme.colors.border,
       borderWidth: 1,
     },
     segmentItem: {
       flex: 1,
-      paddingVertical: 10,
-      borderRadius: 8,
+      paddingVertical: theme.spacing['2.5'],
+      borderRadius: theme.borderRadius.base,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -362,10 +378,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      shadowOffset: {width: 0, height: 1},
+      ...theme.shadows.xs,
     },
     segmentText: {
       ...theme.typography.labelSmall,
@@ -380,25 +393,26 @@ const createStyles = (theme: any) =>
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing[4],
+      paddingHorizontal: theme.spacing['4'],
       minHeight: 300,
     },
     emptyImage: {
-      height: 160,
-      width: 160,
+      height: theme.spacing['40'],
+      width: theme.spacing['40'],
       resizeMode: 'contain',
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     emptyTitle: {
       ...theme.typography.businessSectionTitle20,
       color: theme.colors.text,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
       textAlign: 'center',
     },
     emptySubtitle: {
       ...theme.typography.subtitleRegular14,
       color: theme.colors.secondary,
       textAlign: 'center',
-      lineHeight: 14 * 1.2,
+      lineHeight: theme.typography.subtitleRegular14.lineHeight,
     },
   });
+};

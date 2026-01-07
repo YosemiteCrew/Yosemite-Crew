@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import {
+  Keyboard,
   TextInput,
   View,
   Text,
@@ -14,6 +15,7 @@ import {
   Animated,
   Platform,
   TouchableOpacity,
+  useColorScheme,
 } from 'react-native';
 import { useTheme } from '@/hooks';
 
@@ -50,9 +52,13 @@ export const Input: React.FC<InputProps> = ({
   ...textInputProps
 }) => {
   const { theme } = useTheme();
+  const systemColorScheme = useColorScheme();
   const [isFocused, setIsFocused] = useState(false);
   const [hasValue, setHasValue] = useState(!!value);
   const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const isMultiline = Boolean(textInputProps.multiline);
+  const keyboardAppearance =
+    systemColorScheme === 'dark' ? 'dark' : 'light';
 
   const animateLabel = useCallback((toValue: number) => {
     Animated.timing(animatedValue, {
@@ -110,10 +116,10 @@ export const Input: React.FC<InputProps> = ({
     return {
       borderWidth: 1,
       borderColor,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.surface,
-      paddingHorizontal: 20,
-      minHeight: 56,
+      paddingHorizontal: theme.spacing['5'],
+      minHeight: theme.spacing['14'],
       position: 'relative',
       justifyContent: 'center',
       flexDirection: 'row',
@@ -134,21 +140,21 @@ export const Input: React.FC<InputProps> = ({
       ? theme.typography.inputFilled.letterSpacing
       : theme.typography.input.letterSpacing,
     flex: 1,
-    ...(Platform.OS === 'ios' 
+    ...(Platform.OS === 'ios'
       ? {
-          paddingTop: label ? 10 : 12,
-          paddingBottom: label ? 8 : 12,
+          paddingTop: label ? theme.spacing['2.5'] : theme.spacing['3'],
+          paddingBottom: label ? theme.spacing['2'] : theme.spacing['3'],
           lineHeight: undefined,
         }
       : {
-          paddingTop: label ? 10 : 8,
-          paddingBottom: 8,
+          paddingTop: label ? theme.spacing['2.5'] : theme.spacing['2'],
+          paddingBottom: theme.spacing['2'],
           textAlignVertical: 'center',
         }
     ),
     paddingHorizontal: 0,
     margin: 0,
-    minHeight: Platform.OS === 'ios' ? 20 : 24,
+    minHeight: Platform.OS === 'ios' ? theme.spacing['5'] : theme.spacing['6'],
     height: undefined,
   });
 
@@ -157,6 +163,13 @@ export const Input: React.FC<InputProps> = ({
   // the label is in the placeholder state. This gives visual offset
   // for the placeholder text without affecting entered text alignment.
   const effectivePlaceholderOffset = placeholderOffset ?? 0;
+  const placeholderLineHeight =
+    theme.typography.input.lineHeight ?? theme.typography.input.fontSize;
+  const placeholderTop =
+    (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
+  const labelLineHeight =
+    theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize;
+  const floatingTop = -Math.round(labelLineHeight / 2) - 2;
 
   const getFloatingLabelStyle = () => {
     const baseStyle = {
@@ -165,19 +178,19 @@ export const Input: React.FC<InputProps> = ({
       // when not floated and the regular left (20) when floated.
       left: animatedValue.interpolate({
         inputRange: [0, 1],
-        outputRange: [20 + effectivePlaceholderOffset, 20],
+        outputRange: [theme.spacing['5'] + effectivePlaceholderOffset, theme.spacing['5']],
       }),
       fontFamily: theme.typography.input.fontFamily,
       fontWeight: theme.typography.input.fontWeight,
       fontSize: animatedValue.interpolate({
         inputRange: [0, 1],
-        outputRange: [16, 14],
+        outputRange: [theme.typography.input.fontSize, theme.typography.inputLabel.fontSize],
       }),
       top: animatedValue.interpolate({
         inputRange: [0, 1],
         outputRange: [
-          Platform.OS === 'ios' ? 18 : 15,
-          Platform.OS === 'ios' ? -6 : -10,
+          placeholderTop,
+          floatingTop,
         ],
       }),
       color: animatedValue.interpolate({
@@ -191,7 +204,7 @@ export const Input: React.FC<InputProps> = ({
       backgroundColor: theme.colors.surface || theme.colors.background,
       paddingHorizontal: animatedValue.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, 4],
+        outputRange: [0, theme.spacing['1']],
       }),
       paddingVertical: animatedValue.interpolate({
         inputRange: [0, 1],
@@ -213,11 +226,11 @@ export const Input: React.FC<InputProps> = ({
   };
 
   const getErrorStyle = (): TextStyle => ({
-    ...theme.typography.labelXsBold,
+    ...theme.typography.labelXxsBold,
     color: theme.colors.error,
-    marginTop: 3,
-    marginBottom: theme.spacing?.[3] || 12,
-    marginLeft: theme.spacing?.[1] || 4,
+    marginTop: theme.spacing['1'],
+    marginBottom: theme.spacing['3'],
+    marginLeft: theme.spacing['1'],
   });
 
   let IconWrapper = null;
@@ -236,12 +249,22 @@ export const Input: React.FC<InputProps> = ({
         <TextInput
           style={[getInputStyle(), inputStyle]}
           placeholderTextColor={theme.colors.placeholder}
+          keyboardAppearance={
+            textInputProps.keyboardAppearance ?? keyboardAppearance
+          }
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChangeText={handleChangeText}
           value={value}
           clearButtonMode="while-editing"
           enablesReturnKeyAutomatically={true}
+          returnKeyType={textInputProps.returnKeyType ?? 'done'}
+          onSubmitEditing={(event) => {
+            textInputProps.onSubmitEditing?.(event);
+            if (!isMultiline) {
+              Keyboard.dismiss();
+            }
+          }}
           {...textInputProps}
         />
         {icon && IconWrapper && (

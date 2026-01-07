@@ -2,38 +2,13 @@ import React from 'react';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import OrganisationDocumentScreen from '../../../../src/features/legal/screens/OrganisationDocumentScreen';
 import {organisationDocumentService} from '../../../../src/features/legal/services/organisationDocumentService';
+import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
 // 1. Mock Theme (Defined inline to avoid hoisting issues)
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: '#0000FF',
-        text: '#000000',
-        textSecondary: '#666666',
-        cardBackground: '#FFFFFF',
-        borderMuted: '#EEEEEE',
-      },
-      spacing: {'2': 8, '4': 16},
-      borderRadius: {lg: 12},
-      typography: {
-        subtitleBold14: {
-          fontSize: 14,
-          fontWeight: 'bold',
-          fontFamily: 'System',
-        },
-        subtitleRegular14: {fontSize: 14, fontFamily: 'System'},
-        // Fix: Explicitly included to prevent crash in legalStyles.ts
-        businessTitle16: {
-          fontSize: 16,
-          fontWeight: 'bold',
-          fontFamily: 'System',
-        },
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Navigation

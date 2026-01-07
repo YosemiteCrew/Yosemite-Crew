@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 // FIX 1: Corrected path depth (5 levels up instead of 6) to reach 'src' from the nested test folder
 import {CategoryDetailScreen} from '../../../../../src/features/documents/screens/CategoryDetailScreen/CategoryDetailScreen';
@@ -11,6 +12,7 @@ import {fetchDocuments} from '../../../../../src/features/documents/documentSlic
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockCategoryId = 'medical-records';
 
 // Mock Navigation
@@ -18,6 +20,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
     goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
   }),
   useRoute: () => ({
     params: {categoryId: mockCategoryId},
@@ -30,16 +33,17 @@ jest.mock('@/shared/utils/screenStyles', () => ({
   createErrorContainerStyles: () => ({errorContainer: {}, errorText: {}}),
   createEmptyStateStyles: () => ({emptyContainer: {}, emptyText: {}}),
   createSearchAndSelectorStyles: () => ({searchBar: {}, companionSelector: {}}),
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
+  useCommonScreenStyles: () => ({container: {}, contentContainer: {}}),
 }));
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {primary: 'blue', text: 'black'},
-      spacing: {4: 16},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Helpers

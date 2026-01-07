@@ -1,8 +1,12 @@
 import axios from "axios";
-import { getData } from "@/app/services/axios";
+import { deleteData, getData } from "@/app/services/axios";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useServiceStore } from "@/app/stores/serviceStore";
-import { Service, ServiceRequestDTO, fromServiceRequestDTO } from "@yosemite-crew/types";
+import {
+  Service,
+  ServiceRequestDTO,
+  fromServiceRequestDTO,
+} from "@yosemite-crew/types";
 
 export const loadServicesForOrg = async (
   orgId?: string
@@ -34,5 +38,20 @@ export const loadServicesForOrg = async (
       console.error("Failed to load services:", err);
     }
     return [];
+  }
+};
+
+export const deleteService = async (service: Service) => {
+  const { deleteServiceById } = useServiceStore.getState();
+  try {
+    const id = service.id;
+    if (!id) {
+      throw new Error("Service ID is missing.");
+    }
+    await deleteData("/fhir/v1/service/" + id);
+    deleteServiceById(id);
+  } catch (err) {
+    console.error("Failed to delete service:", err);
+    throw err;
   }
 };

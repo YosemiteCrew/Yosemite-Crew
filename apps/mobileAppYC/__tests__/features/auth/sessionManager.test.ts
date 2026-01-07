@@ -47,6 +47,10 @@ jest.mock('react-native', () => ({
     addEventListener: jest.fn(),
     currentState: 'active',
   },
+  DeviceEventEmitter: {
+    emit: jest.fn(),
+    addListener: jest.fn(() => ({remove: jest.fn()})),
+  },
 }));
 
 jest.mock('@react-native-firebase/auth', () => ({
@@ -120,6 +124,13 @@ describe('sessionManager', () => {
     jest.useFakeTimers();
     // Reset module state to prevent pollution between tests
     resetAuthLifecycle();
+
+    // Default profile status mock to an incomplete profile unless a test overrides
+    (fetchProfileStatus as jest.Mock).mockResolvedValue({
+      profileToken: null,
+      isComplete: false,
+      parent: undefined,
+    });
 
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(null);

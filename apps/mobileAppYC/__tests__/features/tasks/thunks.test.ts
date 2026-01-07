@@ -1,75 +1,113 @@
-import {
-  fetchTasksForCompanion,
-  addTask,
-  updateTask,
-  deleteTask,
-  markTaskStatus,
-} from '../../../src/features/tasks/thunks';
-import {v4 as uuidv4} from 'uuid';
+import type {Task} from '../../../src/features/tasks/types';
+let fetchTasksForCompanion: any;
+let addTask: any;
+let updateTask: any;
+let deleteTask: any;
+let markTaskStatus: any;
 
-// --- Mocks ---
-jest.mock('uuid', () => ({
-  v4: jest.fn(),
+// Mock the API service
+const mockTaskApi = {
+  list: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  changeStatus: jest.fn(),
+};
+
+jest.mock('../../../src/features/tasks/services/taskService', () => ({
+  __esModule: true,
+  taskApi: mockTaskApi,
+}));
+jest.mock('@/features/tasks/services/taskService', () => ({
+  __esModule: true,
+  taskApi: mockTaskApi,
 }));
 
 describe('features/tasks/thunks', () => {
+  beforeAll(() => {
+    ({
+      fetchTasksForCompanion,
+      addTask,
+      updateTask,
+      deleteTask,
+      markTaskStatus,
+    } = require('../../../src/features/tasks/thunks'));
+  });
   const mockDispatch = jest.fn();
   const mockGetState = jest.fn();
-  // Base time: 2023-01-01 12:00:00.000
-  const fixedDate = new Date('2023-01-01T12:00:00.000Z');
+
+  // Helper to create a mock task
+  const createMockTask = (overrides?: Partial<Task>): Task => ({
+    id: 'test-uuid',
+    companionId: 'c1',
+    category: 'custom',
+    subcategory: 'none',
+    title: 'Test Task',
+    date: '2023-01-01',
+    frequency: 'once',
+    reminderEnabled: false,
+    reminderOptions: null,
+    syncWithCalendar: false,
+    attachDocuments: false,
+    attachments: [],
+    status: 'PENDING',
+    createdAt: '2023-01-01T12:00:00.000Z',
+    updatedAt: '2023-01-01T12:00:00.000Z',
+    details: {},
+    ...overrides,
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset timers and system time before each test
-    jest.useFakeTimers();
-    jest.setSystemTime(fixedDate);
-    (uuidv4 as jest.Mock).mockReturnValue('test-uuid');
+
+    // Setup API mocks to resolve successfully by default
+    mockTaskApi.list.mockResolvedValue([]);
+    mockTaskApi.create.mockResolvedValue(createMockTask());
+    mockTaskApi.update.mockResolvedValue(createMockTask());
+    mockTaskApi.changeStatus.mockResolvedValue(createMockTask());
   });
 
   afterEach(() => {
-    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
   // Helper to execute thunks
   const callThunk = async (thunk: any, arg: any) => {
     const actionCreator = thunk(arg);
-    const promise = actionCreator(mockDispatch, mockGetState, undefined);
-
-    // We run timers to advance the internal delay().
-    // If the implementation is mocked to throw synchronously (in error tests),
-    // this will simply do nothing, which is safe.
-    jest.runAllTimers();
-
-    return await promise;
-  };
-
-  // Helper to mock setTimeout failures
-  const mockTimeoutFailure = (errorToThrow: any) => {
-    jest.spyOn(globalThis, 'setTimeout').mockImplementationOnce(() => {
-      throw errorToThrow;
-    });
+    return await actionCreator(mockDispatch, mockGetState, undefined);
   };
 
   // ===========================================================================
   // 1. fetchTasksForCompanion
   // ===========================================================================
   describe('fetchTasksForCompanion', () => {
-    it('success: returns data', async () => {
+    it('success: returns data with empty tasks list', async () => {
+      mockTaskApi.list.mockResolvedValue([]);
       const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
       expect(result.type).toBe('tasks/fetchTasksForCompanion/fulfilled');
       expect(result.payload).toEqual({ companionId: '1', tasks: [] });
+      expect(mockTaskApi.list).toHaveBeenCalledWith({ companionId: '1' });
+    });
+
+    it('success: returns data with tasks', async () => {
+      const mockTasks = [
+        createMockTask({ id: 'task-1', companionId: '1' }),
+        createMockTask({ id: 'task-2', companionId: '1' }),
+      ];
+      mockTaskApi.list.mockResolvedValue(mockTasks);
+      const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
+      expect(result.type).toBe('tasks/fetchTasksForCompanion/fulfilled');
+      expect(result.payload).toEqual({ companionId: '1', tasks: mockTasks });
     });
 
     it('failure: handles Error object', async () => {
-      mockTimeoutFailure(new Error('Fetch Failed'));
+      mockTaskApi.list.mockRejectedValue(new Error('Fetch Failed'));
       const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
       expect(result.type).toBe('tasks/fetchTasksForCompanion/rejected');
       expect(result.payload).toBe('Fetch Failed');
     });
 
     it('failure: handles non-Error object (fallback message)', async () => {
-      mockTimeoutFailure("Unknown String Error");
+      mockTaskApi.list.mockRejectedValue('Unknown String Error');
       const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
       expect(result.type).toBe('tasks/fetchTasksForCompanion/rejected');
       expect(result.payload).toBe('Failed to fetch tasks');
@@ -80,34 +118,50 @@ describe('features/tasks/thunks', () => {
   // 2. addTask
   // ===========================================================================
   describe('addTask', () => {
-    it('success: returns new task with generated data', async () => {
-      const taskData = { title: 'Task 1', description: 'Desc', companionId: 'c1' };
+    it('success: returns new task', async () => {
+      const taskData = {
+        companionId: 'c1',
+        category: 'CUSTOM' as const,
+        name: 'Task 1',
+        description: 'Desc',
+        dueAt: '2023-01-01T12:00:00.000Z',
+      };
+      const mockTask = createMockTask({
+        id: 'new-task-id',
+        companionId: 'c1',
+        title: 'Task 1',
+        description: 'Desc',
+      });
+      mockTaskApi.create.mockResolvedValue(mockTask);
+
       const result = await callThunk(addTask, taskData);
 
-      // Delay is 600ms, so time advances by 600ms
-      const expectedTime = '2023-01-01T12:00:00.600Z';
-
       expect(result.type).toBe('tasks/addTask/fulfilled');
-      expect(result.payload).toEqual({
-        ...taskData,
-        id: 'test-uuid',
-        status: 'pending',
-        createdAt: expectedTime,
-        updatedAt: expectedTime,
-      });
+      expect(result.payload).toEqual(mockTask);
+      expect(mockTaskApi.create).toHaveBeenCalledWith(taskData);
     });
 
-    // For addTask, we can mock uuidv4 to fail instead of setTimeout to vary the tests,
-    // ensuring the try/catch block works for any error in the block.
     it('failure: handles Error object', async () => {
-      (uuidv4 as jest.Mock).mockImplementationOnce(() => { throw new Error('UUID Error'); });
-      const result = await callThunk(addTask, { title: 'T' });
-      expect(result.payload).toBe('UUID Error');
+      mockTaskApi.create.mockRejectedValue(new Error('Create Failed'));
+      const result = await callThunk(addTask, {
+        companionId: 'c1',
+        category: 'CUSTOM' as const,
+        name: 'Task',
+        dueAt: '2023-01-01T12:00:00.000Z',
+      });
+      expect(result.type).toBe('tasks/addTask/rejected');
+      expect(result.payload).toBe('Create Failed');
     });
 
     it('failure: handles non-Error object', async () => {
-      (uuidv4 as jest.Mock).mockImplementationOnce(() => { throw "String Error"; });
-      const result = await callThunk(addTask, { title: 'T' });
+      mockTaskApi.create.mockRejectedValue('String Error');
+      const result = await callThunk(addTask, {
+        companionId: 'c1',
+        category: 'CUSTOM' as const,
+        name: 'Task',
+        dueAt: '2023-01-01T12:00:00.000Z',
+      });
+      expect(result.type).toBe('tasks/addTask/rejected');
       expect(result.payload).toBe('Failed to add task');
     });
   });
@@ -116,27 +170,35 @@ describe('features/tasks/thunks', () => {
   // 3. updateTask
   // ===========================================================================
   describe('updateTask', () => {
-    it('success: returns updated data', async () => {
-      const result = await callThunk(updateTask, { taskId: '1', updates: { title: 'New' } });
-      // Delay 600ms
-      const expectedTime = '2023-01-01T12:00:00.600Z';
+    it('success: returns updated task', async () => {
+      const mockUpdatedTask = createMockTask({
+        id: '1',
+        title: 'New Title',
+        updatedAt: '2023-01-01T12:00:01.000Z',
+      });
+      mockTaskApi.update.mockResolvedValue(mockUpdatedTask);
+
+      const result = await callThunk(updateTask, {
+        taskId: '1',
+        updates: { name: 'New Title' },
+      });
 
       expect(result.type).toBe('tasks/updateTask/fulfilled');
-      expect(result.payload).toEqual({
-        taskId: '1',
-        updates: { title: 'New', updatedAt: expectedTime },
-      });
+      expect(result.payload).toEqual(mockUpdatedTask);
+      expect(mockTaskApi.update).toHaveBeenCalledWith('1', { name: 'New Title' });
     });
 
     it('failure: handles Error object', async () => {
-      mockTimeoutFailure(new Error('Update Failed'));
+      mockTaskApi.update.mockRejectedValue(new Error('Update Failed'));
       const result = await callThunk(updateTask, { taskId: '1', updates: {} });
+      expect(result.type).toBe('tasks/updateTask/rejected');
       expect(result.payload).toBe('Update Failed');
     });
 
     it('failure: handles non-Error object', async () => {
-      mockTimeoutFailure("String Error");
+      mockTaskApi.update.mockRejectedValue('String Error');
       const result = await callThunk(updateTask, { taskId: '1', updates: {} });
+      expect(result.type).toBe('tasks/updateTask/rejected');
       expect(result.payload).toBe('Failed to update task');
     });
   });
@@ -145,21 +207,31 @@ describe('features/tasks/thunks', () => {
   // 4. deleteTask
   // ===========================================================================
   describe('deleteTask', () => {
-    it('success: returns IDs', async () => {
+    it('success: returns cancelled task', async () => {
+      const mockCancelledTask = createMockTask({
+        id: '1',
+        companionId: 'c1',
+        status: 'CANCELLED',
+      });
+      mockTaskApi.changeStatus.mockResolvedValue(mockCancelledTask);
+
       const result = await callThunk(deleteTask, { taskId: '1', companionId: 'c1' });
       expect(result.type).toBe('tasks/deleteTask/fulfilled');
-      expect(result.payload).toEqual({ taskId: '1', companionId: 'c1' });
+      expect(result.payload).toEqual(mockCancelledTask);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'CANCELLED');
     });
 
     it('failure: handles Error object', async () => {
-      mockTimeoutFailure(new Error('Delete Failed'));
+      mockTaskApi.changeStatus.mockRejectedValue(new Error('Delete Failed'));
       const result = await callThunk(deleteTask, { taskId: '1', companionId: 'c1' });
+      expect(result.type).toBe('tasks/deleteTask/rejected');
       expect(result.payload).toBe('Delete Failed');
     });
 
     it('failure: handles non-Error object', async () => {
-      mockTimeoutFailure("String Error");
+      mockTaskApi.changeStatus.mockRejectedValue('String Error');
       const result = await callThunk(deleteTask, { taskId: '1', companionId: 'c1' });
+      expect(result.type).toBe('tasks/deleteTask/rejected');
       expect(result.payload).toBe('Failed to delete task');
     });
   });
@@ -169,36 +241,84 @@ describe('features/tasks/thunks', () => {
   // ===========================================================================
   describe('markTaskStatus', () => {
     it('success: completed status sets completedAt', async () => {
-      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'completed' });
-      // Delay 400ms
-      const expectedTime = '2023-01-01T12:00:00.400Z';
+      const completedTime = '2023-01-01T12:00:00.400Z';
+      const mockCompletedTask = createMockTask({
+        id: '1',
+        status: 'COMPLETED',
+        completedAt: completedTime,
+      });
+      mockTaskApi.changeStatus.mockResolvedValue(mockCompletedTask);
 
-      expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
-      expect(result.payload).toEqual({
+      const result = await callThunk(markTaskStatus, {
         taskId: '1',
         status: 'completed',
-        completedAt: expectedTime,
       });
+
+      expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
+      expect(result.payload).toEqual(mockCompletedTask);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'COMPLETED', undefined);
     });
 
-    it('success: pending status removes completedAt', async () => {
-      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'pending' });
-      expect(result.payload).toEqual({
-        taskId: '1',
-        status: 'pending',
+    it('success: pending status', async () => {
+      const mockPendingTask = createMockTask({
+        id: '1',
+        status: 'PENDING',
         completedAt: undefined,
       });
+      mockTaskApi.changeStatus.mockResolvedValue(mockPendingTask);
+
+      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'pending' });
+
+      expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
+      expect(result.payload).toEqual(mockPendingTask);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'PENDING', undefined);
+    });
+
+    it('success: in_progress status', async () => {
+      const mockInProgressTask = createMockTask({
+        id: '1',
+        status: 'IN_PROGRESS',
+      });
+      mockTaskApi.changeStatus.mockResolvedValue(mockInProgressTask);
+
+      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'in_progress' });
+
+      expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
+      expect(result.payload).toEqual(mockInProgressTask);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'IN_PROGRESS', undefined);
+    });
+
+    it('success: passes completion data when provided', async () => {
+      const completionData = { notes: 'Task completed successfully' };
+      const mockCompletedTask = createMockTask({
+        id: '1',
+        status: 'COMPLETED',
+        completedAt: '2023-01-01T12:00:00.400Z',
+      });
+      mockTaskApi.changeStatus.mockResolvedValue(mockCompletedTask);
+
+      const result = await callThunk(markTaskStatus, {
+        taskId: '1',
+        status: 'completed',
+        completion: completionData,
+      });
+
+      expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
+      expect(result.payload).toEqual(mockCompletedTask);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'COMPLETED', completionData);
     });
 
     it('failure: handles Error object', async () => {
-      mockTimeoutFailure(new Error('Status Failed'));
+      mockTaskApi.changeStatus.mockRejectedValue(new Error('Status Failed'));
       const result = await callThunk(markTaskStatus, { taskId: '1', status: 'completed' });
+      expect(result.type).toBe('tasks/markTaskStatus/rejected');
       expect(result.payload).toBe('Status Failed');
     });
 
     it('failure: handles non-Error object', async () => {
-      mockTimeoutFailure("String Error");
+      mockTaskApi.changeStatus.mockRejectedValue('String Error');
       const result = await callThunk(markTaskStatus, { taskId: '1', status: 'completed' });
+      expect(result.type).toBe('tasks/markTaskStatus/rejected');
       expect(result.payload).toBe('Failed to update task status');
     });
   });

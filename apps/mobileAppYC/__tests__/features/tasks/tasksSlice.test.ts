@@ -221,14 +221,16 @@ describe('features/tasks/taskSlice', () => {
       expect(nextState.loading).toBe(true);
     });
 
-    it('should update specific fields on fulfilled', () => {
+    it('should replace the entire task on fulfilled', () => {
+      const updatedTask = { ...startState.items[0], title: 'Updated Title', status: 'pending' };
       const action = {
         type: fulfilledType,
-        payload: { taskId: '1', updates: { title: 'Updated Title' } },
+        payload: updatedTask, // Full task object
       };
       const nextState = tasksReducer(startState, action);
 
       expect(nextState.loading).toBe(false);
+      expect(nextState.items[0]).toEqual(updatedTask);
       expect(nextState.items[0].title).toBe('Updated Title');
       expect(nextState.items[0].status).toBe('pending');
     });
@@ -236,7 +238,7 @@ describe('features/tasks/taskSlice', () => {
     it('should do nothing if task not found on fulfilled', () => {
       const action = {
         type: fulfilledType,
-        payload: { taskId: '999', updates: { title: 'Ghost' } },
+        payload: { id: '999', title: 'Ghost', companionId: 'C1', status: 'pending', createdAt: '2023-01-01T00:00:00.000Z', updatedAt: '2023-01-01T00:00:00.000Z' }, // Full task object with non-existent ID
       };
       const nextState = tasksReducer(startState, action);
       expect(nextState.items).toEqual(startState.items);
@@ -276,16 +278,19 @@ describe('features/tasks/taskSlice', () => {
       expect(nextState.loading).toBe(true);
     });
 
-    it('should remove the task on fulfilled', () => {
+    it('should update the task with cancelled status on fulfilled', () => {
+      // Delete returns the cancelled task and updates it in place
+      const cancelledTask = { ...startState.items[0], status: 'CANCELLED' };
       const action = {
         type: fulfilledType,
-        payload: { taskId: '1' },
+        payload: cancelledTask, // Full task object that was cancelled
       };
       const nextState = tasksReducer(startState, action);
 
       expect(nextState.loading).toBe(false);
-      expect(nextState.items).toHaveLength(1);
-      expect(nextState.items[0].id).toBe('2');
+      expect(nextState.items).toHaveLength(2); // Both tasks still in array
+      expect(nextState.items[0].id).toBe('1');
+      expect(nextState.items[0].status).toBe('CANCELLED');
     });
 
     it('should set error payload on rejected', () => {
@@ -324,13 +329,15 @@ describe('features/tasks/taskSlice', () => {
 
     it('should update status and add completedAt when completed', () => {
       const completedDate = '2023-12-25T10:00:00.000Z';
+      const updatedTask = {
+        ...startState.items[0],
+        status: 'completed',
+        completedAt: completedDate,
+        updatedAt: '2023-12-25T10:00:00.000Z',
+      };
       const action = {
         type: fulfilledType,
-        payload: {
-          taskId: '1',
-          status: 'completed',
-          completedAt: completedDate,
-        },
+        payload: updatedTask, // Full task object
       };
       const nextState = tasksReducer(startState, action);
 
@@ -352,9 +359,15 @@ describe('features/tasks/taskSlice', () => {
         ],
       };
 
+      const updatedTask = {
+        ...completedState.items[0],
+        status: 'pending',
+        completedAt: undefined,
+        updatedAt: '2023-12-26T10:00:00.000Z',
+      };
       const action = {
         type: fulfilledType,
-        payload: { taskId: '1', status: 'pending', completedAt: undefined },
+        payload: updatedTask, // Full task object
       };
       const nextState = tasksReducer(completedState, action);
 
@@ -363,9 +376,10 @@ describe('features/tasks/taskSlice', () => {
     });
 
     it('should ignore update if task not found', () => {
+      const nonExistentTask = mockTask('999', 'C1', 'completed');
       const action = {
         type: fulfilledType,
-        payload: { taskId: '999', status: 'completed' },
+        payload: nonExistentTask, // Full task object with non-existent ID
       };
       const nextState = tasksReducer(startState, action);
       expect(nextState.items).toEqual(startState.items);

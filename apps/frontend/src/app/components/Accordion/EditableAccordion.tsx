@@ -25,7 +25,9 @@ type EditableAccordionProps = {
   defaultOpen?: boolean;
   showEditIcon?: boolean;
   readOnly?: boolean;
+  showDeleteIcon?: boolean;
   onSave?: (values: FormValues) => void | Promise<void>;
+  onDelete?: () => void;
   hideInlineActions?: boolean;
   onEditingChange?: (isEditing: boolean) => void;
   onRegisterActions?: (
@@ -395,7 +397,9 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   defaultOpen = false,
   showEditIcon = true,
   readOnly = false,
+  showDeleteIcon = false,
   onSave,
+  onDelete,
   hideInlineActions = false,
   onEditingChange,
   onRegisterActions,
@@ -493,6 +497,8 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         onEditClick={() => !readOnly && setIsEditing((prev) => !prev)}
         isEditing={effectiveEditing}
         showEditIcon={!readOnly && showEditIcon}
+        showDeleteIcon={showDeleteIcon}
+        onDeleteClick={onDelete}
       >
         <div
           className={`flex flex-col ${

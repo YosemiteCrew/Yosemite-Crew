@@ -6,9 +6,8 @@ import classNames from "classnames";
 import Link from "next/link";
 
 import "./Summary.css";
-import { TasksProps } from "@/app/types/tasks";
-import { demoTasks } from "@/app/pages/Tasks/demo";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
+import { useTasksForPrimaryOrg } from "@/app/hooks/useTask";
 
 const AppointmentLabels = [
   {
@@ -44,14 +43,14 @@ const AppointmentLabels = [
 ];
 const TasksLabels = [
   {
-    name: "Upcoming",
-    key: "upcoming",
-    bg: "#247AED",
-    text: "#fff",
+    name: "Pending",
+    key: "pending",
+    bg: "#eaeaea",
+    text: "#302f2e",
   },
   {
     name: "In progress",
-    key: "in-progress",
+    key: "in_progress",
     bg: "#E6F4EF",
     text: "#54B492",
   },
@@ -61,11 +60,17 @@ const TasksLabels = [
     bg: "#008F5D",
     text: "#fff",
   },
+  {
+    name: "Cancelled",
+    key: "cancelled",
+    bg: "#008F5D",
+    text: "#fff",
+  },
 ];
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
-  const [taskList] = useState<TasksProps[]>(demoTasks);
+  const tasks = useTasksForPrimaryOrg();
   const [activeTable, setActiveTable] = useState("Appointments");
   const activeLabels = useMemo(() => {
     return activeTable === "Appointments" ? AppointmentLabels : TasksLabels;
@@ -97,28 +102,25 @@ const AppointmentTask = () => {
 
   const filteredTaskList = useMemo(() => {
     if (activeTable === "Tasks") {
-      return taskList.filter((item) => {
+      return tasks.filter((item) => {
         const matchesStatus =
           item.status.toLowerCase() === activeSubLabel.toLowerCase();
         return matchesStatus;
       });
     }
     return [];
-  }, [taskList, activeTable, activeSubLabel]);
+  }, [tasks, activeTable, activeSubLabel]);
 
   return (
     <div className="summary-container">
       <div className="summary-title">
         Schedule{" "}
         <span>
-          (
-          {activeTable === "Appointments"
-            ? appointments.length
-            : taskList.length}
+          ({activeTable === "Appointments" ? appointments.length : tasks.length}
           )
         </span>
       </div>
-      <div className="summary-labels">
+      <div className="summary-labels flex-wrap gap-2">
         <div className="summary-labels-left">
           <button
             className={classNames("summary-label-left", {
@@ -137,7 +139,7 @@ const AppointmentTask = () => {
             Tasks
           </button>
         </div>
-        <div className="summary-labels-right">
+        <div className="summary-labels-right flex-wrap">
           {activeLabels?.map((label) => (
             <button
               className={`summary-label-right hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${label.key === activeSubLabel ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}

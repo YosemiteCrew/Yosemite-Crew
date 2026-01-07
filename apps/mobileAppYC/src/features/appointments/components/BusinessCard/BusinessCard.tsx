@@ -118,13 +118,13 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
           <LiquidGlassButton
             title="Book an appointment"
             onPress={onBook}
-            tintColor="rgba(255,255,255,0.95)"
+            tintColor={theme.colors.white}
             textStyle={styles.buttonText}
             style={styles.button}
             forceBorder
-            borderColor="#302F2E"
-            height={40}
-            borderRadius={16}
+            borderColor={theme.colors.secondary}
+            height={theme.spacing['10']}
+            borderRadius={theme.borderRadius.lg}
           />
         )}
       </View>
@@ -138,7 +138,7 @@ const createStyles = (theme: any) =>
       width: '100%',
       padding: 0,
       overflow: 'hidden',
-      marginVertical: 6,
+      marginVertical: theme.spacing['1.25'],
     },
     cardFallback: {
       backgroundColor: theme.colors.cardBackground,
@@ -147,35 +147,35 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
     },
     compact: {
-      width: 280,
+      width: theme.spacing['72'],
     },
     photo: {
       width: '100%',
-      height: 160,
+      height: theme.spacing['40'],
       backgroundColor: theme.colors.border + '20',
     },
     body: {
-      padding: 16,
-      gap: 6,
+      padding: theme.spacing['4'],
+      gap: theme.spacing['1.25'],
     },
     title: {
-      ...theme.typography.businessTitle16,
-      color: '#090A0A',
+      ...theme.typography.titleSmall,
+      color: theme.colors.black,
     },
     openText: {
       ...theme.typography.subtitleBold12,
-      color: '#302F2E',
+      color: theme.colors.secondary,
     },
     description: {
       ...theme.typography.body12,
-      color: '#302F2E',
-      lineHeight: 15.6,
+      color: theme.colors.secondary,
+      lineHeight: theme.spacing['4'],
     },
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
-      marginTop: theme.spacing[2],
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['2'],
       justifyContent: 'space-between',
       width: '100%',
     },
@@ -185,31 +185,31 @@ const createStyles = (theme: any) =>
     metaItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     metaIcon: {
-      width: 16,
-      height: 16,
+      width: theme.spacing['4'],
+      height: theme.spacing['4'],
       resizeMode: 'contain',
     },
     metaText: {
-      ...theme.typography.businessTitle16,
-      color: '#090A0A',
-      lineHeight: 16,
+      ...theme.typography.titleSmall,
+      color: theme.colors.black,
+      lineHeight: theme.spacing['4'],
     },
     button: {
       backgroundColor: theme.colors.white,
       borderWidth: 1,
-      borderColor: '#302F2E',
-      marginTop: 8,
+      borderColor: theme.colors.secondary,
+      marginTop: theme.spacing['2'],
     },
     buttonText: {
-      color: '#302F2E',
-      fontFamily: theme.typography.businessTitle16.fontFamily,
-      fontSize: 14,
+      color: theme.colors.secondary,
+      fontFamily: theme.typography.titleSmall.fontFamily,
+      fontSize: theme.typography.titleSmall.fontSize,
       fontWeight: '500',
       letterSpacing: -0.14,
-      lineHeight: 14,
+      lineHeight: theme.typography.titleSmall.fontSize,
     },
   });
 

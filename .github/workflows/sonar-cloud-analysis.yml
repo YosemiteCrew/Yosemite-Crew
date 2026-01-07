@@ -1,130 +1,70 @@
 name: sonar-cloud-analysis
+
 on:
-  push:
-    branches:
-      - main
-      - dev
+  pull_request_target:
+    branches: [main, dev]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
   schedule:
     - cron: '0 4 * * *'
-  pull_request_target:
-    branches:
-      - main
-      - dev
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, dev]
 
-permissions:
-  contents: read
-  pull-requests: write
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-
-  #job for analysing Frontend
-  sonarqube-frontend:
-    name: SonarQube
+  sonarqube:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: frontend
+            dir: apps/frontend
+            sonar_token: SONAR_TOKEN_FRONTEND
+          - app: backend
+            dir: apps/backend
+            sonar_token: SONAR_TOKEN_API
+          - app: mobile
+            dir: apps/mobileAppYC
+            sonar_token: SONAR_TOKEN_MOBILE
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
 
-      - name: Enable pnpm
-        run: corepack enable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
 
-      - name: Run tests with coverage
-        working-directory: apps/frontend
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            ~/.sonar/cache
+          key: cache-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        working-directory: ${{ matrix.dir }}
         run: pnpm test -- --coverage
 
-      - name: SonarQube Scan Frontend
+      - name: Sonar Scan
         uses: SonarSource/sonarqube-scan-action@v6
         with:
-          projectBaseDir: apps/frontend
+          projectBaseDir: ${{ matrix.dir }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONTEND }}
-          SONAR_SCANNER_OPTS: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
-
-  #job for analysing Backend
-  sonarqube-api:
-    name: SonarQube
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Enable pnpm
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run tests with coverage
-        working-directory: apps/backend
-        run: pnpm test -- --coverage
-
-      - name: SonarQube Scan Backend
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          projectBaseDir: apps/backend
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_API }}
-          SONAR_SCANNER_OPTS: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
-
-  #job for analysing MobileApp
-  sonarqube-mobile:
-    name: SonarQube
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Enable pnpm
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run tests with coverage
-        working-directory: apps/mobileAppYC
-        run: pnpm test -- --coverage
-
-      - name: SonarQube Scan MobileApp
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          projectBaseDir: apps/mobileAppYC
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_MOBILE }}
-          SONAR_SCANNER_OPTS: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
+          SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}

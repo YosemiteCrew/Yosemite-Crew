@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {TouchableOpacity} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
@@ -45,28 +46,7 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
 
 // 3. Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        surface: '#ffffff',
-        borderMuted: '#e0e0e0',
-        secondary: '#000000',
-      },
-      borderRadius: {
-        '3xl': 20,
-      },
-      spacing: {
-        '2': 8,
-        '4': 16,
-        '5': 20,
-        '6': 24,
-      },
-      typography: {
-        h5Clash23: {fontSize: 23},
-        paragraph: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Mock Assets

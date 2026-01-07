@@ -9,9 +9,16 @@ import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {Images} from '@/assets/images';
-import {createScreenContainerStyles, createErrorContainerStyles} from '@/shared/utils/screenStyles';
+import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {
+  resolveCategoryLabel,
+  resolveSubcategoryLabel,
+  resolveVisitTypeLabel,
+} from '@/features/expenses/utils/expenseLabels';
+import {DetailsCard, type DetailItem, type DetailBadge} from '@/shared/components/common/DetailsCard';
 
 type DocumentPreviewNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type DocumentPreviewRouteProp = RouteProp<DocumentStackParamList, 'DocumentPreview'>;
@@ -103,58 +110,93 @@ export const DocumentPreviewScreen: React.FC = () => {
   // Only allow edit/delete for documents added by user from app, not from PMS
   const canEdit = document.isUserAdded && !document.uploadedByPmsUserId;
 
-  return (
-    <SafeArea>
-      <Header
-        title={document.title}
-        showBackButton={true}
-        onBack={() => navigation.goBack()}
-        onRightPress={canEdit ? handleEdit : undefined}
-        rightIcon={canEdit ? Images.blackEdit : undefined}
-      />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>{document.title} for {companion?.name || 'Unknown'}</Text>
-          <Text style={styles.infoText}>{document.businessName || '—'}</Text>
-          <Text style={styles.infoText}>{formattedIssueDate}</Text>
-        </View>
+  const detailItems: DetailItem[] = [
+    {label: 'Title', value: document.title},
+    {label: 'Companion', value: companion?.name || 'Unknown'},
+    {label: 'Business', value: document.businessName || '—'},
+    {label: 'Category', value: resolveCategoryLabel(document.category)},
+    {
+      label: 'Sub category',
+      value: resolveSubcategoryLabel(document.category, document.subcategory),
+      hidden: !document.subcategory || document.subcategory === 'none',
+    },
+    {
+      label: 'Visit type',
+      value: resolveVisitTypeLabel(document.visitType),
+      hidden: !document.visitType || document.visitType === 'other',
+    },
+    {label: 'Issue Date', value: formattedIssueDate},
+    {label: 'Appointment ID', value: document.appointmentId || '', hidden: !document.appointmentId},
+    {label: 'Files', value: document.files?.length || 0},
+    {
+      label: 'Created',
+      value: new Date(document.createdAt).toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    },
+  ];
 
-        <View style={styles.documentPreview}>
-          <DocumentAttachmentViewer
-            attachments={document.files}
-            documentTitle={document.title}
-            companionName={companion?.name}
-          />
-        </View>
-      </ScrollView>
-    </SafeArea>
+  const badges: DetailBadge[] = [];
+  if (document.uploadedByPmsUserId) {
+    badges.push({
+      text: 'Synced from PMS',
+      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      textColor: theme.colors.primary,
+    });
+  } else if (document.isUserAdded) {
+    badges.push({
+      text: 'User Added',
+      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      textColor: theme.colors.success,
+    });
+  }
+
+  return (
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={document.title}
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+          onRightPress={canEdit ? handleEdit : undefined}
+          rightIcon={canEdit ? Images.blackEdit : undefined}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['1']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}>
+          <DetailsCard title="Document Details" items={detailItems} badges={badges} />
+
+          <View style={styles.documentPreview}>
+            <DocumentAttachmentViewer
+              attachments={document.files}
+              documentTitle={document.title}
+              companionName={companion?.name}
+            />
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createScreenContainerStyles(theme),
-    ...createErrorContainerStyles(theme),
-    infoCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[4],
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-    infoTitle: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[2],
-    },
-    infoText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing[1],
+const createStyles = (theme: any) => {
+  const commonStyles = createAllCommonStyles(theme);
+  return StyleSheet.create({
+    ...commonStyles,
+    contentContainer: {
+      ...commonStyles.contentContainer,
+      paddingHorizontal: theme.spacing['6'],
+      gap: theme.spacing['4'],
     },
     documentPreview: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
   });
+};

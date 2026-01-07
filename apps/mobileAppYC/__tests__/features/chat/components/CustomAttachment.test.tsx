@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {CustomAttachment} from '@/features/chat/components/CustomAttachment';
 import {useMessageContext} from 'stream-chat-react-native';
@@ -8,17 +9,7 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: '#007AFF',
-        primaryTint: '#E6F0FE',
-        cardBackground: '#ffffff',
-        secondary: '#000000',
-        textSecondary: '#888888',
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Stream Chat

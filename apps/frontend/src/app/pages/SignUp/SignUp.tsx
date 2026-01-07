@@ -56,7 +56,7 @@ const SignUp = ({
     confirmPassword: string
   ): { pError?: string; confirmPError?: string } => {
     const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
 
     if (!password) {
       return {
@@ -199,13 +199,13 @@ const SignUp = ({
     >
       <Row className="MainSignUpRow">
         <Col md={6} className="MainSignCol">
-          <div className="BuildEveryone">
-            <div className="SignBuildText">
-              <h2>
+          <div className="BuildEveryone gap-10!">
+            <div className="max-w-[400px]">
+              <div className="yc-big-title">
                 {isDeveloper
                   ? "Build, test, and ship apps on Yosemite Crew"
                   : "Built for everyone, from day one"}
-              </h2>
+              </div>
             </div>
 
             <div className="BuildCloud">
@@ -216,12 +216,12 @@ const SignUp = ({
                   </span>
                 </div>
                 <div className="CloudText">
-                  <h4>
+                  <div className="yc-h3">
                     {isDeveloper
                       ? "API-first, self-host or managed"
                       : "Enjoy smooth online solutions with us!"}
-                  </h4>
-                  <p>
+                  </div>
+                  <p className="yc-m">
                     {isDeveloper
                       ? "Open source core with APIs built for integrations. Run it yourself or use our managed stack."
                       : "Our services are built on a strong foundation for great performance and flexibility."}
@@ -236,12 +236,12 @@ const SignUp = ({
                   </span>
                 </div>
                 <div className="CloudText">
-                  <h4>
+                  <div className="yc-h3">
                     {isDeveloper
                       ? "Local dev + production ready"
                       : "Start free and upgrade as needed."}
-                  </h4>
-                  <p>
+                  </div>
+                  <p className="yc-m">
                     {isDeveloper
                       ? "Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted."
                       : "Enjoy generous free usage. Upgrade only when you need."}
@@ -256,12 +256,12 @@ const SignUp = ({
                   </span>
                 </div>
                 <div className="CloudText">
-                  <h4>
+                  <div className="yc-h3">
                     {isDeveloper
                       ? "Secure by default"
                       : "Our servers are EU-based and GDPR compliant."}
-                  </h4>
-                  <p>
+                  </div>
+                  <p className="yc-m">
                     {isDeveloper
                       ? "Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed."
                       : "All data is securely stored in the EU, fully GDPR compliant."}
@@ -277,9 +277,9 @@ const SignUp = ({
             <Form onSubmit={handleSignUp} method="post">
               <div className="TopSignUp">
                 <div className="Headingtext">
-                  <h2>
+                  <div className="yc-h1">
                     {isDeveloper ? "Sign up for developer access" : "Sign up"}
-                  </h2>
+                  </div>
                 </div>
 
                 <div className="SignFormItems">

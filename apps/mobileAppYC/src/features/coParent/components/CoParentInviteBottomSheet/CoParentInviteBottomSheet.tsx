@@ -131,28 +131,28 @@ export const CoParentInviteBottomSheet = forwardRef<
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
     profilesContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      marginVertical: theme.spacing[4],
+      marginVertical: theme.spacing['4'],
     },
     messageContainer: {
       alignItems: 'center',
-      marginVertical: theme.spacing[2],
+      marginVertical: theme.spacing['2'],
     },
     messageTitle: {
       ...theme.typography.h4,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
+      marginBottom: theme.spacing['1'],
     },
     messageSubtitle: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
     },
     checkboxWrapper: {
-      marginVertical: theme.spacing[2],
+      marginVertical: theme.spacing['2'],
     },
     checkboxLabel: {
       ...theme.typography.body,

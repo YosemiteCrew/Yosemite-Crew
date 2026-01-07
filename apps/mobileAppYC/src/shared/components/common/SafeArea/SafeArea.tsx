@@ -15,7 +15,7 @@ interface SafeAreaProps {
 export const SafeArea: React.FC<SafeAreaProps> = ({
   children,
   style,
-  edges = ['top', 'bottom', 'left', 'right'], // Default to all edges
+  edges = ['top'], // Default to top edge only
   mode = 'padding',
 }) => {
   const { theme, isDark } = useTheme();

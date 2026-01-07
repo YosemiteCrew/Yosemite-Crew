@@ -3,9 +3,10 @@ import {Image, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea, YearlySpendCard} from '@/shared/components/common';
+import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
+import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
 import {ExpenseCard} from '@/features/expenses/components';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -30,6 +31,8 @@ import {
 } from '@/features/expenses/utils/expenseLabels';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
 import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
 
@@ -131,41 +134,46 @@ export const ExpensesMainScreen: React.FC = () => {
   const currencySymbol = resolveCurrencySymbol(summaryCurrency, '$');
 
   return (
-    <SafeArea>
-      <Header
-        title="Expenses"
-        showBackButton
-        onBack={handleBack}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAddExpense}
-      />
-      {showEmptyState ? (
-        <ScrollView
-          contentContainerStyle={styles.emptyState}
-          showsVerticalScrollIndicator={false}>
-          <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
-          <Text style={styles.emptyTitle}>Zero Bucks Spent!</Text>
-          <Text style={styles.emptySubtitle}>
-            It seems like you and your buddy is in saving mode!
-          </Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
-            <Text style={styles.emptyButtonText}>Add expense</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}>
-          <CompanionSelector
-            companions={companions}
-            selectedCompanionId={selectedCompanionId}
-            onSelect={id => dispatch(setSelectedCompanion(id))}
-            showAddButton={false}
-            containerStyle={styles.companionSelector}
-            requiredPermission="expenses"
-            permissionLabel="expenses"
+    <SafeAreaView style={styles.container} edges={[]}>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Expenses"
+            showBackButton
+            onBack={handleBack}
+            rightIcon={Images.addIconDark}
+            onRightPress={handleAddExpense}
+            glass={false}
           />
+        }
+        contentPadding={theme.spacing['3']}>
+        {contentPaddingStyle =>
+          showEmptyState ? (
+            <ScrollView
+              contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
+              <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
+              <Text style={styles.emptySubtitle}>
+                It seems like you and your buddy are in saving mode!
+              </Text>
+              <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
+                <Text style={styles.emptyButtonText}>Add expense</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          ) : (
+            <ScrollView
+              contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+              showsVerticalScrollIndicator={false}>
+              <CompanionSelector
+                companions={companions}
+                selectedCompanionId={selectedCompanionId}
+                onSelect={id => dispatch(setSelectedCompanion(id))}
+                showAddButton={false}
+                containerStyle={styles.companionSelector}
+                requiredPermission="expenses"
+                permissionLabel="expenses"
+              />
 
           <TouchableOpacity onPress={() => handleViewMore('inApp')} activeOpacity={0.85}>
             <YearlySpendCard
@@ -180,9 +188,7 @@ export const ExpensesMainScreen: React.FC = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent in-app expenses</Text>
             {recentInAppExpenses.length > 0 && (
-              <TouchableOpacity onPress={() => handleViewMore('inApp')}>
-                <Text style={styles.sectionAction}>View More</Text>
-              </TouchableOpacity>
+              <ViewMoreButton onPress={() => handleViewMore('inApp')} />
             )}
           </View>
           {recentInAppExpenses.length > 0 ? (
@@ -222,9 +228,7 @@ export const ExpensesMainScreen: React.FC = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent external expenses</Text>
             {recentExternalExpenses.length > 0 && (
-              <TouchableOpacity onPress={() => handleViewMore('external')}>
-                <Text style={styles.sectionAction}>View More</Text>
-              </TouchableOpacity>
+              <ViewMoreButton onPress={() => handleViewMore('external')} />
             )}
           </View>
           {recentExternalExpenses.length > 0 ? (
@@ -252,10 +256,12 @@ export const ExpensesMainScreen: React.FC = () => {
               <Text style={styles.emptySectionText}>No external expenses yet</Text>
             </View>
           )}
-        </ScrollView>
-      )}
+            </ScrollView>
+          )
+        }
+      </LiquidGlassHeaderScreen>
       {(loading || processingPayment) && <View style={styles.loadingOverlay} />}
-    </SafeArea>
+    </SafeAreaView>
   );
 };
 
@@ -266,17 +272,17 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[20],
-      gap: theme.spacing[4],
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['20'],
+      gap: theme.spacing['4'],
     },
     companionSelector: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
     },
     sectionHeader: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[2],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['2'],
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -285,21 +291,17 @@ const createStyles = (theme: any) =>
       ...theme.typography.h5,
       color: theme.colors.secondary,
     },
-    sectionAction: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.primary,
-    },
     cardsContainer: {
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     emptyState: {
       flexGrow: 1,
       backgroundColor: theme.colors.background,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: theme.spacing[6],
-      paddingVertical: theme.spacing[10],
-      gap: theme.spacing[3],
+      paddingHorizontal: theme.spacing['6'],
+      paddingVertical: theme.spacing['10'],
+      gap: theme.spacing['3'],
     },
     emptyIllustration: {
       width: 220,
@@ -310,17 +312,17 @@ const createStyles = (theme: any) =>
       ...theme.typography.h3,
       color: theme.colors.secondary,
       textAlign: 'center',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     emptySubtitle: {
       ...theme.typography.paragraph,
       color: theme.colors.secondary,
       textAlign: 'center',
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     emptyButton: {
-      paddingHorizontal: theme.spacing[6],
-      paddingVertical: theme.spacing[3],
+      paddingHorizontal: theme.spacing['6'],
+      paddingVertical: theme.spacing['3'],
       backgroundColor: theme.colors.primary,
       borderRadius: theme.borderRadius.xl,
     },
@@ -329,8 +331,8 @@ const createStyles = (theme: any) =>
       color: theme.colors.white,
     },
     emptySection: {
-      paddingVertical: theme.spacing[6],
-      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['4'],
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: theme.borderRadius.lg,

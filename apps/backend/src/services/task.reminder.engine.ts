@@ -6,6 +6,7 @@ import timezone from "dayjs/plugin/timezone";
 import TaskModel from "src/models/task";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
+import CompanionModel from "src/models/companion";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -19,55 +20,64 @@ export class TaskReminderEngineError extends Error {
 
 export const TaskReminderEngine = {
   /**
-   * Should run every 1–5 minutes via cron.
+   * Runs every 1 minute
    */
   async run() {
     const nowUtc = dayjs.utc();
 
     const tasks = await TaskModel.find({
       "reminder.enabled": true,
+      "reminder.scheduledNotificationId": { $exists: false },
       status: { $in: ["PENDING", "IN_PROGRESS"] },
-
-      // do not remind for already expired tasks
       dueAt: { $gte: nowUtc.toDate() },
     }).exec();
 
     for (const task of tasks) {
-      const reminder = task.reminder;
-      if (!reminder) continue;
+      try {
+        const reminder = task.reminder;
+        if (!reminder) continue;
 
-      // already sent?
-      if (reminder.scheduledNotificationId) continue;
+        const tz = task.timezone || "UTC";
 
-      const tz = task.timezone || "UTC";
+        const dueAtLocal = dayjs(task.dueAt).tz(tz);
+        const reminderAtLocal = dueAtLocal.subtract(
+          reminder.offsetMinutes,
+          "minute",
+        );
 
-      // Convert dueAt into user's timezone for reminder logic
-      const dueAtLocal = dayjs(task.dueAt).tz(tz);
+        const nowLocal = nowUtc.tz(tz);
 
-      // reminderAtLocal = dueAtLocal - offsetMinutes
-      const reminderAtLocal = dueAtLocal.subtract(
-        reminder.offsetMinutes || 0,
-        "minute",
-      );
+        // Not time yet
+        if (nowLocal.isBefore(reminderAtLocal)) continue;
 
-      const nowLocal = nowUtc.tz(tz);
+        const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
-      if (nowLocal.isBefore(reminderAtLocal)) {
-        continue; // not time yet
+        const companion = await CompanionModel.findById(task.companionId!);
+        if (!companion) {
+          console.warn(
+            `Skipping reminder for task ${String(task._id)}; companion not found`,
+          );
+          continue;
+        }
+
+        const payload = NotificationTemplates.Task.TASK_DUE_REMINDER(
+          companion.name,
+          task.name,
+          humanTime,
+        );
+
+        const result = await NotificationService.sendToUser(
+          task.assignedTo,
+          payload,
+        );
+
+        // ✅ Mark reminder as sent
+        task.reminder!.scheduledNotificationId = result?.[0]?.token ?? "sent";
+
+        await task.save();
+      } catch (err) {
+        console.error(`Failed reminder for task ${String(task._id)}`, err);
       }
-
-      // Build notification text
-      const humanTime = dueAtLocal.format("MMM D, h:mm A");
-
-      const notifBody = NotificationTemplates.Task.TASK_DUE_REMINDER(
-        task.companionId,
-        task.name,
-        humanTime,
-      );
-
-      // Send notification
-      await NotificationService.sendToUser(task.assignedTo, notifBody);
-      await task.save();
     }
   },
 };

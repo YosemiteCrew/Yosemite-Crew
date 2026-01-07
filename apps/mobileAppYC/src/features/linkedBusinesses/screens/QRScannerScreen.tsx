@@ -24,7 +24,7 @@ export const QRScannerScreen: React.FC<Props> = ({route: _route, navigation}) =>
   // For now, show a mock scanner UI with instructions
   // In production, integrate react-native-vision-camera with vision-camera-code-scanner
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Header title="Scan QR Code" showBackButton onBack={handleBack} />
 
       <View style={styles.content}>
@@ -68,14 +68,14 @@ const createStyles = (theme: any) => {
       flex: 1,
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing[6],
+      paddingVertical: theme.spacing['6'],
     },
     scannerPlaceholder: {
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     scannerText: {
-      fontSize: 48,
+      ...theme.typography.h1,
     },
     placeholderTitle: {
       ...theme.typography.h3,
@@ -137,7 +137,7 @@ const createStyles = (theme: any) => {
     },
     mockButtonsContainer: {
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     mockButtonText: {
       ...theme.typography.titleSmall,

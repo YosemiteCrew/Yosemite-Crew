@@ -128,11 +128,72 @@ jest.mock('@/shared/components/common/Header/Header', () => {
 import {Header} from '@/shared/components/common/Header/Header';
 const MockedHeader = Header as jest.MockedFunction<typeof Header>;
 
+// Mock the new useFormScreen hooks
+let hasUnsavedChanges = false;
+const mockMarkAsChanged = jest.fn(() => {
+  hasUnsavedChanges = true;
+});
+const mockHandleGoBack = jest.fn(() => {
+  if (hasUnsavedChanges) {
+    mockDiscardSheetOpen();
+    return;
+  }
+  if (mockCanGoBack()) {
+    mockGoBack();
+  }
+});
+const mockFormSheetRefs = {
+  categorySheetRef: {current: {open: jest.fn()}},
+  subcategorySheetRef: {current: {open: jest.fn()}},
+  visitTypeSheetRef: {current: {open: jest.fn()}},
+  uploadSheetRef: {current: {open: jest.fn()}},
+  deleteSheetRef: {current: {open: jest.fn()}},
+};
+
+const mockDiscardSheetOpen = jest.fn(); // Defined once here for both uses
+
+jest.mock('@/shared/hooks/useFormScreen', () => ({
+  useCompanionFormScreen: jest.fn(() => ({
+    theme: {spacing: {'3': 12}, colors: {}, borderRadius: {}, typography: {}},
+    dispatch: mockAppDispatch,
+    navigation: {goBack: mockGoBack, canGoBack: mockCanGoBack, dispatch: mockNavDispatch},
+    formSheets: {
+      refs: mockFormSheetRefs,
+      openSheet: jest.fn(),
+      closeSheet: jest.fn(),
+    },
+    handleGoBack: mockHandleGoBack,
+    discardSheetRef: {current: {open: mockDiscardSheetOpen}},
+    markAsChanged: mockMarkAsChanged,
+    companions: mockState?.companion?.companions ?? [{id: 'comp-1', name: 'Fluffy'}],
+    selectedCompanionId: mockState?.companion?.selectedCompanionId ?? 'comp-1',
+  })),
+  useFormFileOperations: jest.fn(() => ({
+    handleAddFiles: jest.fn(),
+    handleDeleteFile: jest.fn(),
+  })),
+}));
+
 jest.mock('@/features/expenses/components', () => {
   const {View: MockExpenseFormView} = require('react-native');
   return {
     ExpenseForm: (props: any) => (
       <MockExpenseFormView testID="mock-expense-form" {...props} />
+    ),
+    ExpenseFormSheets: (props: any) => (
+      <MockExpenseFormView testID="mock-expense-form-sheets" {...props} />
+    ),
+  };
+});
+
+jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
+  const {View} = require('react-native');
+  return {
+    LiquidGlassHeaderScreen: ({header, children}: any) => (
+      <View testID="liquid-glass-header-screen">
+        {header}
+        {typeof children === 'function' ? children(null) : children}
+      </View>
     ),
   };
 });
@@ -169,7 +230,6 @@ jest.mock(
 );
 
 // Mock DiscardChangesBottomSheet (needed because EditExpenseScreen uses it implicitly via useTheme)
-const mockDiscardSheetOpen = jest.fn();
 jest.mock(
   '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
   () => {
@@ -233,6 +293,7 @@ const fireBackPress = () => {
 describe('EditExpenseScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    hasUnsavedChanges = false;
     jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     (useExpenseForm as jest.Mock).mockImplementation(
       defaultUseExpenseFormMockImplementation,
@@ -333,8 +394,10 @@ describe('EditExpenseScreen', () => {
   it('dispatches setSelectedCompanion if IDs do not match', () => {
     mockState.companion.selectedCompanionId = 'comp-2';
     renderComponent();
-    expect(mockAppDispatch).toHaveBeenCalledWith(
-      setSelectedCompanion(mockExpense.companionId),
+    return waitFor(() =>
+      expect(mockAppDispatch).toHaveBeenCalledWith(
+        setSelectedCompanion(mockExpense.companionId),
+      ),
     );
   });
 

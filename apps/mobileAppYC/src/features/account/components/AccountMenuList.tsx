@@ -60,22 +60,22 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
   container: {
     overflow: 'hidden',
-    backgroundColor: theme.colors.cardBackground,
+
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: theme.spacing['3'],
     paddingHorizontal: theme.spacing['2'],
-    backgroundColor: theme.colors.cardBackground,
+
   },
   divider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderSeperator,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
+    width: theme.spacing['10'],
+    height: theme.spacing['10'],
     borderRadius: theme.borderRadius.full,
     backgroundColor: 'rgba(48, 47, 46, 0.12)',
     alignItems: 'center',
@@ -86,8 +86,8 @@ const createStyles = (theme: any) =>
     backgroundColor: theme.colors.errorSurface,
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: theme.spacing['5'],
+    height: theme.spacing['5'],
     resizeMode: 'contain',
   },
   label: {
@@ -99,8 +99,8 @@ const createStyles = (theme: any) =>
     color: theme.colors.error,
   },
   arrow: {
-    width: 16,
-    height: 16,
+    width: theme.spacing['4'],
+    height: theme.spacing['4'],
     tintColor: theme.colors.secondary,
     resizeMode: 'contain',
   },

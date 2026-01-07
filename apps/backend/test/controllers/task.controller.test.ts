@@ -212,6 +212,9 @@ describe("TaskController", () => {
 
   describe("updateTask", () => {
     it("delegates to service with actor id", async () => {
+      mockedAuthUserService.getByProviderUserId.mockResolvedValueOnce({
+        parentId: { toString: () => "parent-3" },
+      } as any);
       mockedTaskService.updateTask.mockResolvedValueOnce({
         _id: "task-1",
       } as any);
@@ -227,7 +230,7 @@ describe("TaskController", () => {
       expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
         "task-1",
         { name: "Updated" },
-        "actor-3",
+        "parent-3",
       );
       expect(res.json).toHaveBeenCalledWith({ _id: "task-1" });
     });
@@ -235,6 +238,9 @@ describe("TaskController", () => {
 
   describe("changeStatus", () => {
     it("rejects invalid status", async () => {
+      mockedAuthUserService.getByProviderUserId.mockResolvedValueOnce({
+        parentId: { toString: () => "parent" },
+      } as any);
       const req = {
         headers: { "x-user-id": "actor" },
         params: { taskId: "task-1" },
@@ -250,6 +256,9 @@ describe("TaskController", () => {
     });
 
     it("passes through valid status", async () => {
+      mockedAuthUserService.getByProviderUserId.mockResolvedValueOnce({
+        parentId: { toString: () => "parent-1" },
+      } as any);
       mockedTaskService.changeStatus.mockResolvedValueOnce({
         task: { _id: "task-1" },
       } as any);
@@ -265,7 +274,7 @@ describe("TaskController", () => {
       expect(mockedTaskService.changeStatus).toHaveBeenCalledWith(
         "task-1",
         "COMPLETED",
-        "actor",
+        "parent-1",
         undefined,
       );
       expect(res.json).toHaveBeenCalledWith({ task: { _id: "task-1" } });

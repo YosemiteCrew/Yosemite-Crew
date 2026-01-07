@@ -54,7 +54,7 @@ export const CountryMobileBottomSheet = forwardRef<
         },
         countryCodeWrapper: {width: 110},
         countryCodeContainer: {flex: 1},
-        countryCodeInput: {fontSize: 16},
+        countryCodeInput: {...theme.typography.input},
         mobileInputWrapper: {flex: 1},
       }),
     [theme],
@@ -137,6 +137,8 @@ export const CountryMobileBottomSheet = forwardRef<
       searchPlaceholder="Search country name"
       emptyMessage="No results found"
       customContent={customContent}
+      snapPoints={['90%', '95%']}
+      maxListHeight={420}
     />
   );
 });

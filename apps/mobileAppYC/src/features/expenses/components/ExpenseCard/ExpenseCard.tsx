@@ -157,7 +157,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     paidBadge: {
-      paddingHorizontal: theme.spacing[2],
+      paddingHorizontal: theme.spacing['2'],
       paddingVertical: 4,
       borderRadius: 999,
       backgroundColor: 'rgba(0, 143, 93, 0.12)',

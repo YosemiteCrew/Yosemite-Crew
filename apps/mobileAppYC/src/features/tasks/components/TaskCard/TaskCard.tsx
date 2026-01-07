@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,6 +13,41 @@ import {useTheme} from '@/hooks';
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 import type {TaskCategory, TaskStatus} from '@/features/tasks/types';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
+
+const calculateNearestDosageTime = (dosages: Array<{time: string; dosage: string}>): string | null => {
+  if (!dosages || dosages.length === 0) return null;
+
+  const now = new Date();
+  const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const dosageTimes = dosages.map((dosage) => {
+    try {
+      const [hours, minutes] = dosage.time.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+      return {
+        totalMinutes: hours * 60 + minutes,
+        originalTime: dosage.time,
+      };
+    } catch {
+      return null;
+    }
+  }).filter((dt): dt is {totalMinutes: number; originalTime: string} => dt !== null);
+
+  if (dosageTimes.length === 0) return null;
+
+  const upcomingToday = dosageTimes
+    .filter((dt) => dt.totalMinutes > currentTimeInMinutes)
+    .sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
+
+  if (upcomingToday) return upcomingToday.originalTime;
+
+  const sortedDosages = [...dosageTimes].sort((a, b) => a.totalMinutes - b.totalMinutes);
+  const earliestDosage = sortedDosages[0];
+  return earliestDosage.originalTime;
+};
 
 export interface TaskCardProps {
   title: string;
@@ -55,7 +90,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onPressTakeObservationalTool,
   showEditAction = true,
   showCompleteButton = false,
-  completeButtonVariant = 'primary',
+  completeButtonVariant = 'liquid-glass',
   completeButtonLabel = 'Complete',
   hideSwipeActions = false,
   category,
@@ -90,7 +125,77 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   }, [time]);
 
-  const isCompleted = status === 'completed';
+  // Calculate nearest dosage time for medication tasks
+  // For medication tasks, always use dosage times instead of task time
+  const isMedicationTask = category === 'health' && details?.taskType === 'give-medication';
+  const nearestDosageTime = useMemo(() => {
+    if (!isMedicationTask || !details?.dosages) return null;
+    return calculateNearestDosageTime(details.dosages);
+  }, [isMedicationTask, details?.dosages]);
+
+  const observationalToolLabel = useMemo(() => {
+    if (category !== 'health' || details?.taskType !== 'take-observational-tool') {
+      return null;
+    }
+    const raw = details.toolType;
+    const resolved = resolveObservationalToolLabel(raw);
+    const looksLikeId = typeof resolved === 'string' && /^[a-f0-9]{24}$/i.test(resolved);
+    return looksLikeId ? 'Observational tool' : resolved;
+  }, [category, details]);
+
+  const [resolvedOtLabel, setResolvedOtLabel] = useState<string | null>(observationalToolLabel);
+
+  useEffect(() => {
+    let active = true;
+    const maybeFetchOt = async () => {
+      if (
+        category !== 'health' ||
+        details?.taskType !== 'take-observational-tool' ||
+        !details.toolType
+      ) {
+        return;
+      }
+      if (observationalToolLabel && observationalToolLabel !== 'Observational tool') {
+        setResolvedOtLabel(observationalToolLabel);
+        return;
+      }
+      try {
+        const def = await observationToolApi.get(details.toolType);
+        if (active && def?.name) {
+          setResolvedOtLabel(def.name);
+        }
+      } catch {
+        if (active) {
+          setResolvedOtLabel('Observational tool');
+        }
+      }
+    };
+    maybeFetchOt();
+    return () => {
+      active = false;
+    };
+  }, [category, details, observationalToolLabel]);
+
+  const formattedNearestDosage = useMemo(() => {
+    if (!nearestDosageTime) return null;
+    try {
+      const [hours, minutes] = nearestDosageTime.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+      const timeDate = new Date();
+      timeDate.setHours(hours, minutes, 0);
+      return timeDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return null;
+    }
+  }, [nearestDosageTime]);
+
+  const isCompleted = String(status).toUpperCase() === 'COMPLETED';
+  const isPending = String(status).toUpperCase() === 'PENDING';
+  const isCancelled = String(status).toUpperCase() === 'CANCELLED';
   const isObservationalToolTask =
     category === 'health' && details?.taskType === 'take-observational-tool';
   const handleCompletePress =
@@ -119,7 +224,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     if (category === 'health' && details.taskType === 'take-observational-tool') {
       return (
         <View style={styles.detailsSection}>
-          <Text style={styles.detailLabel}>📋 Tool: {details.toolType}</Text>
+          <Text style={styles.detailLabel}>📋 Tool: {resolvedOtLabel ?? 'Observational tool'}</Text>
         </View>
       );
     }
@@ -138,15 +243,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   };
 
   const avatars = [];
-  if (companionAvatar) {
-    avatars.push({uri: companionAvatar});
+  const companionAvatarUri = normalizeImageUri(companionAvatar ?? undefined);
+  if (companionAvatarUri) {
+    avatars.push({uri: companionAvatarUri});
   } else {
     // Show placeholder with companion name initial
     avatars.push({placeholder: companionName.charAt(0).toUpperCase()});
   }
   if (assignedToName) {
-    if (assignedToAvatar) {
-      avatars.push({uri: assignedToAvatar});
+    const assignedAvatarUri = normalizeImageUri(assignedToAvatar ?? undefined);
+    if (assignedAvatarUri) {
+      avatars.push({uri: assignedAvatarUri});
     } else {
       // Show placeholder with assigned user name initial
       avatars.push({placeholder: assignedToName.charAt(0).toUpperCase()});
@@ -170,8 +277,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {avatars.length > 0 && (
             <AvatarGroup
               avatars={avatars}
-              size={40}
-              overlap={-15}
+              size={56}
+              overlap={-10}
+              direction="column"
             />
           )}
 
@@ -184,7 +292,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
               {formattedDate}
-              {formattedTime && ` - ${formattedTime}`}
+              {isMedicationTask && formattedNearestDosage && ` - ${formattedNearestDosage}`}
+              {!isMedicationTask && formattedTime && ` - ${formattedTime}`}
             </Text>
             {renderTaskDetails()}
           </View>
@@ -193,6 +302,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {isCompleted && (
               <View style={styles.completedBadge}>
                 <Text style={styles.completedText}>Completed</Text>
+              </View>
+            )}
+            {isPending && (
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingText}>Pending</Text>
+              </View>
+            )}
+            {isCancelled && (
+              <View style={styles.cancelledBadge}>
+                <Text style={styles.cancelledText}>Cancelled</Text>
               </View>
             )}
           </View>
@@ -206,9 +325,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 onPress={handleCompletePress}
                 tintColor={theme.colors.secondary}
                 shadowIntensity="medium"
-                height={48}
+                height={theme.spacing['12']}
                 textStyle={styles.liquidGlassButtonText}
-                borderRadius={12}
+                borderRadius={theme.borderRadius.md}
                 style={styles.liquidGlassButton}
               />
             ) : (
@@ -233,11 +352,11 @@ const createStyles = (theme: any) =>
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     textContent: {
       flex: 1,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     title: {
       ...theme.typography.h6Clash,
@@ -255,21 +374,41 @@ const createStyles = (theme: any) =>
       minWidth: 70,
     },
     completedBadge: {
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: 4,
-      borderRadius: 999,
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.successLight || 'rgba(0, 143, 93, 0.12)',
     },
     completedText: {
       ...theme.typography.labelSmall,
       color: theme.colors.success,
     },
+    pendingBadge: {
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.warningLight || 'rgba(255, 193, 7, 0.12)',
+    },
+    pendingText: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.warning || '#FFC107',
+    },
+    cancelledBadge: {
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.errorLight || 'rgba(244, 67, 54, 0.12)',
+    },
+    cancelledText: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.error,
+    },
     detailsSection: {
-      marginTop: theme.spacing[2],
-      paddingTop: theme.spacing[2],
+      marginTop: theme.spacing['2'],
+      paddingTop: theme.spacing['2'],
       borderTopWidth: 1,
       borderTopColor: theme.colors.borderMuted,
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     detailLabel: {
       ...theme.typography.bodySmall,
@@ -277,11 +416,11 @@ const createStyles = (theme: any) =>
       fontWeight: '500',
     },
     detailSmall: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
     },
     liquidGlassButton: {
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing['4'],
     },
     liquidGlassButtonText: {
       ...theme.typography.paragraphBold,

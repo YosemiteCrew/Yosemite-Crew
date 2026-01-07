@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {YearlySpendCard} from '../../../src/shared/components/common/YearlySpendCard/YearlySpendCard';
 import {Image, TouchableOpacity} from 'react-native';
@@ -15,22 +16,7 @@ jest.mock('@/assets/images', () => ({
 
 // Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        success: 'green',
-        border: 'gray',
-        white: '#fff',
-      },
-      typography: {
-        labelXsBold: {fontFamily: 'Arial'},
-        h3: {fontFamily: 'Arial'},
-      },
-      spacing: {},
-      borderRadius: {},
-      shadows: {},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock Utils

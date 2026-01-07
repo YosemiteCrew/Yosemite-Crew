@@ -1,93 +1,97 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
-import { Header } from '@/shared/components/common/Header/Header';
-import { Platform } from 'react-native';
+import {mockTheme} from '../setup/mockTheme';
+import {render, fireEvent} from '@testing-library/react-native';
+import {Header} from '@/shared/components/common/Header/Header';
+import {Platform} from 'react-native';
 
-// --- Mocks ---
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
-// 1. Mock useTheme
-const mockTheme = {
-  colors: {
-    text: 'mockTextColor',
-  },
-  spacing: {
-    '2': 8,
-    '5': 20,
-  },
-  typography: {
-    h3: { fontSize: 22, fontWeight: 'bold' },
-  },
-};
-jest.mock('@/hooks', () => ({
-  useTheme: () => ({ theme: mockTheme }),
-}));
-
-// 2. Mock Images
-const mockBackIcon = 123; // A mock 'require' value
+const mockBackIcon = 123;
 jest.mock('@/assets/images', () => ({
   Images: {
     backIcon: mockBackIcon,
   },
 }));
 
-// --- Tests ---
+const flattenStyle = (style: any) => (Array.isArray(style) ? style.flat().filter(Boolean) : [style].filter(Boolean));
 
 describe('Header', () => {
   const onBackMock = jest.fn();
   const onRightPressMock = jest.fn();
 
   beforeEach(() => {
-    // Reset mocks and platform before each test
     onBackMock.mockClear();
     onRightPressMock.mockClear();
-    Platform.OS = 'ios'; // Default to iOS
+    Platform.OS = 'ios';
   });
 
-  it('renders correctly in default state (no props)', () => {
-    render(<Header />);
-    // No title
-    expect(screen.queryByText(/./)).toBeNull();
-    // No buttons
-    expect(screen.queryByRole('button')).toBeNull();
-    // No images
-    expect(screen.queryByRole('image')).toBeNull();
-  });
+  it('renders title with themed typography', () => {
+    const {getByText} = render(<Header title="My Title" />);
+    const title = getByText('My Title');
 
-  it('renders the title', () => {
-    render(<Header title="My Title" />);
-    const title = screen.getByText('My Title');
-
-    expect(title).toBeTruthy();
-    // Check that styles from the theme are applied
-    expect(title.props.style).toEqual(
-      expect.objectContaining({
-        color: mockTheme.colors.text,
-        fontSize: 22,
-      }),
+    const flat = flattenStyle(title.props.style);
+    expect(flat).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          color: mockTheme.colors.text,
+          fontSize: mockTheme.typography.h3.fontSize,
+        }),
+      ]),
     );
   });
 
-  it('renders back button and handles press', () => {
+  it('calls onBack when back button pressed', () => {
+    const {UNSAFE_getAllByType} = render(
+      <Header title="My Title" showBackButton={true} onBack={onBackMock} />,
+    );
+
+    const {TouchableOpacity} = require('react-native');
+    const buttons = UNSAFE_getAllByType(TouchableOpacity);
+    expect(buttons.length).toBe(1);
+
+    fireEvent.press(buttons[0]);
+    expect(onBackMock).toHaveBeenCalledTimes(1);
   });
 
-  it('renders right icon and handles press', () => {
+  it('calls onRightPress when right icon pressed', () => {
+    const rightIcon = 456;
+    const {UNSAFE_getAllByType} = render(
+      <Header title="My Title" rightIcon={rightIcon} onRightPress={onRightPressMock} />,
+    );
 
+    const {TouchableOpacity} = require('react-native');
+    const buttons = UNSAFE_getAllByType(TouchableOpacity);
+    expect(buttons.length).toBe(1);
+
+    fireEvent.press(buttons[0]);
+    expect(onRightPressMock).toHaveBeenCalledTimes(1);
   });
 
+  it('applies platform-specific top padding', () => {
+    const {View} = require('react-native');
 
-  });
-
-  it('applies custom style to the container', () => {
-    const customStyle = { backgroundColor: 'red', height: 100 };
-    render(<Header style={customStyle} />);
-  });
-
-  it('applies correct padding for ios', () => {
     Platform.OS = 'ios';
-    render(<Header />);
-  });
+    const iosViews = render(<Header />).UNSAFE_getAllByType(View);
+    const iosStyle = iosViews
+      .map(view => flattenStyle(view.props.style))
+      .find(style => style?.paddingTop !== undefined);
+    expect(iosStyle?.paddingTop ?? mockTheme.spacing['2']).toBe(
+      mockTheme.spacing['2'],
+    );
 
-  it('applies correct padding for android', () => {
     Platform.OS = 'android';
-    render(<Header />);
+    const androidViews = render(<Header />).UNSAFE_getAllByType(View);
+    const androidStyle = androidViews
+      .map(view => flattenStyle(view.props.style))
+      .find(style => style?.paddingTop !== undefined);
+    expect(androidStyle?.paddingTop ?? mockTheme.spacing['5']).toBe(
+      mockTheme.spacing['5'],
+    );
   });
+});

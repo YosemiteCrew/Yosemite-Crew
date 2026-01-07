@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {TaskViewScreen} from '@/features/tasks/screens/TaskViewScreen/TaskViewScreen';
 import * as Redux from 'react-redux';
@@ -9,6 +10,7 @@ import * as Redux from 'react-redux';
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockReset = jest.fn();
+const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockGetParent = jest.fn().mockReturnValue({
   reset: mockReset,
 });
@@ -22,6 +24,7 @@ jest.mock('@react-navigation/native', () => {
       navigate: mockNavigate,
       goBack: mockGoBack,
       reset: mockReset,
+      canGoBack: mockCanGoBack,
       getParent: mockGetParent,
     }),
     useRoute: () => ({
@@ -31,35 +34,14 @@ jest.mock('@react-navigation/native', () => {
 });
 
 // 2. Redux
+const mockDispatch = jest.fn();
 const mockUseSelector = jest.spyOn(Redux, 'useSelector');
+const mockUseDispatch = jest.spyOn(Redux, 'useDispatch');
+mockUseDispatch.mockReturnValue(mockDispatch);
 
 // 3. Mock Hooks & Assets
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        text: 'black',
-        secondary: 'blue',
-        success: 'green',
-        error: 'red',
-        white: 'white',
-        borderMuted: 'gray',
-        primary: 'red',
-        textSecondary: 'gray',
-      },
-      spacing: new Array(30).fill(4),
-      borderRadius: {lg: 8, md: 4},
-      typography: {
-        bodyMedium: {fontSize: 14},
-        titleMedium: {fontSize: 16},
-        bodySmall: {fontSize: 12},
-        buttonH6Clash19: {fontSize: 19},
-        inputLabel: {fontSize: 12},
-        labelXsBold: {fontSize: 10},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/assets/images', () => ({
@@ -132,8 +114,9 @@ jest.mock('@/shared/components/common', () => {
   };
 });
 
-jest.mock('@/features/documents/components/DocumentAttachmentsSection', () => ({
-  DocumentAttachmentsSection: () => {
+jest.mock('@/features/documents/components/DocumentAttachmentViewer', () => ({
+  __esModule: true,
+  default: () => {
     const {View, Text} = require('react-native');
     return (
       <View>
@@ -223,6 +206,14 @@ describe('TaskViewScreen', () => {
     },
     companion: {
       companions: [{id: 'comp-1', name: 'Buddy'}],
+    },
+    businesses: {
+      businesses: [],
+      services: [],
+      employees: [],
+      availability: [],
+      loading: false,
+      error: null,
     },
     tasks: {
       'task-med': {
@@ -437,10 +428,7 @@ describe('TaskViewScreen', () => {
 
     fireEvent.press(getByTestId('header-back'));
 
-    expect(mockReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'TasksMain'}],
-    });
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles navigation - back from Home', () => {
@@ -449,10 +437,7 @@ describe('TaskViewScreen', () => {
 
     fireEvent.press(getByTestId('header-back'));
 
-    expect(mockReset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{name: 'HomeStack'}],
-    });
+    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('handles navigation - Edit', () => {

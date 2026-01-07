@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 // FIX: Removed unused View and Text. Kept BackHandler for tests.
 import {EditParentScreen} from '@/features/account/screens/EditParentScreen';
@@ -43,22 +44,7 @@ const minimalUser: User = {
 } as any;
 // --- END NEW ---
 
-const mockTheme: any = {
-  spacing: {1: 2, 3: 6, 4: 8, 6: 12},
-  colors: {
-    background: '#FFF',
-    primary: '#007AFF',
-    secondary: '#333',
-    textSecondary: '#888',
-    white: '#FFF',
-  },
-  typography: {
-    h4Alt: {fontSize: 18, fontWeight: '600'},
-    bodySmall: {fontSize: 12},
-    h3: {fontSize: 20},
-    paragraph: {fontSize: 14},
-  },
-};
+// mockTheme is imported from '../setup/mockTheme' at the top of the file
 
 jest.mock(
   '@/shared/utils/countryList.json',
@@ -100,7 +86,13 @@ jest.mock('react-redux', () => ({
 }));
 
 // Hooks
-jest.mock('@/hooks');
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../../../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});
 
 // Redux Thunks & Selectors
@@ -121,6 +113,12 @@ jest.mock('@/features/auth', () => ({
   logout: jest.fn(() => () => Promise.resolve()),
   refreshSession: jest.fn(() => () => Promise.resolve()),
   authReducer: jest.fn(),
+}));
+
+jest.mock('@/features/auth/sessionManager', () => ({
+  __esModule: true,
+  getFreshStoredTokens: jest.fn(() => new Promise(() => {})),
+  isTokenExpired: jest.fn(() => true),
 }));
 
 // --- Component Mocks ---
@@ -303,6 +301,7 @@ jest.mock('react-native-safe-area-context', () => {
   const {View: MockView} = require('react-native');
   return {
     SafeAreaView: jest.fn(({children}: any) => <MockView>{children}</MockView>),
+    useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
   };
 });
 
@@ -426,7 +425,7 @@ describe('EditParentScreen', () => {
     });
 
     it('renders all user data correctly', () => {
-      const {getByTestId} = renderComponent();
+      const {getByTestId, getByText} = renderComponent();
 
       expect(getByTestId('mock-inline-edit-First name').props.value).toBe(
         'Test',
@@ -435,9 +434,8 @@ describe('EditParentScreen', () => {
         'User',
       );
       expect(getByTestId('mock-row-Phone').props.value).toBe('+1 8005551212');
-      expect(getByTestId('mock-row-Email').props.value).toBe(
-        'test@example.com',
-      );
+      expect(getByText('Email')).toBeTruthy();
+      expect(getByText('test@example.com')).toBeTruthy();
       expect(getByTestId('mock-row-Date of birth').props.value).toBe(
         new Date(mockUser.dateOfBirth!).toLocaleDateString('en-US'),
       );

@@ -1,4 +1,5 @@
 import {renderHook} from '@testing-library/react-native';
+import {mockTheme} from '../../../setup/mockTheme';
 import {
   isImageFile,
   isPdfFile,
@@ -26,9 +27,13 @@ jest.mock('@/shared/utils/mime', () => ({
 jest.mock('@/shared/utils/attachmentStyles', () => jest.fn());
 
 // 3. Mock Hooks
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(),
-}));
+jest.mock('@/hooks', () => {
+  const {mockTheme: theme} = require('../../../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => ({theme, isDark: false})),
+  };
+});
 
 describe('documentAttachmentUtils', () => {
   beforeEach(() => {
@@ -199,7 +204,7 @@ describe('documentAttachmentUtils', () => {
 
   describe('useThumbStyles', () => {
     it('creates styles using the current theme', () => {
-      const mockTheme = {colors: {primary: 'red'}};
+      
       const mockGeneratedStyles = {container: {flex: 1}};
 
       (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});

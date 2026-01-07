@@ -6,6 +6,7 @@ import {
 } from '@/shared/utils/bottomSheetHelpers';
 import type { RefObject } from 'react';
 import type { BottomSheetRef } from '@/shared/components/common/BottomSheet/BottomSheet';
+import {mockTheme} from '../setup/mockTheme';
 
 // Mock react-native's StyleSheet to provide a static value for hairlineWidth
 jest.mock('react-native', () => ({
@@ -15,32 +16,7 @@ jest.mock('react-native', () => ({
 }));
 
 // Create a comprehensive mock theme to test all style functions
-const mockTheme = {
-  colors: {
-    background: '#ffffff',
-    borderMuted: '#cccccc',
-    border: '#dddddd',
-    surface: '#fafafa',
-    text: '#111111',
-    secondary: '#555555',
-    white: '#ffffff',
-    borderSeperator: '#eeeeee',
-  },
-  borderRadius: {
-    '3xl': 24,
-  },
-  spacing: {
-    '2': 4,
-    '3': 8,
-    '4': 12,
-    '5': 16,
-    '6': 20,
-  },
-  typography: {
-    h3: { fontSize: 24, fontWeight: '700' },
-    paragraphBold: { fontSize: 16, fontWeight: '700' },
-  },
-};
+
 
 describe('bottomSheetHelpers', () => {
   describe('createBottomSheetImperativeHandle', () => {
@@ -115,12 +91,12 @@ describe('bottomSheetHelpers', () => {
       const styles = createBottomSheetStyles(mockTheme);
       expect(styles).toEqual({
         bottomSheetBackground: {
-          backgroundColor: '#ffffff',
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          backgroundColor: mockTheme.colors.background,
+          borderTopLeftRadius: mockTheme.borderRadius['3xl'],
+          borderTopRightRadius: mockTheme.borderRadius['3xl'],
         },
         bottomSheetHandle: {
-          backgroundColor: '#cccccc',
+          backgroundColor: mockTheme.colors.borderMuted,
         },
       });
     });
@@ -132,36 +108,34 @@ describe('bottomSheetHelpers', () => {
       expect(styles).toEqual({
         container: {
           flex: 1,
-          paddingHorizontal: 16,
-          backgroundColor: '#ffffff',
+          paddingHorizontal: mockTheme.spacing['5'],
+          backgroundColor: mockTheme.colors.background,
         },
         header: {
           flexDirection: 'row',
           justifyContent: 'center',
           alignItems: 'center',
-          paddingVertical: 12,
+          paddingVertical: mockTheme.spacing['4'],
           position: 'relative',
         },
         title: {
-          fontSize: 24,
-          fontWeight: '700',
-          color: '#111111',
+          ...mockTheme.typography.h3,
+          color: mockTheme.colors.text,
         },
         closeButton: {
           position: 'absolute',
           right: 0,
-          padding: 4,
         },
         closeIcon: {
-          width: 20,
-          height: 20,
+          width: mockTheme.spacing['6'],
+          height: mockTheme.spacing['6'],
         },
         scrollView: {
           flex: 1,
         },
         scrollContent: {
-          paddingBottom: 12,
-          gap: 12,
+          paddingBottom: mockTheme.spacing['4'],
+          gap: mockTheme.spacing['4'],
         },
       });
     });
@@ -173,28 +147,26 @@ describe('bottomSheetHelpers', () => {
       expect(styles).toEqual({
         buttonContainer: {
           flexDirection: 'row',
-          gap: 8,
-          paddingVertical: 12,
+          gap: mockTheme.spacing['3'],
+          paddingVertical: mockTheme.spacing['4'],
           borderTopWidth: 1, // From StyleSheet.hairlineWidth mock
-          borderTopColor: '#dddddd',
-          backgroundColor: '#fafafa',
+          borderTopColor: mockTheme.colors.border,
+          backgroundColor: mockTheme.colors.surface,
         },
         cancelButton: {
           flex: 1,
-          backgroundColor: '#fafafa',
+          backgroundColor: mockTheme.colors.surface,
         },
         cancelButtonText: {
-          fontSize: 16,
-          fontWeight: '700',
-          color: '#555555',
+          ...mockTheme.typography.paragraphBold,
+          color: mockTheme.colors.secondary,
         },
         saveButton: {
           flex: 1,
         },
         saveButtonText: {
-          fontSize: 16,
-          fontWeight: '700',
-          color: '#ffffff',
+          ...mockTheme.typography.paragraphBold,
+          color: mockTheme.colors.white,
         },
       });
     });

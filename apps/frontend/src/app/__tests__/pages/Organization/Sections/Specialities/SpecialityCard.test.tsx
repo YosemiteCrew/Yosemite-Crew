@@ -1,244 +1,260 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
 import SpecialityCard from "@/app/pages/Organization/Sections/Specialities/SpecialityCard";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { SpecialityWeb } from "@/app/types/speciality";
 
 // --- Mocks ---
 
-// Mock ServiceSearch
-jest.mock("@/app/components/Inputs/ServiceSearch/ServiceSearch", () => {
-  return () => <div data-testid="service-search">Service Search Component</div>;
-});
+jest.mock("@/app/hooks/useTeam", () => ({
+  useTeamForPrimaryOrg: jest.fn(),
+}));
 
-// Mock Accordion
-jest.mock("@/app/components/Accordion/Accordion", () => {
-  return ({ title, children, onDeleteClick }: any) => (
-    <div data-testid={`accordion-${title}`}>
-      <h3>{title}</h3>
-      <button data-testid={`delete-${title}`} onClick={onDeleteClick}>
-        Delete
+// Mock child components to isolate logic and simplify interactions
+jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+  __esModule: true,
+  default: ({ onChange, value, placeholder }: any) => (
+    <div data-testid={`dropdown-${placeholder.toLowerCase()}`}>
+      <button onClick={() => onChange({ label: "Dr. T", value: "t1" })}>
+        Select {placeholder}
       </button>
-      {children}
+      <span>Val: {value}</span>
     </div>
-  );
-});
+  ),
+}));
 
-// Mock FormInput
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => {
-  return ({ inlabel, value, onChange, intype }: any) => (
+jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
+  __esModule: true,
+  default: ({ onChange, value }: any) => (
+    <div data-testid="multiselect-staff">
+      <button onClick={() => onChange(["t1", "t2"])}>Select Staff</button>
+      <span>Count: {value?.length}</span>
+    </div>
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ onChange, value, inlabel }: any) => (
     <div>
       <label>{inlabel}</label>
       <input
-        data-testid={`input-${inlabel}`}
-        type={intype}
+        data-testid={`input-${inlabel.toLowerCase().replaceAll(/[^a-z]/g, "")}`}
         value={value}
         onChange={onChange}
       />
     </div>
-  );
-});
+  ),
+}));
 
-// --- Test Data ---
+jest.mock("@/app/components/Accordion/Accordion", () => ({
+  __esModule: true,
+  default: ({ children, title, onDeleteClick }: any) => (
+    <div data-testid="accordion">
+      <h4>{title}</h4>
+      <button onClick={onDeleteClick}>Delete Service</button>
+      {children}
+    </div>
+  ),
+}));
 
-const mockServices = [
-  {
-    name: "Consultation",
-    description: "General checkup",
-    durationMinutes: 30,
-    cost: 50,
-    maxDiscount: 10,
-    organisationId: "org-1",
-  },
-  {
-    name: "Surgery",
-    description: "Minor surgery",
-    durationMinutes: 120,
-    cost: 500,
-    maxDiscount: 5,
-    organisationId: "org-1",
-  },
-];
-
-const mockSpeciality: SpecialityWeb = {
-  _id: "spec-1",
-  name: "Cardiology",
-  services: mockServices,
-} as SpecialityWeb;
-
-// We need a wrapper to simulate the array of specialities usually present in the parent state
-const mockFormData = [
-  { _id: "spec-0", name: "Other", services: [] }, // Index 0
-  mockSpeciality, // Index 1 (Target)
-  { _id: "spec-2", name: "Another", services: [] }, // Index 2
-] as SpecialityWeb[];
+jest.mock("@/app/components/Inputs/ServiceSearch/ServiceSearch", () => ({
+  __esModule: true,
+  default: () => <div data-testid="service-search" />,
+}));
 
 describe("SpecialityCard Component", () => {
   const mockSetFormData = jest.fn();
-  const targetIndex = 1;
+  const mockTeam = [
+    { _id: "t1", name: "Dr. T" },
+    { _id: "t2", name: "Nurse J" },
+  ];
+
+  const initialSpeciality: SpecialityWeb = {
+    name: "General",
+    services: [
+      {
+        // FIX: Added required fields (id, organisationId, isActive)
+        id: "svc-1",
+        organisationId: "org-1",
+        isActive: true,
+        name: "Checkup",
+        description: "Routine",
+        durationMinutes: 30,
+        cost: 50,
+        maxDiscount: 10,
+      },
+    ],
+    headUserId: "",
+    teamMemberIds: [],
+    organisationId: "org-1",
+  };
+
+  const getUpdateResult = (prev: SpecialityWeb[] = [initialSpeciality]) => {
+    const updateFn = mockSetFormData.mock.calls[0][0];
+    return updateFn(prev);
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue(mockTeam);
   });
 
-  // --- 1. Rendering Section ---
+  // --- 1. Rendering ---
 
-  it("renders search and list of services", () => {
+  it("renders lead dropdown, staff select, and existing services", () => {
     render(
       <SpecialityCard
         setFormData={mockSetFormData}
-        speciality={mockSpeciality}
-        index={targetIndex}
+        speciality={initialSpeciality}
+        index={0}
       />
     );
 
-    expect(screen.getByTestId("service-search")).toBeInTheDocument();
-    expect(screen.getByTestId("accordion-Consultation")).toBeInTheDocument();
-    expect(screen.getByTestId("accordion-Surgery")).toBeInTheDocument();
+    expect(screen.getByTestId("dropdown-lead")).toBeInTheDocument();
+    expect(screen.getByTestId("multiselect-staff")).toBeInTheDocument();
+    expect(screen.getByText("Checkup")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Routine")).toBeInTheDocument();
   });
 
-  it("renders correctly with empty services list", () => {
-    const emptySpec = { ...mockSpeciality, services: undefined };
+  // --- 2. Lead & Staff Updates ---
+
+  it("updates the Lead (Head) for the speciality", () => {
     render(
       <SpecialityCard
         setFormData={mockSetFormData}
-        speciality={emptySpec as any}
-        index={targetIndex}
+        speciality={initialSpeciality}
+        index={0}
       />
     );
 
-    expect(screen.getByTestId("service-search")).toBeInTheDocument();
-    expect(screen.queryByTestId(/accordion-/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Select Lead"));
+
+    const newState = getUpdateResult();
+    expect(newState[0].headName).toBe("Dr. T");
+    expect(newState[0].headUserId).toBe("t1");
   });
 
-  // --- 2. Interaction: Updates ---
-
-  it("updates service description correctly", () => {
+  it("updates Assigned Staff list", () => {
     render(
       <SpecialityCard
         setFormData={mockSetFormData}
-        speciality={mockSpeciality}
-        index={targetIndex}
+        speciality={initialSpeciality}
+        index={0}
       />
     );
 
-    const input = screen.getAllByTestId("input-Description")[0]; // First service (Consultation)
-    fireEvent.change(input, { target: { value: "Updated Desc" } });
+    fireEvent.click(screen.getByText("Select Staff"));
 
-    // Verify setFormData logic
-    expect(mockSetFormData).toHaveBeenCalledTimes(1);
-
-    // We need to execute the state updater function to verify nested logic
-    const updateFn = mockSetFormData.mock.calls[0][0];
-    const newState = updateFn(mockFormData);
-
-    // Should only update target index
-    expect(newState[0]).toEqual(mockFormData[0]); // Unchanged
-    expect(newState[2]).toEqual(mockFormData[2]); // Unchanged
-
-    // Target changed
-    expect(newState[1].services![0].description).toBe("Updated Desc");
-    // Second service in target unchanged
-    expect(newState[1].services![1].description).toBe("Minor surgery");
+    const newState = getUpdateResult();
+    expect(newState[0].teamMemberIds).toEqual(["t1", "t2"]);
   });
 
-  it("updates numeric fields (duration, cost, discount)", () => {
+  // --- 3. Service Field Updates ---
+
+  it("updates service text fields (Description)", () => {
     render(
       <SpecialityCard
         setFormData={mockSetFormData}
-        speciality={mockSpeciality}
-        index={targetIndex}
+        speciality={initialSpeciality}
+        index={0}
+      />
+    );
+
+    const descInput = screen.getByTestId("input-description");
+    fireEvent.change(descInput, { target: { value: "Detailed Checkup" } });
+
+    const newState = getUpdateResult();
+    expect(newState[0].services[0].description).toBe("Detailed Checkup");
+  });
+
+  it("updates service numeric fields (Duration, Cost, Discount)", () => {
+    render(
+      <SpecialityCard
+        setFormData={mockSetFormData}
+        speciality={initialSpeciality}
+        index={0}
       />
     );
 
     // Update Duration
-    const durationInput = screen.getAllByTestId("input-Duration (mins)")[0];
-    fireEvent.change(durationInput, { target: { value: "45" } });
-
-    // Execute updater 1
-    let updateFn = mockSetFormData.mock.calls[0][0];
-    let newState = updateFn(mockFormData);
-    expect(newState[1].services![0].durationMinutes).toBe("45"); // Note: Input returns string
-
-    // Reset and test Cost
+    fireEvent.change(screen.getByTestId("input-durationmins"), {
+      target: { value: "60" },
+    });
+    let newState = getUpdateResult();
+    expect(newState[0].services[0].durationMinutes).toBe("60");
     mockSetFormData.mockClear();
-    const costInput = screen.getAllByTestId("input-Service charge ($)")[0];
-    fireEvent.change(costInput, { target: { value: "100" } });
 
-    // Execute updater 2
-    updateFn = mockSetFormData.mock.calls[0][0];
-    newState = updateFn(mockFormData);
-    expect(newState[1].services![0].cost).toBe("100");
-
-    // Reset and test Discount
+    // Update Cost
+    fireEvent.change(screen.getByTestId("input-servicecharge"), {
+      target: { value: "100" },
+    });
+    newState = getUpdateResult();
+    expect(newState[0].services[0].cost).toBe("100");
     mockSetFormData.mockClear();
-    const discountInput = screen.getAllByTestId("input-Max discount (%)")[0];
-    fireEvent.change(discountInput, { target: { value: "20" } });
 
-    // Execute updater 3
-    updateFn = mockSetFormData.mock.calls[0][0];
-    newState = updateFn(mockFormData);
-    expect(newState[1].services![0].maxDiscount).toBe("20");
+    // Update Discount
+    fireEvent.change(screen.getByTestId("input-maxdiscount"), {
+      target: { value: "5" },
+    });
+    newState = getUpdateResult();
+    expect(newState[0].services[0].maxDiscount).toBe("5");
   });
 
-  // --- 3. Interaction: Deletion ---
+  // --- 4. Removing Services & Logic ---
 
-  it("removes a service when delete is clicked", () => {
+  it("removes a service when delete is clicked in accordion", () => {
     render(
       <SpecialityCard
         setFormData={mockSetFormData}
-        speciality={mockSpeciality}
-        index={targetIndex}
+        speciality={initialSpeciality}
+        index={0}
       />
     );
 
-    // Delete the first service (Consultation)
-    const deleteBtn = screen.getByTestId("delete-Consultation");
-    fireEvent.click(deleteBtn);
+    fireEvent.click(screen.getByText("Delete Service"));
 
-    expect(mockSetFormData).toHaveBeenCalledTimes(1);
-
-    const updateFn = mockSetFormData.mock.calls[0][0];
-    const newState = updateFn(mockFormData);
-
-    // Should now have 1 service (Surgery remaining)
-    expect(newState[1].services).toHaveLength(1);
-    expect(newState[1].services![0].name).toBe("Surgery");
-
-    // Other indices unchanged
-    expect(newState[0]).toBe(mockFormData[0]);
+    const newState = getUpdateResult();
+    expect(newState[0].services).toHaveLength(0);
   });
 
-  // --- 4. Edge Cases ---
-
-  it("handles filtering gracefully if services is undefined (defensive check)", () => {
-    // This targets the `filterService` helper accessing `services?`
-    // We simulate a state where services might be missing but we try to delete index 0
-    // Realistically hard to click delete if not rendered, but we can verify the updater function logic directly.
-
-    // Trigger any delete to get the updater
+  it("does not update other specialities in the list (Index check)", () => {
     render(
       <SpecialityCard
         setFormData={mockSetFormData}
-        speciality={mockSpeciality}
-        index={targetIndex}
+        speciality={initialSpeciality}
+        index={1} // Component thinks it is index 1
       />
     );
-    fireEvent.click(screen.getByTestId("delete-Consultation"));
+
+    fireEvent.click(screen.getByText("Select Lead"));
+
+    const prevState = [
+      { name: "Other Spec", organisationId: "org-1", services: [] }, // Index 0
+      initialSpeciality, // Index 1
+    ];
+
     const updateFn = mockSetFormData.mock.calls[0][0];
+    const newState = updateFn(prevState);
 
-    // Construct a state where the target speciality has no services
-    // Run the updater against this state (index 0 is target here)
-    // We need to re-render with index 0 to match logic or just map manually
-    // The component closure captures 'index=1'.
-    // So we use mockFormData structure but make index 1 have undefined services
-    const corruptFormData = [...mockFormData];
-    corruptFormData[1] = { ...mockSpeciality, services: undefined };
+    // Index 0 should remain untouched
+    expect(newState[0].name).toBe("Other Spec");
+    expect(newState[0].headUserId).toBeUndefined();
 
-    const resultState = updateFn(corruptFormData);
+    // Index 1 should be updated
+    expect(newState[1].headUserId).toBe("t1");
+  });
 
-    // Should return undefined or empty array for services, not crash
-    // The code: filterService(sp.services || [], ...) -> handles undefined
-    expect(resultState[1].services).toEqual([]);
+  it("handles services being undefined gracefully", () => {
+    const noServicesSpec = { ...initialSpeciality, services: undefined };
+    render(
+      <SpecialityCard
+        setFormData={mockSetFormData}
+        speciality={noServicesSpec}
+        index={0}
+      />
+    );
+
+    expect(screen.queryByTestId("accordion")).not.toBeInTheDocument();
   });
 });

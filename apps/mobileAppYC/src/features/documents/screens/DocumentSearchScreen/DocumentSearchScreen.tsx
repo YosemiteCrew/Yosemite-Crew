@@ -2,7 +2,6 @@ import React, {useMemo, useState, useRef, useCallback} from 'react';
 import {View, Text, ScrollView, StyleSheet, ActivityIndicator} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -13,7 +12,8 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {setSelectedCompanion} from '@/features/companion';
 import {searchDocuments, clearSearchResults} from '@/features/documents/documentSlice';
-import {createScreenContainerStyles, createErrorContainerStyles} from '@/shared/utils/screenStyles';
+import {createAllCommonStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type DocumentSearchNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 
@@ -83,84 +83,98 @@ export const DocumentSearchScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Search documents" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        keyboardShouldPersistTaps="handled">
-        <SearchBar
-          mode="input"
-          placeholder="Search by title, category, or issuer"
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={triggerSearch}
-          autoFocus
-          containerStyle={styles.searchBar}
-          rightElement={searchLoading ? <ActivityIndicator size="small" /> : null}
-        />
+    <LiquidGlassHeaderScreen
+      header={
+        <>
+          <Header
+            title="Search documents"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+          <SearchBar
+            mode="input"
+            placeholder="Search by title, category, or issuer"
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={triggerSearch}
+            autoFocus
+            containerStyle={styles.searchBar}
+            rightElement={searchLoading ? <ActivityIndicator size="small" /> : null}
+          />
+        </>
+      }
+      contentPadding={theme.spacing['1']}
+      cardGap={theme.spacing['3']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          keyboardShouldPersistTaps="handled">
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onSelect={id => dispatch(setSelectedCompanion(id))}
+            showAddButton={false}
+            containerStyle={styles.selector}
+            requiredPermission="documents"
+            permissionLabel="documents"
+          />
 
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={id => dispatch(setSelectedCompanion(id))}
-          showAddButton={false}
-          containerStyle={styles.selector}
-          requiredPermission="documents"
-          permissionLabel="documents"
-        />
+          {searchError ? <Text style={styles.errorText}>{searchError}</Text> : null}
 
-        {searchError ? <Text style={styles.errorText}>{searchError}</Text> : null}
-
-        {searchLoading && (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator />
-          </View>
-        )}
-        {!searchLoading && searchResults.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No documents found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try another keyword or select a different pet to search.
-            </Text>
-          </View>
-        )}
-        {!searchLoading && searchResults.length > 0 && (
-          <View style={styles.resultsContainer}>
-            {searchResults.map(doc => (
-              <DocumentListItem
-                key={doc.id}
-                document={doc}
-                onPressView={handleViewDocument}
-                onPressEdit={handleEditDocument}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeArea>
+          {searchLoading && (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator />
+            </View>
+          )}
+          {!searchLoading && searchResults.length === 0 && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No documents found</Text>
+              <Text style={styles.emptySubtitle}>
+                Try another keyword or select a different pet to search.
+              </Text>
+            </View>
+          )}
+          {!searchLoading && searchResults.length > 0 && (
+            <View style={styles.resultsContainer}>
+              {searchResults.map(doc => (
+                <DocumentListItem
+                  key={doc.id}
+                  document={doc}
+                  onPressView={handleViewDocument}
+                  onPressEdit={handleEditDocument}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    ...createScreenContainerStyles(theme),
-    ...createErrorContainerStyles(theme),
-    searchBar: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[3],
+const createStyles = (theme: any) => {
+  const commonStyles = createAllCommonStyles(theme);
+  return StyleSheet.create({
+    ...commonStyles,
+    contentContainer: {
+      ...commonStyles.contentContainer,
+      paddingHorizontal: theme.spacing['6'],
     },
     selector: {
-      marginBottom: theme.spacing[4],
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['4'],
     },
     loaderContainer: {
-      paddingVertical: theme.spacing[8],
-      alignItems: 'center',
-      justifyContent: 'center',
+      paddingVertical: theme.spacing['8'],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
     emptyState: {
-      paddingVertical: theme.spacing[8],
-      gap: theme.spacing[2],
+      paddingVertical: theme.spacing['8'],
+      gap: theme.spacing['2'],
     },
     emptyTitle: {
       ...theme.typography.titleMedium,
@@ -171,9 +185,10 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     resultsContainer: {
-      gap: theme.spacing[3],
-      paddingBottom: theme.spacing[10],
+      gap: theme.spacing['3'],
+      paddingBottom: theme.spacing['10'],
     },
   });
+};
 
 export default DocumentSearchScreen;

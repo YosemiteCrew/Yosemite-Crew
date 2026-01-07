@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import VoiceMessagePlayer from '../../../../src/features/chat/components/VoiceMessagePlayer';
 import Sound from 'react-native-nitro-sound';
@@ -8,17 +9,7 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        cardBackground: '#fff',
-        primary: '#00f',
-        textSecondary: '#888',
-        error: '#f00',
-        errorTint: '#fee',
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Vector Icons

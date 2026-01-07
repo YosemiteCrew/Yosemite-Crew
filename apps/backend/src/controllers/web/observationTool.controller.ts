@@ -14,6 +14,7 @@ import type {
   UpdateObservationToolDefinitionInput,
 } from "src/services/observationToolDefinition.service";
 import type { CreateObservationToolSubmissionInput } from "src/services/observationToolSubmission.service";
+import { TaskService } from "src/services/task.service";
 
 const handleError = (error: unknown, res: Response) => {
   if (error instanceof ObservationToolDefinitionServiceError) {
@@ -115,12 +116,20 @@ export const ObservationToolSubmissionController = {
       }
 
       const toolId = req.params.toolId;
+
       const { companionId, taskId, answers, summary } = req.body as {
         companionId: string;
         taskId?: string;
         answers: CreateObservationToolSubmissionInput["answers"];
         summary?: string;
       };
+
+      if (!companionId) {
+        return res.status(400).json({ message: "companionId is required" });
+      }
+      if (!answers || typeof answers !== "object") {
+        return res.status(400).json({ message: "answers are required" });
+      }
 
       const submission =
         await ObservationToolSubmissionService.createSubmission({
@@ -185,10 +194,19 @@ export const ObservationToolSubmissionController = {
   linkAppointment: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.submissionId;
-      const { appointmentId } = req.body as { appointmentId: string };
+      const { appointmentId, enforceSingle } = req.body as {
+        appointmentId: string;
+        enforceSingle?: boolean;
+      };
 
       const updated = await ObservationToolSubmissionService.linkToAppointment({
         submissionId,
+        appointmentId,
+        enforceSingleSubmissionPerAppointment: enforceSingle === true,
+      });
+
+      await TaskService.linkToAppointment({
+        taskId: updated.taskId!,
         appointmentId,
       });
 
@@ -207,6 +225,46 @@ export const ObservationToolSubmissionController = {
           appointmentId,
         );
       res.json(submissions);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  getByTaskId: async (req: Request, res: Response) => {
+    try {
+      const { taskId } = req.params;
+      const submission =
+        await ObservationToolSubmissionService.getByTaskId(taskId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  // PMS + Mobile — task card preview (definition + submission preview)
+  getPreviewByTaskId: async (req: Request, res: Response) => {
+    try {
+      const { taskId } = req.params;
+      const preview =
+        await ObservationToolSubmissionService.getPreviewByTaskId(taskId);
+      res.json(preview);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  // PMS — appointment view previews (OT cards for all OT tasks in appointment)
+  listTaskPreviewsForAppointment: async (req: Request, res: Response) => {
+    try {
+      const { appointmentId } = req.params;
+      const previews =
+        await ObservationToolSubmissionService.listTaskPreviewsForAppointment(
+          appointmentId,
+        );
+      res.json(previews);
     } catch (error) {
       handleError(error, res);
     }

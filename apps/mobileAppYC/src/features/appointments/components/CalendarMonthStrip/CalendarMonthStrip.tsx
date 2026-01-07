@@ -137,21 +137,21 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({selectedD
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    calendarContainer: {gap: theme.spacing[2]},
+    calendarContainer: {gap: theme.spacing['2']},
     calendarHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    navButton: {padding: theme.spacing[2]},
+    navButton: {padding: theme.spacing['2']},
     arrowIcon: {width: 24, height: 24, resizeMode: 'contain', tintColor: theme.colors.secondary},
     monthTitle: {...theme.typography.titleMedium, color: theme.colors.secondary, textAlign: 'center', flex: 1},
-    datesList: {gap: theme.spacing[2]},
+    datesList: {gap: theme.spacing['2']},
     dateItem: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
       borderRadius: theme.borderRadius.md,
       minWidth: 70,
       borderWidth: 1,
@@ -165,7 +165,7 @@ const createStyles = (theme: any) =>
     },
     dateItemToday: {borderColor: theme.colors.primary, borderWidth: 2},
     dateItemDisabled: {opacity: 0.3, backgroundColor: theme.colors.background},
-    dateDay: {...theme.typography.h6Clash, color: theme.colors.textSecondary, marginBottom: theme.spacing[1], textAlign: 'center'},
+    dateDay: {...theme.typography.h6Clash, color: theme.colors.textSecondary, marginBottom: theme.spacing['1'], textAlign: 'center'},
     dateDaySelected: {color: theme.colors.primary, fontWeight: '500'},
     dateNumber: {...theme.typography.h6Clash, color: theme.colors.textSecondary, textAlign: 'center'},
     dateNumberSelected: {color: theme.colors.primary, fontWeight: '500'},

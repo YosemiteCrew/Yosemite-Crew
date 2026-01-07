@@ -1,33 +1,14 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, screen} from '@testing-library/react-native';
 import {GenericEmptyScreen} from '@/shared/components/common/GenericEmptyScreen/GenericEmptyScreen';
 
 // --- Mocks ---
 
 // 1. Mock useTheme
-const mockTheme = {
-  colors: {
-    background: 'mockBackgroundColor',
-    cardBackground: 'mockCardBackgroundColor',
-    border: 'mockBorderColor',
-    secondary: 'mockSecondaryColor',
-    textSecondary: 'mockTextColor',
-  },
-  typography: {
-    h3: {fontSize: 24, fontWeight: 'bold'},
-    paragraph: {fontSize: 16},
-  },
-  shadows: {
-    xs: {
-      shadowColor: '#000',
-      shadowOffset: {width: 0, height: 1},
-      shadowOpacity: 0.1,
-      shadowRadius: 1,
-    },
-  },
-};
+
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme}),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock react-native-safe-area-context
@@ -60,7 +41,7 @@ describe('GenericEmptyScreen', () => {
     const subtitle = screen.getByText('This is a test subtitle.').props.style;
 
     // Check a few key styles to ensure the theme was applied
-    expect(card.color).toBe('mockSecondaryColor');
-    expect(subtitle.color).toBe('mockTextColor');
+    expect(card.color).toBe(mockTheme.colors.secondary);
+    expect(subtitle.color).toBe(mockTheme.colors.textSecondary);
   });
 });

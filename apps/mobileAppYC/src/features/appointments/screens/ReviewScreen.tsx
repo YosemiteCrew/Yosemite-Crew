@@ -1,6 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ScrollView, View, Text, StyleSheet, TextInput, Image} from 'react-native';
-import {SafeArea} from '@/shared/components/common';
+import {ScrollView, View, Text, StyleSheet, TextInput, Image, Keyboard} from 'react-native';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -17,6 +16,7 @@ import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBus
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {Images} from '@/assets/images';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -102,76 +102,92 @@ export const ReviewScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Review" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {apt && (
-          <View style={styles.businessCardContainer}>
-            <SummaryCards
-              businessSummary={{
-                name: displayBusiness.name,
-                address: displayBusiness.address,
-                description: undefined,
-                photo: displayBusiness.photo ?? fallbackPhoto ?? undefined,
-              }}
-              cardStyle={styles.summaryCard}
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Review"
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['3']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          {apt && (
+            <View style={styles.businessCardContainer}>
+              <SummaryCards
+                businessSummary={{
+                  name: displayBusiness.name,
+                  address: displayBusiness.address,
+                  description: undefined,
+                  photo: displayBusiness.photo ?? fallbackPhoto ?? undefined,
+                }}
+                cardStyle={styles.summaryCard}
+              />
+            </View>
+          )}
+
+          <View style={styles.headerSection}>
+            <View style={styles.checkmarkContainer}>
+              <Image source={Images.tickGreen} style={styles.checkmarkIcon} />
+            </View>
+            <Text style={styles.title}>Consultation Complete</Text>
+            <Text style={styles.subtitle}>Share feedback</Text>
+          </View>
+
+          {apt && (
+            <View style={styles.ratingSection}>
+              <RatingStars value={rating} onChange={setRating} size={28} />
+            </View>
+          )}
+
+          <View style={styles.reviewSection}>
+            <Text style={styles.reviewLabel}>Review</Text>
+            <View style={styles.textArea}>
+              <TextInput
+                value={review}
+                onChangeText={setReview}
+                multiline={false}
+                placeholder="Your review"
+                placeholderTextColor={theme.colors.textSecondary + '80'}
+                style={styles.input}
+                textAlignVertical="top"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
+            </View>
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <LiquidGlassButton
+              title="Submit Feedback"
+              onPress={handleSubmit}
+              height={56}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              disabled={submitting}
             />
           </View>
-        )}
-
-        <View style={styles.headerSection}>
-          <View style={styles.checkmarkContainer}>
-            <Image source={Images.tickGreen} style={styles.checkmarkIcon} />
-          </View>
-          <Text style={styles.title}>Consultation Complete</Text>
-          <Text style={styles.subtitle}>Share feedback</Text>
-        </View>
-
-        {apt && (
-          <View style={styles.ratingSection}>
-            <RatingStars value={rating} onChange={setRating} size={28} />
-          </View>
-        )}
-
-        <View style={styles.reviewSection}>
-          <Text style={styles.reviewLabel}>Review</Text>
-          <View style={styles.textArea}>
-            <TextInput
-              value={review}
-              onChangeText={setReview}
-              multiline
-              placeholder="Your review"
-              placeholderTextColor={theme.colors.textSecondary + '80'}
-              style={styles.input}
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Submit Feedback"
-            onPress={handleSubmit}
-            height={56}
-            borderRadius={16}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            disabled={submitting}
-          />
-        </View>
-      </ScrollView>
-    </SafeArea>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    padding: theme.spacing[4],
-    paddingBottom: theme.spacing[24],
-  },
-  headerSection: {
+const createStyles = (theme: any) => {
+  return StyleSheet.create({
+    container: {
+      padding: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+    },
+    headerSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing[5],
+    marginBottom: theme.spacing['5'],
   },
   checkmarkContainer: {
     width: 72,
@@ -179,8 +195,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: theme.spacing[6],
-        marginBottom: theme.spacing[12],
+    marginTop: theme.spacing['6'],
+        marginBottom: theme.spacing['12'],
   },
   checkmarkIcon: {
     width: 100,
@@ -189,7 +205,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   title: {
     ...theme.typography.h3,
     color: theme.colors.secondary,
-    marginBottom: theme.spacing[2],
+    marginBottom: theme.spacing['2'],
     textAlign: 'center',
   },
   subtitle: {
@@ -198,29 +214,29 @@ const createStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
   },
   businessCardContainer: {
-    marginBottom: theme.spacing[4],
+    marginBottom: theme.spacing['4'],
   },
   summaryCard: {
-    marginBottom: theme.spacing[2],
+    marginBottom: theme.spacing['2'],
   },
   ratingSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing[6],
+    marginBottom: theme.spacing['6'],
   },
   reviewSection: {
-    marginBottom: theme.spacing[4],
+    marginBottom: theme.spacing['4'],
   },
   reviewLabel: {
     ...theme.typography.titleMedium,
     color: theme.colors.secondary,
-    marginBottom: theme.spacing[3],
+    marginBottom: theme.spacing['3'],
   },
   textArea: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[3],
+    paddingHorizontal: theme.spacing['3'],
+    paddingVertical: theme.spacing['3'],
     minHeight: 140,
     backgroundColor: theme.colors.inputBackground,
   },
@@ -230,8 +246,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     minHeight: 120,
   },
   buttonContainer: {
-    marginTop: theme.spacing[2],
+    marginTop: theme.spacing['2'],
   },
-});
+  });
+};
 
 export default ReviewScreen;

@@ -1,7 +1,6 @@
 import React, {useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Alert, Text} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -36,6 +35,8 @@ import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
@@ -275,6 +276,17 @@ export const BookingFormScreen: React.FC = () => {
       );
       if (createAppointment.fulfilled.match(action)) {
         const created = action.payload.appointment;
+        const submissionId = route.params.otContext?.submissionId;
+        if (submissionId) {
+          try {
+            await observationToolApi.linkSubmissionToAppointment({
+              submissionId,
+              appointmentId: created.id,
+            });
+          } catch (linkError) {
+            console.warn('[Booking] Failed to link OT submission', linkError);
+          }
+        }
         navigation.replace('PaymentInvoice', {
           appointmentId: created.id,
           companionId: created.companionId,
@@ -313,10 +325,23 @@ export const BookingFormScreen: React.FC = () => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Book an Appointment" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.container}>
-        <AppointmentFormContent
+    <>
+      <LiquidGlassHeaderScreen
+        header={
+          <Header
+            title="Book an Appointment"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+        }
+        cardGap={theme.spacing['3']}
+        contentPadding={theme.spacing['1']}>
+        {contentPaddingStyle => (
+          <ScrollView
+            contentContainerStyle={[styles.container, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
+            <AppointmentFormContent
           businessCard={{
             title: business?.name ?? '',
             subtitlePrimary: business?.address ?? undefined,
@@ -431,8 +456,9 @@ export const BookingFormScreen: React.FC = () => {
             />
           }
         />
-
-      </ScrollView>
+          </ScrollView>
+        )}
+      </LiquidGlassHeaderScreen>
       <DocumentUploadSheets
         uploadSheetRef={uploadSheetRef}
         deleteSheetRef={deleteSheetRef}
@@ -444,16 +470,16 @@ export const BookingFormScreen: React.FC = () => {
         confirmDeleteFile={confirmDeleteFile}
         closeSheet={closeSheet}
       />
-    </SafeArea>
+    </>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      padding: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-      gap: theme.spacing[4],
+      padding: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['4'],
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,

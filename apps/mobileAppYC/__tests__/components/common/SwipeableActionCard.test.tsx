@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {SwipeableActionCard} from '../../../src/shared/components/common/SwipeableActionCard/SwipeableActionCard';
 import {Text, Image} from 'react-native';
@@ -7,16 +8,7 @@ import {Text, Image} from 'react-native';
 
 // 1. Mock Theme
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        success: 'green',
-        surface: 'white',
-      },
-      spacing: [0, 4, 8, 12, 16],
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 2. Mock Images
@@ -29,8 +21,8 @@ jest.mock('@/assets/images', () => ({
 
 // 3. Mock Card Styles Helpers
 jest.mock('@/shared/components/common/cardStyles', () => ({
-  ACTION_WIDTH: 100,
-  OVERLAP_WIDTH: 20,
+  ACTION_WIDTH: 65,
+  OVERLAP_WIDTH: 0,
   getActionWrapperStyle: jest.fn(() => ({testStyle: 'wrapper'})),
   getEditActionButtonStyle: jest.fn(() => ({testStyle: 'edit-btn'})),
   getViewActionButtonStyle: jest.fn(() => ({testStyle: 'view-btn'})),
@@ -99,11 +91,11 @@ describe('SwipeableActionCard', () => {
     expect(images[1].props.source.uri).toBe('view-icon');
 
     // Verify Action Width logic:
-    // showEdit=true -> 2 buttons * 100 + 20 overlap = 220
+    // showEdit=true -> 2 buttons * 65, no overlap
     const wrapper = getByTestId('swipe-card-wrapper');
     const propsData = JSON.parse(wrapper.props.accessibilityLabel);
-    expect(propsData.actionWidth).toBe(220);
-    expect(propsData.actionOverlap).toBe(20);
+    expect(propsData.actionWidth).toBe(130);
+    expect(propsData.actionOverlap).toBe(0);
   });
 
   it('renders correctly without Edit action', () => {
@@ -119,10 +111,10 @@ describe('SwipeableActionCard', () => {
     expect(images[0].props.source.uri).toBe('view-icon');
 
     // Verify Action Width logic:
-    // showEdit=false -> 1 button * 100 + 20 overlap = 120
+    // showEdit=false -> 1 button * 65, no overlap
     const wrapper = getByTestId('swipe-card-wrapper');
     const propsData = JSON.parse(wrapper.props.accessibilityLabel);
-    expect(propsData.actionWidth).toBe(120);
+    expect(propsData.actionWidth).toBe(65);
   });
 
   it('renders correctly when swipe actions are hidden', () => {

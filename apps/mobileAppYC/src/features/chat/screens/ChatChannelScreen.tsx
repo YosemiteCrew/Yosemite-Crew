@@ -169,7 +169,7 @@ export const ChatChannelScreen: React.FC = () => {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title={doctorName}
           showBackButton
@@ -185,7 +185,7 @@ export const ChatChannelScreen: React.FC = () => {
   // Error state
   if (error || !channel || !client) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title={doctorName}
           showBackButton
@@ -205,7 +205,7 @@ export const ChatChannelScreen: React.FC = () => {
 
   // Chat UI
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <Header
         title={doctorName}
         showBackButton
@@ -255,6 +255,7 @@ const createStyles = (theme: any) =>
     chatWrapper: {
       flex: 1,
       backgroundColor: theme.colors.background || '#fff',
+      paddingBottom: theme.spacing['6'],
     },
     // Loading/Error states
     container: {
@@ -265,26 +266,23 @@ const createStyles = (theme: any) =>
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 20,
+      paddingHorizontal: theme.spacing['5'],
     },
     loadingText: {
-      marginTop: 16,
-      fontSize: 16,
-      color: theme.colors.textSecondary || '#666',
-      ...theme.typography?.bodyMedium,
+      marginTop: theme.spacing['4'],
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
     },
     errorText: {
-      fontSize: 16,
-      color: theme.colors.error || '#ff0000',
+      ...theme.typography.body,
+      color: theme.colors.error,
       textAlign: 'center',
-      marginBottom: 8,
-      ...theme.typography?.bodyMedium,
+      marginBottom: theme.spacing['2'],
     },
     errorSubtext: {
-      fontSize: 14,
-      color: theme.colors.textSecondary || '#999',
+      ...theme.typography.bodySmall,
+      color: theme.colors.textSecondary,
       textAlign: 'center',
-      ...theme.typography?.bodySmall,
     },
   });
 

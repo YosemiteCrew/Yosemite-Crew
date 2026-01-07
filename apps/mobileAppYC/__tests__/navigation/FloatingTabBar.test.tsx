@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {FloatingTabBar} from '../../src/navigation/FloatingTabBar';
 import {Platform} from 'react-native';
@@ -6,19 +7,7 @@ import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 
 // --- Mocks ---
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        textSecondary: 'gray',
-        secondary: 'blue',
-      },
-      shadows: {xs: {elevation: 1}},
-      typography: {
-        tabLabel: {fontSize: 10},
-        tabLabelFocused: {fontSize: 10, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -73,7 +62,7 @@ const createProps = (index = 0, routes: any[] = []) => {
     },
     descriptors: {},
     navigation: {
-      emit: jest.fn(),
+      emit: jest.fn(() => ({defaultPrevented: false})),
       navigate: jest.fn(),
     },
     insets: {top: 0, right: 0, bottom: 0, left: 0},
@@ -95,9 +84,9 @@ describe('FloatingTabBar', () => {
       const {getByText, queryByTestId} = render(<FloatingTabBar {...props} />);
 
       expect(getByText('Home')).toBeTruthy();
-      expect(getByText('Appointments')).toBeTruthy();
-      // iOS shouldn't render LiquidGlassView
-      expect(queryByTestId('liquid-glass-view')).toBeNull();
+      expect(getByText('Bookings')).toBeTruthy();
+      // iOS should render LiquidGlassView when supported
+      expect(queryByTestId('liquid-glass-view')).toBeTruthy();
     });
 
     it('renders LiquidGlassView on Android if supported', () => {
@@ -105,9 +94,10 @@ describe('FloatingTabBar', () => {
       const props: any = createProps();
       (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
 
-      const {getByTestId} = render(<FloatingTabBar {...props} />);
+      const {queryByTestId} = render(<FloatingTabBar {...props} />);
 
-      expect(getByTestId('liquid-glass-view')).toBeTruthy();
+      // Android should fall back to View because glass is iOS-only
+      expect(queryByTestId('liquid-glass-view')).toBeNull();
     });
   });
 
@@ -131,7 +121,7 @@ describe('FloatingTabBar', () => {
       );
 
       const {getByText} = render(<FloatingTabBar {...props} />);
-      expect(getByText('Appointments')).toBeTruthy();
+      expect(getByText('Bookings')).toBeTruthy();
     });
 
     it('is HIDDEN when on non-root screen of a stack', () => {
@@ -154,7 +144,7 @@ describe('FloatingTabBar', () => {
       );
 
       const {queryByText} = render(<FloatingTabBar {...props} />);
-      expect(queryByText('Appointments')).toBeNull();
+      expect(queryByText('Bookings')).toBeNull();
     });
 
     it('is VISIBLE when route has no state (default assumption)', () => {
@@ -230,7 +220,7 @@ describe('FloatingTabBar', () => {
       // Press Appointments (Index 1)
       props.navigation.emit.mockReturnValue({defaultPrevented: false});
 
-      fireEvent.press(getByText('Appointments'));
+      fireEvent.press(getByText('Bookings'));
 
       expect(props.navigation.emit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -273,7 +263,7 @@ describe('FloatingTabBar', () => {
 
       props.navigation.emit.mockReturnValue({defaultPrevented: true});
 
-      fireEvent.press(getByText('Appointments'));
+      fireEvent.press(getByText('Bookings'));
 
       expect(props.navigation.navigate).not.toHaveBeenCalled();
     });

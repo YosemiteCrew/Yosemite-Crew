@@ -1,7 +1,6 @@
 import React, {useMemo} from 'react';
 import {ScrollView, View, StyleSheet, Text} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SpecialtyAccordion} from '@/features/appointments/components/SpecialtyAccordion';
@@ -10,7 +9,7 @@ import {Images} from '@/assets/images';
 import VetBusinessCard from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
 import {createSelectServicesForBusiness} from '@/features/appointments/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, NavigationProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
@@ -19,6 +18,8 @@ import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {TabParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -30,6 +31,7 @@ export const BusinessDetailsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {distanceUnit} = usePreferences();
   const businessId = route.params?.businessId as string;
+  const returnTo = route.params?.returnTo as {tab?: keyof TabParamList; screen?: string} | undefined;
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
   const servicesSelector = React.useMemo(() => createSelectServicesForBusiness(), []);
   const services = useSelector((state: RootState) => servicesSelector(state, businessId));
@@ -104,68 +106,94 @@ export const BusinessDetailsScreen: React.FC = () => {
     return `${business.distanceMi.toFixed(1)}mi`;
   }, [business?.distanceMi, distanceUnit]);
 
+  const handleBack = () => {
+    if (returnTo?.tab) {
+      const tabNav = navigation.getParent<NavigationProp<TabParamList>>();
+      if (tabNav) {
+        // Type-safe navigation by explicitly handling each tab case
+        const params = returnTo.screen ? {screen: returnTo.screen} : undefined;
+        tabNav.navigate(returnTo.tab as any, params as any);
+      }
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  };
+
   return (
-    <SafeArea>
-      <Header title="Book an appointment" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Business Card */}
-        <VetBusinessCard
-          style={styles.businessCard}
-          name={business?.name || ''}
-          openHours={business?.openHours}
-          distance={displayDistance}
-          rating={business?.rating ? `${business.rating}` : undefined}
-          address={business?.address}
-          website={business?.website}
-          photo={business?.photo}
-          fallbackPhoto={fallbackPhoto ?? undefined}
-          cta=""
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title="Book an appointment"
+          showBackButton
+          onBack={handleBack}
+          glass={false}
         />
-
-        {/* Specialties Accordion */}
-        {specialties.length ? (
-          <SpecialtyAccordion
-            title="Specialties"
-            icon={Images.specialityIcon}
-            specialties={specialties}
-            onSelectService={handleSelectService}
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Business Card */}
+          <VetBusinessCard
+            style={styles.businessCard}
+            name={business?.name || ''}
+            openHours={business?.openHours}
+            distance={displayDistance}
+            rating={business?.rating ? `${business.rating}` : undefined}
+            address={business?.address}
+            website={business?.website}
+            photo={business?.photo}
+            fallbackPhoto={fallbackPhoto ?? undefined}
+            cta=""
           />
-        ) : (
-          <View style={styles.emptyServicesCard}>
-            <Text style={styles.emptyServicesTitle}>Services coming soon</Text>
-            <Text style={styles.emptyServicesSubtitle}>
-              This business has not published individual services yet. Please contact them directly for availability.
-            </Text>
+
+          {/* Specialties Accordion */}
+          {specialties.length ? (
+            <SpecialtyAccordion
+              title="Specialties"
+              icon={Images.specialityIcon}
+              specialties={specialties}
+              onSelectService={handleSelectService}
+            />
+          ) : (
+            <View style={styles.emptyServicesCard}>
+              <Text style={styles.emptyServicesTitle}>Services coming soon</Text>
+              <Text style={styles.emptyServicesSubtitle}>
+                This business has not published individual services yet. Please contact them directly for availability.
+              </Text>
+            </View>
+          )}
+
+          {/* Get Directions Button */}
+          <View style={styles.footer}>
+            <LiquidGlassButton
+              title="Get Directions"
+              onPress={() => {
+                if (business?.googlePlacesId) {
+                  openMapsToPlaceId(business.googlePlacesId, business?.address);
+                } else if (business?.address) {
+                  openMapsToAddress(business.address);
+                }
+              }}
+              height={56}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              textStyle={styles.buttonText}
+              glassEffect="clear"
+              shadowIntensity="none"
+              forceBorder
+              borderColor="rgba(255, 255, 255, 0.35)"
+            />
           </View>
-        )}
-
-        {/* Get Directions Button */}
-        <View style={styles.footer}>
-          <LiquidGlassButton
-            title="Get Directions"
-            onPress={() => {
-              if (business?.googlePlacesId) {
-                openMapsToPlaceId(business.googlePlacesId, business?.address);
-              } else if (business?.address) {
-                openMapsToAddress(business.address);
-              }
-            }}
-            height={56}
-            borderRadius={16}
-            tintColor={theme.colors.secondary}
-            textStyle={styles.buttonText}
-            glassEffect="clear"
-            shadowIntensity="none"
-            forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-          />
-        </View>
-      </ScrollView>
-    </SafeArea>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -175,15 +203,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
-    padding: theme.spacing[4],
-    paddingBottom: theme.spacing[24],
+    paddingHorizontal: theme.spacing['6'],
+    paddingBottom: theme.spacing['24'],
   },
   businessCard: {
-    marginBottom: theme.spacing[5],
+    marginBottom: theme.spacing['5'],
   },
   footer: {
-    marginTop: theme.spacing[2],
-    marginBottom: theme.spacing[4],
+    marginTop: theme.spacing['2'],
+    marginBottom: theme.spacing['4'],
   },
   buttonText: {
     ...theme.typography.cta,
@@ -194,9 +222,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing[4],
-    gap: theme.spacing[2],
-       marginBottom: theme.spacing[4],
+    padding: theme.spacing['4'],
+    gap: theme.spacing['2'],
+    marginBottom: theme.spacing['4'],
   },
   emptyServicesTitle: {
     ...theme.typography.titleSmall,

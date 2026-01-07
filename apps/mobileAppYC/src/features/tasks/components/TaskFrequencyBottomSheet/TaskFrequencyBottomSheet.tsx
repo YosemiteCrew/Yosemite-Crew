@@ -14,7 +14,7 @@ interface TaskFrequencyBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-const frequencies: TaskFrequency[] = ['once', 'daily', 'every-day', 'weekly', 'monthly'];
+const frequencies: TaskFrequency[] = ['once', 'daily', 'weekly', 'monthly'];
 
 export const TaskFrequencyBottomSheet = forwardRef<
   TaskFrequencyBottomSheetRef,

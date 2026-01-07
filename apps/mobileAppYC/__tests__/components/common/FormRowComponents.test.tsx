@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {View} from 'react-native';
 import {render, screen, fireEvent} from '@testing-library/react-native';
 import {
@@ -43,23 +44,10 @@ jest.mock('react-native', () => {
 });
 
 // 3. Mock useTheme
-const mockTheme = {
-  colors: {
-    textSecondary: 'mock-text-secondary',
-    placeholder: 'mock-placeholder',
-    borderSeperator: 'mock-border',
-  },
-  spacing: {
-    '1': 4,
-    '3': 12,
-  },
-  typography: {
-    pillSubtitleBold15: {fontSize: 15, fontWeight: 'bold'},
-  },
-};
+
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme}),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 4. Mock Images

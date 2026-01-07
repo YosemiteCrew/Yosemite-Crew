@@ -147,7 +147,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.md,
       overflow: 'hidden',
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
       ...theme.shadows.sm,
@@ -163,8 +163,8 @@ const createStyles = (theme: any) =>
     content: {
       flex: 1,
       flexDirection: 'row',
-      padding: theme.spacing[3],
-      gap: theme.spacing[3],
+      padding: theme.spacing['3'],
+      gap: theme.spacing['3'],
     },
     image: {
       width: 100,
@@ -179,21 +179,21 @@ const createStyles = (theme: any) =>
     name: {
       ...theme.typography.titleMedium,
       color: theme.colors.text,
-      marginBottom: theme.spacing[1],
+      marginBottom: theme.spacing['1'],
     },
     address: {
       ...theme.typography.bodyExtraSmall,
       color: theme.colors.textSecondary,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
     },
     footer: {
       flexDirection: 'row',
-      gap: theme.spacing[4],
+      gap: theme.spacing['4'],
     },
     ratingContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     icon: {
       width: 14,
@@ -208,12 +208,12 @@ const createStyles = (theme: any) =>
       flexDirection: 'column',
       justifyContent: 'space-around',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: theme.spacing[3],
-      gap: theme.spacing[2],
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      gap: theme.spacing['2'],
     },
     actionButton: {
-      padding: theme.spacing[2],
+      padding: theme.spacing['2'],
       justifyContent: 'center',
       alignItems: 'center',
     },

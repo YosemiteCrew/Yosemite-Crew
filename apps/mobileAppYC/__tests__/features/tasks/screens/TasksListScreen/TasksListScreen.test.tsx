@@ -1,6 +1,6 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
-// Path: 5 levels up from __tests__/features/tasks/screens/TasksListScreen/ to project root
 import {TasksListScreen} from '../../../../../src/features/tasks/screens/TasksListScreen/TasksListScreen';
 import * as Redux from 'react-redux';
 
@@ -30,26 +30,64 @@ const mockUseSelector = jest.spyOn(Redux, 'useSelector');
 
 // 3. Hooks & Utils
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        textSecondary: 'grey',
-      },
-      spacing: {
-        4: 16,
-        8: 32,
-        12: 48,
-      },
-      typography: {
-        bodyMedium: {fontSize: 14},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveCategoryLabel: (cat: string) => cat.toUpperCase(),
+}));
+
+jest.mock('@/shared/utils/dateHelpers', () => ({
+  formatDateToISODate: (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+}));
+
+// Mock the new hooks
+jest.mock('@/features/tasks/hooks/useTaskDateSelection', () => ({
+  useTaskDateSelection: () => ({
+    selectedDate: new Date('2025-12-31'),
+    currentMonth: new Date('2025-12-01'),
+    handleDateSelect: jest.fn(),
+    handleMonthChange: jest.fn(),
+  }),
+}));
+
+jest.mock('@/features/tasks/hooks/useTaskNavigationActions', () => ({
+  useTaskNavigationActions: () => ({
+    handleViewTask: mockNavigate,
+    handleEditTask: mockNavigate,
+    handleCompleteTask: mockDispatch,
+    handleStartObservationalTool: mockNavigate,
+  }),
+}));
+
+jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
+  getTaskCardMeta: (task: any, authUser: any) => {
+    const statusUpper = String(task.status).toUpperCase();
+    const isPending = statusUpper === 'PENDING';
+    const isCompleted = statusUpper === 'COMPLETED';
+    const assignedToData =
+      task.assignedTo === authUser?.id
+        ? {
+            avatar: authUser?.profilePicture,
+            name: authUser?.firstName || 'User',
+          }
+        : undefined;
+    const isObservationalToolTask =
+      task.category === 'health' &&
+      task.details?.taskType === 'take-observational-tool';
+
+    return {
+      isPending,
+      isCompleted,
+      assignedToData,
+      isObservationalToolTask,
+    };
+  },
 }));
 
 // 4. Actions & Selectors
@@ -72,6 +110,13 @@ jest.mock('@/features/auth/selectors', () => ({
   selectAuthUser: (state: any) => state.authUser,
 }));
 
+jest.mock('@/shared/utils/screenStyles', () => ({
+  createEmptyStateStyles: () => ({
+    emptyContainer: {},
+    emptyText: {},
+  }),
+}));
+
 // 5. Components
 jest.mock('@/shared/components/common', () => ({
   SafeArea: ({children}: any) => children,
@@ -90,6 +135,21 @@ jest.mock('@/shared/components/common/Header/Header', () => ({
     );
   },
 }));
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => ({
+    LiquidGlassHeaderScreen: ({header, children}: any) => {
+      const {View} = require('react-native');
+      return (
+        <View>
+          {header}
+          {children(() => ({}))}
+        </View>
+      );
+    },
+  }),
+);
 
 jest.mock(
   '@/shared/components/common/CompanionSelector/CompanionSelector',
@@ -111,6 +171,31 @@ jest.mock(
             testID="deselect-companion"
             onPress={() => onSelect(null)}>
             <Text>Deselect</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    },
+  }),
+);
+
+jest.mock(
+  '@/features/tasks/components/shared/TaskMonthDateSelector',
+  () => ({
+    TaskMonthDateSelector: ({
+      selectedDate,
+      datesWithTasks: _datesWithTasks,
+      onDateSelect,
+    }: any) => {
+      const {View, Text, TouchableOpacity} = require('react-native');
+      return (
+        <View testID="task-month-date-selector">
+          <Text testID="selected-date">
+            {selectedDate.toISOString().split('T')[0]}
+          </Text>
+          <TouchableOpacity
+            testID="date-selector-trigger"
+            onPress={() => onDateSelect(new Date('2025-12-31'))}>
+            <Text>Select Date</Text>
           </TouchableOpacity>
         </View>
       );
@@ -183,7 +268,7 @@ describe('TasksListScreen', () => {
         category: 'health',
         companionId: 'c1',
         status: 'pending',
-        date: '2023-01-01',
+        date: '2025-12-31',
         time: '10:00',
         assignedTo: 'u1', // Matches auth user
       },
@@ -193,16 +278,25 @@ describe('TasksListScreen', () => {
         category: 'health',
         companionId: 'c1',
         status: 'completed', // Completed, so no complete button
-        date: '2023-01-02',
+        date: '2025-12-31',
         time: '12:00',
         details: {taskType: 'take-observational-tool'},
       },
       {
         id: 't3',
+        title: 'Different Date Task',
+        category: 'health',
+        companionId: 'c1',
+        status: 'pending',
+        date: '2025-12-30', // Different date, should be filtered out
+      },
+      {
+        id: 't4',
         title: 'Missing Companion Task',
         category: 'health',
         companionId: 'c99', // Does not exist
         status: 'pending',
+        date: '2025-12-31',
       },
     ],
   };
@@ -212,18 +306,23 @@ describe('TasksListScreen', () => {
     mockUseSelector.mockImplementation((cb: any) => cb(mockState));
   });
 
-  it('renders correctly with list of tasks', () => {
-    const {getByText, queryByTestId} = render(<TasksListScreen />);
+  it('renders correctly with list of tasks for selected date', () => {
+    const {getByText, queryByTestId, getByTestId} = render(
+      <TasksListScreen />,
+    );
 
     expect(getByText('HEALTH tasks')).toBeTruthy();
+    expect(getByTestId('task-month-date-selector')).toBeTruthy();
     expect(getByText('Regular Task')).toBeTruthy();
     expect(getByText('OT Task')).toBeTruthy();
 
-    // t3 should be filtered out because companion c99 doesn't exist
+    // t3 should be filtered out because it has a different date
+    expect(queryByTestId('task-card-Different Date Task')).toBeNull();
+    // t4 should be filtered out because companion c99 doesn't exist
     expect(queryByTestId('task-card-Missing Companion Task')).toBeNull();
   });
 
-  it('renders empty state when no tasks exist', () => {
+  it('renders empty state when no tasks exist for selected date', () => {
     mockUseSelector.mockImplementation((cb: any) =>
       cb({
         ...mockState,
@@ -260,54 +359,19 @@ describe('TasksListScreen', () => {
     expect(mockDispatch).not.toHaveBeenCalled();
   });
 
-  it('handles view task navigation', () => {
-    const {getByTestId} = render(<TasksListScreen />);
-    fireEvent.press(getByTestId('view-Regular Task'));
-    expect(mockNavigate).toHaveBeenCalledWith('TaskView', {taskId: 't1'});
-  });
+  it('filters tasks by selected date', () => {
+    const {getByText, queryByText} = render(<TasksListScreen />);
 
-  it('handles edit task navigation', () => {
-    const {getByTestId} = render(<TasksListScreen />);
-    fireEvent.press(getByTestId('edit-Regular Task')); // t1 is pending, showEdit=true
-    expect(mockNavigate).toHaveBeenCalledWith('EditTask', {taskId: 't1'});
-  });
+    // Tasks with date 2025-12-31 should be shown
+    expect(getByText('Regular Task')).toBeTruthy();
+    expect(getByText('OT Task')).toBeTruthy();
 
-  it('handles complete task action', () => {
-    const {getByTestId} = render(<TasksListScreen />);
-    fireEvent.press(getByTestId('complete-Regular Task')); // t1 is pending
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'MARK_STATUS',
-        payload: {taskId: 't1', status: 'completed'},
-      }),
-    );
-  });
-
-  it('handles start observational tool action', () => {
-    const {getByTestId} = render(<TasksListScreen />);
-    // t2 is an OT task
-    fireEvent.press(getByTestId('start-ot-OT Task'));
-    expect(mockNavigate).toHaveBeenCalledWith('ObservationalTool', {
-      taskId: 't2',
-    });
-  });
-
-  it('correctly hides actions for completed tasks', () => {
-    const {getByTestId, queryByTestId} = render(<TasksListScreen />);
-    // t2 is completed.
-    // Logic: showEditAction={item.status !== 'completed'} -> false
-    // showCompleteButton={item.status === 'pending'} -> false
-
-    expect(queryByTestId('edit-OT Task')).toBeNull();
-    expect(queryByTestId('complete-OT Task')).toBeNull();
-
-    // But it is an OT task, so it might show Start OT depending on logic?
-    // Code: onPressTakeObservationalTool is passed if it matches criteria.
-    expect(getByTestId('start-ot-OT Task')).toBeTruthy();
+    // Task with date 2025-12-30 should not be shown
+    expect(queryByText('Different Date Task')).toBeNull();
   });
 
   it('filters out tasks with missing companions safely', () => {
-    // t3 has companionId 'c99' which is not in the companions list.
+    // t4 has companionId 'c99' which is not in the companions list.
     // renderTask returns null.
     const {queryByText} = render(<TasksListScreen />);
     expect(queryByText('Missing Companion Task')).toBeNull();
@@ -342,7 +406,7 @@ describe('TasksListScreen', () => {
           category: 'health',
           companionId: 'c1',
           status: 'pending',
-          date: '2023-01-01',
+          date: '2025-12-31',
           time: '10:00',
           assignedTo: 'u1',
         },

@@ -18,6 +18,7 @@ import type {
   TaskFrequency,
   TaskTypeSelection,
 } from '@/features/tasks/types';
+import {mockTheme} from '../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -109,6 +110,13 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
+// Mock hooks to prevent Redux context errors
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: jest.fn(),
+}));
+
 // FIX 7: Update mocked util path
 jest.mock('@/shared/utils/iconStyles', () => ({
   createIconStyles: jest.fn(() => ({
@@ -140,11 +148,7 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 
 // --- Mock Data ---
 
-const mockTheme = {
-  spacing: {1: 4, 3: 8, 4: 12},
-  typography: {},
-  colors: {},
-};
+
 
 const baseFormData: TaskFormData = {
   title: '',
@@ -206,7 +210,6 @@ const renderComponent = ({
   );
 
   const mockUpdateField = jest.fn();
-  const mockOnOpenDatePicker = jest.fn();
   const mockOnOpenTimePicker = jest.fn();
   const mockOnOpenTaskFrequencySheet = jest.fn();
 
@@ -221,7 +224,6 @@ const renderComponent = ({
     // --- FIX 2: Corrected the typo '€_taskTypeSelection,' ---
     taskTypeSelection: taskTypeSelection,
     updateField: mockUpdateField,
-    onOpenDatePicker: mockOnOpenDatePicker,
     onOpenTimePicker: mockOnOpenTimePicker,
     onOpenTaskFrequencySheet: mockOnOpenTaskFrequencySheet,
     theme: mockTheme,
@@ -231,7 +233,6 @@ const renderComponent = ({
 
   return {
     mockUpdateField,
-    mockOnOpenDatePicker,
     mockOnOpenTimePicker,
     mockOnOpenTaskFrequencySheet,
   };
@@ -261,7 +262,7 @@ describe('SimpleTaskFormSection', () => {
 
       expect(screen.getByText('Value: Test Task')).toBeTruthy();
       expect(screen.getByText('Value: Test Desc')).toBeTruthy();
-      expect(screen.getByText('Value: Formatted: 2025-10-29')).toBeTruthy();
+      // Date assertion removed - CalendarMonthStrip renders differently
       expect(screen.getByText('Value: Formatted: 10:30')).toBeTruthy(); // Updated assertion
       expect(screen.getByText(`Value: ${frequencyValue}`)).toBeTruthy();
     });
@@ -270,25 +271,24 @@ describe('SimpleTaskFormSection', () => {
       renderComponent();
 
       expect(screen.getByText('Placeholder: Enter task name')).toBeTruthy();
-      expect(screen.getByText('Placeholder: Date')).toBeTruthy();
+      // Date placeholder removed - CalendarMonthStrip doesn't use placeholders
       expect(screen.getByText('Placeholder: Time')).toBeTruthy();
       expect(screen.getByText('Placeholder: Task frequency')).toBeTruthy();
 
       const emptyValueTexts = screen.getAllByText('Value: ');
-      expect(emptyValueTexts.length).toBeGreaterThanOrEqual(5);
+      expect(emptyValueTexts.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('calls date and time formatters', () => {
-      const date = new Date();
+    it('calls time formatter', () => {
       const time = new Date();
-      renderComponent({formData: {date: date, time: time}});
-      expect(mockFormatDateForDisplay).toHaveBeenCalledWith(date);
+      renderComponent({formData: {time: time}});
+      // Date formatter not called - CalendarMonthStrip doesn't use it
       expect(mockFormatTimeForDisplay).toHaveBeenCalledWith(time);
     });
 
-    it('renders correct icons for date, time, and frequency', () => {
+    it('renders correct icons for time and frequency', () => {
       renderComponent();
-      expect(screen.getByText(`Icon: ${Images.calendarIcon}`)).toBeTruthy();
+      // Calendar icon removed - CalendarMonthStrip doesn't show as icon
       expect(screen.getByText(`Icon: ${Images.clockIcon}`)).toBeTruthy();
       expect(screen.getByText(`Icon: ${Images.dropdownIcon}`)).toBeTruthy();
     });
@@ -312,11 +312,7 @@ describe('SimpleTaskFormSection', () => {
       );
     });
 
-    it('calls onOpenDatePicker on date input press', () => {
-      const {mockOnOpenDatePicker} = renderComponent();
-      fireEvent.press(screen.getByTestId('mock-touchable-Date'));
-      expect(mockOnOpenDatePicker).toHaveBeenCalledTimes(1);
-    });
+    // Date picker test removed - component now uses CalendarMonthStrip
 
     it('calls onOpenTimePicker on time input press', () => {
       const {mockOnOpenTimePicker} = renderComponent();

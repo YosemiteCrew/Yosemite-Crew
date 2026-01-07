@@ -9,7 +9,7 @@ import {
   Alert,
   type ImageSourcePropType,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NavigationProp, useFocusEffect} from '@react-navigation/native';
 import {Platform, ToastAndroid} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -18,9 +18,11 @@ import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Images} from '@/assets/images';
-import {SearchBar, YearlySpendCard, Loading} from '@/shared/components/common';
+import {SearchBar, YearlySpendCard} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import {LiquidGlassHeader} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeader';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -36,6 +38,7 @@ import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
   fetchExpenseSummary,
   selectExpenseSummaryByCompanion,
+  selectExpensesLoading,
   selectHasHydratedCompanion as selectExpensesHydrated,
 } from '@/features/expenses';
 import {
@@ -61,24 +64,40 @@ import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointme
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
 import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useFetchOrgRatingIfNeeded, type OrgRatingState} from '@/features/appointments/hooks/useOrganisationRating';
+import {usePlacesBusinessSearch, type ResolvedBusinessSelection} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
+import {mapSelectionToVetBusiness} from '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness';
 import {fetchNotificationsForCompanion} from '@/features/notifications/thunks';
 import {
+  selectNotificationsLoading,
   selectHasHydratedCompanion as selectNotificationsHydrated,
   selectUnreadCount,
 } from '@/features/notifications/selectors';
+import {useGlobalLoader} from '@/context/GlobalLoaderContext';
+import {TaskCard} from '@/features/tasks/components';
+import {
+  fetchTasksForCompanion,
+  selectHasHydratedCompanion as selectTasksHydrated,
+  selectNextUpcomingTask,
+  markTaskStatus,
+} from '@/features/tasks';
+import type {TaskCategory} from '@/features/tasks/types';
+import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {useLiquidGlassHeaderLayout} from '@/shared/hooks/useLiquidGlassHeaderLayout';
+import {upsertBusiness} from '@/features/appointments/businessesSlice';
+import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
 const QUICK_ACTIONS: Array<{
-  id: 'health' | 'hygiene' | 'diet';
+  id: TaskCategory;
   label: string;
   icon: ImageSourcePropType;
 }> = [
   {id: 'health', label: 'Manage health', icon: Images.healthIcon},
   {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon},
-  {id: 'diet', label: 'Dietary plans', icon: Images.dietryIcon},
+  {id: 'dietary', label: 'Dietary plans', icon: Images.dietryIcon},
 ];
 
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
@@ -96,15 +115,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const dispatch = useDispatch<AppDispatch>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const {openEmergencySheet} = useEmergency();
+  const {showLoader, hideLoader} = useGlobalLoader();
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
+  const companionLoading = useSelector((state: RootState) => state.companion?.loading);
   const expenseSummarySelector = React.useMemo(
     () => selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
     [selectedCompanionIdRedux],
   );
   const expenseSummary = useSelector(expenseSummarySelector);
-  const hasExpenseHydrated = useSelector(selectExpensesHydrated(selectedCompanionIdRedux ?? null));
+  const expensesLoading = useSelector(selectExpensesLoading);
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? EMPTY_ACCESS_MAP,
   );
@@ -118,6 +139,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     : null;
   const hasCompanions = companions.length > 0;
   const unreadNotifications = useSelector(selectUnreadCount);
+  const notificationsLoading = useSelector(selectNotificationsLoading);
   const userCurrencyCode = authUser?.currency ?? 'USD';
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const upcomingAppointmentsSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
@@ -126,15 +148,58 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
   const hasUnreadNotifications = unreadNotifications > 0;
   const [orgRatings, setOrgRatings] = React.useState<Record<string, OrgRatingState>>({});
-  const [businessSearch, setBusinessSearch] = React.useState('');
   const hasNotificationsHydrated = useSelector(
     selectNotificationsHydrated('default-companion'),
   );
-  const [isInitialLoad, setIsInitialLoad] = React.useState(true);
-  useFocusEffect(
-    React.useCallback(() => {
-      setBusinessSearch('');
-    }, []),
+  const appointmentsLoading = useSelector(
+    (state: RootState) => state.appointments?.loading,
+  );
+  const linkedBusinessesLoading = useSelector(
+    (state: RootState) => state.linkedBusinesses?.loading,
+  );
+  const accessLoading = useSelector(
+    (state: RootState) => state.coParent?.accessLoading,
+  );
+  const [initialLoadStarted, setInitialLoadStarted] = React.useState(
+    Boolean(user?.id),
+  );
+  const [initialRequests, setInitialRequests] = React.useState({
+    companions: false,
+    appointments: false,
+    expenses: false,
+    access: false,
+    linkedBusinesses: false,
+    notifications: false,
+  });
+  const [initialLoadComplete, setInitialLoadComplete] = React.useState(false);
+
+  const targetCompanionId = React.useMemo(() => {
+    const fallback =
+      companions[0]?.id ??
+      (companions[0] as any)?._id ??
+      (companions[0] as any)?.identifier?.[0]?.value;
+    return selectedCompanionIdRedux ?? fallback ?? null;
+  }, [companions, selectedCompanionIdRedux]);
+
+  const hasExpenseHydrated = useSelector(
+    selectExpensesHydrated(targetCompanionId),
+  );
+  const hasAppointmentsHydrated = useSelector((state: RootState) =>
+    targetCompanionId
+      ? Boolean(state.appointments?.hydratedCompanions?.[targetCompanionId])
+      : true,
+  );
+  const hasTasksHydrated = useSelector(selectTasksHydrated(targetCompanionId));
+  const nextUpcomingTaskSelector = React.useMemo(
+    () => selectNextUpcomingTask(targetCompanionId),
+    [targetCompanionId],
+  );
+  const nextUpcomingTask = useSelector(nextUpcomingTaskSelector);
+  const markInitialRequest = React.useCallback(
+    (key: keyof typeof initialRequests) => {
+      setInitialRequests(prev => (prev[key] ? prev : {...prev, [key]: true}));
+    },
+    [],
   );
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
@@ -147,13 +212,21 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       hasCompanions &&
       (!hasExpenseHydrated || !expenseSummary)
     ) {
+      markInitialRequest('expenses');
       dispatch(
         fetchExpenseSummary({
           companionId: selectedCompanionIdRedux,
         }),
       );
     }
-  }, [dispatch, selectedCompanionIdRedux, hasCompanions, hasExpenseHydrated, expenseSummary]);
+  }, [
+    dispatch,
+    selectedCompanionIdRedux,
+    hasCompanions,
+    hasExpenseHydrated,
+    expenseSummary,
+    markInitialRequest,
+  ]);
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>({});
   const {businessFallbacks, handleAvatarError, requestBusinessPhoto} = useBusinessPhotoFallback();
   const {handleCheckIn: handleCheckInUtil} = useCheckInHandler();
@@ -228,20 +301,89 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
     return false;
   }, [hasCompanions]);
-  const handleServiceSearch = React.useCallback(
-    (termOverride?: string) => {
-      if (!ensureCompanionForSearch()) {
-        return;
-      }
-      const term = (termOverride ?? businessSearch).trim();
+
+  const selectedCompanion = React.useMemo(() => {
+    if (targetCompanionId) {
+      return companions.find(c => c.id === targetCompanionId) ?? null;
+    }
+    return companions[0] ?? null;
+  }, [companions, targetCompanionId]);
+
+  const handleSearchError = React.useCallback((error: unknown) => {
+    console.log('[HomeSearch] Search error', error);
+  }, []);
+
+  const handlePmsSelection = React.useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      const businessPayload = mapSelectionToVetBusiness(selection);
+
+      dispatch(upsertBusiness(businessPayload));
+
       navigation
         .getParent<NavigationProp<TabParamList>>()
         ?.navigate('Appointments', {
-          screen: 'BrowseBusinesses',
-          params: {serviceName: term || undefined, autoFocusSearch: true},
+          screen: 'BusinessDetails',
+          params: {
+            businessId: businessPayload.id,
+            returnTo: {tab: 'HomeStack', screen: 'Home'},
+          },
         });
     },
-    [businessSearch, ensureCompanionForSearch, navigation],
+    [dispatch, navigation],
+  );
+
+  const handleNonPmsSelection = React.useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      if (!ensureCompanionForSearch() || !selectedCompanion || !targetCompanionId) {
+        return;
+      }
+
+      navigation.navigate('LinkedBusinesses', {
+        screen: 'BusinessAdd',
+        params: {
+          companionId: targetCompanionId,
+          companionName: selectedCompanion.name,
+          companionBreed: selectedCompanion.breed?.breedName,
+          companionImage: selectedCompanion.profileImage ?? undefined,
+          category: 'hospital',
+          businessId: selection.placeId,
+          businessName: selection.name,
+          businessAddress: selection.address,
+          phone: selection.phone,
+          email: selection.email,
+          photo: selection.photo,
+          isPMSRecord: false,
+          rating: selection.rating,
+          distance: selection.distance,
+          placeId: selection.placeId,
+        },
+      });
+    },
+    [ensureCompanionForSearch, navigation, selectedCompanion, targetCompanionId],
+  );
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    searching,
+    handleSearchChange,
+    handleSelectBusiness,
+    clearResults,
+  } = usePlacesBusinessSearch({
+    onSelectPms: handlePmsSelection,
+    onSelectNonPms: handleNonPmsSelection,
+    onError: handleSearchError,
+  });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setSearchQuery('');
+      clearResults();
+      if (targetCompanionId && !hasTasksHydrated) {
+        dispatch(fetchTasksForCompanion({companionId: targetCompanionId}));
+      }
+    }, [clearResults, dispatch, hasTasksHydrated, setSearchQuery, targetCompanionId]),
   );
 
   React.useEffect(() => {
@@ -252,6 +394,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     const loadCompanionsAndSelectDefault = async () => {
       if (user?.parentId) {
+        markInitialRequest('companions');
         await dispatch(fetchCompanions(user.parentId));
         // Initialize mock linked business data for testing
         dispatch(initializeMockData());
@@ -259,7 +402,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     };
 
     loadCompanionsAndSelectDefault();
-  }, [dispatch, user?.parentId]);
+  }, [dispatch, markInitialRequest, user?.parentId]);
 
   const fetchParentAccessStateRef = React.useRef({
     lastParentId: null as string | null,
@@ -286,8 +429,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           companionIds: companions.map(c => c.id),
         }),
       );
+      markInitialRequest('access');
     }
-  }, [authUser?.parentId, companions, dispatch]);
+  }, [authUser?.parentId, companions, dispatch, markInitialRequest]);
 
   // New useEffect to handle default selection once companions are loaded
   React.useEffect(() => {
@@ -305,43 +449,43 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   // Always refresh appointments when companion changes or initial load finishes
   React.useEffect(() => {
-    const targetId =
-      selectedCompanionIdRedux ??
-      companions[0]?.id ??
-      (companions[0] as any)?._id ??
-      (companions[0] as any)?.identifier?.[0]?.value;
+    const targetId = targetCompanionId;
     if (!targetId) {
       return;
     }
     if (!selectedCompanionIdRedux) {
       dispatch(setSelectedCompanion(targetId));
     }
+    markInitialRequest('appointments');
     dispatch(fetchAppointmentsForCompanion({companionId: targetId}));
-  }, [dispatch, selectedCompanionIdRedux, companions]);
+  }, [dispatch, markInitialRequest, selectedCompanionIdRedux, targetCompanionId]);
 
   // Fetch linked hospitals for emergency feature
   React.useEffect(() => {
     if (selectedCompanionIdRedux) {
+      markInitialRequest('linkedBusinesses');
       dispatch(
         fetchLinkedBusinesses({companionId: selectedCompanionIdRedux, category: 'hospital'}),
       );
     }
-  }, [dispatch, selectedCompanionIdRedux]);
+  }, [dispatch, markInitialRequest, selectedCompanionIdRedux]);
 
   // Hydrate notifications after login to drive red dot state
   React.useEffect(() => {
     if (user && !hasNotificationsHydrated) {
+      markInitialRequest('notifications');
       dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
     }
-  }, [dispatch, hasNotificationsHydrated, user]);
+  }, [dispatch, hasNotificationsHydrated, markInitialRequest, user]);
 
   // Refresh notifications when returning to Home
   useFocusEffect(
     React.useCallback(() => {
       if (user) {
+        markInitialRequest('notifications');
         dispatch(fetchNotificationsForCompanion({companionId: 'default-companion'}));
       }
-    }, [dispatch, user]),
+    }, [dispatch, markInitialRequest, user]),
   );
 
   const previousCurrencyRef = React.useRef(userCurrencyCode);
@@ -353,12 +497,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       previousCurrencyRef.current !== userCurrencyCode
     ) {
       previousCurrencyRef.current = userCurrencyCode;
+      markInitialRequest('expenses');
       dispatch(
         fetchExpenseSummary({companionId: selectedCompanionIdRedux}),
       );
     }
   }, [
     dispatch,
+    markInitialRequest,
     selectedCompanionIdRedux,
     userCurrencyCode,
     hasExpenseHydrated,
@@ -368,28 +514,93 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   useFocusEffect(
     React.useCallback(() => {
       if (selectedCompanionIdRedux) {
+        markInitialRequest('expenses');
         dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
       }
-    }, [dispatch, selectedCompanionIdRedux]),
+    }, [dispatch, markInitialRequest, selectedCompanionIdRedux]),
   );
 
-  // Handle initial loading state - wait for data to be hydrated
   React.useEffect(() => {
-    if (isInitialLoad) {
-      // Check if we have the essential data loaded
-      const hasEssentialData =
-        hasNotificationsHydrated &&
-        (companions.length === 0 || (selectedCompanionIdRedux && hasExpenseHydrated));
-
-      if (hasEssentialData) {
-        // Add a small delay to ensure smooth transition
-        const timer = setTimeout(() => {
-          setIsInitialLoad(false);
-        }, 500);
-        return () => clearTimeout(timer);
-      }
+    if (user?.id && !initialLoadStarted) {
+      setInitialLoadStarted(true);
     }
-  }, [isInitialLoad, hasNotificationsHydrated, companions.length, selectedCompanionIdRedux, hasExpenseHydrated]);
+  }, [initialLoadStarted, user?.id]);
+
+  const areRequiredRequestsStarted = React.useMemo(() => {
+    if (!initialLoadStarted) return false;
+    if (user?.parentId && !initialRequests.companions) return false;
+    if (user && !hasNotificationsHydrated && !initialRequests.notifications) return false;
+    if (authUser?.parentId && companions.length > 0 && !initialRequests.access) return false;
+    if (targetCompanionId && !initialRequests.appointments) return false;
+    if (selectedCompanionIdRedux && !hasExpenseHydrated && !initialRequests.expenses) return false;
+    if (selectedCompanionIdRedux && !initialRequests.linkedBusinesses) return false;
+    return true;
+  }, [
+    initialLoadStarted,
+    user,
+    initialRequests,
+    hasNotificationsHydrated,
+    authUser?.parentId,
+    companions.length,
+    targetCompanionId,
+    selectedCompanionIdRedux,
+    hasExpenseHydrated,
+  ]);
+
+  const areRequestsComplete = React.useMemo(() => {
+    if (initialRequests.companions && companionLoading) return false;
+    if (initialRequests.access && accessLoading) return false;
+    if (initialRequests.notifications && (notificationsLoading || !hasNotificationsHydrated)) return false;
+    if (initialRequests.appointments && (appointmentsLoading || !hasAppointmentsHydrated)) return false;
+    if (initialRequests.expenses && (expensesLoading || !hasExpenseHydrated)) return false;
+    if (initialRequests.linkedBusinesses && linkedBusinessesLoading) return false;
+    return true;
+  }, [
+    initialRequests,
+    companionLoading,
+    accessLoading,
+    notificationsLoading,
+    hasNotificationsHydrated,
+    appointmentsLoading,
+    hasAppointmentsHydrated,
+    expensesLoading,
+    hasExpenseHydrated,
+    linkedBusinessesLoading,
+  ]);
+
+  const isHomeDataReady = React.useMemo(() => {
+    if (!areRequiredRequestsStarted) return false;
+    if (!areRequestsComplete) return false;
+    if (companions.length > 0 && !targetCompanionId) return false;
+    return true;
+  }, [areRequiredRequestsStarted, areRequestsComplete, companions.length, targetCompanionId]);
+
+  React.useEffect(() => {
+    if (initialLoadComplete) {
+      return;
+    }
+    if (isHomeDataReady) {
+      setInitialLoadComplete(true);
+    }
+  }, [initialLoadComplete, isHomeDataReady]);
+
+  React.useEffect(() => {
+    if (!initialLoadStarted) {
+      hideLoader();
+      return;
+    }
+    if (initialLoadComplete) {
+      hideLoader();
+    } else {
+      showLoader();
+    }
+  }, [hideLoader, initialLoadComplete, initialLoadStarted, showLoader]);
+
+  React.useEffect(() => {
+    return () => {
+      hideLoader();
+    };
+  }, [hideLoader]);
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -406,15 +617,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     onPress?: () => void,
   ) => {
     const content = (
-      <LiquidGlassCard
-        key={key}
-        glassEffect="clear"
-        interactive
-        style={styles.infoTile}
-        fallbackStyle={styles.tileFallback}>
-        <Text style={styles.tileTitle}>{title}</Text>
-        <Text style={styles.tileSubtitle}>{subtitle}</Text>
-      </LiquidGlassCard>
+        <View style={styles.tileShadowWrapper}>
+          <LiquidGlassCard
+            key={key}
+            glassEffect="clear"
+            interactive
+            style={styles.infoTile}
+            fallbackStyle={styles.tileFallback}>
+            <Text style={styles.tileTitle}>{title}</Text>
+            <Text style={styles.tileSubtitle}>{subtitle}</Text>
+          </LiquidGlassCard>
+        </View>
     );
     if (!onPress) {
       return content;
@@ -426,14 +639,63 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const showTasksComingSoon = React.useCallback(() => {
-    const message = 'Tasks feature coming soon.';
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(message, ToastAndroid.SHORT);
-    } else {
-      Alert.alert('Coming soon', message);
+  const handleOpenTasks = React.useCallback(() => {
+    if (!guardFeature('tasks', 'tasks')) {
+      return;
     }
-  }, []);
+    navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+      screen: 'TasksMain',
+    });
+  }, [guardFeature, navigation]);
+
+  const handleViewTask = React.useCallback(
+    (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+        screen: 'TaskView',
+        params: {taskId, source: 'home'},
+      });
+    },
+    [guardFeature, navigation],
+  );
+
+  const handleQuickActionPress = React.useCallback(
+    (category: TaskCategory) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+        screen: 'TasksList',
+        params: {category},
+      });
+    },
+    [guardFeature, navigation],
+  );
+
+  const handleEditTask = React.useCallback(
+    (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Tasks', {
+        screen: 'EditTask',
+        params: {taskId, source: 'home'},
+      });
+    },
+    [guardFeature, navigation],
+  );
+
+  const handleCompleteTask = React.useCallback(
+    (taskId: string) => {
+      if (!guardFeature('tasks', 'tasks')) {
+        return;
+      }
+      dispatch(markTaskStatus({taskId, status: 'completed'}));
+    },
+    [dispatch, guardFeature],
+  );
 
   const handleEmergencyPress = React.useCallback(() => {
     if (!guardFeature('emergencyBasedPermissions', 'emergency actions')) {
@@ -697,13 +959,77 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const renderUpcomingTasks = () =>
-    renderEmptyStateTile(
-      'Feature coming soon',
-      'Task management will be available shortly.',
-      'tasks-coming-soon',
-      showTasksComingSoon,
+  const renderUpcomingTasks = () => {
+    if (!hasCompanions) {
+      return renderEmptyStateTile(
+        'No companions yet',
+        'Add a companion to see upcoming tasks here.',
+        'tasks',
+      );
+    }
+
+    if (!canAccessFeature('tasks')) {
+      return renderEmptyStateTile(
+        'Tasks restricted',
+        'Ask the primary parent to enable tasks access for you.',
+        'tasks',
+      );
+    }
+
+    if (!nextUpcomingTask) {
+      return renderEmptyStateTile(
+        'No upcoming tasks',
+        'Create a task to stay on track.',
+        'tasks',
+        handleOpenTasks,
+      );
+    }
+
+    const companion = companions.find(c => c.id === nextUpcomingTask.companionId);
+    const selfId = authUser?.parentId ?? authUser?.id;
+    const assignedToData =
+      nextUpcomingTask.assignedTo === selfId
+        ? {
+            avatar: authUser?.profilePicture,
+            name: authUser?.firstName || 'User',
+          }
+        : undefined;
+    const isObservationalToolTask =
+      nextUpcomingTask.category === 'health' &&
+      nextUpcomingTask.details &&
+      'taskType' in nextUpcomingTask.details &&
+      nextUpcomingTask.details.taskType === 'take-observational-tool';
+    const isPending = String(nextUpcomingTask.status).toUpperCase() === 'PENDING';
+
+    return (
+      <TaskCard
+        title={nextUpcomingTask.title}
+        categoryLabel={resolveCategoryLabel(nextUpcomingTask.category)}
+        subcategoryLabel={nextUpcomingTask.subcategory ?? undefined}
+        date={nextUpcomingTask.date}
+        time={nextUpcomingTask.time}
+        companionName={companion?.name ?? 'Companion'}
+        companionAvatar={companion?.profileImage ?? undefined}
+        assignedToName={assignedToData?.name}
+        assignedToAvatar={assignedToData?.avatar}
+        status={nextUpcomingTask.status}
+        onPressView={() => handleViewTask(nextUpcomingTask.id)}
+        onPressEdit={() => handleEditTask(nextUpcomingTask.id)}
+        onPressComplete={() =>
+          handleCompleteTask(nextUpcomingTask.id)
+        }
+        onPressTakeObservationalTool={
+          isObservationalToolTask
+            ? () => handleViewTask(nextUpcomingTask.id)
+            : undefined
+        }
+        showEditAction
+        showCompleteButton={isPending}
+        category={nextUpcomingTask.category}
+        details={nextUpcomingTask.details}
+      />
     );
+  };
 
   const renderUpcomingAppointments = () => {
     if (!hasCompanions) {
@@ -758,32 +1084,52 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
 
     return (
-      <YearlySpendCard
-        amount={expenseSummary?.total ?? 0}
-        currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
-        currencySymbol={resolveCurrencySymbol(
-          expenseSummary?.currencyCode ?? userCurrencyCode,
-          '$',
-        )}
-        onPressView={() =>
-          navigation.navigate('ExpensesStack', {
-            screen: 'ExpensesMain',
-          })
-        }
-      />
+      <View style={styles.yearlySpendShadowWrapper}>
+        <YearlySpendCard
+          amount={expenseSummary?.total ?? 0}
+          currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
+          currencySymbol={resolveCurrencySymbol(
+            expenseSummary?.currencyCode ?? userCurrencyCode,
+            '$',
+          )}
+          onPressView={() =>
+            navigation.navigate('ExpensesStack', {
+              screen: 'ExpensesMain',
+            })
+          }
+        />
+      </View>
     );
   };
 
-  // Show loading screen during initial data hydration
-  if (isInitialLoad) {
-    return <Loading />;
-  }
+  const actionIconSize = theme.spacing['10'];
+  const insets = useSafeAreaInsets();
+  const {headerProps, contentPaddingStyle} = useLiquidGlassHeaderLayout({
+    contentPadding: theme.spacing['4.5'],
+  });
+  const headerInsetsTop = headerProps.insetsTop + theme.spacing['6'];
+  const bottomScrollPadding =
+    insets.bottom + theme.spacing['24'] + theme.spacing['12'];
+  const dropdownTop =
+    (headerProps.currentHeight || headerInsetsTop + theme.spacing['18']) +
+    theme.spacing['1'];
+  const showSearchResults =
+    searchQuery.length >= 2 && searchResults.length > 0 && !searching;
 
   return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={[]}>
+      <BusinessSearchDropdown
+        visible={showSearchResults}
+        top={dropdownTop}
+        items={searchResults}
+        onSelect={handleSelectBusiness}
+        onDismiss={clearResults}
+      />
+
+      <LiquidGlassHeader
+        {...headerProps}
+        insetsTop={headerInsetsTop}
+        cardStyle={[headerProps.cardStyle, styles.headerCard]}>
         <View style={styles.headerRow}>
           <TouchableOpacity
             style={styles.profileButton}
@@ -808,62 +1154,78 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           </TouchableOpacity>
 
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.actionIcon}
-              activeOpacity={0.85}
-              onPress={handleEmergencyPress}>
-              <Image source={Images.emergencyIcon} style={styles.actionImage} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionIcon}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('Notifications')}>
-              <View style={styles.notificationIconWrapper}>
-                <Image
-                  source={Images.notificationIcon}
-                  style={styles.actionImage}
-                />
-                {hasUnreadNotifications ? (
-                  <View style={styles.notificationDot} />
-                ) : null}
-              </View>
-            </TouchableOpacity>
+            <View style={styles.actionIconShadowWrapper}>
+              <LiquidGlassIconButton
+                onPress={handleEmergencyPress}
+                size={actionIconSize}
+                style={styles.actionIcon}>
+                <Image source={Images.emergencyIcon} style={styles.actionImage} />
+              </LiquidGlassIconButton>
+            </View>
+            <View style={styles.actionIconShadowWrapper}>
+              <LiquidGlassIconButton
+                onPress={() => navigation.navigate('Notifications')}
+                size={actionIconSize}
+                style={styles.actionIcon}>
+                <View style={styles.notificationIconWrapper}>
+                  <Image
+                    source={Images.notificationIcon}
+                    style={styles.actionImage}
+                  />
+                  {hasUnreadNotifications ? (
+                    <View style={styles.notificationDot} />
+                  ) : null}
+                </View>
+              </LiquidGlassIconButton>
+            </View>
           </View>
         </View>
 
         <SearchBar
           placeholder="Search services"
           mode="input"
-          value={businessSearch}
+          value={searchQuery}
           onChangeText={text => {
             if (!ensureCompanionForSearch()) {
               return;
             }
-            setBusinessSearch(text);
-            if (text && text.trim().length > 0) {
-              handleServiceSearch(text);
-            }
+            handleSearchChange(text);
           }}
-          onSubmitEditing={e => handleServiceSearch(e.nativeEvent.text)}
-          onIconPress={() => handleServiceSearch()}
+          onSubmitEditing={e => handleSearchChange(e.nativeEvent.text)}
+          onIconPress={() => {
+            if (!ensureCompanionForSearch()) {
+              return;
+            }
+            handleSearchChange(searchQuery.trim());
+          }}
         />
+      </LiquidGlassHeader>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          contentPaddingStyle,
+          {paddingBottom: bottomScrollPadding},
+        ]}
+        showsVerticalScrollIndicator={false}>
 
         {companions.length === 0 ? (
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive
-            tintColor={theme.colors.primary}
-            style={[styles.heroTouchable, styles.heroCard]}
-            fallbackStyle={styles.heroFallback}>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleAddCompanion}
-              style={styles.heroContent}>
-              <Image source={Images.paw} style={styles.heroPaw} />
-              <Image source={Images.plusIcon} style={styles.heroIconImage} />
-              <Text style={styles.heroTitle}>Add your first companion</Text>
-            </TouchableOpacity>
-          </LiquidGlassCard>
+          <View style={[styles.heroShadowWrapper, styles.heroTouchable]}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              interactive
+              tintColor={theme.colors.primary}
+              style={styles.heroCard}
+              fallbackStyle={styles.heroFallback}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={handleAddCompanion}
+                style={styles.heroContent}>
+                <Image source={Images.paw} style={styles.heroPaw} />
+                <Image source={Images.plusIcon} style={styles.heroIconImage} />
+                <Text style={styles.heroTitle}>Add your first companion</Text>
+              </TouchableOpacity>
+            </LiquidGlassCard>
+          </View>
         ) : (
           <CompanionSelector
             companions={companions}
@@ -890,61 +1252,71 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick actions</Text>
             {companions.length > 0 && (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  if (!guardFeature('companionProfile', 'companion profile')) {
-                    return;
-                  }
-                  // Pass the selected companion's ID to the ProfileOverview screen
-                  const companionId =
-                    selectedCompanionIdRedux ??
-                    companions[0]?.id ??
-                    (companions[0] as any)?._id ??
-                    (companions[0] as any)?.identifier?.[0]?.value ??
-                    null;
+              <View style={styles.viewMoreShadowWrapper}>
+                <LiquidGlassButton
+                  onPress={() => {
+                    if (!guardFeature('companionProfile', 'companion profile')) {
+                      return;
+                    }
+                    // Pass the selected companion's ID to the ProfileOverview screen
+                    const companionId =
+                      selectedCompanionIdRedux ??
+                      companions[0]?.id ??
+                      (companions[0] as any)?._id ??
+                      (companions[0] as any)?.identifier?.[0]?.value ??
+                      null;
 
-                  if (companionId) {
-                    // Ensure state stays in sync with the navigation target
-                    handleSelectCompanion(companionId);
-                    navigation.navigate('ProfileOverview', {
-                      companionId,
-                    });
-                  } else {
-                    console.warn('No companion selected to view profile.');
-                  }
-                }}>
-                <Text style={styles.viewMoreText}>View more</Text>
-              </TouchableOpacity>
+                    if (companionId) {
+                      // Ensure state stays in sync with the navigation target
+                      handleSelectCompanion(companionId);
+                      navigation.navigate('ProfileOverview', {
+                        companionId,
+                      });
+                    } else {
+                      console.warn('No companion selected to view profile.');
+                    }
+                  }}
+                  size="small"
+                  compact
+                  glassEffect="clear"
+                  borderRadius="full"
+                  style={styles.viewMoreButton}
+                  textStyle={styles.viewMoreText}
+                  shadowIntensity="none"
+                  title="View more"
+                />
+              </View>
             )}
           </View>
 
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive
-            style={styles.quickActionsCard}
-            fallbackStyle={styles.tileFallback}>
-            <View style={styles.quickActionsRow}>
-              {QUICK_ACTIONS.map(action => (
-                <TouchableOpacity
-                  key={action.id}
-                  style={styles.quickAction}
-                  activeOpacity={0.88}
-                  onPress={showTasksComingSoon}>
-                  <View style={styles.quickActionIconWrapper}>
-                    <Image
-                      source={action.icon}
-                      style={styles.quickActionIcon}
-                    />
-                  </View>
-                  <Text style={styles.quickActionLabel}>{action.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </LiquidGlassCard>
+          <View style={styles.tileShadowWrapper}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              interactive
+              style={styles.quickActionsCard}
+              fallbackStyle={styles.tileFallback}>
+              <View style={styles.quickActionsRow}>
+                {QUICK_ACTIONS.map(action => (
+                  <TouchableOpacity
+                    key={action.id}
+                    style={styles.quickAction}
+                    activeOpacity={0.88}
+                    onPress={() => handleQuickActionPress(action.id)}>
+                    <View style={styles.quickActionIconWrapper}>
+                      <Image
+                        source={action.icon}
+                        style={styles.quickActionIcon}
+                      />
+                    </View>
+                    <Text style={styles.quickActionLabel}>{action.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </LiquidGlassCard>
+          </View>
         </View>
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -955,11 +1327,16 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    headerCard: {
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['4'],
+      gap: theme.spacing['4'],
+      overflow: 'hidden',
+    },
     scrollContent: {
-      paddingHorizontal: theme.spacing[6],
-      paddingTop: theme.spacing[6],
-      paddingBottom: theme.spacing[30],
-      gap: theme.spacing[6],
+      paddingHorizontal: theme.spacing['6'],
+      paddingTop: theme.spacing['4'],
+      gap: theme.spacing['6'],
     },
     headerRow: {
       flexDirection: 'row',
@@ -969,12 +1346,12 @@ const createStyles = (theme: any) =>
     profileButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3.5],
+      gap: theme.spacing['3.5'],
     },
     avatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: theme.spacing['12'],
+      height: theme.spacing['12'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.lightBlueBackground,
       alignItems: 'center',
       justifyContent: 'center',
@@ -984,7 +1361,7 @@ const createStyles = (theme: any) =>
     avatarImage: {
       width: '100%',
       height: '100%',
-      borderRadius: 24,
+      borderRadius: theme.borderRadius.full,
       resizeMode: 'cover',
     },
     avatarInitials: {
@@ -998,17 +1375,21 @@ const createStyles = (theme: any) =>
     headerActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
+    },
+    actionIconShadowWrapper: {
+      borderRadius: theme.borderRadius.full,
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     actionIcon: {
-      width: 40,
-      height: 40,
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
       alignItems: 'center',
       justifyContent: 'center',
     },
     actionImage: {
-      width: 25,
-      height: 25,
+      width: theme.spacing['6'] + 1,
+      height: theme.spacing['6'] + 1,
       resizeMode: 'contain',
     },
     notificationIconWrapper: {
@@ -1018,11 +1399,11 @@ const createStyles = (theme: any) =>
     },
     notificationDot: {
       position: 'absolute',
-      top:2,
+      top: 2,
       right: 0,
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: theme.spacing['2.5'],
+      height: theme.spacing['2.5'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.error,
       borderWidth: 1,
       borderColor: theme.colors.cardBackground,
@@ -1030,37 +1411,41 @@ const createStyles = (theme: any) =>
     heroTouchable: {
       alignSelf: 'flex-start',
       width: '50%',
-      minWidth: 160,
-      maxWidth: 160,
+      minWidth: theme.spacing['40'],
+      maxWidth: theme.spacing['40'],
+    },
+    heroShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     heroCard: {
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing[5],
-      minHeight: 160,
+      padding: theme.spacing['5'],
+      minHeight: theme.spacing['40'],
       overflow: 'hidden',
-      ...theme.shadows.lg,
-      shadowColor: theme.colors.neutralShadow,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     heroContent: {
       flex: 1,
-      minHeight: 100,
+      minHeight: theme.spacing['24'] + theme.spacing['1'],
       justifyContent: 'space-between',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     heroPaw: {
       position: 'absolute',
-      right: -45,
-      top: -45,
-      width: 160,
-      height: 160,
+      right: theme.spacing['-11.25'],
+      top: theme.spacing['-11.25'],
+      width: theme.spacing['40'],
+      height: theme.spacing['40'],
       tintColor: theme.colors.whiteOverlay70,
       resizeMode: 'contain',
     },
     heroIconImage: {
-      marginTop: 35,
-      marginBottom: theme.spacing[1.25],
-      width: 35,
-      height: 35,
+      marginTop: theme.spacing['9'],
+      marginBottom: theme.spacing['1.25'],
+      width: theme.spacing['9'],
+      height: theme.spacing['9'],
       tintColor: theme.colors.onPrimary,
       resizeMode: 'contain',
     },
@@ -1071,11 +1456,12 @@ const createStyles = (theme: any) =>
     heroFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.borderMuted,
+      borderWidth: 0,
+      borderColor: 'transparent',
       overflow: 'hidden',
     },
     section: {
-      gap: theme.spacing[3.5],
+      gap: theme.spacing['3.5'],
     },
     sectionTitle: {
       ...theme.typography.titleLarge,
@@ -1083,40 +1469,50 @@ const createStyles = (theme: any) =>
     },
     infoTile: {
       ...baseTileContainer(theme),
-      padding: theme.spacing[5],
-      gap: theme.spacing[2],
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      padding: theme.spacing['5'],
+      gap: theme.spacing['2'],
       overflow: 'hidden',
     },
-    tileFallback: sharedTileStyles(theme).tileFallback,
+    tileFallback: {
+      ...sharedTileStyles(theme).tileFallback,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    tileShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    yearlySpendShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
+    },
     tileTitle: sharedTileStyles(theme).tileTitle,
     tileSubtitle: sharedTileStyles(theme).tileSubtitle,
     quickActionsCard: {
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
-      paddingVertical: theme.spacing[4.5],
-      paddingHorizontal: theme.spacing[4],
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
+      paddingVertical: theme.spacing['4.5'],
+      paddingHorizontal: theme.spacing['4'],
       overflow: 'hidden',
     },
     quickActionsRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     quickAction: {
       flex: 1,
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     quickActionIconWrapper: {
-      width: 50,
-      height: 50,
-      borderRadius: 12,
+      width: theme.spacing['12'],
+      height: theme.spacing['12'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.secondary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -1130,30 +1526,51 @@ const createStyles = (theme: any) =>
     },
 
     viewMoreText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.primary,
     },
+    viewMoreButton: {
+      alignSelf: 'flex-start',
+      flexGrow: 0,
+      flexShrink: 0,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+      minHeight: theme.spacing['7'],
+      minWidth: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    viewMoreShadowWrapper: {
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.sm,
+    },
     quickActionIcon: {
-      width: 26,
-      height: 26,
+      width: theme.spacing['7'],
+      height: theme.spacing['7'],
       resizeMode: 'contain',
       tintColor: theme.colors.white,
     },
     quickActionLabel: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.secondary,
       textAlign: 'center',
     },
-    reviewButtonCard: {marginTop: theme.spacing[1]},
+    reviewButtonCard: {
+      marginTop: theme.spacing['1'],
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
+    },
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
   upcomingFooter: {
-    gap: theme.spacing[2],
+    gap: theme.spacing['2'],
   },
   requestedBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: theme.spacing[2.5],
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: theme.spacing['2.5'],
+    paddingVertical: theme.spacing['2'],
+    borderRadius: theme.borderRadius.lg,
     backgroundColor: theme.colors.primaryTint,
   },
   requestedBadgeText: {

@@ -1,20 +1,21 @@
 import {StyleSheet} from 'react-native';
 import {createScreenContainerStyles} from '@/shared/utils/screenStyles';
 import {createCenteredStyle} from '@/shared/utils/commonHelpers';
+import type {Theme} from '@/theme/themes';
 
-export const createFormScreenStyles = (theme: any) =>
+export const createFormScreenStyles = (theme: Theme) =>
   StyleSheet.create({
     ...createScreenContainerStyles(theme),
     ...createCenteredStyle(theme),
     content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['10'],
     },
     glassContainer: {
       borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
+      paddingVertical: theme.spacing['2'],
       overflow: 'hidden',
-      ...theme.shadows.md,
+      ...theme.shadows.sm,
     },
     glassFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -22,7 +23,7 @@ export const createFormScreenStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
     },
     listContainer: {
-      gap: theme.spacing[1],
+      gap: theme.spacing['1'],
     },
     muted: {
       ...theme.typography.body,
@@ -35,19 +36,19 @@ export const createFormScreenStyles = (theme: any) =>
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[20],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['20'],
     },
     formSection: {
-      marginBottom: theme.spacing[5],
-      gap: theme.spacing[4],
+      marginBottom: theme.spacing['5'],
+      gap: theme.spacing['4'],
     },
     inputContainer: {
       marginBottom: 0,
     },
     fieldGroup: {
-      gap: theme.spacing[3],
-      paddingBottom: 5,
+      gap: theme.spacing['3'],
+      paddingBottom: theme.spacing['1.25'],
     },
     fieldLabel: {
       ...theme.typography.body,
@@ -55,38 +56,38 @@ export const createFormScreenStyles = (theme: any) =>
       fontWeight: '600',
     },
     dropdownIcon: {
-      width: theme.spacing[3],
-      height: theme.spacing[3],
-      marginLeft: theme.spacing[2],
+      width: theme.spacing['3'],
+      height: theme.spacing['3'],
+      marginLeft: theme.spacing['2'],
       tintColor: theme.colors.textSecondary,
     },
     calendarIcon: {
-      width: theme.spacing[5],
-      height: theme.spacing[5],
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       tintColor: theme.colors.textSecondary,
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
-      marginTop: 3,
-      marginBottom: theme.spacing[3],
-      marginLeft: theme.spacing[1],
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['3'],
+      marginLeft: theme.spacing['1'],
     },
     submissionError: {
       ...theme.typography.paragraphBold,
       color: theme.colors.error,
       textAlign: 'center',
-      paddingHorizontal: theme.spacing[5],
-      marginBottom: theme.spacing[2],
+      paddingHorizontal: theme.spacing['5'],
+      marginBottom: theme.spacing['2'],
     },
     buttonContainer: {
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
-      paddingHorizontal: theme.spacing[5],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[4],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['4'],
+      paddingBottom: theme.spacing['4'],
       backgroundColor: theme.colors.background,
     },
     button: {
@@ -94,12 +95,8 @@ export const createFormScreenStyles = (theme: any) =>
       backgroundColor: theme.colors.secondary,
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
+      borderColor: theme.colors.whiteOverlay70,
+      ...theme.shadows.lg,
     },
     buttonText: {
       color: theme.colors.white,

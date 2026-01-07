@@ -144,7 +144,8 @@ describe("ObservationToolSubmissionService", () => {
     it("builds query with date range", async () => {
       const exec = jest.fn().mockResolvedValueOnce([]);
       const sort = jest.fn().mockReturnValue({ exec });
-      mockedSubmissionModel.find.mockReturnValue({ sort } as any);
+      const setOptions = jest.fn().mockReturnValue({ sort });
+      mockedSubmissionModel.find.mockReturnValue({ setOptions } as any);
 
       const fromDate = new Date("2024-01-01");
       const toDate = new Date("2024-02-01");
@@ -161,6 +162,7 @@ describe("ObservationToolSubmissionService", () => {
         toolId: "tool-1",
         createdAt: { $gte: fromDate, $lte: toDate },
       });
+      expect(setOptions).toHaveBeenCalledWith({ sanitizeFilter: true });
       expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
     });
   });
@@ -169,13 +171,15 @@ describe("ObservationToolSubmissionService", () => {
     it("filters by evaluation appointment id", async () => {
       const exec = jest.fn().mockResolvedValueOnce([]);
       const sort = jest.fn().mockReturnValue({ exec });
-      mockedSubmissionModel.find.mockReturnValueOnce({ sort } as any);
+      const setOptions = jest.fn().mockReturnValue({ sort });
+      mockedSubmissionModel.find.mockReturnValueOnce({ setOptions } as any);
 
       await ObservationToolSubmissionService.listForAppointment("apt-1");
 
       expect(mockedSubmissionModel.find).toHaveBeenCalledWith({
         evaluationAppointmentId: "apt-1",
       });
+      expect(setOptions).toHaveBeenCalledWith({ sanitizeFilter: true });
       expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
     });
   });

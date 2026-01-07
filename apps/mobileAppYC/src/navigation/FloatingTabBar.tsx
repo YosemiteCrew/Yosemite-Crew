@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {
   getFocusedRouteNameFromRoute,
@@ -6,7 +6,9 @@ import {
   type PartialState,
 } from '@react-navigation/native';
 import {
+  Animated,
   Image,
+  LayoutChangeEvent,
   Platform,
   StyleSheet,
   Text,
@@ -15,7 +17,6 @@ import {
 } from 'react-native';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Images} from '@/assets/images';
 
 const ICON_MAP: Record<
@@ -23,8 +24,8 @@ const ICON_MAP: Record<
   {label: string; iconKey: keyof typeof Images.navigation}
 > = {
   HomeStack: {label: 'Home', iconKey: 'home'},
-  Appointments: {label: 'Appointments', iconKey: 'appointments'},
-  Documents: {label: 'Documents', iconKey: 'documents'},
+  Appointments: {label: 'Bookings', iconKey: 'appointments'},
+  Documents: {label: 'Docs', iconKey: 'documents'},
   Tasks: {label: 'Tasks', iconKey: 'tasks'},
 };
 
@@ -36,12 +37,24 @@ const ROOT_ROUTE_MAP: Record<string, string> = {
   AdverseEvent: 'Landing',
 };
 
+interface TabLayout {
+  x: number;
+  width: number;
+}
+
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
-  const insets = useSafeAreaInsets();
-  const useGlass = Platform.OS !== 'ios' && isLiquidGlassSupported;
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const isIOS = Platform.OS === 'ios';
+  const useGlass = isIOS && isLiquidGlassSupported;
+  const styles = React.useMemo(() => createStyles(theme, isIOS), [theme, isIOS]);
+
+  // Animated values for sliding pill - using JS driver for both since we need width
+  const pillLeft = useRef(new Animated.Value(0)).current;
+  const pillWidth = useRef(new Animated.Value(0)).current;
+  const pillScale = useRef(new Animated.Value(1)).current;
+  const [tabLayouts, setTabLayouts] = useState<TabLayout[]>([]);
+  const [isReady, setIsReady] = useState(false);
 
   // Calculate if tab bar should be hidden based on nested navigation
   const shouldHideTabBar = (() => {
@@ -74,11 +87,109 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     return nestedRouteName !== rootScreenName;
   })();
 
+  // Handle tab layout measurements
+  const onTabLayout = (index: number, event: LayoutChangeEvent) => {
+    const {x, width} = event.nativeEvent.layout;
+    setTabLayouts(prev => {
+      const newLayouts = [...prev];
+      newLayouts[index] = {x, width};
+      return newLayouts;
+    });
+  };
+
+  // Animate pill to active tab
+  useEffect(() => {
+    const activeTabLayout = tabLayouts[state.index];
+    if (!activeTabLayout || tabLayouts.length !== state.routes.length) {
+      return;
+    }
+
+    if (isReady) {
+      // Bouncy spring animation with scale wiggle effect
+      Animated.parallel([
+        // Position and width with extra bounce
+        Animated.spring(pillLeft, {
+          toValue: activeTabLayout.x,
+          useNativeDriver: false,
+          tension: 40,
+          friction: 6,
+          velocity: 3,
+        }),
+        Animated.spring(pillWidth, {
+          toValue: activeTabLayout.width,
+          useNativeDriver: false,
+          tension: 40,
+          friction: 6,
+          velocity: 3,
+        }),
+        // Scale up then down for wiggle effect
+        Animated.sequence([
+          Animated.spring(pillScale, {
+            toValue: 1.15,
+            useNativeDriver: false,
+            tension: 300,
+            friction: 10,
+          }),
+          Animated.spring(pillScale, {
+            toValue: 1,
+            useNativeDriver: false,
+            tension: 80,
+            friction: 8,
+          }),
+        ]),
+      ]).start();
+    } else {
+      // Initial position - no animation
+      pillLeft.setValue(activeTabLayout.x);
+      pillWidth.setValue(activeTabLayout.width);
+      pillScale.setValue(1);
+      setIsReady(true);
+    }
+  }, [
+    state.index,
+    tabLayouts,
+    isReady,
+    pillLeft,
+    pillWidth,
+    pillScale,
+    state.routes.length,
+  ]);
+
   if (shouldHideTabBar) {
     return null;
   }
 
-  const renderItems = () =>
+  const renderSlidingPill = () => {
+    if (!isReady) {
+      return null;
+    }
+
+    return (
+      <Animated.View
+        style={[
+          styles.pillContainer,
+          {
+            left: pillLeft,
+            width: pillWidth,
+            transform: [{scaleX: pillScale}, {scaleY: pillScale}],
+          },
+        ]}>
+        {useGlass ? (
+          <LiquidGlassView
+            style={styles.pillGlass}
+            effect="clear"
+            tintColor={theme.colors.secondary}
+            colorScheme="light"
+            interactive
+          />
+        ) : (
+          <View style={[styles.pillGlass, styles.pillSolid]} />
+        )}
+      </Animated.View>
+    );
+  };
+
+  const renderTabs = () =>
     state.routes.map((route, index) => {
       const config = ICON_MAP[route.name] ?? {
         label: route.name,
@@ -109,20 +220,17 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           accessibilityRole="button"
           accessibilityState={isFocused ? {selected: true} : {}}
           onPress={onPress}
-          activeOpacity={0.85}
-          style={styles.tabItem}>
-          <View
-            style={[
-              styles.iconWrapper,
-              isFocused && styles.iconWrapperActive,
-            ]}>
+          activeOpacity={0.7}
+          style={styles.tabItem}
+          onLayout={event => onTabLayout(index, event)}>
+          <View style={styles.iconWrapper}>
             <Image
               source={
                 isFocused
                   ? Images.navigation[config.iconKey].focused
                   : Images.navigation[config.iconKey].light
               }
-              style={styles.iconImage}
+              style={[styles.iconImage, isFocused && styles.iconImageActive]}
               resizeMode="contain"
             />
           </View>
@@ -139,78 +247,146 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
       );
     });
 
-  const ContainerComponent = useGlass ? LiquidGlassView : View;
+  const BarComponent = useGlass ? LiquidGlassView : View;
 
   return (
-    <View
-      style={[
-        styles.wrapper,
-        {paddingBottom: Math.max(insets.bottom, 12)},
-      ]}>
-      <ContainerComponent
-        style={styles.bar}
-        {...(useGlass
-          ? {
-              blurAmount: 30,
-              blurType: 'regular' as const,
-              tintColor: 'light',
-            }
-          : {})}>
-        {renderItems()}
-      </ContainerComponent>
+    <View style={styles.wrapper}>
+      <View style={styles.shadowContainer}>
+        <View
+          style={[
+            styles.shadowWrapper,
+            !useGlass && styles.shadowWrapperSolid,
+          ]}>
+          <BarComponent
+          style={[
+            styles.bar,
+            useGlass ? styles.barGlass : styles.barSolid,
+          ]}
+            {...(useGlass
+              ? {
+                  effect: 'clear' as const,
+                  tintColor: 'rgba(255, 255, 255, 0.5)',
+                  colorScheme: 'light' as const,
+                  interactive: false,
+                }
+              : {})}>
+            {renderSlidingPill()}
+            {renderTabs()}
+          </BarComponent>
+        </View>
+      </View>
     </View>
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, isIOS: boolean) =>
   StyleSheet.create({
     wrapper: {
       position: 'absolute',
       left: 24,
       right: 24,
-      bottom: 16,
+      bottom: 45,
       zIndex: 10,
+      overflow: 'visible',
+    },
+    shadowContainer: {
+      backgroundColor: 'transparent',
+      overflow: 'visible',
+    },
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: 'transparent',
+      overflow: 'visible',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    shadowWrapperSolid: {
+      backgroundColor: 'transparent',
     },
     bar: {
+      position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      borderRadius: 16,
+      justifyContent: 'space-around',
+      borderRadius: isIOS
+        ? theme.borderRadius.md
+        : theme.borderRadius.xl,
+      backgroundColor: 'transparent',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      overflow: 'visible',
+    },
+    barGlass: {
+      backgroundColor: 'transparent',
+    },
+    barSolid: {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
       borderWidth: 1,
-      borderColor: '#EAEAEA',
-      backgroundColor: 'rgba(255, 255, 255, 1)',
-      paddingVertical: 15,
-      paddingHorizontal: 20,
-      ...theme.shadows.xs,
+      borderColor: 'rgba(0, 0, 0, 0.08)',
       overflow: 'hidden',
+    },
+    pillContainer: {
+      position: 'absolute',
+      top: 8,
+      bottom: 8,
+      zIndex: 2,
+    },
+    pill: {
+      flex: 1,
+      borderRadius: theme.borderRadius.xl,
+      backgroundColor: theme.colors.secondary,
+    },
+    pillGlass: {
+      flex: 1,
+      borderRadius: isIOS
+        ? theme.borderRadius.lg
+        : theme.borderRadius['2xl'],
+      backgroundColor: 'transparent',
+    },
+    pillSolid: {
+      backgroundColor: theme.colors.secondary,
+    },
+    invisiblePill: {
+      flex: 1,
+      backgroundColor: 'transparent',
     },
     tabItem: {
       flex: 1,
       alignItems: 'center',
-      gap: 4,
+      justifyContent: 'center',
+      gap: 5,
+      zIndex: 3,
+      paddingVertical: 6,
+      paddingHorizontal: 8,
     },
     iconWrapper: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 28,
+      height: 28,
+      borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
     },
     iconWrapperActive: {},
     label: {
-      textAlign: 'center',
       ...theme.typography.tabLabel,
-      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      color: theme.colors.text,
+      maxWidth: '100%',
     },
     labelActive: {
       ...theme.typography.tabLabelFocused,
-      color: theme.colors.secondary,
+      color: theme.colors.white,
     },
     labelInactive: {
-      color: theme.colors.textSecondary,
+      ...theme.typography.tabLabel,
+      color: theme.colors.text,
     },
     iconImage: {
       width: 20,
       height: 20,
+      tintColor: theme.colors.textSecondary,
+    },
+    iconImageActive: {
+      tintColor: theme.colors.white,
     },
   });

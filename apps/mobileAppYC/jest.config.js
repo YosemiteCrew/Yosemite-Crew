@@ -40,6 +40,8 @@ module.exports = {
   moduleNameMapper: {
     // Support `@/` alias used by babel-plugin-module-resolver
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Redirect any relative `setup/mockTheme` imports to the shared test helper
+    '.*/setup/mockTheme$': '<rootDir>/__tests__/setup/mockTheme.ts',
     // Mock amplify_outputs.json (gitignored file, safe mock for CI/CD)
     '^.*/amplify_outputs\\.json$': '<rootDir>/__mocks__/amplify_outputs.json',
     // Stub asset imports if needed
@@ -51,6 +53,7 @@ module.exports = {
     '^@react-native-community/geolocation$': '<rootDir>/__mocks__/react-native-geolocation.js',
     '^react-native-webview$': '<rootDir>/__mocks__/react-native-webview.js',
     '^react-native-pdf$': '<rootDir>/__mocks__/react-native-pdf.js',
+    '^react-native-calendar-events$': '<rootDir>/__mocks__/react-native-calendar-events.js',
   },
   testPathIgnorePatterns: [
     '/node_modules/',
@@ -74,7 +77,8 @@ module.exports = {
     '!**/vendor/**',
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['lcov', 'text', 'html', 'json-summary'],
+  // `text` reporter prints a huge table; keep a concise summary by default.
+  coverageReporters: ['lcov', 'text-summary', 'html', 'json-summary'],
   coveragePathIgnorePatterns: [
     '/node_modules/',
     '/android/',

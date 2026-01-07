@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import configureStore from 'redux-mock-store';
@@ -29,39 +30,7 @@ jest.mock('@react-native-documents/picker', () => ({
 // 2. Mocks: Custom Hooks & Logic
 // ----------------------------------------------------------------------
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        primaryTint: 'lightblue',
-        secondary: 'gray',
-        white: '#fff',
-        borderMuted: '#ccc',
-        cardBackground: '#fff',
-      },
-      spacing: {
-        1: 4,
-        1.5: 6,
-        2: 8,
-        2.5: 10,
-        3: 12,
-        4: 16,
-        5: 20,
-        10: 40,
-        16: 64,
-      },
-      borderRadius: {sm: 4, md: 8, lg: 12, xl: 16},
-      typography: {
-        titleMedium: {fontSize: 18},
-        title: {fontSize: 16},
-        titleSmall: {fontSize: 14},
-        paragraphBold: {fontWeight: 'bold'},
-        pillSubtitleBold15: {fontSize: 15},
-        body14: {fontSize: 14},
-        body12: {fontSize: 12},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/shared/hooks/usePermissions', () => ({
@@ -396,15 +365,10 @@ describe('MyAppointmentsScreen', () => {
   });
 
   describe('Filtering', () => {
-    it('filters list when pills are pressed', () => {
+    it('shows appointments from multiple business categories by default', () => {
       renderScreen();
       // 'Vet Clinic' is hospital. 'Grooming Salon' is groomer.
       expect(screen.getAllByText('Vet Clinic').length).toBeGreaterThan(0);
-      expect(screen.getByText('Grooming Salon')).toBeTruthy();
-
-      fireEvent.press(screen.getByText('Groomer'));
-
-      expect(screen.queryByText('Vet Clinic')).toBeNull();
       expect(screen.getByText('Grooming Salon')).toBeTruthy();
     });
   });

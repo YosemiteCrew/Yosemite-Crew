@@ -105,7 +105,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
       cardProps={{
         interactive: true,
         glassEffect: 'clear',
-        shadow: 'none',
+        shadow: 'base',
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}
@@ -118,8 +118,8 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
 
 const createStyles = (theme: any) => {
   const glassCardStyles = createGlassCardStyles(theme);
-  const contentStyles = createCardContentStyles(theme, 4);
-  const textStyles = createTextContainerStyles(theme, 1);
+  const contentStyles = createCardContentStyles(theme, '4');
+  const textStyles = createTextContainerStyles(theme, '1');
 
   return StyleSheet.create({
     container: {
@@ -129,39 +129,31 @@ const createStyles = (theme: any) => {
     ...glassCardStyles,
     ...contentStyles,
     iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.spacing['5'],
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: theme.colors.border,
     },
     icon: {
-      width: 24,
-      height: 24,
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
       resizeMode: 'contain',
     },
     ...textStyles,
     label: {
-      fontFamily: theme.typography.labelXsBold.fontFamily,
-      fontSize: 11,
-      fontWeight: '700',
-      lineHeight: 13.2,
-      color: '#595958',
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.textSecondary,
     },
     amount: {
-      fontFamily: theme.typography.h3.fontFamily,
-      fontSize: 23,
-      fontWeight: '500',
-      lineHeight: 27.6,
-      letterSpacing: -0.23,
-      color: '#302F2E',
+      ...theme.typography.h3,
+      color: theme.colors.secondary,
     },
     companionAvatarWrapper: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      overflow: 'hidden',
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.spacing['5'],
       borderWidth: 2,
       borderColor: theme.colors.white,
     },

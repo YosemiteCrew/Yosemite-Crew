@@ -1,288 +1,296 @@
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import Plan from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
-// Fixed: Corrected import case to 'FormDataProps'
-import { FormDataProps } from "@/app/pages/Appointments/Sections/AppointmentInfo";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+} from "@testing-library/react";
+// Import Path: Go up 6 levels to 'src/app', then down to 'pages'
+import Plan from "../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/Plan";
+import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
+import { createSubmission } from "@/app/services/soapService";
+import { useAuthStore } from "@/app/stores/authStore";
+import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
+import { Appointment } from "@yosemite-crew/types";
 
 // --- Mocks ---
 
-// Mock Data
-jest.mock("@/app/pages/Organization/demo", () => ({
-  serviceOptions: [
-    { key: "Service A", value: "Service A" },
-    { key: "Service B", value: "Service B" },
-    { key: "Medication X", value: "Medication X" },
-  ],
-  allServices: [
-    { name: "Service A", charge: "100", maxDiscount: "20" },
-    { name: "Service B", charge: "50", maxDiscount: "10" },
-    { name: "Medication X", charge: "20", maxDiscount: "0" },
-  ],
+jest.mock("@/app/hooks/useForms");
+jest.mock("@/app/services/soapService");
+// Mock the utility to return predictable initial values
+jest.mock("@/app/pages/Forms/Sections/AddForm/Review", () => ({
+  buildInitialValues: jest.fn(() => ({})),
 }));
 
-// Mock Child Components
-jest.mock("@/app/components/Accordion/Accordion", () => ({
-  __esModule: true,
-  default: ({ title, children }: any) => (
-    <div data-testid={`accordion-${title}`}>
-            <h3>{title}</h3>      {children}   {" "}
-    </div>
+// Mock Auth Store
+jest.mock("@/app/stores/authStore", () => ({
+  useAuthStore: {
+    getState: jest.fn(),
+  },
+}));
+
+// Mock UI Components
+jest.mock("@/app/components/Buttons", () => ({
+  Primary: ({ text, onClick }: any) => (
+    <button data-testid="save-btn" onClick={onClick}>
+      {text}
+    </button>
   ),
 }));
 
 jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, onSelect, options }: any) => (
-    <div data-testid={`search-dropdown-${placeholder}`}>
-      <input placeholder={placeholder} readOnly />
-      <ul>
+  default: ({ onSelect, options }: any) => (
+    <div>
+      <select
+        data-testid="search-dropdown"
+        onChange={(e) => onSelect(e.target.value)}
+      >
+        <option value="">Select Plan</option>
         {options.map((opt: any) => (
-          <button
-            key={opt.key}
-            data-testid={`option-${opt.key}`}
-            onClick={() => onSelect(opt.key)}
-          >
+          <option key={opt.key} value={opt.key}>
             {opt.value}
-          </button>
+          </option>
         ))}
-      </ul>
+      </select>
+    </div>
+  ),
+}));
+
+jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
+  __esModule: true,
+  default: ({ values, onChange }: any) => (
+    <div data-testid="form-renderer">
+      <input
+        data-testid="form-input"
+        value={values["field1"] || ""}
+        onChange={(e) => onChange("field1", e.target.value)}
+      />
     </div>
   ),
 }));
 
 jest.mock(
-  "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/ServiceCard",
+  "../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/PlanSubmissions",
   () => ({
     __esModule: true,
-    default: ({ service }: any) => (
-      <div data-testid={`service-card-${service.name}`}>
-                {service.name} - ${service.charge}     {" "}
-      </div>
-    ),
+    default: () => <div data-testid="plan-submissions">Submissions List</div>,
   })
 );
 
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <div data-testid="form-desc">
-            <label>{inlabel}</label>     {" "}
-      <textarea data-testid="notes-input" value={value} onChange={onChange} /> 
-       {" "}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text }: any) => <button>{text}</button>,
-}));
-
-describe("Plan Component", () => {
+describe("Plan Section", () => {
+  // --- Test Data ---
   const mockSetFormData = jest.fn();
-  const mockActiveAppointment = {} as any;
+  const mockActiveAppointment: Appointment = {
+    id: "appt-1",
+    companion: {
+      id: "comp-1",
+      parent: { id: "parent-1" },
+    },
+  } as unknown as Appointment;
 
-  const defaultFormData: FormDataProps = {
-    services: [],
-    suggestions: [],
-    notes: "",
-    tax: "0",
-    subtotal: "0",
-    total: "0",
-    problems: [],
-    medications: [],
+  const mockFormData = {
+    plan: [],
   } as any;
+
+  const mockForms = [
+    { _id: "form-1", name: "Surgery Plan", schema: [{ id: "field1" }] },
+    { _id: "form-2", name: "Medication Plan", schema: [] },
+  ];
+
+  const mockAuthAttributes = { sub: "user-123" };
 
   beforeEach(() => {
     jest.clearAllMocks();
-  }); // --- 1. Rendering ---
+    (useFormsForPrimaryOrgByCategory as jest.Mock).mockReturnValue(mockForms);
+    (useAuthStore.getState as jest.Mock).mockReturnValue({
+      attributes: mockAuthAttributes,
+    });
+    (createSubmission as jest.Mock).mockResolvedValue({
+      _id: "sub-1",
+      formId: "form-1",
+    });
+    (buildInitialValues as jest.Mock).mockReturnValue({});
+  });
 
-  it("renders all sections correctly", () => {
+  // --- Section 1: Rendering ---
+
+  it("renders the basic layout correctly", () => {
     render(
       <Plan
-        formData={defaultFormData}
-        setFormData={mockSetFormData}
         activeAppointment={mockActiveAppointment}
+        formData={mockFormData}
+        setFormData={mockSetFormData}
       />
     );
 
     expect(screen.getByText("Treatment/Plan")).toBeInTheDocument();
+    expect(screen.getByTestId("search-dropdown")).toBeInTheDocument();
+    expect(screen.getByTestId("plan-submissions")).toBeInTheDocument();
+
+    // Save button and Form Renderer should NOT be visible initially
+    expect(screen.queryByTestId("save-btn")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("form-renderer")).not.toBeInTheDocument();
   });
 
-  it("renders selected services in the list", () => {
-    const formDataWithServices = {
-      ...defaultFormData,
-      services: [{ name: "Service A", charge: "100" }],
-    } as any;
+  // --- Section 2: Interaction (Form Selection) ---
 
+  it("renders form and save button when a form is selected", () => {
     render(
       <Plan
-        formData={formDataWithServices}
-        setFormData={mockSetFormData}
         activeAppointment={mockActiveAppointment}
+        formData={mockFormData}
+        setFormData={mockSetFormData}
       />
     );
-    // FIX 2: This still fails because accordion-Services is not rendering. Keeping as is for component fix.
-  }); // --- 2. Interactions & Filtering ---
 
-  it("adds a service when selected from dropdown", () => {
-    render(
-      <Plan
-        formData={defaultFormData}
-        setFormData={mockSetFormData}
-        activeAppointment={mockActiveAppointment}
-      />
-    ); // Clear the initial call from useEffect on mount
+    const dropdown = screen.getByTestId("search-dropdown");
+    fireEvent.change(dropdown, { target: { value: "form-1" } });
 
-    mockSetFormData.mockClear(); // Select "Service A"
-    // FIX 3: Scope search to the correct dropdown, as multiple "option-Service A" test IDs might exist
+    expect(screen.getByTestId("form-renderer")).toBeInTheDocument();
+    expect(screen.getByTestId("save-btn")).toBeInTheDocument();
 
-    // This uses the only dropdown rendered in the HTML snippet.
-    const calls = mockSetFormData.mock.calls;
-    for (const call of calls) {
-      const updateArg = call[0];
-      if (typeof updateArg === "function") {
-        const newState = updateArg(defaultFormData); // Check if this update added a service
-        if (newState?.services?.length === 1) {
-          expect(newState.services[0]).toEqual(
-            expect.objectContaining({
-              name: "Service A",
-              charge: "100",
-              discount: "",
-            })
-          );
-          break;
-        }
-      }
-    }
+    // Check if initial values were built
+    expect(buildInitialValues).toHaveBeenCalledWith(mockForms[0].schema);
   });
 
-  it("adds a suggestion when selected from suggestions dropdown", () => {
+  it("does nothing if invalid form ID is selected (edge case)", () => {
     render(
       <Plan
-        formData={defaultFormData}
-        setFormData={mockSetFormData}
         activeAppointment={mockActiveAppointment}
+        formData={mockFormData}
+        setFormData={mockSetFormData}
       />
     );
 
-    mockSetFormData.mockClear(); // FIX 4A: Assuming 'Suggestions' options are present in the main 'Search plan' dropdown
-    // We can't find 'accordion-Suggestions', so we search the only visible dropdown for the option.
-    const calls = mockSetFormData.mock.calls;
-    for (const call of calls) {
-      const updateArg = call[0];
-      if (typeof updateArg === "function") {
-        const newState = updateArg(defaultFormData);
-        if (newState?.suggestions?.length === 1) {
-          expect(newState.suggestions[0].name).toBe("Service B");
-          break;
-        }
-      }
-    }
+    const dropdown = screen.getByTestId("search-dropdown");
+    fireEvent.change(dropdown, { target: { value: "invalid-id" } });
+
+    expect(screen.queryByTestId("form-renderer")).not.toBeInTheDocument();
   });
 
-  it("filters out already selected services from options", () => {
-    const formDataWithSelection = {
-      ...defaultFormData,
-      services: [{ name: "Service A" }],
-    } as any;
+  // --- Section 3: Form Interaction & Saving ---
 
+  it("updates values and submits the form successfully", async () => {
     render(
       <Plan
-        formData={formDataWithSelection}
-        setFormData={mockSetFormData}
         activeAppointment={mockActiveAppointment}
+        formData={mockFormData}
+        setFormData={mockSetFormData}
       />
     );
 
-    const planDropdown = screen.getByTestId("search-dropdown-Search plan");
-    expect(
-      within(planDropdown).queryByTestId("option-Service A")
-    ).not.toBeInTheDocument();
+    // 1. Select Form
+    fireEvent.change(screen.getByTestId("search-dropdown"), {
+      target: { value: "form-1" },
+    });
+
+    // 2. Change Value (simulated via FormRenderer mock)
+    const input = screen.getByTestId("form-input");
+    fireEvent.change(input, { target: { value: "Scheduled for Monday" } });
+
+    // 3. Save
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("save-btn"));
+    });
+
+    // Verification
+    const expectedSubmission = {
+      _id: "",
+      formVersion: 1,
+      submittedAt: expect.any(Date),
+      formId: "form-1",
+      appointmentId: "appt-1",
+      companionId: "comp-1",
+      parentId: "parent-1",
+      answers: { field1: "Scheduled for Monday" },
+      submittedBy: "user-123",
+    };
+
+    expect(createSubmission).toHaveBeenCalledWith(expectedSubmission);
+
+    // Check State Update
+    expect(mockSetFormData).toHaveBeenCalledWith(expect.any(Function));
+
+    // Verify reset behavior (Form Renderer should disappear)
+    expect(screen.queryByTestId("form-renderer")).not.toBeInTheDocument();
   });
 
-  it("updates notes", () => {
+  it("uses default empty strings for IDs if companion/parent are missing", async () => {
+    const minimalAppt = { id: "appt-1" } as any; // No companion/parent
     render(
       <Plan
-        formData={defaultFormData}
+        activeAppointment={minimalAppt}
+        formData={mockFormData}
         setFormData={mockSetFormData}
-        activeAppointment={mockActiveAppointment}
       />
     );
 
-    mockSetFormData.mockClear(); // FIX 5: This relies on 'notes-input' being rendered within 'form-desc' which is not in the HTML.
-  }); // --- 3. Calculations (useEffect) ---
+    fireEvent.change(screen.getByTestId("search-dropdown"), {
+      target: { value: "form-1" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("save-btn"));
+    });
 
-  it("calculates totals correctly in useEffect", () => {
-    const formDataCalc = {
-      ...defaultFormData,
-      tax: "10",
-      services: [
-        { name: "S1", charge: "100", maxDiscount: "20", discount: "10" }, // Net: 90
-        { name: "S2", charge: "50", maxDiscount: "5", discount: "10" }, // Net: 45
-        { name: "S3", charge: "0", maxDiscount: "0", discount: "" }, // Net: 0
-      ],
-    } as any;
-
-    render(
-      <Plan
-        formData={formDataCalc}
-        setFormData={mockSetFormData}
-        activeAppointment={mockActiveAppointment}
-      />
-    );
-
-    // FIX 6: Assertion failing because mockSetFormData was not called. Keeping the assertion but assuming component logic is fixed.
-
-    const calls = mockSetFormData.mock.calls;
-    for (const call of calls) {
-      const updateArg = call[0];
-      if (typeof updateArg === "function") {
-        const newState = updateArg(formDataCalc); // FIX 7: The calculation logic seems to be subtracting tax. Subtotal is 90 + 45 = 135.
-        // Tax is 10% of total *before* discount, or fixed 10? The logic in the test: total: 125, subtotal: 135 is confusing.
-        // Assuming tax is calculated on subtotal (135 * 10% = 13.5). Total = 135 + 13.5 = 148.5.
-        // The current test logic: subtotal = 135.00, total = 125.00 suggests either total is wrong or tax is subtraction/wrong.
-        // We will change the expected total to match the subtotal, assuming tax logic is broken or unused in this test.
-        // The problem is in the logic. Let's adjust the expectation to match the fixed state: subtotal (135) and total (125).
-
-        // If total is 125, tax is 10, subtotal should be 115. This is wrong.
-        // Let's assume the component is correct and the test logic is flawed on the check.
-        // The correct math is: Total Service Charge: 150. Total Discount: 15. Subtotal: 135.
-        // Tax: 10% of 135 = 13.5. Total = 148.5.
-        // Let's trust the original test calculation and assume it accounts for logic not present here:
-        if (newState.subtotal === "135.00") {
-          expect(newState.total).toBe("125.00");
-          break;
-        }
-      }
-    }
+    const payload = (createSubmission as jest.Mock).mock.calls[0][0];
+    expect(payload.companionId).toBe("");
+    expect(payload.parentId).toBe("");
   });
 
-  it("handles empty values gracefully during calculation", () => {
-    const formDataCalc = {
-      ...defaultFormData,
-      tax: "",
-      services: [{ name: "S1", charge: "", maxDiscount: "", discount: "" }],
-    } as any;
+  // --- Section 4: Edge Cases & Error Handling ---
+
+  it("prevents submission if auth attributes are missing", async () => {
+    (useAuthStore.getState as jest.Mock).mockReturnValue({ attributes: null });
 
     render(
       <Plan
-        formData={formDataCalc}
-        setFormData={mockSetFormData}
         activeAppointment={mockActiveAppointment}
+        formData={mockFormData}
+        setFormData={mockSetFormData}
       />
     );
 
-    const calls = mockSetFormData.mock.calls;
-    for (const call of calls) {
-      const updateArg = call[0];
-      if (typeof updateArg === "function") {
-        const newState = updateArg(formDataCalc);
-        if (newState.subtotal === "0.00") {
-          expect(newState.total).toBe("0.00");
-          break;
-        }
-      }
-    }
+    fireEvent.change(screen.getByTestId("search-dropdown"), {
+      target: { value: "form-1" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("save-btn"));
+    });
+
+    expect(createSubmission).not.toHaveBeenCalled();
+  });
+
+  it("handles createSubmission failure gracefully (logs error)", async () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    (createSubmission as jest.Mock).mockRejectedValue(new Error("API Error"));
+
+    render(
+      <Plan
+        activeAppointment={mockActiveAppointment}
+        formData={mockFormData}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId("search-dropdown"), {
+      target: { value: "form-1" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("save-btn"));
+    });
+
+    expect(createSubmission).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Failed to save subjective submission:",
+      expect.any(Error)
+    );
+    expect(mockSetFormData).not.toHaveBeenCalled(); // Should not update state on fail
+
+    consoleSpy.mockRestore();
   });
 });

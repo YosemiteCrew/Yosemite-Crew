@@ -174,58 +174,58 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: 200,
       resizeMode: 'contain',
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     title: {
       ...theme.typography.h4Alt,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing['2'],
       textAlign: 'center',
-            paddingHorizontal: theme.spacing[16],
+            paddingHorizontal: theme.spacing['16'],
     },
     subtitle: {
       ...theme.typography.subtitleBold14,
       color: theme.colors.placeholder,
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
       textAlign: 'center',
-      paddingHorizontal: theme.spacing[6],
+      paddingHorizontal: theme.spacing['6'],
     },
     descriptionText: {
-      ...theme.typography.businessTitle16,
+      ...theme.typography.titleSmall,
       color: theme.colors.text,
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
 
     },
     companionSelector: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     radioSection: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing['6'],
     },
     sectionTitle: {
-      ...theme.typography.businessTitle16,
+      ...theme.typography.titleSmall,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing['3'],
     },
     radioOption: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing['4'],
     },
     radioOuter: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
+      borderRadius: theme.borderRadius.full,
       borderWidth: 2,
       borderColor: theme.colors.borderMuted,
-      marginRight: theme.spacing[3],
+      marginRight: theme.spacing['3'],
       justifyContent: 'center',
       alignItems: 'center',
     },
     radioInner: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: theme.spacing['2.5'],
+      height: theme.spacing['2.5'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primary,
     },
     radioLabel: {
@@ -234,17 +234,17 @@ const createStyles = (theme: any) =>
 
     },
     checkboxSection: {
-      marginBottom: theme.spacing[6],
-      gap: theme.spacing[2],
+      marginBottom: theme.spacing['6'],
+      gap: theme.spacing['2'],
       // Ensure long consent text doesn't touch screen edge
-      paddingRight: theme.spacing[8],
+      paddingRight: theme.spacing['8'],
     },
     beforeProceed: {
       // Satoshi 15 bold, 120%, -0.3 letter spacing
       ...theme.typography.pillSubtitleBold15,
       lineHeight: 18,
       color: theme.colors.secondary,
-        marginBottom: theme.spacing[2],
+        marginBottom: theme.spacing['2'],
     },
     consentRow: {
       flexDirection: 'row',
@@ -259,7 +259,7 @@ const createStyles = (theme: any) =>
       marginLeft: 8,
       flex: 1,
       // Add comfortable space from the right screen edge
-      paddingRight: theme.spacing[6],
+      paddingRight: theme.spacing['6'],
     },
     consentLink: {
       ...theme.typography.paragraphBold,
@@ -267,8 +267,8 @@ const createStyles = (theme: any) =>
       textDecorationLine: 'underline',
     },
     errorText: {
-      ...theme.typography.labelXsBold,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
-      marginLeft: theme.spacing[1],
+      marginLeft: theme.spacing['1'],
     },
   });

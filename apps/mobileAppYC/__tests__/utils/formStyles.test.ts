@@ -1,26 +1,8 @@
 import { createFormStyles } from '@/shared/utils/formStyles';
+import {mockTheme} from '../setup/mockTheme';
 
 // Define a mock theme
-const mockTheme = {
-  spacing: {
-    1: 4,
-    2: 8,
-    3: 12,
-    4: 16,
-  },
-  colors: {
-    secondary: '#555',
-    surface: '#f5f5f5',
-    lightBlueBackground: '#e0f7ff',
-    primary: '#007aff',
-    error: '#ff0000',
-  },
-  typography: {
-    bodyMedium: { fontSize: 16 },
-    bodySmall: { fontSize: 14 },
-    labelXsBold: { fontSize: 10, fontWeight: 'bold' },
-  },
-};
+
 
 describe('createFormStyles', () => {
   it('should create the correct styles from the theme', () => {
@@ -28,65 +10,64 @@ describe('createFormStyles', () => {
 
     expect(styles).toEqual({
       fieldGroup: {
-        marginBottom: 16,
+        marginBottom: mockTheme.spacing['4'],
       },
       toggleSection: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: mockTheme.spacing['4'],
       },
       toggleLabel: {
-        fontSize: 16, // from bodyMedium
-        color: '#555',
+        ...mockTheme.typography.bodyMedium,
+        color: mockTheme.colors.secondary,
         fontWeight: '500',
       },
       dateTimeRow: {
         flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
+        gap: mockTheme.spacing['3'],
+        marginBottom: mockTheme.spacing['4'],
       },
       dateTimeField: {
         flex: 1,
       },
       textArea: {
-        minHeight: 100,
+        minHeight: mockTheme.spacing['24'],
         textAlignVertical: 'top',
       },
       reminderPillsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
-        marginBottom: 16,
+        gap: mockTheme.spacing['2'],
+        marginBottom: mockTheme.spacing['4'],
       },
       reminderPill: {
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 28,
+        paddingVertical: mockTheme.spacing['2'],
+        paddingHorizontal: mockTheme.spacing['3'],
+        backgroundColor: mockTheme.colors.surface,
+        borderRadius: mockTheme.borderRadius['3xl'],
         borderWidth: 0.5,
-        borderColor: '#312943',
+        borderColor: mockTheme.colors.borderMuted,
       },
       reminderPillSelected: {
-        backgroundColor: '#e0f7ff',
-        borderColor: '#007aff',
+        backgroundColor: mockTheme.colors.lightBlueBackground,
+        borderColor: mockTheme.colors.primary,
       },
       reminderPillText: {
-        fontSize: 14, // from bodySmall
-        color: '#555',
+        ...mockTheme.typography.bodySmall,
+        color: mockTheme.colors.secondary,
         fontWeight: '500',
       },
       reminderPillTextSelected: {
-        color: '#007aff',
+        color: mockTheme.colors.primary,
         fontWeight: '600',
       },
       errorText: {
-        fontSize: 10, // from labelXsBold
-        fontWeight: 'bold',
-        color: '#ff0000',
-        marginTop: 3,
-        marginBottom: 12,
-        marginLeft: 4,
+        ...mockTheme.typography.labelXxsBold,
+        color: mockTheme.colors.error,
+        marginTop: mockTheme.spacing['1'],
+        marginBottom: mockTheme.spacing['3'],
+        marginLeft: mockTheme.spacing['1'],
       },
     });
   });

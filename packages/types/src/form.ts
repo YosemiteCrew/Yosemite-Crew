@@ -106,6 +106,29 @@ export interface FormVersion {
   publishedAt: Date;
 }
 
+export interface SigningInfo {
+  required: boolean;
+
+  status: "NOT_STARTED" | "IN_PROGRESS" | "SIGNED";
+
+  provider: "DOCUMENSO";
+
+  documentId?: string;
+
+  signedAt?: Date;
+
+  signer?: {
+    userId?: string;
+    email?: string;
+    role: "CLIENT" | "VET";
+  };
+
+  pdf?: {
+    url?: string;
+    sha256?: string;
+  };
+}
+
 export interface FormSubmission {
   _id: string;
   formId: string;
@@ -116,6 +139,7 @@ export interface FormSubmission {
   submittedBy?: string;
   answers: Record<string, any>;
   submittedAt: Date;
+  signing?: SigningInfo;
 }
 
 const FORM_CATEGORY_SYSTEM_URL =
@@ -164,6 +188,24 @@ const FORM_RESPONSE_SUBMITTED_BY_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-by";
 const FORM_RESPONSE_SUBMITTED_AT_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-at";
+const FORM_RESPONSE_SIGNING_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing";
+const FORM_RESPONSE_SIGNING_STATUS_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-status";
+const FORM_RESPONSE_SIGNING_PROVIDER_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-provider";
+const FORM_RESPONSE_SIGNING_DOCUMENT_ID_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-document-id";
+const FORM_RESPONSE_SIGNING_SIGNED_AT_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-signed-at";
+const FORM_RESPONSE_SIGNING_SIGNER_ROLE_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-signer-role";
+const FORM_RESPONSE_SIGNING_SIGNER_EMAIL_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-signer-email";
+const FORM_RESPONSE_SIGNING_PDF_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-pdf-url";
+const FORM_RESPONSE_SIGNING_PDF_HASH_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-signing-pdf-hash";
 
 
 const FORM_TO_FHIR_STATUS: Record<Form["status"], QuestionnaireStatus> = {
@@ -266,8 +308,8 @@ const formFieldToQuestionnaireItem = (field: FormField): QuestionnaireItem => {
   }
 
   if (field.type === "dropdown" || field.type === "radio" || field.type === "checkbox") {
-    item.answerOption = toAnswerOptions(field as ChoiceField);
-    item.repeats = field.type === "checkbox" || Boolean((field as ChoiceField).multiple);
+    item.answerOption = toAnswerOptions(field);
+    item.repeats = field.type === "checkbox" || Boolean((field).multiple);
   }
 
   if (field.type === "radio") {
@@ -634,6 +676,58 @@ export const toFHIRQuestionnaireResponse = (
     ? formFieldsToResponseItems(schema, submission.answers)
     : formAnswerRecordToItems(submission.answers);
 
+  if (submission.signing) {
+    extensions.push({
+      url: FORM_RESPONSE_SIGNING_URL,
+      extension: [
+        {
+          url: FORM_RESPONSE_SIGNING_STATUS_URL,
+          valueString: submission.signing.status,
+        },
+        {
+          url: FORM_RESPONSE_SIGNING_PROVIDER_URL,
+          valueString: submission.signing.provider,
+        },
+        submission.signing.documentId
+          ? {
+              url: FORM_RESPONSE_SIGNING_DOCUMENT_ID_URL,
+              valueString: submission.signing.documentId,
+            }
+          : undefined,
+        submission.signing.signedAt
+          ? {
+              url: FORM_RESPONSE_SIGNING_SIGNED_AT_URL,
+              valueDateTime: submission.signing.signedAt.toISOString(),
+            }
+          : undefined,
+        submission.signing.signer?.role
+          ? {
+              url: FORM_RESPONSE_SIGNING_SIGNER_ROLE_URL,
+              valueString: submission.signing.signer.role,
+            }
+          : undefined,
+        submission.signing.signer?.email
+          ? {
+              url: FORM_RESPONSE_SIGNING_SIGNER_EMAIL_URL,
+              valueString: submission.signing.signer.email,
+            }
+          : undefined,
+        submission.signing.pdf?.url
+          ? {
+              url: FORM_RESPONSE_SIGNING_PDF_URL,
+              valueString: submission.signing.pdf.url,
+            }
+          : undefined,
+        submission.signing.pdf?.sha256
+          ? {
+              url: FORM_RESPONSE_SIGNING_PDF_HASH_URL,
+              valueString: submission.signing.pdf.sha256,
+            }
+          : undefined,
+      ].filter(Boolean) as Extension[],
+    });
+  }
+
   return {
     resourceType: "QuestionnaireResponse",
     id: submission._id,
@@ -656,6 +750,37 @@ const parseQuestionnaireVersion = (ref?: string): number | undefined => {
   if (!v) return undefined;
   const n = Number(v);
   return Number.isNaN(n) ? undefined : n;
+};
+
+const parseSigningInfo = (
+  extensions?: Extension[]
+): SigningInfo | undefined => {
+  const signingExt = extensions?.find(
+    (e) => e.url === FORM_RESPONSE_SIGNING_URL
+  );
+
+  if (!signingExt?.extension) return undefined;
+
+  const get = (url: string) =>
+    signingExt.extension?.find((e) => e.url === url);
+
+  return {
+    required: true,
+    status: get(FORM_RESPONSE_SIGNING_STATUS_URL)?.valueString as any,
+    provider: get(FORM_RESPONSE_SIGNING_PROVIDER_URL)?.valueString as any,
+    documentId: get(FORM_RESPONSE_SIGNING_DOCUMENT_ID_URL)?.valueString,
+    signedAt: parseDate(
+      get(FORM_RESPONSE_SIGNING_SIGNED_AT_URL)?.valueDateTime
+    ),
+    signer: {
+      role: get(FORM_RESPONSE_SIGNING_SIGNER_ROLE_URL)?.valueString as any,
+      email: get(FORM_RESPONSE_SIGNING_SIGNER_EMAIL_URL)?.valueString,
+    },
+    pdf: {
+      url: get(FORM_RESPONSE_SIGNING_PDF_URL)?.valueString,
+      sha256: get(FORM_RESPONSE_SIGNING_PDF_HASH_URL)?.valueString,
+    },
+  };
 };
 
 const answerToValue = (
@@ -755,7 +880,8 @@ export const fromFHIRQuestionnaireResponse = (
     response.extension?.find(
       (ext) => ext.url === FORM_RESPONSE_SUBMITTED_AT_URL
     )?.valueDateTime;
-
+  
+  const signing = parseSigningInfo(response.extension);
   return {
     _id: response.id ?? "",
     formId: parseQuestionnaireId(response.questionnaire),
@@ -772,5 +898,6 @@ export const fromFHIRQuestionnaireResponse = (
     submittedBy,
     answers,
     submittedAt: parseDate(authored) || new Date(),
+    signing,
   };
 };

@@ -10,14 +10,14 @@ import {
   UIManager,
   Image,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
 import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
@@ -95,7 +95,7 @@ const FAQCard: React.FC<{
               interactive
               borderRadius="xl"
               forceBorder
-              tintColor={theme.colors.background}
+              tintColor={theme.colors.white}
               borderColor={theme.colors.secondary}
               style={styles.glassButtonLight}
               textStyle={styles.glassButtonLightText}
@@ -212,80 +212,88 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   }, [selectedCategory]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <Header
-        title="FAQs"
-        showBackButton
-        onBack={() => navigation.goBack()}
-        rightIcon={Images.accountMailIcon}
-        onRightPress={() => navigation.navigate('ContactUs')}
-      />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}>
-        <SearchBar
-          mode="input"
-          placeholder="Search FAQs..."
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          containerStyle={styles.searchContainer}
-        />
-
-        <PillSelector
-          options={categoryOptions}
-          selectedId={selectedCategory}
-          onSelect={handleCategoryChange}
-          containerStyle={styles.pillContainer}
-        />
-
-        <View style={styles.faqList}>
-          {filteredFaqs.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                {searchQuery.trim()
-                  ? `No FAQs found for "${searchQuery}"`
-                  : 'No FAQs available in this category'}
-              </Text>
-              {Boolean(searchQuery.trim()) && (
-                <Text style={styles.emptyStateSubtext}>
-                  Try searching with different keywords or browse by category
+    <LiquidGlassHeaderScreen
+      header={
+        <>
+          <Header
+            title="FAQs"
+            showBackButton
+            onBack={() => navigation.goBack()}
+            glass={false}
+          />
+          <SearchBar
+            mode="input"
+            placeholder="Search FAQs..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            containerStyle={styles.searchContainer}
+          />
+          <PillSelector
+            options={categoryOptions}
+            selectedId={selectedCategory}
+            onSelect={handleCategoryChange}
+            containerStyle={styles.pillContainer}
+            autoScroll={true}
+          />
+        </>
+      }
+      contentPadding={theme.spacing['3']}
+      cardGap={theme.spacing['3']}
+      useSafeAreaView
+      containerStyle={styles.safeArea}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.faqList}>
+            {filteredFaqs.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  {searchQuery.trim()
+                    ? `No FAQs found for "${searchQuery}"`
+                    : 'No FAQs available in this category'}
                 </Text>
-              )}
-            </View>
-          ) : (
-            filteredFaqs.map(faq => {
-              const isExpanded = expandedFaqId === faq.id;
-              const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
-                .map(id => relatedLookup.get(id))
-                .filter(Boolean) as FAQEntry[];
-              const helpfulSelection = helpfulState[faq.id] ?? null;
+                {Boolean(searchQuery.trim()) && (
+                  <Text style={styles.emptyStateSubtext}>
+                    Try searching with different keywords or browse by category
+                  </Text>
+                )}
+              </View>
+            ) : (
+              filteredFaqs.map(faq => {
+                const isExpanded = expandedFaqId === faq.id;
+                const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
+                  .map(id => relatedLookup.get(id))
+                  .filter(Boolean) as FAQEntry[];
+                const helpfulSelection = helpfulState[faq.id] ?? null;
 
-              return (
-                <FAQCard
-                  key={faq.id}
-                  faq={faq}
-                  isExpanded={isExpanded}
-                  relatedEntries={relatedEntries}
-                  helpfulSelection={helpfulSelection}
-                  onToggle={handleToggle}
-                  onHelpfulSelect={handleHelpfulSelection}
-                  onRelatedPress={onRelatedPress}
-                  styles={styles}
-                  theme={theme}
-                />
-              );
-            })
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+                return (
+                  <FAQCard
+                    key={faq.id}
+                    faq={faq}
+                    isExpanded={isExpanded}
+                    relatedEntries={relatedEntries}
+                    helpfulSelection={helpfulSelection}
+                    onToggle={handleToggle}
+                    onHelpfulSelect={handleHelpfulSelection}
+                    onRelatedPress={onRelatedPress}
+                    styles={styles}
+                    theme={theme}
+                  />
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  return StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -296,14 +304,13 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['8'],
-      paddingTop: theme.spacing['3'],
       gap: theme.spacing['4'],
     },
     searchContainer: {
-      marginBottom: theme.spacing['4'],
+      marginHorizontal: theme.spacing['6'],
     },
     pillContainer: {
-      marginBottom: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['6'],
     },
     faqList: {
       gap: theme.spacing['4'],
@@ -315,18 +322,14 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
     },
     emptyStateText: {
-      fontFamily: theme.typography.paragraphBold.fontFamily,
-      fontSize: 16,
-      fontWeight: theme.typography.paragraphBold.fontWeight,
+      ...theme.typography.paragraphBold,
       lineHeight: 22,
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginBottom: theme.spacing['2'],
     },
     emptyStateSubtext: {
-      fontFamily: theme.typography.paragraph.fontFamily,
-      fontSize: 14,
-      fontWeight: theme.typography.paragraph.fontWeight,
+      ...theme.typography.bodySmall,
       lineHeight: 20,
       color: theme.colors.textSecondary,
       textAlign: 'center',
@@ -337,13 +340,11 @@ const createStyles = (theme: any) =>
       padding: theme.spacing['4'],
     },
     cardFallback: {
-  borderRadius: 16,
-  backgroundColor: '#FFFEFE',
-  borderWidth: 1,
-  borderColor: '#EAEAEA',
-  // No shadows
-  shadowColor: 'transparent',
-  elevation: 0,
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.background,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      ...theme.shadows.none,
     },
     questionRow: {
       flexDirection: 'row',
@@ -353,45 +354,31 @@ const createStyles = (theme: any) =>
     },
     questionText: {
       flex: 1,
-  // Paragraph Bold
-  fontFamily: 'Satoshi',
-  fontSize: 16,
-  fontStyle: 'normal',
-  fontWeight: '700',
-  lineHeight: 19.2,
-  letterSpacing: -0.32,
-  color: '#302F2E',
+      ...theme.typography.paragraphBold,
+      color: theme.colors.text,
     },
     toggleSymbol: {
       fontFamily: theme.typography.paragraphBold.fontFamily,
       fontWeight: theme.typography.paragraphBold.fontWeight,
-      fontSize: 24,
-      lineHeight: 24,
-      color: '#302F2E',
+      fontSize: theme.typography.titleLarge.fontSize,
+      lineHeight: theme.typography.titleLarge.lineHeight,
+      color: theme.colors.text,
     },
     answerSection: {
       gap: theme.spacing['3'],
     },
     answerText: {
-  // Answer body
-  fontFamily: 'Satoshi',
-  fontSize: 14,
-  fontStyle: 'normal',
-  fontWeight: '400',
-  lineHeight: 21,
-  color: '#595958',
+      ...theme.typography.bodySmall,
+      lineHeight: 21,
+      color: theme.colors.placeholder,
     },
     helpfulSection: {
       gap: theme.spacing['2'],
     },
     helpfulPrompt: {
-  // Subtitle Bold
-  fontFamily: 'Satoshi',
-  fontSize: 14,
-  fontStyle: 'normal',
-  fontWeight: '700',
-  lineHeight: 16.8,
-  color: '#595958',
+      ...theme.typography.subtitleBold14,
+      lineHeight: 16.8,
+      color: theme.colors.placeholder,
     },
     helpfulButtons: {
       flexDirection: 'row',
@@ -402,13 +389,9 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['2'],
     },
     relatedTitle: {
-  // Subtitle Bold
-  fontFamily: 'Satoshi',
-  fontSize: 14,
-  fontStyle: 'normal',
-  fontWeight: '700',
-  lineHeight: 16.8,
-  color: '#595958',
+      ...theme.typography.subtitleBold14,
+      lineHeight: 16.8,
+      color: theme.colors.placeholder,
     },
     relatedRow: {
       flexDirection: 'row',
@@ -424,55 +407,47 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     relatedArrow: {
-      width: 16,
-      height: 16,
+      width: theme.spacing['4'],
+      height: theme.spacing['4'],
       marginLeft: theme.spacing['2'],
       resizeMode: 'contain',
     },
     glassButtonDark: {
-  minWidth: 100,
-  paddingVertical: 14,
-  paddingHorizontal: 20,
-  justifyContent: 'center',
-  alignItems: 'center',
-  flexDirection: 'row',
-  // gap is not fully supported on all RN versions; children spacing handled via styles
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: '#302F2E',
+      minWidth: 100,
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['5'],
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexDirection: 'row',
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.secondary,
     },
     glassButtonSelected: {
       borderColor: theme.colors.secondary,
     },
     glassButtonDarkText: {
-      fontFamily: theme.typography.businessTitle16.fontFamily,
-      fontSize: 16,
-      fontWeight: theme.typography.businessTitle16.fontWeight,
-      letterSpacing: -0.16,
-      lineHeight: 16,
+      ...theme.typography.titleSmall,
       color: theme.colors.white,
       textAlign: 'center',
     },
     glassButtonLight: {
-  minWidth: 100,
-  paddingVertical: 14,
-  paddingHorizontal: 20,
-  justifyContent: 'center',
-  alignItems: 'center',
-  flexDirection: 'row',
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: '#302F2E',
+      minWidth: 100,
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['5'],
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexDirection: 'row',
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.secondary,
     },
     glassButtonLightText: {
-      fontFamily: theme.typography.businessTitle16.fontFamily,
-      fontSize: 16,
-      fontWeight: theme.typography.businessTitle16.fontWeight,
-      letterSpacing: -0.16,
-      lineHeight: 16,
+      ...theme.typography.titleSmall,
       color: theme.colors.secondary,
       textAlign: 'center',
     },
   });
+};
 
 export default FAQScreen;

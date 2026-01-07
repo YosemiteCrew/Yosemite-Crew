@@ -12,7 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import {SafeArea, OTPInput, Header, Input} from '@/shared/components/common';
+import {OTPInput, Header, Input} from '@/shared/components/common';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -291,16 +292,18 @@ const buildUserPayload = (
     isVerifying || (isDemoLogin ? otpCode.trim().length === 0 : otpCode.length !== expectedLength);
 
   return (
-    <SafeArea style={styles.container}>
-      <Header title="Enter login code" showBackButton onBack={handleGoBack} />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}>
+    <LiquidGlassHeaderScreen
+      header={<Header title="Enter login code" showBackButton onBack={handleGoBack} glass={false} />}
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}>
+      {contentPaddingStyle => (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}>
           <View style={styles.content}>
             <Image
               source={Images.catLaptop}
@@ -352,10 +355,10 @@ const buildUserPayload = (
                 />
               </>
             )}
-          </View>
-        </ScrollView>
+            </View>
+          </ScrollView>
 
-        <View style={styles.bottomSection}>
+          <View style={styles.bottomSection}>
           <LiquidGlassButton
             title={getButtonTitle()}
             onPress={handleVerifyCode}
@@ -393,9 +396,10 @@ const buildUserPayload = (
               )}
             </View>
           )}
-        </View>
-      </KeyboardAvoidingView>
-    </SafeArea>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
@@ -414,23 +418,23 @@ const createStyles = (theme: any) =>
     scrollContent: {
       flexGrow: 1,
       paddingTop: 100,
-      paddingHorizontal: 20,
+      paddingHorizontal: theme.spacing['5'],
     },
     content: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingBottom: 20,
+      paddingBottom: theme.spacing['5'],
     },
     illustration: {
       width: '80%',
       height: '30%',
-      marginBottom: 22,
+      marginBottom: theme.spacing['5'],
     },
     subtitle: {
       ...theme.typography.h3,
       color: theme.colors.secondary,
-      marginBottom: 16,
+      marginBottom: theme.spacing['4'],
       textAlign: 'center',
     },
     description: {
@@ -438,21 +442,21 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       textAlign: 'center',
       lineHeight: 22.4,
-      marginBottom: 16,
+      marginBottom: theme.spacing['4'],
     },
     emailText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.secondary,
     },
     bottomSection: {
-      paddingHorizontal: 20,
-      paddingBottom: 40,
-      paddingTop: 20,
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['10'],
+      paddingTop: theme.spacing['5'],
       backgroundColor: theme.colors.background,
     },
     verifyButton: {
       width: '100%',
-      marginBottom: 24,
+      marginBottom: theme.spacing['6'],
     },
     verifyButtonText: {
       ...theme.typography.cta,
@@ -462,15 +466,15 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: theme.spacing['1'],
     },
     resendText: {
       ...theme.typography.paragraph,
       color: theme.colors.textSecondary,
     },
     resendButton: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['1'],
     },
     resendLink: {
       ...theme.typography.paragraphBold,
@@ -484,9 +488,9 @@ const createStyles = (theme: any) =>
       width: '100%',
     },
     prefillButton: {
-      marginTop: 8,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      marginTop: theme.spacing['2'],
+      paddingVertical: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['3'],
     },
     prefillText: {
       ...theme.typography.paragraphBold,

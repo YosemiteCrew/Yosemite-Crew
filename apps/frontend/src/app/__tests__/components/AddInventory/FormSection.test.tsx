@@ -1,221 +1,402 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import FormsTable, {
-  getStatusStyle,
-} from "@/app/components/DataTable/FormsTable";
-import { FormsProps } from "@/app/types/forms";
+import FormSection from "@/app/components/AddInventory/FormSection";
+import { BusinessType } from "@/app/types/org";
 
 // --- Mocks ---
-
-// Mock GenericTable because it's a UI component we don't need to test internally here
-jest.mock("@/app/components/GenericTable/GenericTable", () => {
-  return ({ data, columns }: any) => (
-    <table data-testid="generic-table">
-      <thead>
-        <tr>
-          {columns.map((col: any) => (
-            <th key={col.key}>{col.label}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((item: any, i: number) => (
-          <tr key={i+"key"} data-testid={`row-${i}`}>
-            {columns.map((col: any) => (
-              <td key={col.key}>
-                {col.render ? col.render(item) : item[col.key]}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+jest.mock("@/app/components/Accordion/Accordion", () => {
+  return function MockAccordion({ children, title }: any) {
+    return (
+      <div data-testid="accordion">
+        <h3>{title}</h3>
+        {children}
+      </div>
+    );
+  };
 });
 
-// Mock FormCard for mobile view
-// Fixed: Changed div to button to satisfy a11y rules in tests
-jest.mock("@/app/components/Cards/FormCard", () => {
-  return ({ form, handleViewForm }: any) => (
-    <button
-      data-testid={`form-card-${form.name}`}
-      onClick={() => handleViewForm(form)}
-    >
-      {form.name}
+jest.mock("@/app/components/Buttons", () => ({
+  Primary: ({ onClick, text, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="btn-primary">
+      {text}
     </button>
-  );
-});
-
-jest.mock("react-icons/io5", () => ({
-  IoEye: () => <span data-testid="eye-icon">Eye</span>,
+  ),
+  Secondary: ({ onClick, text, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="btn-secondary">
+      {text}
+    </button>
+  ),
 }));
 
-// --- Test Data ---
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
+  <input
+    data-testid={`input-${props.inname}`}
+    value={props.value}
+    onChange={props.onChange}
+    placeholder={props.inlabel}
+  />
+));
 
-// Fixed: Added 'schema: []' to satisfy FormsProps type requirements
-const mockForms: FormsProps[] = [
-  {
-    name: "Intake Form",
-    category: "Custom" as any,
-    usage: "External",
-    updatedBy: "Alice",
-    lastUpdated: "2023-10-01",
-    status: "Published",
-    schema: [],
-  },
-  {
-    name: "Feedback Form",
-    category: "Custom" as any,
-    usage: "Internal",
-    updatedBy: "Bob",
-    lastUpdated: "2023-10-05",
-    status: "Draft",
-    schema: [],
-  },
-  {
-    name: "Archived Form",
-    category: "Custom" as any,
-    usage: "Internal",
-    updatedBy: "Charlie",
-    lastUpdated: "2023-01-01",
-    status: "Archived",
-    schema: [],
-  },
-];
+jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => (props: any) => (
+  <select
+    data-testid={`dropdown-${props.placeholder}`}
+    value={props.value}
+    onChange={(e) => props.onChange(e.target.value)}
+  >
+    <option value="">Select</option>
+    {props.options.map((o: any) => (
+      <option key={o.value} value={o.value}>
+        {o.label}
+      </option>
+    ))}
+  </select>
+));
 
-describe("FormsTable Component", () => {
-  const mockSetActiveForm = jest.fn();
-  const mockSetViewPopup = jest.fn();
+jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => (props: any) => (
+  <div data-testid={`multiselect-${props.placeholder}`}>
+    <span data-testid="ms-value">{JSON.stringify(props.value)}</span>
+    <button
+      onClick={() => props.onChange(["selected_val"])}
+      data-testid="ms-change-btn"
+    >
+      Change
+    </button>
+  </div>
+));
+
+jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => (props: any) => (
+  <textarea
+    data-testid={`textarea-${props.inname}`}
+    value={props.value}
+    onChange={props.onChange}
+  />
+));
+
+jest.mock("@/app/components/Inputs/Datepicker", () => {
+  return function MockDatepicker({
+    currentDate,
+    setCurrentDate,
+    placeholder,
+  }: any) {
+    return (
+      <div data-testid={`datepicker-${placeholder}`}>
+        <span data-testid="date-value">
+          {currentDate ? currentDate.toISOString() : "null"}
+        </span>
+        <button
+          onClick={() => {
+            const d = new Date("2023-01-01");
+            setCurrentDate(d);
+          }}
+          data-testid="date-set-direct"
+        >
+          Set Direct
+        </button>
+        <button
+          onClick={() => {
+            setCurrentDate((_prev: any) => new Date("2023-02-02"));
+          }}
+          data-testid="date-set-fn"
+        >
+          Set Function
+        </button>
+        <button
+          onClick={() => {
+            setCurrentDate(null);
+          }}
+          data-testid="date-set-null"
+        >
+          Set Null
+        </button>
+      </div>
+    );
+  };
+});
+
+jest.mock("@/app/components/AddInventory/InventoryConfig", () => ({
+  InventoryFormConfig: {
+    clinic: {
+      basicInfo: [
+        {
+          kind: "item",
+          field: {
+            name: "itemName",
+            component: "text",
+            placeholder: "Item Name",
+          },
+        },
+        {
+          kind: "row",
+          fields: [
+            {
+              name: "category",
+              component: "dropdown",
+              placeholder: "Category",
+              options: [
+                { label: "A", value: "a" },
+                { label: "B", value: "b" },
+              ],
+            },
+            { name: "description", component: "textarea", placeholder: "Desc" },
+          ],
+        },
+        {
+          kind: "item",
+          field: { name: "expiry", component: "date", placeholder: "Expiry" },
+        },
+        {
+          kind: "item",
+          field: {
+            name: "tags",
+            component: "multiSelect",
+            placeholder: "Tags",
+          },
+        },
+        { kind: "item", field: { name: "unknown", component: "unknown" } },
+      ],
+      emptySection: [],
+      batch: [
+        {
+          kind: "item",
+          field: {
+            name: "batchNumber",
+            component: "text",
+            placeholder: "Batch No",
+          },
+        },
+      ],
+    },
+  },
+}));
+
+describe("FormSection Component", () => {
+  const mockOnFieldChange = jest.fn();
+  const mockOnSave = jest.fn();
+  const mockOnClear = jest.fn();
+  const mockOnAddBatch = jest.fn();
+  const mockOnRemoveBatch = jest.fn();
 
   const defaultProps = {
-    filteredList: mockForms,
-    activeForm: null,
-    setActiveForm: mockSetActiveForm,
-    setViewPopup: mockSetViewPopup,
-    loading: false,
+    businessType: "clinic" as BusinessType,
+    sectionKey: "basicInfo" as any,
+    sectionTitle: "Basic Information",
+    formData: {
+      basicInfo: {
+        itemName: "Test Item",
+        category: "a",
+        description: "Test Desc",
+        expiry: "2023-12-31",
+        tags: ["tag1"],
+      },
+      batches: [],
+    } as any,
+    errors: { basicInfo: { itemName: "Name required" } } as any,
+    onFieldChange: mockOnFieldChange,
+    onSave: mockOnSave,
+    onClear: mockOnClear,
+    onAddBatch: mockOnAddBatch,
+    onRemoveBatch: mockOnRemoveBatch,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // --- 1. Helper Function Tests ---
-
-  describe("getStatusStyle", () => {
-    it("returns correct style for 'Published'", () => {
-      const style = getStatusStyle("Published");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
-    });
-
-    it("returns correct style for 'published' (case insensitive)", () => {
-      const style = getStatusStyle("published");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
-    });
-
-    it("returns correct style for 'Draft'", () => {
-      const style = getStatusStyle("Draft");
-      expect(style).toEqual({ color: "#F68523", backgroundColor: "#FEF3E9" });
-    });
-
-    it("returns default style for unknown status", () => {
-      const style = getStatusStyle("Archived");
-      expect(style).toEqual({ color: "#EA3729", backgroundColor: "#FDEBEA" });
-    });
-
-    it("returns empty style for empty status", () => {
-      const style = getStatusStyle("");
-      expect(style).toEqual({ color: "#302F2E", backgroundColor: "#F3F3F3" });
-    });
-  });
-
-  // --- 2. Desktop View (Table) Tests ---
-
-  it("renders the table with correct columns in desktop view", () => {
-    render(<FormsTable {...defaultProps} />);
-
-    // Check headers
-    expect(screen.getByText("Form name")).toBeInTheDocument();
-    expect(screen.getByText("Category")).toBeInTheDocument();
-    expect(screen.getByText("Usage")).toBeInTheDocument();
-    expect(screen.getByText("Updated by")).toBeInTheDocument();
-    expect(screen.getByText("Last updated")).toBeInTheDocument();
-    expect(screen.getByText("Status")).toBeInTheDocument();
-    expect(screen.getByText("Actions")).toBeInTheDocument();
-
-    // Check data rendering.
-    // Fixed: Use getAllByText because data renders in both desktop table and hidden mobile cards.
-    expect(screen.getAllByText("Intake Form").length).toBeGreaterThan(0);
-    // "Custom" appears multiple times (once per row)
-    expect(screen.getAllByText("Custom").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("External").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Alice").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Published").length).toBeGreaterThan(0);
-  });
-
-  it("calls setActiveForm and setViewPopup when view action is clicked", () => {
-    render(<FormsTable {...defaultProps} />);
-
-    // Find the eye icon/button for the first row
-    const viewButtons = screen.getAllByTestId("eye-icon");
-    // Ensure we click the button wrapping the icon
-    fireEvent.click(viewButtons[0].closest("button")!);
-
-    expect(mockSetActiveForm).toHaveBeenCalledWith(mockForms[0]);
-    expect(mockSetViewPopup).toHaveBeenCalledWith(true);
-  });
-
-  it("shows loading state in desktop view", () => {
-    render(<FormsTable {...defaultProps} loading={true} />);
-
-    // Expect loading text (getAllByText because it might render in mobile view too)
-    expect(screen.getAllByText("Loading forms...").length).toBeGreaterThan(0);
-    expect(screen.queryByTestId("generic-table")).not.toBeInTheDocument();
-  });
-
-  // --- 3. Mobile View (Cards) Tests ---
-
-  it("renders cards in mobile view", () => {
-    render(<FormsTable {...defaultProps} />);
-
-    expect(screen.getByTestId("form-card-Intake Form")).toBeInTheDocument();
-    expect(screen.getByTestId("form-card-Feedback Form")).toBeInTheDocument();
-  });
-
-  it("calls handlers when card is clicked in mobile view", () => {
-    render(<FormsTable {...defaultProps} />);
-
-    const card = screen.getByTestId("form-card-Intake Form");
-    fireEvent.click(card);
-
-    expect(mockSetActiveForm).toHaveBeenCalledWith(mockForms[0]);
-    expect(mockSetViewPopup).toHaveBeenCalledWith(true);
-  });
-
-  it("shows loading state in mobile view", () => {
-    render(<FormsTable {...defaultProps} loading={true} />);
-
-    expect(screen.getAllByText("Loading forms...").length).toBeGreaterThan(0);
-    expect(
-      screen.queryByTestId("form-card-Intake Form")
-    ).not.toBeInTheDocument();
-  });
-
-  it("shows 'No data available' when list is empty in mobile view", () => {
-    render(<FormsTable {...defaultProps} filteredList={[]} />);
-
-    expect(screen.getAllByText("No data available").length).toBeGreaterThan(0);
-  });
-
-  // --- 4. Edge Cases ---
-
-  it("renders correctly with empty status in table row", () => {
-    const formWithNoStatus = [{ ...mockForms[0], status: "" }];
+  it("renders 'No fields configured' if config is missing or empty", () => {
     render(
-      <FormsTable {...defaultProps} filteredList={formWithNoStatus as any} />
+      <FormSection {...defaultProps} sectionKey={"emptySection" as any} />
+    );
+    expect(screen.getByText("No fields configured.")).toBeInTheDocument();
+  });
+
+  it("renders standard fields correctly (Text, Dropdown, Textarea, Row Layout)", () => {
+    render(<FormSection {...defaultProps} />);
+
+    // To handle multiple elements with same text (title inside Accordion + Header), we use getAllByText
+    const titles = screen.getAllByText("Basic Information");
+    expect(titles.length).toBeGreaterThan(0);
+
+    // Text Input
+    const input = screen.getByTestId("input-itemName");
+    expect(input).toHaveValue("Test Item");
+
+    fireEvent.change(input, { target: { value: "New Name" } });
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      "basicInfo",
+      "itemName",
+      "New Name",
+      undefined
     );
 
-    const rows = screen.getAllByTestId("row-0");
-    expect(rows.length).toBeGreaterThan(0);
+    // Dropdown (inside Row)
+    const dropdown = screen.getByTestId("dropdown-Category");
+    expect(dropdown).toHaveValue("a");
+
+    fireEvent.change(dropdown, { target: { value: "b" } });
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      "basicInfo",
+      "category",
+      "b",
+      undefined
+    );
+
+    // Textarea (inside Row)
+    const textarea = screen.getByTestId("textarea-description");
+    expect(textarea).toHaveValue("Test Desc");
+  });
+
+  it("handles Date parsing and changes correctly", () => {
+    render(<FormSection {...defaultProps} />);
+    const dateValue = screen.getByTestId("date-value");
+    expect(dateValue).toHaveTextContent("2023-12-31");
+
+    fireEvent.click(screen.getByTestId("date-set-direct"));
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      "basicInfo",
+      "expiry",
+      "2023-01-01",
+      undefined
+    );
+
+    fireEvent.click(screen.getByTestId("date-set-fn"));
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      "basicInfo",
+      "expiry",
+      "2023-02-02",
+      undefined
+    );
+
+    fireEvent.click(screen.getByTestId("date-set-null"));
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      "basicInfo",
+      "expiry",
+      "",
+      undefined
+    );
+  });
+
+  it("handles Custom Date Formats (dd/mm/yyyy)", () => {
+    const props = {
+      ...defaultProps,
+      formData: {
+        basicInfo: { expiry: "15/05/2025" },
+      } as any,
+    };
+    render(<FormSection {...props} />);
+    const dateValue = screen.getByTestId("date-value");
+    expect(dateValue).toHaveTextContent("2025-05-15");
+  });
+
+  it("handles Invalid Date formats gracefully", () => {
+    const props = {
+      ...defaultProps,
+      formData: {
+        basicInfo: { expiry: "invalid-date-string" },
+      } as any,
+    };
+    render(<FormSection {...props} />);
+    const dateValue = screen.getByTestId("date-value");
+    expect(dateValue).toHaveTextContent("null");
+  });
+
+  it("handles MultiSelect Parsing logic", () => {
+    const { rerender } = render(<FormSection {...defaultProps} />);
+    expect(screen.getByTestId("ms-value")).toHaveTextContent('["tag1"]');
+
+    const propsString = {
+      ...defaultProps,
+      formData: { basicInfo: { tags: "a, b" } } as any,
+    };
+    rerender(<FormSection {...propsString} />);
+    expect(screen.getByTestId("ms-value")).toHaveTextContent('["a","b"]');
+
+    const propsEmpty = {
+      ...defaultProps,
+      formData: { basicInfo: { tags: null } } as any,
+    };
+    rerender(<FormSection {...propsEmpty} />);
+    expect(screen.getByTestId("ms-value")).toHaveTextContent("[]");
+
+    fireEvent.click(screen.getByTestId("ms-change-btn"));
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      "basicInfo",
+      "tags",
+      ["selected_val"],
+      undefined
+    );
+  });
+
+  it("renders Batch section with Add/Remove buttons", () => {
+    const batchProps = {
+      ...defaultProps,
+      sectionKey: "batch" as any,
+      formData: {
+        batches: [{ batchNumber: "B1" }, { batchNumber: "B2" }],
+      } as any,
+      errors: {
+        batch: { batchNumber: "Batch Error" },
+      } as any,
+    };
+
+    render(<FormSection {...batchProps} />);
+
+    expect(screen.getByText("Batch 1")).toBeInTheDocument();
+    expect(screen.getByText("Batch 2")).toBeInTheDocument();
+
+    const inputs = screen.getAllByTestId("input-batchNumber");
+    expect(inputs[0]).toHaveValue("B1");
+    expect(inputs[1]).toHaveValue("B2");
+
+    fireEvent.change(inputs[0], { target: { value: "B1-UPDATED" } });
+    expect(mockOnFieldChange).toHaveBeenCalledWith(
+      "batch",
+      "batchNumber",
+      "B1-UPDATED",
+      0
+    );
+
+    const removeButtons = screen.getAllByText("Remove");
+    fireEvent.click(removeButtons[0]);
+    expect(mockOnRemoveBatch).toHaveBeenCalledWith(0);
+
+    fireEvent.click(screen.getByText("Add another batch"));
+    expect(mockOnAddBatch).toHaveBeenCalled();
+  });
+
+  it("renders single Batch fallback if formData.batches is empty/undefined", () => {
+    const batchProps = {
+      ...defaultProps,
+      sectionKey: "batch" as any,
+      formData: {
+        batches: undefined,
+        batch: { batchNumber: "FallbackBatch" },
+      } as any,
+    };
+
+    render(<FormSection {...batchProps} />);
+    expect(screen.getByText("Batch 1")).toBeInTheDocument();
+    expect(screen.queryByText("Remove")).not.toBeInTheDocument();
+  });
+
+  it("handles Buttons actions and props", () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        saveLabel="Custom Save"
+        disableSave={false}
+      />
+    );
+
+    const saveBtn = screen.getByTestId("btn-primary");
+    const clearBtn = screen.getByTestId("btn-secondary");
+
+    expect(saveBtn).toHaveTextContent("Custom Save");
+    expect(saveBtn).toBeEnabled();
+
+    fireEvent.click(clearBtn);
+    expect(mockOnClear).toHaveBeenCalled();
+
+    fireEvent.click(saveBtn);
+    expect(mockOnSave).toHaveBeenCalled();
   });
 });

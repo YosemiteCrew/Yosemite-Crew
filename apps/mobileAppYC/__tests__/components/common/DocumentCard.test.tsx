@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {TouchableOpacity, Image} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
@@ -35,25 +36,7 @@ jest.mock('@/shared/utils/helpers', () => ({
 
 // Mock hooks
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        surface: '#ffffff',
-        secondary: '#000000',
-        textSecondary: '#666666',
-      },
-      spacing: {
-        '1': 4,
-        '4': 16,
-      },
-      borderRadius: {
-        base: 8,
-      },
-      typography: {
-        labelXsBold: {fontSize: 12, fontWeight: 'bold'},
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // Mock cardStyles

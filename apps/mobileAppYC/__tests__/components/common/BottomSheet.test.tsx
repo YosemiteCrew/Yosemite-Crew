@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {Text, View} from 'react-native';
 import CustomBottomSheet, {
@@ -70,13 +71,7 @@ const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
 // Mock useTheme hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {cardBackground: 'white'},
-      borderRadius: {base: 10},
-      shadows: {medium: {}},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // --- Tests ---
@@ -123,8 +118,6 @@ describe('CustomBottomSheet', () => {
     const mockOnAnimate = jest.fn();
     const snapPoints = ['50%'];
     const style = {backgroundColor: 'red'};
-    const backgroundStyle = {backgroundColor: 'blue'};
-
     render(
       <CustomBottomSheet
         snapPoints={snapPoints}
@@ -135,7 +128,6 @@ describe('CustomBottomSheet', () => {
         enableContentPanningGesture={false}
         enableHandlePanningGesture={false}
         style={style}
-        backgroundStyle={backgroundStyle}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
@@ -158,7 +150,7 @@ describe('CustomBottomSheet', () => {
         enableHandlePanningGesture: false,
         // FIX: Expect the style to be merged (array containing original style)
         style: expect.arrayContaining([style]),
-        backgroundStyle: backgroundStyle,
+        backgroundComponent: expect.any(Function),
       }),
     );
   });

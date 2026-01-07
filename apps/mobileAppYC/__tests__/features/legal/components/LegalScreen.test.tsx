@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../../../setup/mockTheme';
 import {Text} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {LegalScreen} from '../../../../src/features/legal/components/LegalScreen';
@@ -7,19 +8,19 @@ import {LegalScreen} from '../../../../src/features/legal/components/LegalScreen
 
 // 1. Mock Theme Hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#fff',
-      },
-      spacing: {
-        '4': 16,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// 2. Mock Style Creator
+// 2. Mock safe area insets
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: ({children, style}: any) => {
+    const {View} = require('react-native');
+    return <View style={style}>{children}</View>;
+  },
+  useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
+}));
+
+// 3. Mock Style Creators
 jest.mock('../../../../src/features/legal/styles/legalStyles', () => ({
   createLegalStyles: () => ({
     safeArea: {flex: 1},
@@ -28,15 +29,31 @@ jest.mock('../../../../src/features/legal/styles/legalStyles', () => ({
   }),
 }));
 
-// 3. Mock Child Components
-// Fix: Use standard View with testID instead of non-existent JSX elements (<mock-header>)
-jest.mock('@/shared/components/common', () => {
-  const {View} = require('react-native');
+jest.mock('@/shared/utils/screenStyles', () => ({
+  createLiquidGlassHeaderStyles: () => ({
+    topSection: {position: 'absolute'},
+    topGlassShadowWrapper: {},
+    topGlassCard: {},
+    topGlassFallback: {},
+  }),
+}));
+
+// 4. Mock LiquidGlassCard
+jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
+  LiquidGlassCard: ({children}: any) => <>{children}</>,
+}));
+
+// 5. Mock Header Component
+jest.mock('@/shared/components/common/Header/Header', () => {
+  const {View, Text: RNText, TouchableOpacity} = require('react-native');
   return {
-    Header: (props: any) => (
-      // Forward all props to the View so we can assert on them
-      // Map onBack to onPressBack to match the fireEvent call in the test
-      <View testID="header" {...props} onPressBack={props.onBack} />
+    Header: ({title, showBackButton, onBack}: any) => (
+      <View testID="header">
+        {title && <RNText testID="HeaderTitle">{title}</RNText>}
+        {showBackButton && (
+          <TouchableOpacity testID="HeaderBack" onPress={onBack} />
+        )}
+      </View>
     ),
   };
 });
@@ -87,8 +104,8 @@ describe('LegalScreen', () => {
     );
 
     // Verify Header Title
-    const header = getByTestId('header');
-    expect(header.props.title).toBe('Terms of Service');
+    const headerTitle = getByTestId('HeaderTitle');
+    expect(headerTitle).toHaveTextContent('Terms of Service');
 
     // Verify Content Renderer receives correct props (sections array)
     // We access the prop 'sectionCount' we manually injected in the mock above
@@ -126,9 +143,8 @@ describe('LegalScreen', () => {
       />,
     );
 
-    const header = getByTestId('header');
-    // Simulate the custom mock event defined in the Header mock above
-    fireEvent(header, 'pressBack');
+    const backButton = getByTestId('HeaderBack');
+    fireEvent.press(backButton);
 
     expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });

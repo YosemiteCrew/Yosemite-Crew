@@ -1,9 +1,10 @@
 import React from 'react';
+import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {TasksMainScreen} from '../../../../../src/features/tasks/screens/TasksMainScreen/TasksMainScreen';
 import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
-import {fetchTasksForCompanion, markTaskStatus} from '../../../../../src/features/tasks';
+import {fetchTasksForCompanion} from '../../../../../src/features/tasks';
 import {setSelectedCompanion} from '../../../../../src/features/companion';
 
 // --- Mocks ---
@@ -22,7 +23,6 @@ jest.mock('@react-navigation/native', () => ({
 // 2. Thunks
 jest.mock('@/features/tasks', () => ({
   fetchTasksForCompanion: jest.fn(),
-  markTaskStatus: jest.fn(),
 }));
 
 jest.mock('@/features/companion', () => ({
@@ -113,37 +113,7 @@ jest.mock('@/assets/images', () => ({
 }));
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: '#fff',
-        surface: '#f5f5f5',
-        primary: 'blue',
-        textSecondary: '#666',
-        border: '#ccc',
-        lightBlueBackground: '#eef',
-      },
-      spacing: {
-        1: 4,
-        2: 8,
-        3: 12,
-        4: 16,
-        6: 24,
-        8: 32,
-        10: 40,
-        20: 80,
-      },
-      typography: {
-        titleMedium: {fontSize: 16},
-        h6Clash: {fontSize: 14},
-        bodyMedium: {fontSize: 14},
-      },
-      borderRadius: {
-        md: 8,
-        lg: 12,
-      },
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 6. Date Utils
@@ -155,9 +125,108 @@ jest.mock('@/shared/utils/dateHelpers', () => {
   };
 });
 
+// 7. Task Utils
+jest.mock('@/features/tasks/utils/taskLabels', () => ({
+  resolveCategoryLabel: jest.fn((category: string) => {
+    const labels: Record<string, string> = {
+      health: 'Health',
+      hygiene: 'Hygiene',
+      dietary: 'Dietary',
+      custom: 'Custom',
+    };
+    return labels[category] || category;
+  }),
+}));
+
+jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
+  getTaskCardMeta: jest.fn((task: any, _authUser: any) => ({
+    isPending: task.status === 'pending',
+    isCompleted: task.status === 'completed',
+    assignedToData: undefined,
+    isObservationalToolTask: task.details?.taskType === 'take-observational-tool',
+  })),
+}));
+
+// 8. Custom Hooks
+jest.mock('@/features/tasks/hooks/useTaskDateSelection', () => ({
+  useTaskDateSelection: jest.fn(),
+}));
+
+jest.mock('@/features/tasks/hooks/useTaskNavigationActions', () => ({
+  useTaskNavigationActions: jest.fn(),
+}));
+
+jest.mock('@/shared/utils/screenStyles', () => ({
+  useCommonScreenStyles: jest.fn(),
+}));
+
+// 9. Additional Components
+jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
+  const {View} = require('react-native');
+  return {
+    LiquidGlassHeaderScreen: ({header, children}: any) => (
+      <View testID="liquid-glass-header-screen">
+        {header}
+        {typeof children === 'function' ? children({}) : children}
+      </View>
+    ),
+  };
+});
+
+jest.mock('@/features/tasks/components/shared/TaskMonthDateSelector', () => {
+  const {View, Text, FlatList, Pressable} = require('react-native');
+  return {
+    TaskMonthDateSelector: (props: any) => {
+      // Generate dates for current month
+      const monthStart = new Date(props.currentMonth);
+      const year = monthStart.getFullYear();
+      const month = monthStart.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const dates = Array.from({length: daysInMonth}, (_, i) => {
+        const date = new Date(year, month, i + 1);
+        return date;
+      });
+
+      return (
+        <View testID="task-month-date-selector">
+          <FlatList
+            data={dates}
+            renderItem={({item}: any) => {
+              const day = String(item.getDate()).padStart(2, '0');
+              return (
+                <Pressable onPress={() => props.onDateSelect(item)}>
+                  <Text>{day}</Text>
+                </Pressable>
+              );
+            }}
+            keyExtractor={(item: any) => item.toString()}
+          />
+        </View>
+      );
+    },
+  };
+});
+
+jest.mock('@/shared/components/common/ViewMoreButton/ViewMoreButton', () => {
+  const {Pressable, Text} = require('react-native');
+  return {
+    ViewMoreButton: (props: any) => (
+      <Pressable testID="view-more-button" onPress={props.onPress}>
+        <Text>View More</Text>
+      </Pressable>
+    ),
+  };
+});
+
 describe('TasksMainScreen', () => {
   const mockDispatch = jest.fn();
   const mockNavigate = jest.fn();
+  const mockHandleDateSelect = jest.fn();
+  const mockHandleMonthChange = jest.fn();
+  const mockHandleViewTask = jest.fn();
+  const mockHandleEditTask = jest.fn();
+  const mockHandleCompleteTask = jest.fn();
+  const mockHandleStartObservationalTool = jest.fn();
 
   const mockCompanions = [
     {id: 'c1', name: 'Buddy', profileImage: 'img-url'},
@@ -176,6 +245,42 @@ describe('TasksMainScreen', () => {
     (useNavigation as jest.Mock).mockReturnValue({navigate: mockNavigate});
     (useFocusEffect as jest.Mock).mockImplementation(cb => cb());
 
+    // --- Hook Mocks ---
+    const {useTaskDateSelection} = require('@/features/tasks/hooks/useTaskDateSelection');
+    const {useTaskNavigationActions} = require('@/features/tasks/hooks/useTaskNavigationActions');
+    const {useCommonScreenStyles} = require('@/shared/utils/screenStyles');
+
+    // Mock useTaskDateSelection
+    useTaskDateSelection.mockReturnValue({
+      selectedDate: new Date('2023-01-15T12:00:00Z'),
+      currentMonth: new Date('2023-01-01T12:00:00Z'),
+      handleDateSelect: mockHandleDateSelect,
+      handleMonthChange: mockHandleMonthChange,
+    });
+
+    // Mock useTaskNavigationActions
+    useTaskNavigationActions.mockReturnValue({
+      handleViewTask: mockHandleViewTask,
+      handleEditTask: mockHandleEditTask,
+      handleCompleteTask: mockHandleCompleteTask,
+      handleStartObservationalTool: mockHandleStartObservationalTool,
+    });
+
+    // Mock useCommonScreenStyles
+    useCommonScreenStyles.mockReturnValue({
+      container: {},
+      contentContainer: {},
+      categorySection: {},
+      categoryHeader: {},
+      categoryTitle: {},
+      emptyCard: {},
+      emptyText: {},
+      emptyStateContainer: {},
+      emptyStateTitle: {},
+      emptyStateText: {},
+      companionSelectorTask: {},
+    });
+
     // --- State & Selector Setup ---
     const {
       selectHasHydratedCompanion,
@@ -184,11 +289,12 @@ describe('TasksMainScreen', () => {
       selectTasksByCompanion,
     } = require('@/features/tasks/selectors');
 
-    // Default implementations (Factory Pattern: Return a function that returns the value)
-    selectHasHydratedCompanion.mockReturnValue(() => true);
-    selectRecentTasksByCategory.mockReturnValue(() => []);
-    selectTaskCountByCategory.mockReturnValue(() => 0);
-    selectTasksByCompanion.mockReturnValue(() => []);
+    // Default implementations (Factory Pattern: Return a createSelector-like function)
+    // The pattern is: selectorFactory(...args) returns a selector function that takes state
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => true);
+    selectRecentTasksByCategory.mockReturnValue((_state: any) => []);
+    selectTaskCountByCategory.mockReturnValue((_state: any) => 0);
+    selectTasksByCompanion.mockReturnValue((_state: any) => []);
 
     const {selectAuthUser} = require('@/features/auth/selectors');
     selectAuthUser.mockReturnValue(mockAuthUser);
@@ -196,22 +302,29 @@ describe('TasksMainScreen', () => {
     // useSelector mock to handle both inline and factory selectors
     (useSelector as unknown as jest.Mock).mockImplementation(callback => {
       // 1. Handle inline selectors (e.g. (state) => state.companion...)
+      // Try to call with mock state first
+      const mockState = {
+        companion: {
+          companions: mockCompanions,
+          selectedCompanionId: 'c1',
+        },
+      };
+
       try {
-        const result = callback({
-          companion: {
-            companions: mockCompanions,
-            selectedCompanionId: 'c1',
-          },
-        });
+        const result = callback(mockState);
         if (result !== undefined) return result;
-      } finally{
-        console.log("NA");
+      } catch (e) {
+        // If callback throws or doesn't work with state, it might be a factory-created selector
+        // In that case, just call it without arguments (the factory already has the params)
+        if (typeof callback === 'function') {
+          try {
+            return callback();
+          } catch {
+            return undefined;
+          }
+        }
       }
 
-      // 2. Handle factory selectors (functions returned by selector creators)
-      if (typeof callback === 'function') {
-        return callback();
-      }
       return undefined;
     });
   });
@@ -267,13 +380,13 @@ describe('TasksMainScreen', () => {
 
     expect(getByTestId('header')).toBeTruthy();
     expect(getByTestId('companion-selector')).toBeTruthy();
-    expect(getByText('January 2023')).toBeTruthy();
+    expect(getByTestId('task-month-date-selector')).toBeTruthy();
     expect(getByText('No tasks yet')).toBeTruthy();
   });
 
   it('fetches tasks on focus if not hydrated', () => {
     const {selectHasHydratedCompanion} = require('@/features/tasks/selectors');
-    selectHasHydratedCompanion.mockReturnValue(() => false);
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
 
     render(<TasksMainScreen />);
 
@@ -290,12 +403,10 @@ describe('TasksMainScreen', () => {
 
     fireEvent.press(dateItem);
 
-    const {selectRecentTasksByCategory} = require('@/features/tasks/selectors');
     await waitFor(() => {
-      const calls = selectRecentTasksByCategory.mock.calls;
-      const lastCallArgs = calls[calls.length - 1];
-      // The date argument is the 2nd arg [companion, date, category, limit]
-      expect(lastCallArgs[1].getDate()).toBe(5);
+      expect(mockHandleDateSelect).toHaveBeenCalled();
+      const callArg = mockHandleDateSelect.mock.calls[0][0];
+      expect(callArg.getDate()).toBe(5);
     });
   });
 
@@ -317,20 +428,20 @@ describe('TasksMainScreen', () => {
     };
 
     // Ensure allTasks is populated so "No tasks yet" is not shown
-    selectTasksByCompanion.mockReturnValue(() => [mockTask]);
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
 
     // Mock factory to return tasks ONLY for 'health' category to avoid duplicates in other sections
     selectRecentTasksByCategory.mockImplementation(
       (_id: string, _d: Date, category: string) => {
-        if (category === 'health') return () => [mockTask];
-        return () => [];
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
       },
     );
 
     selectTaskCountByCategory.mockImplementation(
       (_id: string, _d: Date, category: string) => {
-        if (category === 'health') return () => 1;
-        return () => 0;
+        if (category === 'health') return (_state: any) => 1;
+        return (_state: any) => 0;
       },
     );
 
@@ -351,15 +462,17 @@ describe('TasksMainScreen', () => {
       category: 'health',
       status: 'pending',
       companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
     };
 
-    selectTasksByCompanion.mockReturnValue(() => [mockTask]);
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
 
     // Only return for 'health' to prevent duplicates
     selectRecentTasksByCategory.mockImplementation(
       (_id: any, _d: any, category: string) => {
-        if (category === 'health') return () => [mockTask];
-        return () => [];
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
       },
     );
 
@@ -368,10 +481,7 @@ describe('TasksMainScreen', () => {
 
     fireEvent(card, 'pressComplete');
 
-    expect(markTaskStatus).toHaveBeenCalledWith({
-      taskId: 't1',
-      status: 'completed',
-    });
+    expect(mockHandleCompleteTask).toHaveBeenCalledWith('t1');
   });
 
   it('navigates to Observational Tool if task type matches', () => {
@@ -385,14 +495,16 @@ describe('TasksMainScreen', () => {
       category: 'health',
       status: 'pending',
       companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
       details: {taskType: 'take-observational-tool'},
     };
 
-    selectTasksByCompanion.mockReturnValue(() => [mockTask]);
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
     selectRecentTasksByCategory.mockImplementation(
       (_id: any, _d: any, category: string) => {
-        if (category === 'health') return () => [mockTask];
-        return () => [];
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
       },
     );
 
@@ -400,9 +512,7 @@ describe('TasksMainScreen', () => {
     const card = getByTestId('task-card-Check Weight');
 
     fireEvent(card, 'pressTakeObservationalTool');
-    expect(mockNavigate).toHaveBeenCalledWith('ObservationalTool', {
-      taskId: 'obs-1',
-    });
+    expect(mockHandleStartObservationalTool).toHaveBeenCalledWith('obs-1');
   });
 
   it('handles "Add Task" navigation', () => {
@@ -425,16 +535,26 @@ describe('TasksMainScreen', () => {
       title: 'Task',
       category: 'health',
       companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
+      status: 'pending',
     };
 
-    selectTasksByCompanion.mockReturnValue(() => [mockTask]);
-    selectRecentTasksByCategory.mockReturnValue(() => [mockTask]); // Doesn't matter if dupes here, just need section
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+
+    // Return task for health category only
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: any, _d: any, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
 
     // Return count > 0 for health
     selectTaskCountByCategory.mockImplementation(
       (_id: any, _d: any, category: string) => {
-        if (category === 'health') return () => 5;
-        return () => 0;
+        if (category === 'health') return (_state: any) => 5;
+        return (_state: any) => 0;
       },
     );
 

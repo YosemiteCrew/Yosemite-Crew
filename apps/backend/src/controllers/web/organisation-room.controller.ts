@@ -104,4 +104,32 @@ export const OrganisationRoomController = {
         .json({ message: "Unable to retrieve organisation rooms." });
     }
   },
+
+  delete: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        res.status(400).json({ message: "Room identifier is required." });
+        return;
+      }
+
+      const resource = await OrganisationRoomService.delete(id);
+
+      if (!resource) {
+        res.status(404).json({ message: "Organisation room not found." });
+        return;
+      }
+
+      res.status(200).json(resource);
+    } catch (error) {
+      if (error instanceof OrganisationRoomServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+
+      logger.error("Failed to delete organisation room", error);
+      res.status(500).json({ message: "Unable to delete organisation room." });
+    }
+  },
 };

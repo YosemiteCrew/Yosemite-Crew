@@ -29,11 +29,10 @@ export const TaskFormFooter: React.FC<TaskFormFooterProps> = ({
         style={styles.saveButton}
         textStyle={styles.saveButtonText}
         tintColor={theme.colors.secondary}
-        forceBorder
-        borderColor={theme.colors.borderMuted}
-        shadowIntensity="medium"
+        glassEffect="clear"
+        shadowIntensity="none"
         height={56}
-        borderRadius={16}
+        borderRadius={theme.borderRadius.lg}
       />
     </View>
   );

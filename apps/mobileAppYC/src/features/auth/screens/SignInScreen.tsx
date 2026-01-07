@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import {SafeArea, Input} from '@/shared/components/common';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
@@ -46,36 +48,34 @@ const AppleIcon = () => (
 
 type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 
-export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) => {
-  const {theme} = useTheme();
-  const styles = createStyles(theme);
-  const {login} = useAuth();
-  const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
+const useKeyboardVisibility = () => {
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  const [emailValue, setEmailValue] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [socialError, setSocialError] = useState('');
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
 
-  const {activeProvider, isSocialLoading, handleSocialAuth} = useSocialAuth({
-    onStart: () => {
-      setSocialError('');
-      setStatusMessage('');
-      setEmailError('');
-    },
-    onExistingProfile: async result => {
-      await login(result.user, result.tokens);
-    },
-    onNewProfile: async createAccountPayload => {
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'CreateAccount', params: createAccountPayload}],
-      });
-    },
-    genericErrorMessage: 'We couldn’t sign you in. Kindly retry.',
-  });
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
+  return isKeyboardVisible;
+};
+
+const useRouteParamsRestore = (
+  route: SignInScreenProps['route'],
+  navigation: SignInScreenProps['navigation'],
+  setEmailValue: (value: string) => void,
+  setStatusMessage: (value: string) => void,
+) => {
   const routeEmail = route.params?.email;
   const routeStatusMessage = route.params?.statusMessage;
   const hasStatusMessageParam = route.params
@@ -103,18 +103,31 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     }
 
     navigation.setParams({ email: undefined, statusMessage: undefined });
-  }, [hasStatusMessageParam, navigation, routeEmail, routeStatusMessage]);
+  }, [hasStatusMessageParam, navigation, routeEmail, routeStatusMessage, setEmailValue, setStatusMessage]);
+};
 
-  const validateEmail = (email: string) => isValidEmail(email);
-
-  const handleSendOTP = async () => {
-    if (emailValue.trim().length === 0) {
-      setEmailError('Please enter your email address');
-      return;
+const useOTPHandler = (
+  emailValue: string,
+  allowReviewLogin: boolean,
+  setEmailError: (error: string) => void,
+  setStatusMessage: (message: string) => void,
+  setIsSubmitting: (submitting: boolean) => void,
+  navigation: SignInScreenProps['navigation'],
+) => {
+  const validateEmailInput = React.useCallback((email: string): string | null => {
+    if (email.trim().length === 0) {
+      return 'Please enter your email address';
     }
+    if (!isValidEmail(email.trim())) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }, []);
 
-    if (validateEmail(emailValue.trim()) === false) {
-      setEmailError('Please enter a valid email address');
+  const handleSendOTP = React.useCallback(async () => {
+    const validationError = validateEmailInput(emailValue);
+    if (validationError) {
+      setEmailError(validationError);
       return;
     }
 
@@ -127,13 +140,12 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
       console.log('[Auth] Sending OTP request', { normalizedEmail });
       const result = await requestPasswordlessEmailCode(normalizedEmail);
       console.log('[Auth] OTP request succeeded', result);
-      if (isDemoLogin) {
-        setStatusMessage(
-          'App Review login: use the provided password to continue. No email is sent.',
-        );
-      } else {
-        setStatusMessage(`We sent a login code to ${result.destination}`);
-      }
+
+      const message = isDemoLogin
+        ? 'App Review login: use the provided password to continue. No email is sent.'
+        : `We sent a login code to ${result.destination}`;
+      setStatusMessage(message);
+
       navigation.navigate('OTPVerification', {
         email: result.destination,
         isNewUser: result.isNewUser,
@@ -146,42 +158,179 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [emailValue, allowReviewLogin, navigation, validateEmailInput, setEmailError, setStatusMessage, setIsSubmitting]);
 
-  const attemptSocialAuth = async (provider: SocialProvider) => {
+  return { handleSendOTP };
+};
+
+const getKeyboardVisibleIllustrationHeight = (screenHeight: number) => {
+  return Math.min(screenHeight * 0.22, 180);
+};
+
+const getKeyboardHiddenIllustrationHeight = (screenHeight: number) => {
+  return Math.min(screenHeight * 0.32, 260);
+};
+
+const useIllustrationHeight = (isKeyboardVisible: boolean, screenHeight: number) => {
+  return React.useMemo(() => {
+    return isKeyboardVisible
+      ? getKeyboardVisibleIllustrationHeight(screenHeight)
+      : getKeyboardHiddenIllustrationHeight(screenHeight);
+  }, [isKeyboardVisible, screenHeight]);
+};
+
+const getSocialButtonTintColor = (theme: any, color: string) => {
+  return Platform.OS === 'ios' ? color : undefined;
+};
+
+const getSocialButtonStyle = (styles: any, theme: any, backgroundColor: string) => {
+  const baseStyle = styles.socialButton;
+  if (Platform.OS === 'ios') {
+    return baseStyle;
+  }
+  return { ...baseStyle, backgroundColor };
+};
+
+const SocialAuthSection: React.FC<{
+  theme: any;
+  styles: any;
+  isSocialLoading: boolean;
+  activeProvider: SocialProvider | null;
+  socialError: string;
+  onGooglePress: () => void;
+  onFacebookPress: () => void;
+  onApplePress: () => void;
+}> = ({
+  theme,
+  styles,
+  isSocialLoading,
+  activeProvider,
+  socialError,
+  onGooglePress,
+  onFacebookPress,
+  onApplePress,
+}) => (
+  <View style={styles.bottomSection}>
+    <View style={styles.divider}>
+      <View style={styles.dividerLine} />
+      <Text style={styles.dividerText}>Login via</Text>
+      <View style={styles.dividerLine} />
+    </View>
+
+    <View style={styles.socialButtons}>
+      <LiquidGlassButton
+        onPress={onGooglePress}
+        customContent={<GoogleIcon />}
+        disabled={isSocialLoading}
+        loading={activeProvider === 'google'}
+        tintColor={getSocialButtonTintColor(theme, theme.colors.cardBackground)}
+        height={60}
+        width={112}
+        borderRadius={20}
+        forceBorder
+        borderColor={theme.colors.border}
+        style={getSocialButtonStyle(styles, theme, theme.colors.cardBackground)}
+      />
+      <LiquidGlassButton
+        onPress={onFacebookPress}
+        customContent={<FacebookIcon />}
+        disabled={isSocialLoading}
+        loading={activeProvider === 'facebook'}
+        tintColor={getSocialButtonTintColor(theme, theme.colors.primary)}
+        height={60}
+        width={112}
+        borderRadius={20}
+        style={getSocialButtonStyle(styles, theme, theme.colors.primary)}
+      />
+      <LiquidGlassButton
+        onPress={onApplePress}
+        customContent={<AppleIcon />}
+        disabled={isSocialLoading}
+        loading={activeProvider === 'apple'}
+        tintColor={getSocialButtonTintColor(theme, theme.colors.secondary)}
+        height={60}
+        width={112}
+        borderRadius={20}
+        style={getSocialButtonStyle(styles, theme, theme.colors.secondary)}
+      />
+    </View>
+    {socialError ? (
+      <Text style={styles.socialErrorText}>{socialError}</Text>
+    ) : null}
+  </View>
+);
+
+export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) => {
+  const {theme} = useTheme();
+  const styles = createStyles(theme);
+  const {login} = useAuth();
+  const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
+
+  const [emailValue, setEmailValue] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [socialError, setSocialError] = useState('');
+  const isKeyboardVisible = useKeyboardVisibility();
+  const {height: screenHeight} = useWindowDimensions();
+  const illustrationHeight = useIllustrationHeight(isKeyboardVisible, screenHeight);
+
+  const clearAllErrors = React.useCallback(() => {
+    setEmailError('');
+    setStatusMessage('');
+    setSocialError('');
+  }, []);
+
+  const socialAuthConfig = React.useMemo(() => ({
+    onStart: clearAllErrors,
+    onExistingProfile: async (result: any) => {
+      await login(result.user, result.tokens);
+    },
+    onNewProfile: async (createAccountPayload: any) => {
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'CreateAccount', params: createAccountPayload}],
+      });
+    },
+    genericErrorMessage: "We couldn't sign you in. Kindly retry.",
+  }), [clearAllErrors, login, navigation]);
+
+  const {activeProvider, isSocialLoading, handleSocialAuth} = useSocialAuth(socialAuthConfig);
+
+  useRouteParamsRestore(route, navigation, setEmailValue, setStatusMessage);
+
+  const {handleSendOTP} = useOTPHandler(
+    emailValue,
+    allowReviewLogin,
+    setEmailError,
+    setStatusMessage,
+    setIsSubmitting,
+    navigation,
+  );
+
+  const attemptSocialAuth = React.useCallback(async (provider: SocialProvider) => {
     try {
       await handleSocialAuth(provider);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'We couldn’t sign you in. Kindly retry.';
+      const message = error instanceof Error
+        ? error.message
+        : "We couldn't sign you in. Kindly retry.";
       setSocialError(message);
     }
-  };
+  }, [handleSocialAuth]);
 
-  const navigateToSignUp = () => {
+  const navigateToSignUp = React.useCallback(() => {
     navigation.navigate('SignUp');
-  };
+  }, [navigation]);
 
-  const handleGoogleSignIn = () => attemptSocialAuth('google');
-
-  const handleFacebookSignIn = () => attemptSocialAuth('facebook');
-
-  const handleAppleSignIn = () => attemptSocialAuth('apple');
-
-  const handleEmailChange = (text: string) => {
+  const handleEmailChange = React.useCallback((text: string) => {
     setEmailValue(text);
-    if (emailError) {
-      setEmailError('');
-    }
-    if (statusMessage) {
-      setStatusMessage('');
-    }
-    if (socialError) {
-      setSocialError('');
-    }
-  };
+    clearAllErrors();
+  }, [clearAllErrors]);
+
+  const handleGoogleSignIn = React.useCallback(() => attemptSocialAuth('google'), [attemptSocialAuth]);
+  const handleFacebookSignIn = React.useCallback(() => attemptSocialAuth('facebook'), [attemptSocialAuth]);
+  const handleAppleSignIn = React.useCallback(() => attemptSocialAuth('apple'), [attemptSocialAuth]);
 
   return (
     <SafeArea style={styles.container}>
@@ -191,12 +340,17 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <ScrollView
           style={styles.scrollView}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
+          contentContainerStyle={[
+            styles.scrollContent,
+            isKeyboardVisible && styles.scrollContentKeyboard,
+          ]}>
+          <View style={styles.content}>
           <Image
             source={Images.authIllustration}
-            style={styles.illustration}
+            style={[styles.illustration, {height: illustrationHeight}]}
             resizeMode="contain"
           />
 
@@ -241,70 +395,18 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
           </View>
         </ScrollView>
 
-        {/* Fixed Bottom Section */}
-        <View style={styles.bottomSection}>
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Login via</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialButtons}>
-            <LiquidGlassButton
-              onPress={handleGoogleSignIn}
-              customContent={<GoogleIcon />}
-              disabled={isSocialLoading}
-              loading={activeProvider === 'google'}
-              tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
-              height={60}
-              width={112}
-              borderRadius={20}
-              forceBorder
-              borderColor={theme.colors.border}
-              style={{
-                ...styles.socialButton,
-                ...(Platform.OS === 'ios'
-                  ? {}
-                  : {backgroundColor: theme.colors.cardBackground}),
-              }}
-            />
-            <LiquidGlassButton
-              onPress={handleFacebookSignIn}
-              customContent={<FacebookIcon />}
-              disabled={isSocialLoading}
-              loading={activeProvider === 'facebook'}
-              tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
-              height={60}
-              width={112}
-              borderRadius={20}
-              style={{
-                ...styles.socialButton,
-                ...(Platform.OS === 'ios'
-                  ? {}
-                  : {backgroundColor: theme.colors.primary}),
-              }}
-            />
-            <LiquidGlassButton
-              onPress={handleAppleSignIn}
-              customContent={<AppleIcon />}
-              disabled={isSocialLoading}
-              loading={activeProvider === 'apple'}
-              tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
-              height={60}
-              width={112}
-              borderRadius={20}
-              style={{
-                ...styles.socialButton,
-                ...(Platform.OS === 'ios'
-                  ? {}
-                  : {backgroundColor: theme.colors.secondary}),
-              }}
-            />
-          </View>
-          {socialError ? (
-            <Text style={styles.socialErrorText}>{socialError}</Text>
-          ) : null}
-        </View>
+        {!isKeyboardVisible && (
+          <SocialAuthSection
+            theme={theme}
+            styles={styles}
+            isSocialLoading={isSocialLoading}
+            activeProvider={activeProvider}
+            socialError={socialError}
+            onGooglePress={handleGoogleSignIn}
+            onFacebookPress={handleFacebookSignIn}
+            onApplePress={handleAppleSignIn}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeArea>
   );
@@ -324,38 +426,45 @@ const createStyles = (theme: any) =>
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: 20,
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['14'],
+    },
+    scrollContentKeyboard: {
+      paddingBottom: theme.spacing['26'],
     },
     content: {
-      flex: 1,
-      justifyContent: 'flex-start',
       alignItems: 'center',
-      paddingBottom: 20,
+      justifyContent: 'flex-start',
+      width: '100%',
+      paddingBottom: theme.spacing['5'],
     },
     illustration: {
       width: '100%',
-      height: '60%',
+      maxHeight: 260,
+      minHeight: 140,
+      marginBottom: theme.spacing['4'],
     },
     title: {
       ...theme.typography.h3,
       color: theme.colors.secondary,
-      marginBottom: 24,
+      marginBottom: theme.spacing['6'],
       textAlign: 'center',
     },
     formContainer: {
       width: '100%',
     },
     inputContainer: {
-      minHeight: 70, // Changed from height: 70
-      marginBottom: 20,
+      minHeight: 70,
+      marginBottom: theme.spacing['5'],
     },
     input: {
       flex: 1,
     },
     sendButton: {
-      marginBottom: 24,
+      marginBottom: theme.spacing['6'],
       height: 52,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
     },
     sendButtonText: {
       ...theme.typography.cta,
@@ -365,12 +474,12 @@ const createStyles = (theme: any) =>
       ...theme.typography.paragraph,
       color: theme.colors.success,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: theme.spacing['4'],
     },
     demoBox: {
       backgroundColor: theme.colors.cardBackground,
-      borderRadius: 12,
-      padding: 16,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing['4'],
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
@@ -383,7 +492,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     demoButton: {
-      marginTop: 4,
+      marginTop: theme.spacing['1'],
       backgroundColor: theme.colors.white,
     },
     demoButtonText: {
@@ -394,7 +503,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 30,
+      marginBottom: theme.spacing['7'],
     },
     footerText: {
       ...theme.typography.paragraphBold,
@@ -404,17 +513,16 @@ const createStyles = (theme: any) =>
       ...theme.typography.paragraphBold,
       color: theme.colors.primary,
     },
-    // Bottom Section Styles
     bottomSection: {
-      paddingHorizontal: 55,
-      paddingBottom: 40,
-      paddingTop: 20,
+      paddingHorizontal: theme.spacing['14'],
+      paddingBottom: theme.spacing['10'],
+      paddingTop: theme.spacing['5'],
       backgroundColor: theme.colors.background,
     },
     divider: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 25,
+      marginBottom: theme.spacing['6'],
     },
     dividerLine: {
       flex: 1,
@@ -422,7 +530,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.border,
     },
     dividerText: {
-      marginHorizontal: 16,
+      marginHorizontal: theme.spacing['4'],
       ...theme.typography.screenTitle,
       color: theme.colors.textSecondary,
     },
@@ -430,7 +538,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 12,
+      gap: theme.spacing['3'],
     },
     socialButton: {
       justifyContent: 'center',
@@ -438,8 +546,8 @@ const createStyles = (theme: any) =>
     },
     socialErrorText: {
       ...theme.typography.paragraph,
-      color: theme.colors.error ?? '#D64545',
+      color: theme.colors.error,
       textAlign: 'center',
-      marginTop: 16,
+      marginTop: theme.spacing['4'],
     },
   });

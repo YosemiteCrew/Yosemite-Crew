@@ -112,7 +112,7 @@ export const BookingSummaryCard: React.FC<Props> = ({
       enableHorizontalSwipeOnly
       containerStyle={[styles.cardContainer, style]}
       cardProps={{
-        shadow: 'none',
+        shadow: 'base',
         glassEffect: 'none',
         style: styles.card,
         fallbackStyle: styles.card,
@@ -129,49 +129,49 @@ const createStyles = (theme: any) =>
       width: '100%',
     },
     card: {
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing[3],
+      padding: theme.spacing['3'],
     },
     inner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      gap: theme.spacing['3'],
     },
     avatar: {
-      width: 96,
-      height: 96,
-      borderRadius: 24,
+      width: theme.spacing['24'],
+      height: theme.spacing['24'],
+      borderRadius: theme.borderRadius['2xl'],
       backgroundColor: theme.colors.border + '40',
     },
     textColumn: {
       flex: 1,
-      gap: 4,
+      gap: theme.spacing['1'],
     },
     title: {
       ...theme.typography.h6Clash,
-      color: '#302F2E',
+      color: theme.colors.secondary,
     },
     titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
+      gap: theme.spacing['2'],
     },
     subtitlePrimary: {
       ...theme.typography.subtitleBold14,
-      color: '#595958',
+      color: theme.colors.placeholder,
     },
     subtitleSecondary: {
       ...theme.typography.subtitleBold14,
-      color: '#302F2E',
+      color: theme.colors.secondary,
     },
     badge: {
       marginLeft: 'auto',
-      paddingHorizontal: theme.spacing[2.5],
-      paddingVertical: theme.spacing[1],
-      borderRadius: 999,
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primaryTint,
     },
     badgeText: {

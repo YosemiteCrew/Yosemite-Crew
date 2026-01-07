@@ -1,4 +1,5 @@
 import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import BrowseBusinessesScreen from '@/features/appointments/screens/BrowseBusinessesScreen';
 import * as reactRedux from 'react-redux';
@@ -16,25 +17,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        primary: 'blue',
-        primaryTint: 'lightblue',
-        background: 'white',
-        cardBackground: 'gray',
-      },
-      typography: {
-        pillSubtitleBold15: {fontSize: 15},
-        businessSectionTitle20: {fontSize: 20},
-        body12: {fontSize: 12},
-        titleSmall: {fontSize: 14},
-        titleMedium: {fontSize: 16},
-        bodySmallTight: {fontSize: 10},
-      },
-      spacing: {2: 8, 3: 12, 4: 16},
-    },
-  }),
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@/shared/components/common', () => ({
@@ -106,7 +89,13 @@ describe('BrowseBusinessesScreen', () => {
     jest.spyOn(reactRedux, 'useDispatch').mockReturnValue(dispatchMock);
     dispatchMock.mockReturnValue({unwrap: jest.fn().mockResolvedValue({})});
 
-    jest.spyOn(reactRedux, 'useSelector').mockImplementation(cb => cb({}));
+    const mockState = {
+      companion: {
+        companions: [],
+        selectedCompanionId: null,
+      },
+    };
+    jest.spyOn(reactRedux, 'useSelector').mockImplementation(cb => cb(mockState));
     mockSelectBusinessesByCategory.mockReturnValue([]);
 
     (useRoute as jest.Mock).mockReturnValue({params: {}});
