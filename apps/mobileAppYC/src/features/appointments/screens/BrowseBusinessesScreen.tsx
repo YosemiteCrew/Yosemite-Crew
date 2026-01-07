@@ -592,7 +592,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: theme.spacing['2'],
   },
   sectionHeader: {
-    ...theme.typography.businessSectionTitle20,
+    ...theme.typography.sectionHeading,
     color: theme.colors.text,
   },
   sectionCount: {

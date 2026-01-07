@@ -165,7 +165,7 @@ export const DocumentPreviewScreen: React.FC = () => {
           glass={false}
         />
       }
-      contentPadding={theme.spacing['1']}
+      contentPadding={theme.spacing['4']}
       showBottomFade={false}>
       {contentPaddingStyle => (
         <ScrollView

@@ -247,7 +247,7 @@ export const createSectionStyles = (theme: any) => ({
     marginBottom: theme.spacing['4'],
   },
   sectionTitle: {
-    ...theme.typography.titleLarge,
+    ...theme.typography.sectionHeading,
     color: theme.colors.secondary,
     marginBottom: theme.spacing['3'],
   },
@@ -262,9 +262,9 @@ export const createSectionStyles = (theme: any) => ({
     marginBottom: theme.spacing['3'],
   },
   categoryTitle: {
-    ...theme.typography.titleMedium,
+    ...theme.typography.sectionHeading,
     color: theme.colors.secondary,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
   },
   categoryTile: {
     width: '100%' as const,

@@ -11,6 +11,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  Linking,
 } from 'react-native';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -98,6 +99,7 @@ export const AppointmentFormScreen: React.FC = () => {
   const signing = useSelector((state: RootState) =>
     submissionId ? selectSigningStatus(state, submissionId) : false,
   );
+  const signedPdfUrl = entry?.submission?.signing?.pdf?.url;
 
   const [values, setValues] = useState<Record<string, any>>(entry?.submission?.answers ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -155,11 +157,11 @@ export const AppointmentFormScreen: React.FC = () => {
           updated = true;
           return;
         }
-        if (shouldPrefillCompanion(field) && companionName) {
-          next[field.id] = companionName;
-          updated = true;
-          return;
-        }
+    if (shouldPrefillCompanion(field) && companionName) {
+      next[field.id] = companionName;
+      updated = true;
+      return;
+    }
         if (lockNonCheckboxInputs) {
           const placeholderVal = (field as any).placeholder ?? (field as any).text ?? '';
           if (placeholderVal) {
@@ -325,6 +327,15 @@ export const AppointmentFormScreen: React.FC = () => {
       Alert.alert('Signing failed', message);
     }
   };
+
+  const handleOpenSignedPdf = React.useCallback(() => {
+    if (!signedPdfUrl) {
+      return;
+    }
+    Linking.openURL(signedPdfUrl).catch(() => {
+      Alert.alert('Unable to open PDF', 'Please try again in a moment.');
+    });
+  }, [signedPdfUrl]);
 
   const renderChoiceOptions = (field: FormField & {options?: any[]}, multiple: boolean) => {
     const disableSelection = lockNonCheckboxInputs && !multiple;
@@ -590,6 +601,20 @@ export const AppointmentFormScreen: React.FC = () => {
                     tintColor={theme.colors.secondary}
                     disabled={signing}
                     loading={signing}
+                  />
+                ) : null}
+
+                {entry.status === 'signed' && signedPdfUrl ? (
+                  <LiquidGlassButton
+                    title="View & Download"
+                    onPress={handleOpenSignedPdf}
+                    height={56}
+                    borderRadius={theme.borderRadius.lg}
+                    textStyle={styles.buttonText}
+                    tintColor={theme.colors.secondary}
+                    glassEffect="clear"
+                    forceBorder
+                    borderColor={theme.colors.secondary}
                   />
                 ) : null}
 

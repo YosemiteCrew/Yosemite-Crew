@@ -502,12 +502,14 @@ const StatusCard = ({
     shadow="sm"
     style={styles.glassCard}
     fallbackStyle={styles.cardFallback}>
-    <Text style={styles.statusLabel}>Status</Text>
-    <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
-      <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
+    <View style={styles.statusContainer}>
+      <Text style={styles.statusLabel}>Status</Text>
+      <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
+        <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
+      </View>
+      {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
+      {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
     </View>
-    {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
-    {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
   </LiquidGlassCard>
 );
 
@@ -923,11 +925,13 @@ export const ViewAppointmentScreen: React.FC = () => {
         entry.status !== 'signing' &&
         entry.status !== 'submitted';
       const action =
-        entry.submission && (entry.signingRequired || isSigned)
-          ? {label: isSigned ? 'View Submission' : 'View & Sign', mode: 'view' as const, allowSign: !isSigned}
-          : entry.submission
-            ? {label: 'View form', mode: 'view' as const, allowSign: false}
-            : {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};
+        isSigned
+          ? {label: 'View form', mode: 'view' as const, allowSign: false}
+          : entry.submission && entry.signingRequired
+            ? {label: 'View & Sign', mode: 'view' as const, allowSign: true}
+            : entry.submission
+              ? {label: 'View form', mode: 'view' as const, allowSign: false}
+              : {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};
 
       return (
         <LiquidGlassCard
@@ -1238,6 +1242,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingTop: theme.spacing['6'],
     paddingBottom: theme.spacing['24'],
     gap: theme.spacing['4'],
+  },
+  statusContainer: {
+    gap: theme.spacing['3'],
   },
   statusNote: {
     ...theme.typography.body12,

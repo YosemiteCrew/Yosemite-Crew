@@ -1334,7 +1334,7 @@ const createStyles = (theme: any) =>
     scrollContent: {
       paddingHorizontal: theme.spacing['6'],
       paddingTop: theme.spacing['4'],
-      gap: theme.spacing['6'],
+      gap: theme.spacing['4'],
     },
     headerRow: {
       flexDirection: 'row',
@@ -1459,10 +1459,10 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
     },
     section: {
-      gap: theme.spacing['3.5'],
+      gap: theme.spacing['4'],
     },
     sectionTitle: {
-      ...theme.typography.titleLarge,
+      ...theme.typography.sectionHeading,
       color: theme.colors.secondary,
     },
     infoTile: {

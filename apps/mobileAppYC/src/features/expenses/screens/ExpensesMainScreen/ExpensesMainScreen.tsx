@@ -288,7 +288,7 @@ const createStyles = (theme: any) =>
       justifyContent: 'space-between',
     },
     sectionTitle: {
-      ...theme.typography.h5,
+      ...theme.typography.sectionHeading,
       color: theme.colors.secondary,
     },
     cardsContainer: {

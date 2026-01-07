@@ -25,6 +25,7 @@ export const fontSizes = {
   sm: 14,
   '15': 15,
   base: 16,
+  '17': 17,
   lg: 18,
   '19': 19,
   xl: 20,
@@ -293,6 +294,15 @@ export const typography = {
     lineHeight: Math.round(fontSizes['15'] * 1.4),
     fontWeight: fontWeights.bold,
     letterSpacing: -0.2,
+  },
+
+  // Section headings
+  sectionHeading: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: fontSizes['17'],
+    lineHeight: 22,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 0,
   },
 
   // Font family helpers for legacy usage
