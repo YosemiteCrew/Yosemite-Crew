@@ -169,7 +169,7 @@ const collectSoapEntries = async ({
           formId,
           formVersion: entry.formVersion,
           appointmentId,
-          submittedAt: entry.submittedAt,
+          submittedAt: typeof entry.submittedAt === 'string' ? new Date(entry.submittedAt) : entry.submittedAt,
           submittedBy: entry.submittedBy,
         },
       );
@@ -406,11 +406,11 @@ const formsSlice = createSlice({
           const signing = {
             ...(entry.submission?.signing ?? {
               required: true,
-              provider: 'DOCUMENSO',
-              status: 'IN_PROGRESS',
+              provider: 'DOCUMENSO' as const,
+              status: 'IN_PROGRESS' as const,
             }),
-            status: 'IN_PROGRESS',
-            documentId: documentId ?? entry.submission?.signing?.documentId,
+            status: 'IN_PROGRESS' as const,
+            documentId: typeof documentId === 'number' ? String(documentId) : (documentId ?? entry.submission?.signing?.documentId),
           };
           const submission = {...entry.submission!, signing};
           return buildEntry({

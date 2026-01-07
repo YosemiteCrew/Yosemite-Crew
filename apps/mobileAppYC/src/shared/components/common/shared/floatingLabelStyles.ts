@@ -14,11 +14,11 @@ export const getFloatingLabelAnimatedStyle = ({
 }: Omit<FloatingLabelConfig, 'hasValue'>) => {
   // Calculate exact positioning to match Input component
   const placeholderLineHeight =
-    theme.typography.input.lineHeight ?? theme.typography.input.fontSize;
+    (theme.typography.input.lineHeight ?? theme.typography.input.fontSize) ?? 16;
   const placeholderTop =
     (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
   const labelLineHeight =
-    theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize;
+    (theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize) ?? 12;
   const floatingTop = -Math.round(labelLineHeight / 2) - 2;
 
   const baseStyle: any = {
@@ -28,7 +28,7 @@ export const getFloatingLabelAnimatedStyle = ({
     fontWeight: theme.typography.input.fontWeight,
     fontSize: animatedValue.interpolate({
       inputRange: [0, 1],
-      outputRange: [theme.typography.input.fontSize, theme.typography.inputLabel.fontSize],
+      outputRange: [theme.typography.input.fontSize ?? 16, theme.typography.inputLabel.fontSize ?? 12],
     }),
     top: animatedValue.interpolate({
       inputRange: [0, 1],

@@ -165,7 +165,6 @@ export const formApi = {
 
 export const mapAppointmentFormItem = (
   item: AppointmentFormsApiItem,
-  source: 'appointment' | 'service' | 'soap' = 'appointment',
 ): {form: Form; submission: FormSubmission | null; formVersion?: number} => {
   const form = toForm(item.questionnaire);
   const submission = item.questionnaireResponse

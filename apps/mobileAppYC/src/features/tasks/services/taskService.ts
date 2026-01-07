@@ -408,7 +408,7 @@ export const buildTaskDraftFromForm = ({
     attachments,
     medication:
       category === 'MEDICATION'
-        ? {
+        ? ({
             name: formData.medicineName,
             type: formData.medicineType ?? undefined,
             doses:
@@ -426,7 +426,7 @@ export const buildTaskDraftFromForm = ({
               (formData.medicationFrequency
                 ? formData.medicationFrequency.toUpperCase()
                 : recurrenceType) ?? undefined,
-          }
+          } as any)
         : null,
     observationToolId:
       category === 'OBSERVATION_TOOL'

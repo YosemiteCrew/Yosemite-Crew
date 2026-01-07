@@ -934,7 +934,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const renderFormCard = React.useCallback(
     (entry: AppointmentFormEntry) => {
-      const status = getFormStatusDisplay(entry);
+      const formStatus = getFormStatusDisplay(entry);
       const isSigned = entry.status === 'signed';
       const showAnswers =
         entry.submission &&
@@ -963,8 +963,8 @@ export const ViewAppointmentScreen: React.FC = () => {
             <View style={styles.formTitleContainer}>
               <Text style={styles.formTitle}>{entry.form.name}</Text>
             </View>
-            <View style={[styles.formStatusBadge, {backgroundColor: status.backgroundColor}]}>
-              <Text style={[styles.formStatusText, {color: status.color}]}>{status.label}</Text>
+            <View style={[styles.formStatusBadge, {backgroundColor: formStatus.backgroundColor}]}>
+              <Text style={[styles.formStatusText, {color: formStatus.color}]}>{formStatus.label}</Text>
             </View>
           </View>
           {entry.form.description ? <Text style={styles.formDescription}>{entry.form.description}</Text> : null}
@@ -984,16 +984,16 @@ export const ViewAppointmentScreen: React.FC = () => {
     [getFormStatusDisplay, handleOpenForm, renderAnswerSummary, styles, theme],
   );
 
-  const pickText = (...values: Array<string | undefined | null>) =>
-    values.find(v => typeof v === 'string' && v.trim().length > 0) ?? '';
-
   const renderSoapAccordion = React.useCallback(
     (entry: AppointmentFormEntry) => {
+      const pickText = (...values: Array<string | undefined | null>) =>
+        values.find(v => typeof v === 'string' && v.trim().length > 0) ?? '';
+
       const rows = getAnswerRows(entry);
       if (!entry.submission) {
         return null;
       }
-      const formLabel = pickText(entry.form.title, entry.form.name, entry.form.category);
+      const formLabel = pickText(entry.form.name, entry.form.category);
       const sectionLabel = pickText(entry.soapSection);
       const title = pickText(sectionLabel, formLabel, 'SOAP note');
       const subtitle = pickText(formLabel !== title ? formLabel : undefined, sectionLabel !== title ? sectionLabel : undefined);
@@ -1017,7 +1017,7 @@ export const ViewAppointmentScreen: React.FC = () => {
         </SubcategoryAccordion>
       );
     },
-    [getAnswerRows, pickText, styles.answerLabel, styles.answerRow, styles.answerValue, styles.formAccordionContent],
+    [getAnswerRows, styles.answerLabel, styles.answerRow, styles.answerValue, styles.emptyDocsText, styles.formAccordionContent],
   );
 
   if (!apt) {

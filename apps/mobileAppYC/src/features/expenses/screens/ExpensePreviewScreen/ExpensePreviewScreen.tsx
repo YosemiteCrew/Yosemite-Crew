@@ -290,8 +290,8 @@ export const ExpensePreviewScreen: React.FC = () => {
     {label: 'Provider', value: businessNameFromOrg ?? expense.businessName ?? '—'},
     {
       label: 'Companion',
-      value: companion?.name ?? expense.companionName ?? '',
-      hidden: !companion?.name && !expense.companionName,
+      value: companion?.name ?? '',
+      hidden: !companion?.name,
     },
     {label: 'Category', value: resolveCategoryLabel(expense.category)},
     {

@@ -159,7 +159,7 @@ const buildBusinessCard = ({
   title: business?.name ?? apt?.organisationName ?? '',
   subtitlePrimary: business?.address ?? apt?.organisationAddress ?? undefined,
   subtitleSecondary: business?.description ?? undefined,
-  image: fallbackPhoto || (isDummyPhoto(businessPhoto) ? undefined : businessPhoto),
+  image: fallbackPhoto || (isDummyPhoto(businessPhoto) ? undefined : businessPhoto) ? {uri: fallbackPhoto || businessPhoto || undefined} : undefined,
   interactive: false,
   maxTitleLines: 2,
   maxSubtitleLines: 2,

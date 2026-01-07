@@ -109,6 +109,7 @@ export const AppointmentFormScreen: React.FC = () => {
   );
   const canStartSigning =
     allowSign && entry?.signingRequired && entry.submission && entry.status !== 'signed';
+  const lockNonCheckboxInputs = Boolean(allowSign);
 
   useEffect(() => {
     setValues(entry?.submission?.answers ?? {});
@@ -120,7 +121,7 @@ export const AppointmentFormScreen: React.FC = () => {
     }
     const ownerFullName =
       [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.email || '';
-    const companionName = companion?.name ?? appointment?.companionName ?? '';
+    const companionName = companion?.name ?? '';
     const today = new Date();
 
     const shouldPrefillOwner = (field: FormField) =>
@@ -142,7 +143,7 @@ export const AppointmentFormScreen: React.FC = () => {
           }
           return;
         }
-        const isCheckboxField = field.type === 'choice' || field.type === 'checkbox';
+        const isCheckboxField = field.type === 'checkbox';
         if (isCheckboxField) {
           return;
         }
@@ -177,10 +178,10 @@ export const AppointmentFormScreen: React.FC = () => {
       return updated ? next : prev;
     });
   }, [
-    appointment?.companionName,
     companion?.name,
     entry?.form?.schema,
     entry?.submission,
+    lockNonCheckboxInputs,
     user?.email,
     user?.firstName,
     user?.lastName,
@@ -219,7 +220,7 @@ export const AppointmentFormScreen: React.FC = () => {
       // Signature will be captured during signing
       return true;
     }
-    if (lockNonCheckboxInputs && field.type !== 'choice') {
+    if (lockNonCheckboxInputs && field.type !== 'checkbox') {
       // In signing mode, only checkboxes are interactable; skip validation for locked fields
       return true;
     }
@@ -241,8 +242,6 @@ export const AppointmentFormScreen: React.FC = () => {
     setErrors({});
     return entry.form.schema.every(validateField);
   };
-
-  const lockNonCheckboxInputs = Boolean(allowSign);
 
   const handleSubmit = async () => {
     if (!entry) {
@@ -406,7 +405,7 @@ export const AppointmentFormScreen: React.FC = () => {
 
     const hideInSignedView =
       isReadOnly &&
-      entry.status === 'signed' &&
+      entry?.status === 'signed' &&
       (field.type === 'signature' || textIncludes(field.id, ['date']) || textIncludes(field.label, ['date']));
     if (hideInSignedView) {
       return null;
@@ -416,7 +415,7 @@ export const AppointmentFormScreen: React.FC = () => {
       const displayValue = renderValueForDisplay(field, value);
       const displayWithFallback =
         displayValue === '—' ? cleanPlaceholder((field as any).placeholder) ?? displayValue : displayValue;
-      const isCheckboxField = field.type === 'choice' || field.type === 'checkbox';
+      const isCheckboxField = field.type === 'checkbox';
       // Render checkbox as a locked checkbox instead of a text input
       if (isCheckboxField) {
         const options = (field as any).options ?? [];
@@ -425,7 +424,7 @@ export const AppointmentFormScreen: React.FC = () => {
         const resolvedValue =
           value !== undefined && value !== null && `${value}` !== ''
             ? value
-            : entry.status === 'signed'
+            : entry?.status === 'signed'
               ? true
               : false;
         const checked = Array.isArray(resolvedValue)
@@ -433,7 +432,7 @@ export const AppointmentFormScreen: React.FC = () => {
           : Boolean(resolvedValue);
         return (
           <View key={field.id} style={styles.fieldContainer}>
-            <Checkbox value={checked} onValueChange={() => {}} label={firstLabel} disabled />
+            <Checkbox value={checked} onValueChange={() => {}} label={firstLabel} />
           </View>
         );
       }
@@ -444,7 +443,7 @@ export const AppointmentFormScreen: React.FC = () => {
             label={cleanLabel(field.label)}
             value={displayWithFallback}
             editable={false}
-            multiline={field.type === 'textarea' || field.type === 'text'}
+            multiline={field.type === 'textarea'}
             inputStyle={field.type === 'textarea' ? styles.textArea : undefined}
             containerStyle={styles.readOnlyInputContainer}
           />
@@ -516,19 +515,21 @@ export const AppointmentFormScreen: React.FC = () => {
             <Text style={styles.helperText}>Signature will be captured during signing.</Text>
           </View>
         );
-      default:
+      default: {
+        const anyField = field as any;
         return (
-          <View key={field.id} style={styles.fieldContainer}>
+          <View key={anyField.id} style={styles.fieldContainer}>
             <Input
               label={labelText}
               value={value ?? ''}
-              placeholder={lockNonCheckboxInputs ? undefined : cleanPlaceholder((field as any).placeholder)}
-              onChangeText={text => handleChange(field.id, text)}
+              placeholder={lockNonCheckboxInputs ? undefined : cleanPlaceholder(anyField.placeholder)}
+              onChangeText={text => handleChange(anyField.id, text)}
               error={error}
               editable={!lockNonCheckboxInputs}
             />
           </View>
         );
+      }
     }
   };
 
@@ -560,7 +561,7 @@ export const AppointmentFormScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={{flex: 1}}
+      style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -649,7 +650,7 @@ const renderValueForDisplay = (field: FormField, value: any): string => {
   if (Array.isArray(value)) {
     return value.map(v => `${v}`).join(', ') || '—';
   }
-  if (field.type === 'choice' && !value) {
+  if (field.type === 'checkbox' && !value) {
     const options = (field as any).options;
     if (options?.length) {
       return options.map((o: any) => o.label ?? o.display ?? o.value ?? '').filter(Boolean).join(', ') || '—';
@@ -667,6 +668,9 @@ const renderValueForDisplay = (field: FormField, value: any): string => {
 const createStyles = (theme: any) => {
   const formStyles = createFormStyles(theme);
   return StyleSheet.create({
+    keyboardAvoidingView: {
+      flex: 1,
+    },
     container: {
       paddingBottom: theme.spacing['18'],
       paddingHorizontal: theme.spacing['2'],

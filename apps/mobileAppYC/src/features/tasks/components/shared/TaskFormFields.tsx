@@ -6,7 +6,7 @@ import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import {createTaskFormSectionStyles} from '@/features/tasks/components/shared/taskFormStyles';
-import type {TaskFormData, TaskFrequency} from '@/features/tasks/types';
+import type {TaskFrequency} from '@/features/tasks/types';
 
 interface TaskFormFieldsProps {
   formData: {
@@ -19,7 +19,6 @@ interface TaskFormFieldsProps {
     time?: string;
     frequency?: string;
   };
-  updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
   onOpenDatePicker: () => void;
   onOpenTimePicker: () => void;
   onOpenTaskFrequencySheet: () => void;
@@ -29,7 +28,6 @@ interface TaskFormFieldsProps {
 export const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
   formData,
   errors,
-  updateField,
   onOpenDatePicker,
   onOpenTimePicker,
   onOpenTaskFrequencySheet,

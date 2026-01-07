@@ -59,7 +59,6 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
       <TaskFormFields
         formData={{date: formData.date, time: formData.time, frequency: formData.frequency}}
         errors={{date: errors.date, time: errors.time, frequency: errors.frequency}}
-        updateField={updateField}
         onOpenDatePicker={onOpenDatePicker}
         onOpenTimePicker={onOpenTimePicker}
         onOpenTaskFrequencySheet={onOpenTaskFrequencySheet}

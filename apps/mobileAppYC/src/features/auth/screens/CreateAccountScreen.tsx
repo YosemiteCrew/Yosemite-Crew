@@ -1090,6 +1090,7 @@ const handleGoBack = useCallback(async () => {
             </CustomBottomSheet>
           </View>
         )}
+        <View pointerEvents="box-none" style={styles.countryBottomSheetPortal}>
           <CountryMobileBottomSheet
             ref={countryMobileRef}
             countries={COUNTRIES}
@@ -1097,6 +1098,7 @@ const handleGoBack = useCallback(async () => {
             mobileNumber={step1Data.mobileNumber}
             onSave={handleCountryMobileSave}
           />
+        </View>
         </>
       )}
     </LiquidGlassHeaderScreen>
@@ -1171,6 +1173,11 @@ const createStyles = (theme: any) =>
       zIndex: 9999,
       elevation: 9999,
       justifyContent: 'flex-end',
+    },
+    countryBottomSheetPortal: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 50,
+      elevation: 50,
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,

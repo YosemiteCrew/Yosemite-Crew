@@ -178,11 +178,11 @@ export const Input: React.FC<InputProps> = ({
   // for the placeholder text without affecting entered text alignment.
   const effectivePlaceholderOffset = placeholderOffset ?? 0;
   const placeholderLineHeight =
-    theme.typography.input.lineHeight ?? theme.typography.input.fontSize;
+    (theme.typography.input.lineHeight ?? theme.typography.input.fontSize) ?? 16;
   const placeholderTop =
     (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
   const labelLineHeight =
-    theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize;
+    (theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize) ?? 12;
   const floatingTop = -Math.round(labelLineHeight / 2) - 2;
 
   const getFloatingLabelStyle = () => {
@@ -198,7 +198,7 @@ export const Input: React.FC<InputProps> = ({
       fontWeight: theme.typography.input.fontWeight,
       fontSize: animatedValue.interpolate({
         inputRange: [0, 1],
-        outputRange: [theme.typography.input.fontSize, theme.typography.inputLabel.fontSize],
+        outputRange: [theme.typography.input.fontSize ?? 16, theme.typography.inputLabel.fontSize ?? 12],
       }),
       top: animatedValue.interpolate({
         inputRange: [0, 1],
