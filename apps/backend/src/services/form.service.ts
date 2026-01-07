@@ -22,6 +22,7 @@ import {
 } from "@yosemite-crew/types";
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import AppointmentModel from "src/models/appointment";
+import { DocumensoService, SignedDocument } from "./documenso.service";
 
 export class FormServiceError extends Error {
   constructor(
@@ -632,23 +633,41 @@ export const FormService = {
 
       // Optional FHIR QuestionnaireResponse
       const submission = submissionMap.get(formId);
-      const questionnaireResponse = submission
-        ? toFHIRQuestionnaireResponse(
-            {
-              _id: submission._id.toString(),
-              formId: submission.formId.toString(),
-              formVersion: submission.formVersion,
-              appointmentId: submission.appointmentId,
-              companionId: submission.companionId,
-              parentId: submission.parentId,
-              submittedBy: submission.submittedBy,
-              answers: submission.answers,
-              submittedAt: submission.submittedAt,
-              signing: submission.signing,
-            } satisfies FormSubmission,
-            version.schemaSnapshot,
-          )
-        : undefined;
+      let questionnaireResponse:
+        | ReturnType<typeof toFHIRQuestionnaireResponse>
+        | undefined = undefined;
+      if (submission) {
+        let signedPdfUrl: SignedDocument | undefined;
+
+        if (submission.signing?.documentId) {
+          signedPdfUrl = await DocumensoService.downloadSignedDocument(
+            Number.parseInt(submission.signing.documentId, 10),
+          );
+        }
+
+        questionnaireResponse = toFHIRQuestionnaireResponse(
+          {
+            _id: submission._id.toString(),
+            formId: submission.formId.toString(),
+            formVersion: submission.formVersion,
+            appointmentId: submission.appointmentId,
+            companionId: submission.companionId,
+            parentId: submission.parentId,
+            submittedBy: submission.submittedBy,
+            answers: submission.answers,
+            submittedAt: submission.submittedAt,
+            signing: submission.signing
+              ? {
+                  ...submission.signing,
+                  pdf: {
+                    url: signedPdfUrl?.downloadUrl, // 👈 dynamically injected
+                  },
+                }
+              : undefined,
+          } satisfies FormSubmission,
+          version.schemaSnapshot,
+        );
+      }
 
       items.push({
         questionnaire,

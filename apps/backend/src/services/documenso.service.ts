@@ -7,7 +7,7 @@ import logger from "src/utils/logger";
 const BASE_URL =
   process.env["DOCUMENSO_BASE_URL"] ?? "your-documenso-domain.com";
 
-const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? ""
+const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? "";
 const documenso = new Documenso({
   apiKey: API_KEY, // Ensure API key is set in environment variables
   serverURL: BASE_URL,
@@ -29,10 +29,10 @@ async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
 }
 
 export type SignedDocument = {
-  downloadUrl? :string;
+  downloadUrl?: string;
   filename?: string;
   contentType?: string;
-}
+};
 
 export class DocumensoService {
   static async createDocument({
@@ -100,7 +100,9 @@ export class DocumensoService {
     }
   }
 
-  static async downloadSignedDocument(documentId: number) : Promise<SignedDocument | undefined> {
+  static async downloadSignedDocument(
+    documentId: number,
+  ): Promise<SignedDocument | undefined> {
     try {
       const downloadResponse = await axios.get(
         `${BASE_URL}/document/${documentId}/download-beta`,
@@ -111,7 +113,7 @@ export class DocumensoService {
           headers: {
             Authorization: API_KEY,
           },
-        }
+        },
       );
 
       const signeDocument = downloadResponse.data as SignedDocument;

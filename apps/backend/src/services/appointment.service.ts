@@ -237,6 +237,20 @@ export const AppointmentService = {
       savedAppointment._id.toString(),
     );
 
+    if (
+      service.serviceType === "OBSERVATION_TOOL" &&
+      service.observationToolId
+    ) {
+      await createObservationToolTaskForAppointment({
+        appointmentId: savedAppointment._id.toString(),
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+        parentId: appointment.companion.parent.id,
+        observationToolId: service.observationToolId._id.toString(),
+        appointmentStartTime: appointment.startTime,
+      });
+    }
+
     return {
       appointment: toAppointmentResponseDTO(toDomain(savedAppointment)),
       paymentIntent,
