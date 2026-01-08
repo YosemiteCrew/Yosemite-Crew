@@ -6,7 +6,7 @@ jest.mock("../../src/models/deviceToken", () => ({
     updateOne: jest.fn(),
     find: jest.fn(),
     deleteOne: jest.fn(),
-  },
+  },    
 }));
 
 const mockedDeviceTokenModel = DeviceTokenModel as unknown as {
