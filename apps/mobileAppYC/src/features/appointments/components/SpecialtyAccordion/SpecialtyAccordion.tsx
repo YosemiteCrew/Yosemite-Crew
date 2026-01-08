@@ -166,7 +166,7 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     parentTitle: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.sectionHeading,
       color: theme.colors.secondary,
     },
     specialtiesList: {

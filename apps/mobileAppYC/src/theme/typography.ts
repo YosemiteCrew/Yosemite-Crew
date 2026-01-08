@@ -305,6 +305,22 @@ export const typography = {
     letterSpacing: 0,
   },
 
+  // Mobile specific styles
+  mobileBodyEmphasis: {
+    fontFamily: fonts.SATOSHI_MEDIUM,
+    fontSize: fontSizes['17'],
+    lineHeight: 22,
+    fontWeight: fontWeights.medium,
+    letterSpacing: 0,
+  },
+  mobileFootnote: {
+    fontFamily: fonts.SATOSHI_REGULAR,
+    fontSize: fontSizes['13'],
+    lineHeight: 20,
+    fontWeight: fontWeights.normal,
+    letterSpacing: 0,
+  },
+
   // Font family helpers for legacy usage
   SATOSHI_BOLD: fonts.SATOSHI_BOLD,
   SATOSHI_REGULAR: fonts.SATOSHI_REGULAR,

@@ -146,10 +146,10 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     name: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.mobileBodyEmphasis,
       color: theme.colors.secondary,
       marginBottom: theme.spacing['3.5'],
-      lineHeight: 22,
+      overflow: 'hidden',
     },
     openHours: {
       ...theme.typography.subtitleBold14,
@@ -174,31 +174,33 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     metaText: {
-      ...theme.typography.titleSmall,
+      ...theme.typography.mobileFootnote,
       color: theme.colors.secondary,
-      lineHeight: theme.spacing['4'],
+      overflow: 'hidden',
     },
     addressRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: theme.spacing['2'],
       marginBottom: theme.spacing['3.5'],
     },
     addressText: {
-      ...theme.typography.inputLabel,
+      ...theme.typography.mobileFootnote,
       color: theme.colors.secondary,
       flex: 1,
+      overflow: 'hidden',
     },
     websiteRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: theme.spacing['2'],
       marginBottom: theme.spacing['3.5'],
     },
     websiteText: {
-      ...theme.typography.inputLabel,
+      ...theme.typography.mobileFootnote,
       color: theme.colors.secondary,
       flex: 1,
+      overflow: 'hidden',
     },
     meta: {
       ...theme.typography.body14,
