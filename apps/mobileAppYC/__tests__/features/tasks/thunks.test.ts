@@ -80,6 +80,13 @@ describe('features/tasks/thunks', () => {
   // 1. fetchTasksForCompanion
   // ===========================================================================
   describe('fetchTasksForCompanion', () => {
+    beforeEach(() => {
+      // Mock getState to return proper state for condition checks
+      mockGetState.mockReturnValue({
+        tasks: { loading: false }
+      });
+    });
+
     it('success: returns data with empty tasks list', async () => {
       mockTaskApi.list.mockResolvedValue([]);
       const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
