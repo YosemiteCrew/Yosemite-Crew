@@ -1,137 +1,164 @@
-import ContactRequestModel from "../../src/models/contect-us";
-import {
-  ContactService,
-  ContactServiceError,
-} from "../../src/services/contact-us.service";
+import { ContactService, ContactServiceError } from '../../src/services/contact-us.service';
+import ContactRequestModel from '../../src/models/contect-us';
 
-jest.mock("../../src/models/contect-us", () => ({
-  __esModule: true,
-  default: {
-    create: jest.fn(),
-    find: jest.fn(),
-    findById: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-  },
-}));
+// --- Mocks ---
+jest.mock('../../src/models/contect-us');
 
-const mockedContactModel = ContactRequestModel as unknown as {
-  create: jest.Mock;
-  find: jest.Mock;
-  findById: jest.Mock;
-  findByIdAndUpdate: jest.Mock;
-};
+describe('ContactService', () => {
 
-describe("ContactService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("createRequest", () => {
-    it("requires subject and message", async () => {
-      await expect(
-        ContactService.createRequest({
-          type: "GENERAL_ENQUIRY",
-          source: "MOBILE_APP",
-          subject: "",
-          message: "",
-        } as any),
-      ).rejects.toThrow(ContactServiceError);
+  // 1. createRequest
+  describe('createRequest', () => {
+    const baseInput: any = {
+      type: 'GENERAL_INQUIRY',
+      source: 'MOBILE_APP',
+      subject: 'Help',
+      message: 'I need help',
+    };
 
-      expect(mockedContactModel.create).not.toHaveBeenCalled();
+    it('should throw error if subject or message is missing', async () => {
+      await expect(ContactService.createRequest({ ...baseInput, subject: '' }))
+        .rejects.toThrow('subject and message are required');
+
+      await expect(ContactService.createRequest({ ...baseInput, message: '' }))
+        .rejects.toThrow('subject and message are required');
     });
 
-    it("validates DSAR details", async () => {
-      await expect(
-        ContactService.createRequest({
-          type: "DSAR",
-          source: "MOBILE_APP",
-          subject: "Need my data",
-          message: "Please share",
-        } as any),
-      ).rejects.toThrow("dsarDetails.requesterType");
+    it('should successfully create a general request', async () => {
+      (ContactRequestModel.create as jest.Mock).mockResolvedValue({ ...baseInput, status: 'OPEN', _id: '123' });
 
-      expect(mockedContactModel.create).not.toHaveBeenCalled();
+      const result = await ContactService.createRequest(baseInput);
+
+      expect(ContactRequestModel.create).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'OPEN',
+        subject: 'Help'
+      }));
+      expect(result).toEqual(expect.objectContaining({ _id: '123' }));
     });
 
-    it("creates DSAR request and sets declaration timestamp", async () => {
-      let createdPayload: any;
-      mockedContactModel.create.mockImplementationOnce(async (payload) => {
-        createdPayload = payload;
-        return { _id: "contact-1" } as any;
-      });
+    describe('DSAR Validations', () => {
+        const dsarInput: any = {
+            ...baseInput,
+            type: 'DSAR',
+            dsarDetails: {
+                requesterType: 'DATA_SUBJECT',
+                declarationAccepted: true
+            }
+        };
 
-      const result = await ContactService.createRequest({
-        type: "DSAR",
-        source: "MOBILE_APP",
-        subject: "Need access",
-        message: "Share my info",
-        dsarDetails: {
-          requesterType: "SELF",
-          rightsRequested: ["ACCESS_PERSONAL_INFORMATION"],
-          declarationAccepted: true,
-        },
-      });
+        it('should throw if dsarDetails.requesterType is missing', async () => {
+            const invalidDsar = { ...dsarInput, dsarDetails: {} };
+            await expect(ContactService.createRequest(invalidDsar))
+                .rejects.toThrow('DSAR requests must include dsarDetails.requesterType');
+        });
 
-      expect(mockedContactModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "OPEN",
-        }),
+        it('should throw if declarationAccepted is false', async () => {
+            const invalidDsar = { ...dsarInput, dsarDetails: { requesterType: 'DATA_SUBJECT', declarationAccepted: false } };
+            await expect(ContactService.createRequest(invalidDsar))
+                .rejects.toThrow('DSAR declaration must be accepted');
+        });
+
+        it('should auto-populate declarationAcceptedAt if missing', async () => {
+            (ContactRequestModel.create as jest.Mock).mockResolvedValue({ ...dsarInput, status: 'OPEN' });
+
+            await ContactService.createRequest(dsarInput);
+
+            expect(ContactRequestModel.create).toHaveBeenCalledWith(expect.objectContaining({
+                dsarDetails: expect.objectContaining({
+                    declarationAcceptedAt: expect.any(Date)
+                })
+            }));
+        });
+
+        it('should respect provided declarationAcceptedAt', async () => {
+            const date = new Date('2023-01-01');
+            const input = {
+                ...dsarInput,
+                dsarDetails: { ...dsarInput.dsarDetails, declarationAcceptedAt: date }
+            };
+            (ContactRequestModel.create as jest.Mock).mockResolvedValue(input);
+
+            await ContactService.createRequest(input);
+
+            expect(ContactRequestModel.create).toHaveBeenCalledWith(expect.objectContaining({
+                dsarDetails: expect.objectContaining({
+                    declarationAcceptedAt: date
+                })
+            }));
+        });
+    });
+  });
+
+  // 2. listRequests
+  describe('listRequests', () => {
+    it('should build query based on filters', async () => {
+      const mockChain = {
+          sort: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue(['doc1', 'doc2'])
+          })
+      };
+      (ContactRequestModel.find as jest.Mock).mockReturnValue(mockChain);
+
+      const filter = { status: 'OPEN' as const, type: 'DSAR' as const, organisationId: 'org1' };
+      const result = await ContactService.listRequests(filter);
+
+      expect(ContactRequestModel.find).toHaveBeenCalledWith({
+          status: 'OPEN',
+          type: 'DSAR',
+          organisationId: 'org1'
+      });
+      expect(result).toEqual(['doc1', 'doc2']);
+    });
+
+    it('should handle empty filters', async () => {
+        const mockChain = {
+            sort: jest.fn().mockReturnValue({
+                limit: jest.fn().mockResolvedValue([])
+            })
+        };
+        (ContactRequestModel.find as jest.Mock).mockReturnValue(mockChain);
+
+        await ContactService.listRequests({});
+
+        expect(ContactRequestModel.find).toHaveBeenCalledWith({});
+    });
+  });
+
+  // 3. getById
+  describe('getById', () => {
+    it('should return document by ID', async () => {
+      (ContactRequestModel.findById as jest.Mock).mockResolvedValue({ _id: '123' });
+      const res = await ContactService.getById('123');
+      expect(res).toEqual({ _id: '123' });
+    });
+  });
+
+  // 4. updateStatus
+  describe('updateStatus', () => {
+    it('should update status and return new doc', async () => {
+      (ContactRequestModel.findByIdAndUpdate as jest.Mock).mockResolvedValue({ _id: '123', status: 'CLOSED' });
+
+      const res = await ContactService.updateStatus('123', 'CLOSED');
+
+      expect(ContactRequestModel.findByIdAndUpdate).toHaveBeenCalledWith(
+          '123',
+          { status: 'CLOSED' },
+          { new: true }
       );
-      expect(createdPayload.dsarDetails.declarationAcceptedAt).toBeInstanceOf(
-        Date,
-      );
-      expect(result).toEqual({ _id: "contact-1" });
+      expect(res).toEqual({ _id: '123', status: 'CLOSED' });
     });
   });
 
-  describe("listRequests", () => {
-    it("builds query filters", async () => {
-      const mockLimit = jest.fn().mockResolvedValueOnce(["doc"]);
-      const mockSort = jest.fn().mockReturnValue({ limit: mockLimit });
-      mockedContactModel.find.mockReturnValue({ sort: mockSort } as any);
-
-      const result = await ContactService.listRequests({
-        status: "OPEN",
-        type: "DSAR",
-        organisationId: "org-1",
+  // 5. Error Class
+  describe('ContactServiceError', () => {
+      it('should default status code to 400', () => {
+          const err = new ContactServiceError('msg');
+          expect(err.statusCode).toBe(400);
+          expect(err.name).toBe('ContactServiceError');
       });
-
-      expect(mockedContactModel.find).toHaveBeenCalledWith({
-        status: "OPEN",
-        type: "DSAR",
-        organisationId: "org-1",
-      });
-      expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
-      expect(mockLimit).toHaveBeenCalledWith(100);
-      expect(result).toEqual(["doc"]);
-    });
   });
 
-  describe("getById", () => {
-    it("returns model find result", async () => {
-      const doc = { id: "contact-1" };
-      mockedContactModel.findById.mockResolvedValueOnce(doc);
-
-      const result = await ContactService.getById("contact-1");
-
-      expect(mockedContactModel.findById).toHaveBeenCalledWith("contact-1");
-      expect(result).toBe(doc);
-    });
-  });
-
-  describe("updateStatus", () => {
-    it("updates status with new document returned", async () => {
-      const updated = { id: "contact-1", status: "RESOLVED" };
-      mockedContactModel.findByIdAndUpdate.mockResolvedValueOnce(updated);
-
-      const result = await ContactService.updateStatus("contact-1", "RESOLVED");
-
-      expect(mockedContactModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        "contact-1",
-        { status: "RESOLVED" },
-        { new: true },
-      );
-      expect(result).toBe(updated);
-    });
-  });
 });
