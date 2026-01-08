@@ -138,10 +138,7 @@ export function buildPdfViewModel({
   };
 }
 
-const templatePath = path.join(
-  process.cwd(),
-  "src/utils/formPDFTemplate.html",
-);
+const templatePath = path.join(process.cwd(), "src/utils/formPDFTemplate.html");
 
 function renderSections(vm: PdfViewModel): string {
   return vm.sections
@@ -200,7 +197,5 @@ export async function generateFormSubmissionPdf({
   answers: Record<string, unknown>;
   submittedAt: Date;
 }): Promise<Buffer> {
-  return renderPdf(
-    buildPdfViewModel({ title, schema, answers, submittedAt }),
-  );
+  return renderPdf(buildPdfViewModel({ title, schema, answers, submittedAt }));
 }

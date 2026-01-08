@@ -59,13 +59,15 @@ export type Appointment = {
     key?: string;
     name?: string;
     contentType?: string;
-  }[]
+  }[];
+  formIds?: string[];      // IDs of any forms associated with the appointment
 };
 
 const BREED_SYSTEM_URL = 'http://hl7.org/fhir/animal-breed'
 const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency'
 const EXT_APPOINTMENT_ATTACHMENTS = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments"
 const EXT_LEAD_PROFILE_URL = "https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url"
+const EXT_APPOINTMENT_FORM_IDS = "https://yosemitecrew.com/fhir/StructureDefinition/appointment-form-id"
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
@@ -90,7 +92,7 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
         display: appointment.lead?.name
       },
       status: appointment.status,
-      type: [{coding: [{code: 'PPRF', system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', display: 'primary performer'}]}],
+      type: [{coding: [{code: 'PPRF', system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', display: 'appointment lead'}]}],
       extension: appointment.lead?.profileUrl
         ? [{ url: EXT_LEAD_PROFILE_URL, valueString: appointment.lead.profileUrl }]
         : undefined
@@ -178,17 +180,27 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   }
 
   if (appointment.attachments?.length) {
-  appointment.attachments.forEach(att => {
-    extension.push({
-      url: EXT_APPOINTMENT_ATTACHMENTS,
-      extension: [
-        { url: "key", valueString: att.key },
-        { url: "name", valueString: att.name },
-        { url: "contentType", valueString: att.contentType }
-      ]
+    appointment.attachments.forEach(att => {
+      extension.push({
+        url: EXT_APPOINTMENT_ATTACHMENTS,
+        extension: [
+          { url: "key", valueString: att.key },
+          { url: "name", valueString: att.name },
+          { url: "contentType", valueString: att.contentType }
+        ]
+      });
     });
-  });
-}
+  }
+
+  if (appointment.formIds?.length) {
+    appointment.formIds.forEach((formId) => {
+      if (!formId) return
+      extension.push({
+        url: EXT_APPOINTMENT_FORM_IDS,
+        valueString: formId
+      })
+    })
+  }
 
   const fhirAppointment: FHIRAppointment = {
     resourceType: "Appointment",
@@ -238,6 +250,12 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
       return { key, name, contentType };
     }) || [];
 
+  const formIds =
+    FHIRappointment.extension
+      ?.filter((ext) => ext.url === EXT_APPOINTMENT_FORM_IDS)
+      .map((ext) => ext.valueString!)
+      .filter(Boolean) || [];
+
   // Construct internal Appointment object
   const appointment: Appointment = {
     id: FHIRappointment.id ?? "",
@@ -286,7 +304,8 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
       }
     },
     isEmergency: emergencyExtension?.valueBoolean,
-    attachments
+    attachments,
+    formIds
   }
 
   return appointment;

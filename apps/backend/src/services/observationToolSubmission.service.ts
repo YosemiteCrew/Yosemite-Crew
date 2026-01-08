@@ -37,10 +37,7 @@ const assertObjectId = (value: unknown, field: string): string => {
     trimmed.includes(".") ||
     (!Types.ObjectId.isValid(trimmed) && !SAFE_ID_FALLBACK.test(trimmed))
   ) {
-    throw new ObservationToolSubmissionServiceError(
-      `Invalid ${field}`,
-      400,
-    );
+    throw new ObservationToolSubmissionServiceError(`Invalid ${field}`, 400);
   }
 
   return trimmed;
@@ -251,9 +248,8 @@ export const ObservationToolSubmissionService = {
     const submissionId = assertObjectId(input.submissionId, "submissionId");
     const appointmentId = assertObjectId(input.appointmentId, "appointmentId");
 
-    const doc = await ObservationToolSubmissionModel.findById(
-      submissionId,
-    ).exec();
+    const doc =
+      await ObservationToolSubmissionModel.findById(submissionId).exec();
 
     if (!doc) {
       throw new ObservationToolSubmissionServiceError(
@@ -459,7 +455,7 @@ export const ObservationToolSubmissionService = {
           submittedAt: submission?.createdAt,
           score: submission?.score,
           summary: submission?.summary,
-          evaluationAppointmentId: submission?.evaluationAppointmentId
+          evaluationAppointmentId: submission?.evaluationAppointmentId,
         },
       ];
     });
