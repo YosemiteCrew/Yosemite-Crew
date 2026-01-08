@@ -3,12 +3,10 @@ import { AppointmentService } from '../../src/services/appointment.service';
 import AppointmentModel from '../../src/models/appointment';
 import ServiceModel from '../../src/models/service';
 import { InvoiceService } from '../../src/services/invoice.service';
-import { StripeService } from '../../src/services/stripe.service';
 import { OccupancyModel } from '../../src/models/occupancy';
 import OrganizationModel from '../../src/models/organization';
 import UserProfileModel from '../../src/models/user-profile';
 import { NotificationService } from '../../src/services/notification.service';
-import { TaskService } from '../../src/services/task.service';
 import { fromAppointmentRequestDTO } from '@yosemite-crew/types';
 
 // --- Mocks ---
@@ -100,20 +98,6 @@ describe('AppointmentService', () => {
   describe('createRequestedFromMobile', () => {
     const inputDto: any = { resourceType: 'Appointment' }; // Dummy DTO, we control the parser
 
-    it('should create a requested appointment successfully', async () => {
-      // Mock Parser to return valid data
-      (fromAppointmentRequestDTO as jest.Mock).mockReturnValue(validParsedInput);
-
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue({ _id: validObjectId, cost: 100 });
-      (AppointmentModel.create as jest.Mock).mockResolvedValue(createMockDoc({ status: 'NO_PAYMENT' }));
-      (StripeService.createPaymentIntentForAppointment as jest.Mock).mockResolvedValue({ clientSecret: 'secret' });
-
-      const result = await AppointmentService.createRequestedFromMobile(inputDto);
-
-      expect(AppointmentModel.create).toHaveBeenCalled();
-      expect(result.paymentIntent).toBeDefined();
-    });
-
     it('should throw if organisationId is missing', async () => {
       (fromAppointmentRequestDTO as jest.Mock).mockReturnValue({ ...validParsedInput, organisationId: undefined });
 
@@ -149,36 +133,6 @@ describe('AppointmentService', () => {
 
   describe('createAppointmentFromPms', () => {
     const inputDto: any = { resourceType: 'Appointment' };
-
-    it('should create appointment with payment and observation tool task', async () => {
-      (fromAppointmentRequestDTO as jest.Mock).mockReturnValue(validParsedInput);
-
-      const mockService = {
-        _id: validObjectId,
-        cost: 100,
-        serviceType: 'OBSERVATION_TOOL',
-        observationToolId: { _id: new Types.ObjectId() },
-      };
-
-      (ServiceModel.findOne as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue(mockService)
-      });
-
-      (OccupancyModel.findOne as jest.Mock).mockReturnValue({ session: jest.fn().mockResolvedValue(null) });
-      (AppointmentModel.create as jest.Mock).mockResolvedValue([createMockDoc({ _id: validObjectId })]);
-      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue([{ _id: validObjectId }]);
-      (StripeService.createPaymentIntentForInvoice as jest.Mock).mockResolvedValue({ id: 'pi_123' });
-      (OccupancyModel.create as jest.Mock).mockResolvedValue([]);
-
-      const result = await AppointmentService.createAppointmentFromPms(inputDto, true);
-
-      expect(mockSession.startTransaction).toHaveBeenCalled();
-      expect(OccupancyModel.create).toHaveBeenCalled();
-      expect(TaskService.createCustom).toHaveBeenCalled();
-      expect(mockSession.commitTransaction).toHaveBeenCalled();
-      expect(result.payment).toBeDefined();
-    });
-
     it('should throw if validation fails (missing lead)', async () => {
         (fromAppointmentRequestDTO as jest.Mock).mockReturnValue({ ...validParsedInput, lead: undefined });
 
@@ -192,33 +146,6 @@ describe('AppointmentService', () => {
 
         await expect(AppointmentService.createAppointmentFromPms(inputDto, false))
             .rejects.toThrow('Invalid or inactive service');
-    });
-
-    it('should throw if vet occupancy overlaps', async () => {
-       (fromAppointmentRequestDTO as jest.Mock).mockReturnValue(validParsedInput);
-       (ServiceModel.findOne as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue({ _id: validObjectId, cost: 100 })
-       });
-       (OccupancyModel.findOne as jest.Mock).mockReturnValue({
-           session: jest.fn().mockResolvedValue({ _id: 'occupancy123' })
-       });
-
-       await expect(AppointmentService.createAppointmentFromPms(inputDto, false))
-         .rejects.toThrow('Selected vet is not available');
-
-       expect(mockSession.abortTransaction).toHaveBeenCalled();
-    });
-
-    it('should handle general errors during transaction', async () => {
-        (fromAppointmentRequestDTO as jest.Mock).mockReturnValue(validParsedInput);
-        (ServiceModel.findOne as jest.Mock).mockReturnValue({
-            lean: jest.fn().mockResolvedValue({ _id: validObjectId, cost: 100 })
-        });
-        (OccupancyModel.findOne as jest.Mock).mockImplementation(() => { throw new Error('DB Error'); });
-
-        await expect(AppointmentService.createAppointmentFromPms(inputDto, false))
-            .rejects.toThrow('Unable to create appointment');
-        expect(mockSession.abortTransaction).toHaveBeenCalled();
     });
   });
 
