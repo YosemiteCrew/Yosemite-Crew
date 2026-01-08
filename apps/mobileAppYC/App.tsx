@@ -34,18 +34,21 @@ import {
   initializeNotifications,
   type NotificationNavigationIntent,
 } from '@/shared/services/firebaseNotifications';
-import {
-  fetchMobileConfig,
-  isProductionMobileEnv,
-  type MobileConfig,
-} from '@/shared/services/mobileConfig';
+import {fetchMobileConfig, isProductionMobileEnv, type MobileConfig} from '@/shared/services/mobileConfig';
 import {
   registerDeviceToken,
   unregisterDeviceToken,
 } from '@/shared/services/deviceTokenRegistry';
 import {useAppDispatch} from '@/app/hooks';
 import type {RootStackParamList} from '@/navigation/types';
-import {AUTH_FEATURE_FLAGS, STRIPE_CONFIG} from '@/config/variables';
+import {
+  API_CONFIG,
+  AUTH_FEATURE_FLAGS,
+  MOBILE_CONFIG_BEHAVIOR,
+  STRIPE_CONFIG,
+  UI_FEATURE_FLAGS,
+} from '@/config/variables';
+import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
 Amplify.configure(outputs);
@@ -53,6 +56,33 @@ Amplify.configure(outputs);
 LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
 ]);
+
+const coerceBooleanFlag = (value: boolean | string | null | undefined): boolean => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+  return false;
+};
+
+const resolveApiBaseUrlForEnv = (env?: MobileConfig['env']): string => {
+  if (isProductionMobileEnv(env)) {
+    return 'https://api.yosemitecrew.com';
+  }
+  return 'https://devapi.yosemitecrew.com';
+};
+
+const shouldDisableReviewLogin = (env?: MobileConfig['env']): boolean => {
+  return isProductionMobileEnv(env);
+};
 
 
   // const noop = () => {};
@@ -78,11 +108,49 @@ function App(): React.JSX.Element {
 
     const loadMobileConfig = async () => {
       try {
-        const config = await fetchMobileConfig();
-        if (mounted) {
-          if (isProductionMobileEnv(config.env)) {
+        console.log('[MobileConfig] Loading mobile config…', {
+          skipRemoteFetch: MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch,
+          hasOverride: Boolean(MOBILE_CONFIG_BEHAVIOR.override),
+        });
+
+        let config: MobileConfig | null = null;
+
+        if (!MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch) {
+          config = await fetchMobileConfig();
+        }
+
+        if (MOBILE_CONFIG_BEHAVIOR.override) {
+          config = {
+            ...(config ?? {}),
+            ...MOBILE_CONFIG_BEHAVIOR.override,
+          } as MobileConfig;
+        }
+
+        if (config && mounted) {
+          const resolvedBaseUrl = resolveApiBaseUrlForEnv(config.env);
+          API_CONFIG.baseUrl = resolvedBaseUrl;
+          API_CONFIG.pmsBaseUrl = resolvedBaseUrl;
+          updateApiClientBaseConfig({
+            baseUrl: resolvedBaseUrl,
+            timeoutMs: API_CONFIG.timeoutMs,
+          });
+
+          if (shouldDisableReviewLogin(config.env)) {
             AUTH_FEATURE_FLAGS.enableReviewLogin = false;
           }
+
+          UI_FEATURE_FLAGS.forceLiquidGlassBorder = coerceBooleanFlag(
+            config.forceLiquidGlassBorder ?? UI_FEATURE_FLAGS.forceLiquidGlassBorder,
+          );
+
+          console.log('[MobileConfig] Applied config', {
+            env: config.env,
+            baseUrl: API_CONFIG.baseUrl,
+            enableReviewLogin: AUTH_FEATURE_FLAGS.enableReviewLogin,
+            forceLiquidGlassBorder: UI_FEATURE_FLAGS.forceLiquidGlassBorder,
+            stripeKeyPresent: Boolean(config.stripePublishableKey),
+          });
+
           setMobileConfig(config);
         }
       } catch (error) {

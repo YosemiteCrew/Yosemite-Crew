@@ -62,6 +62,23 @@ export interface UiFeatureFlags {
   forceLiquidGlassBorder: boolean;
 }
 
+export interface MobileConfigBehavior {
+  /**
+   * When true, skip hitting the remote mobile-config endpoint (useful for local development).
+   */
+  skipRemoteFetch: boolean;
+  /**
+   * Optional override values to layer on top of (or replace) the remote mobile-config response.
+   */
+  override?: {
+    env?: string;
+    enablePayments?: boolean;
+    stripePublishableKey?: string;
+    sentryDsn?: string;
+    forceLiquidGlassBorder?: boolean | string;
+  };
+}
+
 // Default/test configuration (safe for CI/CD)
 const DEFAULT_PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   profileServiceUrl: '',
@@ -108,6 +125,11 @@ const DEFAULT_UI_FEATURE_FLAGS: UiFeatureFlags = {
   forceLiquidGlassBorder: false,
 };
 
+const DEFAULT_MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
+  skipRemoteFetch: false,
+  override: undefined,
+};
+
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
 let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
 let apiOverrides: Partial<ApiConfig> | undefined;
@@ -116,6 +138,7 @@ let stripeOverrides: Partial<StripeConfig> | undefined;
 let authFlagsOverrides: Partial<AuthFeatureFlags> | undefined;
 let demoLoginOverrides: Partial<DemoLoginConfig> | undefined;
 let uiFlagsOverrides: Partial<UiFeatureFlags> | undefined;
+let mobileConfigBehaviorOverrides: Partial<MobileConfigBehavior> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
@@ -157,6 +180,9 @@ try {
   }
   if (localConfig.UI_FEATURE_FLAGS) {
     uiFlagsOverrides = localConfig.UI_FEATURE_FLAGS;
+  }
+  if (localConfig.MOBILE_CONFIG_BEHAVIOR) {
+    mobileConfigBehaviorOverrides = localConfig.MOBILE_CONFIG_BEHAVIOR;
   }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
@@ -210,6 +236,11 @@ export const DEMO_LOGIN_CONFIG: DemoLoginConfig = {
 export const UI_FEATURE_FLAGS: UiFeatureFlags = {
   ...DEFAULT_UI_FEATURE_FLAGS,
   ...uiFlagsOverrides,
+};
+
+export const MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
+  ...DEFAULT_MOBILE_CONFIG_BEHAVIOR,
+  ...mobileConfigBehaviorOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

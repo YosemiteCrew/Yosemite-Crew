@@ -139,11 +139,15 @@ const buildFallbackSurfaceStyle = ({
   isDark,
   borderColor,
   isLightTint,
+  shadowIntensity,
+  themeShadows,
 }: {
   tintColor?: string;
   isDark: boolean;
   borderColor?: string;
   isLightTint: boolean;
+  shadowIntensity: GlassButtonProps['shadowIntensity'];
+  themeShadows: any;
 }): ViewStyle => {
   // For white-ish buttons, use pure white (not translucent)
   let backgroundColor: string;
@@ -173,6 +177,7 @@ const buildFallbackSurfaceStyle = ({
     backgroundColor,
     borderWidth: 1,
     borderColor: computedBorderColor,
+    ...buildShadowStyle(shadowIntensity, themeShadows),
   };
 };
 
@@ -416,6 +421,8 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
       isDark,
       borderColor: forcedBorderColor,
       isLightTint,
+      shadowIntensity,
+      themeShadows: theme.shadows,
     });
   }, [
     forcedBorderColor,

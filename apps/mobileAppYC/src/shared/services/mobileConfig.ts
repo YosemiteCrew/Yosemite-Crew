@@ -1,4 +1,6 @@
-import client from './apiClient';
+import axios from 'axios';
+
+const MOBILE_CONFIG_URL = 'https://api.yosemitecrew.com/v1/mobile-config/';
 
 export type MobileEnv =
   | 'dev'
@@ -12,6 +14,10 @@ export interface MobileConfig {
   enablePayments: boolean;
   stripePublishableKey?: string;
   sentryDsn?: string;
+  /**
+   * Forces a 1px black outline on all liquid glass surfaces (cards/buttons) to aid visibility.
+   */
+  forceLiquidGlassBorder?: boolean | string;
 }
 
 export const isProductionMobileEnv = (env?: MobileEnv | string | null): boolean => {
@@ -22,7 +28,17 @@ export const isProductionMobileEnv = (env?: MobileEnv | string | null): boolean 
   return normalized === 'prod' || normalized === 'production';
 };
 
+export const isDevelopmentMobileEnv = (env?: MobileEnv | string | null): boolean => {
+  if (!env) {
+    return false;
+  }
+  const normalized = String(env).toLowerCase();
+  return normalized === 'dev' || normalized === 'development';
+};
+
 export const fetchMobileConfig = async (): Promise<MobileConfig> => {
-  const response = await client.get<MobileConfig>('/v1/mobile-config/');
+  console.log('[MobileConfig] Fetching config from', MOBILE_CONFIG_URL);
+  const response = await axios.get<MobileConfig>(MOBILE_CONFIG_URL);
+  console.log('[MobileConfig] Config response', response.status, response.data);
   return response.data;
 };
