@@ -13,6 +13,12 @@ import {
   type AppointmentRequestDTO,
 } from "@yosemite-crew/types";
 
+jest.mock("src/services/form.service", () => ({
+  FormService: {
+    getConsentFormForParent: jest.fn(),
+  },
+}));
+
 jest.mock("src/models/appointment", () => ({
   __esModule: true,
   default: {
@@ -76,6 +82,11 @@ const mockedStripe = StripeService as unknown as {
   createPaymentIntentForAppointment: jest.Mock;
 };
 
+const mockedFormService = jest.requireMock("src/services/form.service")
+  .FormService as {
+  getConsentFormForParent: jest.Mock;
+};
+
 const mockedOrganizationModel = jest.requireMock("src/models/organization")
   .default as {
   find: jest.Mock;
@@ -119,6 +130,7 @@ describe("AppointmentService", () => {
           name: "Consult",
         },
       });
+      mockedFormService.getConsentFormForParent.mockResolvedValueOnce(null);
       mockedServiceModel.findOne.mockResolvedValueOnce({
         cost: 100,
         maxDiscount: null,
