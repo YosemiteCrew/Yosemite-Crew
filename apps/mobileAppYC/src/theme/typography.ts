@@ -281,7 +281,13 @@ export const typography = {
   inputError: bodySmallBold,
 
   // Navigation / tabs
-  tabLabel: bodySmallMedium,
+  tabLabel: {
+    fontFamily: fonts.SATOSHI_REGULAR,
+    fontSize: fontSizes['13'],
+    lineHeight: Math.round(fontSizes['13'] * 1.2), // 15.6px (120%)
+    fontWeight: fontWeights.normal,
+    letterSpacing: 0,
+  },
   tabLabelFocused: bodySmallBold,
 
   // Subtitles / helper text

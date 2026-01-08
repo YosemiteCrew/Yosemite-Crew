@@ -401,7 +401,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
     label: {
       ...theme.typography.tabLabel,
       textAlign: 'center',
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
       maxWidth: '100%',
     },
     labelActive: {
@@ -410,7 +410,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
     },
     labelInactive: {
       ...theme.typography.tabLabel,
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
     },
     iconImage: {
       width: theme.spacing['5'],
