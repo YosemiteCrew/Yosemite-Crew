@@ -37,8 +37,6 @@ export const isDevelopmentMobileEnv = (env?: MobileEnv | null): boolean => {
 };
 
 export const fetchMobileConfig = async (): Promise<MobileConfig> => {
-  console.log('[MobileConfig] Fetching config from', MOBILE_CONFIG_URL);
   const response = await axios.get<MobileConfig>(MOBILE_CONFIG_URL);
-  console.log('[MobileConfig] Config response', response.status, response.data);
   return response.data;
 };

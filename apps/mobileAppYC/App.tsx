@@ -85,11 +85,11 @@ const shouldDisableReviewLogin = (env?: MobileConfig['env']): boolean => {
 };
 
 
-  // const noop = () => {};
-  // console.log = noop;
-  // console.info = noop;
-  // console.debug = noop;
-  // console.trace = noop;
+  const noop = () => {};
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.trace = noop;
 
 
 function App(): React.JSX.Element {
@@ -108,10 +108,10 @@ function App(): React.JSX.Element {
 
     const loadMobileConfig = async () => {
       try {
-        console.log('[MobileConfig] Loading mobile config…', {
-          skipRemoteFetch: MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch,
-          hasOverride: Boolean(MOBILE_CONFIG_BEHAVIOR.override),
-        });
+        // console.log('[MobileConfig] Loading mobile config…', {
+        //   skipRemoteFetch: MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch,
+        //   hasOverride: Boolean(MOBILE_CONFIG_BEHAVIOR.override),
+        // });
 
         let config: MobileConfig | null = null;
 
@@ -143,13 +143,13 @@ function App(): React.JSX.Element {
             config.forceLiquidGlassBorder ?? UI_FEATURE_FLAGS.forceLiquidGlassBorder,
           );
 
-          console.log('[MobileConfig] Applied config', {
-            env: config.env,
-            baseUrl: API_CONFIG.baseUrl,
-            enableReviewLogin: AUTH_FEATURE_FLAGS.enableReviewLogin,
-            forceLiquidGlassBorder: UI_FEATURE_FLAGS.forceLiquidGlassBorder,
-            stripeKeyPresent: Boolean(config.stripePublishableKey),
-          });
+          // console.log('[MobileConfig] Applied config', {
+          //   env: config.env,
+          //   baseUrl: API_CONFIG.baseUrl,
+          //   enableReviewLogin: AUTH_FEATURE_FLAGS.enableReviewLogin,
+          //   forceLiquidGlassBorder: UI_FEATURE_FLAGS.forceLiquidGlassBorder,
+          //   stripeKeyPresent: Boolean(config.stripePublishableKey),
+          // });
 
           setMobileConfig(config);
         }
@@ -325,7 +325,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
             }
           },
           onTokenUpdate: async token => {
-            console.log('[Notifications] FCM token updated', token);
+            // console.log('[Notifications] FCM token updated', token);
             latestTokenRef.current = token;
             if (authStatusRef.current.isLoggedIn) {
               await syncRegisterToken(token);
