@@ -20,7 +20,7 @@ export interface MobileConfig {
   forceLiquidGlassBorder?: boolean | string;
 }
 
-export const isProductionMobileEnv = (env?: MobileEnv | string | null): boolean => {
+export const isProductionMobileEnv = (env?: MobileEnv | null): boolean => {
   if (!env) {
     return false;
   }
@@ -28,7 +28,7 @@ export const isProductionMobileEnv = (env?: MobileEnv | string | null): boolean 
   return normalized === 'prod' || normalized === 'production';
 };
 
-export const isDevelopmentMobileEnv = (env?: MobileEnv | string | null): boolean => {
+export const isDevelopmentMobileEnv = (env?: MobileEnv | null): boolean => {
   if (!env) {
     return false;
   }

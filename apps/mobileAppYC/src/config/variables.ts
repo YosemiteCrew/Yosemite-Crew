@@ -11,6 +11,8 @@
 // This file contains safe default/test values and is committed to git so that
 // CI/CD pipelines and other developers can run tests without real credentials.
 
+import type {MobileConfig} from '@/shared/services/mobileConfig';
+
 export interface PasswordlessAuthConfig {
   profileServiceUrl: string;
   createAccountUrl: string;
@@ -70,13 +72,7 @@ export interface MobileConfigBehavior {
   /**
    * Optional override values to layer on top of (or replace) the remote mobile-config response.
    */
-  override?: {
-    env?: string;
-    enablePayments?: boolean;
-    stripePublishableKey?: string;
-    sentryDsn?: string;
-    forceLiquidGlassBorder?: boolean | string;
-  };
+  override?: Partial<MobileConfig>;
 }
 
 // Default/test configuration (safe for CI/CD)
