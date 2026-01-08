@@ -496,21 +496,23 @@ const StatusCard = ({
   cancellationNote: string | null;
   statusHelpText: string | null;
 }) => (
-  <LiquidGlassCard
-    glassEffect="clear"
-    padding="4"
-    shadow="sm"
-    style={styles.glassCard}
-    fallbackStyle={styles.cardFallback}>
-    <View style={styles.statusContainer}>
-      <Text style={styles.statusLabel}>Status</Text>
-      <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
-        <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
+  <View style={styles.statusShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.statusCard}
+      fallbackStyle={styles.statusCardFallback}>
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusLabel}>Status</Text>
+        <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
+          <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
+        </View>
+        {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
+        {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
       </View>
-      {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
-      {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
-    </View>
-  </LiquidGlassCard>
+    </LiquidGlassCard>
+  </View>
 );
 
 const ActionButtons = ({
@@ -953,34 +955,37 @@ export const ViewAppointmentScreen: React.FC = () => {
       }
 
       return (
-        <LiquidGlassCard
-          key={`${entry.form._id}-${entry.submission?._id ?? 'new'}`}
-          glassEffect="clear"
-          padding="4"
-          colorScheme="light"
-          shadow="sm"
-          style={styles.formCard}
-          fallbackStyle={styles.cardFallback}>
-          <View style={styles.formHeader}>
-            <View style={styles.formTitleContainer}>
-              <Text style={styles.formTitle}>{entry.form.name}</Text>
+        <View key={`${entry.form._id}-${entry.submission?._id ?? 'new'}`} style={styles.formCardShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            padding="4"
+            colorScheme="light"
+            shadow="base"
+            style={styles.formCard}
+            fallbackStyle={styles.formCardFallback}>
+            <View style={styles.formCardContent}>
+              <View style={styles.formHeader}>
+                <View style={styles.formTitleContainer}>
+                  <Text style={styles.formTitle}>{entry.form.name}</Text>
+                </View>
+                <View style={[styles.formStatusBadge, {backgroundColor: formStatus.backgroundColor}]}>
+                  <Text style={[styles.formStatusText, {color: formStatus.color}]}>{formStatus.label}</Text>
+                </View>
+              </View>
+              {entry.form.description ? <Text style={styles.formDescription}>{entry.form.description}</Text> : null}
+              {showAnswers ? <View style={styles.formAnswers}>{renderAnswerSummary(entry)}</View> : null}
+              <LiquidGlassButton
+                title={action.label}
+                onPress={() => handleOpenForm(entry, action.mode, action.allowSign)}
+                height={48}
+                borderRadius={theme.borderRadius.md}
+                textStyle={styles.formButtonText}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="medium"
+              />
             </View>
-            <View style={[styles.formStatusBadge, {backgroundColor: formStatus.backgroundColor}]}>
-              <Text style={[styles.formStatusText, {color: formStatus.color}]}>{formStatus.label}</Text>
-            </View>
-          </View>
-          {entry.form.description ? <Text style={styles.formDescription}>{entry.form.description}</Text> : null}
-          {showAnswers ? <View style={styles.formAnswers}>{renderAnswerSummary(entry)}</View> : null}
-          <LiquidGlassButton
-            title={action.label}
-            onPress={() => handleOpenForm(entry, action.mode, action.allowSign)}
-            height={48}
-            borderRadius={theme.borderRadius.md}
-            textStyle={styles.formButtonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-          />
-        </LiquidGlassCard>
+          </LiquidGlassCard>
+        </View>
       );
     },
     [getFormStatusDisplay, handleOpenForm, renderAnswerSummary, styles, theme],
@@ -1271,20 +1276,33 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingBottom: theme.spacing['24'],
     gap: theme.spacing['4'],
   },
+  statusShadowWrapper: {
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.cardBackground,
+    ...theme.shadows.lg,
+    shadowColor: theme.colors.neutralShadow,
+    overflow: 'visible',
+  },
+  statusCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    padding: 0,
+    gap: theme.spacing['2'],
+  },
+  statusCardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
   statusContainer: {
     gap: theme.spacing['3'],
+    padding: theme.spacing['4'],
+    backgroundColor: 'transparent',
   },
   statusNote: {
     ...theme.typography.body12,
     color: theme.colors.textSecondary,
-  },
-  statusCard: {
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing['4'],
-    gap: theme.spacing['2'],
   },
   statusLabel: {
     ...theme.typography.paragraphBold,
@@ -1366,10 +1384,30 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.error,
     textAlign: 'center',
   },
-  formCard: {
-    gap: theme.spacing['2'],
-    marginBottom: theme.spacing['3'],
+  formCardShadowWrapper: {
+    borderRadius: theme.borderRadius.lg,
     backgroundColor: theme.colors.cardBackground,
+    ...theme.shadows.lg,
+    shadowColor: theme.colors.neutralShadow,
+    overflow: 'visible',
+    marginBottom: theme.spacing['3'],
+  },
+  formCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    padding: 0,
+    gap: theme.spacing['2'],
+  },
+  formCardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  formCardContent: {
+    gap: theme.spacing['2'],
+    padding: theme.spacing['4'],
+    backgroundColor: 'transparent',
   },
   glassCard: {
     backgroundColor: theme.colors.cardBackground,

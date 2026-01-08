@@ -8,7 +8,6 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -212,27 +211,31 @@ const InvoiceDetailsCard = ({
   apt: any;
   styles: any;
 }) => (
-  <LiquidGlassCard
-    glassEffect="clear"
-    padding="4"
-    shadow="sm"
-    style={styles.glassCard}
-    fallbackStyle={styles.cardFallback}>
-    <Text style={styles.metaTitle}>Invoice details</Text>
-    <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
-    <MetaRow
-      label="Appointment ID"
-      value={effectiveInvoice?.appointmentId ?? apt?.id ?? '—'}
-    />
-    <MetaRow
-      label="Invoice date"
-      value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
-    />
-    <MetaRow
-      label="Due till"
-      value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
-    />
-  </LiquidGlassCard>
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Invoice details</Text>
+        <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
+        <MetaRow
+          label="Appointment ID"
+          value={effectiveInvoice?.appointmentId ?? apt?.id ?? '—'}
+        />
+        <MetaRow
+          label="Invoice date"
+          value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
+        />
+        <MetaRow
+          label="Due till"
+          value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
+        />
+      </View>
+    </LiquidGlassCard>
+  </View>
 );
 
 const RefundSection = ({
@@ -298,40 +301,44 @@ const InvoiceForCard = ({
   companionName: string;
   styles: any;
 }) => (
-  <LiquidGlassCard
-    glassEffect="clear"
-    padding="4"
-    shadow="sm"
-    style={styles.glassCard}
-    fallbackStyle={styles.cardFallback}>
-    <Text style={styles.metaTitle}>Invoice for</Text>
-    <View style={styles.invoiceForRow}>
-      <AvatarGroup
-        avatars={[
-          {source: guardianAvatar ?? undefined, placeholder: guardianInitial},
-          {source: companionAvatar ?? undefined, placeholder: companionInitial},
-        ]}
-       size={46}
-              overlap={-10}
-        direction="column"
-        containerStyle={styles.avatarGroup}
-      />
-      <View style={styles.invoiceInfoColumn}>
-        <View style={styles.invoiceInfoRow}>
-          <Image source={Images.emailIcon} style={styles.infoIcon} />
-          <Text style={styles.invoiceContactText}>{guardianEmail}</Text>
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Invoice for</Text>
+        <View style={styles.invoiceForRow}>
+          <AvatarGroup
+            avatars={[
+              {source: guardianAvatar ?? undefined, placeholder: guardianInitial},
+              {source: companionAvatar ?? undefined, placeholder: companionInitial},
+            ]}
+           size={46}
+                  overlap={-10}
+            direction="column"
+            containerStyle={styles.avatarGroup}
+          />
+          <View style={styles.invoiceInfoColumn}>
+            <View style={styles.invoiceInfoRow}>
+              <Image source={Images.emailIcon} style={styles.infoIcon} />
+              <Text style={styles.invoiceContactText}>{guardianEmail}</Text>
+            </View>
+            <View style={styles.invoiceInfoRow}>
+              <Image source={Images.locationIcon} style={styles.infoIcon} />
+              <Text style={styles.invoiceAddressText}>{guardianAddress}</Text>
+            </View>
+            <Text style={styles.appointmentForText}>
+              Appointment for :{' '}
+              <Text style={styles.appointmentForName}>{companionName}</Text>
+            </Text>
+          </View>
         </View>
-        <View style={styles.invoiceInfoRow}>
-          <Image source={Images.locationIcon} style={styles.infoIcon} />
-          <Text style={styles.invoiceAddressText}>{guardianAddress}</Text>
-        </View>
-        <Text style={styles.appointmentForText}>
-          Appointment for :{' '}
-          <Text style={styles.appointmentForName}>{companionName}</Text>
-        </Text>
       </View>
-    </View>
-  </LiquidGlassCard>
+    </LiquidGlassCard>
+  </View>
 );
 
 const BreakdownCard = ({
@@ -353,69 +360,73 @@ const BreakdownCard = ({
   currency: string;
   styles: any;
 }) => (
-  <LiquidGlassCard
-    glassEffect="clear"
-    padding="4"
-    shadow="sm"
-    style={styles.glassCard}
-    fallbackStyle={styles.cardFallback}>
-    <Text style={styles.metaTitle}>Description</Text>
-    {effectiveInvoice?.items?.map((item: InvoiceItem) => (
-      <BreakdownRow
-        key={buildInvoiceItemKey(item)}
-        label={item.description}
-        value={formatMoney(item.lineTotal)}
-      />
-    ))}
-    {Array.isArray(effectiveInvoice?.totalPriceComponent) &&
-    effectiveInvoice.totalPriceComponent.length > 0 ? (
-      effectiveInvoice.totalPriceComponent
-        .filter((pc: any) => {
-          const codeText = (pc?.code?.text ?? '').toLowerCase();
-          const typeText = (pc?.type ?? '').toString().toLowerCase();
-          return codeText !== 'grand-total' && typeText !== 'informational';
-        })
-        .map((pc: any, idx: number) => {
-        const rawLabel =
-          pc.code?.text ??
-          pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
-          `Line ${idx + 1}`;
-        const label =
-          rawLabel.length > 0 ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel;
-        const value =
-          typeof pc.amount?.value === 'number'
-            ? `${resolveCurrencySymbol(pc.amount?.currency ?? currency ?? 'USD')}${pc.amount.value.toFixed(2)}`
-            : '—';
-        return (
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Description</Text>
+        {effectiveInvoice?.items?.map((item: InvoiceItem) => (
           <BreakdownRow
-            key={`${label}-${idx}`}
-            label={label}
-            value={value}
-            subtle={label.toLowerCase().includes('discount')}
+            key={buildInvoiceItemKey(item)}
+            label={item.description}
+            value={formatMoney(item.lineTotal)}
           />
-        );
-      })
-    ) : (
-      <>
-        <BreakdownRow label="Sub Total" value={formatMoney(subtotal)} subtle />
-        {!!discountAmount && (
-          <BreakdownRow
-            label="Discount"
-            value={`-${formatMoney(discountAmount)}`}
-            subtle
-          />
+        ))}
+        {Array.isArray(effectiveInvoice?.totalPriceComponent) &&
+        effectiveInvoice.totalPriceComponent.length > 0 ? (
+          effectiveInvoice.totalPriceComponent
+            .filter((pc: any) => {
+              const codeText = (pc?.code?.text ?? '').toLowerCase();
+              const typeText = (pc?.type ?? '').toString().toLowerCase();
+              return codeText !== 'grand-total' && typeText !== 'informational';
+            })
+            .map((pc: any, idx: number) => {
+            const rawLabel =
+              pc.code?.text ??
+              pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
+              `Line ${idx + 1}`;
+            const label =
+              rawLabel.length > 0 ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel;
+            const value =
+              typeof pc.amount?.value === 'number'
+                ? `${resolveCurrencySymbol(pc.amount?.currency ?? currency ?? 'USD')}${pc.amount.value.toFixed(2)}`
+                : '—';
+            return (
+              <BreakdownRow
+                key={`${label}-${idx}`}
+                label={label}
+                value={value}
+                subtle={label.toLowerCase().includes('discount')}
+              />
+            );
+          })
+        ) : (
+          <>
+            <BreakdownRow label="Sub Total" value={formatMoney(subtotal)} subtle />
+            {!!discountAmount && (
+              <BreakdownRow
+                label="Discount"
+                value={`-${formatMoney(discountAmount)}`}
+                subtle
+              />
+            )}
+            {!!taxAmount && (
+              <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
+            )}
+          </>
         )}
-        {!!taxAmount && (
-          <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
-        )}
-      </>
-    )}
-    <BreakdownRow label="Total" value={formatMoney(total)} highlight />
-    <Text style={styles.breakdownNote}>
-      Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts +
-      Taxes.
-    </Text>
-  </LiquidGlassCard>
+        <BreakdownRow label="Total" value={formatMoney(total)} highlight />
+        <Text style={styles.breakdownNote}>
+          Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts +
+          Taxes.
+        </Text>
+      </View>
+    </LiquidGlassCard>
+  </View>
 );
 
 const ReceiptCard = ({
@@ -429,40 +440,44 @@ const ReceiptCard = ({
 }) => {
   if (!receiptUrl) return null;
   return (
-    <LiquidGlassCard
-      glassEffect="clear"
-      padding="4"
-      shadow="sm"
-      style={styles.glassCard}
-      fallbackStyle={styles.cardFallback}>
-      <Text style={styles.metaTitle}>Invoice & receipt</Text>
-      <LiquidGlassButton
-        title="View invoice"
-        onPress={() => {
-          Linking.canOpenURL(receiptUrl)
-            .then(canOpen => {
-              if (canOpen) {
-                return Linking.openURL(receiptUrl);
-              }
-              throw new Error('cannot-open');
-            })
-            .catch(() =>
-              Alert.alert(
-                'Unable to open invoice',
-                'Please try again or copy the link from your receipt.',
-              ),
-            );
-        }}
-        height={48}
-        borderRadius={16}
-        tintColor={theme.colors.secondary}
-        shadowIntensity="medium"
-        textStyle={styles.confirmPrimaryButtonText}
-      />
-      <Text style={styles.missingSubtitle}>
-        You will be redirected to the secure Stripe receipt in your browser.
-      </Text>
-    </LiquidGlassCard>
+    <View style={styles.cardShadowWrapper}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        padding="4"
+        shadow="base"
+        style={styles.glassCard}
+        fallbackStyle={styles.cardFallback}>
+        <View style={styles.cardContent}>
+          <Text style={styles.metaTitle}>Invoice & receipt</Text>
+          <LiquidGlassButton
+            title="View invoice"
+            onPress={() => {
+              Linking.canOpenURL(receiptUrl)
+                .then(canOpen => {
+                  if (canOpen) {
+                    return Linking.openURL(receiptUrl);
+                  }
+                  throw new Error('cannot-open');
+                })
+                .catch(() =>
+                  Alert.alert(
+                    'Unable to open invoice',
+                    'Please try again or copy the link from your receipt.',
+                  ),
+                );
+            }}
+            height={48}
+            borderRadius={16}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            textStyle={styles.confirmPrimaryButtonText}
+          />
+          <Text style={styles.missingSubtitle}>
+            You will be redirected to the secure Stripe receipt in your browser.
+          </Text>
+        </View>
+      </LiquidGlassCard>
+    </View>
   );
 };
 
@@ -477,27 +492,31 @@ const TermsCard = ({
   businessAddress?: string;
   styles: any;
 }) => (
-  <LiquidGlassCard
-    glassEffect="clear"
-    padding="4"
-    shadow="sm"
-    style={styles.glassCard}
-    fallbackStyle={styles.cardFallback}>
-    <Text style={styles.metaTitle}>Payment terms & legal</Text>
-    <Text style={styles.termsLine}>
-      Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
-    </Text>
-    <Text style={styles.termsLine}>
-      Services are provided by {businessName}
-      {businessAddress && businessAddress !== '—' ? ` (${businessAddress})` : ''}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.
-    </Text>
-    <Text style={styles.termsLine}>
-      Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
-    </Text>
-    <Text style={styles.termsLine}>
-      This invoice is not emergency advice. If your companion needs urgent care, contact the clinic or local emergency services immediately.
-    </Text>
-  </LiquidGlassCard>
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.glassCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.cardContent}>
+        <Text style={styles.metaTitle}>Payment terms & legal</Text>
+        <Text style={styles.termsLine}>
+          Payment is due by {paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.
+        </Text>
+        <Text style={styles.termsLine}>
+          Services are provided by {businessName}
+          {businessAddress && businessAddress !== '—' ? ` (${businessAddress})` : ''}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.
+        </Text>
+        <Text style={styles.termsLine}>
+          Refunds or billing disputes are handled by the clinic in line with applicable consumer laws. Keep your receipt and contact the clinic directly for questions or adjustments.
+        </Text>
+        <Text style={styles.termsLine}>
+          This invoice is not emergency advice. If your companion needs urgent care, contact the clinic or local emergency services immediately.
+        </Text>
+      </View>
+    </LiquidGlassCard>
+  </View>
 );
 
 const PayButton = ({
@@ -846,19 +865,23 @@ const buildInvoiceContent = ({
       />
 
       {hasRefund ? (
-        <LiquidGlassCard
-          glassEffect="clear"
-          padding="4"
-          shadow="sm"
-          style={styles.glassCard}
-          fallbackStyle={styles.cardFallback}>
-          <RefundSection
-            effectiveInvoice={effectiveInvoice}
-            refundAmountDisplay={refundAmountDisplay}
-            theme={theme}
-            styles={styles}
-          />
-        </LiquidGlassCard>
+        <View style={styles.cardShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            padding="4"
+            shadow="base"
+            style={styles.glassCard}
+            fallbackStyle={styles.cardFallback}>
+            <View style={styles.cardContent}>
+              <RefundSection
+                effectiveInvoice={effectiveInvoice}
+                refundAmountDisplay={refundAmountDisplay}
+                theme={theme}
+                styles={styles}
+              />
+            </View>
+          </LiquidGlassCard>
+        </View>
       ) : null}
 
       {!isInvoiceBasedFlow && (
@@ -1273,17 +1296,29 @@ const createStyles = (theme: any) =>
     summaryCard: {
       marginBottom: theme.spacing['1'],
     },
+    cardShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.lg,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'visible',
+    },
     glassCard: {
       backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      padding: 0,
       gap: theme.spacing['2'],
+    },
+    cardContent: {
+      gap: theme.spacing['2'],
+      padding: theme.spacing['4'],
+      backgroundColor: 'transparent',
     },
     cardFallback: {
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: Platform.OS === 'android' ? 1 : 0,
-      borderColor: theme.colors.borderMuted,
-      ...theme.shadows.base,
-      shadowColor: theme.colors.neutralShadow,
-      gap: theme.spacing['2'],
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     loadingBox: {
       flexDirection: 'row',
