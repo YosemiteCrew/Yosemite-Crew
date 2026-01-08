@@ -147,8 +147,8 @@ const createStyles = (theme: any) =>
     },
     modalContent: {
       backgroundColor: theme.colors.white,
-      borderTopLeftRadius: theme.borderRadius.lg,
-      borderTopRightRadius: theme.borderRadius.lg,
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
       paddingBottom: theme.spacing['9'] || 34,
       alignItems: 'center',
       overflow: 'hidden',

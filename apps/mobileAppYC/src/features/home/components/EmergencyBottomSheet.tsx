@@ -199,8 +199,8 @@ const createStyles = (theme: any) =>
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: theme.borderRadius['3xl'],
-      borderTopRightRadius: theme.borderRadius['3xl'],
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.black,

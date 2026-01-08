@@ -404,8 +404,8 @@ const createStyles = (theme: any, maxListHeight: number) =>
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: theme.borderRadius['2xl'],
-      borderTopRightRadius: theme.borderRadius['2xl'],
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.text,
