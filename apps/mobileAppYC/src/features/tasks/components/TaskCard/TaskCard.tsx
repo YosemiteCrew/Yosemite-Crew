@@ -284,7 +284,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           )}
 
           <View style={styles.textContent}>
-            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            <Text style={styles.title}>
               {title}
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">

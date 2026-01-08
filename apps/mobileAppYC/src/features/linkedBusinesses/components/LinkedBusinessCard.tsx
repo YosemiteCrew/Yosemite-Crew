@@ -175,6 +175,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       padding: theme.spacing['3'],
       gap: theme.spacing['3'],
+      alignItems: 'center',
     },
     image: {
       width: 100,

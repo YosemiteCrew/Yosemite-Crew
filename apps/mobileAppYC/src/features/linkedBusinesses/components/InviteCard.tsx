@@ -120,7 +120,6 @@ const createStyles = (theme: any) =>
       lineHeight: 20,
     },
     detailsContainer: {
-      backgroundColor: theme.colors.background,
       borderRadius: theme.borderRadius.md,
       paddingBlock: theme.spacing['3'],
       gap: theme.spacing['2'],
