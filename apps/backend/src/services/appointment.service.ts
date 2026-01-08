@@ -119,6 +119,7 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   concern: appointment.concern ?? undefined,
   attachments: appointment.attachments ?? undefined,
   formIds: appointment.formIds ?? [],
+  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
 });
 
 type DateRangeQuery = {

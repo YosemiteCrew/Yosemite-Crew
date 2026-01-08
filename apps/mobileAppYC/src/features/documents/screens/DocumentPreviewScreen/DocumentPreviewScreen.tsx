@@ -142,13 +142,13 @@ export const DocumentPreviewScreen: React.FC = () => {
   if (document.uploadedByPmsUserId) {
     badges.push({
       text: 'Synced from PMS',
-      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      backgroundColor: theme.colors.infoSurface,
       textColor: theme.colors.primary,
     });
   } else if (document.isUserAdded) {
     badges.push({
       text: 'User Added',
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      backgroundColor: theme.colors.successSurface,
       textColor: theme.colors.success,
     });
   }
@@ -165,7 +165,7 @@ export const DocumentPreviewScreen: React.FC = () => {
           glass={false}
         />
       }
-      contentPadding={theme.spacing['1']}
+      contentPadding={theme.spacing['4']}
       showBottomFade={false}>
       {contentPaddingStyle => (
         <ScrollView

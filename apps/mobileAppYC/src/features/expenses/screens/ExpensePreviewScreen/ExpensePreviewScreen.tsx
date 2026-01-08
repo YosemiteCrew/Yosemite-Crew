@@ -67,7 +67,7 @@ const PaymentActions = ({
           title={isPending ? `Pay ${formattedAmount}` : 'View Invoice'}
           onPress={onOpenInvoice}
           height={48}
-          borderRadius={12}
+          borderRadius={16}
           disabled={processingPayment || loadingPayment}
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
@@ -185,6 +185,9 @@ export const ExpensePreviewScreen: React.FC = () => {
   const userCurrencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? 'USD',
   );
+  const companion = useSelector((state: RootState) =>
+    expense?.companionId ? state.companion.companions.find(c => c.id === expense.companionId) : null,
+  );
   const currencyCode = expense?.currencyCode ?? userCurrencyCode;
 
   const {
@@ -284,7 +287,12 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   const detailItems: DetailItem[] = [
     {label: 'Title', value: expense.title},
-    {label: 'Business', value: businessNameFromOrg ?? expense.businessName ?? '—'},
+    {label: 'Provider', value: businessNameFromOrg ?? expense.businessName ?? '—'},
+    {
+      label: 'Companion',
+      value: companion?.name ?? '',
+      hidden: !companion?.name,
+    },
     {label: 'Category', value: resolveCategoryLabel(expense.category)},
     {
       label: 'Sub category',
@@ -312,19 +320,19 @@ export const ExpensePreviewScreen: React.FC = () => {
   if (!isInAppExpense) {
     badges.push({
       text: 'External expense',
-      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      backgroundColor: theme.colors.infoSurface,
       textColor: theme.colors.primary,
     });
   } else if (isPendingPayment) {
     badges.push({
       text: 'Awaiting Payment',
-      backgroundColor: 'rgba(245, 158, 11, 0.12)',
-      textColor: '#F59E0B',
+      backgroundColor: theme.colors.warningSurface,
+      textColor: theme.colors.warning,
     });
   } else {
     badges.push({
       text: 'Paid',
-      backgroundColor: 'rgba(0, 143, 93, 0.12)',
+      backgroundColor: theme.colors.successSurface,
       textColor: theme.colors.success,
     });
   }
@@ -341,7 +349,7 @@ export const ExpensePreviewScreen: React.FC = () => {
           glass={false}
         />
       }
-      cardGap={theme.spacing['3']}
+      cardGap={theme.spacing['4']}
       contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
         <ScrollView
@@ -349,7 +357,7 @@ export const ExpensePreviewScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
-            <SummaryCards businessSummary={businessSummary as any} />
+            <SummaryCards businessSummary={businessSummary as any} interactive={false} cardStyle={styles.summaryCard} />
           )}
 
           <DetailsCard title="Expense Details" items={detailItems} badges={badges} />
@@ -385,9 +393,10 @@ export const ExpensePreviewScreen: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     contentContainer: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['12'],
-      gap: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['6'],
     },
     errorContainer: {
       flex: 1,
@@ -399,12 +408,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     summaryCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['4'],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['1'],
     },
     summaryTitle: {
       ...theme.typography.titleLarge,
@@ -440,8 +444,8 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     paymentButtonContainer: {
+      // Spacing handled by container gap
       gap: theme.spacing['2'],
-      marginBottom: theme.spacing['4'],
     },
     paymentButtonText: {
       ...theme.typography.button,

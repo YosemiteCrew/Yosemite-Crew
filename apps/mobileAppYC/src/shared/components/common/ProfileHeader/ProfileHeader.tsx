@@ -79,7 +79,7 @@ const createStyles = (theme: any) =>
       right: 0,
       width: 36,
       height: 36,
-      borderRadius: 18,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.secondary,
       alignItems: 'center',
       justifyContent: 'center',
@@ -92,18 +92,23 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.white,
     },
     profileName: {
-      ...theme.typography.h4,
+      fontFamily: theme.typography.titleMedium.fontFamily,
+      fontSize: 22,
+      lineHeight: 28,
+      fontWeight: '500',
       color: theme.colors.secondary,
       marginTop: theme.spacing['4'],
       textAlign: 'center',
     },
     profileSubtitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.textSecondary,
+      fontFamily: theme.typography.bodySmall.fontFamily,
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: '500',
+      color: theme.colors.secondary,
       marginTop: theme.spacing['1'],
       textAlign: 'center',
     },
   });
 
 export default ProfileHeader;
-

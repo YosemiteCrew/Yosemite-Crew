@@ -248,6 +248,18 @@ jest.mock('../../../../src/features/linkedBusinesses', () => ({
   fetchGooglePlacesImage: jest.fn(() => ({type: 'GOOGLE_IMG'})),
 }));
 
+jest.mock('../../../../src/features/forms', () => ({
+  fetchAppointmentForms: jest.fn(() => ({type: 'FETCH_FORMS'})),
+  selectFormsForAppointment: jest.fn(() => []),
+  selectFormsLoading: jest.fn(() => false),
+  selectFormSubmitting: jest.fn(() => false),
+  selectSigningStatus: jest.fn(() => false),
+}));
+
+jest.mock('../../../../src/features/tasks/thunks', () => ({
+  fetchTasksForCompanion: jest.fn(() => ({type: 'FETCH_TASKS'})),
+}));
+
 // Mock Selectors Stably
 const emptyArray: any[] = [];
 const mockSelectExpenses = jest.fn(() => emptyArray);
@@ -332,6 +344,14 @@ describe('ViewAppointmentScreen', () => {
     tasks: {
       items: [],
       hydratedCompanions: {},
+    },
+    forms: {
+      byAppointmentId: {},
+      loadingByAppointment: {},
+      submittingByForm: {},
+      signingBySubmission: {},
+      error: null,
+      formsCache: {},
     },
   };
 

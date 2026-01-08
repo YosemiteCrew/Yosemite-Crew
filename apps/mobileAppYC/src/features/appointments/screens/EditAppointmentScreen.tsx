@@ -5,6 +5,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {CancelAppointmentBottomSheet, type CancelAppointmentBottomSheetRef} from '@/features/appointments/components/CancelAppointmentBottomSheet';
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
+import {BookingSummaryCard} from '@/features/appointments/components/BookingSummaryCard/BookingSummaryCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -154,16 +155,25 @@ const buildBusinessCard = ({
   apt: any;
   fallbackPhoto: string | null;
   businessPhoto: string | null;
-}) => ({
-  title: business?.name ?? apt?.organisationName ?? '',
-  subtitlePrimary: business?.address ?? apt?.organisationAddress ?? undefined,
-  subtitleSecondary: business?.description ?? undefined,
-  image: fallbackPhoto || (isDummyPhoto(businessPhoto) ? undefined : businessPhoto),
-  interactive: false,
-  maxTitleLines: 2,
-  maxSubtitleLines: 2,
-  avatarSize: 96,
-});
+}) => {
+  let imageUri: string | undefined;
+  if (fallbackPhoto) {
+    imageUri = fallbackPhoto;
+  } else if (!isDummyPhoto(businessPhoto) && businessPhoto) {
+    imageUri = businessPhoto;
+  }
+
+  return {
+    title: business?.name ?? apt?.organisationName ?? '',
+    subtitlePrimary: business?.address ?? apt?.organisationAddress ?? undefined,
+    subtitleSecondary: business?.description ?? undefined,
+    image: imageUri ? {uri: imageUri} : undefined,
+    interactive: false,
+    maxTitleLines: 2,
+    maxSubtitleLines: 2,
+    avatarSize: 96,
+  };
+};
 
 const buildServiceCard = (service: any, apt: any) => {
   if (!service && !apt?.serviceName) {
@@ -369,16 +379,14 @@ export const EditAppointmentScreen: React.FC = () => {
   };
 
   const isCancellable = isAppointmentCancellable(apt?.status);
-  const businessCard = useMemo(
-    () =>
-      buildBusinessCard({
-        business,
-        apt,
-        fallbackPhoto,
-        businessPhoto,
-      }),
-    [apt, business, businessPhoto, fallbackPhoto],
-  );
+  const businessCard = useMemo(() => {
+    return buildBusinessCard({
+      business,
+      apt,
+      fallbackPhoto,
+      businessPhoto,
+    });
+  }, [apt, business, businessPhoto, fallbackPhoto]);
   const serviceCard = useMemo(() => buildServiceCard(service, apt), [apt, service]);
   const employeeCard = useMemo(
     () => buildEmployeeCard(employee, () => navigation.goBack()),
@@ -422,7 +430,7 @@ export const EditAppointmentScreen: React.FC = () => {
       <LiquidGlassHeaderScreen
         header={
           <Header
-            title="Reschedule Appointment"
+            title="Reschedule"
             showBackButton
             onBack={() => navigation.goBack()}
             rightIcon={isCancellable ? Images.deleteIcon : undefined}
@@ -430,8 +438,8 @@ export const EditAppointmentScreen: React.FC = () => {
             glass={false}
           />
         }
-        cardGap={theme.spacing['3']}
-        contentPadding={theme.spacing['1']}>
+        cardGap={theme.spacing['4']}
+        contentPadding={theme.spacing['4']}>
         {contentPaddingStyle => (
           <ScrollView
             style={styles.scrollView}
@@ -441,10 +449,45 @@ export const EditAppointmentScreen: React.FC = () => {
             ]}
             showsVerticalScrollIndicator={false}
           >
+            <BookingSummaryCard
+              title={businessCard.title}
+              subtitlePrimary={businessCard.subtitlePrimary}
+              subtitleSecondary={businessCard.subtitleSecondary}
+              image={businessCard.image}
+              interactive={false}
+              maxTitleLines={businessCard.maxTitleLines}
+              maxSubtitleLines={businessCard.maxSubtitleLines}
+              avatarSize={businessCard.avatarSize}
+              style={styles.summaryCard}
+            />
+
+            {serviceCard && (
+              <BookingSummaryCard
+                title={serviceCard.title}
+                subtitlePrimary={serviceCard.subtitlePrimary}
+                subtitleSecondary={serviceCard.subtitleSecondary}
+                badgeText={serviceCard.badgeText}
+                showAvatar={false}
+                interactive={false}
+                style={styles.summaryCard}
+              />
+            )}
+
+            {employeeCard && (
+              <BookingSummaryCard
+                title={employeeCard.title}
+                subtitlePrimary={employeeCard.subtitlePrimary}
+                subtitleSecondary={employeeCard.subtitleSecondary}
+                image={employeeCard.image}
+                interactive={false}
+                style={styles.summaryCard}
+              />
+            )}
+
             <AppointmentFormContent
-              businessCard={businessCard}
-              serviceCard={serviceCard}
-              employeeCard={employeeCard}
+              businessCard={undefined}
+              serviceCard={undefined}
+              employeeCard={undefined}
               companions={companions}
               selectedCompanionId={apt.companionId}
               onSelectCompanion={(_id: string) => {}}
@@ -501,20 +544,24 @@ export const EditAppointmentScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    scrollView: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    container: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['4'],
-    },
-    confirmPrimaryButtonText: {
-      ...theme.typography.button,
-      color: theme.colors.white,
-      textAlign: 'center',
-    },
-  });
+  scrollView: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  container: {
+    paddingHorizontal: theme.spacing['5'],
+    paddingTop: theme.spacing['6'],
+    paddingBottom: theme.spacing['24'],
+    gap: theme.spacing['6'],
+  },
+  summaryCard: {
+    marginBottom: theme.spacing['1'],
+  },
+  confirmPrimaryButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.white,
+    textAlign: 'center',
+  },
+});
 
 export default EditAppointmentScreen;

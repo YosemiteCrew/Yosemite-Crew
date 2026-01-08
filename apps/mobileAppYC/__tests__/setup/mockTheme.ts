@@ -14,8 +14,8 @@ export const createMockTheme = () => ({
     '72': 288, '80': 320, '96': 384,
   },
   borderRadius: {
-    none: 0, xs: 2, sm: 4, base: 8, md: 12, lg: 16, xl: 20,
-    '2xl': 24, '3xl': 32, full: 9999,
+    none: 0, xs: 16, sm: 16, base: 16, md: 16, lg: 16, xl: 16,
+    '2xl': 16, '3xl': 16, full: 9999,
   },
   shadows: {
     none: {shadowColor: 'transparent', shadowOffset: {width: 0, height: 0}, shadowOpacity: 0, shadowRadius: 0, elevation: 0},

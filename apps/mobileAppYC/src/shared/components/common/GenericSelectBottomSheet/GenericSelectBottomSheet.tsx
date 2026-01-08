@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo, useEffect } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import type { BottomSheetRef } from '@/shared/components/common/BottomSheet/Bott
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import { Input } from '@/shared/components/common/Input/Input';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import { useTheme } from '@/hooks';
+import { useTheme, useKeyboardVisible } from '@/hooks';
 import { Images } from '@/assets/images';
 
 export interface GenericSelectBottomSheetRef {
@@ -66,37 +66,16 @@ export const GenericSelectBottomSheet = forwardRef<
 }, ref) => {
   const { theme } = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const isKeyboardVisible = useKeyboardVisible();
 
   // Track whether the sheet is open so we only render the backdrop when visible.
   const [isSheetVisible, setIsSheetVisible] = useState(false);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme, maxListHeight);
   const searchIconSource = Images?.searchIcon ?? null;
-
-  // Listen to keyboard events to adjust snap points
-  useEffect(() => {
-    const keyboardDidShow = Keyboard.addListener(
-      'keyboardDidShow',
-      () => {
-        setIsKeyboardVisible(true);
-      }
-    );
-    const keyboardDidHide = Keyboard.addListener(
-      'keyboardDidHide',
-      () => {
-        setIsKeyboardVisible(false);
-      }
-    );
-
-    return () => {
-      keyboardDidShow.remove();
-      keyboardDidHide.remove();
-    };
-  }, []);
 
   // Dynamic snap points based on keyboard visibility
   const dynamicSnapPoints = useMemo(() => {
@@ -209,7 +188,6 @@ export const GenericSelectBottomSheet = forwardRef<
         setIsSheetVisible(index !== -1);
         if (index === -1) {
           Keyboard.dismiss();
-          setIsKeyboardVisible(false);
         }
         onSheetChange?.(index);
       }}
@@ -301,12 +279,12 @@ export const GenericSelectBottomSheet = forwardRef<
               onPress={handleCancel}
               style={styles.cancelButton}
               textStyle={styles.cancelButtonText}
-              tintColor="#FFFFFF"
+              tintColor={theme.colors.white}
               shadowIntensity="light"
               forceBorder
-              borderColor="rgba(0, 0, 0, 0.12)"
-              height={56}
-              borderRadius={16}
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
             />
 
             <LiquidGlassButton
@@ -317,9 +295,9 @@ export const GenericSelectBottomSheet = forwardRef<
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
               forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
-              height={56}
-              borderRadius={16}
+              borderColor={theme.colors.borderMuted}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
             />
           </View>
         )}
@@ -373,7 +351,7 @@ const createStyles = (theme: any, maxListHeight: number) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 14,
+      paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['3'],
       borderRadius: theme.borderRadius.base,
       marginBottom: theme.spacing['1'],
@@ -391,15 +369,14 @@ const createStyles = (theme: any, maxListHeight: number) =>
     checkmark: {
       width: theme.spacing['5'],
       height: theme.spacing['5'],
-      borderRadius: theme.spacing['5'] / 2,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     checkmarkText: {
+      ...theme.typography.labelSmallBold,
       color: theme.colors.white,
-      fontSize: theme.spacing['3'],
-      fontWeight: 'bold',
     },
     buttonContainer: {
       flexDirection: 'row',
@@ -427,13 +404,13 @@ const createStyles = (theme: any, maxListHeight: number) =>
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
     },
     bottomSheetHandle: {
-      backgroundColor: theme.colors.black,
-      width: 80,
-      height: 6,
+      backgroundColor: theme.colors.text,
+      width: theme.spacing['20'],
+      height: theme.spacing['1.25'],
       opacity: 0.2,
     },
     touchableItem: {

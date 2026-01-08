@@ -317,7 +317,7 @@ describe('EditAppointmentScreen', () => {
   it('renders correctly with all data populated', () => {
     const {getByTestId, getByText} = setup();
     expect(getByTestId('HeaderTitle')).toHaveTextContent(
-      'Reschedule Appointment',
+      'Reschedule',
     );
     expect(getByTestId('FormContent')).toBeTruthy();
     expect(getByText(/Submit reschedule request/i)).toBeTruthy();
@@ -576,11 +576,7 @@ describe('EditAppointmentScreen', () => {
     expect(mockOpenBusinessCancellation).toHaveBeenCalled();
   });
 
-  it('navigates back when editing employee', () => {
-    const {getByTestId} = setup();
-    fireEvent.press(getByTestId('EditEmployeeBtn'));
-    expect(mockGoBack).toHaveBeenCalled();
-  });
+  // Removed: Employee card is not interactive in EditAppointmentScreen (interactive={false})
 
   // --- Edge Cases: Missing Data ---
 

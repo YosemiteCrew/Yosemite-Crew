@@ -87,7 +87,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
       fallbackStyle={styles.cardFallback}>
       <Image
         source={resolvedSource}
-        style={styles.photo}
+        style={[styles.photo, !compact && styles.photoFullWidth]}
         resizeMode="cover"
         defaultSource={Images.hospitalIcon}
         onError={handleError}
@@ -118,12 +118,10 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
           <LiquidGlassButton
             title="Book an appointment"
             onPress={onBook}
-            tintColor={theme.colors.white}
+            tintColor={theme.colors.secondary}
             textStyle={styles.buttonText}
             style={styles.button}
-            forceBorder
-            borderColor={theme.colors.secondary}
-            height={theme.spacing['10']}
+            height={theme.spacing['12']}
             borderRadius={theme.borderRadius.lg}
           />
         )}
@@ -145,17 +143,29 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
       borderWidth: 1,
       borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
     },
     compact: {
       width: theme.spacing['72'],
     },
     photo: {
-      width: '100%',
-      height: theme.spacing['40'],
+      width: 240,
+      height: 160,
       backgroundColor: theme.colors.border + '20',
+      margin: theme.spacing['4'],
+      borderRadius: theme.borderRadius.lg,
+      alignSelf: 'center',
+    },
+    photoFullWidth: {
+      width: undefined,
+      height: 200,
+      alignSelf: 'stretch',
+      margin: theme.spacing['4'],
     },
     body: {
-      padding: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['4'],
       gap: theme.spacing['1.25'],
     },
     title: {
@@ -198,13 +208,10 @@ const createStyles = (theme: any) =>
       lineHeight: theme.spacing['4'],
     },
     button: {
-      backgroundColor: theme.colors.white,
-      borderWidth: 1,
-      borderColor: theme.colors.secondary,
       marginTop: theme.spacing['2'],
     },
     buttonText: {
-      color: theme.colors.secondary,
+      color: theme.colors.white,
       fontFamily: theme.typography.titleSmall.fontFamily,
       fontSize: theme.typography.titleSmall.fontSize,
       fontWeight: '500',

@@ -364,7 +364,7 @@ const createStyles = (theme: any) =>
     actionButton: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.spacing['5'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primaryTint,
       justifyContent: 'center',
       alignItems: 'center',
@@ -386,7 +386,7 @@ const createStyles = (theme: any) =>
     recordingDot: {
       width: theme.spacing['3'],
       height: theme.spacing['3'],
-      borderRadius: theme.spacing['1.25'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.error,
     },
     recordingText: {
@@ -400,7 +400,7 @@ const createStyles = (theme: any) =>
     recordButton: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.spacing['6'],
+      borderRadius: theme.borderRadius.lg,
       justifyContent: 'center',
       alignItems: 'center',
     },

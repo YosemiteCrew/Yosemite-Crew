@@ -11,6 +11,7 @@ import {
   isLiquidGlassSupported,
 } from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
+import {UI_FEATURE_FLAGS} from '@/config/variables';
 
 // Crystal clear glass defaults - minimal tint for maximum clarity
 const IOS_LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.5)';
@@ -19,6 +20,10 @@ const ANDROID_LIGHT_CARD_TINT_CLEAR = 'rgba(255, 255, 255, 0.92)';
 const ANDROID_DARK_CARD_TINT_CLEAR = 'rgba(28, 28, 30, 0.82)';
 const ANDROID_LIGHT_CARD_TINT_REGULAR = 'rgba(255, 255, 255, 0.86)';
 const ANDROID_DARK_CARD_TINT_REGULAR = 'rgba(28, 28, 30, 0.74)';
+// Flip to true to force a consistent outline everywhere.
+const FORCE_CARD_BORDER = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
+const FORCED_BORDER_COLOR = '#EAEAEA';
+const FORCED_BORDER_WIDTH = 1;
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
 
@@ -103,11 +108,12 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     tintColor ??
     resolvedTintColor ??
     defaultBackgroundColor;
-  const overlayBorderColor =
-    (mergedStyleOverrides?.borderColor as string | undefined) ??
-    defaultBorderColor;
-  const overlayBorderWidth =
-    mergedStyleOverrides?.borderWidth ?? defaultBorderWidth;
+  const overlayBorderColor = FORCE_CARD_BORDER
+    ? FORCED_BORDER_COLOR
+    : (mergedStyleOverrides?.borderColor as string | undefined) ?? defaultBorderColor;
+  const overlayBorderWidth = FORCE_CARD_BORDER
+    ? FORCED_BORDER_WIDTH
+    : mergedStyleOverrides?.borderWidth ?? defaultBorderWidth;
 
   const overlayShapeStyle = React.useMemo(() => {
     const shape: ViewStyle = {};

@@ -91,7 +91,7 @@ describe('cardStyles', () => {
       expect(styles.iconContainer).toEqual({
         width: 48,
         height: 48,
-        borderRadius: 8, // from theme.borderRadius.base
+        borderRadius: 16, // from theme.borderRadius.base
         backgroundColor: '#FFFFFF', // from theme.colors.surface
         alignItems: 'center',
         justifyContent: 'center',
@@ -103,7 +103,7 @@ describe('cardStyles', () => {
       expect(styles.iconContainer).toEqual({
         width: 100,
         height: 100,
-        borderRadius: 8, // from theme.borderRadius.base
+        borderRadius: 16, // from theme.borderRadius.base
         backgroundColor: '#FFFFFF', // from theme.colors.surface
         alignItems: 'center',
         justifyContent: 'center',
