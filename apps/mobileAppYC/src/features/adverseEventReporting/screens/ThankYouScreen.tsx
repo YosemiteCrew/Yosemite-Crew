@@ -244,14 +244,14 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             title="Send report to drug manufacturer"
             onPress={handleSendToManufacturer}
             glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
+          interactive
+          borderRadius="lg"
+          forceBorder
+          borderColor={theme.colors.borderMuted}
+          height={theme.spacing['14']}
+          style={styles.button}
+          textStyle={styles.buttonText}
+          tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             loading={submitLoading === 'manufacturer'}
             disabled={submitLoading !== null}
@@ -261,14 +261,14 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             title="Send report to hospital"
             onPress={handleSendToHospital}
             glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            style={[styles.button, styles.lightButton]}
-            textStyle={styles.lightButtonText}
-            tintColor={theme.colors.white}
+          interactive
+          borderRadius="lg"
+          forceBorder
+          borderColor={theme.colors.borderMuted}
+          height={theme.spacing['14']}
+          style={[styles.button, styles.lightButton]}
+          textStyle={styles.lightButtonText}
+          tintColor={theme.colors.white}
             shadowIntensity="light"
             loading={submitLoading === 'hospital'}
             disabled={submitLoading !== null}
@@ -313,8 +313,8 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['24'],
     },
     heroImage: {
-      width: 220,
-      height: 220,
+      width: theme.spacing['56'],
+      height: theme.spacing['56'],
       resizeMode: 'contain',
       alignSelf: 'center',
       marginBottom: theme.spacing['2'],
@@ -322,17 +322,15 @@ const createStyles = (theme: any) =>
     title: {
       // Clash Grotesk 20/24, 500, -0.2
       ...theme.typography.businessSectionTitle20,
-      color: '#302F2E',
+      color: theme.colors.text,
       marginBottom: theme.spacing['3'],
       alignSelf: 'center',
     },
     subtitle: {
       // Satoshi 15 Bold, 120%
       ...theme.typography.pillSubtitleBold15,
-      color: '#302F2E',
+      color: theme.colors.textSecondary,
       marginBottom: theme.spacing['6'],
-      lineHeight: 18,
-      letterSpacing: -0.3,
     },
     checkboxSection: {
       // Increased space before buttons group
@@ -341,9 +339,7 @@ const createStyles = (theme: any) =>
     checkboxLabel: {
       // Satoshi 15 Bold, 120%
       ...theme.typography.pillSubtitleBold15,
-      color: '#302F2E',
-      lineHeight: 18,
-      letterSpacing: -0.3,
+      color: theme.colors.text,
     },
     errorText: {
       ...theme.typography.labelXxsBold,
@@ -365,10 +361,8 @@ const createStyles = (theme: any) =>
     },
     buttonText: {
       // CTA Clash Grotesk 18/18, 500, -0.18, white
-      ...theme.typography.h6Clash,
-      color: '#FFFEFE',
-      lineHeight: 18,
-      letterSpacing: -0.18,
+      ...theme.typography.button,
+      color: theme.colors.white,
       textAlign: 'center',
     },
     lightButton: {
@@ -377,10 +371,8 @@ const createStyles = (theme: any) =>
     },
     lightButtonText: {
       // CTA Clash Grotesk 18/18, 500, -0.18, Jet-500
-      ...theme.typography.h6Clash,
-      color: '#302F2E',
-      lineHeight: 18,
-      letterSpacing: -0.18,
+      ...theme.typography.button,
+      color: theme.colors.text,
       textAlign: 'center',
     },
     phoneAction: {
@@ -394,16 +386,14 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['2'],
     },
     phoneIcon: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       resizeMode: 'contain',
     },
     phoneText: {
       // CTA Clash Grotesk 18/18, 500, -0.18, Jet-500
-      ...theme.typography.h6Clash,
-      color: '#302F2E',
-      lineHeight: 18,
-      letterSpacing: -0.18,
+      ...theme.typography.button,
+      color: theme.colors.text,
       textAlign: 'center',
     },
     authorityDetails: {

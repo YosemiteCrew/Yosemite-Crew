@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import {useTheme} from '@/hooks';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -97,7 +98,11 @@ const createStyles = (theme: any) =>
     },
     containerFallback: {
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     content: {
       gap: theme.spacing['4'],
@@ -115,7 +120,6 @@ const createStyles = (theme: any) =>
       lineHeight: 20,
     },
     detailsContainer: {
-      backgroundColor: theme.colors.background,
       borderRadius: theme.borderRadius.md,
       paddingBlock: theme.spacing['3'],
       gap: theme.spacing['2'],

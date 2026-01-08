@@ -1,7 +1,7 @@
 import React from 'react';
-import {View, StyleSheet, Image, TouchableOpacity, Text} from 'react-native';
+import {View, StyleSheet, Image, TouchableOpacity} from 'react-native';
 import {Input, TouchableInput} from '@/shared/components/common';
-import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import {createTaskFormSectionStyles} from '@/features/tasks/components/shared/taskFormStyles';
@@ -14,6 +14,8 @@ interface MedicationFormSectionProps {
   onOpenMedicationTypeSheet: () => void;
   onOpenDosageSheet: () => void;
   onOpenMedicationFrequencySheet: () => void;
+  onOpenStartDatePicker: () => void;
+  onOpenEndDatePicker: () => void;
   theme: any;
   showDosageDisplay?: boolean;
 }
@@ -61,6 +63,8 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
   onOpenMedicationTypeSheet,
   onOpenDosageSheet,
   onOpenMedicationFrequencySheet,
+  onOpenStartDatePicker,
+  onOpenEndDatePicker,
   theme,
   showDosageDisplay = true,
 }) => {
@@ -172,25 +176,31 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
         />
       </View>
 
-      {/* Start Date */}
-      <View style={styles.fieldGroup}>
-        <Text style={styles.sectionLabel}>Start Date</Text>
-        <CalendarMonthStrip
-          selectedDate={formData.startDate || new Date()}
-          onChange={(date: Date) => updateField('startDate', date)}
-        />
-      </View>
-
-      {/* End Date (only shown for recurring medications) */}
-      {formData.medicationFrequency !== 'once' && (
-        <View style={styles.fieldGroup}>
-          <Text style={styles.sectionLabel}>End Date</Text>
-          <CalendarMonthStrip
-            selectedDate={formData.endDate || new Date()}
-            onChange={(date: Date) => updateField('endDate', date)}
+      <View style={styles.dateTimeRow}>
+        <View style={styles.dateTimeField}>
+          <TouchableInput
+            label={formData.startDate ? 'Start Date' : undefined}
+            value={formData.startDate ? formatDateForDisplay(formData.startDate) : undefined}
+            placeholder="Start Date"
+            onPress={onOpenStartDatePicker}
+            rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+            error={errors.startDate}
           />
         </View>
-      )}
+
+        {formData.medicationFrequency !== 'once' && (
+          <View style={styles.dateTimeField}>
+            <TouchableInput
+              label={formData.endDate ? 'End Date' : undefined}
+              value={formData.endDate ? formatDateForDisplay(formData.endDate) : undefined}
+              placeholder="End Date"
+              onPress={onOpenEndDatePicker}
+              rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+              error={errors.endDate}
+            />
+          </View>
+        )}
+      </View>
     </>
   );
 };
@@ -211,10 +221,5 @@ const createMedicationStyles = (theme: any) =>
     },
     dosageDisplayField: {
       flex: 1,
-    },
-    sectionLabel: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['2'],
     },
   });

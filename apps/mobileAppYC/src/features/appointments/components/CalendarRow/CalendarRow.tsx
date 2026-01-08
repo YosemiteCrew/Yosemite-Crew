@@ -50,7 +50,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   listContent: {gap: 8},
   month: {...theme.typography.titleSmall, color: theme.colors.secondary},
   nav: {...theme.typography.titleSmall, color: theme.colors.secondary},
-  day: {paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center'},
+  day: {paddingVertical: 8, paddingHorizontal: 10, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center'},
   dayActive: {backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary},
   dayToday: {},
   dayText: {...theme.typography.caption, color: theme.colors.textSecondary},

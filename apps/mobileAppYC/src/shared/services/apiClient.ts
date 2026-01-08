@@ -81,6 +81,18 @@ client.interceptors.response.use(
   },
 );
 
+export const updateApiClientBaseConfig = (config: {
+  baseUrl?: string;
+  timeoutMs?: number;
+}): void => {
+  if (config.baseUrl) {
+    client.defaults.baseURL = normalizeBaseUrl(config.baseUrl);
+  }
+  if (typeof config.timeoutMs === 'number') {
+    client.defaults.timeout = config.timeoutMs;
+  }
+};
+
 export const withAuthHeaders = (
   accessToken: string,
   extras?: AxiosRequestConfig['headers'],

@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {StyleSheet, Platform} from 'react-native';
 
 export const createLegalStyles = (theme: any) =>
   StyleSheet.create({
@@ -17,8 +17,10 @@ export const createLegalStyles = (theme: any) =>
     withdrawalCardFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
       borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     withdrawalCard: {
       gap: theme.spacing['4'],

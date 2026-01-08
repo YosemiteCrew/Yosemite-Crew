@@ -100,6 +100,7 @@ jest.mock('../../../../src/features/chat/components/CustomAttachment', () => ({
 // 6. Safe Area
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({children}: any) => <>{children}</>,
+  useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
 }));
 
 describe('ChatChannelScreen', () => {

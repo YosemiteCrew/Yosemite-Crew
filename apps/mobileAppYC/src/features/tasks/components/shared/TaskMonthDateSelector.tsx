@@ -272,7 +272,7 @@ const createStyles = (theme: any) =>
       bottom: theme.spacing['1'],
       width: 6,
       height: 6,
-      borderRadius: 3,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
     },
   });

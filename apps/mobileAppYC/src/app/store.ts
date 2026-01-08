@@ -53,12 +53,13 @@ import businessesReducer from '@/features/appointments/businessesSlice';
 import {coParentReducer} from '@/features/coParent';
 import {linkedBusinessesReducer} from '@/features/linkedBusinesses';
 import {notificationReducer} from '@/features/notifications';
+import formsReducer from '@/features/forms/formsSlice';
 
 const persistConfig = {
   key: 'root',
   version: 5,
   storage: storageForPersist,
-  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks', 'appointments', 'businesses', 'coParent', 'linkedBusinesses', 'notifications'],
+  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks', 'appointments', 'businesses', 'coParent', 'linkedBusinesses', 'notifications', 'forms'],
   migrate: (state: any) => {
     console.log('[Redux Persist] Migrating state from version', state?._persist?.version);
     // Handle migration from version 1 to 2
@@ -118,6 +119,7 @@ const rootReducer = combineReducers({
   coParent: coParentReducer,
   linkedBusinesses: linkedBusinessesReducer,
   notifications: notificationReducer,
+  forms: formsReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

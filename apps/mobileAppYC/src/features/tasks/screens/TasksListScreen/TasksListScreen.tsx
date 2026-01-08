@@ -188,6 +188,7 @@ const createStyles = (theme: any) => {
       paddingTop: theme.spacing['2'],
       paddingBottom: theme.spacing['16'],
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     emptyContainer: {
       ...emptyStyles.emptyContainer,

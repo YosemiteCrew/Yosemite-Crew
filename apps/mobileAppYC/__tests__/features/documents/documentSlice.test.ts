@@ -171,7 +171,9 @@ describe('documentSlice', () => {
     it('rejected: fails validation if companionId missing', async () => {
       const store = createTestStore();
       const res = await store.dispatch(fetchDocuments({companionId: ''}));
-      expect(res.payload).toBe('Please select a pet to load documents.');
+      expect(res.type).toBe('documents/fetchDocuments/rejected');
+      // The thunk's condition function prevents execution, resulting in an aborted action
+      expect(res.error.message).toBe('Aborted due to condition callback returning false.');
     });
   });
 

@@ -1,6 +1,7 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 import type {Task, TaskStatus, TaskStatusApi} from './types';
 import {taskApi, type TaskDraftPayload} from './services/taskService';
+import type {RootState} from '@/app/store';
 
 const normalizeStatusForApi = (status: TaskStatus): TaskStatusApi => {
   const upper = String(status).toUpperCase();
@@ -14,7 +15,7 @@ const normalizeStatusForApi = (status: TaskStatus): TaskStatusApi => {
 export const fetchTasksForCompanion = createAsyncThunk<
   {companionId: string; tasks: Task[]},
   {companionId?: string},
-  {rejectValue: string}
+  {state: RootState; rejectValue: string}
 >(
   'tasks/fetchTasksForCompanion',
   async ({companionId}, {rejectWithValue}) => {
@@ -26,6 +27,16 @@ export const fetchTasksForCompanion = createAsyncThunk<
         error instanceof Error ? error.message : 'Failed to fetch tasks',
       );
     }
+  },
+  {
+    condition: ({companionId}, {getState}) => {
+      if (!companionId) {
+        return false;
+      }
+      const state = getState();
+      // Avoid firing multiple requests while a fetch is already in progress
+      return state.tasks.loading === false;
+    },
   },
 );
 

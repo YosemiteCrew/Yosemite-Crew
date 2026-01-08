@@ -81,12 +81,12 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
 const createStyles = (theme: any) => {
   const glassCardStyles = createGlassCardStyles(theme);
   const contentStyles = createCardContentStyles(theme, '3');
-  const iconStyles = createIconContainerStyles(theme, 48);
+  const iconStyles = createIconContainerStyles(theme, theme.spacing['12']);
   const textStyles = createTextContainerStyles(theme, '1');
 
   return StyleSheet.create({
     container: {
-      marginBottom: theme.spacing['3'],
+      marginBottom: theme.spacing['4'],
     },
     shadowWrapper: {
       borderRadius: theme.borderRadius.lg,
@@ -101,8 +101,8 @@ const createStyles = (theme: any) => {
     ...contentStyles,
     ...iconStyles,
     icon: {
-      width: 40,
-      height: 40,
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
       resizeMode: 'contain',
     },
     ...textStyles,
@@ -111,7 +111,7 @@ const createStyles = (theme: any) => {
       color: theme.colors.secondary,
     },
     subtitle: {
-      ...theme.typography.labelXxsBold,
+      ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
     },
     rightContainer: {
@@ -120,15 +120,15 @@ const createStyles = (theme: any) => {
       gap: theme.spacing['2'],
     },
     syncBadge: {
-      backgroundColor: theme.colors.successLight,
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['3'],
-      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.successSurface,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.base,
       borderWidth: 1,
       borderColor: theme.colors.success,
     },
     syncText: {
-      ...theme.typography.labelXxsBold,
+      ...theme.typography.labelSmall,
       color: theme.colors.success,
       textAlign: 'center',
     },

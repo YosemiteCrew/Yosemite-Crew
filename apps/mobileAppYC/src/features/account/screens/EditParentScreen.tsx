@@ -278,7 +278,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           resolvedCountry.dial_code.replaceAll('+', '').length,
         )
       : normalizedPhoneDigits;
-    const localPhoneNumber = localPhoneRaw.slice(-10);
+    const localPhoneNumber = localPhoneRaw.slice(-12); // Support up to 12-digit phone numbers
     return { dialCode: resolvedCountry.dial_code, localNumber: localPhoneNumber };
   }, [safeUser.phone]);
 
@@ -570,13 +570,13 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'],
     },
     rowButtonLabel: {
-      ...theme.typography.pillSubtitleBold15,
+      ...theme.typography.body,
       color: theme.colors.textSecondary,
       flex: 1,
     },
     rowButtonValue: {
-      ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.placeholder,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.secondary,
       marginRight: theme.spacing['2'],
       flexShrink: 1,
       flex: 1,

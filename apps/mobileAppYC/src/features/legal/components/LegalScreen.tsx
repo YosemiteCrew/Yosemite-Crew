@@ -7,10 +7,10 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {useTheme} from '@/hooks';
 import {LegalContentRenderer} from './LegalContentRenderer';
 import {createLegalStyles} from '../styles/legalStyles';
-import type {HomeStackParamList} from '@/navigation/types';
+import type {LegalStackParamList} from '@/navigation/types';
 import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
-type LegalScreenProps = NativeStackScreenProps<HomeStackParamList, 'PrivacyPolicy' | 'TermsAndConditions'> & {
+type LegalScreenProps = NativeStackScreenProps<LegalStackParamList, 'PrivacyPolicy' | 'TermsAndConditions'> & {
   title: string;
   sections: any[];
   extraContent?: React.ReactNode;

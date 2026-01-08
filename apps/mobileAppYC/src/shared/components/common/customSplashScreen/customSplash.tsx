@@ -167,7 +167,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
   };
 
   const star2Position = {
-    top: screenHeight * 0.6,
+    top: screenHeight * 0.7,
     right: screenWidth * 0.2,
   };
 
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     position: 'absolute',
-    top: '40%',
+    top: '50%',
     left: '50%',
     marginLeft: -88, // Half of logo width (176/2)
     marginTop: -88, // Half of logo height (176/2)

@@ -199,21 +199,21 @@ jest.mock(
           <TouchableOpacity
             testID="toggle-agree-business"
             onPress={() =>
-              props.agreements[0].onChange(!props.agreements[0].value)
+              props.agreements[1].onChange(!props.agreements[1].value)
             }
           />
           <TouchableOpacity
             testID="toggle-agree-app"
             onPress={() =>
-              props.agreements[1].onChange(!props.agreements[1].value)
+              props.agreements[2].onChange(!props.agreements[2].value)
             }
           />
 
           <View testID="label-business">
-            <Text>{props.agreements[0].label}</Text>
+            <Text>{props.agreements[1].label}</Text>
           </View>
           <View testID="label-app">
-            <Text>{props.agreements[1].label}</Text>
+            <Text>{props.agreements[2].label}</Text>
           </View>
 
           {props.actions}
