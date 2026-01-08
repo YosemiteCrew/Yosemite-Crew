@@ -106,13 +106,15 @@ const GuestHeader = () => {
             {checkRoute() &&
               (user ? (
                 <Primary
-                  href={role === "developer" ? "/developers/home" : "/organizations"}
+                  href="#"
+                  onClick={() => handleClick("/organizations")}
                   text="Go to app"
                   style={{ maxHeight: "60px" }}
                 />
               ) : (
                 <Primary
-                  href="/signup"
+                  href="#"
+                  onClick={() => handleClick("/signup")}
                   text="Sign up"
                   style={{ maxHeight: "60px" }}
                 />
@@ -142,9 +144,10 @@ const GuestHeader = () => {
         (user ? (
           <div className="navmenu-button">
             <Primary
-              href={role === "developer" ? "/developers/home" : "/organizations"}
+              href={
+                role === "developer" ? "/developers/home" : "/organizations"
+              }
               text="Go to app"
-              style={{ width: "160px", maxHeight: "60px" }}
             />
           </div>
         ) : (
@@ -152,7 +155,6 @@ const GuestHeader = () => {
             <Primary
               href="/signup"
               text="Sign up"
-              style={{ width: "160px", maxHeight: "60px" }}
             />
           </div>
         ))}

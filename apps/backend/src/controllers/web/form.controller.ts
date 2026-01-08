@@ -283,13 +283,38 @@ export const FormController = {
     }
   },
 
+  getFormsForAppointment: async (req: Request, res: Response) => {
+    try {
+      const { appointmentId } = req.params;
+      const { serviceId, species } = req.query;
+
+      if (!appointmentId) {
+        return res.status(400).json({ message: "appointmentId is required" });
+      }
+
+      const result = await FormService.getFormsForAppointment({
+        appointmentId,
+        serviceId: typeof serviceId === "string" ? serviceId : undefined,
+        species: typeof species === "string" ? species : undefined,
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof FormServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      console.error("Error in getFormsForAppointment:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
   getFormSubmissionPDF: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.submissionId;
 
-      const pdfBuffer = await FormService.generatePDFForSubmission(
-        submissionId,
-      );
+      const pdfBuffer =
+        await FormService.generatePDFForSubmission(submissionId);
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(

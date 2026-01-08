@@ -1,11 +1,13 @@
-import { TasksProps } from "@/app/types/tasks";
-import React from "react";
+import React, { useMemo } from "react";
 import { GrNext, GrPrevious } from "react-icons/gr";
 import { getDayWithDate } from "../helpers";
 import { getStatusStyle } from "../../DataTable/Tasks";
+import { Task } from "@/app/types/task";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Team } from "@/app/types/team";
 
 type DayCalendarProps = {
-  events: TasksProps[];
+  events: Task[];
   date: Date;
   handleViewTask: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
@@ -17,6 +19,19 @@ const DayCalendar = ({
   handleViewTask,
   setCurrentDate,
 }: DayCalendarProps) => {
+  const teams = useTeamForPrimaryOrg();
+
+  const memberMap = useMemo(() => {
+    const map = new Map<string, string>();
+    teams?.forEach((member: Team) => {
+      map.set(member._id, member.name || "-");
+    });
+    return map;
+  }, [teams]);
+
+  const resolveMemberName = (id?: string) =>
+    id ? (memberMap.get(id) ?? "-") : "-";
+
   const handleNextDay = () => {
     setCurrentDate((prev) => {
       const d = new Date(prev);
@@ -53,19 +68,19 @@ const DayCalendar = ({
         />
       </div>
       {events.length > 0 ? (
-        <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-[600px] flex flex-col gap-2 p-3">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-[500px] flex flex-col gap-2 p-3">
           {events.map((event, i) => (
             <button
-              key={event.task + i}
+              key={event.name + i}
               className="rounded-2xl! p-2 flex flex-col items-start w-full"
               style={getStatusStyle(event.status)}
               onClick={() => handleViewTask(event)}
             >
               <div className="font-satoshi text-[18px] font-medium">
-                {event.task}
+                {event.name}
               </div>
               <div className="font-satoshi text-[15px] font-medium">
-                {event.to}
+                {resolveMemberName(event.assignedTo)}
               </div>
             </button>
           ))}

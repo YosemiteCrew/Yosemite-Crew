@@ -1,13 +1,14 @@
-import { TasksProps } from "@/app/types/tasks";
 import React, { useMemo } from "react";
 import { isSameDay } from "./helpers";
 import Header from "./common/Header";
 import DayCalendar from "./Task/DayCalendar";
 import WeekCalendar from "./Task/WeekCalendar";
+import UserCalendar from "./Task/UserCalendar";
+import { Task } from "@/app/types/task";
 
 type TaskCalendarProps = {
-  filteredList: TasksProps[];
-  setActiveTask?: (inventory: TasksProps) => void;
+  filteredList: Task[];
+  setActiveTask?: (inventory: Task) => void;
   setViewPopup?: (open: boolean) => void;
   activeCalendar: string;
   currentDate: Date;
@@ -26,7 +27,7 @@ const TaskCalendar = ({
   weekStart,
   setWeekStart,
 }: TaskCalendarProps) => {
-  const handleViewTask = (appointment: TasksProps) => {
+  const handleViewTask = (appointment: Task) => {
     setActiveTask?.(appointment);
     setViewPopup?.(true);
   };
@@ -34,7 +35,7 @@ const TaskCalendar = ({
   const dayEvents = useMemo(
     () =>
       filteredList.filter((event) =>
-        isSameDay(new Date(event.due), currentDate)
+        isSameDay(new Date(event.dueAt), currentDate)
       ),
     [filteredList, currentDate]
   );
@@ -61,12 +62,10 @@ const TaskCalendar = ({
         />
       )}
       {activeCalendar === "vet" && (
-        <WeekCalendar
-          events={filteredList}
+        <UserCalendar
+          events={dayEvents}
           date={currentDate}
           handleViewTask={handleViewTask}
-          weekStart={weekStart}
-          setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
         />
       )}

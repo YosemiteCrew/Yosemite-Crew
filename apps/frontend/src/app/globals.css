@@ -97,6 +97,77 @@
   }
 }
 @theme {
+  --color-neutral-950: #1d1c1b;
+  --color-neutral-900: #302f2e;
+  --color-neutral-700: #595958;
+  --color-neutral-600: #747473;
+  --color-neutral-500: #a09f9f;
+  --color-neutral-200: #bfbfbe;
+  --color-neutral-100: #eaeaea;
+  --color-neutral-0: #ffffff;
+
+  /* Brand (blue) */
+  --color-brand-900: #5394ec;
+  --color-brand-800: #6aa1eb;
+  --color-brand-700: #82afec;
+  --color-brand-600: #99bdec;
+  --color-brand-500: #b1caec;
+  --color-brand-300: #c9dbec;
+  --color-brand-100: #f2f8ff;
+  --color-brand-950: #247aed;
+  --color-brand-925: #3b87ec;
+
+  /* Success */
+  --color-success-100: #e6f4ef;
+  --color-success-200: #b0dccd;
+  --color-success-300: #8acbb4;
+  --color-success-400: #54b492;
+  --color-success-500: #33a57d;
+  --color-success-600: #008f5d;
+  --color-success-700: #008255;
+  --color-success-800: #006642;
+  --color-success-900: #004f33;
+  --color-success-950: #003c27;
+
+  /* Warning */
+  --color-warning-100: #fef3e9;
+  --color-warning-200: #fcd9bb;
+  --color-warning-300: #fbc79a;
+  --color-warning-400: #f9ad6c;
+  --color-warning-500: #f89d4f;
+  --color-warning-600: #f68523;
+  --color-warning-700: #e07920;
+  --color-warning-800: #af5e19;
+  --color-warning-900: #874913;
+  --color-warning-950: #67380f;
+
+  /* Danger */
+  --color-danger-100: #fdebea;
+  --color-danger-200: #f8c1bd;
+  --color-danger-300: #f5a39d;
+  --color-danger-400: #f17970;
+  --color-danger-500: #ee5f54;
+  --color-danger-600: #ea3729;
+  --color-danger-700: #d53225;
+  --color-danger-800: #a6271d;
+  --color-danger-900: #811e17;
+  --color-danger-950: #621711;
+
+
+
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-cta: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-700);
+  --color-text-tertiary: var(--color-neutral-600);
+  --color-text-extra: var(--color-neutral-500);
+  --color-surface-card: var(--color-neutral-0);
+  --color-border-card: var(--color-neutral-100);
+  --color-border-card-selected: var(--color-neutral-200);
+  --color-state-hover: var(--color-neutral-950);
+  --color-state-selected: var(--color-neutral-950);
+
+
+
   --color-black-text: #302f2e;
   --color-black-bg: #302f2e;
   --color-black-hover: #1a1a19;
@@ -193,8 +264,8 @@ p {
 }
 
 input[type="checkbox"] {
-  width: 21px;
-  height: 21px;
+  width: 20px;
+  height: 20px;
   -moz-appearance: none;
   -webkit-appearance: none;
   appearance: none;
@@ -260,4 +331,71 @@ input::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+.text-display-1 {
+  @apply font-grotesk text-5xl font-medium leading-[120%] tracking-[-0.96px];
+}
+.text-display-2 {
+  @apply font-grotesk text-[2.5rem] font-medium leading-[120%] tracking-[-0.8px];
+}
+.text-heading-1 {
+  @apply font-grotesk text-[1.75rem] font-normal leading-[107%] tracking-[-0.56px];
+}
+.text-heading-2 {
+  @apply font-grotesk text-[1.375rem] font-normal leading-[127%] tracking-[-0.44px];
+}
+.text-heading-3 {
+  @apply font-grotesk text-xl font-normal leading-[120%] tracking-[-0.4px];
+}
+.text-body-1 {
+  @apply font-satoshi text-2xl font-medium leading-[125%] tracking-[-0.48px];
+}
+.text-body-2 {
+  @apply font-satoshi text-xl font-normal leading-[170%] tracking-[-0.4px];
+}
+.text-body-3 {
+  @apply font-satoshi text-lg font-normal leading-[144%] tracking-[-0.36px];
+}
+.text-body-3-emphasis {
+  @apply font-satoshi text-lg font-medium leading-[144%] tracking-[-0.36px];
+}
+.text-body-4 {
+  @apply font-satoshi text-base font-normal leading-[150%] tracking-[-0.32px];
+}
+.text-body-4-emphasis {
+  @apply font-satoshi text-base font-medium leading-[150%] tracking-[-0.32px];
+}
+.text-label-1 {
+  @apply font-satoshi text-base font-medium leading-[100%] tracking-[-0.32px];
+}
+.text-caption-1 {
+  @apply font-satoshi text-sm font-normal leading-[142%] tracking-[-0.28px];
+}
+.text-caption-2 {
+  @apply font-satoshi text-xs font-normal leading-[150%] tracking-[-0.24px];
+}
+
+.elevation-0 {
+  @apply shadow-[0_0_0_0_rgba(0,0,0,0)];
+}
+.elevation-1 {
+  @apply shadow-[0_0_8px_0_rgba(0,0,0,0.2)];
+}
+.elevation-2 {
+  @apply shadow-[0_0_16px_0_rgba(0,0,0,0.4)];
+}
+
+.padding-x-default {
+  @apply px-6;
+}
+.padding-x-compact {
+  @apply px-4;
+}
+.padding-x-large {
+  @apply px-8;
+}
+
+.rounded-default {
+  @apply rounded-2xl;
 }

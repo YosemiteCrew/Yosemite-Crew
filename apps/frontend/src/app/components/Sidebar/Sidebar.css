@@ -1,5 +1,5 @@
 .sidebar {
-  width: 260px;
+  width: 180px;
   padding: 24px 16px;
   flex-direction: column;
   gap: 16px;
@@ -7,25 +7,22 @@
   height: 100%;
   overflow: auto;
 
-  border-radius: 16px;
   border: 1px solid var(--yc-upated-black-6, #eaeaea);
   background: var(--yc-updated-white, #fff);
-  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.08);
 }
 .route {
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid var(--lightgrey);
-  color: var(--notibg);
+  font-family: var(--font-satoshi);
+  font-size: 16px;
+  font-weight: 400;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #EAEAEA;
+  color: #302F2E;
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--grotesk-font);
-  font-size: 19px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 120%;
-  letter-spacing: -0.38px;
+  line-height: 150%;
+  letter-spacing: -0.32px;
   transition: 0.3s;
 }
 .route-active {

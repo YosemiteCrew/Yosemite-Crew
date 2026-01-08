@@ -3,7 +3,6 @@
     no-repeat;
   background-size: cover;
   background-position: center;
-  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,7 +13,7 @@
   width: 100vw;
   display: flex;
   flex-direction: column;
-  margin: 40px 0;
+  margin: 80px 116px !important;
 }
 
 .MainSignCol {
@@ -81,18 +80,19 @@
 
 .SignUpFormDiv {
   background-color: var(--whitebg);
-  box-shadow: 0px 10px 20px 0px #47382729;
+  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.20);
   font-weight: 500;
-  border-radius: 23px;
-  padding: 24px 16px;
+  border-radius: 32px;
+  padding: 20px;
   width: 100%;
   margin-left: auto;
+  border: 1px solid #eaeaea;
   margin-right: 0;
 }
 .SignUpFormDiv form {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 24px;
 }
 .SignUpFormDiv form .TopSignUp {
   display: flex;
@@ -102,41 +102,7 @@
 .SignUpFormDiv form .TopSignUp .SignFormItems {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-.SignInput input,
-.SignPassInput input {
-  width: 100%;
-  height: 100%;
-  padding: 10px 24px;
-  border-radius: 16px;
-  min-height: 60px;
-  border: 1px solid var(--notibg) !important;
-  color: var(--lightblack);
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 120%;
-  font-family: var(--satoshi-font);
-  background-color: transparent;
-  outline: var(--black-text);
-}
-.SignInput input::placeholder,
-.SignPassInput input::placeholder {
-  font-size: 15px;
-  opacity: 60%;
-}
-.SignPassInput {
-  position: relative;
-}
-.SignPassInput button {
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  transform: translateY(-50%);
-  background: transparent !important;
-  border: none;
-  padding: 0;
-  z-index: 2;
+  gap: 16px;
 }
 
 .Headingtext h2 {
@@ -205,17 +171,17 @@
 .SignUpFormDiv form .Sign_check {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 .SignUpFormDiv form .Sign_check .form-check {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 10px;
 }
 .SignUpFormDiv form .Sign_check .form-check label {
   font-family: var(--satoshi-font);
-  font-size: 15px;
-  font-weight: 120%;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--black-text);
 }
 .SignUpFormDiv form .Sign_check .form-check label .policylink {
@@ -226,12 +192,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 .Signbtn h6 {
   color: var(--black-text);
   font-weight: 500;
-  font-size: 18px;
+  font-size: 19px;
   line-height: 120%;
   font-family: var(--grotesk-font);
   margin: 0;
@@ -352,10 +318,6 @@
   .BuildEveryone {
     width: 100%;
   }
-
-  .SignUpFormDiv {
-    padding: 40px 20px;
-  }
 }
 
 @media (min-width: 1024px) {
@@ -391,7 +353,7 @@
   }
 
   .SignUpFormDiv form .Sign_check .form-check label {
-    font-size: 18px;
+    font-size: 14px;
   }
 }
 
@@ -402,7 +364,7 @@
   }
 
   .MainSignCol {
-    width: 46%;
+    width: 43%;
   }
 }
 

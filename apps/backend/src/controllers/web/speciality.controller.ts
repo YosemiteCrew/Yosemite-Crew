@@ -159,12 +159,10 @@ export const SpecialityController = {
       const { organisationId, specialityId } = req.params;
 
       if (!organisationId || !specialityId) {
-        res
-          .status(400)
-          .json({
-            message:
-              "Organization identifier and Speciality identifier is required.",
-          });
+        res.status(400).json({
+          message:
+            "Organization identifier and Speciality identifier is required.",
+        });
         return;
       }
 

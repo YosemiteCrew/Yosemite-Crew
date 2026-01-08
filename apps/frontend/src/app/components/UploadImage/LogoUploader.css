@@ -4,13 +4,13 @@
   gap: 20px;
 }
 .step-logo-upload {
-  height: 100px;
-  width: 100px;
-  border-radius: 50px;
+  height: 60px;
+  width: 60px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--blue-text);
+  border: 1px dashed #BFBFBE;
   position: relative;
 }
 .step-logo-title-container{
@@ -19,13 +19,13 @@
     gap: 0px;
 }
 .step-logo-title {
-  color: var(--black-text);
-  font-family: var(--grotesk-font);
-  font-size: 23px;
+  color: #595958;
+  font-family: var(--font-satoshi);
+  font-size: 16px;
   font-style: normal;
   font-weight: 500;
-  line-height: 120%;
-  letter-spacing: -0.46px;
+  line-height: 112.5%;
+  letter-spacing: -0.32px;
 }
 .remove-icon {
   position: absolute;

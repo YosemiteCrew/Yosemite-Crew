@@ -1,8 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { FaCaretDown } from "react-icons/fa6";
 
 import { useSignOut } from "@/app/hooks/useAuth";
 import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
@@ -13,7 +11,6 @@ import { useLoadAvailabilities } from "@/app/hooks/useAvailabiities";
 import { useLoadSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 
 import "./Sidebar.css";
-import { isHttpsImageUrl } from "@/app/utils/urls";
 
 type RouteItem = {
   name: string;
@@ -54,7 +51,6 @@ const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useSignOut();
-  const [selectOrg, setSelectOrg] = useState(false);
 
   const isDevPortal = pathname?.startsWith("/developers") || false;
   const routes = isDevPortal ? devRoutes : appRoutes;
@@ -62,13 +58,6 @@ const Sidebar = () => {
   const orgStatus = useOrgStore((s) => s.status);
   const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
-  const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
-
-  const handleOrgClick = (orgId: string) => {
-    setPrimaryOrg(orgId);
-    setSelectOrg(false);
-    router.push("/dashboard");
-  };
 
   const handleLogout = async () => {
     try {
@@ -97,56 +86,6 @@ const Sidebar = () => {
 
   return (
     <div className="sidebar">
-      {primaryOrg && (
-        <div className="relative">
-          <button
-            className="flex items-center gap-2.5"
-            onClick={() => setSelectOrg((e) => !e)}
-          >
-            <Image
-              src={
-                isHttpsImageUrl(primaryOrg.imageURL)
-                  ? primaryOrg.imageURL
-                  : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-              }
-              alt="Logo"
-              height={42}
-              width={42}
-              className="rounded-full min-w-[42px] max-h-[42px] h-[42px] object-cover"
-            />
-            <div className="font-grotesk font-medium text-black-text text-[19px] tracking-tight leading-6">
-              {primaryOrg.name}
-            </div>
-            <FaCaretDown
-              size={20}
-              className={`text-black-text transition-transform cursor-pointer`}
-            />
-          </button>
-          {selectOrg && (
-            <div className="absolute top-[120%] left-0 rounded-2xl border border-grey-noti bg-white shadow-md! flex flex-col items-center w-full px-3">
-              {orgs.slice(0, 3).map((org, i) => (
-                <button
-                  key={org.name + i}
-                  className="text-grey-noti font-grotesk font-medium text-[16px] text-center py-2 w-full"
-                  onClick={() =>
-                    handleOrgClick(org._id?.toString() || org.name)
-                  }
-                >
-                  {org.name}
-                </button>
-              ))}
-              <Link
-                href={"/organizations"}
-                onClick={() => setSelectOrg(false)}
-                className="text-blue-text font-grotesk font-medium text-[16px] text-center py-2 border-t! border-t-grey-light! w-full"
-              >
-                View all
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="flex gap-3 flex-col">
         {routes.map((route) => {
           const needsVerifiedOrg = route.verify;
@@ -166,7 +105,7 @@ const Sidebar = () => {
           return (
             <Link
               key={route.name}
-              className={`route ${isActive && "route-active"} ${isDisabled && "text-[#BFBFBE]!"}`}
+              className={`route ${isActive && "route-active"} ${isDisabled && "text-[#A09F9F]!"}`}
               href={route.href}
               onClick={onClick}
             >

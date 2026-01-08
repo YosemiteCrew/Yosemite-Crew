@@ -32,6 +32,7 @@ import taskRouter from "./task.router";
 import inventoryRoter from "./inventory.router";
 import observationToolRouter from "./observationTool.routes";
 import dashboardRouter from "./dashboard.router";
+import mobileConfigRouter from "./mobile.config.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -67,4 +68,5 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/inventory`, inventoryRoter);
   app.use(`/v1/observation-tools`, observationToolRouter);
   app.use(`/v1/dashboard`, dashboardRouter);
+  app.use(`/v1/mobile-config`, mobileConfigRouter);
 }

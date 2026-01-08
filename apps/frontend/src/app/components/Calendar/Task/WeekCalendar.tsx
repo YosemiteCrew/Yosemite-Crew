@@ -1,13 +1,13 @@
-import { TasksProps } from "@/app/types/tasks";
 import React, { useMemo } from "react";
 import { getNextWeek, getPrevWeek, getWeekDays } from "../weekHelpers";
 import DayLabels from "./DayLabels";
 import TaskSlot from "./TaskSlot";
 import { eventsForDay } from "../helpers";
 import { GrNext, GrPrevious } from "react-icons/gr";
+import { Task } from "@/app/types/task";
 
 type WeekCalendarProps = {
-  events: TasksProps[];
+  events: Task[];
   date: Date;
   handleViewTask: any;
   weekStart: Date;
@@ -55,13 +55,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         <div className="overflow-x-auto">
           <div className="min-w-max">
             <DayLabels days={days} />
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="max-h-[500px] overflow-y-auto">
               <div className="grid grid-flow-col auto-cols-[200px] gap-x-2 min-w-max">
-                {days.map((day, dayIndex) => (
+                {days.map((day) => (
                   <TaskSlot
                     key={day.getTime()}
                     slotEvents={eventsForDay(events, day)}
-                    dayIndex={dayIndex}
                     handleViewTask={handleViewTask}
                   />
                 ))}
