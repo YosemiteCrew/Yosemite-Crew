@@ -4,14 +4,33 @@ import axios from "axios";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
-const BASE_URL =
-  process.env["DOCUMENSO_BASE_URL"] ?? "your-documenso-domain.com";
-
+const BASE_URL = process.env["DOCUMENSO_BASE_URL"] ?? "";
 const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? "";
-const documenso = new Documenso({
-  apiKey: API_KEY, // Ensure API key is set in environment variables
-  serverURL: BASE_URL,
-});
+
+let documensoClient: Documenso | undefined;
+
+const getBaseUrl = () => {
+  if (!BASE_URL) {
+    throw new Error("DOCUMENSO_BASE_URL is not set");
+  }
+
+  try {
+    return new URL(BASE_URL).toString();
+  } catch {
+    throw new Error("DOCUMENSO_BASE_URL is invalid");
+  }
+};
+
+const getDocumensoClient = () => {
+  if (!documensoClient) {
+    documensoClient = new Documenso({
+      apiKey: API_KEY, // Ensure API key is set in environment variables
+      serverURL: getBaseUrl(),
+    });
+  }
+
+  return documensoClient;
+};
 
 async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
   const response = await fetch(uploadUrl, {
@@ -45,6 +64,7 @@ export class DocumensoService {
     signerName?: string;
   }) {
     try {
+      const documenso = getDocumensoClient();
       const createDocumentResponse = await documenso.documents.createV0({
         title: "Form Submission",
         recipients: [
@@ -84,6 +104,7 @@ export class DocumensoService {
 
   static async distributeDocument({ documentId }: { documentId: number }) {
     try {
+      const documenso = getDocumensoClient();
       const distributeResponse = await documenso.documents.distribute({
         documentId: documentId,
       });
@@ -104,8 +125,9 @@ export class DocumensoService {
     documentId: number,
   ): Promise<SignedDocument | undefined> {
     try {
+      const baseUrl = getBaseUrl();
       const downloadResponse = await axios.get(
-        `${BASE_URL}/document/${documentId}/download-beta`,
+        `${baseUrl}/document/${documentId}/download-beta`,
         {
           params: {
             version: "signed",
