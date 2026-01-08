@@ -17,6 +17,7 @@ type Props = {
   employee?: VetEmployee | null;
   employeeDepartment?: string | null;
   cardStyle?: ViewStyle;
+  interactive?: boolean;
 };
 
 export const SummaryCards: React.FC<Props> = ({
@@ -27,6 +28,7 @@ export const SummaryCards: React.FC<Props> = ({
   employee,
   employeeDepartment,
   cardStyle,
+  interactive = false,
 }) => {
   const resolvedBusiness =
     business && businessSummary
@@ -40,7 +42,7 @@ export const SummaryCards: React.FC<Props> = ({
           subtitlePrimary={resolvedBusiness.address ?? undefined}
           subtitleSecondary={resolvedBusiness.description ?? undefined}
           image={resolvedBusiness.photo}
-          interactive={false}
+          interactive={interactive}
           style={cardStyle}
         />
       )}
@@ -53,7 +55,7 @@ export const SummaryCards: React.FC<Props> = ({
           badgeText={service?.basePrice ? `${resolveCurrencySymbol(service?.currency ?? 'USD')}${service.basePrice}` : null}
           image={undefined}
           showAvatar={false}
-          interactive={false}
+          interactive={interactive}
           style={cardStyle}
         />
       )}
@@ -64,7 +66,7 @@ export const SummaryCards: React.FC<Props> = ({
           subtitlePrimary={employee.specialization}
           subtitleSecondary={employeeDepartment ?? employee.title}
           image={employee.avatar}
-          interactive={false}
+          interactive={interactive}
           style={cardStyle}
         />
       )}

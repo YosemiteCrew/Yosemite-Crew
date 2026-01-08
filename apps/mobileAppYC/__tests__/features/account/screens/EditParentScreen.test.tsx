@@ -513,8 +513,8 @@ describe('EditParentScreen', () => {
     it('handles an unknown phone dial code by defaulting to US', () => {
       // This tests the !match path in parsedPhone memo
       setupMockState({...mockUser, phone: '+9991234567890'}, false);
-      const {getByTestId} = renderComponent(); // It should parse as +1 (default) and take the last 10 digits
-      expect(getByTestId('mock-row-Phone').props.value).toBe('+1 1234567890'); // It should also pass the US country object to the bottom sheet
+      const {getByTestId} = renderComponent(); // It should parse as +1 (default) and take the last 12 digits
+      expect(getByTestId('mock-row-Phone').props.value).toBe('+1 991234567890'); // It should also pass the US country object to the bottom sheet
 
       fireEvent.press(getByTestId('mock-row-Phone'));
       expect(getByTestId('mock-phone-sheet').props.selectedCountry.code).toBe(

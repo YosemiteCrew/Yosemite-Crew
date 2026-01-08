@@ -123,14 +123,12 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
 
             <LiquidGlassButton
               title="Sign up with Google"
+              glassEffect="clear"
               onPress={handleGoogleSignUp}
-              style={styles.socialButton}
               textStyle={styles.socialButtonTextGoogle}
-              tintColor={theme.colors.cardBackground}
               height={56}
               borderRadius="lg"
               shadowIntensity="medium" // Adds more shadow for visibility
-              forceBorder={true}
               leftIcon={<GoogleIcon />}
               loading={activeProvider === 'google'}
               disabled={isSocialLoading}

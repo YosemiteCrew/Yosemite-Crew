@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Alert, ScrollView, StyleSheet, Text, View, Image, Switch} from 'react-native';
+import {Alert, ScrollView, StyleSheet, Text, View, Image, Switch, Platform} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp, NavigationProp} from '@react-navigation/native';
@@ -106,6 +106,7 @@ export const TaskViewScreen: React.FC = () => {
   const isCompleted = task ? String(task.status).toUpperCase() === 'COMPLETED' : false;
   const isCancelled = task ? String(task.status).toUpperCase() === 'CANCELLED' : false;
   const isPending = task ? String(task.status).toUpperCase() === 'PENDING' : false;
+  const hasLinkedAppointment = Boolean(task?.appointmentId);
 
   const [otLabel, setOtLabel] = useState<string>(() => {
     if (!isObservationalTool || !task) return '';
@@ -202,6 +203,13 @@ export const TaskViewScreen: React.FC = () => {
 
   const handleBookAppointment = async () => {
     if (!task) {
+      return;
+    }
+    if (hasLinkedAppointment) {
+      tabNavigation?.navigate('Appointments', {
+        screen: 'ViewAppointment',
+        params: {appointmentId: task.appointmentId as string},
+      });
       return;
     }
     let submissionId = task.otSubmissionId ?? null;
@@ -365,8 +373,9 @@ export const TaskViewScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled">
         {isObservationalTool && !isCancelled && (
           <LiquidGlassCard
-            glassEffect="regular"
-            interactive
+            glassEffect="clear"
+            padding="4"
+            shadow="sm"
             style={styles.otCtaContainer}
             fallbackStyle={styles.otCtaFallback}>
             <Text style={styles.otCtaTitle}>
@@ -405,7 +414,7 @@ export const TaskViewScreen: React.FC = () => {
                 </View>
                 <View style={styles.otCtaButtonWrapper}>
                   <LiquidGlassButton
-                    title="Book appointment"
+                    title={hasLinkedAppointment ? 'Show appointment' : 'Book appointment'}
                     onPress={handleBookAppointment}
                     glassEffect="clear"
                     borderRadius="lg"
@@ -827,10 +836,14 @@ const createStyles = (theme: any) => {
     otCtaContainer: {
       marginBottom: theme.spacing['6'],
       gap: theme.spacing['3'],
+      backgroundColor: theme.colors.cardBackground,
     },
     otCtaFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     otCtaTitle: {
       ...theme.typography.titleMedium,
@@ -876,7 +889,7 @@ const createStyles = (theme: any) => {
     errorText: {
       ...theme.typography.labelXxsBold,
       color: theme.colors.error,
-      marginTop: 3,
+      marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
     },
@@ -896,7 +909,7 @@ const createStyles = (theme: any) => {
       flex: 1,
     },
     completedBadge: {
-      backgroundColor: theme.colors.successLight || 'rgba(0, 143, 93, 0.12)',
+      backgroundColor: theme.colors.successSurface,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing['3'],
       marginTop: theme.spacing['4'],
@@ -905,7 +918,6 @@ const createStyles = (theme: any) => {
     completedText: {
       ...theme.typography.bodyMedium,
       color: theme.colors.success,
-      fontWeight: '600',
     },
     cancelledBadge: {
       backgroundColor: theme.colors.errorSurface,

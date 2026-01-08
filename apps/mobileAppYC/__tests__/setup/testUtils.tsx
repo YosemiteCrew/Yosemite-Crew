@@ -53,11 +53,11 @@ export const mockTheme = {
     12: 48,
   },
   borderRadius: {
-    base: 8,
-    sm: 4,
-    md: 12,
+    base: 16,
+    sm: 16,
+    md: 16,
     lg: 16,
-    xl: 20,
+    xl: 16,
     full: 9999,
   },
   typography: {

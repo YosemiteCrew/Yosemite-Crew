@@ -150,7 +150,7 @@ const createStyles = (theme: any) =>
     playButton: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.spacing['5'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -176,7 +176,7 @@ const createStyles = (theme: any) =>
     stopButton: {
       width: theme.spacing['8'],
       height: theme.spacing['8'],
-      borderRadius: theme.spacing['4'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.errorSurface,
       justifyContent: 'center',
       alignItems: 'center',

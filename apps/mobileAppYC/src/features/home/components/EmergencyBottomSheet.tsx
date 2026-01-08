@@ -156,7 +156,7 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
     return (
       <CustomBottomSheet
         ref={bottomSheetRef}
-        snapPoints={['80%','85%']}
+        snapPoints={['90%','95%']}
         initialIndex={-1}
         onChange={index => {
           setIsSheetVisible(index !== -1);
@@ -199,8 +199,8 @@ const createStyles = (theme: any) =>
     },
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: theme.borderRadius['3xl'],
-      borderTopRightRadius: theme.borderRadius['3xl'],
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.black,

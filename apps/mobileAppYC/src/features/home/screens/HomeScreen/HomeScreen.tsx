@@ -894,7 +894,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               })
           }
           height={48}
-          borderRadius={12}
+          borderRadius={16}
           tintColor={theme.colors.secondary}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}
@@ -1084,21 +1084,19 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
 
     return (
-      <View style={styles.yearlySpendShadowWrapper}>
-        <YearlySpendCard
-          amount={expenseSummary?.total ?? 0}
-          currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
-          currencySymbol={resolveCurrencySymbol(
-            expenseSummary?.currencyCode ?? userCurrencyCode,
-            '$',
-          )}
-          onPressView={() =>
-            navigation.navigate('ExpensesStack', {
-              screen: 'ExpensesMain',
-            })
-          }
-        />
-      </View>
+      <YearlySpendCard
+        amount={expenseSummary?.total ?? 0}
+        currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
+        currencySymbol={resolveCurrencySymbol(
+          expenseSummary?.currencyCode ?? userCurrencyCode,
+          '$',
+        )}
+        onPressView={() =>
+          navigation.navigate('ExpensesStack', {
+            screen: 'ExpensesMain',
+          })
+        }
+      />
     );
   };
 
@@ -1182,7 +1180,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <SearchBar
-          placeholder="Search services"
+          placeholder="Search for nearby businesses"
           mode="input"
           value={searchQuery}
           onChangeText={text => {
@@ -1336,7 +1334,7 @@ const createStyles = (theme: any) =>
     scrollContent: {
       paddingHorizontal: theme.spacing['6'],
       paddingTop: theme.spacing['4'],
-      gap: theme.spacing['6'],
+      gap: theme.spacing['4'],
     },
     headerRow: {
       flexDirection: 'row',
@@ -1461,10 +1459,10 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
     },
     section: {
-      gap: theme.spacing['3.5'],
+      gap: theme.spacing['4'],
     },
     sectionTitle: {
-      ...theme.typography.titleLarge,
+      ...theme.typography.sectionHeading,
       color: theme.colors.secondary,
     },
     infoTile: {
@@ -1485,10 +1483,6 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       ...theme.shadows.md,
       shadowColor: theme.colors.neutralShadow,
-    },
-    yearlySpendShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
     },
     tileTitle: sharedTileStyles(theme).tileTitle,
     tileSubtitle: sharedTileStyles(theme).tileSubtitle,
@@ -1563,18 +1557,18 @@ const createStyles = (theme: any) =>
       shadowColor: theme.colors.neutralShadow,
     },
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
-  upcomingFooter: {
-    gap: theme.spacing['2'],
-  },
-  requestedBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: theme.spacing['2.5'],
-    paddingVertical: theme.spacing['2'],
-    borderRadius: theme.borderRadius.lg,
-    backgroundColor: theme.colors.primaryTint,
-  },
-  requestedBadgeText: {
-    ...theme.typography.title,
-    color: theme.colors.primary,
-  },
+    upcomingFooter: {
+      gap: theme.spacing['2'],
+    },
+    requestedBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: theme.spacing['2.5'],
+      paddingVertical: theme.spacing['2'],
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.primaryTint,
+    },
+    requestedBadgeText: {
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.primary,
+    },
   });

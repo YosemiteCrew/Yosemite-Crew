@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {StyleSheet, Platform} from 'react-native';
 import type {Theme} from '@/theme/themes';
 
 export const createAttachmentStyles = (theme: Theme) =>
@@ -11,7 +11,7 @@ export const createAttachmentStyles = (theme: Theme) =>
       paddingHorizontal: theme.spacing['4'],
       alignItems: 'center',
       gap: theme.spacing['2'],
-      backgroundColor: theme.colors.surface,
+
     },
     emptyStateIcon: {
       width: theme.spacing['16'],
@@ -29,11 +29,7 @@ export const createAttachmentStyles = (theme: Theme) =>
     },
     container: {gap: theme.spacing['4']},
     previewCard: {
-      backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['4'],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
       alignItems: 'center',
       width: '100%',
       gap: theme.spacing['3'],
@@ -42,20 +38,19 @@ export const createAttachmentStyles = (theme: Theme) =>
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
     },
     previewImage: {
       width: '100%',
       height: theme.spacing['96'],
+      paddingBlock: theme.spacing['2'],
       borderRadius: theme.borderRadius.base,
-      marginBottom: theme.spacing['2'],
     },
     pdfPlaceholder: {
       width: '100%',
       height: theme.spacing['72'],
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.surface,
       borderRadius: theme.borderRadius.base,
       marginBottom: theme.spacing['2'],
     },
@@ -84,7 +79,7 @@ export const createAttachmentStyles = (theme: Theme) =>
     shareButton: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.spacing['6'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
       alignSelf: 'center',
       alignItems: 'center',
@@ -96,7 +91,7 @@ export const createAttachmentStyles = (theme: Theme) =>
     downloadButton: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.spacing['6'],
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.secondary,
       alignItems: 'center',
       justifyContent: 'center',
@@ -115,6 +110,17 @@ export const createAttachmentStyles = (theme: Theme) =>
       height: theme.spacing['7'],
       resizeMode: 'contain',
       tintColor: theme.colors.white,
+    },
+    previewContentCard: {
+      width: '100%',
+    },
+    previewContentFallback: {
+
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
+      width: '100%',
     },
   });
 

@@ -268,7 +268,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.text,
     },
     dividerText: {
-      ...theme.typography.h4Alt,
+      ...theme.typography.sectionHeading,
       color: theme.colors.text,
     },
     formContainer: {

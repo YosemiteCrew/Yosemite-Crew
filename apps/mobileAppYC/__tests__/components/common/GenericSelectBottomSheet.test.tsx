@@ -17,10 +17,11 @@ import {View, Text} from 'react-native';
 
 // --- Mocks ---
 
-// 1. Mock useTheme
+// 1. Mock useTheme and useKeyboardVisible
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
+  useKeyboardVisible: () => false,
 }));
 
 // 2. Mock Images

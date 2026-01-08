@@ -71,7 +71,7 @@ const createStyles = (theme: any) =>
   },
   divider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.borderSeperator,
+    borderBottomColor: theme.colors.border,
   },
   iconCircle: {
     width: theme.spacing['10'],

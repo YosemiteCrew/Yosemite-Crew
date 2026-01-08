@@ -25,10 +25,13 @@ export const colors = {
 
   // Status colors
   success: '#008F5D',
+  successSurface: 'rgba(0, 143, 93, 0.12)',
   warning: '#FF9800',
+  warningSurface: 'rgba(255, 152, 0, 0.12)',
   error: '#F44336',
   errorSurface: '#FDEBEA',
   info: '#2196F3',
+  infoSurface: 'rgba(33, 150, 243, 0.12)',
 
   // Background colors
   background: '#FFFFFF',

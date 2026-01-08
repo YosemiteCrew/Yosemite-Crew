@@ -129,12 +129,31 @@ export type AppointmentStackParamList = {
   };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
   BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' | 'clinic' };
+  TermsAndConditions: undefined;
+  PrivacyPolicy: undefined;
   OrganisationDocument: {
     organisationId: string;
     organisationName?: string | null;
     category: OrganisationDocumentCategory;
   };
+  AppointmentForm: {
+    appointmentId: string;
+    formId: string;
+    mode?: 'fill' | 'view';
+    allowSign?: boolean;
+  };
+  FormSigning: {
+    appointmentId: string;
+    submissionId: string;
+    signingUrl?: string | null;
+    formTitle?: string | null;
+  };
 };
+
+export type LegalStackParamList =
+  HomeStackParamList &
+  AppointmentStackParamList &
+  AuthStackParamList;
 
 export type ExpenseStackParamList = {
   ExpensesMain: undefined;

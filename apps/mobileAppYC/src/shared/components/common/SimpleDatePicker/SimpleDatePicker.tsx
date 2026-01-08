@@ -69,8 +69,8 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
     return null;
   }
 
-  const sheetBackground = isDarkMode ? theme.colors.gray800 : theme.colors.white;
-  const dividerColor = isDarkMode ? theme.colors.borderMuted : theme.colors.border;
+  const sheetBackground = isDarkMode ? theme.colors.secondary : theme.colors.white;
+  const dividerColor = isDarkMode ? theme.colors.borderMuted : theme.colors.black;
   const overlayColor = theme.colors.overlay;
   const primaryTextColor = theme.colors.primary;
   const pickerTextColor = isDarkMode ? theme.colors.white : theme.colors.black;
@@ -111,6 +111,8 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
               themeVariant={isDarkMode ? 'dark' : 'light'}
               textColor={pickerTextColor}
               style={[styles.picker, {backgroundColor: sheetBackground}]}
+              is24Hour={false}
+              locale="en_US"
             />
           </View>
         </View>
@@ -127,6 +129,8 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
       onChange={handleDateChange}
       minimumDate={minimumDate}
       maximumDate={maximumDate}
+      is24Hour={false}
+      locale="en_US"
     />
   );
 };
@@ -143,8 +147,8 @@ const createStyles = (theme: any) =>
     },
     modalContent: {
       backgroundColor: theme.colors.white,
-      borderTopLeftRadius: theme.borderRadius.lg,
-      borderTopRightRadius: theme.borderRadius.lg,
+      borderTopLeftRadius: theme.spacing['6'],
+      borderTopRightRadius: theme.spacing['6'],
       paddingBottom: theme.spacing['9'] || 34,
       alignItems: 'center',
       overflow: 'hidden',

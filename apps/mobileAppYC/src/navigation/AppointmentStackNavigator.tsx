@@ -11,14 +11,17 @@ import {BookingFormScreen} from '@/features/appointments/screens/BookingFormScre
 import {ViewAppointmentScreen} from '@/features/appointments/screens/ViewAppointmentScreen';
 import {PaymentInvoiceScreen, PaymentSuccessScreen} from '@/features/payments';
 import {ReviewScreen} from '@/features/appointments/screens/ReviewScreen';
-import {ChatScreen} from '@/features/appointments/screens/ChatScreen';
 import {ChatChannelScreen} from '@/features/chat/screens/ChatChannelScreen';
 import {EditAppointmentScreen} from '@/features/appointments/screens/EditAppointmentScreen';
 import {BusinessesListScreen} from '@/features/appointments/screens/BusinessesListScreen';
 import {OrganisationDocumentScreen} from '@/features/legal/screens/OrganisationDocumentScreen';
+import {TermsAndConditionsScreen} from '@/features/legal/screens/TermsAndConditionsScreen';
+import {PrivacyPolicyScreen} from '@/features/legal/screens/PrivacyPolicyScreen';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
+import {AppointmentFormScreen} from '@/features/forms/screens/AppointmentFormScreen';
+import {FormSigningScreen} from '@/features/forms/screens/FormSigningScreen';
 
 const Stack = createNativeStackNavigator<AppointmentStackParamList>();
 
@@ -60,11 +63,14 @@ export const AppointmentStackNavigator: React.FC = () => {
       <Stack.Screen name="PaymentInvoice" component={PaymentInvoiceScreen} />
       <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
       <Stack.Screen name="Review" component={ReviewScreen} />
-      <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="ChatChannel" component={ChatChannelScreen} />
       <Stack.Screen name="EditAppointment" component={EditAppointmentScreen} />
       <Stack.Screen name="BusinessesList" component={BusinessesListScreen} />
+      <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="OrganisationDocument" component={OrganisationDocumentScreen} />
+      <Stack.Screen name="AppointmentForm" component={AppointmentFormScreen} />
+      <Stack.Screen name="FormSigning" component={FormSigningScreen} />
     </Stack.Navigator>
   );
 };

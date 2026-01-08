@@ -1,4 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
+import {useDispatch, useSelector} from 'react-redux';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {
   getFocusedRouteNameFromRoute,
@@ -18,6 +19,9 @@ import {
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import type {RootState, AppDispatch} from '@/app/store';
+import {fetchDocuments} from '@/features/documents/documentSlice';
+import {fetchTasksForCompanion} from '@/features/tasks';
 
 const ICON_MAP: Record<
   string,
@@ -45,9 +49,28 @@ interface TabLayout {
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
+  const dispatch = useDispatch<AppDispatch>();
+  const companions = useSelector((s: RootState) => s.companion.companions);
+  const selectedCompanionIdFromState = useSelector((s: RootState) => s.companion.selectedCompanionId);
+  const companionId = selectedCompanionIdFromState ?? companions[0]?.id ?? null;
   const isIOS = Platform.OS === 'ios';
   const useGlass = isIOS && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme, isIOS), [theme, isIOS]);
+
+  const refreshTabData = React.useCallback(
+    (routeName: string) => {
+      if (!companionId) {
+        return;
+      }
+      if (routeName === 'Documents') {
+        dispatch(fetchDocuments({companionId}));
+      }
+      if (routeName === 'Tasks') {
+        dispatch(fetchTasksForCompanion({companionId}));
+      }
+    },
+    [companionId, dispatch],
+  );
 
   // Animated values for sliding pill - using JS driver for both since we need width
   const pillLeft = useRef(new Animated.Value(0)).current;
@@ -155,6 +178,13 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     state.routes.length,
   ]);
 
+  useEffect(() => {
+    const activeRoute = state.routes[state.index];
+    if (activeRoute) {
+      refreshTabData(activeRoute.name);
+    }
+  }, [refreshTabData, state.index, state.routes]);
+
   if (shouldHideTabBar) {
     return null;
   }
@@ -206,6 +236,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
 
         if (!isFocused && !event.defaultPrevented) {
           const rootScreen = ROOT_ROUTE_MAP[route.name];
+          refreshTabData(route.name);
           if (rootScreen) {
             navigation.navigate(route.name, {screen: rootScreen});
           } else {
@@ -265,7 +296,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             {...(useGlass
               ? {
                   effect: 'clear' as const,
-                  tintColor: 'rgba(255, 255, 255, 0.5)',
+                  tintColor: theme.colors.whiteOverlay70,
                   colorScheme: 'light' as const,
                   interactive: false,
                 }
@@ -283,9 +314,9 @@ const createStyles = (theme: any, isIOS: boolean) =>
   StyleSheet.create({
     wrapper: {
       position: 'absolute',
-      left: 24,
-      right: 24,
-      bottom: 45,
+      left: theme.spacing['6'],
+      right: theme.spacing['6'],
+      bottom: theme.spacing['11'],
       zIndex: 10,
       overflow: 'visible',
     },
@@ -312,23 +343,23 @@ const createStyles = (theme: any, isIOS: boolean) =>
         ? theme.borderRadius.md
         : theme.borderRadius.xl,
       backgroundColor: 'transparent',
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['4'],
       overflow: 'visible',
     },
     barGlass: {
       backgroundColor: 'transparent',
     },
     barSolid: {
-      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      backgroundColor: theme.colors.cardOverlay,
       borderWidth: 1,
-      borderColor: 'rgba(0, 0, 0, 0.08)',
+      borderColor: theme.colors.borderMuted,
       overflow: 'hidden',
     },
     pillContainer: {
       position: 'absolute',
-      top: 8,
-      bottom: 8,
+      top: theme.spacing['2'],
+      bottom: theme.spacing['2'],
       zIndex: 2,
     },
     pill: {
@@ -354,14 +385,14 @@ const createStyles = (theme: any, isIOS: boolean) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 5,
+      gap: theme.spacing['1.25'],
       zIndex: 3,
-      paddingVertical: 6,
-      paddingHorizontal: 8,
+      paddingVertical: theme.spacing['2'],
+      paddingHorizontal: theme.spacing['2'],
     },
     iconWrapper: {
-      width: 28,
-      height: 28,
+      width: theme.spacing['7'],
+      height: theme.spacing['7'],
       borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
@@ -370,7 +401,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
     label: {
       ...theme.typography.tabLabel,
       textAlign: 'center',
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
       maxWidth: '100%',
     },
     labelActive: {
@@ -379,11 +410,11 @@ const createStyles = (theme: any, isIOS: boolean) =>
     },
     labelInactive: {
       ...theme.typography.tabLabel,
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
     },
     iconImage: {
-      width: 20,
-      height: 20,
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       tintColor: theme.colors.textSecondary,
     },
     iconImageActive: {

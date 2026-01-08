@@ -23,8 +23,9 @@ const normalizeUrlForPlatform = (url: string): string => {
     .replaceAll('://0.0.0.0', '://10.0.2.2');
 };
 
-const baseUrl = normalizeUrlForPlatform(API_CONFIG.baseUrl ?? '');
-const pmsBaseUrl = normalizeUrlForPlatform(API_CONFIG.pmsBaseUrl ?? API_CONFIG.baseUrl ?? '');
+const getBaseUrl = () => normalizeUrlForPlatform(API_CONFIG.baseUrl ?? '');
+const getPmsBaseUrl = () =>
+  normalizeUrlForPlatform(API_CONFIG.pmsBaseUrl ?? API_CONFIG.baseUrl ?? '');
 
 const stripTrailingSlashes = (value: string) => {
   let end = value.length;
@@ -43,7 +44,7 @@ const stripLeadingSlashes = (value: string) => {
 };
 
 const buildUrl = (path: string, opts?: {usePms?: boolean}) => {
-  const base = opts?.usePms ? pmsBaseUrl : baseUrl;
+  const base = opts?.usePms ? getPmsBaseUrl() : getBaseUrl();
   const sanitizedBase = stripTrailingSlashes(base);
   const sanitizedPath = stripLeadingSlashes(path);
   return `${sanitizedBase}/${sanitizedPath}`;

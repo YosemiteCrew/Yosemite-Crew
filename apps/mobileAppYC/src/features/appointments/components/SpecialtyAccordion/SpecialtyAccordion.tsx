@@ -1,8 +1,9 @@
 import React, {useState} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Image, Animated} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Image, Animated, Platform} from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 
 interface Service {
@@ -54,6 +55,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
 
   return (
     <View style={styles.specialtyItem}>
+
       <TouchableOpacity
         style={styles.specialtyHeader}
         onPress={toggleExpanded}
@@ -66,7 +68,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
           </Text>
         </View>
         <Animated.Image
-          source={Images.arrowDown}
+          source={Images.downArrow}
           style={[
             styles.chevronIcon,
             {transform: [{rotate: rotateInterpolate}]},
@@ -75,9 +77,16 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
       </TouchableOpacity>
 
       {expanded && (
+        
         <View style={styles.servicesList}>
           {specialty.services.map(service => (
-            <View key={service.id} style={styles.serviceCard}>
+            <LiquidGlassCard
+              key={service.id}
+              glassEffect="clear"
+              padding="5"
+              shadow="sm"
+              style={styles.serviceCard}
+              fallbackStyle={styles.serviceCardFallback}>
               <View style={styles.serviceTopRow}>
                 <Text style={styles.serviceName} numberOfLines={1} ellipsizeMode="tail">
                   {service.name}
@@ -94,16 +103,14 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService
               <LiquidGlassButton
                 title="Select service"
                 onPress={() => onSelectService(service.id, specialty.name)}
-                height={theme.spacing['11']}
+                height={theme.spacing['12']}
                 borderRadius={theme.borderRadius.md}
                 style={styles.selectButton}
                 textStyle={styles.selectButtonText}
-                tintColor={theme.colors.white}
-                shadowIntensity="none"
-                forceBorder
-                borderColor={theme.colors.secondary}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="light"
               />
-            </View>
+            </LiquidGlassCard>
           ))}
         </View>
       )}
@@ -159,7 +166,7 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     parentTitle: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.sectionHeading,
       color: theme.colors.secondary,
     },
     specialtiesList: {
@@ -169,7 +176,9 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
       overflow: 'hidden',
     },
     specialtyHeader: {
@@ -206,12 +215,16 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['3'],
     },
     serviceCard: {
-      backgroundColor: theme.colors.white,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['5'],
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.cardBackground,
       gap: 7,
+    },
+    serviceCardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
     },
     serviceTopRow: {
       flexDirection: 'row',
@@ -245,14 +258,11 @@ const createStyles = (theme: any) =>
       width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.white,
-      borderWidth: 1,
-      borderColor: theme.colors.secondary,
       borderRadius: theme.borderRadius.lg,
     },
     selectButtonText: {
       ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      color: theme.colors.white,
     },
   });
 
