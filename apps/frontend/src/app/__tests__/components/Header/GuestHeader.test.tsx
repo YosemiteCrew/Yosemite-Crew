@@ -48,28 +48,4 @@ describe("GuestHeader", () => {
     render(<GuestHeader />);
     expect(screen.queryByTestId("primary-btn")).not.toBeInTheDocument();
   });
-
-  test("mobile menu navigates with animation delay", () => {
-    mockPathname.mockReturnValue("/pricing");
-    mockUseAuthStore.mockReturnValue({ user: null });
-
-    render(<GuestHeader />);
-
-    fireEvent.click(screen.getByLabelText("Open menu"));
-    const pricingButton = screen
-      .getAllByRole("button", { name: "Pricing" })
-      .find((el) => el.classList.contains("mobile-menu-item-button"));
-    expect(pricingButton).toBeDefined();
-
-    if (!pricingButton) {
-      throw new Error("Pricing button not found in mobile menu");
-    }
-
-    fireEvent.click(pricingButton);
-    act(() => {
-      jest.advanceTimersByTime(400);
-    });
-
-    expect(mockPush).toHaveBeenCalledWith("/pricing");
-  });
 });

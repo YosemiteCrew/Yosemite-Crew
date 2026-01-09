@@ -9,6 +9,7 @@ import { Invite } from "@/app/types/team";
 
 import { useRouter } from "next/navigation";
 import { acceptInvite } from "@/app/services/teamService";
+import { toTitleCase } from "@/app/utils/validators";
 
 import "./DataTable.css";
 
@@ -51,7 +52,7 @@ const OrgInvites = ({ invites }: OrgInvitesProps) => {
       key: "type",
       width: "20%",
       render: (item: Invite) => (
-        <div className="InviteTime">{item.organisationType}</div>
+        <div className="InviteTime">{toTitleCase(item.organisationType)}</div>
       ),
     },
     {
@@ -59,7 +60,7 @@ const OrgInvites = ({ invites }: OrgInvitesProps) => {
       key: "role",
       width: "20%",
       render: (item: Invite) => (
-        <div className="InviteExpires">{item.role}</div>
+        <div className="InviteExpires">{toTitleCase(item.role)}</div>
       ),
     },
     {

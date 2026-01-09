@@ -1,33 +1,43 @@
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { MdNotificationsActive } from "react-icons/md";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
-import classNames from "classnames";
 import { useSignOut } from "@/app/hooks/useAuth";
+import { HiBuildingOffice2 } from "react-icons/hi2";
 
-import "./UserHeader.css";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
-import { isHttpsImageUrl } from "@/app/utils/urls";
 import { FaCaretDown } from "react-icons/fa6";
 
-const appRoutes = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "Organization", href: "/organization" },
-  { name: "Appointments", href: "/appointments" },
-  { name: "Tasks", href: "/tasks" },
-  { name: "Chat", href: "/chat" },
-  { name: "Finance", href: "/finance" },
-  { name: "Companions", href: "/companions" },
-  { name: "Inventory", href: "/inventory" },
-  { name: "Forms", href: "/forms" },
-  { name: "Settings", href: "/settings" },
-  { name: "Sign out", href: "#" },
+import { useAuthStore } from "@/app/stores/authStore";
+import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
+import Image from "next/image";
+import { isHttpsImageUrl } from "@/app/utils/urls";
+import Search from "../../Inputs/Search";
+
+type RouteItem = {
+  name: string;
+  href: string;
+  icon?: string;
+  verify?: boolean;
+};
+
+const appRoutes: RouteItem[] = [
+  { name: "Dashboard", href: "/dashboard", verify: false },
+  { name: "Organization", href: "/organization", verify: false },
+  { name: "Appointments", href: "/appointments", verify: true },
+  { name: "Tasks", href: "/tasks", verify: true },
+  { name: "Chat", href: "/chat", verify: true },
+  { name: "Finance", href: "/finance", verify: true },
+  { name: "Companions", href: "/companions", verify: true },
+  { name: "Inventory", href: "/inventory", verify: true },
+  { name: "Forms", href: "/forms", verify: true },
+  { name: "Settings", href: "/settings", verify: false },
+  { name: "Sign out", href: "#", verify: false },
 ];
 
-const devRoutes = [
+const devRoutes: RouteItem[] = [
   { name: "Dashboard", href: "/developers/home" },
   { name: "API Keys", href: "/developers/api-keys" },
   { name: "Website - Builder", href: "/developers/website-builder" },
@@ -39,16 +49,19 @@ const devRoutes = [
 
 const UserHeader = () => {
   const { signOut } = useSignOut();
-  const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`;
   const pathname = usePathname();
   const router = useRouter();
+  const attributes = useAuthStore((s) => s.attributes);
+  const profile = usePrimaryOrgProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const isDev = pathname.startsWith("/developers");
   const routes = isDev ? devRoutes : appRoutes;
   const [selectOrg, setSelectOrg] = useState(false);
+  const [selectProfile, setSelectProfile] = useState(false);
   const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
+  const [search, setSearch] = useState("");
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
@@ -83,12 +96,11 @@ const UserHeader = () => {
     }, 400);
   };
 
-  return (
-    <div className="user-header-container">
-      <Link href="/" className="logo">
-        <Image src={logoUrl} alt="Logo" width={80} height={80} priority />
-      </Link>
+  const orgMissing = !primaryOrg;
+  const orgVerified = !!primaryOrg?.isVerified;
 
+  return (
+    <div className="flex items-center justify-between px-3 sm:px-[60px]! w-full h-20 gap-10">
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -106,53 +118,106 @@ const UserHeader = () => {
             style={{
               top: "80px",
             }}
-            className="public-header-mobile-menu"
+            className="px-3 sm:px-12! py-6 bg-white z-999 fixed top-full left-0 w-screen overflow-auto flex flex-col gap-3"
           >
-            {routes.map((item, index) => (
-              <div key={item.name} className="mobile-menu-item">
+            {primaryOrg && (
+              <div className="relative">
                 <button
-                  type="button"
-                  onClick={() => handleClick(item)}
-                  className={classNames("mobile-menu-item-button", {
-                    active: pathname === item.href,
-                  })}
+                  className="flex items-center gap-2"
+                  onClick={() => setSelectOrg((e) => !e)}
                 >
-                  {item.name}
+                  <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
+                    <HiBuildingOffice2 size={18} color="#302f2e" />
+                  </div>
+                  <div className="text-black-text text-body-4 truncate max-w-[200px]">
+                    {primaryOrg?.name}
+                  </div>
+                  <FaCaretDown
+                    size={20}
+                    className={`text-black-text transition-transform cursor-pointer`}
+                  />
                 </button>
-                {index !== routes.length - 1 && (
-                  <div className="mobile-menu-item-sperator"></div>
+                {selectOrg && (
+                  <div className="absolute top-[120%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full max-w-[200px] px-2">
+                    {orgs.slice(0, 3).map((org, i) => (
+                      <button
+                        key={org.name + i}
+                        className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl text-text-secondary! hover:text-text-primary! max-w-[200px] w-full truncate border-b! border-b-card-border!"
+                        onClick={() =>
+                          handleOrgClick(org._id?.toString() || org.name)
+                        }
+                      >
+                        {org.name}
+                      </button>
+                    ))}
+                    <Link
+                      href={"/organizations"}
+                      onClick={() => setSelectOrg(false)}
+                      className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full"
+                    >
+                      View all
+                    </Link>
+                  </div>
                 )}
               </div>
-            ))}
+            )}
+            <div className="flex flex-col gap-3">
+              {routes.map((route, index) => {
+                const needsVerifiedOrg = route.verify;
+                const isDisabled =
+                  route.name !== "Sign out" &&
+                  route.name !== "Settings" &&
+                  (orgMissing || (needsVerifiedOrg && !orgVerified));
+
+                const isActive = pathname === route.href;
+
+                const onClick: React.MouseEventHandler<HTMLButtonElement> = (
+                  e
+                ) => {
+                  e.preventDefault();
+                  if (isDisabled) return;
+                  handleClick(route);
+                };
+
+                return (
+                  <button
+                    type="button"
+                    key={route.name}
+                    onClick={onClick}
+                    className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${isActive && "text-text-brand border-text-brand! bg-brand-100"} ${isDisabled && "text-[#A09F9F]!"}`}
+                  >
+                    {route.name}
+                  </button>
+                );
+              })}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="headerRight">
-        <MdNotificationsActive
-          color="#595958"
-          size={28}
-          style={{ cursor: "pointer" }}
-        />
+      <div className="flex lg:hidden">
+        <Link href="/" className="logo">
+          <Image
+            src={"https://d2il6osz49gpup.cloudfront.net/Logo.png"}
+            alt="Logo"
+            width={90}
+            height={83}
+            priority
+          />
+        </Link>
+      </div>
+      <div className="hidden lg:flex">
         {primaryOrg && (
           <div className="relative">
             <button
-              className="flex items-center gap-2.5"
+              className="flex items-center gap-2"
               onClick={() => setSelectOrg((e) => !e)}
             >
-              <Image
-                src={
-                  isHttpsImageUrl(primaryOrg.imageURL)
-                    ? primaryOrg.imageURL
-                    : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-                }
-                alt="Logo"
-                height={42}
-                width={42}
-                className="rounded-full min-w-[42px] max-h-[42px] h-[42px] object-cover"
-              />
-              <div className="font-satoshi font-medium text-black-text text-[16px] tracking-tight leading-6">
-                Manipal Hospital
+              <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
+                <HiBuildingOffice2 size={18} color="#302f2e" />
+              </div>
+              <div className="text-black-text text-body-4 truncate max-w-[200px]">
+                {primaryOrg?.name}
               </div>
               <FaCaretDown
                 size={20}
@@ -160,11 +225,11 @@ const UserHeader = () => {
               />
             </button>
             {selectOrg && (
-              <div className="absolute top-[120%] left-0 rounded-2xl border border-grey-noti bg-white shadow-md! flex flex-col items-center w-full px-3">
+              <div className="absolute top-[120%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full px-2">
                 {orgs.slice(0, 3).map((org, i) => (
                   <button
                     key={org.name + i}
-                    className="text-grey-noti font-grotesk font-medium text-[16px] text-center py-2 w-full"
+                    className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl text-text-secondary! hover:text-text-primary! max-w-[200px] w-full truncate border-b! border-b-card-border!"
                     onClick={() =>
                       handleOrgClick(org._id?.toString() || org.name)
                     }
@@ -175,7 +240,7 @@ const UserHeader = () => {
                 <Link
                   href={"/organizations"}
                   onClick={() => setSelectOrg(false)}
-                  className="text-blue-text font-grotesk font-medium text-[16px] text-center py-2 border-t! border-t-grey-light! w-full"
+                  className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full"
                 >
                   View all
                 </Link>
@@ -183,20 +248,93 @@ const UserHeader = () => {
             )}
           </div>
         )}
+      </div>
+
+      <div className="flex items-center justify-center gap-3">
+        <Search value={search} setSearch={setSearch} />
+
+        <MdNotificationsActive
+          color="#302f2e"
+          size={22}
+          style={{ cursor: "pointer" }}
+        />
+
+        <div className="relative hidden lg:flex">
+          <button
+            className="flex items-center gap-2"
+            onClick={() => setSelectProfile((e) => !e)}
+          >
+            <Image
+              src={
+                isHttpsImageUrl(profile?.personalDetails?.profilePictureUrl)
+                  ? profile?.personalDetails?.profilePictureUrl
+                  : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+              }
+              alt="Logo"
+              height={32}
+              width={32}
+              className="rounded-full object-cover h-8 min-w-8 max-h-8"
+            />
+            <div className="text-black-text text-body-4 max-w-[200px] truncate">
+              {attributes?.given_name + " " + attributes?.family_name}
+            </div>
+            <FaCaretDown
+              size={20}
+              className={`text-black-text transition-transform cursor-pointer`}
+            />
+          </button>
+          {selectProfile && (
+            <div className="absolute top-[120%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full px-2">
+              <Link
+                href={"/settings"}
+                onClick={() => setSelectProfile(false)}
+                className="px-[1.25rem] py-[0.75rem] text-body-4 text-text-secondary! hover:text-text-primary!"
+              >
+                Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary hover:text-text-primary! border-t border-t-card-border"
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
+
         <button
           type="button"
-          className="menu-toggle"
+          className={`
+            cursor-pointer
+            h-10 w-10 rounded-full!
+            border border-text-primary!
+            bg-(--whitebg)
+            lg:hidden
+          `}
           onClick={toggleMenu}
           aria-label={menuOpen ? "Close menu" : "Open menu"}
         >
           <motion.div
-            className="hamburger-icon"
+            className={`
+              h-full w-full
+              flex flex-col items-center justify-center
+              gap-[3px]
+            `}
             initial={false}
             animate={menuOpen ? "open" : "closed"}
           >
-            <motion.span variants={line1Variants} />
-            <motion.span variants={line2Variants} />
-            <motion.span variants={line3Variants} />
+            <motion.span
+              variants={line1Variants}
+              className="h-0.5 w-[15px] rounded-xs bg-text-primary origin-center"
+            />
+            <motion.span
+              variants={line2Variants}
+              className="h-0.5 w-[15px] rounded-xs bg-text-primary origin-center"
+            />
+            <motion.span
+              variants={line3Variants}
+              className="h-0.5 w-[15px] rounded-xs bg-text-primary origin-center"
+            />
           </motion.div>
         </button>
       </div>

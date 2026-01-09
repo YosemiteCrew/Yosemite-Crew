@@ -19,59 +19,59 @@
 }
 .InviteDetails {
   color: var(--yc-upated-contrat1, #247aed);
-  font-family: var(--satoshi-font);
-  font-size: 15px;
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 24px; /* 160% */
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
   cursor: pointer;
 }
 .InviteTime {
   color: var(--yc-updated, #302f2e);
-  font-family: var(--satoshi-font);
-  font-size: 15px;
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 24px; /* 160% */
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
 }
 .InviteExpires {
   color: var(--yc-updated, #302f2e);
-  font-family: var(--satoshi-font);
-  font-size: 15px;
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 24px; /* 160% */
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
 }
 
 .OrgListDetails {
   color: var(--yc-upated-contrat1, #247aed);
-  font-size: 15px;
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 24px; /* 160% */
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
   font-family: var(--satoshi-font);
   cursor: pointer;
 }
 .OrgStatus {
   display: flex;
-  padding: 8px;
+  padding: 8px 16px;
   justify-content: center;
   align-items: center;
   gap: 10px;
   width: fit-content;
-  border-radius: 8px;
+  border-radius: 16px;
   background: var(--pendingbg, #fef3e9);
   color: var(--pendingtext, #f68523);
-  font-family: var(--satoshi-font);
-  font-size: 15px;
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 120%; /* 18px */
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
 }
 .OrgListDetailsCol {
   display: flex;
@@ -116,41 +116,40 @@
   gap: 4px;
 }
 .appointment-profile-title {
-  color: var(--black-text);
   font-family: var(--satoshi-font);
-  font-size: 15px;
+  color: var(--yc-updated, #302f2e);
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 120%;
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
 }
 .appointment-profile-sub {
-  color: var(--black-text);
   font-family: var(--satoshi-font);
-  font-size: 13px;
+  color: var(--yc-updated, #302f2e);
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 120%;
-  letter-spacing: -0.39px;
-  opacity: 0.6;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
 }
 .appointment-status {
   display: flex;
-  padding: 8px;
+  padding: 8px 16px;
   justify-content: center;
   align-items: center;
   gap: 10px;
   align-self: stretch;
-  border-radius: 12px;
+  border-radius: 16px;
   background: #eaeaea;
   color: var(--black-text);
   text-align: center;
-  font-family: var(--satoshi-font);
-  font-size: 15px;
+  font-size: 16px;
   font-style: normal;
-  font-weight: 700;
-  line-height: 120%;
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  line-height: 150%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
 }
 .appointment-emergency-label {
   display: flex;

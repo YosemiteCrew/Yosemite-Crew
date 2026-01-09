@@ -23,16 +23,21 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <>
-      <Header />
       <Cookies />
       <Github />
       {isPublicRoute ? (
-        <div className="bodywrapper">{children}</div>
+        <>
+          <Header />
+          <div className="pt-20 flex-1 lg:pt-0">{children}</div>
+        </>
       ) : (
-        <div className="sidebarwrapper">
+        <div className="flex h-screen flex-1 lg:overflow-hidden">
           <Sidebar />
-          <div className="sidebarbodywrapper">
-            {isChecking ? null : children}
+          <div className="flex flex-col flex-1">
+            <Header user />
+            <div className="pt-20 flex-1 lg:pt-0 lg:overflow-y-scroll">
+              {isChecking ? null : children}
+            </div>
           </div>
         </div>
       )}

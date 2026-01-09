@@ -10,6 +10,7 @@ import { CompanionParent } from "../../pages/Companions/types";
 
 import { getAgeInYears } from "@/app/utils/date";
 import { isHttpsImageUrl } from "@/app/utils/urls";
+import { toTitleCase } from "@/app/utils/validators";
 
 import "./DataTable.css";
 
@@ -31,13 +32,13 @@ type CompanionsTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case "active":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#fff", backgroundColor: "#D28F9A" };
     case "archived":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
+      return { color: "#fff", backgroundColor: "#BF9FAA" };
     case "inactive":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+      return { color: "#fff", backgroundColor: "#747283" };
     default:
-      return { color: "#6b7280", backgroundColor: "rgba(107,114,128,0.1)" };
+      return { color: "#fff", backgroundColor: "rgba(107,114,128,0.1)" };
   }
 };
 
@@ -60,9 +61,9 @@ const CompanionsTable = ({
 
   const columns: Column<CompanionParent>[] = [
     {
-      label: "Name",
-      key: "name",
-      width: "20%",
+      label: "",
+      key: "image",
+      width: "5%",
       render: (item: CompanionParent) => (
         <div className="appointment-profile">
           <Image
@@ -82,12 +83,26 @@ const CompanionsTable = ({
               maxHeight: "40px",
             }}
           />
+        </div>
+      ),
+    },
+    {
+      label: "Name",
+      key: "name",
+      width: "15%",
+      render: (item: CompanionParent) => (
+        <div className="appointment-profile">
           <div className="appointment-profile-two">
             <div className="appointment-profile-title">
               {item.companion.name}
             </div>
-            <div className="appointment-profile-sub">
-              {item.companion.breed + "/" + item.companion.type}
+            <div className="flex items-center">
+              <div className="appointment-profile-sub truncate max-w-[60px]">
+                {item.companion.breed}
+              </div>
+              <div className="appointment-profile-sub">
+                {"/" + item.companion.type}
+              </div>
             </div>
           </div>
         </div>
@@ -146,7 +161,7 @@ const CompanionsTable = ({
           className="appointment-status"
           style={getStatusStyle(item.companion.status || "inactive")}
         >
-          {item.companion.status || "inactive"}
+          {toTitleCase(item.companion.status || "inactive")}
         </div>
       ),
     },
