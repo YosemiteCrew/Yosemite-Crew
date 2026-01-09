@@ -25,12 +25,12 @@ const LandingPage = () => {
         <div className="HeroContainer">
           <div className="LeftHeroSection">
             <TextFade direction="up" className="LeftHeroText">
-              <h2>Open source operating system for animal health</h2>
-              <p>
+              <div className="text-display-1">Open source operating system for animal health</div>
+              <div className="text-body-2">
                 Designed for pet businesses, pet parents, and developers to
                 collaborate in improving animal care. Streamline workflows while
                 enhancing health outcomes, in one unified system.
-              </p>
+              </div>
             </TextFade>
             <TextFade direction="up" className="LeftHeroButtons">
               <Primary
@@ -76,7 +76,7 @@ const LandingPage = () => {
                       height={565}
                     />
                     <div className="carousel-text">
-                      <h4>{slide.text}</h4>
+                      <div className="text-heading-1">{slide.text}</div>
                     </div>
                   </div>
                 </Carousel.Item>

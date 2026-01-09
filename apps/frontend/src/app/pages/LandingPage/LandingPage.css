@@ -19,7 +19,7 @@
   justify-content: center;
   flex-direction: column;
   gap: 20px;
-  padding: 32px 80px;
+  padding: 0 80px;
   width: 50%;
   margin-bottom: 100px;
 }
@@ -28,20 +28,12 @@
   flex-direction: column;
   gap: 8px;
 }
-.LeftHeroText h2 {
-  font-weight: 500;
-  font-size: 57px;
+.LeftHeroText > div:first-child {
   max-width: 560px;
-  font-family: var(--grotesk-font);
-  line-height: 120%;
   margin: 0;
   color: var(--black-text);
 }
-.LeftHeroText p {
-  font-weight: 400;
-  font-size: 20px;
-  font-family: var(--satoshi-font);
-  line-height: 120%;
+.LeftHeroText > div:nth-child(2) {
   margin: 0;
   color: var(--black-text);
 }
@@ -69,11 +61,7 @@
   height: 100%;
   object-fit: cover;
 }
-.carousel-text h4 {
-  font-weight: 500;
-  font-size: 28px;
-  font-family: var(--grotesk-font);
-  line-height: 120%;
+.carousel-text > div {
   margin: 0;
   color: var(--black-text);
 }
@@ -155,9 +143,6 @@
     padding: 32px 48px;
     margin-bottom: 0px;
   }
-  .LeftHeroText h2 {
-    font-size: 40px;
-  }
 }
 @media screen and (max-width: 1024px) {
   .HeroSection {
@@ -173,12 +158,11 @@
   .RightHeroSection {
     width: 100%;
   }
-  .LeftHeroText h2 {
-    font-size: 40px;
+  .LeftHeroText > div:first-child {
     text-align: center;
     max-width: 100%;
   }
-  .LeftHeroText p {
+  .LeftHeroText > div:nth-child(2) {
     text-align: center;
   }
   .LeftHeroButtons {
@@ -190,18 +174,8 @@
   .carousel-text {
     min-height: 150px;
   }
-  .carousel-text h4 {
-    font-size: 19px;
-  }
   .LeftHeroSection {
     padding: 24px 16px;
-  }
-  .LeftHeroText h2 {
-    font-size: 28px;
-  }
-  .LeftHeroText p {
-    font-size: 15px;
-    line-height: 160%;
   }
 }
 

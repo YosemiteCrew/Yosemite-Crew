@@ -11,15 +11,15 @@ const LandingCard = ({ item }: { item: InfoCard }) => {
   return (
     <section className="landingSection" style={{ background: item.background }}>
       <div className="landingContainer">
-        <TextFade direction="up" className="landingTop">
-          <span>{item.target}</span>
-        </TextFade>
         <div className="LandingData">
           <div className="LeftLanding">
             <div className="landingTexed">
               <TextFade direction="up" className="landinginnerTexed">
-                <h2>{item.title}</h2>
-                <p>{item.description}</p>
+                  <TextFade direction="up" className="landingTop">
+          <div className="text-display-2 pb-2">{item.target}</div>
+        </TextFade>
+                <div className="text-display-1">{item.title}</div>
+                <div className="text-body-2">{item.description}</div>
               </TextFade>
               <TextFade direction="up">
                 <Primary
