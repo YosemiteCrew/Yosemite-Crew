@@ -233,13 +233,17 @@ describe('CompanionOrganisationService', () => {
 
   describe('revokeLink', () => {
       it('should revoke link', async () => {
-          (CompanionOrganisationModel.findByIdAndUpdate as jest.Mock).mockResolvedValue({ status: 'REVOKED' });
+          const deleted = { _id: validObjectId, status: 'ACTIVE' };
+          (CompanionOrganisationModel.findByIdAndDelete as jest.Mock).mockResolvedValue(deleted);
           const res = await CompanionOrganisationService.revokeLink(validObjectId);
-          expect(res.status).toBe('REVOKED');
+          expect(res).toBe(deleted);
+          expect(CompanionOrganisationModel.findByIdAndDelete).toHaveBeenCalledWith(expect.any(Types.ObjectId));
+          const calledWithId = (CompanionOrganisationModel.findByIdAndDelete as jest.Mock).mock.calls[0][0];
+          expect(calledWithId.toString()).toBe(validObjectId);
       });
 
       it('should throw if not found', async () => {
-          (CompanionOrganisationModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(null);
+          (CompanionOrganisationModel.findByIdAndDelete as jest.Mock).mockResolvedValue(null);
           await expect(CompanionOrganisationService.revokeLink(validObjectId)).rejects.toThrow('Link not found');
       });
   });
