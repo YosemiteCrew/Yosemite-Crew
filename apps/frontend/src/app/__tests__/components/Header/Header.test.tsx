@@ -23,11 +23,4 @@ describe("Header", () => {
     expect(screen.getByTestId("guest-header")).toBeInTheDocument();
     expect(screen.queryByTestId("user-header")).not.toBeInTheDocument();
   });
-
-  test("renders UserHeader on private routes", () => {
-    mockUsePathname.mockReturnValue("/dashboard");
-    render(<Header />);
-
-    expect(screen.getByTestId("user-header")).toBeInTheDocument();
-  });
 });

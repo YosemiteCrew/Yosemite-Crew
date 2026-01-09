@@ -72,8 +72,8 @@ const GenericTable = <T extends object>({
           ) : (
             <tr>
               <td colSpan={columns.length}>
-                <div className="w-full min-h-[120px] flex items-center justify-center">
-                  No data available
+                <div className="w-full py-2.5 flex items-center justify-center text-body-4 text-text-primary">
+                  Looks like a quiet day… for now.
                 </div>
               </td>
             </tr>

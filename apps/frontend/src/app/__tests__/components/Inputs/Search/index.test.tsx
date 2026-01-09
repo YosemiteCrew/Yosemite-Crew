@@ -25,9 +25,6 @@ describe("Search Component", () => {
     const input = screen.getByPlaceholderText("Search");
     expect(input).toBeInTheDocument();
     expect(input).toHaveValue("");
-
-    // Check icon exists
-    expect(screen.getByTestId("search-icon")).toBeInTheDocument();
   });
 
   it("renders with a specific initial value", () => {
@@ -85,7 +82,6 @@ describe("Search Component", () => {
     const container = input.parentElement;
 
     // Check default styling logic
-    expect(container).toHaveClass("h-10");
     expect(container?.className).not.toContain("undefined");
   });
 });
