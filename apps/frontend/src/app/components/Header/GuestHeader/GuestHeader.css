@@ -147,7 +147,7 @@
 .navmenu {
   padding: 0;
   flex: 1;
-  max-width: 900px;
+  max-width: 800px;
 }
 
 .navmenu ul {
@@ -162,14 +162,14 @@
 
 .navmenu li {
   position: relative;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
 }
 
 .navmenu a,
 .navmenu a:focus {
   color: var(--notibg);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
   display: flex;
   align-items: center;
   justify-content: space-between;

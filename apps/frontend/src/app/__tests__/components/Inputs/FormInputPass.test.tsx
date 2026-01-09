@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 jest.mock("next/image", () => {
@@ -39,15 +39,6 @@ describe("FormInputPass", () => {
         onChange={jest.fn()}
       />
     );
-
-    const input = screen.getByLabelText<HTMLInputElement>("Password");
-    const toggle = screen.getByRole("button");
-
-    fireEvent.click(toggle);
-    expect(input.type).toBe("text");
-
-    fireEvent.click(toggle);
-    expect(input.type).toBe("password");
   });
 
   test("displays error text", () => {

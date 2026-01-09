@@ -84,8 +84,6 @@
 }
 
 * {
-  padding: 0;
-  margin: 0;
   box-sizing: border-box;
   scroll-behavior: smooth;
 }
@@ -157,16 +155,22 @@
 
   --color-text-primary: var(--color-neutral-900);
   --color-text-cta: var(--color-neutral-900);
+  --color-text-error: var(--color-danger-600);
+  --color-text-brand: var(--color-brand-950);
   --color-text-secondary: var(--color-neutral-700);
   --color-text-tertiary: var(--color-neutral-600);
   --color-text-extra: var(--color-neutral-500);
   --color-surface-card: var(--color-neutral-0);
-  --color-border-card: var(--color-neutral-100);
+  --color-card-border: var(--color-neutral-100);
   --color-border-card-selected: var(--color-neutral-200);
   --color-state-hover: var(--color-neutral-950);
   --color-state-selected: var(--color-neutral-950);
-
-
+  
+  --color-input-text-placeholder: var(--color-neutral-700);
+  --color-input-text-placeholder-active: var(--color-brand-950);
+  --color-input-border-default: var(--color-neutral-200);
+  --color-input-border-error: var(--color-danger-600);
+  --color-input-border-active: var(--color-brand-950);
 
   --color-black-text: #302f2e;
   --color-black-bg: #302f2e;

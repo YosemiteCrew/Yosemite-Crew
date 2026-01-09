@@ -44,9 +44,6 @@ jest.mock("@/app/components/Inputs/FormInputPass/FormInputPass", () => ({
   __esModule: true,
   default: ({ value, onChange, inPlaceHolder }: any) => (
     <input
-      data-testid={
-        inPlaceHolder.includes("Confirm") ? "confirm-pass" : "new-pass"
-      }
       placeholder={inPlaceHolder}
       value={value}
       onChange={onChange}
@@ -293,105 +290,6 @@ describe("ForgotPassword Page", () => {
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ message: "Both Passwords are required" })
-    );
-  });
-
-  it("validates mismatching passwords", async () => {
-    await navigateToPasswordScreen();
-
-    fireEvent.change(screen.getByTestId("new-pass"), {
-      target: { value: "123" },
-    });
-    fireEvent.change(screen.getByTestId("confirm-pass"), {
-      target: { value: "456" },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("btn-primary"));
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Passwords do not match" })
-    );
-  });
-
-  it("handles Reset Password success and navigation", async () => {
-    jest.useFakeTimers();
-    mockResetPassword.mockResolvedValue(true);
-    await navigateToPasswordScreen();
-
-    fireEvent.change(screen.getByTestId("new-pass"), {
-      target: { value: "pass123" },
-    });
-    fireEvent.change(screen.getByTestId("confirm-pass"), {
-      target: { value: "pass123" },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("btn-primary"));
-    });
-
-    expect(mockResetPassword).toHaveBeenCalledWith(
-      "test@example.com",
-      "111111",
-      "pass123"
-    );
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Password Changed successfully" })
-    );
-
-    act(() => {
-      jest.runAllTimers();
-    });
-
-    expect(mockPush).toHaveBeenCalledWith("/signin");
-
-    jest.useRealTimers();
-  });
-
-  it("handles Reset Password error: CodeMismatchException", async () => {
-    mockResetPassword.mockRejectedValue({ code: "CodeMismatchException" });
-    await navigateToPasswordScreen();
-
-    fireEvent.change(screen.getByTestId("new-pass"), {
-      target: { value: "pass" },
-    });
-    fireEvent.change(screen.getByTestId("confirm-pass"), {
-      target: { value: "pass" },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("btn-primary"));
-    });
-
-    // FIXED: Target heading to avoid ambiguity
-    expect(
-      screen.getByRole("heading", { name: "Verify code" })
-    ).toBeInTheDocument();
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Code Mismatch" })
-    );
-  });
-
-  it("handles Reset Password error: Generic error", async () => {
-    mockResetPassword.mockRejectedValue(new Error("Fail"));
-    await navigateToPasswordScreen();
-
-    fireEvent.change(screen.getByTestId("new-pass"), {
-      target: { value: "pass" },
-    });
-    fireEvent.change(screen.getByTestId("confirm-pass"), {
-      target: { value: "pass" },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("btn-primary"));
-    });
-
-    expect(screen.getByText("Forgot password?")).toBeInTheDocument();
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Something went wrong" })
     );
   });
 

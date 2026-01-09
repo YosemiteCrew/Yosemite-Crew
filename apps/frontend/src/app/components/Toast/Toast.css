@@ -1,14 +1,14 @@
 .SignError {
   width: 100%;
-  min-height: 85px;
+  min-height: 48px;
   position: absolute;
   top: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 16px 10px;
-  border-radius: 0px 0px 20px 20px;
+  padding: 10px 10px;
+  border-radius: 0px 0px 16px 16px;
 }
 .SignError.errofoundbg {
   background: #f8c1bd;
@@ -39,8 +39,8 @@
 .SignError .ErroItemDiv .errortopbar .Errortexted h6 {
   margin: 0;
   font-weight: 500;
-  font-family: var(--grotesk-font);
-  font-size: 19px;
+  font-family: var(--satoshi-font);
+  font-size: 16px;
   line-height: 120%;
   color: var(--black-text);
 }
@@ -48,7 +48,7 @@
   margin: 0;
   font-weight: 400;
   font-family: var(--satoshi-font);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 120%;
   color: var(--black-text);
 }
