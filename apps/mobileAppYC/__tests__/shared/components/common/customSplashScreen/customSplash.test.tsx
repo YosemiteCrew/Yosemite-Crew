@@ -28,7 +28,7 @@ describe('CustomSplashScreen', () => {
     BootSplash = require('react-native-bootsplash');
 
     // Mock Animated API
-    jest.spyOn(Animated, 'timing').mockImplementation((value: any, config: any) => {
+    jest.spyOn(Animated, 'timing').mockImplementation((_value: any, _config: any) => {
       return {
         start: jest.fn((callback?: any) => {
           if (callback) callback();
@@ -36,7 +36,7 @@ describe('CustomSplashScreen', () => {
       } as any;
     });
 
-    jest.spyOn(Animated, 'spring').mockImplementation((value: any, config: any) => {
+    jest.spyOn(Animated, 'spring').mockImplementation((_value: any, _config: any) => {
       return {
         start: jest.fn((callback?: any) => {
           if (callback) callback();
@@ -44,7 +44,7 @@ describe('CustomSplashScreen', () => {
       } as any;
     });
 
-    jest.spyOn(Animated, 'sequence').mockImplementation((animations: any) => {
+    jest.spyOn(Animated, 'sequence').mockImplementation((_animations: any) => {
       return {
         start: jest.fn((callback?: any) => {
           if (callback) callback();
@@ -52,7 +52,7 @@ describe('CustomSplashScreen', () => {
       } as any;
     });
 
-    jest.spyOn(Animated, 'parallel').mockImplementation((animations: any) => {
+    jest.spyOn(Animated, 'parallel').mockImplementation((_animations: any) => {
       return {
         start: jest.fn((callback?: any) => {
           if (callback) callback();
@@ -60,14 +60,14 @@ describe('CustomSplashScreen', () => {
       } as any;
     });
 
-    jest.spyOn(Animated, 'loop').mockImplementation((animation: any) => {
+    jest.spyOn(Animated, 'loop').mockImplementation((_animation: any) => {
       return {
         start: jest.fn(),
         stop: jest.fn(),
       } as any;
     });
 
-    jest.spyOn(Animated, 'delay').mockImplementation((time: number) => {
+    jest.spyOn(Animated, 'delay').mockImplementation((_time: number) => {
       return null as any;
     });
   });
@@ -115,10 +115,6 @@ describe('CustomSplashScreen', () => {
       const {UNSAFE_getAllByType} = render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
       const images = UNSAFE_getAllByType('Image' as any);
-      const starImages = images.filter(img => {
-        const source = img.props.source;
-        return source && typeof source === 'number'; // Local image sources are numbers
-      });
 
       // Should have at least 2 stars + 1 main logo + 4 certification logos = 7+ images
       expect(images.length).toBeGreaterThanOrEqual(7);

@@ -29,7 +29,7 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
 }));
 
 jest.mock('@/shared/utils/screenStyles', () => ({
-  createLiquidGlassHeaderStyles: jest.fn((theme: any, options: any) => ({
+  createLiquidGlassHeaderStyles: jest.fn((_theme: any, _options: any) => ({
     topSection: {position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10},
     topGlassShadowWrapper: {},
     topGlassCard: {},

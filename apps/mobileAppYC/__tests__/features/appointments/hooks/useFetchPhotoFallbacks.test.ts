@@ -215,11 +215,6 @@ describe('useFetchPhotoFallbacks', () => {
       },
     ];
 
-    const updatedBusinessMap = new Map([
-      ...businessMap,
-      ['b2', {id: 'b2', photo: null, googlePlacesId: 'place-2'}],
-    ]);
-
     rerender({appointments: appointments2});
 
     // Should have called for the second appointment
