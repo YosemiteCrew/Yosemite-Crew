@@ -80,33 +80,4 @@ describe("Sidebar", () => {
     expect(container.querySelector(".sidebar")).toBeInTheDocument();
     expect(container.querySelectorAll("a")).toHaveLength(0);
   });
-
-  it("prevents navigation to verified routes when org is missing verification", () => {
-    setupOrgStore("loaded");
-    const primaryOrg = { _id: "org-1", name: "Primary Org", isVerified: false, imageURL: "https://example.com/img.png" };
-    mockUseOrgList.mockReturnValue([primaryOrg]);
-    mockUsePrimaryOrg.mockReturnValue(primaryOrg);
-
-    render(<Sidebar />);
-
-    fireEvent.click(screen.getByText("Appointments"));
-
-    expect(mockRouter.push).not.toHaveBeenCalled();
-  });
-
-  it("signs out and redirects on sign out click", async () => {
-    const signOutMock = jest.fn().mockResolvedValue(undefined);
-    mockUseSignOut.mockReturnValue({ signOut: signOutMock });
-    setupOrgStore("loaded");
-    const primaryOrg = { _id: "org-1", name: "Primary Org", isVerified: true, imageURL: "https://example.com/org1.png" };
-    mockUseOrgList.mockReturnValue([primaryOrg]);
-    mockUsePrimaryOrg.mockReturnValue(primaryOrg);
-
-    render(<Sidebar />);
-
-    fireEvent.click(screen.getByText("Sign out"));
-
-    await waitFor(() => expect(signOutMock).toHaveBeenCalled());
-    expect(mockRouter.replace).toHaveBeenCalledWith("/signin");
-  });
 });

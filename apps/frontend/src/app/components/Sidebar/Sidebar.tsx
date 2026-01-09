@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 
-import { useSignOut } from "@/app/hooks/useAuth";
-import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
+import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useLoadProfiles } from "@/app/hooks/useProfiles";
@@ -29,8 +29,6 @@ const appRoutes: RouteItem[] = [
   { name: "Companions", href: "/companions", verify: true },
   { name: "Inventory", href: "/inventory", verify: true },
   { name: "Forms", href: "/forms", verify: true },
-  { name: "Settings", href: "/settings", verify: false },
-  { name: "Sign out", href: "#", verify: false },
 ];
 
 const devRoutes: RouteItem[] = [
@@ -39,8 +37,6 @@ const devRoutes: RouteItem[] = [
   { name: "Website - Builder", href: "/developers/website-builder" },
   { name: "Plugins", href: "/developers/plugins" },
   { name: "Documentation", href: "/developers/documentation" },
-  { name: "Settings", href: "/developers/settings" },
-  { name: "Sign out", href: "#" },
 ];
 
 const Sidebar = () => {
@@ -50,34 +46,18 @@ const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut } = useSignOut();
 
   const isDevPortal = pathname?.startsWith("/developers") || false;
   const routes = isDevPortal ? devRoutes : appRoutes;
 
   const orgStatus = useOrgStore((s) => s.status);
-  const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      console.log("✅ Signed out using Cognito signout");
-      router.replace(isDevPortal ? "/developers/signin" : "/signin");
-    } catch (error) {
-      console.error("⚠️ Cognito signout error:", error);
-    }
-  };
-
   const handleClick = (item: any) => {
-    if (item.name === "Sign out") {
-      handleLogout();
-    } else {
-      router.push(item.href);
-    }
+    router.push(item.href);
   };
 
-  const isInitialLoading = orgStatus !== "loaded" && orgs.length === 0;
+  const isInitialLoading = orgStatus !== "loaded";
 
   if (isInitialLoading) return <div className="sidebar"></div>;
 
@@ -86,6 +66,11 @@ const Sidebar = () => {
 
   return (
     <div className="sidebar">
+      <div className="flex items-center justify-center h-20">
+        <Link href="/" className="logo">
+          <Image src={"https://d2il6osz49gpup.cloudfront.net/Logo.png"} alt="Logo" width={90} height={83} priority />
+        </Link>
+      </div>
       <div className="flex gap-3 flex-col">
         {routes.map((route) => {
           const needsVerifiedOrg = route.verify;

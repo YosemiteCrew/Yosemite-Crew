@@ -1,19 +1,19 @@
 import React from "react";
-import { IoSearch } from "react-icons/io5";
+import { IoIosSearch } from "react-icons/io";
 
 const Search = ({ value, setSearch, className }: any) => {
   return (
     <div
-      className={`${className ?? ""} h-10 min-h-10 rounded-2xl border! border-[#BFBFBE]! px-3 py-2.5 flex items-center justify-center`}
+      className={`${className ?? ""} w-[280px] rounded-2xl border! border-card-border! px-6 py-[7px] flex items-center justify-center`}
     >
       <input
         type="text"
         value={value}
         onChange={(e) => setSearch(e.target.value)}
-        className="outline-none border-0 text-[15px]!"
+        className="outline-none border-0 w-full text-body-4 placeholder:text-text-secondary text-text-primary"
         placeholder="Search"
       />
-      <IoSearch size={22} color="#302F2E" className="cursor-pointer" />
+      <IoIosSearch size={22} color="#302F2E" className="cursor-pointer" />
     </div>
   );
 };

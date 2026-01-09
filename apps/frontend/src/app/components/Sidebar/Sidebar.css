@@ -1,13 +1,13 @@
 .sidebar {
   width: 180px;
-  padding: 24px 16px;
+  padding: 0px 20px;
   flex-direction: column;
   gap: 16px;
   display: flex;
   height: 100%;
   overflow: auto;
 
-  border: 1px solid var(--yc-upated-black-6, #eaeaea);
+  border-right: 1px solid var(--yc-upated-black-6, #eaeaea);
   background: var(--yc-updated-white, #fff);
 }
 .route {
@@ -15,7 +15,7 @@
   font-size: 16px;
   font-weight: 400;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid #EAEAEA;
   color: #302F2E;
   display: flex;

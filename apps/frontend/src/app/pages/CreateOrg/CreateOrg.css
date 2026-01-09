@@ -1,5 +1,5 @@
 .create-org-wrapper {
-  padding: 60px;
+  padding: 48px 60px 48px 60px;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -16,17 +16,12 @@
 
 @media screen and (max-width: 1024px) {
   .create-org-wrapper {
-    padding: 40px 48px;
-    gap: 32px;
+    padding: 48px;
   }
 }
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 640px) {
   .create-org-wrapper {
-    padding: 24px 16px;
-    gap: 24px;
-  }
-  .create-org-title {
-    font-size: 23px;
+    padding: 16px;
   }
 }

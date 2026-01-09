@@ -8,6 +8,7 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import { OrgWithMembership } from "@/app/types/org";
 
 import "./DataTable.css";
+import { toTitleCase } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -64,7 +65,7 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
       key: "type",
       width: "25%",
       render: (item: OrgWithMembership) => (
-        <div className="InviteTime">{item.org.type}</div>
+        <div className="InviteTime">{toTitleCase(item.org.type)}</div>
       ),
     },
     {
@@ -72,7 +73,9 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
       key: "role",
       width: "25%",
       render: (item: OrgWithMembership) => (
-        <div className="InviteExpires">{item.membership?.roleDisplay}</div>
+        <div className="InviteExpires">
+          {toTitleCase(item.membership?.roleDisplay)}
+        </div>
       ),
     },
     {
