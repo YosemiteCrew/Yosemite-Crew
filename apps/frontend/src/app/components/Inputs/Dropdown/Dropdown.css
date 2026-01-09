@@ -91,12 +91,12 @@
 }
 .select-input-dropdown-item {
   cursor: pointer;
-  padding: 10px 8px;
+  padding: 14px 8px;
   outline: none;
   background: var(--whitebg);
   text-align: start;
   color: var(--lightblack);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 120%;
   font-family: var(--satoshi-font);

@@ -131,7 +131,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
               error={formDataErrors.country}
               type="country"
               dropdownClassName="h-fit! max-h-[200px]!"
-              search
+              search={false}
             />
             <FormInput
               intype="tel"

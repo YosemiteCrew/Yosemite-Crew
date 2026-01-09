@@ -14,6 +14,7 @@ import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { Primary } from "@/app/components/Buttons";
 
 import "./SignUp.css";
+import { IoIosWarning } from "react-icons/io";
 
 type SignUpProps = {
   postAuthRedirect?: string;
@@ -200,8 +201,8 @@ const SignUp = ({
       <Row className="MainSignUpRow">
         <Col md={6} className="MainSignCol">
           <div className="BuildEveryone gap-10!">
-            <div className="max-w-[400px]">
-              <div className="text-display-1 text-text-primary">
+            <div className="max-w-[350px]">
+              <div className="text-display-2 text-text-primary">
                 {isDeveloper
                   ? "Build, test, and ship apps on Yosemite Crew"
                   : "Built for everyone, from day one"}
@@ -216,7 +217,7 @@ const SignUp = ({
                   </span>
                 </div>
                 <div className="CloudText">
-                  <div className="text-body-2 text-text-primary">
+                  <div className="text-body-3-emphasis text-text-primary">
                     {isDeveloper
                       ? "API-first, self-host or managed"
                       : "Enjoy smooth online solutions with us!"}
@@ -236,7 +237,7 @@ const SignUp = ({
                   </span>
                 </div>
                 <div className="CloudText">
-                  <div className="text-body-2 text-text-primary">
+                  <div className="text-body-3-emphasis text-text-primary">
                     {isDeveloper
                       ? "Local dev + production ready"
                       : "Start free and upgrade as needed."}
@@ -256,7 +257,7 @@ const SignUp = ({
                   </span>
                 </div>
                 <div className="CloudText">
-                  <div className="text-body-2 text-text-primary">
+                  <div className="text-body-3-emphasis text-text-primary">
                     {isDeveloper
                       ? "Secure by default"
                       : "Our servers are EU-based and GDPR compliant."}
@@ -277,7 +278,7 @@ const SignUp = ({
             <Form onSubmit={handleSignUp} method="post">
               <div className="TopSignUp">
                 <div className="Headingtext">
-                  <div className="text-display-2 text-text-primary">
+                  <div className="text-display-2 text-text-primary text-center">
                     {isDeveloper ? "Sign up for developer access" : "Sign up"}
                   </div>
                 </div>
@@ -345,8 +346,13 @@ const SignUp = ({
                 />
                 {/* Show error for terms */}
                 {inputErrors.agree && (
-                  <div className="Errors">
-                    <Icon icon="mdi:error" width="16" height="16" />
+                  <div
+                    className={`
+                      flex items-center gap-1 px-4
+                      text-caption-2 text-text-error
+                    `}
+                  >
+                    <IoIosWarning className="text-text-error" size={14} />
                     {inputErrors.agree}
                   </div>
                 )}
@@ -357,8 +363,13 @@ const SignUp = ({
                 />
                 {/* Show error for newsletter */}
                 {inputErrors.subscribe && (
-                  <div className="Errors">
-                    <Icon icon="mdi:error" width="16" height="16" />
+                  <div
+                    className={`
+                        flex items-center gap-1 px-4
+                        text-caption-2 text-text-error
+                      `}
+                  >
+                    <IoIosWarning className="text-text-error" size={14} />
                     {inputErrors.subscribe}
                   </div>
                 )}
@@ -371,11 +382,13 @@ const SignUp = ({
                   href="#"
                   style={{ width: "100%" }}
                 />
-                <h6>
+                <div className="text-body-4 text-text-primary">
                   {" "}
                   Already have an account?{" "}
-                  <Link href={signinHref}>Sign In</Link>
-                </h6>
+                  <Link href={signinHref} className="text-text-brand">
+                    Sign In
+                  </Link>
+                </div>
               </div>
             </Form>
           </div>

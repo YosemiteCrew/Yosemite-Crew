@@ -34,11 +34,3 @@
   background: var(--whitebg);
   box-shadow: 0 0 16px 0 rgba(0, 0, 0, 0.4);
 }
-
-@media screen and (max-width: 768px) {
-  .primary-button,
-  .secondary-button {
-    padding: 12px 24px;
-    font-size: 19px;
-  }
-}

@@ -3,7 +3,7 @@ import { Button, Container } from "react-bootstrap";
 
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-import "./Toast.css"
+import "./Toast.css";
 
 type ErrorTostProps = {
   message?: string;
@@ -28,8 +28,8 @@ const ErrorTost: React.FC<ErrorTostProps> = ({
             <div className="Errortexted">
               {iconElement}
               <h6>{errortext}</h6>
+              <p>{message}</p>
             </div>
-            <p>{message}</p>
           </div>
           <Button onClick={onClose} variant="light">
             <Icon icon="solar:close-circle-bold" width="24" height="24" />
