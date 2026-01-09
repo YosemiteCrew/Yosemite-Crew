@@ -55,73 +55,83 @@ const FAQCard: React.FC<{
   styles: ReturnType<typeof createStyles>;
   theme: any;
 }> = ({faq, isExpanded, relatedEntries, helpfulSelection, onToggle, onHelpfulSelect, onRelatedPress, styles, theme}) => (
-  <LiquidGlassCard
-    glassEffect="regular"
-    interactive
-    style={styles.faqCard}
-    fallbackStyle={styles.cardFallback}>
-    <TouchableOpacity
-      style={styles.questionRow}
-      onPress={() => onToggle(faq.id)}
-      activeOpacity={0.8}>
-      <Text style={styles.questionText}>{faq.question}</Text>
-      <Text style={styles.toggleSymbol}>{isExpanded ? '−' : '+'}</Text>
-    </TouchableOpacity>
+  <View style={styles.faqCardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      interactive
+      padding="4"
+      shadow="base"
+      style={styles.faqCard}
+      fallbackStyle={styles.cardFallback}>
+      <View style={styles.faqCardContent}>
+        <TouchableOpacity
+          style={styles.questionRow}
+          onPress={() => onToggle(faq.id)}
+          activeOpacity={0.8}>
+          <Text style={styles.questionText}>{faq.question}</Text>
+          <Image
+            source={Images.downArrow}
+            style={[
+              styles.toggleIcon,
+              isExpanded && styles.toggleIconExpanded
+            ]}
+          />
+        </TouchableOpacity>
 
-    {isExpanded && (
-      <View style={styles.answerSection}>
-        <Text style={styles.answerText}>{faq.answer}</Text>
+        {isExpanded && (
+          <View style={styles.answerSection}>
+            <Text style={styles.answerText}>{faq.answer}</Text>
 
-        <View style={styles.helpfulSection}>
-          <Text style={styles.helpfulPrompt}>Was this answer helpful?</Text>
-          <View style={styles.helpfulButtons}>
-            <LiquidGlassButton
-              title="Yes"
-              size="small"
-              glassEffect="regular"
-              interactive
-              borderRadius="xl"
-              forceBorder
-              tintColor={theme.colors.secondary}
-              borderColor={theme.colors.secondary}
-              style={[styles.glassButtonDark, helpfulSelection === 'yes' && styles.glassButtonSelected]}
-              textStyle={styles.glassButtonDarkText}
-              onPress={() => onHelpfulSelect(faq.id, 'yes')}
-            />
-            <LiquidGlassButton
-              title="No"
-              size="small"
-              glassEffect="regular"
-              interactive
-              borderRadius="xl"
-              forceBorder
-              tintColor={theme.colors.white}
-              borderColor={theme.colors.secondary}
-              style={styles.glassButtonLight}
-              textStyle={styles.glassButtonLightText}
-              onPress={() => onHelpfulSelect(faq.id, 'no')}
-            />
-          </View>
-        </View>
+            <View style={styles.helpfulSection}>
+              <Text style={styles.helpfulPrompt}>Was this answer helpful?</Text>
+              <View style={styles.helpfulButtons}>
+                <LiquidGlassButton
+                  title="Yes"
+                  size="small"
+                  glassEffect="regular"
+                  interactive
+                  borderRadius="xl"
+                  tintColor={theme.colors.secondary}
+                  style={[styles.glassButtonDark, helpfulSelection === 'yes' && styles.glassButtonSelected]}
+                  textStyle={styles.glassButtonDarkText}
+                  onPress={() => onHelpfulSelect(faq.id, 'yes')}
+                />
+                <LiquidGlassButton
+                  title="No"
+                  size="small"
+                  glassEffect="regular"
+                  interactive
+                  borderRadius="xl"
+                  forceBorder
+                  tintColor={theme.colors.white}
+                  borderColor={theme.colors.secondary}
+                  style={styles.glassButtonLight}
+                  textStyle={styles.glassButtonLightText}
+                  onPress={() => onHelpfulSelect(faq.id, 'no')}
+                />
+              </View>
+            </View>
 
-        {relatedEntries.length > 0 && (
-          <View style={styles.relatedSection}>
-            <Text style={styles.relatedTitle}>Related Questions</Text>
-            {relatedEntries.map(related => (
-              <TouchableOpacity
-                key={related.id}
-                style={styles.relatedRow}
-                onPress={() => onRelatedPress(related.id, false)}
-                activeOpacity={0.7}>
-                <Text style={styles.relatedText}>{related.question}</Text>
-                <Image source={Images.rightArrow} style={styles.relatedArrow} />
-              </TouchableOpacity>
-            ))}
+            {relatedEntries.length > 0 && (
+              <View style={styles.relatedSection}>
+                <Text style={styles.relatedTitle}>Related Questions</Text>
+                {relatedEntries.map(related => (
+                  <TouchableOpacity
+                    key={related.id}
+                    style={styles.relatedRow}
+                    onPress={() => onRelatedPress(related.id, false)}
+                    activeOpacity={0.7}>
+                    <Text style={styles.relatedText}>{related.question}</Text>
+                    <Image source={Images.rightArrow} style={styles.relatedArrow} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         )}
       </View>
-    )}
-  </LiquidGlassCard>
+    </LiquidGlassCard>
+  </View>
 );
 
 // (removed unused helper; per-component `onRelatedPress` used instead)
@@ -237,8 +247,8 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
           />
         </>
       }
-      contentPadding={theme.spacing['3']}
-      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['4']}
+      cardGap={theme.spacing['4']}
       useSafeAreaView
       containerStyle={styles.safeArea}
       showBottomFade={false}>
@@ -303,7 +313,8 @@ const createStyles = (theme: any) => {
     },
     contentContainer: {
       paddingHorizontal: theme.spacing['5'],
-      paddingBottom: theme.spacing['8'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
       gap: theme.spacing['4'],
     },
     searchContainer: {
@@ -311,6 +322,8 @@ const createStyles = (theme: any) => {
     },
     pillContainer: {
       paddingHorizontal: theme.spacing['6'],
+      marginBlock: theme.spacing['2'],
+      marginTop: 6,
     },
     faqList: {
       gap: theme.spacing['4'],
@@ -335,16 +348,28 @@ const createStyles = (theme: any) => {
       textAlign: 'center',
       opacity: 0.7,
     },
+    faqCardShadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.lg,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'visible',
+    },
     faqCard: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      padding: 0,
+    },
+    faqCardContent: {
       gap: theme.spacing['3'],
       padding: theme.spacing['4'],
+      backgroundColor: 'transparent',
     },
     cardFallback: {
+      backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      ...theme.shadows.none,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     questionRow: {
       flexDirection: 'row',
@@ -357,12 +382,15 @@ const createStyles = (theme: any) => {
       ...theme.typography.paragraphBold,
       color: theme.colors.text,
     },
-    toggleSymbol: {
-      fontFamily: theme.typography.paragraphBold.fontFamily,
-      fontWeight: theme.typography.paragraphBold.fontWeight,
-      fontSize: theme.typography.titleLarge.fontSize,
-      lineHeight: theme.typography.titleLarge.lineHeight,
-      color: theme.colors.text,
+    toggleIcon: {
+      width: 20,
+      height: 20,
+      resizeMode: 'contain',
+      tintColor: theme.colors.text,
+      transform: [{rotate: '0deg'}],
+    },
+    toggleIconExpanded: {
+      transform: [{rotate: '180deg'}],
     },
     answerSection: {
       gap: theme.spacing['3'],
@@ -420,8 +448,6 @@ const createStyles = (theme: any) => {
       alignItems: 'center',
       flexDirection: 'row',
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.secondary,
     },
     glassButtonSelected: {
       borderColor: theme.colors.secondary,

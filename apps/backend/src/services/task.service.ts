@@ -655,13 +655,11 @@ export const TaskService = {
     return TaskModel.find(filter).sort({ dueAt: 1 }).exec();
   },
 
-  async linkToAppointment(
-    input: {
-      taskId: string;
-      appointmentId: string;
-      enforceSingleTaskPerAppointment?: boolean;
-    },
-  ): Promise<TaskDocument> {
+  async linkToAppointment(input: {
+    taskId: string;
+    appointmentId: string;
+    enforceSingleTaskPerAppointment?: boolean;
+  }): Promise<TaskDocument> {
     const task = await TaskModel.findById(input.taskId).exec();
     if (!task) {
       throw new TaskServiceError("Task not found", 404);

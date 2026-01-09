@@ -1,8 +1,9 @@
 import React, {useMemo} from 'react';
-import {ScrollView, View, StyleSheet, Text} from 'react-native';
+import {ScrollView, View, StyleSheet, Text, Platform} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {SpecialtyAccordion} from '@/features/appointments/components/SpecialtyAccordion';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -131,8 +132,8 @@ export const BusinessDetailsScreen: React.FC = () => {
           glass={false}
         />
       }
-      cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      cardGap={theme.spacing['4']}
+      contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
         <ScrollView
           style={styles.scrollView}
@@ -141,7 +142,6 @@ export const BusinessDetailsScreen: React.FC = () => {
         >
           {/* Business Card */}
           <VetBusinessCard
-            style={styles.businessCard}
             name={business?.name || ''}
             openHours={business?.openHours}
             distance={displayDistance}
@@ -162,12 +162,17 @@ export const BusinessDetailsScreen: React.FC = () => {
               onSelectService={handleSelectService}
             />
           ) : (
-            <View style={styles.emptyServicesCard}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              padding="4"
+              shadow="sm"
+              style={styles.emptyServicesCard}
+              fallbackStyle={styles.emptyServicesCardFallback}>
               <Text style={styles.emptyServicesTitle}>Services coming soon</Text>
               <Text style={styles.emptyServicesSubtitle}>
                 This business has not published individual services yet. Please contact them directly for availability.
               </Text>
-            </View>
+            </LiquidGlassCard>
           )}
 
           {/* Get Directions Button */}
@@ -181,14 +186,14 @@ export const BusinessDetailsScreen: React.FC = () => {
                   openMapsToAddress(business.address);
                 }
               }}
-              height={56}
-              borderRadius={16}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
               tintColor={theme.colors.secondary}
               textStyle={styles.buttonText}
               glassEffect="clear"
               shadowIntensity="none"
               forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
+              borderColor={theme.colors.borderMuted}
             />
           </View>
         </ScrollView>
@@ -203,11 +208,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
-    paddingHorizontal: theme.spacing['6'],
+    paddingHorizontal: theme.spacing['5'],
+    paddingTop: theme.spacing['6'],
     paddingBottom: theme.spacing['24'],
-  },
-  businessCard: {
-    marginBottom: theme.spacing['5'],
+    gap: theme.spacing['6'],
   },
   footer: {
     marginTop: theme.spacing['2'],
@@ -218,13 +222,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.white,
   },
   emptyServicesCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing['4'],
     gap: theme.spacing['2'],
-    marginBottom: theme.spacing['4'],
+  },
+  emptyServicesCardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: Platform.OS === 'android' ? 1 : 0,
+    borderColor: theme.colors.borderMuted,
+    ...theme.shadows.base,
+    shadowColor: theme.colors.neutralShadow,
   },
   emptyServicesTitle: {
     ...theme.typography.titleSmall,

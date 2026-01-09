@@ -274,11 +274,7 @@ export const CompanionOrganisationService = {
   async revokeLink(linkId: string | Types.ObjectId) {
     const id = ensureObjectId(linkId, "linkId");
 
-    const link = await CompanionOrganisationModel.findByIdAndUpdate(
-      id,
-      { status: "REVOKED" },
-      { new: true },
-    );
+    const link = await CompanionOrganisationModel.findByIdAndDelete(id);
 
     if (!link)
       throw new CompanionOrganisationServiceError("Link not found", 404);

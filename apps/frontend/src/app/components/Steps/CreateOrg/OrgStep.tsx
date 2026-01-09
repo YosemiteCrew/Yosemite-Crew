@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import classNames from "classnames";
+import { useRouter } from "next/navigation";
 
 import FormInput from "../../Inputs/FormInput/FormInput";
 import Dropdown from "../../Inputs/Dropdown/Dropdown";
@@ -12,7 +13,6 @@ import { createOrg } from "@/app/services/orgService";
 import { Organisation } from "@yosemite-crew/types";
 
 import "./Step.css";
-import { useRouter } from "next/navigation";
 
 type OrgStepProps = {
   nextStep: () => void;
@@ -21,7 +21,7 @@ type OrgStepProps = {
 };
 
 const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
-  const router = useRouter()
+  const router = useRouter();
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     country?: string;
@@ -65,156 +65,113 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
 
   return (
     <div className="step-container">
-      <div className="step-title">Organisation</div>
-
-      <LogoUploader
-        title="Add logo (optional)"
-        apiUrl="/fhir/v1/organization/logo/presigned-url"
-        setImageUrl={(url) => {
-          setFormData((prev) => ({ ...prev, imageURL: url }));
-        }}
-      />
-
-      <div className="step-type">
-        <div className="step-type-title">Select your organisation type</div>
-        <div className="step-type-options">
-          {BusinessTypes.map((type) => (
-            <button
-              key={type}
-              className={classNames("step-type-option", {
-                activetype: formData.type === type,
-              })}
-              onClick={() => setFormData({ ...formData, type: type })}
-            >
-              {type.charAt(0) + type.toLowerCase().slice(1)}
-            </button>
-          ))}
-        </div>
-        <div className="step-type-desc">
-          <span className="step-type-desc-span">Note: </span>This is also
-          tailored for small vet practices and clinics
-        </div>
-      </div>
-
-      <div className="step-inputs">
-        <GoogleSearchDropDown
-          intype="text"
-          inname="name"
-          value={formData.name}
-          inlabel="Organisation name"
-          onChange={(e: any) =>
-            setFormData({ ...formData, name: e.target.value })
-          }
-          error={formDataErrors.name}
-          setFormData={setFormData}
+      <div className="flex flex-col gap-6">
+        <LogoUploader
+          title="Add logo (optional)"
+          apiUrl="/fhir/v1/organization/logo/presigned-url"
+          setImageUrl={(url) => {
+            setFormData((prev) => ({ ...prev, imageURL: url }));
+          }}
         />
-        <div className="step-two-input">
-          <Dropdown
-            placeholder="Select country"
-            value={formData.address?.country || ""}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                address: { ...formData.address, country: e },
-              })
-            }
-            error={formDataErrors.country}
-            type="country"
-            dropdownClassName="h-fit! max-h-[200px]!"
-            search
-          />
-          <FormInput
-            intype="text"
-            inname="duns"
-            value={formData.DUNSNumber || ""}
-            inlabel="DUNS number (optional)"
-            onChange={(e) =>
-              setFormData({ ...formData, DUNSNumber: e.target.value })
-            }
-          />
+
+        <div className="step-type">
+          <div className="step-type-title">Select your organisation type</div>
+          <div className="step-type-options">
+            {BusinessTypes.map((type) => (
+              <button
+                key={type}
+                className={classNames("step-type-option", {
+                  activetype: formData.type === type,
+                })}
+                onClick={() => setFormData({ ...formData, type: type })}
+              >
+                {type.charAt(0) + type.toLowerCase().slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="step-type-desc">
+            <span className="step-type-desc-span">Note: </span>This is also
+            tailored for small vet practices and clinics
+          </div>
         </div>
 
-        <div className="step-two-input">
-          <FormInput
-            intype="tel"
-            inname="number"
-            value={formData.phoneNo || ""}
-            inlabel="Phone number"
-            onChange={(e) =>
-              setFormData({ ...formData, phoneNo: e.target.value })
-            }
-            error={formDataErrors.number}
-          />
-          <FormInput
-            intype="text"
-            inname="tax id"
-            value={formData.taxId || ""}
-            inlabel="Tax ID"
-            onChange={(e) =>
-              setFormData({ ...formData, taxId: e.target.value })
-            }
-            error={formDataErrors.taxId}
-          />
+        <div className="step-inputs">
+          <div className="step-two-input">
+            <GoogleSearchDropDown
+              intype="text"
+              inname="name"
+              value={formData.name}
+              inlabel="Organisation name"
+              onChange={(e: any) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              error={formDataErrors.name}
+              setFormData={setFormData}
+            />
+            <FormInput
+              intype="text"
+              inname="website"
+              value={formData.website || ""}
+              inlabel="Website"
+              onChange={(e) =>
+                setFormData({ ...formData, website: e.target.value })
+              }
+            />
+          </div>
+          <div className="step-two-input">
+            <Dropdown
+              placeholder="Select country"
+              value={formData.address?.country || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  address: { ...formData.address, country: e },
+                })
+              }
+              error={formDataErrors.country}
+              type="country"
+              dropdownClassName="h-fit! max-h-[200px]!"
+              search={false}
+            />
+            <FormInput
+              intype="tel"
+              inname="number"
+              value={formData.phoneNo || ""}
+              inlabel="Phone number"
+              onChange={(e) =>
+                setFormData({ ...formData, phoneNo: e.target.value })
+              }
+              error={formDataErrors.number}
+            />
+          </div>
+
+          <div className="step-two-input">
+            <FormInput
+              intype="text"
+              inname="duns"
+              value={formData.DUNSNumber || ""}
+              inlabel="DUNS number (optional)"
+              onChange={(e) =>
+                setFormData({ ...formData, DUNSNumber: e.target.value })
+              }
+            />
+            <FormInput
+              intype="text"
+              inname="tax id"
+              value={formData.taxId || ""}
+              inlabel="Tax ID"
+              onChange={(e) =>
+                setFormData({ ...formData, taxId: e.target.value })
+              }
+              error={formDataErrors.taxId}
+            />
+          </div>
         </div>
-        <FormInput
-          intype="text"
-          inname="website"
-          value={formData.website || ""}
-          inlabel="Website (optional)"
-          onChange={(e) =>
-            setFormData({ ...formData, website: e.target.value })
-          }
-        />
-        <FormInput
-          intype="text"
-          inname="Health & Safety Certification"
-          value={formData.healthAndSafetyCertNo || ""}
-          inlabel="Health & Safety Certification (optional)"
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              healthAndSafetyCertNo: e.target.value,
-            })
-          }
-        />
-        <FormInput
-          intype="text"
-          inname="Animal Welfare Compliance"
-          value={formData.animalWelfareComplianceCertNo || ""}
-          inlabel="Animal Welfare Compliance (optional)"
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              animalWelfareComplianceCertNo: e.target.value,
-            })
-          }
-        />
-        <FormInput
-          intype="text"
-          inname="Fire & Emergency compliance"
-          value={formData.fireAndEmergencyCertNo || ""}
-          inlabel="Fire & Emergency compliance (optional)"
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              fireAndEmergencyCertNo: e.target.value,
-            })
-          }
-        />
       </div>
 
       <div className="step-buttons">
-        <Secondary
-          href="/organizations"
-          text="Back"
-          style={{ width: "160px" }}
-        />
-        <Primary
-          href="#"
-          text="Next"
-          style={{ width: "160px" }}
-          onClick={handleNext}
-        />
+        <Secondary href="/organizations" text="Back" />
+        <Primary href="#" text="Next" onClick={handleNext} />
       </div>
     </div>
   );

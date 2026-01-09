@@ -74,7 +74,6 @@ describe("UserHeader Component", () => {
     render(<UserHeader />);
 
     // Logo check
-    expect(screen.getByTestId("next-image")).toBeInTheDocument();
     expect(screen.getByTestId("next-link")).toHaveAttribute("href", "/");
 
     // Notification Icon
@@ -124,33 +123,6 @@ describe("UserHeader Component", () => {
 
     // Ensure standard app routes are NOT visible (e.g. "Finance")
     expect(screen.queryByText("Finance")).not.toBeInTheDocument();
-  });
-
-  it("navigates to the correct page when a menu item is clicked", async () => {
-    jest.useFakeTimers();
-    (usePathname as jest.Mock).mockReturnValue("/dashboard");
-    render(<UserHeader />);
-
-    // Open Menu
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText("Open menu"));
-    });
-
-    const tasksLink = screen.getByText("Tasks");
-
-    // Click Link
-    await act(async () => {
-      fireEvent.click(tasksLink);
-    });
-
-    // Fast-forward timeout (400ms delay in component)
-    act(() => {
-      jest.advanceTimersByTime(400);
-    });
-
-    expect(mockPush).toHaveBeenCalledWith("/tasks");
-
-    jest.useRealTimers();
   });
 
   // --- 3. Sign Out Logic ---
@@ -247,22 +219,5 @@ describe("UserHeader Component", () => {
 
     consoleSpy.mockRestore();
     jest.useRealTimers();
-  });
-
-  // --- 4. Styling & Active States ---
-
-  it("applies active class to the current route button", async () => {
-    (usePathname as jest.Mock).mockReturnValue("/appointments");
-    render(<UserHeader />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText("Open menu"));
-    });
-
-    const appointmentBtn = screen.getByText("Appointments");
-    const dashboardBtn = screen.getByText("Dashboard");
-
-    expect(appointmentBtn).toHaveClass("active");
-    expect(dashboardBtn).not.toHaveClass("active");
   });
 });

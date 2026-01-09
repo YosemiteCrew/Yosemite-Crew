@@ -207,15 +207,16 @@ const createStyles = (theme: any) =>
     },
     card: {
       borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderWidth: 0,
+      borderColor: 'transparent',
       backgroundColor: theme.colors.cardBackground,
       padding: theme.spacing['4'],
     },
     fallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     topRow: {
       flexDirection: 'row',
@@ -224,9 +225,10 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['3'],
     }, // Added marginBottom
     avatar: {
-      width: theme.spacing['16'],
-      height: theme.spacing['16'],
-      borderRadius: theme.borderRadius.full,
+      width: theme.spacing['20'],
+      height: theme.spacing['20'],
+      aspectRatio: 1,
+      borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.primarySurface,
     },
     actionButton: {
@@ -245,18 +247,18 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     directionsButtonText: {
-      ...theme.typography.paragraphBold,
+      ...theme.typography.button,
       color: theme.colors.white,
     },
-    textBlock: {flex: 1, gap: 2},
+    textBlock: {flex: 1, gap: theme.spacing['1']},
     name: {...theme.typography.titleMedium, color: theme.colors.secondary},
-    sub: {...theme.typography.labelSmallBold, color: theme.colors.placeholder},
+    sub: {...theme.typography.labelSmall, color: theme.colors.placeholder},
     date: {...theme.typography.labelSmallBold, color: theme.colors.secondary},
     noteContainer: {
       marginBottom: theme.spacing['4'], // Tighter spacing to the next section
     },
-    note: {...theme.typography.labelSmallBold, color: theme.colors.placeholder},
-    noteLabel: {color: theme.colors.primary},
+    note: {...theme.typography.labelSmall, color: theme.colors.placeholder},
+    noteLabel: {...theme.typography.labelSmallBold, color: theme.colors.primary},
     buttonContainer: {gap: theme.spacing['4']}, // Reduced gap to bring sections closer
     inlineButtons: {
       flexDirection: 'row',

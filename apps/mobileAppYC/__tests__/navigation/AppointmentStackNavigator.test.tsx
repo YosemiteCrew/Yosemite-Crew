@@ -5,6 +5,20 @@ import {AppointmentStackNavigator} from '@/navigation/AppointmentStackNavigator'
 
 // --- Mocks ---
 
+// Mock Firebase notifications service
+jest.mock('@/shared/services/firebaseNotifications', () => ({
+  getCurrentFcmToken: jest.fn(),
+  requestUserPermission: jest.fn(),
+  setupNotificationListeners: jest.fn(),
+}));
+
+// Mock device token registry service
+jest.mock('@/shared/services/deviceTokenRegistry', () => ({
+  registerDeviceToken: jest.fn(),
+  unregisterDeviceToken: jest.fn(),
+  isRunningOnIosSimulator: jest.fn(),
+}));
+
 // 1. Redux Mock
 const mockUseSelector = jest.fn();
 jest.mock('react-redux', () => ({
@@ -105,13 +119,6 @@ jest.mock('@/features/payments', () => ({
 
 jest.mock('@/features/appointments/screens/ReviewScreen', () => ({
   ReviewScreen: () => {
-    const {View} = require('react-native');
-    return <View />;
-  },
-}));
-
-jest.mock('@/features/appointments/screens/ChatScreen', () => ({
-  ChatScreen: () => {
     const {View} = require('react-native');
     return <View />;
   },

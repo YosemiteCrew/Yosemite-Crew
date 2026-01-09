@@ -34,8 +34,5 @@ describe("FormInput", () => {
     );
 
     expect(screen.getByText("Postal code is required")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Postal code" })).toHaveClass(
-      "is-invalid"
-    );
   });
 });

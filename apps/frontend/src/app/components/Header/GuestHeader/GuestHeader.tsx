@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import classNames from "classnames";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useAuthStore } from "@/app/stores/authStore";
-import { NavItem } from "../HeaderInterfaces";
 import { Primary } from "../../Buttons";
 
-import "./GuestHeader.css";
+interface NavItem {
+  label: string;
+  href?: string;
+  children?: NavItem[];
+}
 
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
@@ -48,25 +50,25 @@ const GuestHeader = () => {
   };
 
   return (
-    <div className="header-container">
+    <div className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20">
       <Link href="/" className="logo">
         <Image src={logoUrl} alt="Logo" width={90} height={83} priority />
       </Link>
 
-      <nav className="navmenu">
-        <ul>
+      <div className="max-w-[800px] flex-1 hidden lg:flex">
+        <ul className="list-none flex items-center justify-between flex-1 p-0 m-0">
           {publicNavItems.map((item) => (
             <li key={item.label}>
               <Link
                 href={item.href ? item.href : "#"}
-                className={classNames({ active: pathname === item.href })}
+                className={`text-body-4 text-text-secondary!`}
               >
                 {item.label}
               </Link>
             </li>
           ))}
         </ul>
-      </nav>
+      </div>
 
       <AnimatePresence>
         {menuOpen && (
@@ -85,23 +87,17 @@ const GuestHeader = () => {
             style={{
               top: "80px",
             }}
-            className="public-header-mobile-menu"
+            className="px-3 sm:px-12! py-6 bg-white z-999 fixed top-full left-0 w-screen overflow-auto flex flex-col gap-3"
           >
-            {publicNavItems.map((item, index) => (
-              <div key={item.label} className="mobile-menu-item">
-                <button
-                  type="button"
-                  onClick={() => handleClick(item.href ? item.href : "#")}
-                  className={classNames("mobile-menu-item-button", {
-                    active: pathname === item.href,
-                  })}
-                >
-                  {item.label}
-                </button>
-                {index !== publicNavItems.length - 1 && (
-                  <div className="mobile-menu-item-sperator"></div>
-                )}
-              </div>
+            {publicNavItems.map((item) => (
+              <button
+                type="button"
+                key={item.label}
+                onClick={() => handleClick(item.href ? item.href : "#")}
+                className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${item.href === pathname && "text-text-brand border-text-brand! bg-brand-100"}`}
+              >
+                {item.label}
+              </button>
             ))}
             {checkRoute() &&
               (user ? (
@@ -109,14 +105,14 @@ const GuestHeader = () => {
                   href="#"
                   onClick={() => handleClick("/organizations")}
                   text="Go to app"
-                  style={{ maxHeight: "60px" }}
+                  classname="mt-3"
                 />
               ) : (
                 <Primary
                   href="#"
                   onClick={() => handleClick("/signup")}
                   text="Sign up"
-                  style={{ maxHeight: "60px" }}
+                  classname="mt-3"
                 />
               ))}
           </motion.div>
@@ -125,39 +121,53 @@ const GuestHeader = () => {
 
       <button
         type="button"
-        className="menu-toggle"
+        className={`
+                  cursor-pointer
+                  h-10 w-10 rounded-full!
+                  border border-(--black-bg)!
+                  bg-(--whitebg)
+                  lg:hidden
+                `}
         onClick={toggleMenu}
         aria-label={menuOpen ? "Close menu" : "Open menu"}
       >
         <motion.div
-          className="hamburger-icon"
+          className={`
+                    h-full w-full
+                    flex flex-col items-center justify-center
+                    gap-[3px]
+                  `}
           initial={false}
           animate={menuOpen ? "open" : "closed"}
         >
-          <motion.span variants={line1Variants} />
-          <motion.span variants={line2Variants} />
-          <motion.span variants={line3Variants} />
+          <motion.span
+            variants={line1Variants}
+            className="h-0.5 w-[15px] rounded-xs bg-black origin-center"
+          />
+          <motion.span
+            variants={line2Variants}
+            className="h-0.5 w-[15px] rounded-xs bg-black origin-center"
+          />
+          <motion.span
+            variants={line3Variants}
+            className="h-0.5 w-[15px] rounded-xs bg-black origin-center"
+          />
         </motion.div>
       </button>
 
       {checkRoute() &&
         (user ? (
-          <div className="navmenu-button">
+          <div className="hidden lg:flex">
             <Primary
               href={
                 role === "developer" ? "/developers/home" : "/organizations"
               }
               text="Go to app"
-              style={{ width: "160px", maxHeight: "60px" }}
             />
           </div>
         ) : (
-          <div className="navmenu-button">
-            <Primary
-              href="/signup"
-              text="Sign up"
-              style={{ width: "160px", maxHeight: "60px" }}
-            />
+          <div className="hidden lg:flex">
+            <Primary href="/signup" text="Sign up" />
           </div>
         ))}
     </div>

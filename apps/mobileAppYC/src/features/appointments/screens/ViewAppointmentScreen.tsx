@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo} from 'react';
-import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid} from 'react-native';
+import {ScrollView, View, Text, StyleSheet, Alert, Platform, ToastAndroid, ActivityIndicator} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -46,6 +46,15 @@ import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import {fetchTasksForCompanion} from '@/features/tasks/thunks';
 import {resolveCategoryLabel as resolveTaskCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {DetailsCard, type DetailItem} from '@/shared/components/common/DetailsCard';
+import {
+  fetchAppointmentForms,
+  selectFormsForAppointment,
+  selectFormsLoading,
+  type AppointmentFormEntry,
+} from '@/features/forms';
+import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccordion/SubcategoryAccordion';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import type {FormField} from '@yosemite-crew/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -214,29 +223,29 @@ const useStatusDisplay = (theme: any) => {
       case 'UPCOMING':
         return {text: 'Upcoming', textColor: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
       case 'CHECKED_IN':
-        return {text: 'Checked in', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Checked in', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'IN_PROGRESS':
-        return {text: 'In progress', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'In progress', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'REQUESTED':
         return {text: 'Requested', textColor: theme.colors.primary, backgroundColor: theme.colors.primaryTint};
       case 'NO_PAYMENT':
       case 'AWAITING_PAYMENT':
-        return {text: 'Payment pending', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+        return {text: 'Payment pending', textColor: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
       case 'PAYMENT_FAILED':
-        return {text: 'Payment failed', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+        return {text: 'Payment failed', textColor: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
       case 'PAID':
-        return {text: 'Paid', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Paid', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'CONFIRMED':
       case 'SCHEDULED':
-        return {text: 'Scheduled', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Scheduled', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'COMPLETED':
-        return {text: 'Completed', textColor: '#0F5132', backgroundColor: 'rgba(16, 185, 129, 0.12)'};
+        return {text: 'Completed', textColor: theme.colors.success, backgroundColor: theme.colors.successSurface};
       case 'CANCELLED':
-        return {text: 'Cancelled', textColor: '#991B1B', backgroundColor: 'rgba(239, 68, 68, 0.12)'};
+        return {text: 'Cancelled', textColor: theme.colors.error, backgroundColor: theme.colors.errorSurface};
       case 'RESCHEDULED':
-        return {text: 'Rescheduled', textColor: '#92400E', backgroundColor: 'rgba(251, 191, 36, 0.16)'};
+        return {text: 'Rescheduled', textColor: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
       default:
-        return {text: statusValue, textColor: theme.colors.textSecondary, backgroundColor: theme.colors.border + '40'};
+        return {text: statusValue, textColor: theme.colors.textSecondary, backgroundColor: theme.colors.borderMuted};
     }
   };
   return getStatusDisplay;
@@ -487,13 +496,22 @@ const StatusCard = ({
   cancellationNote: string | null;
   statusHelpText: string | null;
 }) => (
-  <View style={styles.statusCard}>
-    <Text style={styles.statusLabel}>Status</Text>
-    <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
-      <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
-    </View>
-    {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
-    {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
+  <View style={styles.statusShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="4"
+      shadow="base"
+      style={styles.statusCard}
+      fallbackStyle={styles.statusCardFallback}>
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusLabel}>Status</Text>
+        <View style={[styles.statusBadge, {backgroundColor: statusInfo.backgroundColor}]}>
+          <Text style={[styles.statusText, {color: statusInfo.textColor}]}>{statusInfo.text}</Text>
+        </View>
+        {cancellationNote ? <Text style={styles.statusNote}>{cancellationNote}</Text> : null}
+        {!cancellationNote && statusHelpText ? <Text style={styles.statusNote}>{statusHelpText}</Text> : null}
+      </View>
+    </LiquidGlassCard>
   </View>
 );
 
@@ -580,10 +598,9 @@ const ActionButtons = ({
         <LiquidGlassButton
           title="Edit Appointment"
           onPress={handleEdit}
-          height={56}
-          borderRadius={16}
+          height={theme.spacing['14']}
+          borderRadius={theme.borderRadius.lg}
           glassEffect="clear"
-          tintColor={theme.colors.surface}
           forceBorder
           borderColor={theme.colors.secondary}
           textStyle={styles.secondaryButtonText}
@@ -596,11 +613,11 @@ const ActionButtons = ({
         <LiquidGlassButton
           title="Cancel Appointment"
           onPress={handleCancel}
-          height={56}
-          borderRadius={16}
-          tintColor="#FEE2E2"
+          height={theme.spacing['14']}
+          borderRadius={theme.borderRadius.lg}
+          tintColor={theme.colors.errorSurface}
           forceBorder
-          borderColor="#EF4444"
+          borderColor={theme.colors.error}
           textStyle={styles.alertButtonText}
           shadowIntensity="none"
         />
@@ -634,6 +651,23 @@ export const ViewAppointmentScreen: React.FC = () => {
   const tasksHydrated = useSelector(
     (s: RootState) => (companionId ? s.tasks.hydratedCompanions[companionId] : false),
   );
+  const appointmentFormsSelector = React.useMemo(
+    () => (state: RootState) => selectFormsForAppointment(state, appointmentId),
+    [appointmentId],
+  );
+  const formsLoadingSelector = React.useMemo(
+    () => (state: RootState) => selectFormsLoading(state, appointmentId),
+    [appointmentId],
+  );
+  const appointmentForms = useSelector(appointmentFormsSelector);
+  const formsLoading = useSelector(formsLoadingSelector);
+  const formsByType = useMemo(
+    () => ({
+      soap: appointmentForms.filter(entry => entry.source === 'soap'),
+      regular: appointmentForms.filter(entry => entry.source !== 'soap'),
+    }),
+    [appointmentForms],
+  );
   const appointmentTasks = useMemo(
     () => tasks.filter(task => task.appointmentId === appointmentId),
     [appointmentId, tasks],
@@ -648,6 +682,10 @@ export const ViewAppointmentScreen: React.FC = () => {
   const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
   const CHECKIN_RADIUS_METERS = 200;
   const CHECKIN_BUFFER_MS = 5 * 60 * 1000;
+  const formsFetchedRef = React.useRef(false);
+  const lastFormsFetchTsRef = React.useRef(0);
+  const lastTasksFetchTsRef = React.useRef(0);
+  const lastDocumentsFetchTsRef = React.useRef(0);
 
   useEnsureAppointmentLoaded({apt, appointmentId, dispatch});
   useAppointmentDocumentsEffect({companionId: apt?.companionId, dispatch});
@@ -661,12 +699,62 @@ export const ViewAppointmentScreen: React.FC = () => {
       dispatch(fetchTasksForCompanion({companionId}));
     }
   }, [companionId, dispatch, tasksHydrated]);
+  useEffect(() => {
+    formsFetchedRef.current = false;
+    lastFormsFetchTsRef.current = 0;
+    lastTasksFetchTsRef.current = 0;
+    lastDocumentsFetchTsRef.current = 0;
+  }, [appointmentId]);
+
+  useEffect(() => {
+    if (apt && !formsFetchedRef.current) {
+      formsFetchedRef.current = true;
+      lastFormsFetchTsRef.current = Date.now();
+      dispatch(
+        fetchAppointmentForms({
+          appointmentId,
+          serviceId: apt.serviceId ?? null,
+          organisationId: apt.businessId ?? null,
+          species: apt.species ?? null,
+        }),
+      );
+    }
+  }, [apt, appointmentId, dispatch]);
   useFocusEffect(
     React.useCallback(() => {
       if (companionId) {
         dispatch(fetchExpensesForCompanion({companionId}));
       }
-    }, [companionId, dispatch]),
+      if (apt) {
+        const now = Date.now();
+        const shouldFetch = !formsFetchedRef.current || now - lastFormsFetchTsRef.current > 3000;
+        if (shouldFetch) {
+          formsFetchedRef.current = true;
+          lastFormsFetchTsRef.current = now;
+          dispatch(
+            fetchAppointmentForms({
+              appointmentId,
+              serviceId: apt.serviceId ?? null,
+              organisationId: apt.businessId ?? null,
+              species: apt.species ?? null,
+            }),
+          );
+        }
+        if (companionId) {
+          const shouldFetchTasks = !lastTasksFetchTsRef.current || now - lastTasksFetchTsRef.current > 3000;
+          if (shouldFetchTasks) {
+            lastTasksFetchTsRef.current = now;
+            dispatch(fetchTasksForCompanion({companionId}));
+          }
+          const shouldFetchDocuments =
+            !lastDocumentsFetchTsRef.current || now - lastDocumentsFetchTsRef.current > 3000;
+          if (shouldFetchDocuments) {
+            lastDocumentsFetchTsRef.current = now;
+            dispatch(fetchDocuments({companionId}));
+          }
+        }
+      }
+    }, [apt, appointmentId, companionId, dispatch]),
   );
 
   const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
@@ -733,6 +821,219 @@ export const ViewAppointmentScreen: React.FC = () => {
     [navigation, tabNavigation],
   );
 
+  const getFormStatusDisplay = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      switch (entry.status) {
+        case 'signed':
+          return {label: 'Signed', color: theme.colors.success, backgroundColor: theme.colors.successSurface};
+        case 'completed':
+          return {label: 'Completed', color: theme.colors.success, backgroundColor: theme.colors.successSurface};
+        case 'signing':
+          return {label: 'Signature pending', color: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
+        case 'submitted':
+          return {label: 'Submitted', color: theme.colors.secondary, backgroundColor: theme.colors.primaryTint};
+        default:
+          return {label: 'Pending', color: theme.colors.warning, backgroundColor: theme.colors.warningSurface};
+      }
+    },
+    [theme.colors.primaryTint, theme.colors.secondary, theme.colors.success, theme.colors.successSurface, theme.colors.warning, theme.colors.warningSurface],
+  );
+
+  const handleOpenForm = React.useCallback(
+    (entry: AppointmentFormEntry, mode: 'fill' | 'view', allowSign: boolean) => {
+      navigation.navigate('AppointmentForm', {
+        appointmentId,
+        formId: entry.form._id,
+        mode,
+        allowSign,
+      });
+    },
+    [appointmentId, navigation],
+  );
+
+  const formatFormValue = React.useCallback((field: FormField, value: any): string => {
+    if (value === undefined || value === null) {
+      return '—';
+    }
+    if (field.type === 'date') {
+      const dateObj = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(dateObj.getTime()) ? '—' : dateObj.toLocaleDateString();
+    }
+    if (field.type === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    if (Array.isArray(value)) {
+      return value.map(v => `${v}`).join(', ') || '—';
+    }
+    if (typeof value === 'object') {
+      if ('url' in value && value.url) {
+        return String(value.url);
+      }
+      return JSON.stringify(value);
+    }
+    return `${value}`;
+  }, []);
+
+  const getAnswerRows = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      if (!entry.submission) {
+        return [];
+      }
+      const rows: Array<{id: string; label: string; value: string}> = [];
+      const collect = (fields: FormField[]) => {
+        fields.forEach(f => {
+          if (f.type === 'group') {
+            collect(f.fields);
+            return;
+          }
+          rows.push({
+            id: f.id,
+            label: f.label ?? f.id,
+            value: formatFormValue(f, entry.submission?.answers?.[f.id]),
+          });
+        });
+      };
+      if (entry.form.schema?.length) {
+        collect(entry.form.schema);
+      }
+      const filtered = rows.filter(r => r.value !== '—' && r.value !== '');
+      if (filtered.length) {
+        return filtered;
+      }
+      // Fallback: show any answers even if schema was missing
+      const rawAnswers = entry.submission.answers ?? {};
+      const capitalize = (text: string) => {
+        if (!text.length) return text;
+        return text.charAt(0).toUpperCase() + text.slice(1);
+      };
+      return Object.entries(rawAnswers)
+        .filter(([, val]) => val !== undefined && val !== null && `${val}`.trim() !== '')
+        .map(([key, val]) => ({
+          id: key,
+          label: capitalize(key.replaceAll('_', ' ')),
+          value: `${val}`,
+        }));
+    },
+    [formatFormValue],
+  );
+
+  const renderAnswerSummary = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      const filtered = getAnswerRows(entry);
+      if (!filtered.length) {
+        return <Text style={styles.emptyDocsText}>No responses captured yet.</Text>;
+      }
+
+      return filtered.map(row => (
+        <View key={`${entry.form._id}-${row.id}`} style={styles.answerRow}>
+          <Text style={styles.answerLabel}>{row.label}</Text>
+          <Text style={styles.answerValue}>{row.value}</Text>
+        </View>
+      ));
+    },
+    [getAnswerRows, styles.answerLabel, styles.answerRow, styles.answerValue, styles.emptyDocsText],
+  );
+
+  const renderFormCard = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      const formStatus = getFormStatusDisplay(entry);
+      const isSigned = entry.status === 'signed';
+      const showAnswers =
+        entry.submission &&
+        !entry.signingRequired &&
+        entry.status !== 'signing' &&
+        entry.status !== 'submitted';
+      let action;
+      if (isSigned) {
+        action = {label: 'View form', mode: 'view' as const, allowSign: false};
+      } else if (entry.submission && entry.signingRequired) {
+        action = {label: 'View & Sign', mode: 'view' as const, allowSign: true};
+      } else if (entry.submission) {
+        action = {label: 'View form', mode: 'view' as const, allowSign: false};
+      } else {
+        action = {label: entry.signingRequired ? 'Fill & Sign' : 'Fill form', mode: 'fill' as const, allowSign: entry.signingRequired};
+      }
+
+      return (
+        <View key={`${entry.form._id}-${entry.submission?._id ?? 'new'}`} style={styles.formCardShadowWrapper}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            padding="4"
+            colorScheme="light"
+            shadow="base"
+            style={styles.formCard}
+            fallbackStyle={styles.formCardFallback}>
+            <View style={styles.formCardContent}>
+              <View style={styles.formHeader}>
+                <View style={styles.formTitleContainer}>
+                  <Text style={styles.formTitle}>{entry.form.name}</Text>
+                </View>
+                <View style={[styles.formStatusBadge, {backgroundColor: formStatus.backgroundColor}]}>
+                  <Text style={[styles.formStatusText, {color: formStatus.color}]}>{formStatus.label}</Text>
+                </View>
+              </View>
+              {entry.form.description ? <Text style={styles.formDescription}>{entry.form.description}</Text> : null}
+              {showAnswers ? <View style={styles.formAnswers}>{renderAnswerSummary(entry)}</View> : null}
+              <LiquidGlassButton
+                title={action.label}
+                onPress={() => handleOpenForm(entry, action.mode, action.allowSign)}
+                height={48}
+                borderRadius={theme.borderRadius.md}
+                textStyle={styles.formButtonText}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="medium"
+              />
+            </View>
+          </LiquidGlassCard>
+        </View>
+      );
+    },
+    [getFormStatusDisplay, handleOpenForm, renderAnswerSummary, styles, theme],
+  );
+
+  const renderSoapAccordion = React.useCallback(
+    (entry: AppointmentFormEntry) => {
+      const pickText = (...values: Array<string | undefined | null>) =>
+        values.find(v => typeof v === 'string' && v.trim().length > 0) ?? '';
+
+      const rows = getAnswerRows(entry);
+      if (!entry.submission) {
+        return null;
+      }
+      const formLabel = pickText(entry.form.name, entry.form.category);
+      const sectionLabel = pickText(entry.soapSection);
+
+      let title = sectionLabel || formLabel || 'SOAP note';
+      let subtitle = '';
+      if (formLabel && formLabel !== title) {
+        subtitle = formLabel;
+      } else if (sectionLabel && sectionLabel !== title) {
+        subtitle = sectionLabel;
+      }
+
+      return (
+        <SubcategoryAccordion
+          key={`${entry.form._id}-${entry.submission._id}-soap`}
+          title={title}
+          subtitle={subtitle}>
+          <View style={styles.formAccordionContent}>
+            {rows.length ? (
+              rows.map(row => (
+                <View key={`${entry.form._id}-${row.id}`} style={styles.answerRow}>
+                  <Text style={styles.answerLabel}>{row.label}</Text>
+                  <Text style={styles.answerValue}>{row.value}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyDocsText}>No responses captured yet.</Text>
+            )}
+          </View>
+        </SubcategoryAccordion>
+      );
+    },
+    [getAnswerRows, styles.answerLabel, styles.answerRow, styles.answerValue, styles.emptyDocsText, styles.formAccordionContent],
+  );
+
   if (!apt) {
     return (
       <SafeAreaView style={styles.root} edges={[]}>
@@ -772,8 +1073,8 @@ export const ViewAppointmentScreen: React.FC = () => {
         header={
           <Header title="Appointment Details" showBackButton onBack={() => navigation.goBack()} glass={false} />
         }
-        cardGap={theme.spacing['3']}
-        contentPadding={theme.spacing['6']}>
+        cardGap={theme.spacing['4']}
+        contentPadding={theme.spacing['4']}>
         {contentPaddingStyle => (
           <ScrollView
             contentContainerStyle={[styles.container, contentPaddingStyle]}
@@ -793,7 +1094,8 @@ export const ViewAppointmentScreen: React.FC = () => {
           serviceName={apt.serviceName}
           employee={employeeToShow}
           employeeDepartment={department}
-          cardStyle={styles.summaryCard}
+          cardStyle={styles.glassCard}
+          interactive={false}
         />
 
         <DetailsCard title="Appointment Details" items={appointmentDetailItems} />
@@ -836,6 +1138,30 @@ export const ViewAppointmentScreen: React.FC = () => {
             <Text style={styles.emptyDocsText}>No documents shared for this appointment yet.</Text>
           )}
         </View>
+
+        <View style={styles.detailsCard}>
+          <Text style={styles.sectionTitle}>Forms</Text>
+          {(() => {
+            if (formsLoading) {
+              return <ActivityIndicator />;
+            }
+            if (formsByType.regular.length > 0) {
+              return formsByType.regular.map(renderFormCard);
+            }
+            return <Text style={styles.emptyDocsText}>No forms for this appointment yet.</Text>;
+          })()}
+        </View>
+
+        {formsByType.soap.length ? (() => {
+          const accordions = formsByType.soap.map(renderSoapAccordion).filter(Boolean);
+          if (!accordions.length) return null;
+          return (
+          <View style={styles.detailsCard}>
+            <Text style={styles.sectionTitle}>SOAP Notes</Text>
+              {accordions}
+          </View>
+        );
+        })() : null}
 
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>Tasks</Text>
@@ -945,22 +1271,38 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   container: {
-    padding: theme.spacing['4'],
+    paddingHorizontal: theme.spacing['5'],
+    paddingTop: theme.spacing['6'],
     paddingBottom: theme.spacing['24'],
+    gap: theme.spacing['4'],
+  },
+  statusShadowWrapper: {
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.cardBackground,
+    ...theme.shadows.lg,
+    shadowColor: theme.colors.neutralShadow,
+    overflow: 'visible',
+  },
+  statusCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    padding: 0,
     gap: theme.spacing['2'],
+  },
+  statusCardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  statusContainer: {
+    gap: theme.spacing['3'],
+    padding: theme.spacing['4'],
+    backgroundColor: 'transparent',
   },
   statusNote: {
     ...theme.typography.body12,
     color: theme.colors.textSecondary,
-  },
-  statusCard: {
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.cardBackground,
-    padding: theme.spacing['4'],
-    marginBottom: theme.spacing['3'],
-    gap: theme.spacing['2'],
   },
   statusLabel: {
     ...theme.typography.paragraphBold,
@@ -970,13 +1312,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: theme.spacing['2.5'],
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
   },
   statusText: {
-    ...theme.typography.title,
+    ...theme.typography.labelSmallBold,
   },
   summaryCard: {
-    marginBottom: theme.spacing['3'],
+    marginBottom: theme.spacing['1'],
   },
   detailsCard: {
     borderRadius: theme.borderRadius.lg,
@@ -1010,7 +1352,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginLeft: theme.spacing['2'],
   },
   attachmentPreview: {
-    maxHeight: 220,
+    maxHeight: theme.spacing['56'],
   },
   emptyDocsText: {
     ...theme.typography.body12,
@@ -1039,8 +1381,96 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   alertButtonText: {
     ...theme.typography.titleSmall,
-    color: '#EF4444',
+    color: theme.colors.error,
     textAlign: 'center',
+  },
+  formCardShadowWrapper: {
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.cardBackground,
+    ...theme.shadows.lg,
+    shadowColor: theme.colors.neutralShadow,
+    overflow: 'visible',
+    marginBottom: theme.spacing['3'],
+  },
+  formCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    padding: 0,
+    gap: theme.spacing['2'],
+  },
+  formCardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  formCardContent: {
+    gap: theme.spacing['2'],
+    padding: theme.spacing['4'],
+    backgroundColor: 'transparent',
+  },
+  glassCard: {
+    backgroundColor: theme.colors.cardBackground,
+    marginBottom: theme.spacing['2'],
+  },
+  cardFallback: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: Platform.OS === 'android' ? 1 : 0,
+    borderColor: theme.colors.borderMuted,
+    ...theme.shadows.md,
+    shadowColor: theme.colors.neutralShadow,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing['2'],
+  },
+  formTitleContainer: {
+    flex: 1,
+    gap: theme.spacing['1'],
+  },
+  formTitle: {
+    ...theme.typography.titleSmall,
+    color: theme.colors.secondary,
+  },
+  formMeta: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
+  },
+  formStatusBadge: {
+    paddingHorizontal: theme.spacing['2.5'],
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.lg,
+  },
+  formStatusText: {
+    ...theme.typography.labelXxsBold,
+  },
+  formDescription: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
+  },
+  formAnswers: {
+    gap: theme.spacing['2'],
+  },
+  formButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.white,
+  },
+  formAccordionContent: {
+    gap: theme.spacing['2'],
+  },
+  answerRow: {
+    gap: theme.spacing['1'],
+  },
+  answerLabel: {
+    ...theme.typography.body12,
+    color: theme.colors.textSecondary,
+  },
+  answerValue: {
+    ...theme.typography.body14,
+    color: theme.colors.secondary,
   },
 });
 

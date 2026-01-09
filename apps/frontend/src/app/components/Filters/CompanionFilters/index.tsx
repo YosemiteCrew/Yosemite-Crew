@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import Search from "../../Inputs/Search";
 import { CompanionParent } from "@/app/pages/Companions/types";
 
 const Species = [
@@ -29,20 +28,20 @@ const Statuses = [
   {
     name: "Active",
     key: "active",
-    bg: "#E6F4EF",
-    text: "#54B492",
+    bg: "#D28F9A",
+    text: "#fff",
   },
   {
     name: "Inactive",
     key: "inactive",
-    bg: "#FEF3E9",
-    text: "#F68523",
+    bg: "#BF9FAA",
+    text: "#fff",
   },
   {
     name: "Archived",
     key: "archived",
-    bg: "#FDEBEA",
-    text: "#EA3729",
+    bg: "#747283",
+    text: "#fff",
   },
 ];
 
@@ -54,10 +53,8 @@ type CompanionFiltersProps = {
 const CompanionFilters = ({ list, setFilteredList }: CompanionFiltersProps) => {
   const [activeSpecie, setActiveSpecie] = useState("all");
   const [activeStatus, setActiveStatus] = useState("active");
-  const [search, setSearch] = useState("");
 
   const filteredList = useMemo(() => {
-    const searchLower = search.toLowerCase();
     const activeStatusLower = activeStatus.toLowerCase();
     const activeSpecieLower = activeSpecie.toLowerCase();
 
@@ -67,12 +64,9 @@ const CompanionFilters = ({ list, setFilteredList }: CompanionFiltersProps) => {
       const matchesSpecie =
         activeSpecie === "all" ||
         item.companion.type.toLowerCase() === activeSpecieLower;
-      const matchesSearch =
-        item.companion.name.toLowerCase().includes(searchLower) ||
-        item.parent.firstName.toLowerCase().includes(searchLower);
-      return matchesStatus && matchesSpecie && matchesSearch;
+      return matchesStatus && matchesSpecie;
     });
-  }, [list, activeSpecie, activeStatus, search]);
+  }, [list, activeSpecie, activeStatus]);
 
   useEffect(() => {
     setFilteredList(filteredList);
@@ -86,21 +80,18 @@ const CompanionFilters = ({ list, setFilteredList }: CompanionFiltersProps) => {
             <button
               key={specie.key}
               onClick={() => setActiveSpecie(specie.key)}
-              className={`min-w-20 h-9 rounded-xl! border font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${specie.key === activeSpecie ? "border-blue-text! bg-blue-light! text-blue-text! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-[#302f2e]!"}`}
+              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! ${specie.key === activeSpecie ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border!"}`}
             >
               {specie.name}
             </button>
           ))}
-        </div>
-        <div className="flex">
-          <Search value={search} setSearch={setSearch} />
         </div>
       </div>
       <div className="flex items-center gap-2">
         {Statuses.map((status) => (
           <button
             key={status.key}
-            className={`min-w-20 h-9 rounded-xl! font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${status.key === activeStatus ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! ${status.key === activeStatus ? "border-text-primary! border" : ""}`}
             style={{
               background: status.bg,
               color: status.text,

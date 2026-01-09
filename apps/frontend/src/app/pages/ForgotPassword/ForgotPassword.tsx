@@ -347,7 +347,6 @@ const ForgotPassword = () => {
                 </h2>
                 <FormInputPass
                   intype="password"
-                  inPlaceHolder="Enter New Password"
                   inname="password"
                   value={password}
                   inlabel="Enter New Password"
@@ -355,7 +354,6 @@ const ForgotPassword = () => {
                 />
                 <FormInputPass
                   intype="password"
-                  inPlaceHolder="Confirm Password"
                   inname="confirmPassword"
                   value={confirmPassword}
                   inlabel="Confirm Password"

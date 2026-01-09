@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Platform,
 } from 'react-native';
 import {
   useNavigation,
@@ -820,8 +821,9 @@ export const ObservationalToolScreen: React.FC = () => {
           Step {effectiveStepIndex + 1} of {totalSteps}
         </Text>
         <LiquidGlassCard
-          glassEffect="regular"
-          interactive
+          glassEffect="clear"
+          padding="4"
+          shadow="sm"
           style={[styles.glassCard, styles.stepInfoCard]}
           fallbackStyle={styles.glassCardFallback}>
           <View style={styles.stepHeroWrapper}>
@@ -841,8 +843,9 @@ export const ObservationalToolScreen: React.FC = () => {
           <Text style={styles.stepSubtitle}>{currentStep.subtitle}</Text>
         </LiquidGlassCard>
         <LiquidGlassCard
-          glassEffect="regular"
-          interactive
+          glassEffect="clear"
+          padding="4"
+          shadow="sm"
           style={[styles.glassCard, styles.stepOptionsCard]}
           fallbackStyle={styles.glassCardFallback}>
           <View style={styles.optionsContainer}>{renderOptions()}</View>
@@ -861,8 +864,9 @@ export const ObservationalToolScreen: React.FC = () => {
   const renderProvidersCard = () => (
     <>
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={[styles.glassCard, styles.providersCard]}
         fallbackStyle={styles.glassCardFallback}>
         <View style={styles.providerList}>
@@ -948,8 +952,9 @@ export const ObservationalToolScreen: React.FC = () => {
 
   const renderProvidersEmptyState = () => (
     <LiquidGlassCard
-      glassEffect="regular"
-      interactive
+      glassEffect="clear"
+      padding="4"
+      shadow="sm"
       style={[styles.glassCard, styles.emptyStateCard]}
       fallbackStyle={styles.glassCardFallback}>
       <Image source={displayDefinition.emptyState.image || Images.otNoProviders} style={styles.emptyStateImage} />
@@ -964,8 +969,9 @@ export const ObservationalToolScreen: React.FC = () => {
   const renderLandingStage = () => (
     <>
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={[styles.glassCard, styles.introCard]}
         fallbackStyle={styles.glassCardFallback}>
         <View style={styles.introImageWrapper}>
@@ -1058,7 +1064,7 @@ const createStyles = (theme: any) =>
       flexGrow: 1,
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['20'],
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3'],
       backgroundColor: theme.colors.background,
     },
     errorContainer: {
@@ -1074,15 +1080,18 @@ const createStyles = (theme: any) =>
     introCard: {
       gap: theme.spacing['3'],
       alignItems: 'center',
+      backgroundColor: theme.colors.cardBackground,
     },
     glassCard: {
       gap: theme.spacing['4'],
+      backgroundColor: theme.colors.cardBackground,
     },
     glassCardFallback: {
-      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
       borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     introImageWrapper: {
       width: theme.spacing['24'],
@@ -1141,6 +1150,7 @@ const createStyles = (theme: any) =>
     },
     providersCard: {
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     providerList: {
       gap: theme.spacing['3'],
@@ -1237,6 +1247,7 @@ const createStyles = (theme: any) =>
     emptyStateCard: {
       alignItems: 'center',
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     emptyStateImage: {
       width: theme.spacing['50'],
@@ -1265,6 +1276,7 @@ const createStyles = (theme: any) =>
     stepInfoCard: {
       gap: theme.spacing['3'],
       alignItems: 'center',
+      // Spacing handled by container gap
     },
     stepHeroWrapper: {
       alignSelf: 'center',
@@ -1304,6 +1316,7 @@ const createStyles = (theme: any) =>
     },
     stepOptionsCard: {
       gap: theme.spacing['3'],
+      // Spacing handled by container gap
     },
     optionsContainer: {
       gap: theme.spacing['2'],

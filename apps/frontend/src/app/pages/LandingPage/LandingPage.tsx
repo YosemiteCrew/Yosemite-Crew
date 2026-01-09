@@ -8,6 +8,7 @@ import Footer from "@/app/components/Footer/Footer";
 import LandingCard from "./LandingCard/LandingCard";
 import { Primary } from "@/app/components/Buttons";
 import { InfoCards, SlidesData } from "./data";
+import { TextFade } from "@/app/components/Animations/TextFade";
 
 import "./LandingPage.css";
 
@@ -23,21 +24,21 @@ const LandingPage = () => {
       <section className="HeroSection">
         <div className="HeroContainer">
           <div className="LeftHeroSection">
-            <div className="LeftHeroText">
-              <h2>Open source operating system for animal health</h2>
-              <p>
+            <TextFade direction="up" className="LeftHeroText">
+              <div className="text-display-1">Open source operating system for animal health</div>
+              <div className="text-body-2">
                 Designed for pet businesses, pet parents, and developers to
                 collaborate in improving animal care. Streamline workflows while
                 enhancing health outcomes, in one unified system.
-              </p>
-            </div>
-            <div className="LeftHeroButtons">
+              </div>
+            </TextFade>
+            <TextFade direction="up" className="LeftHeroButtons">
               <Primary
                 style={{ width: "211px" }}
                 text="Book demo"
                 href="/book-demo"
               />
-            </div>
+            </TextFade>
           </div>
 
           <div className="RightHeroSection">
@@ -75,7 +76,7 @@ const LandingPage = () => {
                       height={565}
                     />
                     <div className="carousel-text">
-                      <h4>{slide.text}</h4>
+                      <div className="text-heading-1">{slide.text}</div>
                     </div>
                   </div>
                 </Carousel.Item>

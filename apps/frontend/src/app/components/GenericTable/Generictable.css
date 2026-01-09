@@ -1,9 +1,8 @@
 .TableDiv {
-   box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.08) !important;
   background: var(--whitebg) !important;
   border: 1px solid var(--lightgrey) !important;
   border-radius: 16px !important;
-  padding: 24px 20px !important;
+  padding: 16px 16px !important;
   vertical-align: middle !important;
   margin: 0 !important;
   width: 100%;
@@ -12,16 +11,17 @@
 }
 .TableDiv thead tr th,
 .TableDiv tbody tr td {
-  padding: 12px 12px;
+  padding: 6px 11px;
   vertical-align: middle;
   border-bottom: 1px solid var(--lightgrey);
 }
 .TableDiv thead tr th {
-  color: var(--black-text);
-  font-size: 15px;
-  font-weight: 700;
+  color: #747473;
+  font-size: 12px;
+  font-weight: 400;
   font-family: var(--satoshi-font);
-  opacity: 70%;
+  letter-spacing: -0.24px;
+  line-height: 150%;
 }
 .TableDiv tbody tr:last-child td {
   border-bottom: none;

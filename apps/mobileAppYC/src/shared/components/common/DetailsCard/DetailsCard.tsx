@@ -1,6 +1,7 @@
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
 import {useTheme} from '@/hooks';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 export type DetailItem = {
   label: string;
@@ -26,46 +27,67 @@ export const DetailsCard: React.FC<DetailsCardProps> = ({title, items, badges}) 
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>{title}</Text>
+    <View style={styles.shadowWrapper}>
+      <LiquidGlassCard
+        glassEffect="clear"
+        padding="4"
+        shadow="base"
+        style={styles.card}
+        fallbackStyle={styles.cardFallback}>
+        <View style={styles.content}>
+          <Text style={styles.title}>{title}</Text>
 
-      {items.map((item) => {
-        if (item.hidden) return null;
-        return (
-          <View key={item.label} style={styles.detailRow}>
-            <Text style={styles.detailLabel}>{item.label}</Text>
-            <Text style={[styles.detailValue, item.bold && styles.detailValueBold]}>
-              {item.value}
-            </Text>
-          </View>
-        );
-      })}
+          {items.map(item => {
+            if (item.hidden) return null;
+            return (
+              <View key={item.label} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{item.label}</Text>
+                <Text style={[styles.detailValue, item.bold && styles.detailValueBold]}>{item.value}</Text>
+              </View>
+            );
+          })}
 
-      {badges?.map((badge) => (
-        <View
-          key={badge.text}
-          style={[
-            styles.statusBadge,
-            {backgroundColor: badge.backgroundColor},
-          ]}>
-          <Text style={[styles.statusText, {color: badge.textColor}]}>
-            {badge.text}
-          </Text>
+          {badges?.map(badge => (
+            <View
+              key={badge.text}
+              style={[
+                styles.statusBadge,
+                {backgroundColor: badge.backgroundColor},
+              ]}>
+              <Text style={[styles.statusText, {color: badge.textColor}]}>{badge.text}</Text>
+            </View>
+          ))}
         </View>
-      ))}
+      </LiquidGlassCard>
     </View>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    shadowWrapper: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      ...theme.shadows.lg,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'visible',
+    },
     card: {
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['4'],
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      padding: 0,
       gap: theme.spacing['2'],
+    },
+    content: {
+      padding: theme.spacing['4'],
+      gap: theme.spacing['2'],
+      backgroundColor: 'transparent',
+    },
+    cardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 0,
+      borderColor: 'transparent',
     },
     title: {
       ...theme.typography.titleSmall,
@@ -79,15 +101,13 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing['2'],
     },
     detailLabel: {
-      ...theme.typography.body14,
+      ...theme.typography.labelSmall,
       color: theme.colors.textSecondary,
-      fontWeight: '500',
       maxWidth: '45%',
     },
     detailValue: {
-      ...theme.typography.body14,
+      ...theme.typography.labelSmallBold,
       color: theme.colors.secondary,
-      fontWeight: '600',
       flex: 1,
       textAlign: 'right',
       flexWrap: 'wrap',

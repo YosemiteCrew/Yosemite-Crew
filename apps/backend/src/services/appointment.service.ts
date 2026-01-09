@@ -21,6 +21,7 @@ import UserProfileModel from "src/models/user-profile";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { TaskService } from "./task.service";
+import { FormService } from "./form.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -64,6 +65,7 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
     attachments: obj.attachments,
+    formIds: obj.formIds ?? [],
   };
 };
 
@@ -96,6 +98,7 @@ const toDomainLean = (
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
     attachments: obj.attachments,
+    formIds: obj.formIds ?? [],
   };
 };
 
@@ -115,6 +118,8 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   isEmergency: appointment.isEmergency ?? false,
   concern: appointment.concern ?? undefined,
   attachments: appointment.attachments ?? undefined,
+  formIds: appointment.formIds ?? [],
+  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
 });
 
 type DateRangeQuery = {
@@ -192,6 +197,17 @@ export const AppointmentService = {
       throw new AppointmentServiceError("Invalid service selected", 404);
     }
 
+    const consentForm = await FormService.getConsentFormForParent(
+      organisationId.toString(),
+      {
+        serviceId: serviceId.toString(),
+      },
+    );
+
+    if (consentForm) {
+      input.formIds?.push(consentForm.id!);
+    }
+
     const appointment: Appointment = {
       id: undefined,
       organisationId: input.organisationId,
@@ -209,6 +225,7 @@ export const AppointmentService = {
       supportStaff: [],
       room: undefined,
       attachments: input.attachments,
+      formIds: input.formIds ?? [],
 
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -220,6 +237,20 @@ export const AppointmentService = {
     const paymentIntent = await StripeService.createPaymentIntentForAppointment(
       savedAppointment._id.toString(),
     );
+
+    if (
+      service.serviceType === "OBSERVATION_TOOL" &&
+      service.observationToolId
+    ) {
+      await createObservationToolTaskForAppointment({
+        appointmentId: savedAppointment._id.toString(),
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+        parentId: appointment.companion.parent.id,
+        observationToolId: service.observationToolId._id.toString(),
+        appointmentStartTime: appointment.startTime,
+      });
+    }
 
     return {
       appointment: toAppointmentResponseDTO(toDomain(savedAppointment)),
@@ -283,6 +314,17 @@ export const AppointmentService = {
       );
     }
 
+    const consentForm = await FormService.getConsentFormForParent(
+      organisationId.toString(),
+      {
+        serviceId: serviceId.toString(),
+      },
+    );
+
+    if (consentForm) {
+      input.formIds?.push(consentForm.id!);
+    }
+
     const pricing = {
       baseCost: service.cost,
       quantity: 1,
@@ -311,6 +353,7 @@ export const AppointmentService = {
       supportStaff: input.supportStaff ?? [],
       room: input.room ?? undefined,
       attachments: input.attachments,
+      formIds: input.formIds ?? [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -848,11 +891,11 @@ export const AppointmentService = {
 
     const newStart =
       changes.startTime instanceof Date
-        ? new Date(changes.startTime.getTime())
+        ? changes.startTime
         : new Date(changes.startTime);
     const newEnd =
       changes.endTime instanceof Date
-        ? new Date(changes.endTime.getTime())
+        ? changes.endTime
         : new Date(changes.endTime);
 
     if (Number.isNaN(newStart.getTime()) || Number.isNaN(newEnd.getTime())) {
@@ -984,7 +1027,7 @@ export const AppointmentService = {
       const dto = toAppointmentResponseDTO(domainObj);
 
       // Attach organisation data
-      const org = orgMap.get(doc.organisationId?.toString()) || null;
+      const org = orgMap.get(doc.organisationId?.toString()) ?? null;
 
       return {
         appointment: dto,
@@ -1163,9 +1206,7 @@ const createObservationToolTaskForAppointment = async ({
   observationToolId: string;
   appointmentStartTime: Date;
 }) => {
-  const dueAt = dayjs(appointmentStartTime)
-    .subtract(2, "hour")
-    .toDate();
+  const dueAt = dayjs(appointmentStartTime).subtract(2, "hour").toDate();
 
   return TaskService.createCustom({
     organisationId,

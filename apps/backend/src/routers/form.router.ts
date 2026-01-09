@@ -57,16 +57,22 @@ router.get(
   FormController.getSOAPNotesByAppointment,
 );
 
+router.get(
+  "/appointments/:appointmentId/forms",
+  authorizeCognito,
+  FormController.getFormsForAppointment,
+);
+
 router.post(
   "/form-submissions/:submissionId/sign",
   authorizeCognito,
-  FormSigningController.startSigning
+  FormSigningController.startSigning,
 );
 
 router.get(
   "/form-submissions/:submissionId/signed-document",
-  //authorizeCognito,
-  FormSigningController.getSignedDocument
+  authorizeCognito,
+  FormSigningController.getSignedDocument,
 );
 
 // PUBLIC ROUTES
@@ -102,6 +108,12 @@ router.get(
 );
 
 router.get(
+  "/mobile/appointments/:appointmentId/forms",
+  authorizeCognitoMobile,
+  FormController.getFormsForAppointment,
+);
+
+router.get(
   "/mobile/form-submissions/:submissionId/pdf",
   authorizeCognitoMobile,
   FormController.getFormSubmissionPDF,
@@ -110,9 +122,7 @@ router.get(
 router.post(
   "/mobile/form-submissions/:submissionId/sign",
   authorizeCognitoMobile,
-  FormSigningController.startSigningMobile
+  FormSigningController.startSigningMobile,
 );
-
-
 
 export default router;

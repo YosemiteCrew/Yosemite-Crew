@@ -4,16 +4,16 @@
   align-items: center;
   justify-content: center;
   border-radius: 16px;
-  font-family: var(--grotesk-font);
-  font-size: 23px;
+  font-family: var(--font-satoshi) !important;
+  font-size: 16px !important;
   font-style: normal;
-  font-weight: 500;
-  line-height: 120%;
+  font-weight: 500 !important;
+  line-height: 112.5%;
   text-align: center;
-  letter-spacing: -0.46px;
+  letter-spacing: -0.32px !important;
   transition: all 0.3s ease;
   padding: 16px 32px;
-  max-height: 60px;
+  max-height: 48px !important;
 }
 .primary-button {
   background: var(--black-bg);
@@ -28,17 +28,9 @@
 
 .primary-button:hover {
   background: var(--black-hover);
-  box-shadow: 0 0 32px 0 rgba(0, 0, 0, 0.32);
+  box-shadow: 0 0 16px 0 rgba(0, 0, 0, 0.4);
 }
 .secondary-button:hover {
   background: var(--whitebg);
-  box-shadow: 0 0 32px 0 rgba(0, 0, 0, 0.32);
-}
-
-@media screen and (max-width: 768px) {
-  .primary-button,
-  .secondary-button {
-    padding: 12px 24px;
-    font-size: 19px;
-  }
+  box-shadow: 0 0 16px 0 rgba(0, 0, 0, 0.4);
 }

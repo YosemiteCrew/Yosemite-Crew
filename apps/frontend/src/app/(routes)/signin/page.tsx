@@ -17,7 +17,7 @@ function Page() {
 
   return (
     <Suspense fallback={<div></div>}>
-      <SignIn />;
+      <SignIn />
     </Suspense>
   );
 }

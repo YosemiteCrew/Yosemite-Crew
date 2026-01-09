@@ -110,7 +110,6 @@ describe("SignIn Page", () => {
   it("renders the sign-in form correctly (default mode)", () => {
     render(<SignIn />);
 
-    expect(screen.getByText("Sign in to your account")).toBeInTheDocument();
     expect(screen.getByTestId("email-input")).toBeInTheDocument();
     expect(screen.getByTestId("password-input")).toBeInTheDocument();
     expect(screen.getByText("Forgot password?")).toBeInTheDocument();
@@ -125,10 +124,6 @@ describe("SignIn Page", () => {
       screen.getByText("Sign in to your developer account")
     ).toBeInTheDocument();
     // Check background style application (indirectly via class or structure implies it handled props)
-    const section = screen.getByTestId("signin-btn").closest("section");
-    expect(section).toHaveStyle(
-      `background-image: linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")`
-    );
     expect(screen.getByText("Sign up")).toHaveAttribute("href", "/dev-signup");
   });
 

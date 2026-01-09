@@ -277,14 +277,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {avatars.length > 0 && (
             <AvatarGroup
               avatars={avatars}
-              size={56}
-              overlap={-10}
+              size={theme.spacing['14']}
+              overlap={-theme.spacing['2.5']}
               direction="column"
             />
           )}
 
           <View style={styles.textContent}>
-            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            <Text style={styles.title}>
               {title}
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
@@ -365,19 +365,19 @@ const createStyles = (theme: any) =>
       textOverflow: 'ellipsis',
     },
     meta: {
-      ...theme.typography.captionBoldSatoshi,
+      ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
     },
     statusColumn: {
       alignItems: 'flex-end',
       justifyContent: 'center',
-      minWidth: 70,
+      minWidth: theme.spacing['18'],
     },
     completedBadge: {
       paddingHorizontal: theme.spacing['2'],
       paddingVertical: theme.spacing['1'],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.successLight || 'rgba(0, 143, 93, 0.12)',
+      backgroundColor: theme.colors.successSurface,
     },
     completedText: {
       ...theme.typography.labelSmall,
@@ -387,17 +387,17 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['2'],
       paddingVertical: theme.spacing['1'],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.warningLight || 'rgba(255, 193, 7, 0.12)',
+      backgroundColor: theme.colors.warningSurface,
     },
     pendingText: {
       ...theme.typography.labelSmall,
-      color: theme.colors.warning || '#FFC107',
+      color: theme.colors.warning,
     },
     cancelledBadge: {
       paddingHorizontal: theme.spacing['2'],
       paddingVertical: theme.spacing['1'],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.errorLight || 'rgba(244, 67, 54, 0.12)',
+      backgroundColor: theme.colors.errorSurface,
     },
     cancelledText: {
       ...theme.typography.labelSmall,
@@ -411,19 +411,18 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     detailLabel: {
-      ...theme.typography.bodySmall,
+      ...theme.typography.labelSmall,
       color: theme.colors.secondary,
-      fontWeight: '500',
     },
     detailSmall: {
-      ...theme.typography.labelXxsBold,
+      ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
     },
     liquidGlassButton: {
       marginTop: theme.spacing['4'],
     },
     liquidGlassButtonText: {
-      ...theme.typography.paragraphBold,
+      ...theme.typography.button,
       color: theme.colors.white,
     },
   });

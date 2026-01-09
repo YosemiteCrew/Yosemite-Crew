@@ -94,7 +94,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               style={{ display: "none" }}
             />
             <label htmlFor="logo-upload" style={{ cursor: "pointer" }}>
-              <IoCamera color="#247AED" size={40} />
+              <IoCamera color="#595958" size={32} />
             </label>
           </>
         )}

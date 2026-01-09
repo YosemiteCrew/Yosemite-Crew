@@ -1,19 +1,38 @@
 import { Documenso } from "@documenso/sdk-typescript";
-import * as errors from "@documenso/sdk-typescript/models/errors";
+import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
+import axios from "axios";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
-const BASE_URL = process.env["DOCUMENSO_BASE_URL"] ?? "your-documenso-domain.com";
+const BASE_URL = process.env["DOCUMENSO_BASE_URL"] ?? "";
+const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? "";
 
-const documenso = new Documenso({
-  apiKey: process.env["DOCUMENSO_API_KEY"] ?? "", // Ensure API key is set in environment variables
-  serverURL: BASE_URL,
-});
+let documensoClient: Documenso | undefined;
 
-async function uploadPdfBuffer(
-  pdf: Buffer,
-  uploadUrl: string
-) {
+const getBaseUrl = () => {
+  if (!BASE_URL) {
+    throw new Error("DOCUMENSO_BASE_URL is not set");
+  }
+
+  try {
+    return new URL(BASE_URL).toString();
+  } catch {
+    throw new Error("DOCUMENSO_BASE_URL is invalid");
+  }
+};
+
+const getDocumensoClient = () => {
+  if (!documensoClient) {
+    documensoClient = new Documenso({
+      apiKey: API_KEY, // Ensure API key is set in environment variables
+      serverURL: getBaseUrl(),
+    });
+  }
+
+  return documensoClient;
+};
+
+async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
   const response = await fetch(uploadUrl, {
     method: "PUT",
     body: new Uint8Array(pdf),
@@ -28,6 +47,12 @@ async function uploadPdfBuffer(
   }
 }
 
+export type SignedDocument = {
+  downloadUrl?: string;
+  filename?: string;
+  contentType?: string;
+};
+
 export class DocumensoService {
   static async createDocument({
     pdf,
@@ -39,6 +64,7 @@ export class DocumensoService {
     signerName?: string;
   }) {
     try {
+      const documenso = getDocumensoClient();
       const createDocumentResponse = await documenso.documents.createV0({
         title: "Form Submission",
         recipients: [
@@ -63,9 +89,8 @@ export class DocumensoService {
       const { document, uploadUrl } = createDocumentResponse;
 
       await uploadPdfBuffer(pdf, uploadUrl);
-      
-      return document;
 
+      return document;
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
         logger.error("API error:", error.message);
@@ -76,16 +101,13 @@ export class DocumensoService {
       }
     }
   }
-  
-  static async distributeDocument({
-    documentId,
-  }: {
-    documentId: number;
-  }) {
+
+  static async distributeDocument({ documentId }: { documentId: number }) {
     try {
+      const documenso = getDocumensoClient();
       const distributeResponse = await documenso.documents.distribute({
         documentId: documentId,
-      })
+      });
       console.log("Distribute Response:", distributeResponse);
       return distributeResponse;
     } catch (error) {
@@ -99,20 +121,27 @@ export class DocumensoService {
     }
   }
 
-  static async downloadSignedDocument(documentId: number) {
+  static async downloadSignedDocument(
+    documentId: number,
+  ): Promise<SignedDocument | undefined> {
     try {
-      const downloadResponse = await documenso.documents.download({
-        documentId: documentId,
-      });
-      return downloadResponse;
+      const baseUrl = getBaseUrl();
+      const downloadResponse = await axios.get(
+        `${baseUrl}/document/${documentId}/download-beta`,
+        {
+          params: {
+            version: "signed",
+          },
+          headers: {
+            Authorization: API_KEY,
+          },
+        },
+      );
+
+      const signeDocument = downloadResponse.data as SignedDocument;
+      return signeDocument;
     } catch (error) {
-      if (error instanceof errors.DocumensoError) {
-        logger.error("API error:", error.message);
-        logger.error("Status code:", error.statusCode);
-        logger.error("Body:", error.body);
-      } else {
-        logger.error("An unexpected error occurred:", error);
-      }
+      logger.error("An unexpected error occurred:", error);
     }
   }
 }

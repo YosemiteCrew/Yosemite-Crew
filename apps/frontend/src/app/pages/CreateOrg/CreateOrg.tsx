@@ -17,7 +17,7 @@ import "./CreateOrg.css";
 
 const OrgSteps = [
   {
-    title: "Organisation",
+    title: "Organization",
     logo: <HiShoppingBag color="#fff" size={20} />,
   },
   {
@@ -41,9 +41,6 @@ const EMPTY_ORG: Organisation = {
   phoneNo: "",
   taxId: "",
   website: "",
-  healthAndSafetyCertNo: "",
-  animalWelfareComplianceCertNo: "",
-  fireAndEmergencyCertNo: "",
   googlePlacesId: "",
   address: {
     addressLine: "",
@@ -93,30 +90,32 @@ const CreateOrg = () => {
 
   return (
     <div className="create-org-wrapper">
-      <div className="create-org-title">Create organisation</div>
       <CreateOrgProgress activeStep={activeStep} steps={OrgSteps} />
-      {activeStep === 0 && (
-        <OrgStep
-          nextStep={nextStep}
-          formData={formData}
-          setFormData={setFormData}
-        />
-      )}
-      {activeStep === 1 && (
-        <AddressStep
-          nextStep={nextStep}
-          prevStep={prevStep}
-          formData={formData}
-          setFormData={setFormData}
-        />
-      )}
-      {activeStep === 2 && (
-        <SpecialityStep
-          prevStep={prevStep}
-          specialities={specialities}
-          setSpecialities={setSpecialities}
-        />
-      )}
+      <div className="flex flex-col gap-6">
+        <div className="create-org-title">Create organization</div>
+        {activeStep === 0 && (
+          <OrgStep
+            nextStep={nextStep}
+            formData={formData}
+            setFormData={setFormData}
+          />
+        )}
+        {activeStep === 1 && (
+          <AddressStep
+            nextStep={nextStep}
+            prevStep={prevStep}
+            formData={formData}
+            setFormData={setFormData}
+          />
+        )}
+        {activeStep === 2 && (
+          <SpecialityStep
+            prevStep={prevStep}
+            specialities={specialities}
+            setSpecialities={setSpecialities}
+          />
+        )}
+      </div>
     </div>
   );
 };

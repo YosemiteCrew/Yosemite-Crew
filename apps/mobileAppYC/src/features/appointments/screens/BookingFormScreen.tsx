@@ -133,6 +133,7 @@ export const BookingFormScreen: React.FC = () => {
   const [type, setType] = useState<string>(presetSpecialtyLabel ?? 'General Checkup');
   const [concern, setConcern] = useState('');
   const [emergency, setEmergency] = useState(false);
+  const [emergencyConfirmed, setEmergencyConfirmed] = useState(false);
   const [agreeBusiness, setAgreeBusiness] = useState(false);
   const [agreeApp, setAgreeApp] = useState(false);
   const [files, setFiles] = useState<DocumentFile[]>([]);
@@ -335,8 +336,8 @@ export const BookingFormScreen: React.FC = () => {
             glass={false}
           />
         }
-        cardGap={theme.spacing['3']}
-        contentPadding={theme.spacing['1']}>
+        cardGap={theme.spacing['4']}
+        contentPadding={theme.spacing['4']}>
         {contentPaddingStyle => (
           <ScrollView
             contentContainerStyle={[styles.container, contentPaddingStyle]}
@@ -402,6 +403,17 @@ export const BookingFormScreen: React.FC = () => {
           onAddDocuments={handleUploadDocuments}
           onRequestRemoveFile={handleRemoveFile}
           agreements={[
+            {
+              id: 'emergency-optional',
+              value: emergencyConfirmed,
+              label: (
+                <Text>
+                  I confirm this is an{' '}
+                  <Text style={linkStyle}>emergency</Text>. (Optional)
+                </Text>
+              ),
+              onChange: setEmergencyConfirmed,
+            },
             {
               id: 'business-terms',
               value: agreeBusiness,
@@ -477,9 +489,10 @@ export const BookingFormScreen: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      padding: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['4'],
+      gap: theme.spacing['6'],
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,

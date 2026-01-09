@@ -935,9 +935,9 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
+            borderColor={theme.colors.borderMuted}
+            height={theme.spacing['14']}
+            borderRadius={theme.borderRadius.lg}
             loading={isPrimaryButtonLoading}
             disabled={isPrimaryButtonLoading}
           />

@@ -12,8 +12,6 @@ import OtpModal from "@/app/components/OtpModal/OtpModal";
 import { Primary } from "@/app/components/Buttons";
 import { useRouter } from "next/navigation";
 
-import "./SignIn.css";
-
 type SignInProps = {
   redirectPath?: string;
   signupHref?: string;
@@ -109,57 +107,74 @@ const SignIn = ({
 
   return (
     <section
-      className="SignInSec"
-      style={
-        isDeveloper
-          ? {
-              backgroundImage:
-                'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
-            }
-          : undefined
-      }
+      className={`
+        relative flex w-full flex-1 items-center justify-center
+        bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')]
+        bg-cover bg-center bg-no-repeat
+        h-[calc(100vh-80px)]
+      `}
     >
       {ErrorTostPopup}
-      <div className="RightSignIn">
-        <Form onSubmit={handleSignIn}>
-          <div className="TopSignInner">
-            <h2>
+      <div
+        className={`
+          flex h-fit w-[450px] flex-col items-center justify-center gap-6
+          rounded-3xl border border-card-border
+          bg-(--whitebg)
+          p-[1.25rem]
+          elevation-1
+        `}
+      >
+        <Form
+          onSubmit={handleSignIn}
+          className="flex h-full w-full flex-col gap-6"
+        >
+          <div className="flex w-full flex-col gap-6">
+            <div className="text-display-2 text-text-primary text-center">
               {isDeveloper
                 ? "Sign in to your developer account"
-                : "Sign in to your account"}
-            </h2>
-            <FormInput
-              intype="email"
-              inname="email"
-              value={email}
-              inlabel="Email"
-              onChange={(e) => setEmail(e.target.value)}
-              error={inputErrors.email}
-            />
-            <FormInputPass
-              inPlaceHolder="Enter your password"
-              intype="password"
-              inname="password"
-              value={password}
-              inlabel="Password"
-              onChange={(e) => setPassword(e.target.value)}
-              error={inputErrors.pError}
-            />
-            <div className="forgtbtn">
-              <Link href="/forgot-password">Forgot password?</Link>
+                : "Sign in"}
+            </div>
+            <div className="flex w-full flex-col gap-3">
+              <FormInput
+                intype="email"
+                inname="email"
+                value={email}
+                inlabel="Email"
+                onChange={(e) => setEmail(e.target.value)}
+                error={inputErrors.email}
+              />
+              <FormInputPass
+                intype="password"
+                inname="password"
+                value={password}
+                inlabel="Password"
+                onChange={(e) => setPassword(e.target.value)}
+                error={inputErrors.pError}
+              />
+              <div className="flex items-end justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-body-4-emphasis text-text-primary!"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
           </div>
-          <div className="Signbtn">
+          <div className="flex flex-col gap-3 items-center">
             <Primary
               text="Sign in"
               onClick={handleSignIn}
               href="#"
               style={{ width: "100%" }}
             />
-            <h6>
+            <div className="text-body-4 text-text-primary">
               {" "}
-              Don&apos;t have an account? <Link href={signupHref}>Sign up</Link>
-            </h6>
+              Don&apos;t have an account?{" "}
+              <Link href={signupHref} className="text-text-brand">
+                Sign up
+              </Link>
+            </div>
           </div>
         </Form>
       </div>

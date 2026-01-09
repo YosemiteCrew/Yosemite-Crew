@@ -184,6 +184,7 @@ const createStyles = (theme: any) => {
     container: {
       padding: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['3'],
     },
     headerSection: {
     alignItems: 'center',
@@ -192,7 +193,7 @@ const createStyles = (theme: any) => {
   checkmarkContainer: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: theme.borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: theme.spacing['6'],
@@ -214,17 +215,17 @@ const createStyles = (theme: any) => {
     textAlign: 'center',
   },
   businessCardContainer: {
-    marginBottom: theme.spacing['4'],
+    // Spacing handled by container gap
   },
   summaryCard: {
-    marginBottom: theme.spacing['2'],
+    // Spacing handled by container gap
   },
   ratingSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing['6'],
+    // Spacing handled by container gap
   },
   reviewSection: {
-    marginBottom: theme.spacing['4'],
+    // Spacing handled by container gap
   },
   reviewLabel: {
     ...theme.typography.titleMedium,
@@ -232,7 +233,7 @@ const createStyles = (theme: any) => {
     marginBottom: theme.spacing['3'],
   },
   textArea: {
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: theme.spacing['3'],

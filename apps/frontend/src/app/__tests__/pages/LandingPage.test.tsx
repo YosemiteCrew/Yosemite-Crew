@@ -13,9 +13,9 @@ describe("MainLandingPage Component", () => {
   test("renders the main heading and call-to-action buttons", () => {
     render(<MainLandingPage />);
 
-    const mainHeading = screen.getByRole("heading", {
-      name: /open source operating system for animal health/i,
-    });
+    const mainHeading = screen.getByText(
+      /open source operating system for animal health/i
+    );
     expect(mainHeading).toBeInTheDocument();
 
     const heroSection = mainHeading.closest("section");
@@ -62,22 +62,16 @@ describe("MainLandingPage Component", () => {
     render(<MainLandingPage />);
 
     expect(
-      screen.getByRole("heading", {
-        name: /streamlined solutions for busy pet businesses/i,
-      })
+      screen.getByText(/streamlined solutions for busy pet businesses/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /designed for pet parents. simple, intuitive, reliable/i,
-      })
+      screen.getByText(/designed for pet parents. simple, intuitive, reliable/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /pay as you grow, no strings attached/i,
-      })
+      screen.getByText(/pay as you grow, no strings attached/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /built for innovators/i })
+      screen.getByText(/built for innovators/i)
     ).toBeInTheDocument();
 
     const learnMoreLinks = screen.getAllByRole("link", { name: /learn more/i });

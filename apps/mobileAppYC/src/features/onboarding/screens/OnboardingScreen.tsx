@@ -146,8 +146,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
               glassEffect="clear"
               style={styles.getStartedButton}
               borderRadius="lg"
-              height={60}
-              tintColor="#302F2E"
+              height={theme.spacing['14']}
+              tintColor={theme.colors.text}
               width={width * 0.45}
               textStyle={styles.getStartedText}
               onPress={() => onComplete()}
@@ -161,12 +161,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.colors.background,
     },
     slideContainer: {
       width,
       height,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.colors.background,
       position: 'relative',
     },
     textImageContainer: {
@@ -194,10 +194,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       paddingVertical: theme.spacing['4'],
     },
     dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      marginHorizontal: 4,
+      width: theme.spacing['2'],
+      height: theme.spacing['2'],
+      borderRadius: theme.borderRadius.full,
+      marginHorizontal: theme.spacing['1'],
     },
     bottomImageContainer: {
       position: 'absolute',
@@ -221,17 +221,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       paddingHorizontal: theme.spacing['6'],
     },
     getStartedButton: {
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 8,
+      ...theme.shadows.md,
     },
     getStartedText: {
-      ...theme.typography.h5,
+      ...theme.typography.button,
       color: theme.colors.white,
     },
   });

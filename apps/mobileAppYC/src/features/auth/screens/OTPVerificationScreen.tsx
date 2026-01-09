@@ -295,7 +295,8 @@ const buildUserPayload = (
     <LiquidGlassHeaderScreen
       header={<Header title="Enter login code" showBackButton onBack={handleGoBack} glass={false} />}
       cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['1']}>
+      contentPadding={theme.spacing['1']}
+      showBottomFade={false}>
       {contentPaddingStyle => (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

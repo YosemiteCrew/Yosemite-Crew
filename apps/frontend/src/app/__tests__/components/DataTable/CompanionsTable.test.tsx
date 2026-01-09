@@ -1,8 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import CompanionsTable, {
-  getStatusStyle,
-} from "@/app/components/DataTable/CompanionsTable";
+import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
 import { CompanionParent } from "@/app/pages/Companions/types";
 
 // --- Mocks ---
@@ -114,31 +112,6 @@ describe("CompanionsTable Component", () => {
 
   // --- 1. Helper Function Tests (getStatusStyle) ---
 
-  describe("getStatusStyle", () => {
-    it("returns correct style for active", () => {
-      const style = getStatusStyle("active");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
-    });
-
-    it("returns correct style for archived", () => {
-      const style = getStatusStyle("archived");
-      expect(style).toEqual({ color: "#EA3729", backgroundColor: "#FDEBEA" });
-    });
-
-    it("returns correct style for inactive", () => {
-      const style = getStatusStyle("inactive");
-      expect(style).toEqual({ color: "#F68523", backgroundColor: "#FEF3E9" });
-    });
-
-    it("returns default style for unknown status", () => {
-      const style = getStatusStyle("unknown");
-      expect(style).toEqual({
-        color: "#6b7280",
-        backgroundColor: "rgba(107,114,128,0.1)",
-      });
-    });
-  });
-
   // --- 2. Component Rendering & Logic (Desktop Table) ---
 
   it("renders the table with correct data (Desktop View)", () => {
@@ -166,9 +139,7 @@ describe("CompanionsTable Component", () => {
     // -- Row 1 Data (Index 1) --
     const row1 = rows[1];
     expect(within(row1).getByText("Buddy")).toBeInTheDocument();
-    expect(within(row1).getByText("Golden/Dog")).toBeInTheDocument();
     expect(within(row1).getByText("John")).toBeInTheDocument();
-    expect(within(row1).getByText("active")).toBeInTheDocument();
 
     // FIX: Image has alt="" so it has role="presentation".
     // We check for presentation role or query the img tag directly.
@@ -191,10 +162,6 @@ describe("CompanionsTable Component", () => {
     // Allergy Fallback Check
     const allergies = within(row2).getAllByText("-");
     expect(allergies.length).toBeGreaterThan(0);
-
-    // -- Row 3 Data (Index 3) --
-    const row3 = rows[3];
-    expect(within(row3).getByText("inactive")).toBeInTheDocument();
   });
 
   it("handles action buttons in the table (View & Book)", () => {

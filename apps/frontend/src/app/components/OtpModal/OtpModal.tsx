@@ -210,10 +210,12 @@ const OtpModal = ({
       <Modal.Body>
         <div className="VerifyModalTopInner">
           <div className="VerifyTexted">
-            <h2>Verify Email Address</h2>
-            <h6>
+            <div className="text-display-2 text-text-primary">
+              Verify Email Address
+            </div>
+            <div className="text-body-3-emphasis text-text-primary">
               A Verification code has been sent to <br /> <span>{email}</span>
-            </h6>
+            </div>
             <p>
               Please check your inbox and enter the verification code below to
               verify your email address. The Code will expire soon.

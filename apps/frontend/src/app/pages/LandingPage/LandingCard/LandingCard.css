@@ -12,7 +12,6 @@
 .landingSection .LandingData {
   display: flex;
   justify-content: space-between;
-  padding: 80px 0px;
   gap: 20px;
 }
 .landingSection .LandingData .LeftLanding {
@@ -22,14 +21,8 @@
   padding: 20px 0px;
   width: 40%;
 }
-.landingSection .landingTop span {
-  font-family: var(--grotesk-font);
+.landingSection .landingTop > div {
   color: var(--blue-text);
-  font-size: 33px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 120%;
-  letter-spacing: -0.66px;
 }
 
 .landingSection .LandingData .LeftLanding .landingTexed {
@@ -43,20 +36,8 @@
   flex-direction: column;
   gap: 8px;
 }
-.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed h2 {
+.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed > div {
   margin: 0;
-  font-size: 57px;
-  font-weight: 500;
-  font-family: var(--grotesk-font);
-  line-height: 120%;
-  color: var(--black-text);
-}
-.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 400;
-  font-family: var(--satoshi-font);
-  line-height: 120%;
   color: var(--black-text);
 }
 .landingSection .LandingData .RightLanding {
@@ -77,7 +58,7 @@
     gap: 16px;
     padding: 0px;
   }
-  .landingSection .landingTop span {
+  .landingSection .landingTop > div {
     padding: 0px 20px;
   }
   .landingSection .LandingData .LeftLanding {
@@ -108,11 +89,7 @@
     .LeftLanding
     .landingTexed
     .landinginnerTexed
-    h2 {
-    text-align: center;
-    font-size: 40px;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
+    > div {
     text-align: center;
   }
 }
@@ -125,9 +102,8 @@
   .landingContainer {
     padding: 24px 16px;
   }
-  .landingSection .landingTop span {
+  .landingSection .landingTop > div {
     padding: 0px 15px;
-    font-size: 19px;
   }
   .landingSection .LandingData {
     gap: 16px;
@@ -138,17 +114,5 @@
   }
   .landingSection .LandingData .LeftLanding .landingTexed {
     gap: 16px;
-  }
-  .landingSection
-    .LandingData
-    .LeftLanding
-    .landingTexed
-    .landinginnerTexed
-    h2 {
-    font-size: 28px;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
-    font-size: 15px;
-    line-height: 160%;
   }
 }

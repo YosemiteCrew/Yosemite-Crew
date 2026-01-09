@@ -1,23 +1,29 @@
-.search-container{
-    position: relative;
+.search-container {
+  position: relative;
 }
 .SignInput input {
   width: 100%;
   height: 100%;
   padding: 10px 24px;
   border-radius: 16px;
-  min-height: 60px;
-  border: 1px solid var(--notibg) !important;
+  min-height: 48px;
+  border: 1px solid #bfbfbe !important;
   color: var(--lightblack);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 120%;
+  letter-spacing: -0.32px;
   font-family: var(--satoshi-font);
   background-color: transparent;
   outline: var(--black-text);
 }
 .SignInput input::placeholder {
-  opacity: 60%;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 120%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+  color: #595958;
 }
 .floating-input {
   position: relative;
@@ -31,11 +37,12 @@
   left: 24px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--black-text);
-  font-size: 18px;
-  font-family: var(--satoshi-font);
-  opacity: 60%;
+  font-size: 16px;
   font-weight: 400;
+  line-height: 120%;
+  letter-spacing: -0.32px;
+  font-family: var(--satoshi-font);
+  color: #595958;
   pointer-events: none;
   background: transparent;
   transition:
@@ -56,7 +63,7 @@
 .floating-input input:focus + label {
   top: 2px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--blue-text);
   background: var(--whitebg);
   padding: 0 4px;
@@ -114,7 +121,7 @@
   flex-direction: column;
   padding: 5px 14px;
 }
-.search-dropdown-item{
+.search-dropdown-item {
   cursor: pointer;
   padding: 10px 0px;
   outline: none;
@@ -129,7 +136,7 @@
 }
 
 @media (max-width: 1280px) {
-  .search-dropdown{
+  .search-dropdown {
     top: 53px;
   }
 }

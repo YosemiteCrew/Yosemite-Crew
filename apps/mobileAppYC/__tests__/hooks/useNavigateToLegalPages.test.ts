@@ -27,146 +27,88 @@ describe('useNavigateToLegalPages Hook', () => {
     jest.clearAllMocks();
   });
 
-  // ===========================================================================
-  // 1. Primary Logic: Finding 'HomeStack' in tree
-  // ===========================================================================
+  it('navigates with the current navigator when it contains the target screen', () => {
+    const parentNav = createMockNavigator('parent', ['HomeStack']);
+    const currentNav = createMockNavigator('current', ['TermsAndConditions'], parentNav);
+    (useNavigation as jest.Mock).mockReturnValue(currentNav);
 
-  it('navigates to TermsAndConditions using the current navigator if it owns "HomeStack"', () => {
-    const mockNav = createMockNavigator('current', ['HomeStack']);
-    (useNavigation as jest.Mock).mockReturnValue(mockNav);
-
-    const { result } = renderHook(() => useNavigateToLegalPages());
+    const {result} = renderHook(() => useNavigateToLegalPages());
 
     result.current.handleOpenTerms();
 
-    // Should pop to top on current nav
-    expect(mockNav.popToTop).toHaveBeenCalledTimes(1);
-    // Should navigate using the found navigator
-    expect(mockNav.navigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'TermsAndConditions',
-    });
+    expect(currentNav.navigate).toHaveBeenCalledWith('TermsAndConditions');
+    expect(parentNav.navigate).not.toHaveBeenCalled();
   });
 
-  it('navigates to PrivacyPolicy using a parent navigator that owns "HomeStack"', () => {
-    // Structure: Parent (has HomeStack) -> Child (current)
-    const parentNav = createMockNavigator('parent', ['HomeStack']);
+  it('navigates with a parent navigator when it owns the target screen', () => {
+    const parentNav = createMockNavigator('parent', ['PrivacyPolicy']);
     const childNav = createMockNavigator('child', ['OtherRoute'], parentNav);
-
     (useNavigation as jest.Mock).mockReturnValue(childNav);
 
-    const { result } = renderHook(() => useNavigateToLegalPages());
+    const {result} = renderHook(() => useNavigateToLegalPages());
 
     result.current.handleOpenPrivacy();
 
-    // Should pop on CURRENT nav
-    expect(childNav.popToTop).toHaveBeenCalledTimes(1);
-    // Should navigate on PARENT nav (because traversal found it)
-    expect(parentNav.navigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'PrivacyPolicy',
-    });
-    // Current nav navigate should not be called
+    expect(parentNav.navigate).toHaveBeenCalledWith('PrivacyPolicy');
     expect(childNav.navigate).not.toHaveBeenCalled();
   });
 
-  // ===========================================================================
-  // 2. Fallback Priority Logic (Root -> Tab -> Parent)
-  // ===========================================================================
+  it('falls back to navigating through HomeStack when the screen is missing but HomeStack exists', () => {
+    const rootNav = createMockNavigator('root', ['RootRoute']);
+    const tabNav = createMockNavigator('tab', ['HomeStack'], rootNav);
+    const childNav = createMockNavigator('child', ['ChildRoute'], tabNav);
 
-  it('falls back to rootNavigation if "HomeStack" is not found in traversal', () => {
-    // Structure: Root -> Tab -> Child
-    // "HomeStack" is NOT in routeNames, forcing `findNavigatorWithRoute` to return null.
-    // Logic: find... ?? rootNavigation ?? ...
+    (useNavigation as jest.Mock).mockReturnValue(childNav);
+
+    const {result} = renderHook(() => useNavigateToLegalPages());
+
+    result.current.handleOpenTerms();
+
+    expect(tabNav.navigate).toHaveBeenCalledWith('HomeStack', {
+      screen: 'TermsAndConditions',
+    });
+    expect(rootNav.navigate).not.toHaveBeenCalled();
+    expect(childNav.navigate).not.toHaveBeenCalledWith('TermsAndConditions');
+  });
+
+  it('falls back to the highest available navigator when no matching routes exist', () => {
     const rootNav = createMockNavigator('root', ['RootRoute']);
     const tabNav = createMockNavigator('tab', ['TabRoute'], rootNav);
     const childNav = createMockNavigator('child', ['ChildRoute'], tabNav);
 
     (useNavigation as jest.Mock).mockReturnValue(childNav);
 
-    const { result } = renderHook(() => useNavigateToLegalPages());
+    const {result} = renderHook(() => useNavigateToLegalPages());
 
-    result.current.handleOpenTerms();
+    result.current.handleOpenPrivacy();
 
-    // Fallback #1: rootNavigation (derived from tabNavigation?.getParent())
     expect(rootNav.navigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'TermsAndConditions',
+      screen: 'PrivacyPolicy',
     });
-    expect(tabNav.navigate).not.toHaveBeenCalled();
+    expect(tabNav.navigate).not.toHaveBeenCalledWith('HomeStack', expect.anything());
   });
 
-  it('falls back to tabNavigation if rootNavigation is missing', () => {
-    // Structure: Tab -> Child (Tab has no parent, so root is undefined)
-    const tabNav = createMockNavigator('tab', ['TabRoute'], null);
-    const childNav = createMockNavigator('child', ['ChildRoute'], tabNav);
-
-    (useNavigation as jest.Mock).mockReturnValue(childNav);
-
-    const { result } = renderHook(() => useNavigateToLegalPages());
-
-    result.current.handleOpenTerms();
-
-    // Fallback #2: tabNavigation (derived from navigation.getParent())
-    expect(tabNav.navigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'TermsAndConditions',
-    });
-  });
-
-  // ===========================================================================
-  // 3. Safety & Edge Cases
-  // ===========================================================================
-
-  it('handles navigation gracefully when no valid navigator is found (all null)', () => {
-    const isolatedNav = createMockNavigator('isolated', [], null);
-    (useNavigation as jest.Mock).mockReturnValue(isolatedNav);
-
-    const { result } = renderHook(() => useNavigateToLegalPages());
-
-    // Should not crash even though no parent/root exists
-    expect(() => result.current.handleOpenTerms()).not.toThrow();
-
-    // popToTop still called on current
-    expect(isolatedNav.popToTop).toHaveBeenCalled();
-    // navigate never called because no valid 'nav' target resolved
-    expect(isolatedNav.navigate).not.toHaveBeenCalled();
-  });
-
-  it('skips popToTop if the method does not exist', () => {
-    const mockNav = createMockNavigator('current', ['HomeStack']);
-    // Simulate popToTop being undefined (e.g. strict type mock or diff navigator type)
-    // @ts-ignore
-    mockNav.popToTop = undefined;
-    (useNavigation as jest.Mock).mockReturnValue(mockNav);
-
-    const { result } = renderHook(() => useNavigateToLegalPages());
-
-    // Should proceed to navigate without throwing
-    result.current.handleOpenTerms();
-    expect(mockNav.navigate).toHaveBeenCalled();
-  });
-
-  it('handles traversal logic when state or routeNames are undefined (Branch Coverage)', () => {
-    // Logic check: if (state?.routeNames?.includes(routeName))
+  it('handles traversal when state or routeNames are undefined without throwing', () => {
     const navNoState = {
       getParent: jest.fn(() => null),
-      getState: undefined, // undefined state
+      getState: undefined,
       navigate: jest.fn(),
     };
 
     const navNoRouteNames = {
       getParent: jest.fn(() => navNoState),
-      getState: jest.fn(() => ({})), // state exists, but no routeNames
+      getState: jest.fn(() => ({})),
       navigate: jest.fn(),
     };
 
     (useNavigation as jest.Mock).mockReturnValue(navNoRouteNames);
 
-    const { result } = renderHook(() => useNavigateToLegalPages());
+    const {result} = renderHook(() => useNavigateToLegalPages());
 
-    // Trigger action
-    result.current.handleOpenTerms();
-
-    // Verify traversal happened (called getParent on child)
+    expect(() => result.current.handleOpenTerms()).not.toThrow();
     expect(navNoRouteNames.getParent).toHaveBeenCalled();
-    // Verify it didn't crash on undefined state
     expect(navNoState.getParent).toHaveBeenCalled();
+    // The hook will fall back to calling navigate on a parent navigator even if state is undefined
+    expect(navNoState.navigate).toHaveBeenCalledWith('HomeStack', {screen: 'TermsAndConditions'});
   });
 });

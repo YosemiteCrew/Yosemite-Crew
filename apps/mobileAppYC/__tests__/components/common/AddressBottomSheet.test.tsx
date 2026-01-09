@@ -19,6 +19,7 @@ jest.mock('@/hooks', () => {
   return {
     __esModule: true,
     useTheme: jest.fn(() => ({theme, isDark: false})),
+    useKeyboardVisible: jest.fn(() => false),
     useAddressAutocomplete: jest.fn(() => ({
       setQuery: mockSetQuery,
       suggestions: [],

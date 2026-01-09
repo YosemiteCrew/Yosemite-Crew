@@ -1,6 +1,6 @@
 import countries from "@/app/utils/countryList.json";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import {isEmail} from 'validator'
+import { isEmail } from "validator";
 
 export const validatePhone = (phone: string) => {
   const number = parsePhoneNumberFromString(phone);
@@ -19,4 +19,9 @@ export const getCountryCode = (country: string | undefined) => {
 export const isValidEmail = (email: string) => {
   const cleaned = email.trim();
   return isEmail(cleaned);
-}
+};
+
+export const toTitleCase = (value = "") => {
+  if (typeof value !== "string" || !value.length) return "";
+  return value[0].toUpperCase() + value.slice(1).toLowerCase();
+};

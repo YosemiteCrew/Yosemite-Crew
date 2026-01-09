@@ -130,13 +130,14 @@ const Footer = () => {
                   key={section.title}
                   variants={ftDivVariants}
                 >
-                  <h5>{section.title}</h5>
+                  <div className="text-heading-3">{section.title}</div>
                   <ul className="FtLinks">
                     {section.links.map((link) => (
                       <li key={link.label}>
                         <Link
                           href={link.href}
                           target={section.title === "Company" ? "" : "_blank"}
+                          className="text-label-1"
                         >
                           {link.label}
                         </Link>
@@ -150,21 +151,21 @@ const Footer = () => {
           {/* <hr className="footer-divider" aria-hidden="true" /> */}
           <div className="Footer_Bottom">
             <div className="Bootom_Foot">
-              <h4>Copyright &copy; 2025 DuneXploration</h4>
-              <p>
+              <div className="text-caption-1 font-bold">Copyright &copy; 2026 DuneXploration</div>
+              <div className="text-caption-1 text-center">
                 DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127
                 Mainz
                 <br />
                 email:{" "}
-                <a className="Bootom_Foot_Focus" href="mailto:support@yosemitecrew.com">
+                <a className="text-caption-1 font-bold Bootom_Foot_Focus" href="mailto:support@yosemitecrew.com">
                   support@yosemitecrew.com
                 </a>{" "}
-                , phone: <a className="Bootom_Foot_Focus" href="tel:+4915227763275">+49 152 277 63275</a>
-              </p>
-              <p>
+                , phone: <a className="text-caption-1 font-bold Bootom_Foot_Focus" href="tel:+4915227763275">+49 152 277 63275</a>
+              </div>
+              <div className="text-caption-1 text-center">
                 Geschaftsfuhrer: Ankit Upadhyay Amtsgericht Mainz unter HRB
                 52778, VAT: DE367920596
-              </p>
+              </div>
             </div>
           </div>
         </div>

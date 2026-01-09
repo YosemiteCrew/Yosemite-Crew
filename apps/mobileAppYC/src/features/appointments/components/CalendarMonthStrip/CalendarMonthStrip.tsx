@@ -161,7 +161,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.lightBlueBackground,
       borderColor: theme.colors.primary,
       borderWidth: 1,
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.lg,
     },
     dateItemToday: {borderColor: theme.colors.primary, borderWidth: 2},
     dateItemDisabled: {opacity: 0.3, backgroundColor: theme.colors.background},
@@ -169,7 +169,7 @@ const createStyles = (theme: any) =>
     dateDaySelected: {color: theme.colors.primary, fontWeight: '500'},
     dateNumber: {...theme.typography.h6Clash, color: theme.colors.textSecondary, textAlign: 'center'},
     dateNumberSelected: {color: theme.colors.primary, fontWeight: '500'},
-    marker: {position: 'absolute', bottom: 6, width: 6, height: 6, borderRadius: 3},
+    marker: {position: 'absolute', bottom: 6, width: 6, height: 6, borderRadius: theme.borderRadius.lg},
   });
 
 export default CalendarMonthStrip;

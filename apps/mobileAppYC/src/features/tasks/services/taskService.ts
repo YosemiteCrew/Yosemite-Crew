@@ -408,15 +408,25 @@ export const buildTaskDraftFromForm = ({
     attachments,
     medication:
       category === 'MEDICATION'
-        ? {
+        ? ({
             name: formData.medicineName,
             type: formData.medicineType ?? undefined,
+            doses:
+              formData.dosages?.length
+                ? formData.dosages.map((dose, index) => {
+                    const hhmm = formatDoseTime(dose.time);
+                    return {
+                      dosage: dose.label || `Dose ${index + 1}`,
+                      time: hhmm,
+                    };
+                  })
+                : undefined,
             dosage: undefined,
             frequency:
               (formData.medicationFrequency
                 ? formData.medicationFrequency.toUpperCase()
                 : recurrenceType) ?? undefined,
-          }
+          } as any)
         : null,
     observationToolId:
       category === 'OBSERVATION_TOOL'

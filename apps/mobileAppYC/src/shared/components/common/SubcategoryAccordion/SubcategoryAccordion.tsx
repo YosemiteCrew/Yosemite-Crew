@@ -93,16 +93,18 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
               style={styles.icon}
             />
           )}
-          <View style={styles.headerContent}>
+          <View style={[styles.headerContent, !subtitle && styles.headerContentNoSubtitle]}>
             <Text style={styles.title} numberOfLines={2}>
               {title}
             </Text>
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {subtitle}
-            </Text>
+            {!!subtitle && (
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
           </View>
           <Animated.Image
-            source={Images.dropdownIcon}
+            source={Images.downArrow}
             style={[styles.chevron, chevronAnimatedStyle]}
           />
         </TouchableOpacity>
@@ -153,6 +155,11 @@ const createStyles = (theme: any) =>
       flex: 1,
       gap: theme.spacing['1'],
       marginRight: theme.spacing['3'],
+      justifyContent: 'center',
+      alignSelf: 'center',
+    },
+    headerContentNoSubtitle: {
+      gap: 0,
     },
     title: {
       ...theme.typography.titleMedium,

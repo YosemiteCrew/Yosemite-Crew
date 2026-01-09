@@ -66,14 +66,13 @@ const createStyles = (theme: any) =>
       marginVertical: theme.spacing['1'],
     },
     rowButtonLabel: {
-      ...theme.typography.pillSubtitleBold15,
+      ...theme.typography.body,
       color: theme.colors.textSecondary,
       flex: 1,
     },
     rowButtonValue: {
-      // Satoshi 15 Bold, 160% line-height, -0.3 letter spacing
-      ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.placeholder,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.secondary,
       marginRight: theme.spacing['3'],
       flexShrink: 1,
       flex: 1,
@@ -92,7 +91,7 @@ const createStyles = (theme: any) =>
     },
     separator: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
+      borderBottomColor: theme.colors.border,
       marginHorizontal: theme.spacing['3'],
     },
   });
