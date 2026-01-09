@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MdNotificationsActive } from "react-icons/md";
 import { AnimatePresence, motion } from "framer-motion";
@@ -62,6 +62,8 @@ const UserHeader = () => {
   const primaryOrg = usePrimaryOrg();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
   const [search, setSearch] = useState("");
+  const orgDropdownRef = useRef<HTMLDivElement>(null);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
@@ -95,6 +97,36 @@ const UserHeader = () => {
       }
     }, 400);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target as Node)
+      ) {
+        setSelectProfile(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        orgDropdownRef.current &&
+        !orgDropdownRef.current.contains(event.target as Node)
+      ) {
+        setSelectOrg(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
@@ -208,9 +240,9 @@ const UserHeader = () => {
       </div>
       <div className="hidden lg:flex">
         {primaryOrg && (
-          <div className="relative">
+          <div className="relative" ref={orgDropdownRef}>
             <button
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
               onClick={() => setSelectOrg((e) => !e)}
             >
               <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
@@ -225,11 +257,11 @@ const UserHeader = () => {
               />
             </button>
             {selectOrg && (
-              <div className="absolute top-[120%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full px-2">
+              <div className="absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
                 {orgs.slice(0, 3).map((org, i) => (
                   <button
                     key={org.name + i}
-                    className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl text-text-secondary! hover:text-text-primary! max-w-[200px] w-full truncate border-b! border-b-card-border!"
+                    className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! transition-all duration-300 text-text-secondary! hover:text-text-primary! w-full truncate"
                     onClick={() =>
                       handleOrgClick(org._id?.toString() || org.name)
                     }
@@ -240,7 +272,7 @@ const UserHeader = () => {
                 <Link
                   href={"/organizations"}
                   onClick={() => setSelectOrg(false)}
-                  className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full"
+                  className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
                 >
                   View all
                 </Link>
@@ -259,9 +291,9 @@ const UserHeader = () => {
           style={{ cursor: "pointer" }}
         />
 
-        <div className="relative hidden lg:flex">
+        <div className="relative hidden lg:flex" ref={profileDropdownRef}>
           <button
-            className="flex items-center gap-2"
+            className={`flex items-center gap-2 w-[200px] justify-between px-6 py-2 ${selectProfile ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image
@@ -284,17 +316,17 @@ const UserHeader = () => {
             />
           </button>
           {selectProfile && (
-            <div className="absolute top-[120%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full px-2">
+            <div className="absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
               <Link
                 href={"/settings"}
                 onClick={() => setSelectProfile(false)}
-                className="px-[1.25rem] py-[0.75rem] text-body-4 text-text-secondary! hover:text-text-primary!"
+                className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
               >
                 Settings
               </Link>
               <button
                 onClick={handleLogout}
-                className="px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary hover:text-text-primary! border-t border-t-card-border"
+                className="px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-error hover:bg-card-hover rounded-2xl! transition-all duration-300"
               >
                 Sign out
               </button>
