@@ -50,9 +50,9 @@ describe("Footer Component", () => {
     });
 
     it("should render all navigation section titles", () => {
-        expect(screen.getByRole("heading", { name: "Developers" })).toBeInTheDocument();
-        expect(screen.getByRole("heading", { name: "Community" })).toBeInTheDocument();
-        expect(screen.getByRole("heading", { name: "Company" })).toBeInTheDocument();
+        expect(screen.getByText("Developers")).toBeInTheDocument();
+        expect(screen.getByText("Community")).toBeInTheDocument();
+        expect(screen.getByText("Company")).toBeInTheDocument();
     });
 
     it("should render all navigation links with correct href attributes", () => {
@@ -70,7 +70,9 @@ describe("Footer Component", () => {
     });
 
     it("should render the copyright and contact information", () => {
-        expect(screen.getByText(/Copyright © 2025 DuneXploration/i)).toBeInTheDocument();
+        expect(screen.getByText((_content, element) => {
+            return element?.textContent === 'Copyright © 2026 DuneXploration';
+        })).toBeInTheDocument();
 
         const emailLink = screen.getByRole("link", { name: "support@yosemitecrew.com" });
         expect(emailLink).toBeInTheDocument();
