@@ -4,13 +4,13 @@ import Search from "../../Inputs/Search";
 import Dropdown from "../../Inputs/Dropdown/Dropdown";
 
 const Statuses = [
-  { name: "All", key: "ALL", bg: "#F7F7F7", text: "#302F2E" },
-  { name: "Active", key: "ACTIVE", bg: "#E6F4EF", text: "#54B492" },
-  { name: "Hidden", key: "HIDDEN", bg: "#EAEAEA", text: "#302F2E" },
-  { name: "Low stock", key: "LOW_STOCK", bg: "#FEF3E9", text: "#F68523" },
-  { name: "Expired", key: "EXPIRED", bg: "#FDEBEA", text: "#EA3729" },
-  { name: "Expiring soon", key: "EXPIRING_SOON", bg: "#FEF7E5", text: "#C47F00" },
-  { name: "Healthy", key: "HEALTHY", bg: "#EAF3FF", text: "#247AED" },
+  { name: "All", key: "ALL", bg: "#747283", text: "#F7F7F7" },
+  { name: "Active", key: "ACTIVE", bg: "#F1D4B0", text: "#302f2e" },
+  { name: "Hidden", key: "HIDDEN", bg: "#A8A181", text: "#F7F7F7" },
+  { name: "Low stock", key: "LOW_STOCK", bg: "#BF9FAA", text: "#F7F7F7" },
+  { name: "Expired", key: "EXPIRED", bg: "#D28F9A", text: "#F7F7F7" },
+  { name: "Expiring soon", key: "EXPIRING_SOON", bg: "#5C614B", text: "#F7F7F7" },
+  { name: "Healthy", key: "HEALTHY", bg: "#D9A488", text: "#F7F7F7" },
 ];
 
 type InventoryFiltersProps = {
@@ -60,28 +60,40 @@ const InventoryFilters = ({
             disabled={loading}
           />
         </div>
-        <Search
-          value={filters.search}
-          setSearch={(value: string) => updateFilters({ search: value })}
-          className="h-12 min-h-12 py-3"
-        />
       </div>
       <div className="flex items-center gap-2 flex-wrap md:justify-start min-[1520px]:justify-end">
         {Statuses.map((status) => (
           <button
-            key={status.key}
-            disabled={loading}
-            className={`px-3 h-12 rounded-xl! font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${status.key === filters.status ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"} ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-            style={{
-              background: status.bg,
-              color: status.text,
-              borderColor:
-                status.key === filters.status ? status.text : status.bg,
-            }}
-            onClick={() => updateFilters({ status: status.key })}
-          >
-            {status.name}
-          </button>
+  key={status.key}
+  disabled={loading}
+  onClick={() => updateFilters({ status: status.key })}
+  className={`
+    min-w-20
+    px-4
+    py-[6px]
+    rounded-2xl!
+    text-[16px]
+    font-normal
+    border
+    transition-colors
+    ${
+      status.key === filters.status
+        ? "border-transparent"
+        : "bg-white border-[#E5E5E5] text-text-body-4! hover:bg-[#F2F2F2]!"
+    }
+    ${loading ? "opacity-60 cursor-not-allowed" : ""}
+  `}
+  style={
+    status.key === filters.status
+      ? {
+          backgroundColor: status.bg,
+          color: status.text,
+        }
+      : undefined
+  }
+>
+  {status.name}
+</button>
         ))}
       </div>
     </div>
