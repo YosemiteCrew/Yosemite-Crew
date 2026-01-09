@@ -15,6 +15,7 @@ jest.mock('@/hooks', () => ({
 // We just need it to render its children
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: (props: any) => <>{props.children}</>,
+  useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
 }));
 
 // --- Tests ---

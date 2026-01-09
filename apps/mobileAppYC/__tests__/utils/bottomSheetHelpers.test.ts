@@ -92,8 +92,8 @@ describe('bottomSheetHelpers', () => {
       expect(styles).toEqual({
         bottomSheetBackground: {
           backgroundColor: mockTheme.colors.background,
-          borderTopLeftRadius: mockTheme.borderRadius['3xl'],
-          borderTopRightRadius: mockTheme.borderRadius['3xl'],
+          borderTopLeftRadius: mockTheme.spacing['6'],
+          borderTopRightRadius: mockTheme.spacing['6'],
         },
         bottomSheetHandle: {
           backgroundColor: mockTheme.colors.borderMuted,

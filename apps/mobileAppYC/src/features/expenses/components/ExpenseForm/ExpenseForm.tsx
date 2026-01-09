@@ -221,6 +221,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               onErrorClear('title');
             }}
             error={errors.title}
+            returnKeyType="done"
+            returnKeyLabel="Done"
           />
         </View>
 
@@ -230,6 +232,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               label="Provider / Business"
               value={formData.providerName ?? ''}
               onChangeText={text => onFormChange('providerName', text)}
+              returnKeyType="done"
+              returnKeyLabel="Done"
             />
           </View>
         )}

@@ -27,6 +27,7 @@ import {
 } from './documentAttachmentUtils';
 import RNFS from 'react-native-fs';
 import {normalizeMimeType} from '@/shared/utils/mime';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -295,30 +296,37 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
 
         return (
           <View key={file.id} style={styles.previewCard}>
+
+            <LiquidGlassCard
+              glassEffect="clear"
+              padding="4"
+              shadow="sm"
+              style={styles.previewContentCard}>
             <View style={styles.previewCardHeader}>
               <Text style={styles.pdfLabel}>{file.name}</Text>
             </View>
 
-            {(() => {
-              if (isImageFile(file.type) && sourceUri) {
-                return <Image source={{uri: sourceUri}} style={styles.previewImage} resizeMode="contain" />;
-              }
-              if (isPdf && sourceUri) {
-                return <PdfViewer uri={sourceUri} fallback={placeholder} />;
-              }
-              if (isDoc && sourceUri) {
-                return <DocViewer uri={sourceUri} fallback={placeholder} fileName={file.name} />;
-              }
-              console.log('[DocumentAttachmentViewer] File not previewable', {
-                fileName: file.name,
-                fileType: file.type,
-                hasSourceUri: Boolean(sourceUri),
-                isImage: isImageFile(file.type),
-                isPdf,
-                isDoc,
-              });
-              return placeholder;
-            })()}
+              {(() => {
+                if (isImageFile(file.type) && sourceUri) {
+                  return <Image source={{uri: sourceUri}} style={styles.previewImage} resizeMode="contain" />;
+                }
+                if (isPdf && sourceUri) {
+                  return <PdfViewer uri={sourceUri} fallback={placeholder} />;
+                }
+                if (isDoc && sourceUri) {
+                  return <DocViewer uri={sourceUri} fallback={placeholder} fileName={file.name} />;
+                }
+                console.log('[DocumentAttachmentViewer] File not previewable', {
+                  fileName: file.name,
+                  fileType: file.type,
+                  hasSourceUri: Boolean(sourceUri),
+                  isImage: isImageFile(file.type),
+                  isPdf,
+                  isDoc,
+                });
+                return placeholder;
+              })()}
+
 
             <View style={styles.actionRow}>
               <TouchableOpacity
@@ -336,6 +344,7 @@ export const DocumentAttachmentViewer: React.FC<DocumentAttachmentViewerProps> =
                 <Image source={Images.downloadIcon} style={styles.downloadIcon} />
               </TouchableOpacity>
             </View>
+                </LiquidGlassCard>
           </View>
         );
       })}

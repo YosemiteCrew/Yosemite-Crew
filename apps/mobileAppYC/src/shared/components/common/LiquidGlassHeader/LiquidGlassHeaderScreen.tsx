@@ -29,7 +29,7 @@ export const LiquidGlassHeaderScreen: React.FC<LiquidGlassHeaderScreenProps> = (
   edges = [],
   mode,
   useSafeAreaView = false,
-  showBottomFade = true,
+  showBottomFade = false,
   bottomFadeHeight = 80,
   bottomFadeIntensity = 'medium',
   bottomFadeOffset = 0,

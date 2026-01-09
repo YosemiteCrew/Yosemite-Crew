@@ -6,6 +6,7 @@ import {
   Text,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -269,8 +270,9 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
 
           {/* PMS Status Card */}
           <LiquidGlassCard
-            glassEffect="regular"
-            interactive
+            glassEffect="clear"
+            padding="4"
+            shadow="sm"
             style={styles.statusCard}
             fallbackStyle={styles.statusCardFallback}>
             <View style={styles.statusContent}>
@@ -368,19 +370,15 @@ const createStyles = (theme: any) => {
       gap: theme.spacing['4'],
     },
     statusCard: {
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['4'],
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
       overflow: 'hidden',
     },
     statusCardFallback: {
-      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
-      borderWidth: 1,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     statusContent: {
       alignItems: 'center',

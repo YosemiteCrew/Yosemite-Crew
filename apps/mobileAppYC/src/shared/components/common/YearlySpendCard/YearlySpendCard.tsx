@@ -117,7 +117,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
 };
 
 const createStyles = (theme: any) => {
-  const glassCardStyles = createGlassCardStyles(theme);
+  const glassCardStyles = createGlassCardStyles(theme, {borderWidth: 0});
   const contentStyles = createCardContentStyles(theme, '4');
   const textStyles = createTextContainerStyles(theme, '1');
 
@@ -131,7 +131,7 @@ const createStyles = (theme: any) => {
     iconCircle: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.spacing['5'],
+      borderRadius: theme.borderRadius.lg,
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: theme.colors.border,
@@ -153,7 +153,7 @@ const createStyles = (theme: any) => {
     companionAvatarWrapper: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.spacing['5'],
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 2,
       borderColor: theme.colors.white,
     },

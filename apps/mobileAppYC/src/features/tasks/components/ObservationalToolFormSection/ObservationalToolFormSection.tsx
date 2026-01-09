@@ -13,6 +13,7 @@ interface ObservationalToolFormSectionProps {
   errors: TaskFormErrors;
   updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
   onOpenObservationalToolSheet: () => void;
+  onOpenDatePicker: () => void;
   onOpenTimePicker: () => void;
   onOpenTaskFrequencySheet: () => void;
   theme: any;
@@ -23,6 +24,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
   errors,
   updateField,
   onOpenObservationalToolSheet,
+  onOpenDatePicker,
   onOpenTimePicker,
   onOpenTaskFrequencySheet,
   theme,
@@ -61,8 +63,8 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
 
       <TaskFormFields
         formData={{date: formData.date, time: formData.time, frequency: formData.frequency}}
-        errors={{time: errors.time, frequency: errors.frequency}}
-        updateField={updateField}
+        errors={{date: errors.date, time: errors.time, frequency: errors.frequency}}
+        onOpenDatePicker={onOpenDatePicker}
         onOpenTimePicker={onOpenTimePicker}
         onOpenTaskFrequencySheet={onOpenTaskFrequencySheet}
         theme={theme}

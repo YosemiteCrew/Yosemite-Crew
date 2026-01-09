@@ -10,6 +10,7 @@ interface SimpleTaskFormSectionProps {
   errors: TaskFormErrors;
   taskTypeSelection?: TaskTypeSelection;
   updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
+  onOpenDatePicker: () => void;
   onOpenTimePicker: () => void;
   onOpenTaskFrequencySheet: () => void;
   theme: any;
@@ -20,6 +21,7 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
   errors,
   taskTypeSelection,
   updateField,
+  onOpenDatePicker,
   onOpenTimePicker,
   onOpenTaskFrequencySheet,
   theme,
@@ -56,8 +58,8 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
 
       <TaskFormFields
         formData={{date: formData.date, time: formData.time, frequency: formData.frequency}}
-        errors={{time: errors.time, frequency: errors.frequency}}
-        updateField={updateField}
+        errors={{date: errors.date, time: errors.time, frequency: errors.frequency}}
+        onOpenDatePicker={onOpenDatePicker}
         onOpenTimePicker={onOpenTimePicker}
         onOpenTaskFrequencySheet={onOpenTaskFrequencySheet}
         theme={theme}

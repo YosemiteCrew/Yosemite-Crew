@@ -30,13 +30,15 @@ Current production releases:
 
 | Platform | Store Version |
 | --- | --- |
-| Android | v1.0.5 |
-| iOS | v1.0.2 |
+| Android | v1.0.6 |
+| iOS | v1.0.3 |
 
 Release history:
 
 | Platform | Version | Notes |
 | --- | --- | --- |
+| Android | v1.0.6 | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing |
+| iOS | v1.0.3 | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing |
 | Android | v1.0.5 | Initial production release |
 | iOS | v1.0.2 | Initial production release |
 

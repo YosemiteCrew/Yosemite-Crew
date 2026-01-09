@@ -360,6 +360,7 @@ export const StripeService = {
         stripePaymentIntentId: pi.id,
         stripeChargeId: charge.id,
         updatedAt: new Date(),
+        expiresAt: undefined,
       },
     );
 

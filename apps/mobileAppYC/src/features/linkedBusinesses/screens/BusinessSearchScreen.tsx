@@ -603,7 +603,7 @@ const createStyles = (theme: any) => {
       paddingBottom: theme.spacing['24'],
     },
     sectionTitle: {
-      ...theme.typography.titleLarge,
+      ...theme.typography.sectionHeading,
       color: theme.colors.text,
       marginBottom: theme.spacing['3'],
     },

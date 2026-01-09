@@ -95,6 +95,8 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
               onOpenMedicationTypeSheet={sheetHandlers.onOpenMedicationTypeSheet}
               onOpenDosageSheet={sheetHandlers.onOpenDosageSheet}
               onOpenMedicationFrequencySheet={sheetHandlers.onOpenMedicationFrequencySheet}
+              onOpenStartDatePicker={sheetHandlers.onOpenStartDatePicker}
+              onOpenEndDatePicker={sheetHandlers.onOpenEndDatePicker}
               theme={theme}
             />
           )}
@@ -105,6 +107,7 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
               errors={errors}
               updateField={updateField}
               onOpenObservationalToolSheet={sheetHandlers.onOpenObservationalToolSheet}
+              onOpenDatePicker={sheetHandlers.onOpenDatePicker}
               onOpenTimePicker={sheetHandlers.onOpenTimePicker}
               onOpenTaskFrequencySheet={sheetHandlers.onOpenTaskFrequencySheet}
               theme={theme}
@@ -117,6 +120,7 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
               errors={errors}
               taskTypeSelection={taskTypeSelection ?? undefined}
               updateField={updateField}
+              onOpenDatePicker={sheetHandlers.onOpenDatePicker}
               onOpenTimePicker={sheetHandlers.onOpenTimePicker}
               onOpenTaskFrequencySheet={sheetHandlers.onOpenTaskFrequencySheet}
               theme={theme}

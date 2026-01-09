@@ -92,9 +92,23 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['52'],
       paddingHorizontal: theme.spacing['6'],
     },
-    emptyImage: {width: 220, height: 220, resizeMode: 'contain', marginBottom: theme.spacing['6']},
-    title: {...theme.typography.businessSectionTitle20, color: '#302F2E', marginBottom: theme.spacing['3'], textAlign: 'center'},
-    subtitle: {...theme.typography.subtitleRegular14, color: '#302F2E', textAlign: 'center'},
+    emptyImage: {
+      width: theme.spacing['56'],
+      height: theme.spacing['56'],
+      resizeMode: 'contain',
+      marginBottom: theme.spacing['6'],
+    },
+    title: {
+      ...theme.typography.businessSectionTitle20,
+      color: theme.colors.text,
+      marginBottom: theme.spacing['3'],
+      textAlign: 'center',
+    },
+    subtitle: {
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
   });
 
 export default MyAppointmentsEmptyScreen;

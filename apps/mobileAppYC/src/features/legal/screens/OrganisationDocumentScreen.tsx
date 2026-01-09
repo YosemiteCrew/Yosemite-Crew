@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {ActivityIndicator, ScrollView, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -21,6 +15,7 @@ import {
 } from '../services/organisationDocumentService';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Props = NativeStackScreenProps<AppointmentStackParamList, 'OrganisationDocument'>;
 
@@ -131,8 +126,9 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   } else if (error) {
     content = (
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={styles.statusCard}
         fallbackStyle={styles.cardFallback}>
         <Text style={styles.statusTitle}>Unable to load</Text>
@@ -141,7 +137,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
           title="Retry"
           onPress={loadDocuments}
           height={48}
-          borderRadius={14}
+          borderRadius={16}
           shadowIntensity="medium"
         />
       </LiquidGlassCard>
@@ -151,8 +147,9 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   } else {
     content = (
       <LiquidGlassCard
-        glassEffect="regular"
-        interactive
+        glassEffect="clear"
+        padding="4"
+        shadow="sm"
         style={styles.statusCard}
         fallbackStyle={styles.cardFallback}>
         <Text style={styles.statusTitle}>No content available</Text>
@@ -164,23 +161,32 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({navigation, route})
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <Header
-        title={screenTitle}
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-
-      <ScrollView
-        style={baseStyles.container}
-        contentContainerStyle={[
-          baseStyles.contentContainer,
-          !hasContent && !error && !loading ? styles.centerContent : null,
-        ]}
-        showsVerticalScrollIndicator={false}>
-        {content}
-      </ScrollView>
-    </SafeAreaView>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={screenTitle}
+          showBackButton
+          onBack={() => navigation.goBack()}
+          glass={false}
+        />
+      }
+      cardGap={theme.spacing['3']}
+      contentPadding={theme.spacing['1']}
+      useSafeAreaView
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <ScrollView
+          style={baseStyles.container}
+          contentContainerStyle={[
+            baseStyles.contentContainer,
+            contentPaddingStyle,
+            !hasContent && !error && !loading ? styles.centerContent : null,
+          ]}
+          showsVerticalScrollIndicator={false}>
+          {content}
+        </ScrollView>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 

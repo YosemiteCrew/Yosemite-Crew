@@ -12,18 +12,29 @@ export const getFloatingLabelAnimatedStyle = ({
   animatedValue,
   theme,
 }: Omit<FloatingLabelConfig, 'hasValue'>) => {
+  // Calculate exact positioning to match Input component
+  const placeholderLineHeight =
+    (theme.typography.input.lineHeight ?? theme.typography.input.fontSize) ?? 16;
+  const placeholderTop =
+    (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
+  const labelLineHeight =
+    (theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize) ?? 12;
+  const floatingTop = -Math.round(labelLineHeight / 2) - 2;
+
   const baseStyle: any = {
     position: 'absolute' as const,
     left: theme.spacing['5'],
+    fontFamily: theme.typography.input.fontFamily,
+    fontWeight: theme.typography.input.fontWeight,
     fontSize: animatedValue.interpolate({
       inputRange: [0, 1],
-      outputRange: [theme.typography.input.fontSize, theme.typography.labelSmall.fontSize],
+      outputRange: [theme.typography.input.fontSize ?? 16, theme.typography.inputLabel.fontSize ?? 12],
     }),
     top: animatedValue.interpolate({
       inputRange: [0, 1],
       outputRange: [
-        Platform.OS === 'ios' ? theme.spacing['4'] + 2 : theme.spacing['3'] + 2,
-        Platform.OS === 'ios' ? -theme.spacing['1.25'] : -theme.spacing['2.5'],
+        placeholderTop,
+        floatingTop,
       ],
     }),
     color: animatedValue.interpolate({
@@ -33,12 +44,18 @@ export const getFloatingLabelAnimatedStyle = ({
         theme.colors.textSecondary,
       ],
     }),
+    letterSpacing: theme.typography.inputLabel.letterSpacing,
     backgroundColor: theme.colors.surface || theme.colors.background,
     paddingHorizontal: animatedValue.interpolate({
       inputRange: [0, 1],
       outputRange: [0, theme.spacing['1']],
     }),
+    paddingVertical: animatedValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 0],
+    }),
     zIndex: 1,
+    pointerEvents: 'none' as const,
   };
 
   if (Platform.OS === 'ios') {
@@ -53,7 +70,7 @@ export const getFloatingLabelAnimatedStyle = ({
 };
 
 export const getInputContainerBaseStyle = (theme: Theme, error?: string) => ({
-  borderWidth: 2,
+  borderWidth: 1,
   borderColor: error ? theme.colors.error : theme.colors.border,
   borderRadius: theme.borderRadius.lg,
   backgroundColor: theme.colors.surface,

@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useDispatch} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {fetchGooglePlacesImage} from '../thunks';
@@ -75,7 +77,12 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
   }, [business.address]);
 
   return (
-    <View style={[styles.container, showBorder && styles.containerWithBorder]}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      padding="0"
+      shadow="sm"
+      style={[styles.container, showBorder && styles.containerWithBorder]}
+      fallbackStyle={styles.containerFallback}>
       <TouchableOpacity
         style={styles.cardContent}
         activeOpacity={0.8}
@@ -136,7 +143,7 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </LiquidGlassCard>
   );
 };
 
@@ -145,12 +152,15 @@ const createStyles = (theme: any) =>
     container: {
       flexDirection: 'row',
       backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.md,
       overflow: 'hidden',
       marginBottom: theme.spacing['3'],
-      borderWidth: 1,
+    },
+    containerFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
       borderColor: theme.colors.borderMuted,
-      ...theme.shadows.sm,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
     },
     containerWithBorder: {
       borderWidth: 2,
@@ -165,6 +175,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       padding: theme.spacing['3'],
       gap: theme.spacing['3'],
+      alignItems: 'center',
     },
     image: {
       width: 100,

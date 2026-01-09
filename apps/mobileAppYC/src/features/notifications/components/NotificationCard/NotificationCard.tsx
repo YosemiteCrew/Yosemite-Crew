@@ -212,7 +212,7 @@ const createStyles = (theme: any) =>
     iconContainer: {
       width: theme.spacing['11'],
       height: theme.spacing['11'],
-      borderRadius: theme.spacing['11'] / 2,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.border,
       justifyContent: 'center',
       alignItems: 'center',
@@ -259,7 +259,7 @@ const createStyles = (theme: any) =>
     avatar: {
       width: theme.spacing['8'],
       height: theme.spacing['8'],
-      borderRadius: theme.spacing['4'],
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },

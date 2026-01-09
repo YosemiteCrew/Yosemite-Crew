@@ -255,7 +255,7 @@ const createStyles = (theme: any) =>
       right: theme.spacing['2'],
       width: 24,
       height: 24,
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.lg,
       opacity: 0.6,
       alignItems: 'center',
       justifyContent: 'center',

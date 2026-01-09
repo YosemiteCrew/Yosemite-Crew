@@ -4,6 +4,20 @@ import {NavigationContainer} from '@react-navigation/native';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
 
+// Mock Firebase notifications service
+jest.mock('@/shared/services/firebaseNotifications', () => ({
+  getCurrentFcmToken: jest.fn(),
+  requestUserPermission: jest.fn(),
+  setupNotificationListeners: jest.fn(),
+}));
+
+// Mock device token registry service
+jest.mock('@/shared/services/deviceTokenRegistry', () => ({
+  registerDeviceToken: jest.fn(),
+  unregisterDeviceToken: jest.fn(),
+  isRunningOnIosSimulator: jest.fn(),
+}));
+
 // Mock Stripe before importing anything that uses it
 jest.mock('@stripe/stripe-react-native', () => ({
   useStripe: () => ({
