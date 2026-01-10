@@ -23,19 +23,19 @@ type InvoiceTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case "pending":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+      return { color: "#fff", backgroundColor: "#747283" };
     case "awaiting_payment":
-      return { color: "#247AED", backgroundColor: "#EAF3FF" };
+      return { color: "#000", backgroundColor: "#F1D4B0" };
     case "paid":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#fff", backgroundColor: "#D28F9A" };
     case "failed":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
+      return { color: "#fff", backgroundColor: "#747283" };
     case "cancelled":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
+      return { color: "#fff", backgroundColor: "#747283" };
     case "refunded":
-      return { color: "#302F2E", backgroundColor: "#EAEAEA" };
+      return { color: "#fff", backgroundColor: "#BF9FAA" };
     default:
-      return { color: "#fff", backgroundColor: "#247AED" };
+      return { color: "#fff", backgroundColor: "#F1D4B0" };
   }
 };
 

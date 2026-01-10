@@ -151,9 +151,9 @@ const Datepicker = ({
       ) : (
         <button
           onClick={() => setIsOpen((prev) => !prev)}
-          className="rounded-2xl! border! border-grey-light! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out"
+          className="rounded-2xl! border! border-grey-light! px-[13px] py-[13px] hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out"
         >
-          <IoCalendarClear size={30} color="#302f2e" />
+          <IoCalendarClear size={20} color="#302f2e" />
         </button>
       )}
 

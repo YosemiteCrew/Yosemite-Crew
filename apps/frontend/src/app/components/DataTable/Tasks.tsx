@@ -26,11 +26,11 @@ type TaskTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case "pending":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+      return { color: "#000", backgroundColor: "#F1D4B0" };
     case "in_progress":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#fff", backgroundColor: "#BF9FAA" };
     case "completed":
-      return { color: "#fff", backgroundColor: "#008F5D" };
+      return { color: "#fff", backgroundColor: "#D28F9A" };
     default:
       return { color: "#fff", backgroundColor: "#008F5D" };
   }

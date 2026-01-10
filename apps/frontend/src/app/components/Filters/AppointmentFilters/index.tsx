@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import Search from "../../Inputs/Search";
 import { Appointment } from "@yosemite-crew/types";
 
 const Types = [
@@ -17,43 +16,43 @@ const Statuses = [
   {
     name: "No payment",
     key: "no_payment",
-    bg: "#008F5D",
+    bg: "#747283",
     text: "#fff",
   },
   {
     name: "Requested",
     key: "requested",
-    bg: "#eaeaea",
-    text: "#302f2e",
+    bg: "#747283",
+    text: "#fff",
   },
   {
     name: "Upcoming",
     key: "upcoming",
-    bg: "#247AED",
-    text: "#fff",
+    bg: "#F1D4B0",
+    text: "#000",
   },
   {
     name: "Checked-in",
     key: "checked_in",
-    bg: "#FEF3E9",
-    text: "#F68523",
+    bg: "#A8A181",
+    text: "#fff",
   },
   {
     name: "In progress",
     key: "in_progress",
-    bg: "#E6F4EF",
-    text: "#54B492",
+    bg: "#BF9FAA",
+    text: "#fff",
   },
   {
     name: "Completed",
     key: "completed",
-    bg: "#008F5D",
+    bg: "#D28F9A",
     text: "#fff",
   },
   {
     name: "Cancelled",
     key: "cancelled",
-    bg: "#008F5D",
+    bg: "#747283",
     text: "#fff",
   },
 ];
@@ -69,7 +68,6 @@ const AppointmentFilters = ({
 }: AppointmentFiltersProps) => {
   const [activeType, setActiveType] = useState("all");
   const [activeStatus, setActiveStatus] = useState("upcoming");
-  const [search, setSearch] = useState("");
 
   const filteredList = useMemo(() => {
     return list.filter((item) => {
@@ -78,12 +76,9 @@ const AppointmentFilters = ({
       const matchesType =
         activeType === "all" ||
         (activeType === "emergencies" && item.isEmergency);
-      const matchesSearch = item.companion?.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
-      return matchesStatus && matchesType && matchesSearch;
+      return matchesStatus && matchesType;
     });
-  }, [list, activeType, activeStatus, search]);
+  }, [list, activeType, activeStatus]);
 
   useEffect(() => {
     setFilteredList(filteredList);
@@ -97,21 +92,18 @@ const AppointmentFilters = ({
             <button
               key={type.key}
               onClick={() => setActiveType(type.key)}
-              className={`px-3 h-9 rounded-xl! border font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${type.key === activeType ? "border-blue-text! bg-blue-light! text-blue-text! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-[#302f2e]!"}`}
+              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${type.key === activeType ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
             >
               {type.name}
             </button>
           ))}
-        </div>
-        <div className="flex">
-          <Search value={search} setSearch={setSearch} />
         </div>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {Statuses.map((status) => (
           <button
             key={status.key}
-            className={`px-3 h-9 rounded-xl! font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${status.key === activeStatus ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! ${status.key === activeStatus ? "border-text-primary! border" : ""}`}
             style={{
               background: status.bg,
               color: status.text,

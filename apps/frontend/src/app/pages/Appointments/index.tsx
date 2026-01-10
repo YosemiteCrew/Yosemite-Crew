@@ -39,7 +39,7 @@ const Appointments = () => {
   }, [appointments]);
 
   return (
-    <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
+    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
       <TitleCalendar
         activeCalendar={activeCalendar}
         title="Appointments"
@@ -47,9 +47,10 @@ const Appointments = () => {
         setAddPopup={setAddPopup}
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
+        count={appointments.length}
       />
 
-      <div className="w-full flex flex-col gap-6">
+      <div className="w-full flex flex-col gap-3">
         <AppointmentFilters list={appointments} setFilteredList={setFilteredList} />
         <AppointmentCalendar
           filteredList={appointments}

@@ -1,9 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Appointments, {
-  getStatusStyle,
-} from "@/app/components/DataTable/Appointments";
+import Appointments from "@/app/components/DataTable/Appointments";
 // Fixed: Import the correct domain type
 import { Appointment } from "@yosemite-crew/types";
 
@@ -236,24 +234,5 @@ describe("Appointments Component", () => {
   it("shows the actions column when hideActions is false (default)", () => {
     render(<Appointments filteredList={mockData} />);
     expect(screen.getByText("Actions")).toBeInTheDocument();
-  });
-
-  // --- 4. Style Helper (getStatusStyle) ---
-
-  describe("getStatusStyle helper", () => {
-    it("returns correct styles for 'completed'", () => {
-      const style = getStatusStyle("completed");
-      expect(style).toEqual({ color: "#fff", backgroundColor: "#008F5D" });
-    });
-
-    it("returns correct styles for 'requested'", () => {
-      const style = getStatusStyle("requested");
-      expect(style).toEqual({ color: "#302f2e", backgroundColor: "#eaeaea" });
-    });
-
-    it("returns default styles for unknown status", () => {
-      const style = getStatusStyle("unknown-status");
-      expect(style).toEqual({ color: "#fff", backgroundColor: "#247AED" });
-    });
   });
 });

@@ -160,6 +160,7 @@
   --color-text-extra: var(--color-neutral-500);
   --color-surface-card: var(--color-neutral-0);
   --color-card-border: var(--color-neutral-100);
+  --color-card-bg: var(--color-neutral-100);
   --color-border-card-selected: var(--color-neutral-200);
   --color-state-hover: var(--color-neutral-950);
   --color-state-selected: var(--color-neutral-950);

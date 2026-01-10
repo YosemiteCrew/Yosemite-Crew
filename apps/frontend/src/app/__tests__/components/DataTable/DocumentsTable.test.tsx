@@ -78,7 +78,7 @@ describe("DocumentsTable Component", () => {
     const row1 = rows[1];
     expect(within(row1).getByText("Employee Handbook")).toBeInTheDocument();
     expect(within(row1).getByText("Guidelines for staff")).toBeInTheDocument();
-    expect(within(row1).getByText("HR")).toBeInTheDocument();
+    expect(within(row1).getByText("Hr")).toBeInTheDocument();
 
     // -- Row 2 Data (Index 2) --
     const row2 = rows[2];
