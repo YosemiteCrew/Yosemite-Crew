@@ -1,13 +1,13 @@
 const mockPrintf = jest.fn((fn) => fn);
 const mockCombine = jest.fn((...args) => args);
-const mockColorize = jest.fn(() => 'colorize');
-const mockTimestamp = jest.fn(() => 'timestamp');
-const mockJson = jest.fn(() => 'json');
-const mockErrors = jest.fn(() => 'errors');
+const mockColorize = jest.fn(() => "colorize");
+const mockTimestamp = jest.fn(() => "timestamp");
+const mockJson = jest.fn(() => "json");
+const mockErrors = jest.fn(() => "errors");
 const mockCreateLogger = jest.fn();
 const mockAddColors = jest.fn();
 
-jest.mock('winston', () => ({
+jest.mock("winston", () => ({
   format: {
     printf: mockPrintf,
     combine: mockCombine,
@@ -23,7 +23,7 @@ jest.mock('winston', () => ({
   },
 }));
 
-describe('Logger Utils', () => {
+describe("Logger Utils", () => {
   const OLD_ENV = process.env;
 
   beforeEach(() => {
@@ -36,159 +36,169 @@ describe('Logger Utils', () => {
     process.env = OLD_ENV;
   });
 
-  describe('Configuration & Initialization', () => {
-    it('should configure logger for Development environment (Text Format)', () => {
-      process.env.NODE_ENV = 'development';
+  describe("Configuration & Initialization", () => {
+    it("should configure logger for Development environment (Text Format)", () => {
+      process.env.NODE_ENV = "development";
 
       // Re-import the logger to trigger initialization
-      require('../../src/utils/logger');
+      require("../../src/utils/logger");
 
-      expect(mockAddColors).toHaveBeenCalledWith(expect.objectContaining({
-        error: 'red',
-        info: 'green',
-      }));
+      expect(mockAddColors).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: "red",
+          info: "green",
+        }),
+      );
 
       // Verify createLogger was called with debug level
-      expect(mockCreateLogger).toHaveBeenCalledWith(expect.objectContaining({
-        level: 'debug',
-      }));
+      expect(mockCreateLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: "debug",
+        }),
+      );
 
       // Verify formats used for development: errors, colorize, timestamp, printf
       const formatCalls = mockCombine.mock.calls[0];
-      expect(formatCalls).toContain('colorize');
+      expect(formatCalls).toContain("colorize");
       expect(formatCalls).toContainEqual(expect.any(Function)); // The printf function
     });
 
-    it('should configure logger for Production environment (JSON Format)', () => {
-      process.env.NODE_ENV = 'production';
+    it("should configure logger for Production environment (JSON Format)", () => {
+      process.env.NODE_ENV = "production";
 
-      require('../../src/utils/logger');
+      require("../../src/utils/logger");
 
       // Verify createLogger was called with info level
-      expect(mockCreateLogger).toHaveBeenCalledWith(expect.objectContaining({
-        level: 'info',
-      }));
+      expect(mockCreateLogger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: "info",
+        }),
+      );
 
       // Verify formats used for production: errors, timestamp, json (NO colorize, NO printf)
       const formatCalls = mockCombine.mock.calls[0];
-      expect(formatCalls).toContain('json');
-      expect(formatCalls).not.toContain('colorize');
+      expect(formatCalls).toContain("json");
+      expect(formatCalls).not.toContain("colorize");
     });
   });
 
-  describe('Log Formatting Logic (printf)', () => {
+  describe("Log Formatting Logic (printf)", () => {
     // We capture the formatting function passed to printf during the require
     let logFormatter: any;
 
     beforeEach(() => {
-      process.env.NODE_ENV = 'development';
-      require('../../src/utils/logger');
+      process.env.NODE_ENV = "development";
+      require("../../src/utils/logger");
       // The first argument to the first call of printf is our formatting function
       logFormatter = mockPrintf.mock.calls[0][0];
     });
 
-    it('should format a standard string message with timestamp', () => {
+    it("should format a standard string message with timestamp", () => {
       const info = {
-        level: 'info',
-        message: 'Hello World',
-        timestamp: '2023-01-01 12:00:00',
+        level: "info",
+        message: "Hello World",
+        timestamp: "2023-01-01 12:00:00",
       };
 
       const result = logFormatter(info);
-      expect(result).toBe('2023-01-01 12:00:00 [info]: Hello World');
+      expect(result).toBe("2023-01-01 12:00:00 [info]: Hello World");
     });
 
-    it('should use current time if timestamp is missing (Timestamp Fallback)', () => {
+    it("should use current time if timestamp is missing (Timestamp Fallback)", () => {
       const info = {
-        level: 'info',
-        message: 'No Time provided',
+        level: "info",
+        message: "No Time provided",
         // timestamp is undefined here
       };
 
       const result = logFormatter(info);
       // Regex to match ISO string generated by new Date().toISOString()
-      expect(result).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \[info\]: No Time provided/);
+      expect(result).toMatch(
+        /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \[info\]: No Time provided/,
+      );
     });
 
-    it('should prioritize Error stack over message if stack exists', () => {
+    it("should prioritize Error stack over message if stack exists", () => {
       const info = {
-        level: 'error',
-        message: 'Error Message',
-        timestamp: '2023-01-01',
-        stack: 'Error: Something went wrong\n    at File.ts:10:1',
+        level: "error",
+        message: "Error Message",
+        timestamp: "2023-01-01",
+        stack: "Error: Something went wrong\n    at File.ts:10:1",
       };
 
       const result = logFormatter(info);
-      expect(result).toBe('2023-01-01 [error]: Error: Something went wrong\n    at File.ts:10:1');
+      expect(result).toBe(
+        "2023-01-01 [error]: Error: Something went wrong\n    at File.ts:10:1",
+      );
     });
 
-    it('should serialize an Error object passed as message if stack is missing', () => {
-      const errorObj = new Error('Manual Error');
+    it("should serialize an Error object passed as message if stack is missing", () => {
+      const errorObj = new Error("Manual Error");
       // Simulate winston behavior where stack might not be top-level property yet
       const info = {
-        level: 'error',
+        level: "error",
         message: errorObj, // message is the Error object
-        timestamp: '2023-01-01',
+        timestamp: "2023-01-01",
       };
 
       const result = logFormatter(info);
       // serializeLogMessage should extract .stack or .message
-      expect(result).toContain('Error: Manual Error');
+      expect(result).toContain("Error: Manual Error");
     });
 
-    it('should serialize a plain object message (JSON)', () => {
-      const obj = { userId: 123, action: 'login' };
+    it("should serialize a plain object message (JSON)", () => {
+      const obj = { userId: 123, action: "login" };
       const info = {
-        level: 'info',
+        level: "info",
         message: obj,
-        timestamp: '2023-01-01',
+        timestamp: "2023-01-01",
       };
 
       const result = logFormatter(info);
       expect(result).toBe('2023-01-01 [info]: {"userId":123,"action":"login"}');
     });
 
-    it('should handle circular objects gracefully in message (Catch Block)', () => {
+    it("should handle circular objects gracefully in message (Catch Block)", () => {
       const circular: any = { a: 1 };
       circular.self = circular; // Creates circular reference
 
       const info = {
-        level: 'warn',
+        level: "warn",
         message: circular,
-        timestamp: '2023-01-01',
+        timestamp: "2023-01-01",
       };
 
       const result = logFormatter(info);
       // JSON.stringify throws, so it falls back to String(value)
-      expect(result).toBe('2023-01-01 [warn]: [object Object]');
+      expect(result).toBe("2023-01-01 [warn]: [object Object]");
     });
 
-    it('should include metadata if provided', () => {
+    it("should include metadata if provided", () => {
       const info = {
-        level: 'debug',
-        message: 'User created',
-        timestamp: '2023-01-01',
+        level: "debug",
+        message: "User created",
+        timestamp: "2023-01-01",
         // Extra properties are treated as meta
-        userId: 'u-1',
-        role: 'admin',
+        userId: "u-1",
+        role: "admin",
       };
 
       const result = logFormatter(info);
       // Expect meta to be stringified and appended
-      expect(result).toContain('User created');
+      expect(result).toContain("User created");
       expect(result).toContain('"userId": "u-1"');
       expect(result).toContain('"role": "admin"');
     });
 
-    it('should not include metadata if meta is empty', () => {
-       const info = {
-        level: 'debug',
-        message: 'No meta',
-        timestamp: '2023-01-01',
+    it("should not include metadata if meta is empty", () => {
+      const info = {
+        level: "debug",
+        message: "No meta",
+        timestamp: "2023-01-01",
       };
 
       const result = logFormatter(info);
-      expect(result.trim()).toBe('2023-01-01 [debug]: No meta');
+      expect(result.trim()).toBe("2023-01-01 [debug]: No meta");
     });
   });
 });
