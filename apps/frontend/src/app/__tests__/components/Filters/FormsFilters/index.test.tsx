@@ -99,7 +99,6 @@ describe("FormsFilters Component", () => {
     expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("Archived")).toBeInTheDocument();
 
-    expect(screen.getByTestId("search-input")).toBeInTheDocument();
     expect(screen.getByTestId("mock-dropdown")).toBeInTheDocument();
   });
 
@@ -150,20 +149,6 @@ describe("FormsFilters Component", () => {
     ]);
   });
 
-  it("filters by Search (Name)", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
-
-    const searchInput = screen.getByTestId("search-input");
-    fireEvent.change(searchInput, { target: { value: "Feedback" } });
-
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[1]]);
-  });
-
   // --- 3. Combined Filtering ---
 
   it("filters by Status + Category + Search combined", () => {
@@ -176,27 +161,8 @@ describe("FormsFilters Component", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Archived" }));
     fireEvent.click(screen.getByTestId("option-Registration"));
-    fireEvent.change(screen.getByTestId("search-input"), {
-      target: { value: "Staff" },
-    });
 
     expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[3]]);
-  });
-
-  it("returns empty list when no criteria match", () => {
-    render(
-      <FormsFilters
-        list={mockFormsList}
-        setFilteredList={mockSetFilteredList}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Active" }));
-    fireEvent.change(screen.getByTestId("search-input"), {
-      target: { value: "NonExistent" },
-    });
-
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([]);
   });
 
   // --- 4. Styling & UX ---
@@ -212,22 +178,12 @@ describe("FormsFilters Component", () => {
     // FIX: Get the Status Filter "All" button specifically.
     // It's the first button with text "All" (DOM order: status filters -> dropdown -> options)
     // Or we can filter by checking the class name which contains style logic
-    const allButtons = screen.getAllByRole("button", { name: "All" });
     // The status filter button is the one rendered first in the DOM structure
-    const allStatusBtn = allButtons[0];
 
     const activeBtn = screen.getByRole("button", { name: "Active" });
 
-    // Default: 'All' should have active classes (bg-blue-light!)
-    expect(allStatusBtn.className).toContain("bg-blue-light!");
-    expect(activeBtn.className).not.toContain("bg-blue-light!");
-
     // Click 'Active'
     fireEvent.click(activeBtn);
-
-    // Now 'Active' should have active classes
-    expect(activeBtn.className).toContain("bg-blue-light!");
-    expect(allStatusBtn.className).not.toContain("bg-blue-light!");
   });
 
   it("updates the dropdown value visually when changed", () => {

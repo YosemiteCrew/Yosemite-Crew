@@ -41,7 +41,7 @@ const AppointmentCalendar = ({
   );
 
   return (
-    <div className="border border-grey-light rounded-2xl w-full flex flex-col mb-10!">
+    <div className="border border-grey-light rounded-2xl w-full flex flex-col">
       <Header currentDate={currentDate} setCurrentDate={setCurrentDate} />
       {activeCalendar === "day" && (
         <DayCalendar

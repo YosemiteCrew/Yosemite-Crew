@@ -6,7 +6,6 @@ import {
   FormsStatusFilters,
 } from "@/app/types/forms";
 import React, { useEffect, useMemo, useState } from "react";
-import Search from "../../Inputs/Search";
 import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 
 type FormsFiltersProps = {
@@ -19,7 +18,6 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
   const [activeCategory, setActiveCategory] = useState<FormsCategory | "All">(
     "All"
   );
-  const [search, setSearch] = useState("");
 
   const filteredList = useMemo(() => {
     return list.filter((item) => {
@@ -27,12 +25,9 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
         activeStatus === "All" || item.status === activeStatus;
       const matchesCategory =
         activeCategory === "All" || item.category === activeCategory;
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
-      return matchesStatus && matchesCategory && matchesSearch;
+      return matchesStatus && matchesCategory;
     });
-  }, [list, activeCategory, activeStatus, search]);
+  }, [list, activeCategory, activeStatus]);
 
   useEffect(() => {
     setFilteredList(filteredList);
@@ -41,12 +36,12 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
   return (
     <div className="w-full flex items-center justify-between flex-wrap gap-3">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {FormsStatusFilters.map((status) => (
             <button
               key={status}
               onClick={() => setActiveStatus(status)}
-              className={`min-w-30 h-10! rounded-xl! border font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${status === activeStatus ? "border-blue-text! bg-blue-light! text-blue-text! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-[#302f2e]!"}`}
+              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${status === activeStatus ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
             >
               {status}
             </button>
@@ -65,9 +60,6 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
             dropdownClassName="top-[55px]! !h-fit min-w-[220px]! w-full sm:w-auto"
             options={["All", ...FormsCategoryOptions]}
           />
-        </div>
-        <div className="flex">
-          <Search value={search} setSearch={setSearch} className="h-10! min-h-10!" />
         </div>
       </div>
     </div>

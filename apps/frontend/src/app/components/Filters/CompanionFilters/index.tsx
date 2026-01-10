@@ -80,7 +80,7 @@ const CompanionFilters = ({ list, setFilteredList }: CompanionFiltersProps) => {
             <button
               key={specie.key}
               onClick={() => setActiveSpecie(specie.key)}
-              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! ${specie.key === activeSpecie ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border!"}`}
+              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${specie.key === activeSpecie ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
             >
               {specie.name}
             </button>

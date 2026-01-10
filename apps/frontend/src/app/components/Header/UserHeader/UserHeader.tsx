@@ -132,7 +132,7 @@ const UserHeader = () => {
   const orgVerified = !!primaryOrg?.isVerified;
 
   return (
-    <div className="flex items-center justify-between px-3 sm:px-[60px]! w-full h-20 gap-10">
+    <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -242,7 +242,7 @@ const UserHeader = () => {
         {primaryOrg && (
           <div className="relative" ref={orgDropdownRef}>
             <button
-              className={`flex items-center gap-2 w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
+              className={`flex items-center gap-2 w-60 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
               onClick={() => setSelectOrg((e) => !e)}
             >
               <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
@@ -283,7 +283,7 @@ const UserHeader = () => {
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        <Search value={search} setSearch={setSearch} />
+        <Search value={search} setSearch={setSearch} className={"lg:flex hidden"} />
 
         <MdNotificationsActive
           color="#302f2e"
@@ -293,7 +293,7 @@ const UserHeader = () => {
 
         <div className="relative hidden lg:flex" ref={profileDropdownRef}>
           <button
-            className={`flex items-center gap-2 w-[200px] justify-between px-6 py-2 ${selectProfile ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
+            className={`flex items-center gap-2 w-[180px] justify-between px-6 py-2 ${selectProfile ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image

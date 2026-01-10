@@ -25,3 +25,12 @@ export const toTitleCase = (value = "") => {
   if (typeof value !== "string" || !value.length) return "";
   return value[0].toUpperCase() + value.slice(1).toLowerCase();
 };
+
+export const toTitle = (str = "") => {
+  return String(str)
+    .trim()
+    .replaceAll(/[_-]+/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .toLowerCase()
+    .replaceAll(/\b\w/g, (c) => c.toUpperCase());
+};
