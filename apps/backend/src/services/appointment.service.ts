@@ -21,7 +21,7 @@ import UserProfileModel from "src/models/user-profile";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { TaskService } from "./task.service";
-import { FormService } from "./form.service";
+import { FormService, FormServiceError } from "./form.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -197,12 +197,20 @@ export const AppointmentService = {
       throw new AppointmentServiceError("Invalid service selected", 404);
     }
 
-    const consentForm = await FormService.getConsentFormForParent(
-      organisationId.toString(),
-      {
-        serviceId: serviceId.toString(),
-      },
-    );
+    let consentForm = null;
+
+    try {
+      consentForm = await FormService.getConsentFormForParent(
+        organisationId.toString(),
+        { serviceId: serviceId.toString() },
+      );
+    } catch (err) {
+      if (err instanceof FormServiceError && err.statusCode === 404) {
+        consentForm = null; // expected case
+      } else {
+        throw err; // real error
+      }
+    }
 
     if (consentForm) {
       input.formIds?.push(consentForm.id!);
@@ -314,12 +322,20 @@ export const AppointmentService = {
       );
     }
 
-    const consentForm = await FormService.getConsentFormForParent(
-      organisationId.toString(),
-      {
-        serviceId: serviceId.toString(),
-      },
-    );
+    let consentForm = null;
+
+    try {
+      consentForm = await FormService.getConsentFormForParent(
+        organisationId.toString(),
+        { serviceId: serviceId.toString() },
+      );
+    } catch (err) {
+      if (err instanceof FormServiceError && err.statusCode === 404) {
+        consentForm = null; // expected case
+      } else {
+        throw err; // real error
+      }
+    }
 
     if (consentForm) {
       input.formIds?.push(consentForm.id!);
