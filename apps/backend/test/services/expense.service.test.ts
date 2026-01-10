@@ -296,13 +296,11 @@ describe("ExpenseService", () => {
           .mockResolvedValue({ _id: validObjectId, status: "DRAFT" }),
       });
       (OrganizationModel.findById as jest.Mock).mockReturnValue({
-        select: jest
-          .fn()
-          .mockReturnValue({
-            lean: jest
-              .fn()
-              .mockReturnValue({ catch: jest.fn().mockResolvedValue({}) }),
-          }),
+        select: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ catch: jest.fn().mockResolvedValue({}) }),
+        }),
       });
 
       const res: any = await ExpenseService.getExpenseById(validObjectId);
