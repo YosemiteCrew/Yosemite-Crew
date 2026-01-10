@@ -44,7 +44,7 @@ const HomePage = () => {
               </div>
               <div className="HeroBtn">
                 <Primary
-                  style={{ width: "211px" }}
+                size="large"
                   text="Book demo"
                   href="/book-demo"
                 />
@@ -256,6 +256,7 @@ const HomePage = () => {
                   text="Book demo"
                   href="/book-demo"
                   style={{ width: "100%" }}
+                  size="large"
                 />
               </div>
             </div>

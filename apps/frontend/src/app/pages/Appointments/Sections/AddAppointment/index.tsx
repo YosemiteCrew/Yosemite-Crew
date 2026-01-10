@@ -31,6 +31,7 @@ import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 type AddAppointmentProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  showErrorTost: any;
 };
 
 export const EMPTY_APPOINTMENT: Appointment = {
@@ -75,7 +76,11 @@ const ServiceFields = [
   { label: "Max discount", key: "maxDiscount", type: "text" },
 ];
 
-const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
+const AddAppointment = ({
+  showModal,
+  setShowModal,
+  showErrorTost,
+}: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
@@ -287,14 +292,40 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
       setFormDataErrors({});
+      showErrorTost({
+        message: "Appointment created",
+        errortext: "Success",
+        iconElement: (
+          <Icon
+            icon="solar:check-circle-bold"
+            width="20"
+            height="20"
+            color="#008F5D"
+          />
+        ),
+        className: "CongratsBg",
+      });
     } catch (error) {
       console.log(error);
+      showErrorTost({
+        message: "Error creating appointment",
+        errortext: "Error",
+        iconElement: (
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="#EA3729"
+          />
+        ),
+        className: "errofoundbg",
+      });
     }
   };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
+      <div className="py-8! flex flex-col h-full gap-6">
         <div className="flex items-center justify-between">
           <IoIosCloseCircleOutline
             size={28}
@@ -312,7 +343,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
           />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto px-4">
           <div className="flex flex-col gap-6 w-full">
             <Accordion
               title="Companion details"

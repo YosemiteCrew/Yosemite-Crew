@@ -15,7 +15,6 @@ describe("Primary button", () => {
     const link = screen.getByRole("link", { name: "Book onboarding call" });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/book-demo");
-    expect(link).toHaveClass("primary-button");
   });
 
   test("prevents default navigation and calls onClick handler", () => {

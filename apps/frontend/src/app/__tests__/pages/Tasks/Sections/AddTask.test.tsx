@@ -4,6 +4,14 @@ import AddTask from "../../../../pages/Tasks/Sections/AddTask/index";
 
 // --- Mocks (hooks/services/components) ---
 
+const mockShowErrorTost = jest.fn();
+jest.mock("../../../../components/Toast/Toast", () => ({
+  useErrorTost: () => ({
+    showErrorTost: mockShowErrorTost,
+    ErrorTostPopup: null,
+  }),
+}));
+
 const mockCreateTask = jest.fn();
 jest.mock("../../../../services/taskService", () => ({
   createTask: (...args: any[]) => mockCreateTask(...args),
@@ -160,19 +168,19 @@ describe("AddTask", () => {
   });
 
   it("does not render when showModal is false", () => {
-    render(<AddTask showModal={false} setShowModal={setShowModal} />);
+    render(<AddTask showModal={false} setShowModal={setShowModal} showErrorTost={mockShowErrorTost} />);
     expect(screen.queryByTestId("modal")).not.toBeInTheDocument();
   });
 
   it("renders when showModal is true", () => {
-    render(<AddTask showModal={true} setShowModal={setShowModal} />);
+    render(<AddTask showModal={true} setShowModal={setShowModal} showErrorTost={mockShowErrorTost} />);
     expect(screen.getByTestId("modal")).toBeInTheDocument();
     expect(screen.getByText("Save")).toBeInTheDocument();
     expect(screen.getByText("Save as template")).toBeInTheDocument();
   });
 
   it("shows validation errors and does not call createTask when required fields are missing", async () => {
-    render(<AddTask showModal={true} setShowModal={setShowModal} />);
+    render(<AddTask showModal={true} setShowModal={setShowModal} showErrorTost={mockShowErrorTost} />);
 
     fireEvent.click(screen.getByText("Save"));
 
@@ -189,7 +197,7 @@ describe("AddTask", () => {
   });
 
   it("creates an EMPLOYEE_TASK successfully and closes modal + resets", async () => {
-    render(<AddTask showModal={true} setShowModal={setShowModal} />);
+    render(<AddTask showModal={true} setShowModal={setShowModal} showErrorTost={mockShowErrorTost} />);
 
     // Select Type = EMPLOYEE_TASK
     fireEvent.change(screen.getByLabelText("Type"), {
@@ -233,7 +241,7 @@ describe("AddTask", () => {
   });
 
   it("creates a PARENT_TASK and sets companionId when selecting a companion", async () => {
-    render(<AddTask showModal={true} setShowModal={setShowModal} />);
+    render(<AddTask showModal={true} setShowModal={setShowModal} showErrorTost={mockShowErrorTost} />);
 
     // Type = PARENT_TASK
     fireEvent.change(screen.getByLabelText("Type"), {
@@ -266,7 +274,7 @@ describe("AddTask", () => {
   it("handles createTask failure without closing modal", async () => {
     mockCreateTask.mockRejectedValueOnce(new Error("fail"));
 
-    render(<AddTask showModal={true} setShowModal={setShowModal} />);
+    render(<AddTask showModal={true} setShowModal={setShowModal} showErrorTost={mockShowErrorTost} />);
 
     // Minimal valid EMPLOYEE_TASK submission
     fireEvent.change(screen.getByLabelText("Type"), {
@@ -290,7 +298,7 @@ describe("AddTask", () => {
   });
 
   it("clicking 'Save as template' does not call createTask", () => {
-    render(<AddTask showModal={true} setShowModal={setShowModal} />);
+    render(<AddTask showModal={true} setShowModal={setShowModal} showErrorTost={mockShowErrorTost} />);
     fireEvent.click(screen.getByText("Save as template"));
     expect(mockCreateTask).not.toHaveBeenCalled();
   });
