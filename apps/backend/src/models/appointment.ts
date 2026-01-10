@@ -146,10 +146,7 @@ AppointmentSchema.index({ organisationId: 1, appointmentDate: 1 });
 AppointmentSchema.index({ "companion.id": 1, appointmentDate: -1 });
 AppointmentSchema.index({ "supportStaff.id": 1 });
 AppointmentSchema.index({ status: 1 });
-AppointmentSchema.index(
-  { expiresAt: 1 },
-  { expireAfterSeconds: 0 }
-);
+AppointmentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 AppointmentSchema.index(
   {

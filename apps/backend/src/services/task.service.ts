@@ -164,7 +164,7 @@ export interface TaskUpdateInput {
   additionalNotes?: string;
   dueAt?: Date;
   timezone?: string | null;
-
+  assignedTo?: string;
   medication?: MedicationInput | null;
 
   observationToolId?: string | null;
@@ -455,8 +455,19 @@ export const TaskService = {
     const task = await TaskModel.findById(taskId).exec();
     if (!task) throw new TaskServiceError("Task not found", 404);
 
-    if (task.createdBy !== actorId && task.assignedTo !== actorId) {
+    const isCreator = task.createdBy === actorId;
+    const isAssignee = task.assignedTo === actorId;
+
+    if (!isCreator && !isAssignee) {
       throw new TaskServiceError("Not allowed to update this task", 403);
+    }
+
+    // 🔒 Only creator can reassign
+    if (updates.assignedTo !== undefined) {
+      if (!isCreator) {
+        throw new TaskServiceError("Only task creator can reassign task", 403);
+      }
+      task.assignedTo = updates.assignedTo;
     }
 
     if (updates.name !== undefined) task.name = updates.name;
@@ -469,14 +480,11 @@ export const TaskService = {
     if (updates.timezone !== undefined)
       task.timezone = updates.timezone ?? undefined;
 
-    // ✅ medication now supports multiple doses
     if (updates.medication !== undefined) {
-      if (updates.medication === null) {
-        task.medication = undefined;
-      } else {
-        const next = sanitizeMedication(updates.medication);
-        task.medication = next;
-      }
+      task.medication =
+        updates.medication === null
+          ? undefined
+          : sanitizeMedication(updates.medication);
     }
 
     if (updates.observationToolId !== undefined) {
@@ -484,15 +492,14 @@ export const TaskService = {
     }
 
     if (updates.reminder !== undefined) {
-      if (updates.reminder === null) {
-        task.reminder = undefined;
-      } else {
-        task.reminder = {
-          enabled: updates.reminder.enabled,
-          offsetMinutes: updates.reminder.offsetMinutes,
-          scheduledNotificationId: task.reminder?.scheduledNotificationId,
-        };
-      }
+      task.reminder =
+        updates.reminder === null
+          ? undefined
+          : {
+              enabled: updates.reminder.enabled,
+              offsetMinutes: updates.reminder.offsetMinutes,
+              scheduledNotificationId: task.reminder?.scheduledNotificationId,
+            };
     }
 
     if (updates.syncWithCalendar !== undefined) {
@@ -588,7 +595,7 @@ export const TaskService = {
   }): Promise<TaskDocument[]> {
     const filter: Record<string, unknown> = {
       audience: "PARENT_TASK",
-      assignedTo: params.parentId,
+      $or: [{ assignedTo: params.parentId }, { createdBy: params.parentId }],
     };
 
     if (params.companionId) filter.companionId = params.companionId;
