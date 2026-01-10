@@ -248,7 +248,7 @@ const UserHeader = () => {
               <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
                 <HiBuildingOffice2 size={18} color="#302f2e" />
               </div>
-              <div className="text-black-text text-body-4 truncate max-w-[200px]">
+              <div className="text-black-text text-body-4 truncate flex-1">
                 {primaryOrg?.name}
               </div>
               <FaCaretDown
@@ -293,7 +293,7 @@ const UserHeader = () => {
 
         <div className="relative hidden lg:flex" ref={profileDropdownRef}>
           <button
-            className={`flex items-center gap-2 w-[180px] justify-between px-6 py-2 ${selectProfile ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
+            className={`flex items-center gap-2 w-[200px] justify-between px-6 py-2 ${selectProfile ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image
@@ -307,7 +307,7 @@ const UserHeader = () => {
               width={32}
               className="rounded-full object-cover h-8 min-w-8 max-h-8"
             />
-            <div className="text-black-text text-body-4 max-w-[200px] truncate">
+            <div className="text-black-text text-body-4 flex-1 truncate">
               {attributes?.given_name + " " + attributes?.family_name}
             </div>
             <FaCaretDown

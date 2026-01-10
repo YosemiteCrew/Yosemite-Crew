@@ -36,6 +36,14 @@ jest.mock("../../../../../stores/serviceStore", () => ({
   },
 }));
 
+const mockShowErrorTost = jest.fn();
+jest.mock("../../../../../components/Toast/Toast", () => ({
+  useErrorTost: () => ({
+    showErrorTost: mockShowErrorTost,
+    ErrorTostPopup: null,
+  }),
+}));
+
 // Mock Child UI Components to simplify finding elements
 jest.mock(
   "@/app/components/Modal",
@@ -195,13 +203,23 @@ describe("AddAppointment Modal", () => {
 
   it("renders nothing if showModal is false", () => {
     render(
-      <AddAppointment showModal={false} setShowModal={mockSetShowModal} />
+      <AddAppointment
+        showModal={false}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
     );
     expect(screen.queryByTestId("modal")).not.toBeInTheDocument();
   });
 
   it("renders modal content when showModal is true", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
     expect(screen.getByText("Add appointment")).toBeInTheDocument();
     expect(
       screen.getByTestId("accordion-Companion details")
@@ -222,7 +240,13 @@ describe("AddAppointment Modal", () => {
   // --- Section 2: Form Interaction & State Updates ---
 
   it("updates companion data when selected", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     const select = screen.getByTestId("companion-select");
     fireEvent.change(select, { target: { value: "c1" } });
@@ -232,7 +256,13 @@ describe("AddAppointment Modal", () => {
   });
 
   it("updates service lists when speciality is selected", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     const specDropdown = screen.getByTestId("dropdown-Speciality");
     fireEvent.change(specDropdown, { target: { value: "s1" } });
@@ -242,7 +272,13 @@ describe("AddAppointment Modal", () => {
   });
 
   it("fetches slots when service is selected", async () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     // Select speciality first to populate services
     fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
@@ -265,7 +301,13 @@ describe("AddAppointment Modal", () => {
   });
 
   it("handles slot selection and updates lead options", async () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     // Setup flow: Spec -> Service -> Slots
     fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
@@ -287,7 +329,13 @@ describe("AddAppointment Modal", () => {
   });
 
   it("updates concern and emergency flag", () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     const concernInput = screen.getByTestId("concern-input");
     fireEvent.change(concernInput, { target: { value: "Fever" } });
@@ -301,7 +349,13 @@ describe("AddAppointment Modal", () => {
   // --- Section 3: Validation & Submission ---
 
   it("shows validation errors on submit if fields are missing", async () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     const submitBtn = screen.getByText("Book appointment");
     await act(async () => {
@@ -313,7 +367,13 @@ describe("AddAppointment Modal", () => {
   });
 
   it("submits form successfully when all data is valid", async () => {
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     // 1. Select Companion
     fireEvent.change(screen.getByTestId("companion-select"), {
@@ -356,7 +416,13 @@ describe("AddAppointment Modal", () => {
       new Error("API Fail")
     );
 
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
       target: { value: "s1" },
@@ -379,7 +445,11 @@ describe("AddAppointment Modal", () => {
     );
 
     const { unmount } = render(
-      <AddAppointment showModal={true} setShowModal={mockSetShowModal} />
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
     );
 
     fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
@@ -401,7 +471,13 @@ describe("AddAppointment Modal", () => {
       new Error("Create Fail")
     );
 
-    render(<AddAppointment showModal={true} setShowModal={mockSetShowModal} />);
+    render(
+      <AddAppointment
+        showModal={true}
+        setShowModal={mockSetShowModal}
+        showErrorTost={mockShowErrorTost}
+      />
+    );
 
     // Fill minimal valid data (mock logic shortcuts validations if we cheat, but let's be thorough enough to trigger submit)
     // ... (Repeat filling logic from successful test) ...

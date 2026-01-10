@@ -9,6 +9,7 @@ import { useCompanionsForPrimaryOrg } from "@/app/hooks/useCompanion";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { createTask } from "@/app/services/taskService";
 import { EMPTY_TASK, Task } from "@/app/types/task";
+import { Icon } from "@iconify/react/dist/iconify.js";
 import React, { useEffect, useMemo, useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 
@@ -26,9 +27,10 @@ const TaskTypeOptions = [
 type AddTaskProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  showErrorTost: any;
 };
 
-const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
+const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
   const teams = useTeamForPrimaryOrg();
   const companions = useCompanionsForPrimaryOrg();
   const [formData, setFormData] = useState<Task>(EMPTY_TASK);
@@ -83,13 +85,38 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
       return;
     }
     try {
-      console.log(formData);
       await createTask(formData);
       setShowModal(false);
       setFormData(EMPTY_TASK);
       setFormDataErrors({});
+      showErrorTost({
+        message: "Task created",
+        errortext: "Success",
+        iconElement: (
+          <Icon
+            icon="solar:check-circle-bold"
+            width="20"
+            height="20"
+            color="#008F5D"
+          />
+        ),
+        className: "CongratsBg",
+      });
     } catch (error) {
       console.log(error);
+      showErrorTost({
+        message: "Error creating task",
+        errortext: "Error",
+        iconElement: (
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="#EA3729"
+          />
+        ),
+        className: "errofoundbg",
+      });
     }
   };
 

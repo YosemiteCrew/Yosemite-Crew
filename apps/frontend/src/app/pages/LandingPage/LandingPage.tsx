@@ -34,9 +34,9 @@ const LandingPage = () => {
             </TextFade>
             <TextFade direction="up" className="LeftHeroButtons">
               <Primary
-                style={{ width: "211px" }}
                 text="Book demo"
                 href="/book-demo"
+                size="large"
               />
             </TextFade>
           </div>
