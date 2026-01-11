@@ -20,8 +20,8 @@ const Statuses = [
   {
     name: "Pending",
     key: "pending",
-    bg: "#F1D4B0",
-    text: "#000",
+    bg: "#747283",
+    text: "#fff",
   },
   {
     name: "In progress",
@@ -38,7 +38,7 @@ const Statuses = [
   {
     name: "Cancelled",
     key: "cancelled",
-    bg: "#008F5D",
+    bg: "#D9A488",
     text: "#fff",
   },
 ];
@@ -50,7 +50,7 @@ type TaskFiltersProps = {
 
 const TaskFilters = ({ list, setFilteredList }: TaskFiltersProps) => {
   const [activeType, setActiveType] = useState("all");
-  const [activeStatus, setActiveStatus] = useState("in-progress");
+  const [activeStatus, setActiveStatus] = useState("in_progress");
 
   const filteredList = useMemo(() => {
     return list.filter((item) => {
@@ -82,17 +82,19 @@ const TaskFilters = ({ list, setFilteredList }: TaskFiltersProps) => {
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {Statuses.map((status) => (
           <button
             key={status.key}
-            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! ${status.key === activeStatus ? "border-text-primary! border" : ""}`}
-            style={{
-              background: status.bg,
-              color: status.text,
-              borderColor:
-                status.key === activeStatus ? status.text : status.bg,
-            }}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+            style={
+              status.key === activeStatus
+                ? {
+                    background: status.bg,
+                    color: status.text,
+                  }
+                : {}
+            }
             onClick={() => setActiveStatus(status.key)}
           >
             {status.name}

@@ -3,7 +3,6 @@ import {
   EVENT_HORIZONTAL_GAP_PX,
   EVENT_VERTICAL_GAP_PX,
   getDayWindow,
-  getDayWithDate,
   getTotalWindowHeightPx,
   isAllDayForDate,
   layoutDayEvents,
@@ -13,8 +12,9 @@ import TimeLabels from "./TimeLabels";
 import HorizontalLines from "./HorizontalLines";
 import { getStatusStyle } from "../../DataTable/Appointments";
 import Image from "next/image";
-import { GrNext, GrPrevious } from "react-icons/gr";
 import { Appointment } from "@yosemite-crew/types";
+import Next from "../../Icons/Next";
+import Back from "../../Icons/Back";
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -75,24 +75,22 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     });
   };
 
+  const weekday = date.toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+  const dateNumber = date.getDate();
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
-        <GrPrevious
-          size={20}
-          color="#302f2e"
-          onClick={handlePrevDay}
-          className="cursor-pointer"
-        />
-        <div className="font-grotesk font-medium text-black-text text-[18px]">
-          {getDayWithDate(date)}
+        <Back onClick={handlePrevDay} />
+        <div className="flex flex-col">
+          <div className="text-body-4 text-text-brand">{weekday}</div>
+          <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+            {dateNumber}
+          </div>
         </div>
-        <GrNext
-          size={20}
-          color="#302f2e"
-          onClick={handleNextDay}
-          className="cursor-pointer"
-        />
+        <Next onClick={handleNextDay} />
       </div>
       {allDayEvents.length > 0 && (
         <div className="px-2 py-2 border-b border-grey-light bg-slate-50">
@@ -154,7 +152,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               return (
                 <button
                   key={ev.companion.name + i}
-                  className="absolute rounded-2xl! p-2 overflow-auto scrollbar-hidden whitespace-nowrap text-ellipsis flex flex-col items-start cursor-pointer"
+                  className="absolute rounded-2xl! p-2 overflow-auto scrollbar-hidden whitespace-nowrap text-ellipsis flex items-start justify-between cursor-pointer"
                   style={{
                     top: ev.topPx,
                     height: Math.max(ev.heightPx - verticalGapPx, 12),
@@ -164,39 +162,41 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   }}
                   onClick={() => handleViewAppointment(ev)}
                 >
-                  <div className="font-satoshi text-[18px] font-medium">
-                    {ev.concern}
-                  </div>
-                  <div className="font-satoshi text-[15px] font-medium">
-                    {ev.lead?.name}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Image
-                      src={
-                        "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-                      }
-                      height={30}
-                      width={30}
-                      className="rounded-full"
-                      alt=""
-                    />
-                    <div className="font-satoshi text-[15px] font-medium">
-                      {ev.companion.name}
+                  <div className="flex flex-col items-start">
+                    <div className="text-body-3-emphasis">
+                      {ev.concern + "Full body check up"}
                     </div>
-                    <div className="font-satoshi text-[15px] font-medium opacity-70">
-                      {ev.companion.parent.name}
-                    </div>
+                    <div className="text-body-4">{ev.lead?.name}</div>
                   </div>
-                  <div className="font-satoshi text-[15px] font-medium">
-                    {ev.startTime.toLocaleTimeString("en-US", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                    {" - "}
-                    {ev.endTime.toLocaleTimeString("en-US", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-1">
+                      <Image
+                        src={
+                          "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                        }
+                        height={30}
+                        width={30}
+                        className="rounded-full"
+                        alt=""
+                      />
+                      <div className="text-body-4-emphasis">
+                        {ev.companion.name}
+                      </div>
+                      <div className="text-body-4">
+                        {ev.companion.parent.name}
+                      </div>
+                    </div>
+                    <div className="text-body-4">
+                      {ev.startTime.toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                      {" - "}
+                      {ev.endTime.toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </div>
                   </div>
                 </button>
               );

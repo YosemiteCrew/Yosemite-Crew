@@ -6,6 +6,7 @@ import { Invoice } from "@yosemite-crew/types";
 import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 
 import "./DataTable.css";
+import { toTitleCase } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -25,17 +26,17 @@ export const getStatusStyle = (status: string) => {
     case "pending":
       return { color: "#fff", backgroundColor: "#747283" };
     case "awaiting_payment":
-      return { color: "#000", backgroundColor: "#F1D4B0" };
+      return { color: "#fff", backgroundColor: "#A8A181" };
     case "paid":
       return { color: "#fff", backgroundColor: "#D28F9A" };
     case "failed":
-      return { color: "#fff", backgroundColor: "#747283" };
+      return { color: "#fff", backgroundColor: "#5C614B" };
     case "cancelled":
-      return { color: "#fff", backgroundColor: "#747283" };
+      return { color: "#fff", backgroundColor: "#D9A488" };
     case "refunded":
       return { color: "#fff", backgroundColor: "#BF9FAA" };
     default:
-      return { color: "#fff", backgroundColor: "#F1D4B0" };
+      return { color: "#000", backgroundColor: "#F1D4B0" };
   }
 };
 
@@ -130,7 +131,7 @@ const InvoiceTable = ({
           className="appointment-status"
           style={getStatusStyle(item?.status)}
         >
-          {item?.status}
+          {toTitleCase(item?.status)}
         </div>
       ),
     },

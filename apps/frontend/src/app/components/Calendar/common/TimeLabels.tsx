@@ -39,7 +39,7 @@ const TimeLabels: React.FC<TimeLabelsProps> = ({ windowStart, windowEnd }) => {
       {labels.map(({ hour, top, label }) => (
         <div
           key={hour}
-          className="absolute font-satoshi text-[13px] text-[#747473] font-medium translate-y-[-50%]"
+          className="absolute text-caption-2 text-text-primary translate-y-[-50%]"
           style={{ top }}
         >
           {label}

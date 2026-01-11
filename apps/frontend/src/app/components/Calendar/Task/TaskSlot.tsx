@@ -7,9 +7,18 @@ import { Team } from "@/app/types/team";
 type TaskSlotProps = {
   slotEvents: Task[];
   handleViewTask: (task: Task) => void;
+  index: number;
+  length: number;
+  height: number;
 };
 
-const TaskSlot = ({ slotEvents, handleViewTask }: TaskSlotProps) => {
+const TaskSlot = ({
+  slotEvents,
+  handleViewTask,
+  index,
+  length,
+  height = 300
+}: TaskSlotProps) => {
   const teams = useTeamForPrimaryOrg();
 
   const memberMap = useMemo(() => {
@@ -27,26 +36,30 @@ const TaskSlot = ({ slotEvents, handleViewTask }: TaskSlotProps) => {
     <div>
       {slotEvents.length > 0 ? (
         <div
-          className={`flex flex-col gap-2 rounded-2xl border border-grey-light p-2 my-2 bg-white"`}
+          className={`overflow-auto scrollbar-hidden flex flex-col gap-2 p-2 bg-white border-l border-grey-light ${index === length && "border-r"}`}
+          style={{ height: `${height}px` }}
         >
           {slotEvents.map((ev, i) => (
             <button
               key={`${ev.name}-${ev.dueAt}-${i}`}
-              className="rounded px-1 py-1 flex flex-col gap-3"
+              className="rounded px-1 py-1 flex flex-col gap-2"
               style={getStatusStyle(ev.status)}
               onClick={() => handleViewTask(ev)}
             >
-              <div className="font-satoshi text-[15px] font-medium text-left">
+              <div className="text-body-4-emphasis truncate text-left">
                 {ev.name}
               </div>
-              <div className="font-satoshi text-[13px] font-normal text-left">
+              <div className="text-body-4 truncate text-left">
                 {resolveMemberName(ev.assignedTo)}
               </div>
             </button>
           ))}
         </div>
       ) : (
-        <div className="w-full flex items-center rounded-2xl justify-center text-[15px] font-satoshi border border-grey-light my-2 text-grey-noti font-medium h-[300px]">
+        <div
+          className={`w-full flex items-center justify-center text-caption-1 text-text-primary border-l border-grey-light h-[300px] ${index === length && "border-r"}`}
+          style={{ height: `${height}px` }}
+        >
           No tasks available
         </div>
       )}

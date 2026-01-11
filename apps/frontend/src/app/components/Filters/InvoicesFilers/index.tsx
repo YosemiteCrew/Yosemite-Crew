@@ -24,8 +24,8 @@ const Statuses = [
   {
     name: "Awaiting payment",
     key: "awaiting_payment",
-    bg: "#F1D4B0",
-    text: "#000",
+    bg: "#A8A181",
+    text: "#fff",
   },
   {
     name: "Paid",
@@ -36,13 +36,13 @@ const Statuses = [
   {
     name: "Failed",
     key: "failed",
-    bg: "#747283",
+    bg: "#5C614B",
     text: "#fff",
   },
   {
     name: "Cancelled",
     key: "cancelled",
-    bg: "#747283",
+    bg: "#D9A488",
     text: "#fff",
   },
   {
@@ -95,13 +95,15 @@ const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
         {Statuses.map((status) => (
           <button
             key={status.key}
-            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! ${status.key === activeStatus ? "border-text-primary! border" : ""}`}
-            style={{
-              background: status.bg,
-              color: status.text,
-              borderColor:
-                status.key === activeStatus ? status.text : status.bg,
-            }}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+            style={
+              status.key === activeStatus
+                ? {
+                    background: status.bg,
+                    color: status.text,
+                  }
+                : {}
+            }
             onClick={() => setActiveStatus(status.key)}
           >
             {status.name}

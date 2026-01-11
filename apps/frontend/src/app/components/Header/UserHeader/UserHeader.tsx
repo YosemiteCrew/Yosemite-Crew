@@ -170,7 +170,7 @@ const UserHeader = () => {
                   />
                 </button>
                 {selectOrg && (
-                  <div className="absolute top-[120%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full max-w-[200px] px-2">
+                  <div className="absolute top-[100%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full max-w-[200px] px-2">
                     {orgs.slice(0, 3).map((org, i) => (
                       <button
                         key={org.name + i}

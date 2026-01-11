@@ -8,7 +8,7 @@ type UserLabels = {
 
 const UserLabels = ({ team, currentDate }: UserLabels) => {
   return (
-    <div className="grid grid-flow-col auto-cols-[200px] gap-x-2 min-w-max border-b border-grey-light py-3">
+    <div className="grid grid-flow-col auto-cols-[200px] min-w-max border-b border-grey-light py-3">
       {team.map((user, idx) => {
         const weekday = currentDate.toLocaleDateString("en-US", {
           weekday: "short",
@@ -17,11 +17,15 @@ const UserLabels = ({ team, currentDate }: UserLabels) => {
         return (
           <div
             key={idx + currentDate.getDate()}
-            className="flex gap-1 items-center justify-center font-satoshi text-[13px] text-[#747473] font-medium"
+            className="flex items-center justify-center flex-col"
           >
-            <div className="">{weekday}</div>
-            <div className="">{dateNumber + " - "}</div>
-            <div className="">{user.name || ""}</div>
+            <div className="text-body-3-emphasis text-text-primary">
+              {user.name || ""}
+            </div>
+            <div className="text-body-4 text-text-brand">{weekday}</div>
+            <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+              {dateNumber}
+            </div>
           </div>
         );
       })}

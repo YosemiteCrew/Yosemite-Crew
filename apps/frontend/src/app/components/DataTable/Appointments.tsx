@@ -32,7 +32,7 @@ type AppointmentTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case "no_payment":
-      return { color: "#fff", backgroundColor: "#747283" };
+      return { color: "#fff", backgroundColor: "#5C614B" };
     case "in_progress":
       return { color: "#fff", backgroundColor: "#BF9FAA" };
     case "completed":
@@ -42,7 +42,7 @@ export const getStatusStyle = (status: string) => {
     case "requested":
       return { color: "#fff", backgroundColor: "#747283" };
     case "cancelled":
-      return { color: "#fff", backgroundColor: "#747283" };
+      return { color: "#fff", backgroundColor: "#D9A488" };
     default:
       return { color: "#000", backgroundColor: "#F1D4B0" };
   }

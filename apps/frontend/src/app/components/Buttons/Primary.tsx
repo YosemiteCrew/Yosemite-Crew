@@ -31,7 +31,7 @@ const Primary = ({
     <Link
       href={href}
       aria-disabled={isDisabled}
-      className={`${sizeClasses[size]} px-8 flex items-center justify-center rounded-2xl! bg-text-primary text-white transition-all duration-300 ease-in-out hover:shadow-[0_0_16px_0_rgba(0,0,0,0.4)] ${isDisabled ? "pointer-events-none opacity-60" : ""} ${classname ?? ""}`}
+      className={`${sizeClasses[size]} px-8 flex items-center justify-center rounded-2xl! bg-text-primary text-white transition-all duration-300 ease-in-out hover:scale-105 ${isDisabled ? "pointer-events-none opacity-60" : ""} ${classname ?? ""}`}
       onClick={(e) => {
         if (isDisabled) {
           e.preventDefault();

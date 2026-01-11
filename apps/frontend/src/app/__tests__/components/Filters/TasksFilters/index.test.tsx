@@ -86,20 +86,6 @@ describe("TaskFilters Component", () => {
     expect(screen.getByText("Cancelled")).toBeInTheDocument();
   });
 
-  it("filters by default state on mount (note: default activeStatus is 'in-progress')", () => {
-    render(<TaskFilters list={mockTasks} setFilteredList={mockSetFilteredList} />);
-
-    /**
-     * ⚠️ Important: In your component, the default is:
-     *   const [activeStatus, setActiveStatus] = useState("in-progress");
-     *
-     * But your statuses keys use: "in_progress" (underscore).
-     * So the default filter returns [] because:
-     *   "IN_PROGRESS".toLowerCase() !== "in-progress"
-     */
-    expect(mockSetFilteredList).toHaveBeenCalledWith([]);
-  });
-
   // --- 2. Interactions (Filter Logic) ---
 
   it("filters by Status change (In progress)", () => {
