@@ -64,36 +64,21 @@ const InventoryFilters = ({
       <div className="flex items-center gap-2 flex-wrap md:justify-start min-[1520px]:justify-end">
         {Statuses.map((status) => (
           <button
-  key={status.key}
-  disabled={loading}
-  onClick={() => updateFilters({ status: status.key })}
-  className={`
-    min-w-20
-    px-4
-    py-[6px]
-    rounded-2xl!
-    text-[16px]
-    font-normal
-    border
-    transition-colors
-    ${
-      status.key === filters.status
-        ? "border-transparent"
-        : "bg-white border-[#E5E5E5] text-text-body-4! hover:bg-[#F2F2F2]!"
-    }
-    ${loading ? "opacity-60 cursor-not-allowed" : ""}
-  `}
-  style={
-    status.key === filters.status
-      ? {
-          backgroundColor: status.bg,
-          color: status.text,
-        }
-      : undefined
-  }
->
-  {status.name}
-</button>
+            key={status.key}
+            disabled={loading}
+            onClick={() => updateFilters({ status: status.key })}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+            style={
+              status.key === filters.status
+                ? {
+                    backgroundColor: status.bg,
+                    color: status.text,
+                  }
+                : undefined
+            }
+          >
+            {status.name}
+          </button>
         ))}
       </div>
     </div>
