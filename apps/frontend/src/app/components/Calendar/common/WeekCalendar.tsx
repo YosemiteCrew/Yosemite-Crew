@@ -15,7 +15,8 @@ import {
 import Slot from "./Slot";
 import { getStatusStyle } from "../../DataTable/Appointments";
 import { Appointment } from "@yosemite-crew/types";
-import { GrNext, GrPrevious } from "react-icons/gr";
+import Back from "../../Icons/Back";
+import Next from "../../Icons/Next";
 
 const PIXELS_PER_MINUTE = PIXELS_PER_STEP / MINUTES_PER_STEP;
 
@@ -114,25 +115,18 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
 
   return (
-    <div className="h-full flex flex-col min-w-0">
+    <div className="h-full flex flex-col">
       <div
         ref={scrollRef}
-        className="w-full min-w-0 flex-1 overflow-auto max-h-[800px] relative rounded-2xl"
+        className="w-full flex-1 overflow-x-auto relative rounded-2xl max-w-[calc(100vw-32px)] sm:max-w-[calc(100vw-96px)] lg:max-w-[calc(100vw-300px)]"
       >
-        <div className="min-w-max">
+        <div className="max-h-[800px] overflow-y-auto w-full">
           <div className="sticky top-0 z-30 bg-white">
-            <div
-              className="grid border-b border-grey-light py-3 grid-cols-[80px_minmax(0,1fr)_80px]"
-            >
+            <div className="grid border-b border-grey-light py-3 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max bg-white">
               <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
-                <GrPrevious
-                  size={20}
-                  color="#302f2e"
-                  className="cursor-pointer"
-                  onClick={handlePrevWeek}
-                />
+                <Back onClick={handlePrevWeek} />
               </div>
-              <div className="grid grid-flow-col auto-cols-[160px] gap-x-2 min-w-max">
+              <div className="grid grid-flow-col auto-cols-[160px] bg-white">
                 {days.map((day, idx) => {
                   const weekday = day.toLocaleDateString("en-US", {
                     weekday: "short",
@@ -141,31 +135,30 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                   return (
                     <div
                       key={idx + day.getDate()}
-                      className="flex gap-1 items-center justify-center font-satoshi text-[13px] text-[#747473] font-medium"
+                      className="flex items-center justify-center flex-col"
                     >
-                      <div>{weekday}</div>
-                      <div>{dateNumber}</div>
+                      <div className="text-body-4 text-text-brand">
+                        {weekday}
+                      </div>
+                      <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+                        {dateNumber}
+                      </div>
                     </div>
                   );
                 })}
               </div>
               <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
-                <GrNext
-                  size={20}
-                  color="#302f2e"
-                  className="cursor-pointer"
-                  onClick={handleNextWeek}
-                />
+                <Next onClick={handleNextWeek} />
               </div>
             </div>
 
             {hasAnyAllDay && (
               <div className="border-b border-grey-light bg-slate-50">
-                <div className="grid py-2 grid-cols-[80px_minmax(0,1fr)_80px]">
+                <div className="grid py-2 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max">
                   <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-[#747473] flex items-start pr-2">
                     All-day
                   </div>
-                  <div className="grid grid-flow-col auto-cols-[160px] gap-x-2 min-w-max">
+                  <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
                     {days.map((day, idx) => {
                       const dayAllEvents = allDayByDay[idx];
                       return (
@@ -205,10 +198,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
               <div
                 key={hour}
-                className="grid gap-y-0.5 grid-cols-[80px_minmax(0,1fr)_80px]"
+                className="grid gap-y-0.5 grid-cols-[80px_minmax(0,1fr)_80px] min-w-max"
               >
                 <div
-                  className="sticky left-0 z-20 bg-white font-satoshi text-[13px] text-[#747473] font-medium pl-2!"
+                  className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2!"
                   style={{ height: height + "px", opacity: hour === 0 ? 0 : 1 }}
                 >
                   {new Date(0, 0, 0, hour, 0, 0).toLocaleTimeString("en-US", {
@@ -216,13 +209,13 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     minute: "2-digit",
                   })}
                 </div>
-                <div className="grid grid-flow-col auto-cols-[160px] gap-x-2 min-w-max">
+                <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
                   {days.map((day, dayIndex) => {
                     const slotEvents = eventsForDayHour(timedEvents, day, hour);
                     return (
                       <div
                         key={day.getDate() + dayIndex}
-                        className="relative"
+                        className="relative pt-2"
                         style={{ height: `${height}px` }}
                       >
                         {hour !== 0 && (
@@ -233,7 +226,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                           height={height}
                           dayIndex={dayIndex}
                           handleViewAppointment={handleViewAppointment}
-                          length={days.length-1}
+                          length={days.length - 1}
                         />
                       </div>
                     );
@@ -251,9 +244,9 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 className="pointer-events-none absolute inset-0"
                 style={{ top: 0 }}
               >
-                <div className="grid h-full grid-cols-[80px_minmax(0,1fr)_80px]">
+                <div className="grid h-full grid-cols-[80px_minmax(0,1fr)_80px] min-w-max">
                   <div />
-                  <div className="grid grid-flow-col auto-cols-[160px] gap-x-2 min-w-max">
+                  <div className="grid grid-flow-col auto-cols-[160px] min-w-max">
                     {days.map((_, idx) => (
                       <div
                         key={idx + "appointent-now-key"}

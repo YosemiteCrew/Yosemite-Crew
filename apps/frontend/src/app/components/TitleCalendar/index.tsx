@@ -24,7 +24,7 @@ const TitleCalendar = ({
   count
 }: TitleCalendarProps) => {
   return (
-    <div className="flex justify-between items-center w-full flex-wrap">
+    <div className="flex justify-between items-center w-full flex-wrap gap-3">
       <div className="text-text-primary text-heading-1">
         {title}
         <span className="text-text-tertiary">
