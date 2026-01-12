@@ -151,18 +151,18 @@ const Footer = () => {
           {/* <hr className="footer-divider" aria-hidden="true" /> */}
           <div className="Footer_Bottom">
             <div className="Bootom_Foot">
-              <div className="text-body-4-emphasis text-text-secondary text-center">Copyright &copy; 2026 DuneXploration</div>
-              <div className="text-body-4 text-text-secondary text-center">
+              <div className="text-body-4-emphasis text-text-secondary text-center footer-copy-primary">Copyright &copy; 2026 DuneXploration</div>
+              <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
                 DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127
                 Mainz
                 <br />
                 email:{" "}
-                <a className="text-body-4 text-text-brand" href="mailto:support@yosemitecrew.com">
+                <a className="text-body-4 text-text-brand footer-copy-link" href="mailto:support@yosemitecrew.com">
                   support@yosemitecrew.com
                 </a>{" "}
-                , phone: <a className="text-body-4 text-text-brand" href="tel:+4915227763275">+49 152 277 63275</a>
+                , phone: <a className="text-body-4 text-text-brand footer-copy-link" href="tel:+4915227763275">+49 152 277 63275</a>
               </div>
-              <div className="text-body-4 text-text-secondary text-center">
+              <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
                 Geschaftsfuhrer: Ankit Upadhyay Amtsgericht Mainz unter HRB
                 52778, VAT: DE367920596
               </div>

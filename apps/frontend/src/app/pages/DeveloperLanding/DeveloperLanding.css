@@ -1,10 +1,11 @@
 .Container {
-  padding: 80px 80px;
+  padding: 32px 80px 82px;
   max-width: 1560px;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 85vh;
 }
 @media screen and (max-width: 1280px) {
   .Container {
@@ -304,6 +305,8 @@
   }
   .DevCrewBox {
     padding: 16px 8px;
+    align-items: center;
+    text-align: center;
   }
   .YousmiteCrew > div {
     font-size: 1.4375rem;
@@ -386,6 +389,8 @@
   }
   .DevCrewBox {
     padding: 16px 16px;
+    align-items: center;
+    text-align: center;
   }
   .DevYousmiteBoxed {
     max-width: 100%;
@@ -565,6 +570,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  justify-content: center;
 }
 .Stepitems {
   display: flex;
@@ -603,6 +609,7 @@
   }
   .RytSimpleStep {
     padding: 40px 40px;
+    align-items: center;
   }
   .Stepitems .Stepstext > div:first-child {
     font-size: 1.75rem;
@@ -639,6 +646,8 @@
   }
   .RytSimpleStep {
     padding: 20px 20px 40px 20px;
+    align-items: center;
+    text-align: center;
   }
   .Stepitems .Stepstext > div:first-child {
     font-size: 1.1875rem;

@@ -35,6 +35,9 @@
 .PricingPage-header .PricinhHeadquote > div {
   margin: 0;
 }
+.plansFeaturesHeading {
+  margin: 0;
+}
 @media screen and (max-width: 1280px) {
   .pricingSection {
     padding: 32px 32px;
@@ -43,6 +46,10 @@
     gap: 64px;
   }
   .PricingPage-header .PricinhHeadquote > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
+  }
+  .plansFeaturesHeading {
     font-size: 2.0625rem;
     line-height: 2.5rem;
   }
@@ -61,6 +68,10 @@
   .PricingPage-header .PricinhHeadquote > div:last-child {
     font-size: 0.8125rem;
     line-height: 1.1875rem;
+  }
+  .plansFeaturesHeading {
+    font-size: 1.375rem;
+    line-height: 1.75rem;
   }
 }
 /* PricingPage-header Ended   */

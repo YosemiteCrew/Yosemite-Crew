@@ -21,7 +21,7 @@
   background: linear-gradient(355.06deg, #ffffff 64.22%, #eaeef6 95.67%);
 }
 .DownlodeSec {
-  min-height: 100vh;
+  min-height: 90vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,15 +101,23 @@
 }
 @media screen and (max-width: 768px) {
   .downlodetext {
-    gap: 0px;
+    gap: 8px;
+    align-items: center;
+    text-align: center;
   }
   .downlodetext > div:first-child {
-    font-size: 1.4375rem;
+    font-size: 1.25rem;
     line-height: 1.75rem;
   }
   .downlodetext > div:last-child {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     line-height: 1.1875rem;
+  }
+  .Downlode_Data {
+    gap: 24px;
+  }
+  .Downlode_Data img {
+    width: 80%;
   }
 }
 
@@ -119,7 +127,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 0;
+  padding: 0 0 6vh;
 }
 .ToolkitData {
   display: flex;
@@ -145,14 +153,12 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  position: relative;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
 }
 .CardToolItem svg {
   color: var(--skytext);
-  position: absolute;
-  top: 8px;
-  right: 8px;
   width: 100px;
   height: 100px;
 }
@@ -167,13 +173,14 @@
   .CardToolItem {
     height: 210px;
     width: 210px;
+    gap: 12px;
   }
   .ToolkitHead > div {
     font-size: 2.0625rem;
   }
   .CardToolItem svg {
-    height: 120px;
-    width: 120px;
+    height: 88px;
+    width: 88px;
   }
   .CardToolItem > div {
     font-size: 1.1875rem;
@@ -186,13 +193,14 @@
   .CardToolItem {
     height: 160px;
     width: 150px;
+    gap: 10px;
   }
   .ToolkitHead > div {
     font-size: 1.4375rem;
   }
   .CardToolItem svg {
-    height: 90px;
-    width: 90px;
+    height: 70px;
+    width: 70px;
   }
   .CardToolItem > div {
     font-size: 0.875rem;
@@ -202,6 +210,11 @@
   .CardToolItem {
     height: 160px;
     width: 160px;
+    gap: 8px;
+  }
+  .CardToolItem svg {
+    height: 60px;
+    width: 60px;
   }
 }
 

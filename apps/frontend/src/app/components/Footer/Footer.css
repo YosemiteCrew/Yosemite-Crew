@@ -119,6 +119,11 @@
   align-items: center;
   gap: 2px;
 }
+.footer-copy-primary,
+.footer-copy-secondary,
+.footer-copy-link {
+  transition: font-size 0.3s ease;
+}
 
 @media screen and (max-width: 1024px) {
   .Footersec {
@@ -137,6 +142,15 @@
   .RytFooter {
     justify-content: space-between;
     gap: 20px;
+  }
+  .footer-copy-primary {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+  }
+  .footer-copy-secondary,
+  .footer-copy-link {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
   }
 }
 
@@ -158,8 +172,28 @@
   .FtDiv {
     gap: 12px;
   }
+  .FtLinks a {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .FootTopData {
+    padding: 40px 0px 16px 0px;
+    gap: 16px;
+  }
+  .footer-divider {
+    margin: 20px 0 16px 0;
+  }
   .FtLinks {
     gap: 8px;
+  }
+  .footer-copy-primary {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .footer-copy-secondary,
+  .footer-copy-link {
+    font-size: 0.8125rem;
+    line-height: 1.2rem;
   }
   .gdpr-footer {
     width: 47px;

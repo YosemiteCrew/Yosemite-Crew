@@ -163,6 +163,7 @@
     flex-direction: column;
     padding: 0 48px;
     gap: 32px;
+    align-items: center;
   }
   .LeftHeroSection {
     width: 100%;
@@ -186,34 +187,65 @@
 
 @media screen and (max-width: 768px) {
   .HeroContainer {
-    padding: 0 16px;
+    padding: 0;
   }
   .HeroSection {
-    padding: 16px 0;
+    padding: 0;
   }
   .carousel-text {
     min-height: 80px;
     padding: 16px;
   }
-  .carousel-text > div {
+  .carousel-text > div,
+  .carousel-text .text-heading-1 {
     font-family: var(--font-grotesk);
-    font-size: 1.125rem;
+    font-size: 1.25rem !important;
     font-weight: 400;
-    line-height: 1.5rem;
+    line-height: 1.625rem !important;
+    letter-spacing: -0.025rem !important;
   }
-  .LeftHeroText > div:first-child {
+  .LeftHeroText .text-display-1 {
     font-family: var(--font-satoshi);
-    font-size: 1.5rem;
+    font-size: 1.25rem !important;
     font-weight: 500;
-    line-height: 1.875rem;
-    letter-spacing: -0.03rem;
+    line-height: 1.625rem !important;
+    letter-spacing: -0.025rem !important;
+    text-align: center;
   }
-  .LeftHeroText > div:nth-child(2) {
+  .LeftHeroText .text-body-2 {
     font-family: var(--font-satoshi);
-    font-size: 1rem;
+    font-size: 0.875rem !important;
     font-weight: 400;
-    line-height: 1.5rem;
-    letter-spacing: -0.02rem;
+    line-height: 1.25rem !important;
+    letter-spacing: -0.0175rem !important;
+    max-width: 520px;
+    text-align: center;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .LeftHeroText {
+    gap: 6px;
+    align-items: center;
+    text-align: center;
+    padding: 16px;
+  }
+  .LeftHeroText .text-display-1 {
+    font-size: 1.125rem !important;
+    line-height: 1.5rem !important;
+    letter-spacing: -0.0225rem !important;
+  }
+  .LeftHeroText .text-body-2 {
+    font-size: 0.75rem !important;
+    line-height: 1.125rem !important;
+    letter-spacing: -0.015rem !important;
+    max-width: 100%;
+  }
+  .carousel-text > div,
+  .carousel-text .text-heading-1 {
+    font-size: 1.125rem !important;
+    line-height: 1.5rem !important;
+    letter-spacing: -0.02rem !important;
   }
 }
 
@@ -222,6 +254,7 @@
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    padding: 0 16px 16px;
   }
   .LeftHeroButtons a {
     width: 100% !important;

@@ -215,7 +215,7 @@ const PricingPage = () => {
           )}
 
           <div className="flex flex-col gap-3 md:gap-9">
-            <div className="text-display-1 text-text-primary text-center">
+            <div className="text-display-1 text-text-primary text-center plansFeaturesHeading">
               Plans and features
             </div>
             <div className="flex gap-3">

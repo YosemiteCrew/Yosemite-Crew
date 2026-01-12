@@ -12,6 +12,8 @@ import OtpModal from "@/app/components/OtpModal/OtpModal";
 import { Primary } from "@/app/components/Buttons";
 import { useRouter } from "next/navigation";
 
+import "../AuthPages.css";
+
 type SignInProps = {
   redirectPath?: string;
   signupHref?: string;
@@ -117,10 +119,11 @@ const SignIn = ({
       {ErrorTostPopup}
       <div
         className={`
-          flex h-fit w-[450px] flex-col items-center justify-center gap-6
+          flex h-fit w-[min(520px,90vw)] flex-col items-center justify-center gap-6
           rounded-3xl border border-card-border
           bg-(--whitebg)
-          p-[1.25rem]
+          p-[1.5rem]
+          sm:p-[1.75rem]
           elevation-1
         `}
       >
@@ -129,7 +132,7 @@ const SignIn = ({
           className="flex h-full w-full flex-col gap-6"
         >
           <div className="flex w-full flex-col gap-6">
-            <div className="text-display-2 text-text-primary text-center">
+            <div className="text-display-2 text-text-primary text-center auth-title">
               {isDeveloper
                 ? "Sign in to your developer account"
                 : "Sign in"}
@@ -154,7 +157,7 @@ const SignIn = ({
               <div className="flex items-end justify-end">
                 <Link
                   href="/forgot-password"
-                  className="text-body-4-emphasis text-text-primary!"
+                  className="text-body-4-emphasis text-text-primary! auth-link-text"
                 >
                   Forgot password?
                 </Link>
@@ -168,7 +171,7 @@ const SignIn = ({
               href="#"
               style={{ width: "100%" }}
             />
-            <div className="text-body-4 text-text-primary">
+            <div className="text-body-4 text-text-primary auth-inline-text">
               {" "}
               Don&apos;t have an account?{" "}
               <Link href={signupHref} className="text-text-brand">

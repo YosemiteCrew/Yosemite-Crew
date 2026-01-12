@@ -19,7 +19,7 @@
 
 /* AboutHeroSec started  */
 .AboutHeroSec {
-  padding: 0px 0px 80px 0px;
+  padding: 24px 0px 80px 0px;
   background: url("https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png")
     no-repeat;
   background-size: 100% 100%;
@@ -33,7 +33,7 @@
 .AboutHeroSec .AbtHeroData {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 13vh;
   width: 100%;
   padding-top: 40px;
 }
@@ -111,10 +111,11 @@
 }
 @media screen and (max-width: 1280px) {
   .AboutHeroSec {
-    padding-top: 60px;
+    padding-top: 48px;
+    padding-bottom: 64px;
   }
   .AboutHeroSec .AbtHeroData {
-    gap: 32px;
+    gap: 48px;
     padding-top: 32px;
   }
   .AboutHeroSec .AbtHeroData .abttopHero {
@@ -148,17 +149,18 @@
 }
 @media screen and (max-width: 768px) {
   .AboutHeroSec {
-    padding-top: 40px;
+    padding-top: 32px;
+    padding-bottom: 56px;
     height: auto;
     min-height: 100vh;
   }
   .AboutHeroSec .AbtHeroData {
-    gap: 24px;
+    gap: 32px;
     padding-top: 24px;
   }
   .AboutHeroSec .AbtHeroData .abttopHero {
     max-width: 100%;
-    padding: 24px;
+    padding: 20px;
     gap: 12px;
   }
   .AboutHeroSec .AbtHeroData .abttopHero > div:first-child {
@@ -172,9 +174,12 @@
   .AbutheroBtm > div:first-child {
     font-size: 1.4375rem;
     line-height: 1.75rem;
+    color: var(--color-neutral-0) !important;
   }
   .AbutheroBtm .abtherocard {
     flex-direction: column;
+    gap: 16px;
+    padding: 0 8px;
   }
   .AbutheroBtm .abtherocard .AbtCardItem {
     max-width: 100%;
@@ -190,7 +195,7 @@
 
 /* OurStorySec started  */
 .OurStorySec {
-  padding: 0px 0px;
+  padding: 24px 0px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,17 +246,22 @@
     grid-gap: 16px;
     grid-template-columns: 1fr;
   }
+  .OurStorySec {
+    padding: 24px 0px;
+  }
   .OurStorySec .StoryData .storyTexted,
   .OurStorySec .StoryData .storyTexted .ourstorypara {
     gap: 8px;
+    align-items: center;
+    text-align: center;
   }
   .OurStorySec .StoryData .storyTexted > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
+    font-size: 1.25rem;
+    line-height: 1.6rem;
   }
   .OurStorySec .StoryData .storyTexted .ourstorypara > div {
-    font-size: 0.6875rem;
-    line-height: 0.9375rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
   }
 }
 /* OurStorySec Ended  */

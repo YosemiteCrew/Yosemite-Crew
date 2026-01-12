@@ -67,7 +67,7 @@ const HomePage = () => {
         <div className="Container">
           <div className="PracticedData">
             <div className="PractHeading">
-              <div className="text-display-1 text-text-primary">Everything you need to run your pet business</div>
+              <div className="text-display-2 text-text-primary">Everything you need to run your pet business</div>
             </div>
             <div className="Practice_Box_Data">
               {practiceFeatures.map((feature, index) => (
@@ -89,7 +89,7 @@ const HomePage = () => {
           <div className="FocusData">
             <div className="FocusTexted">
               <div className="text-display-2 text-text-primary">Focus on care, not admin</div>
-              <div className="text-body-4 text-text-primary">
+              <div className="text-body-4 text-text-secondary">
                 The easy-to-use, cloud-based software that simplifies practice
                 management and elevates animal care.
               </div>
@@ -197,8 +197,8 @@ const HomePage = () => {
         <div className="Container">
           <div className="whocareData">
             <div className="lftcare">
-              <div className="text-display-1 text-text-primary">Caring for vets, who care for pets</div>
-              <div className="text-body-3 text-text-primary">
+              <div className="text-display-2 text-text-primary">Caring for vets, who care for pets</div>
+              <div className="text-body-4 text-text-secondary">
                 We prioritise your data security and compliance with
                 industry-leading standards. Our platform is fully compliant with
                 GDPR, SOC 2 and ISO 27001 standards.
@@ -244,10 +244,10 @@ const HomePage = () => {
             <div className="lftbetter">
               <div className="betInner">
                 <div className="careText">
-                  <div className="text-display-1 text-text-primary">
+                  <div className="text-display-2 text-text-primary">
                     Better care is just a click away
                   </div>
-                  <div className="text-body-3 text-text-primary">
+                  <div className="text-body-4 text-text-secondary">
                     Join hundreds of veterinary clinics already enhancing animal
                     care and streamlining their workflow.
                   </div>

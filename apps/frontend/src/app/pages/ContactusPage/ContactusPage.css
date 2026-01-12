@@ -55,6 +55,7 @@
   border: 1px solid var(--color-card-border);
   background: var(--color-neutral-0);
   padding: 20px;
+  height: 83vh;
   border-radius: 24px;
   width: 36%;
   max-width: 500px;
@@ -276,6 +277,7 @@
   align-items: center;
   justify-content: center;
   min-width: 160px;
+  width: 100%;
   background-color: var(--color-neutral-900) !important;
   border: 1px solid var(--color-neutral-900) !important;
   font-family: var(--font-satoshi);
@@ -358,6 +360,7 @@
     font-size: 1.1875rem;
     line-height: 1.5rem;
     min-height: 48px;
+    width: 100%;
   }
   .LeftContInfo > div:first-child {
     font-size: 0.9375rem;
@@ -387,6 +390,7 @@
   .ContactUsData .RightContactUs {
     width: 100%;
     padding: 24px 16px;
+    height: auto;
   }
   .ContactUsData .LeftContactUs .conttexted > div:first-child {
     font-size: 0.9375rem;
