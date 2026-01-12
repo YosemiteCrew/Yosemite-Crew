@@ -1,27 +1,25 @@
 .HeroSection {
-  max-height: 965px;
-  padding: 0px;
+  min-height: 90vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 .HeroContainer {
   display: flex;
   max-width: 1560px;
-  height: 100%;
+  width: 100%;
   align-items: center;
+  padding: 0 80px;
+  gap: 60px;
 }
 
 .LeftHeroSection {
-  height: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   flex-direction: column;
   gap: 20px;
-  padding: 0 80px;
   width: 50%;
-  margin-bottom: 100px;
 }
 .LeftHeroText {
   display: flex;
@@ -31,11 +29,9 @@
 .LeftHeroText > div:first-child {
   max-width: 560px;
   margin: 0;
-  color: var(--black-text);
 }
 .LeftHeroText > div:nth-child(2) {
   margin: 0;
-  color: var(--black-text);
 }
 .LeftHeroButtons {
   display: flex;
@@ -45,30 +41,35 @@
 
 .RightHeroSection {
   width: 50%;
-  height: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  max-height: 90vh;
+}
+.RightHeroSection .carousel {
+  width: 100%;
+  max-height: 90vh;
 }
 .LandingCarouselDiv {
   width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 0;
 }
 .LandingCarouselDiv img {
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: calc(90vh - 140px);
   object-fit: cover;
 }
 .carousel-text > div {
   margin: 0;
-  color: var(--black-text);
 }
 .carousel-indicators {
   position: absolute;
   right: 0;
-  bottom: 68px;
+  bottom: 20px !important;
   left: 20px !important;
   justify-content: left;
   margin: 0 !important;
@@ -76,6 +77,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  z-index: 5;
 }
 .carousel-indicators button {
   width: 8px !important;
@@ -92,19 +94,20 @@
 .carousel-control-prev {
   position: absolute;
   top: inherit;
-  bottom: 50px !important;
+  bottom: 20px !important;
   right: 0px !important;
   left: inherit !important;
   background: var(--whitebg) !important;
   border-radius: 50% !important;
   width: 48px !important;
   height: 48px !important;
+  z-index: 5;
 }
 .carousel-control-prev {
-  right: 110px !important;
+  right: 70px !important;
 }
 .carousel-control-next {
-  right: 50px !important;
+  right: 10px !important;
 }
 .custom-arrow svg {
   color: var(--greyborder);
@@ -117,10 +120,14 @@
   text-align: left;
   font-size: 16px;
   font-weight: 500;
-  color: #1a2130;
+  color: var(--color-neutral-950);
   padding: 20px;
-  min-height: 200px;
+  padding-bottom: 80px;
+  height: 140px;
   background: var(--lightblue);
+  display: flex;
+  align-items: flex-start;
+  position: relative;
 }
 .carousel-caption {
   position: static !important;
@@ -128,7 +135,7 @@
   text-align: left !important;
 }
 .carousel-indicators [data-bs-target] {
-  background-color: #1a2130;
+  background-color: var(--color-neutral-950);
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -139,21 +146,29 @@
 }
 
 @media screen and (max-width: 1280px) {
-  .LeftHeroSection {
-    padding: 32px 48px;
-    margin-bottom: 0px;
+  .HeroContainer {
+    padding: 0 48px;
+    gap: 40px;
+  }
+  .HeroSection {
+    padding: 32px 0;
   }
 }
 @media screen and (max-width: 1024px) {
   .HeroSection {
-    max-height: 1500px;
+    min-height: auto;
+    padding: 24px 0;
   }
   .HeroContainer {
     flex-direction: column;
+    padding: 0 48px;
+    gap: 32px;
+    align-items: center;
   }
   .LeftHeroSection {
     width: 100%;
     gap: 16px;
+    align-items: center;
   }
   .RightHeroSection {
     width: 100%;
@@ -171,11 +186,66 @@
 }
 
 @media screen and (max-width: 768px) {
-  .carousel-text {
-    min-height: 150px;
+  .HeroContainer {
+    padding: 0;
   }
-  .LeftHeroSection {
-    padding: 24px 16px;
+  .HeroSection {
+    padding: 0;
+  }
+  .carousel-text {
+    min-height: 80px;
+    padding: 16px;
+  }
+  .carousel-text > div,
+  .carousel-text .text-heading-1 {
+    font-family: var(--font-grotesk);
+    font-size: 1.25rem !important;
+    font-weight: 400;
+    line-height: 1.625rem !important;
+    letter-spacing: -0.025rem !important;
+  }
+  .LeftHeroText .text-display-1 {
+    font-family: var(--font-satoshi);
+    font-size: 1.25rem !important;
+    font-weight: 500;
+    line-height: 1.625rem !important;
+    letter-spacing: -0.025rem !important;
+    text-align: center;
+  }
+  .LeftHeroText .text-body-2 {
+    font-family: var(--font-satoshi);
+    font-size: 0.875rem !important;
+    font-weight: 400;
+    line-height: 1.25rem !important;
+    letter-spacing: -0.0175rem !important;
+    max-width: 520px;
+    text-align: center;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .LeftHeroText {
+    gap: 6px;
+    align-items: center;
+    text-align: center;
+    padding: 16px;
+  }
+  .LeftHeroText .text-display-1 {
+    font-size: 1.125rem !important;
+    line-height: 1.5rem !important;
+    letter-spacing: -0.0225rem !important;
+  }
+  .LeftHeroText .text-body-2 {
+    font-size: 0.75rem !important;
+    line-height: 1.125rem !important;
+    letter-spacing: -0.015rem !important;
+    max-width: 100%;
+  }
+  .carousel-text > div,
+  .carousel-text .text-heading-1 {
+    font-size: 1.125rem !important;
+    line-height: 1.5rem !important;
+    letter-spacing: -0.02rem !important;
   }
 }
 
@@ -184,21 +254,14 @@
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    padding: 0 16px 16px;
   }
   .LeftHeroButtons a {
     width: 100% !important;
   }
   .carousel-indicators {
-    position: absolute;
-    right: 0;
-    bottom: 45px;
-    left: 20px !important;
-    display: flex;
-    justify-content: left;
-    margin: 0 !important;
-    width: fit-content !important;
-    align-items: center;
-    gap: 8px;
+    bottom: 16px !important;
+    left: 16px !important;
   }
   .custom-arrow svg {
     height: 36px;
@@ -206,20 +269,14 @@
   }
   .carousel-control-next,
   .carousel-control-prev {
-    position: absolute;
-    top: inherit;
-    bottom: 30px !important;
-    right: 0px !important;
-    left: inherit !important;
-    background: var(--whitebg) !important;
-    border-radius: 50% !important;
+    bottom: 16px !important;
     width: 36px !important;
     height: 36px !important;
   }
   .carousel-control-prev {
-    right: 80px !important;
+    right: 60px !important;
   }
   .carousel-control-next {
-    right: 40px !important;
+    right: 10px !important;
   }
 }

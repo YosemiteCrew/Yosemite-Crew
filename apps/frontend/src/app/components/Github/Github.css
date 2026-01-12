@@ -20,13 +20,6 @@
   min-height: 72px;
   pointer-events: auto;
 }
-.GithubTitle {
-  font-size: 23px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--white-text);
-  font-family: var(--grotesk-font);
-}
 .GithubStar {
   display: flex;
   flex-direction: row;
@@ -78,9 +71,6 @@
     padding: 12px 16px;
     gap: 8px;
     min-height: 52px;
-  }
-  .GithubTitle {
-    font-size: 16px;
   }
   .GithubStar {
   gap: 4px;

@@ -110,7 +110,7 @@ const Github = () => {
   return (
     <div className={`${publicRoutes.has(pathname) ? "flex!" : "hidden!"} GithubWrapper`}>
       <div className="GithubMain">
-        <div className="GithubTitle">Star us on Github</div>
+        <div className="text-heading-2 font-medium text-white">Star us on Github</div>
         <a
           href="https://github.com/YosemiteCrew/Yosemite-Crew"
           target="_blank"

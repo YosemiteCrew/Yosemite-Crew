@@ -18,7 +18,8 @@ export function TextFade({
     hidden: { opacity: 0, y: direction === "down" ? -18 : 18 },
   };
   const ref = React.useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-40% 0px -20% 0px" });
+  // Looser root margin so content animates immediately on small viewports
+  const isInView = useInView(ref, { once: true, margin: "0px 0px -10% 0px" });
   return (
     <motion.div
       ref={ref}

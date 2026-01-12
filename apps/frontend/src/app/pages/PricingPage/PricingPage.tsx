@@ -64,11 +64,11 @@ const PricingPage = () => {
           <div className="PricingPage-header">
             <div className="PriceBackdiv">
               <div className="PricinhHeadquote">
-                <h2>Transparent pricing, no hidden fees</h2>
-                <p>
+                <div className="text-display-1 text-text-primary">Transparent pricing, no hidden fees</div>
+                <div className="text-body-3 text-text-primary">
                   Choose a plan that fits your pet-care practice. Upgrade
                   anytime as you grow.
-                </p>
+                </div>
               </div>
             </div>
             <div className="flex gap-4 flex-col w-full max-w-5xl">
@@ -109,7 +109,7 @@ const PricingPage = () => {
                         {plan.title}
                       </div>
                       {plan.recommended && (
-                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-semibold">
+                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-normal">
                           Recommended
                         </div>
                       )}
@@ -215,7 +215,7 @@ const PricingPage = () => {
           )}
 
           <div className="flex flex-col gap-3 md:gap-9">
-            <div className="font-grotesk text-[23px] md:text-[33px] xl:text-[48px] text-black-text text-center font-medium">
+            <div className="text-display-1 text-text-primary text-center plansFeaturesHeading">
               Plans and features
             </div>
             <div className="flex gap-3">
@@ -298,7 +298,7 @@ const NeedHealp = () => {
     <div className="NeedHelpDiv">
       <div className="Needhelpitem">
         <div className="helpText">
-          <h3>Need Help? We’re All Ears!</h3>
+          <h3>Need Help? We&rsquo;re All Ears!</h3>
           <p>
             Got questions or need assistance? Just reach out! Our team is here
             to help.
