@@ -21,15 +21,15 @@ const HomePage = () => {
           <div className="HomeHeroData">
             <div className="LeftHeroDiv">
               <div className="herotext">
-                <h1 className="type first">Helping you help pets,</h1>
-                <h1>
+                <div className="text-display-1 text-text-primary type first">Helping you help pets,</div>
+                <div className="text-display-1 text-text-primary">
                   <span className="type second">without the hassle</span>
-                </h1>
+                </div>
               </div>
               <div className="heroPara">
                 {heroList.map((hero, index) => (
                   <div className="paraitem" key={index + hero.title}>
-                    <p>
+                    <div className="text-body-3 text-text-primary">
                       <Image
                         aria-hidden
                         src="https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png"
@@ -38,7 +38,7 @@ const HomePage = () => {
                         height={20}
                       />{" "}
                       {hero.title}
-                    </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -67,7 +67,7 @@ const HomePage = () => {
         <div className="Container">
           <div className="PracticedData">
             <div className="PractHeading">
-              <h2>Everything you need to run your pet business</h2>
+              <div className="text-display-2 text-text-primary">Everything you need to run your pet business</div>
             </div>
             <div className="Practice_Box_Data">
               {practiceFeatures.map((feature, index) => (
@@ -88,11 +88,11 @@ const HomePage = () => {
         <div className="Container">
           <div className="FocusData">
             <div className="FocusTexted">
-              <h2>Focus on care, not admin</h2>
-              <p>
+              <div className="text-display-2 text-text-primary">Focus on care, not admin</div>
+              <div className="text-body-4 text-text-secondary">
                 The easy-to-use, cloud-based software that simplifies practice
                 management and elevates animal care.
-              </p>
+              </div>
             </div>
             <div className="Focus_data">
               {focusCards.map((card, index) => (
@@ -197,12 +197,12 @@ const HomePage = () => {
         <div className="Container">
           <div className="whocareData">
             <div className="lftcare">
-              <h2>Caring for vets, who care for pets</h2>
-              <p>
+              <div className="text-display-2 text-text-primary">Caring for vets, who care for pets</div>
+              <div className="text-body-4 text-text-secondary">
                 We prioritise your data security and compliance with
                 industry-leading standards. Our platform is fully compliant with
                 GDPR, SOC 2 and ISO 27001 standards.
-              </p>
+              </div>
             </div>
             <div className="rytcare">
               <Image
@@ -244,13 +244,13 @@ const HomePage = () => {
             <div className="lftbetter">
               <div className="betInner">
                 <div className="careText">
-                  <h2>
+                  <div className="text-display-2 text-text-primary">
                     Better care is just a click away
-                  </h2>
-                  <p>
+                  </div>
+                  <div className="text-body-4 text-text-secondary">
                     Join hundreds of veterinary clinics already enhancing animal
                     care and streamlining their workflow.
-                  </p>
+                  </div>
                 </div>
                 <Primary
                   text="Book demo"

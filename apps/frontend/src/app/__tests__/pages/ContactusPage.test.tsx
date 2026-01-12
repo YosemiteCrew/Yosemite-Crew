@@ -65,7 +65,7 @@ describe("ContactusPage", () => {
   it('should render the initial form correctly with "General Enquiry" selected', () => {
     render(<ContactusPage />);
     expect(
-      screen.getByRole("heading", { name: /Need Help\? We’re All Ears!/i })
+      screen.getByText(/Need help\? We.?re all ears!/i)
     ).toBeInTheDocument();
     expect(
       screen.getByRole("radio", { name: "General Enquiry" })

@@ -42,9 +42,7 @@ describe("DeveloperLanding Page", () => {
 
   it("renders the main hero section with correct heading, paragraph, buttons, and image", () => {
     expect(
-      screen.getByRole("heading", {
-        name: /Build, customise, and launch powerful apps for the animal health ecosystem/i,
-      })
+      screen.getByText(/Build, customise, and launch powerful apps for the animal health ecosystem/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Transform animal care with your ideas./i)
@@ -54,27 +52,20 @@ describe("DeveloperLanding Page", () => {
 
   it("renders the 'Why Yosemite Crew?' section with all content", () => {
     expect(
-      screen.getByRole("heading", { name: /Why Developers Choose Yosemite Crew/i })
+      screen.getByText(/Why developers choose Yosemite Crew/i)
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Flexibilty/i })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Flexibilty/i)).toBeInTheDocument();
     expect(screen.getByAltText("devchose1")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Seamless Integrations/i })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Seamless integrations/i)).toBeInTheDocument();
     expect(screen.getByAltText("devchose2")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Open Source/i })
-    ).toBeInTheDocument();
+    const openSourceElements = screen.getAllByText(/Open source/i);
+    expect(openSourceElements.length).toBeGreaterThan(0);
     expect(screen.getByAltText("devchose3")).toBeInTheDocument();
   });
 
   it("renders the 'Developer Tools and Resources' section", () => {
     expect(
-      screen.getByRole("heading", {
-        name: /Everything You Need to Build and Launch/i,
-      })
+      screen.getByText(/Everything you need to build and launch/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/From robust APIs to intuitive SDKs/i)
@@ -84,29 +75,23 @@ describe("DeveloperLanding Page", () => {
 
   it("renders the 'Get Started' section with three steps", () => {
     expect(
-      screen.getByRole("heading", { name: /Get Started in three simple steps/i })
+      screen.getByText(/Get started in three simple steps/i)
     ).toBeInTheDocument();
 
     const links = screen.getAllByRole('link', { name: /Developer portal/i });
     expect(links.length).toBeGreaterThan(0);
 
-    expect(
-      screen.getByRole("heading", { name: /^Sign up$/i, level: 4 })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/^Sign up$/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Create your developer account/i)
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByRole("heading", { name: /Explore/i, level: 4 })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Explore/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Browse APIs, SDKs, and templates/i)
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByRole("heading", { name: /^Build$/i, level: 4 })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/^Build$/i)).toBeInTheDocument();
     expect(screen.getByText(/Develop, test, and deploy your app/i)).toBeInTheDocument();
   });
 

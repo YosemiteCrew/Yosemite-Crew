@@ -271,33 +271,10 @@ input[type="checkbox"]:checked::after {
   transform: translate(-50%, -50%) rotate(45deg);
 }
 input[type="radio"] {
-  width: 16px;
-  height: 16px;
-  -moz-appearance: none;
-  -webkit-appearance: none;
-  appearance: none;
-  border-radius: 50%;
-  border: 1px solid var(--black-text) !important;
-  background-color: transparent;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
-  position: relative;
-  font-weight: 500;
-  font-family: var(--grotesk-font);
-}
-input[type="radio"]:checked {
-  background-color: var(--blue-text) !important;
-  border: 1px solid var(--blue-text) !important;
-}
-input[type="radio"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--whitebg);
-  transform: translate(-50%, -50%);
+  accent-color: var(--blue-text);
 }
 /* Chrome, Safari, Edge, Opera */
 input::-webkit-outer-spin-button,
@@ -312,47 +289,76 @@ input[type="number"] {
   appearance: textfield;
 }
 
-.text-display-1 {
-  @apply font-grotesk text-5xl font-medium leading-[120%] tracking-[-0.96px];
-}
-.text-display-2 {
-  @apply font-grotesk text-[2.5rem] font-medium leading-[120%] tracking-[-0.8px];
-}
-.text-heading-1 {
-  @apply font-grotesk text-[1.75rem] font-normal leading-[107%] tracking-[-0.56px];
-}
-.text-heading-2 {
-  @apply font-grotesk text-[1.375rem] font-normal leading-[127%] tracking-[-0.44px];
-}
-.text-heading-3 {
-  @apply font-grotesk text-xl font-normal leading-[120%] tracking-[-0.4px];
-}
-.text-body-1 {
-  @apply font-satoshi text-2xl font-medium leading-[125%] tracking-[-0.48px];
-}
-.text-body-2 {
-  @apply font-satoshi text-xl font-normal leading-[170%] tracking-[-0.4px];
-}
-.text-body-3 {
-  @apply font-satoshi text-lg font-normal leading-[144%] tracking-[-0.36px];
-}
-.text-body-3-emphasis {
-  @apply font-satoshi text-lg font-medium leading-[144%] tracking-[-0.36px];
-}
-.text-body-4 {
-  @apply font-satoshi text-base font-normal leading-[150%] tracking-[-0.32px];
-}
-.text-body-4-emphasis {
-  @apply font-satoshi text-base font-medium leading-[150%] tracking-[-0.32px];
-}
-.text-label-1 {
-  @apply font-satoshi text-base font-medium leading-[100%] tracking-[-0.32px];
-}
-.text-caption-1 {
-  @apply font-satoshi text-sm font-normal leading-[142%] tracking-[-0.28px];
-}
-.text-caption-2 {
-  @apply font-satoshi text-xs font-normal leading-[150%] tracking-[-0.24px];
+@layer components {
+  /* Display text - 48px/3rem - Large headings (Desktop) */
+  .text-display-1 {
+    @apply font-grotesk text-[3rem] font-medium leading-[3.625rem] tracking-[-0.06rem];
+  }
+
+  /* Display text - 40px/2.5rem - Medium display (Desktop) */
+  .text-display-2 {
+    @apply font-grotesk text-[2.5rem] font-medium leading-[3rem] tracking-[-0.05rem];
+  }
+
+  /* Heading - 28px/1.75rem - Main section titles */
+  .text-heading-1 {
+    @apply font-grotesk text-[1.75rem] font-normal leading-[2.125rem] tracking-[-0.035rem];
+  }
+
+  /* Heading - 22px/1.375rem - Subsection titles */
+  .text-heading-2 {
+    @apply font-grotesk text-[1.375rem] font-normal leading-[1.75rem] tracking-[-0.0275rem];
+  }
+
+  /* Heading - 20px/1.25rem - Section headings */
+  .text-heading-3 {
+    @apply font-grotesk text-[1.25rem] font-normal leading-[1.5rem];
+  }
+
+  /* Body - 24px/1.5rem - Large emphasized body (Mobile heading) */
+  .text-body-1 {
+    @apply font-satoshi text-[1.5rem] font-medium leading-[1.875rem] tracking-[-0.03rem];
+  }
+
+  /* Body - 20px/1.25rem - Regular subheading text */
+  .text-body-2 {
+    @apply font-satoshi text-[1.25rem] font-normal leading-[1.75rem] tracking-[-0.025rem];
+  }
+
+  /* Body - 18px/1.125rem - Regular body text */
+  .text-body-3 {
+    @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.0225rem];
+  }
+
+  /* Body - 18px/1.125rem - Emphasized body (buttons) */
+  .text-body-3-emphasis {
+    @apply font-satoshi text-[1.125rem] font-medium leading-[1.625rem];
+  }
+
+  /* Body - 16px/1rem - Small body text */
+  .text-body-4 {
+    @apply font-satoshi text-[1rem] font-normal leading-[1.5rem];
+  }
+
+  /* Body - 16px/1rem - Small emphasized body */
+  .text-body-4-emphasis {
+    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.02rem];
+  }
+
+  /* Label - 16px/1rem - Button/link labels */
+  .text-label-1 {
+    @apply font-satoshi text-[1rem] font-medium leading-[1rem] tracking-[-0.02rem];
+  }
+
+  /* Caption - 14px/0.875rem - Small text */
+  .text-caption-1 {
+    @apply font-satoshi text-[0.875rem] font-normal leading-[1.25rem] tracking-[-0.0175rem];
+  }
+
+  /* Caption - 12px/0.75rem - Smallest text */
+  .text-caption-2 {
+    @apply font-satoshi text-[0.75rem] font-normal leading-[1.125rem] tracking-[-0.015rem];
+  }
 }
 
 .elevation-0 {

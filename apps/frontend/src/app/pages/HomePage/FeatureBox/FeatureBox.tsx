@@ -13,11 +13,11 @@ interface BoxPractProps {
 const FeatureBox = ({ Bpimg, BpTxt1, BpTxt2, BpPara }: BoxPractProps) => {
   return (
     <div className="PracBox">
-      <Image aria-hidden src={Bpimg} alt="Hero" width={82} height={82} />
-      <h4>
-        {BpTxt1} {" "} {BpTxt2}
-      </h4>
-      <p>{BpPara}</p>
+      <Image aria-hidden src={Bpimg} alt="Hero" width={72} height={72} />
+      <div className="text-heading-2 text-text-primary pracTitle">
+        {BpTxt1} {BpTxt2}
+      </div>
+      <div className="text-body-4 text-text-secondary pracDesc">{BpPara}</div>
     </div>
   );
 };

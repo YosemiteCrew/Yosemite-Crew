@@ -408,8 +408,16 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   };
 
   const handleStep2Next = async () => {
-    const fieldsToValidate = ['name', 'gender', 'dateOfBirth'] as const;
+    const fieldsToValidate = ['name', 'breed', 'gender', 'dateOfBirth', 'neuteredStatus', 'ageWhenNeutered'] as const;
     const isValid = await trigger(fieldsToValidate);
+
+    if (!breed) {
+      setError('breed', {
+        type: 'manual',
+        message: 'Breed is required',
+      });
+      return;
+    }
 
     if (!dateOfBirth) {
       setError('dateOfBirth', {
@@ -419,8 +427,24 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
       return;
     }
 
+    if (!watch('neuteredStatus')) {
+      setError('neuteredStatus', {
+        type: 'manual',
+        message: 'Neutered status is required',
+      });
+      return;
+    }
+
+    if (watch('neuteredStatus') === 'neutered' && !watch('ageWhenNeutered')?.trim()) {
+      setError('ageWhenNeutered', {
+        type: 'manual',
+        message: 'Age when neutered is required',
+      });
+      return;
+    }
+
     if (isValid) {
-      clearErrors('dateOfBirth');
+      clearErrors(['breed', 'dateOfBirth', 'neuteredStatus', 'ageWhenNeutered']);
       setCurrentStep(3);
     }
   };
@@ -590,6 +614,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         <Controller
           control={control}
           name="breed"
+          rules={{required: 'Breed is required'}}
           render={() => (
             <TouchableInput
               label="Breed"
@@ -702,6 +727,21 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             label: 'Age when neutered',
             placeholder: 'e.g., 1 Year',
             maxLength: 20,
+            rules: {
+              required: neuteredStatus === 'neutered' ? 'Age when neutered is required' : false,
+              validate: (value) => {
+                if (neuteredStatus === 'neutered' && value) {
+                  const numValue = Number.parseFloat(value);
+                  if (Number.isNaN(numValue)) {
+                    return 'Please enter a valid number';
+                  }
+                  if (numValue <= 0) {
+                    return 'Age must be greater than 0';
+                  }
+                }
+                return true;
+              },
+            },
             dynamicSuffix: (value) => {
               const numValue = Number.parseFloat(value);
               if (Number.isNaN(numValue)) return '';
