@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import Search from "../../Inputs/Search";
 import { Task } from "@/app/types/task";
 
 const Types = [
@@ -21,25 +20,25 @@ const Statuses = [
   {
     name: "Pending",
     key: "pending",
-    bg: "#eaeaea",
-    text: "#302f2e",
+    bg: "#747283",
+    text: "#fff",
   },
   {
     name: "In progress",
     key: "in_progress",
-    bg: "#E6F4EF",
-    text: "#54B492",
+    bg: "#BF9FAA",
+    text: "#fff",
   },
   {
     name: "Completed",
     key: "completed",
-    bg: "#008F5D",
+    bg: "#D28F9A",
     text: "#fff",
   },
   {
     name: "Cancelled",
     key: "cancelled",
-    bg: "#008F5D",
+    bg: "#D9A488",
     text: "#fff",
   },
 ];
@@ -51,8 +50,7 @@ type TaskFiltersProps = {
 
 const TaskFilters = ({ list, setFilteredList }: TaskFiltersProps) => {
   const [activeType, setActiveType] = useState("all");
-  const [activeStatus, setActiveStatus] = useState("in-progress");
-  const [search, setSearch] = useState("");
+  const [activeStatus, setActiveStatus] = useState("in_progress");
 
   const filteredList = useMemo(() => {
     return list.filter((item) => {
@@ -61,12 +59,9 @@ const TaskFilters = ({ list, setFilteredList }: TaskFiltersProps) => {
       const matchesType =
         activeType === "all" ||
         item.audience.toLowerCase() === activeType.toLowerCase();
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
-      return matchesStatus && matchesType && matchesSearch;
+      return matchesStatus && matchesType;
     });
-  }, [list, activeType, activeStatus, search]);
+  }, [list, activeType, activeStatus]);
 
   useEffect(() => {
     setFilteredList(filteredList);
@@ -80,27 +75,26 @@ const TaskFilters = ({ list, setFilteredList }: TaskFiltersProps) => {
             <button
               key={type.key}
               onClick={() => setActiveType(type.key)}
-              className={`px-3 h-9 rounded-xl! border font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${type.key === activeType ? "border-blue-text! bg-blue-light! text-blue-text! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-[#302f2e]!"}`}
+              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${type.key === activeType ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
             >
               {type.name}
             </button>
           ))}
         </div>
-        <div className="flex">
-          <Search value={search} setSearch={setSearch} />
-        </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {Statuses.map((status) => (
           <button
             key={status.key}
-            className={`px-3 h-9 rounded-xl! font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${status.key === activeStatus ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
-            style={{
-              background: status.bg,
-              color: status.text,
-              borderColor:
-                status.key === activeStatus ? status.text : status.bg,
-            }}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+            style={
+              status.key === activeStatus
+                ? {
+                    background: status.bg,
+                    color: status.text,
+                  }
+                : {}
+            }
             onClick={() => setActiveStatus(status.key)}
           >
             {status.name}

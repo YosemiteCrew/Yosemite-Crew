@@ -164,6 +164,9 @@ const Slotpicker = ({
               </button>
             );
           })}
+          {timeSlots.length === 0 && (
+            <div className="text-center w-full text-caption-1 text-text-primary py-3">No slot available</div>
+          )}
       </div>
     </div>
   );

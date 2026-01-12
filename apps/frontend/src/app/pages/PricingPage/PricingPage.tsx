@@ -134,7 +134,7 @@ const PricingPage = () => {
                       {plan.description}
                     </div>
                     <Link
-                      className="w-full rounded-2xl! hover:shadow-[0_0_16px_0_rgba(0,0,0,0.16)] transition duration-300 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-grotesk text-[19px] font-medium"
+                      className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-grotesk text-[19px] font-medium"
                       href={plan.buttonSrc}
                       onClick={() => plan.id === 3 && setNotify(true)}
                     >
@@ -236,7 +236,7 @@ const PricingPage = () => {
                     </div>
                   </div>
                   <Link
-                    className="w-full rounded-2xl! hover:shadow-[0_0_16px_0_rgba(0,0,0,0.16)] text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] font-medium"
+                    className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] font-medium"
                     href={plan.buttonSrc}
                   >
                     {plan.buttonText}

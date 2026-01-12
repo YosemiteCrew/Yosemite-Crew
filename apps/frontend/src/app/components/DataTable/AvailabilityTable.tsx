@@ -7,6 +7,7 @@ import { Team } from "@/app/types/team";
 
 import "./DataTable.css";
 import AvailabilityCard from "../Cards/AvailabilityCard";
+import { toTitleCase } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -48,9 +49,9 @@ const AvailabilityTable = ({
 
   const columns: Column<Team>[] = [
     {
-      label: "Name",
-      key: "name",
-      width: "20%",
+      label: "",
+      key: "image",
+      width: "5%",
       render: (item: Team) => (
         <div className="appointment-profile">
           <Image
@@ -60,6 +61,15 @@ const AvailabilityTable = ({
             width={40}
             style={{ borderRadius: "50%" }}
           />
+        </div>
+      ),
+    },
+    {
+      label: "Name",
+      key: "name",
+      width: "15%",
+      render: (item: Team) => (
+        <div className="appointment-profile">
           <div className="appointment-profile-title">{item.name || "-"}</div>
         </div>
       ),
@@ -69,7 +79,7 @@ const AvailabilityTable = ({
       key: "role",
       width: "15%",
       render: (item: Team) => (
-        <div className="appointment-profile-title">{item.role}</div>
+        <div className="appointment-profile-title">{toTitleCase(item.role)}</div>
       ),
     },
     {

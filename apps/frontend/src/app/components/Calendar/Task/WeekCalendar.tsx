@@ -3,8 +3,9 @@ import { getNextWeek, getPrevWeek, getWeekDays } from "../weekHelpers";
 import DayLabels from "./DayLabels";
 import TaskSlot from "./TaskSlot";
 import { eventsForDay } from "../helpers";
-import { GrNext, GrPrevious } from "react-icons/gr";
 import { Task } from "@/app/types/task";
+import Back from "../../Icons/Back";
+import Next from "../../Icons/Next";
 
 type WeekCalendarProps = {
   events: Task[];
@@ -45,23 +46,21 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     <div className="h-full flex flex-col">
       <div className="grid h-full grid-cols-[40px_minmax(0,1fr)_40px]">
         <div className="flex items-start justify-center pt-3">
-          <GrPrevious
-            size={20}
-            color="#302f2e"
-            className="cursor-pointer"
-            onClick={handlePrevWeek}
-          />
+          <Back onClick={handlePrevWeek} />
         </div>
         <div className="overflow-x-auto">
           <div className="min-w-max">
             <DayLabels days={days} />
             <div className="max-h-[500px] overflow-y-auto">
-              <div className="grid grid-flow-col auto-cols-[200px] gap-x-2 min-w-max">
-                {days.map((day) => (
+              <div className="grid grid-flow-col auto-cols-[200px] min-w-max">
+                {days.map((day, index) => (
                   <TaskSlot
                     key={day.getTime()}
+                    height={300}
                     slotEvents={eventsForDay(events, day)}
                     handleViewTask={handleViewTask}
+                    index={index}
+                    length={days.length-1}
                   />
                 ))}
               </div>
@@ -69,12 +68,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
           </div>
         </div>
         <div className="flex items-start justify-center pt-3">
-          <GrNext
-            size={20}
-            color="#302f2e"
-            className="cursor-pointer"
-            onClick={handleNextWeek}
-          />
+          <Next onClick={handleNextWeek} />
         </div>
       </div>
     </div>

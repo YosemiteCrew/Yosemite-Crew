@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
-import { GrNext, GrPrevious } from "react-icons/gr";
-import { getDayWithDate } from "../helpers";
 import { getStatusStyle } from "../../DataTable/Tasks";
 import { Task } from "@/app/types/task";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { Team } from "@/app/types/team";
+import Back from "../../Icons/Back";
+import Next from "../../Icons/Next";
 
 type DayCalendarProps = {
   events: Task[];
@@ -48,45 +48,43 @@ const DayCalendar = ({
     });
   };
 
+  const weekday = date.toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+  const dateNumber = date.getDate();
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
-        <GrPrevious
-          size={20}
-          color="#302f2e"
-          onClick={handlePrevDay}
-          className="cursor-pointer"
-        />
-        <div className="font-grotesk font-medium text-black-text text-[18px]">
-          {getDayWithDate(date)}
+        <Back onClick={handlePrevDay} />
+        <div className="flex flex-col">
+          <div className="text-body-4 text-text-brand">{weekday}</div>
+          <div className="text-body-4-emphasis text-white h-12 w-12 flex items-center justify-center rounded-full bg-text-brand">
+            {dateNumber}
+          </div>
         </div>
-        <GrNext
-          size={20}
-          color="#302f2e"
-          onClick={handleNextDay}
-          className="cursor-pointer"
-        />
+        <Next onClick={handleNextDay} />
       </div>
       {events.length > 0 ? (
         <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-[500px] flex flex-col gap-2 p-3">
           {events.map((event, i) => (
             <button
               key={event.name + i}
-              className="rounded-2xl! p-2 flex flex-col items-start w-full"
+              className="rounded-2xl! p-3 flex flex-col items-start w-full gap-2"
               style={getStatusStyle(event.status)}
               onClick={() => handleViewTask(event)}
             >
-              <div className="font-satoshi text-[18px] font-medium">
+              <div className="text-body-3-emphasis">
                 {event.name}
               </div>
-              <div className="font-satoshi text-[15px] font-medium">
+              <div className="text-body-4">
                 {resolveMemberName(event.assignedTo)}
               </div>
             </button>
           ))}
         </div>
       ) : (
-        <div className="w-full flex items-center justify-center text-[15px] font-satoshi text-grey-noti font-medium h-[200px]">
+        <div className="w-full flex items-center justify-center text-caption-1 text-text-primary h-[200px]">
           No tasks available for today
         </div>
       )}

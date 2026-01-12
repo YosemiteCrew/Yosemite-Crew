@@ -61,7 +61,7 @@ describe("TitleCalendar Component", () => {
 
   // --- Section 1: Rendering ---
   it("renders the title and all main components", () => {
-    render(<TitleCalendar {...defaultProps} />);
+    render(<TitleCalendar {...defaultProps} count={0} />);
 
     // Check Title
     expect(screen.getByText("My Calendar")).toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("TitleCalendar Component", () => {
 
   // --- Section 2: Interaction - Add Button ---
   it("opens the add popup when Add button is clicked", () => {
-    render(<TitleCalendar {...defaultProps} />);
+    render(<TitleCalendar {...defaultProps} count={0} />);
 
     const addBtn = screen.getByTestId("add-btn");
     fireEvent.click(addBtn);
@@ -92,7 +92,7 @@ describe("TitleCalendar Component", () => {
   // --- Section 3: Interaction - View Toggles ---
   it("sets active calendar to 'vet' when vet button is clicked", () => {
     // Render with a different active state to ensure click changes logic or at least triggers function
-    render(<TitleCalendar {...defaultProps} activeCalendar="week" />);
+    render(<TitleCalendar {...defaultProps} activeCalendar="week" count={0} />);
 
     const vetBtn = screen.getByTestId("icon-vet").closest("button");
     fireEvent.click(vetBtn!);
@@ -101,7 +101,7 @@ describe("TitleCalendar Component", () => {
   });
 
   it("sets active calendar to 'week' when week button is clicked", () => {
-    render(<TitleCalendar {...defaultProps} activeCalendar="vet" />);
+    render(<TitleCalendar {...defaultProps} activeCalendar="vet" count={0} />);
 
     const weekBtn = screen.getByTestId("icon-week").closest("button");
     fireEvent.click(weekBtn!);
@@ -110,7 +110,7 @@ describe("TitleCalendar Component", () => {
   });
 
   it("sets active calendar to 'day' when day button is clicked", () => {
-    render(<TitleCalendar {...defaultProps} activeCalendar="vet" />);
+    render(<TitleCalendar {...defaultProps} activeCalendar="vet" count={0} />);
 
     const dayBtn = screen.getByTestId("icon-day").closest("button");
     fireEvent.click(dayBtn!);
@@ -121,7 +121,7 @@ describe("TitleCalendar Component", () => {
   // --- Section 4: Styling (Active State) ---
   it("applies active styling to the correct button based on activeCalendar prop", () => {
     const { rerender } = render(
-      <TitleCalendar {...defaultProps} activeCalendar="vet" />
+      <TitleCalendar {...defaultProps} activeCalendar="vet" count={0} />
     );
 
     const vetBtn = screen.getByTestId("icon-vet").closest("button");
@@ -134,13 +134,13 @@ describe("TitleCalendar Component", () => {
     expect(dayBtn).toHaveClass("border-grey-light!");
 
     // Switch to Week
-    rerender(<TitleCalendar {...defaultProps} activeCalendar="week" />);
+    rerender(<TitleCalendar {...defaultProps} activeCalendar="week" count={0} />);
     expect(vetBtn).toHaveClass("border-grey-light!");
     expect(weekBtn).toHaveClass("border-blue-text!");
     expect(dayBtn).toHaveClass("border-grey-light!");
 
     // Switch to Day
-    rerender(<TitleCalendar {...defaultProps} activeCalendar="day" />);
+    rerender(<TitleCalendar {...defaultProps} activeCalendar="day" count={0} />);
     expect(vetBtn).toHaveClass("border-grey-light!");
     expect(weekBtn).toHaveClass("border-grey-light!");
     expect(dayBtn).toHaveClass("border-blue-text!");

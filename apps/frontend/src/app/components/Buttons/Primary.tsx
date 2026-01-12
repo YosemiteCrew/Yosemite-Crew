@@ -1,7 +1,7 @@
 import { FormEvent } from "react";
 import Link from "next/link";
 
-import "./Buttons.css";
+type ButtonSize = "default" | "large";
 
 type ButtonProps = {
   text: string;
@@ -10,6 +10,12 @@ type ButtonProps = {
   style?: React.CSSProperties;
   classname?: string;
   isDisabled?: boolean;
+  size?: ButtonSize;
+};
+
+const sizeClasses: Record<ButtonSize, string> = {
+  default: "py-[12px] text-body-4-emphasis",
+  large: "py-[15px] text-body-3-emphasis",
 };
 
 const Primary = ({
@@ -19,12 +25,13 @@ const Primary = ({
   style,
   classname,
   isDisabled = false,
+  size = "default",
 }: Readonly<ButtonProps>) => {
   return (
     <Link
       href={href}
       aria-disabled={isDisabled}
-      className={`primary-button ${isDisabled ? "pointer-events-none opacity-60" : ""} ${classname ?? ""}`}
+      className={`${sizeClasses[size]} px-8 flex items-center justify-center rounded-2xl! bg-text-primary text-white transition-all duration-300 ease-in-out hover:scale-105 ${isDisabled ? "pointer-events-none opacity-60" : ""} ${classname ?? ""}`}
       onClick={(e) => {
         if (isDisabled) {
           e.preventDefault();

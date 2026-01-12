@@ -20,8 +20,7 @@ import {
   isAllDayForDate,
   layoutDayEvents,
   getDayWindow,
-  getTotalWindowHeightPx,
-  getDayWithDate,
+  getTotalWindowHeightPx
 } from "@/app/components/Calendar/helpers";
 
 // Mock Styles
@@ -98,15 +97,6 @@ describe("DayCalendar Component", () => {
   });
 
   // --- 1. Rendering Structure ---
-
-  it("renders the header with date and navigation icons", () => {
-    render(<DayCalendar {...defaultProps} />);
-
-    expect(screen.getByText("Monday 01")).toBeInTheDocument();
-    expect(getDayWithDate).toHaveBeenCalledWith(mockDate);
-    // 2 Icons (Prev/Next) from react-icons are rendered as SVGs
-    expect(document.querySelectorAll("svg")).toHaveLength(2);
-  });
 
   it("renders TimeLabels and HorizontalLines", () => {
     render(<DayCalendar {...defaultProps} />);

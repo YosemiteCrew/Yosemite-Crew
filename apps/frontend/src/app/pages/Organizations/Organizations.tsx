@@ -41,7 +41,7 @@ const Organizations = () => {
   if (isLoading) return null;
 
   return (
-    <div className="flex flex-col gap-6 px-[60px] py-12">
+    <div className="flex flex-col gap-6 px-3! py-3!  sm:px-12! lg:px-[60px]! sm:py-12!">
       <div className="flex items-center justify-between w-full">
         <div className="text-text-primary text-heading-1">Overview</div>
         <Primary href="/create-org" text="Create organisation" />

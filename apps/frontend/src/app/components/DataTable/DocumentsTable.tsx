@@ -6,6 +6,7 @@ import DocumentsCard from "../Cards/DocumentsCard";
 import { OrganizationDocument } from "@/app/types/document";
 
 import "./DataTable.css";
+import { toTitle } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -52,7 +53,7 @@ const DocumentsTable = ({
       key: "category",
       width: "20%",
       render: (item: OrganizationDocument) => (
-        <div className="appointment-profile-title">{item.category}</div>
+        <div className="appointment-profile-title">{toTitle(item.category)}</div>
       ),
     },
     {

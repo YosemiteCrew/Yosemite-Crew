@@ -8,6 +8,7 @@ import "./DataTable.css";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { Team } from "@/app/types/team";
+import { toTitleCase } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -71,7 +72,7 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
       key: "type",
       width: "20%",
       render: (item: OrganisationRoom) => (
-        <div className="appointment-profile-title">{item.type}</div>
+        <div className="appointment-profile-title">{toTitleCase(item.type)}</div>
       ),
     },
     {

@@ -15,7 +15,6 @@ describe("Secondary button", () => {
     const link = screen.getByRole("link", { name: "Back" });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/previous");
-    expect(link).toHaveClass("secondary-button");
   });
 
   test("calls custom onClick handler instead of navigating", () => {
