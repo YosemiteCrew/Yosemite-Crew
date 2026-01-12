@@ -16,10 +16,10 @@ const LandingCard = ({ item }: { item: InfoCard }) => {
             <div className="landingTexed">
               <TextFade direction="up" className="landinginnerTexed">
                 <TextFade direction="up" className="landingTop">
-                  <div className="text-display-2 pb-2">{item.target}</div>
+                  <div className="text-display-2 text-text-brand pb-2">{item.target}</div>
                 </TextFade>
-                <div className="text-display-1">{item.title}</div>
-                <div className="text-body-2">{item.description}</div>
+                <div className="text-display-1 text-text-primary">{item.title}</div>
+                <div className="text-body-2 text-text-primary">{item.description}</div>
               </TextFade>
               <TextFade direction="up">
                 <Primary size="large" text="Learn more" href={item.href} classname="w-fit" />

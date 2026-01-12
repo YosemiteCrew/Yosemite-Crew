@@ -21,9 +21,6 @@
   padding: 20px 0px;
   width: 40%;
 }
-.landingSection .landingTop > div {
-  color: var(--blue-text);
-}
 
 .landingSection .LandingData .LeftLanding .landingTexed {
   display: flex;
@@ -38,7 +35,6 @@
 }
 .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed > div {
   margin: 0;
-  color: var(--black-text);
 }
 .landingSection .LandingData .RightLanding {
   width: 60%;
@@ -104,6 +100,11 @@
   }
   .landingSection .landingTop > div {
     padding: 0px 15px;
+    font-family: var(--font-satoshi);
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.875rem;
+    letter-spacing: -0.03rem;
   }
   .landingSection .LandingData {
     gap: 16px;
@@ -114,5 +115,19 @@
   }
   .landingSection .LandingData .LeftLanding .landingTexed {
     gap: 16px;
+  }
+  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed > div:nth-child(2) {
+    font-family: var(--font-satoshi);
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.875rem;
+    letter-spacing: -0.03rem;
+  }
+  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed > div:nth-child(3) {
+    font-family: var(--font-satoshi);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5rem;
+    letter-spacing: -0.02rem;
   }
 }
