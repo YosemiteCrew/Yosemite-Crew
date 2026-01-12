@@ -1,5 +1,4 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
 import React, { useMemo, useState } from "react";
@@ -9,8 +8,9 @@ import { Primary } from "@/app/components/Buttons";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { sendInvite } from "@/app/services/teamService";
-import { isValidEmail } from "@/app/utils/validators";
+import { isValidEmail, toTitleCase } from "@/app/utils/validators";
 import { TeamFormDataType } from "@/app/types/team";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 
 type AddTeamProps = {
   showModal: boolean;
@@ -37,7 +37,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   }>({});
 
   const SpecialitiesOptions = useMemo(
-    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
+    () => specialities.map((s) => ({ label: s.name, key: s._id || s.name })),
     [specialities]
   );
 
@@ -99,33 +99,32 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 error={formDataErrors.email}
                 className="min-h-12!"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Speciality"
-                value={formData.speciality.key}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
                     speciality: {
-                      name: e.label,
-                      key: e.value
+                      name: option.label,
+                      key: option.key,
                     },
                   })
                 }
-                returnObject
+                defaultOption={formData.speciality.key}
                 error={formDataErrors.speciality}
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
                 options={SpecialitiesOptions}
-                type="general"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Role"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e })}
+                onSelect={(option) =>
+                  setFormData({ ...formData, role: option.key })
+                }
+                defaultOption={formData.role}
                 error={formDataErrors.role}
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
-                options={RoleOptions}
+                options={RoleOptions.map((role) => ({
+                  key: role,
+                  label: toTitleCase(role),
+                }))}
               />
               <SelectLabel
                 title="Employee type"

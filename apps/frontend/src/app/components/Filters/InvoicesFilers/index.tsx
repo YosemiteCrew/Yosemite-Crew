@@ -1,13 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Invoice } from "@yosemite-crew/types";
 
-const Category = [
-  {
-    name: "All",
-    key: "all",
-  },
-];
-
 const Statuses = [
   {
     name: "All",
@@ -59,7 +52,6 @@ type InvoicesFiltersProps = {
 };
 
 const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
-  const [activeCategory, setActiveCategory] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
 
   const filteredList = useMemo(() => {
@@ -67,10 +59,9 @@ const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
       const matchesStatus =
         activeStatus === "all" ||
         item.status.toLowerCase() === activeStatus.toLowerCase();
-      const matchesCategory = activeCategory === "all";
-      return matchesStatus && matchesCategory;
+      return matchesStatus;
     });
-  }, [list, activeCategory, activeStatus]);
+  }, [list, activeStatus]);
 
   useEffect(() => {
     setFilteredList(filteredList);
@@ -79,17 +70,7 @@ const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
   return (
     <div className="w-full flex items-center justify-between flex-wrap gap-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          {Category.map((category) => (
-            <button
-              key={category.key}
-              onClick={() => setActiveCategory(category.key)}
-              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${category.key === activeCategory ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
-            >
-              {category.name}
-            </button>
-          ))}
-        </div>
+        
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {Statuses.map((status) => (

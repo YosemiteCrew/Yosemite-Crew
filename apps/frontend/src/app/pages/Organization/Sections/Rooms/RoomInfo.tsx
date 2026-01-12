@@ -5,7 +5,7 @@ import Modal from "@/app/components/Modal";
 import { OrganisationRoom } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
-import { RoomsTypes } from "../../types";
+import { RoomsTypes2 } from "../../types";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { updateRoom } from "@/app/services/roomService";
@@ -25,7 +25,7 @@ const getFields = ({
 }) =>
   [
     { label: "Name", key: "name", type: "text", required: true },
-    { label: "Type", key: "type", type: "dropdown", options: RoomsTypes },
+    { label: "Type", key: "type", type: "dropdown", options: RoomsTypes2 },
     {
       label: "Assigned speciality",
       key: "assignedSpecialiteis",

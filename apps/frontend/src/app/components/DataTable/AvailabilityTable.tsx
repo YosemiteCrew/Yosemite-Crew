@@ -24,8 +24,10 @@ export const getStatusStyle = (status: string) => {
       return { color: "#EA3729", backgroundColor: "#FDEBEA" };
     case "off-duty":
       return { color: "#F68523", backgroundColor: "#FEF3E9" };
+    case "requested":
+      return { color: "#302f2e", backgroundColor: "#eaeaea" };
     default:
-      return { color: "#6b7280", backgroundColor: "rgba(107,114,128,0.1)" };
+      return { color: "#302f2e", backgroundColor: "#6b72801a" };
   }
 };
 
@@ -53,7 +55,7 @@ const AvailabilityTable = ({
       key: "image",
       width: "5%",
       render: (item: Team) => (
-        <div className="appointment-profile">
+        <div className="appointment-profile w-10 h-10">
           <Image
             src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
             alt=""
@@ -156,7 +158,7 @@ const AvailabilityTable = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );

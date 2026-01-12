@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 import Parent from "./Sections/Parent";
 import Companion from "./Sections/Companion";
@@ -25,11 +25,16 @@ type AddCompanionProps = {
 
 const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
   const [activeLabel, setActiveLabel] = useState<string>("parents");
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [parentFormData, setParentFormData] =
     useState<StoredParent>(EMPTY_STORED_PARENT);
   const [companionFormData, setCompanionFormData] = useState<StoredCompanion>(
     EMPTY_STORED_COMPANION
   );
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [activeLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -58,7 +63,7 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
           disableClicking
         />
 
-        <div className="flex overflow-y-auto flex-1">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
           {activeLabel === "parents" && (
             <Parent
               setActiveLabel={setActiveLabel}

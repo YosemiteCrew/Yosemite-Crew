@@ -7,7 +7,7 @@ const GenderOptions: string[] = ["Male", "Female", "Others"];
 const Fields = [
   { label: "Date of birth", key: "dateOfBirth", type: "date" },
   { label: "Gender", key: "gender", type: "select", options: GenderOptions },
-  { label: "Current weight", key: "currentWeight", type: "text" },
+  { label: "Current weight (lbs)", key: "currentWeight", type: "text" },
   { label: "Color", key: "colour", type: "text" },
   {
     label: "Neutered status",

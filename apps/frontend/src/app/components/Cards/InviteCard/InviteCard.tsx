@@ -16,18 +16,20 @@ const InviteCard = ({
 }: InviteCardProps) => {
   return (
     <div className="invite-card">
-      <div className="invite-card-title">{invite.organisationName}</div>
+      <div className="text-body-3-emphasis text-text-brand">{invite.organisationName}</div>
       <div className="invite-card-item">
-        <div className="invite-card-item-label">Type :</div>
-        <div className="invite-card-item-value">{invite.organisationType}</div>
+        <div className="text-caption-1 text-text-extra">Type :</div>
+        <div className="text-caption-1 text-text-primary">
+          {invite.organisationType}
+        </div>
       </div>
       <div className="invite-card-item">
-        <div className="invite-card-item-label">Role :</div>
-        <div className="invite-card-item-value">{invite.role}</div>
+        <div className="text-caption-1 text-text-extra">Role :</div>
+        <div className="text-caption-1 text-text-primary">{invite.role}</div>
       </div>
       <div className="invite-card-item">
-        <div className="invite-card-item-label">Employee type :</div>
-        <div className="invite-card-item-value">
+        <div className="text-caption-1 text-text-extra">Employee type :</div>
+        <div className="text-caption-1 text-text-primary">
           {invite.employmentType.split("_").join(" ")}
         </div>
       </div>

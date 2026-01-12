@@ -1,4 +1,3 @@
-
 import React from "react";
 import "@testing-library/jest-dom";
 
@@ -39,6 +38,11 @@ Object.defineProperty(globalThis, "IntersectionObserver", {
   value: IntersectionObserverMock,
 });
 
+Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+  value: jest.fn(),
+  writable: true,
+});
+
 beforeAll(() => {
   window.scrollTo = jest.fn();
   // Silence noisy logs but keep them visible locally by toggling with an env flag if you want
@@ -74,7 +78,7 @@ jest.mock("@iconify/react/dist/iconify.js", () => ({
 }));
 
 // Mock Next.js navigation hooks for tests
-jest.mock('next/navigation', () => ({
+jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
     replace: jest.fn(),
@@ -86,7 +90,6 @@ jest.mock('next/navigation', () => ({
   }),
   usePathname: () => "/",
 }));
-
 
 // Global test cleanup to prevent hanging
 afterEach(() => {

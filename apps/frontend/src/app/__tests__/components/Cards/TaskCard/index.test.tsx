@@ -61,7 +61,7 @@ describe("TaskCard Component", () => {
     expect(screen.getByText(/Formatted/)).toBeInTheDocument();
 
     // Status badge text
-    expect(screen.getByText("IN_PROGRESS")).toBeInTheDocument();
+    expect(screen.getByText("In_progress")).toBeInTheDocument();
 
     // View button exists
     expect(screen.getByText("View")).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe("TaskCard Component", () => {
     expect(screen.getByText("From:")).toBeInTheDocument();
     expect(screen.getByText("To:")).toBeInTheDocument();
     expect(screen.getByText("Due date:")).toBeInTheDocument();
-    expect(screen.getByText("IN_PROGRESS")).toBeInTheDocument();
+    expect(screen.getByText("In_progress")).toBeInTheDocument();
   });
 
   it("calls handleViewTask with the task when clicking View", () => {

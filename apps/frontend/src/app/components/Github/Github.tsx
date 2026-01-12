@@ -5,8 +5,6 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { publicRoutes } from "@/app/utils/const";
 
-import "./Github.css";
-
 const owner = "YosemiteCrew";
 const repo = "Yosemite-Crew";
 
@@ -108,30 +106,32 @@ const Github = () => {
   if (!isOpen) return null;
 
   return (
-    <div className={`${publicRoutes.has(pathname) ? "flex!" : "hidden!"} GithubWrapper`}>
-      <div className="GithubMain">
-        <div className="text-heading-2 font-medium text-white">Star us on Github</div>
+    <div
+      className={`${publicRoutes.has(pathname) ? "flex!" : "hidden!"} fixed left-0 bottom-[30px] z-9999 flex items-center justify-center w-full pointer-events-none`}
+    >
+      <div className="px-6 py-[12px] flex items-center justify-center gap-2 bg-text-primary pointer-events-auto rounded-2xl">
+        <div className="text-body-2 text-white">Star us on Github</div>
         <a
           href="https://github.com/YosemiteCrew/Yosemite-Crew"
           target="_blank"
-          className="GithubStar"
+          className="flex items-center justify-center gap-2 rounded-2xl cursor-pointer bg-white px-2"
         >
-          <div className="Title">
+          <div className="flex items-center gap-1">
             <Icon icon="mdi:github" width="28" height="28" color="#302F2E" />
-            <p>Star</p>
+            <div className="text-caption-1 text-text-primary">Stars</div>
           </div>
-          <div className="Line"></div>
-          <h6 className="Stars">
+          <div className="h-[15px] w-px bg-text-tertiary"></div>
+          <div className="text-caption-1 text-text-brand">
             {error ?? (stars === null ? "…" : formatStars(stars))}
-          </h6>
+          </div>
         </a>
         <button
-          className="CloseButton"
+          className="border-none bg-text-primary"
           onClick={onClose}
           aria-label="Close"
           type="button"
         >
-          <IoCloseSharp color="#fff" size={20} />
+          <IoCloseSharp color="#fff" size={18} />
         </button>
       </div>
     </div>

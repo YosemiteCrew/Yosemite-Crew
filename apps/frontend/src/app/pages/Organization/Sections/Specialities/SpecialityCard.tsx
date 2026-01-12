@@ -1,5 +1,5 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
@@ -26,6 +26,15 @@ const SpecialityCard = ({
       teams?.map((team) => ({
         label: team.name || team._id,
         value: team._id,
+      })),
+    [teams]
+  );
+
+  const TeamOptions2 = useMemo(
+    () =>
+      teams?.map((team) => ({
+        label: team.name || team._id,
+        key: team._id,
       })),
     [teams]
   );
@@ -60,7 +69,7 @@ const SpecialityCard = ({
         return {
           ...sp,
           headName: lead.label,
-          headUserId: lead.value,
+          headUserId: lead.key,
         };
       })
     );
@@ -100,14 +109,13 @@ const SpecialityCard = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <Dropdown
-        placeholder="Lead"
-        value={speciality.headUserId || ""}
-        onChange={(e) => updateLead(e)}
-        className="min-h-12!"
-        options={TeamOptions}
-        dropdownClassName="h-fit! max-h-[150px]!"
-        returnObject
+      <LabelDropdown
+        placeholder="Select Lead"
+        onSelect={(option) =>
+          updateLead(option)
+        }
+        defaultOption={speciality.headUserId}
+        options={TeamOptions2}
       />
       <MultiSelectDropdown
         placeholder="Assigned staff"
