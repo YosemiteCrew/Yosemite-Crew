@@ -7,6 +7,29 @@ export type TaskKind =
   | "DIET"
   | "CUSTOM";
 
+export type Species = "dog" | "cat" | "horse";
+
+const RecurrenceTemplateSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: ["ONCE", "DAILY", "WEEKLY", "CUSTOM"],
+      required: true,
+    },
+    cronExpression: String,
+    editable: { type: Boolean, default: true },
+    endAfterDays: Number,
+  },
+  { _id: false },
+);
+
+export interface LibraryRecurrenceTemplate {
+  type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+  cronExpression?: string; // for CUSTOM
+  editable?: boolean; // can PMS/mobile override?
+  endAfterDays?: number; // optional default
+}
+
 interface TaskLibraryDefinitionMongo {
   source: "YC_LIBRARY";
   kind: TaskKind;
@@ -23,10 +46,13 @@ interface TaskLibraryDefinitionMongo {
       hasFrequency?: boolean;
     };
     requiresObservationTool?: boolean;
-    allowsRecurrence?: boolean;
+    recurrence?: {
+      default?: LibraryRecurrenceTemplate;
+    };
   };
 
   isActive: boolean;
+  applicableSpecies?: Species[];
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -47,7 +73,9 @@ const LibraryInnerSchema = new Schema(
   {
     medicationFields: { type: MedicationFieldsSchema, default: {} },
     requiresObservationTool: { type: Boolean, default: false },
-    allowsRecurrence: { type: Boolean, default: false },
+    recurrence: {
+      default: RecurrenceTemplateSchema,
+    },
   },
   { _id: false },
 );
@@ -70,7 +98,7 @@ const LibrarySchema = new Schema<TaskLibraryDefinitionMongo>(
       type: LibraryInnerSchema,
       required: true,
     },
-
+    applicableSpecies: { type: [String], enum: ["dog", "cat", "horse"] },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },

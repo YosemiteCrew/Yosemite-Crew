@@ -7,9 +7,7 @@ export interface RenderedEmailTemplate {
 }
 
 const formatDate = (date: DateLike): string =>
-  date instanceof Date
-    ? date.toUTCString()
-    : new Date(date).toUTCString();
+  date instanceof Date ? date.toUTCString() : new Date(date).toUTCString();
 
 const renderBaseEmail = (
   subject: string,
@@ -99,7 +97,6 @@ const createEmailTemplate =
     };
   };
 
-
 /* ---------- Organisation Invite ---------- */
 
 export interface OrganisationInviteTemplateData {
@@ -111,18 +108,17 @@ export interface OrganisationInviteTemplateData {
   supportEmail?: string;
 }
 
-export const renderOrganisationInviteTemplate = createEmailTemplate<
-  OrganisationInviteTemplateData
->((data) => {
-  const inviteeName = data.inviteeName?.trim() || "there";
-  const organisationName = data.organisationName.trim();
-  const inviterName = data.inviterName?.trim() || "a team member";
-  const expiry = formatDate(data.expiresAt);
-  const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+export const renderOrganisationInviteTemplate =
+  createEmailTemplate<OrganisationInviteTemplateData>((data) => {
+    const inviteeName = data.inviteeName?.trim() || "there";
+    const organisationName = data.organisationName.trim();
+    const inviterName = data.inviterName?.trim() || "a team member";
+    const expiry = formatDate(data.expiresAt);
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
 
-  return {
-    subject: `You’re invited to join ${organisationName} on Yosemite Crew`,
-    contentHtml: `
+    return {
+      subject: `You’re invited to join ${organisationName} on Yosemite Crew`,
+      contentHtml: `
       <tr>
         <td style="padding:32px 16px; font-family:Arial; font-size:18px;">
           <p>Hi ${inviteeName},</p>
@@ -147,7 +143,7 @@ export const renderOrganisationInviteTemplate = createEmailTemplate<
         </td>
       </tr>
     `,
-    textBody: `
+      textBody: `
 Hi ${inviteeName},
 
 ${inviterName} invited you to join ${organisationName}.
@@ -156,8 +152,8 @@ Accept: ${data.acceptUrl}
 Expires on ${expiry}
 Support: ${supportEmail}
     `.trim(),
-  };
-});
+    };
+  });
 
 /* ---------- Parent Invites Organisation ---------- */
 
@@ -249,5 +245,3 @@ ${supportEmail}
       `.trim(),
     };
   });
-
-
