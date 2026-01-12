@@ -31,7 +31,7 @@
 .ContactUsData .LeftContactUs {
   display: flex;
   flex-direction: column;
-  width: 45%;
+  width: 50%;
   justify-content: start;
 }
 .ContactUsData .LeftContactUs img {
@@ -51,15 +51,17 @@
   max-width: 350px;
 }
 .ContactUsData .RightContactUs {
-  box-shadow: 0px 0px 16px 0px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--color-neutral-0);
+  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--color-card-border);
   background: var(--color-neutral-0);
-  padding: 32px;
-  border-radius: 16px;
-  width: 45%;
+  padding: 20px;
+  border-radius: 24px;
+  width: 36%;
+  max-width: 500px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  justify-content: space-evenly;
+  gap: 24px;
 }
 .ContactUsData .RightContactUs .QueryText > div {
   margin: 0;
@@ -67,7 +69,7 @@
 .ContactUsData .RightContactUs .ContactForm {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 .ContactUsData .RightContactUs .QueryTypeRadioGroup {
   display: flex;
@@ -76,13 +78,21 @@
 }
 .ContactUsData .RightContactUs .QueryTypeRadioGroup label {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   align-items: center;
-  font-family: var(--font-grotesk);
-  font-size: 1.125rem;
-  font-weight: 500;
-  line-height: 1.625rem;
+  font-family: var(--font-satoshi);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5rem;
   color: var(--color-text-primary);
+  cursor: pointer;
+}
+.ContactUsData .RightContactUs .QueryTypeRadioGroup input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-brand-950);
 }
 .ContactUsData .RightContactUs .QueryDetailsFields {
   display: flex;
@@ -90,10 +100,10 @@
   gap: 8px;
 }
 .ContactUsData .RightContactUs .QueryDetailsFields label {
-  font-family: var(--font-grotesk);
-  font-size: 1.125rem;
+  font-family: var(--font-satoshi);
+  font-size: 1rem;
   font-weight: 500;
-  line-height: 1.625rem;
+  line-height: 1.5rem;
   color: var(--color-text-primary);
 }
 .ContactUsData .RightContactUs .QueryDetailsFields textarea {
@@ -134,11 +144,22 @@
   display: grid;
   grid-template-columns: auto 1fr;
   grid-gap: 10px;
+  align-items: start;
   font-family: var(--font-satoshi);
   font-size: 1.125rem;
   font-weight: 400;
   line-height: 1.625rem;
   color: var(--color-text-primary);
+  cursor: pointer;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type="radio"],
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  margin-top: 4px;
+  cursor: pointer;
+  accent-color: var(--color-brand-950);
 }
 .ContactUsData
   .RightContactUs
@@ -248,24 +269,26 @@
   margin: 0;
 }
 .SendBtn {
-  min-height: 60px;
+  min-height: 51px;
   border-radius: 16px;
-  padding: 16px 32px;
+  padding: 12px 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 160px;
   background-color: var(--color-neutral-900) !important;
   border: 1px solid var(--color-neutral-900) !important;
-  font-family: var(--font-grotesk);
+  font-family: var(--font-satoshi);
   font-weight: 500;
-  font-size: 1.4375rem;
-  line-height: 1.75rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
   color: var(--color-neutral-0);
   opacity: 50%;
+  transition: all 0.3s ease-in-out;
 }
 .SendBtn:hover {
   background-color: var(--color-neutral-950) !important;
+  transform: scale(1.02);
 }
 
 /* ContactInfoSec Ended */
@@ -320,7 +343,16 @@
   .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
     font-size: 0.9375rem;
     line-height: 1.375rem;
-    grid-template-columns: 20px 1fr;
+    grid-template-columns: auto 1fr;
+  }
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type="radio"],
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+  .ContactUsData .RightContactUs .QueryTypeRadioGroup input[type="radio"] {
+    width: 16px;
+    height: 16px;
   }
   .SendBtn {
     font-size: 1.1875rem;

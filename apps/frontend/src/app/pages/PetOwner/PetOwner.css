@@ -1,5 +1,5 @@
 .PwtOwnerContainer {
-  padding: 32px 80px;
+  padding: 0px 80px;
   max-width: 1560px;
   width: 100%;
   display: flex;
@@ -21,6 +21,7 @@
   background: linear-gradient(355.06deg, #ffffff 64.22%, #eaeef6 95.67%);
 }
 .DownlodeSec {
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,26 +30,30 @@
   display: flex;
   height: 100%;
   width: 100%;
+  align-items: center;
+  gap: 32px;
 }
 .Downlode_Data img {
-  width: 58%;
+  width: 50%;
   height: auto;
+  max-height: 80vh;
+  object-fit: contain;
 }
 .downlodetext {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
-  width: 42%;
+  gap: 16px;
+  width: 50%;
 }
 .downlodetext > div {
   margin: 0;
 }
 .downlodetext > div:first-child {
-  max-width: 450px;
+  max-width: 500px;
 }
 .downlodetext > div:last-child {
-  max-width: 430px;
+  max-width: 480px;
 }
 @media screen and (max-width: 1280px) {
   .downlodetext {
@@ -64,6 +69,12 @@
   }
 }
 @media screen and (max-width: 1024px) {
+  .DownlodeSec {
+    min-height: auto;
+  }
+  .PetToolkitSec {
+    min-height: auto;
+  }
   .Downlode_Data {
     flex-direction: column;
     gap: 32px;
@@ -72,6 +83,7 @@
   .Downlode_Data img {
     width: 100%;
     height: auto;
+    max-height: none;
   }
   .downlodetext {
     width: 100%;
@@ -107,11 +119,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 48px 0;
 }
 .ToolkitData {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
   width: 100%;
 }
 .ToolkitHead > div {
@@ -122,24 +135,33 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
 }
 .CardToolItem {
-  height: 240px;
-  width: 240px;
-  border-radius: 16px;
+  height: 180px;
+  width: 180px;
+  border-radius: 12px;
   background: var(--blue-text);
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
 }
 .CardToolItem svg {
   color: var(--skytext);
-  position: relative;
-  top: -15px;
-  right: -90px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 100px;
+  height: 100px;
 }
 .CardToolItem > div {
   text-align: center;
   margin: 0;
+  align-self: center;
+  font-size: 1rem;
+  line-height: 1.25rem;
 }
 @media screen and (max-width: 1280px) {
   .CardToolItem {
@@ -152,8 +174,6 @@
   .CardToolItem svg {
     height: 120px;
     width: 120px;
-    top: -15px;
-    right: -70px;
   }
   .CardToolItem > div {
     font-size: 1.1875rem;
@@ -173,8 +193,6 @@
   .CardToolItem svg {
     height: 90px;
     width: 90px;
-    top: -15px;
-    right: -50px;
   }
   .CardToolItem > div {
     font-size: 0.875rem;

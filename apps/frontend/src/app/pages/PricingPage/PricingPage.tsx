@@ -109,7 +109,7 @@ const PricingPage = () => {
                         {plan.title}
                       </div>
                       {plan.recommended && (
-                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-semibold">
+                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-normal">
                           Recommended
                         </div>
                       )}

@@ -88,8 +88,8 @@ const HomePage = () => {
         <div className="Container">
           <div className="FocusData">
             <div className="FocusTexted">
-              <div className="text-display-1 text-text-primary">Focus on care, not admin</div>
-              <div className="text-body-3 text-text-primary">
+              <div className="text-display-2 text-text-primary">Focus on care, not admin</div>
+              <div className="text-body-4 text-text-primary">
                 The easy-to-use, cloud-based software that simplifies practice
                 management and elevates animal care.
               </div>

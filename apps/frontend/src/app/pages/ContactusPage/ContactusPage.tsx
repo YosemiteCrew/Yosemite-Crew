@@ -189,7 +189,7 @@ const ContactusPage = () => {
           <div className="ContactUsData">
             <div className="LeftContactUs">
               <div className="conttexted">
-                <div className="text-body-3-emphasis text-text-brand">Contact us</div>
+                <div className="text-body-4-emphasis text-text-brand">Contact us</div>
                 <div className="text-display-2 text-text-primary">Need help? We&rsquo;re all ears!</div>
               </div>
               <Image
@@ -204,7 +204,7 @@ const ContactusPage = () => {
 
             <div className="RightContactUs">
               <div className="QueryText">
-                <div className="text-display-2 text-text-primary">Submit your query</div>
+                <div className="text-display-2 text-text-primary text-center">Submit your query</div>
               </div>
 
               {/* Contact Form */}
@@ -254,7 +254,7 @@ const ContactusPage = () => {
               {selectedQueryType === "Data Service Access Request" && (
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted">
-                    <div className="text-body-3-emphasis text-text-primary">You are submitting this request as</div>
+                    <div className="text-body-4-emphasis text-text-primary">You are submitting this request as</div>
                     {subrequestOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -270,7 +270,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-3-emphasis text-text-primary">
+                    <div className="text-body-4-emphasis text-text-primary">
                       Under the rights of which law are you making this request?
                     </div>
                     <DynamicSelect
@@ -283,7 +283,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-3-emphasis text-text-primary">You are submitting this request to</div>
+                    <div className="text-body-4-emphasis text-text-primary">You are submitting this request to</div>
                     {requestOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -324,7 +324,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-3-emphasis text-text-primary">I confirm that</div>
+                    <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
                     {confirmOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -356,7 +356,7 @@ const ContactusPage = () => {
               {selectedQueryType === "Complaint" && (
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted" style={{ gap: "16px" }}>
-                    <div className="text-body-3-emphasis text-text-primary">You are submitting this complaint as</div>
+                    <div className="text-body-4-emphasis text-text-primary">You are submitting this complaint as</div>
                     {subrequestOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -396,7 +396,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-3-emphasis text-text-primary">Please add link regarding your complaint (optional)</div>
+                    <div className="text-body-4-emphasis text-text-primary">Please add link regarding your complaint (optional)</div>
                     <FormInput
                       intype="text"
                       inname="complaintLink"
@@ -407,7 +407,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-3-emphasis text-text-primary">Please add image regarding your complaint (optional)</div>
+                    <div className="text-body-4-emphasis text-text-primary">Please add image regarding your complaint (optional)</div>
                     <div className="UploadBox">
                       <input
                         id="complaintImage"
@@ -432,7 +432,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <div className="text-body-3-emphasis text-text-primary">I confirm that</div>
+                    <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
                     {confirmOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -509,7 +509,7 @@ const ContactusPage = () => {
         <div className="ContactWrapper">
           <div className="ContactInfoData">
             <div className="LeftContInfo">
-              <div className="text-body-3-emphasis text-text-brand">Contact Info</div>
+              <div className="text-body-4-emphasis text-text-brand">Contact Info</div>
               <div className="text-display-2 text-text-primary">We are happy to assist you</div>
             </div>
             <div className="ContactInfoDetail">

@@ -271,33 +271,10 @@ input[type="checkbox"]:checked::after {
   transform: translate(-50%, -50%) rotate(45deg);
 }
 input[type="radio"] {
-  width: 16px;
-  height: 16px;
-  -moz-appearance: none;
-  -webkit-appearance: none;
-  appearance: none;
-  border-radius: 50%;
-  border: 1px solid var(--black-text) !important;
-  background-color: transparent;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
-  position: relative;
-  font-weight: 500;
-  font-family: var(--grotesk-font);
-}
-input[type="radio"]:checked {
-  background-color: var(--blue-text) !important;
-  border: 1px solid var(--blue-text) !important;
-}
-input[type="radio"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--whitebg);
-  transform: translate(-50%, -50%);
+  accent-color: var(--blue-text);
 }
 /* Chrome, Safari, Edge, Opera */
 input::-webkit-outer-spin-button,

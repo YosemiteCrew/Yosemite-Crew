@@ -259,7 +259,7 @@ a.UnFillbtn {
   justify-content: center;
   flex-direction: column;
   gap: 8px;
-  min-width: 443px;
+  max-width: 600px;
   margin: 0 auto;
   text-align: center;
 }
@@ -268,7 +268,7 @@ a.UnFillbtn {
 }
 .FocusTexted > div:last-child {
   margin: 0;
-  max-width: 422px;
+  max-width: 500px;
 }
 .Focus_data {
   display: grid;
