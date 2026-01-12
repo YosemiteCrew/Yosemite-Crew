@@ -114,7 +114,7 @@
   text-align: left;
   font-size: 16px;
   font-weight: 500;
-  color: #1a2130;
+  color: var(--color-neutral-950);
   padding: 20px;
   min-height: 200px;
   background: var(--lightblue);
@@ -125,7 +125,7 @@
   text-align: left !important;
 }
 .carousel-indicators [data-bs-target] {
-  background-color: #1a2130;
+  background-color: var(--color-neutral-950);
   width: 8px;
   height: 8px;
   border-radius: 50%;
