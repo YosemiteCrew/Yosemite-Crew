@@ -56,16 +56,17 @@ describe("WeekCalendar (Task)", () => {
   const setCurrentDate = jest.fn();
 
   const weekStart = new Date(2025, 0, 6, 12);
-  const days = [
-    new Date(2025, 0, 6, 12),
-    new Date(2025, 0, 7, 12),
-  ];
+  const days = [new Date(2025, 0, 6, 12), new Date(2025, 0, 7, 12)];
 
   const events: Task[] = [
     {
       name: "Task A",
       dueAt: new Date(2025, 0, 6, 10),
-      status: "pending",
+      status: "PENDING",
+      _id: "",
+      audience: "EMPLOYEE_TASK",
+      source: "CUSTOM",
+      category: "",
     } as Task,
   ];
 
@@ -127,9 +128,7 @@ describe("WeekCalendar (Task)", () => {
     prevFn(weekStart);
     nextFn(weekStart);
 
-    expect(setCurrentDate).toHaveBeenCalledWith(
-      new Date(2024, 11, 30, 12)
-    );
+    expect(setCurrentDate).toHaveBeenCalledWith(new Date(2024, 11, 30, 12));
     expect(setCurrentDate).toHaveBeenCalledWith(new Date(2025, 0, 13, 12));
   });
 });

@@ -81,14 +81,17 @@ describe("SpecialityCard", () => {
       headName: "",
       headUserId: "",
       teamMemberIds: [],
+      organisationId: "",
       services: [
         {
           id: "svc-1",
+          organisationId: "",
           name: "Checkup",
           description: "",
           durationMinutes: 30,
           cost: 10,
           maxDiscount: 0,
+          isActive: true
         },
       ],
     } as SpecialityWeb;

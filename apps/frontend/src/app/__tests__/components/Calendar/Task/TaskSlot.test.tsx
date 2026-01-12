@@ -30,13 +30,21 @@ describe("TaskSlot", () => {
       {
         name: "Task A",
         dueAt: new Date("2025-01-06T10:00:00Z"),
-        status: "pending",
+        status: "PENDING",
         assignedTo: "user-1",
+        _id: "",
+        audience: "EMPLOYEE_TASK",
+        source: "CUSTOM",
+        category: "",
       } as Task,
       {
         name: "Task B",
         dueAt: new Date("2025-01-06T11:00:00Z"),
-        status: "completed",
+        status: "COMPLETED",
+        _id: "",
+        audience: "EMPLOYEE_TASK",
+        source: "CUSTOM",
+        category: "",
       } as Task,
     ];
 
@@ -58,7 +66,9 @@ describe("TaskSlot", () => {
     fireEvent.click(screen.getByText("Task A").closest("button")!);
     expect(handleViewTask).toHaveBeenCalledWith(slotEvents[0]);
 
-    const container = screen.getByText("Task A").closest("button")!.parentElement;
+    const container = screen
+      .getByText("Task A")
+      .closest("button")!.parentElement;
     expect(container).toHaveStyle("height: 200px");
   });
 

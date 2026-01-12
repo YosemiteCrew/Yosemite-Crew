@@ -45,11 +45,14 @@ describe("InvoiceTable", () => {
     id: "inv-1",
     companionId: "comp-1",
     appointmentId: "appt-1",
-    createdAt: "2025-01-01T10:00:00Z",
+    createdAt: new Date(),
     subtotal: 10,
     taxTotal: 2,
     totalAmount: 12,
-    status: "pending",
+    status: "PENDING",
+    items: [],
+    currency: "AED",
+    updatedAt: new Date()
   } as Invoice;
 
   it("renders columns and handles view action", () => {

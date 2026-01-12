@@ -10,7 +10,10 @@ jest.mock("@/app/hooks/useTeam", () => ({
 }));
 
 jest.mock("@/app/components/DataTable/Tasks", () => ({
-  getStatusStyle: jest.fn(() => ({ backgroundColor: "purple", color: "white" })),
+  getStatusStyle: jest.fn(() => ({
+    backgroundColor: "purple",
+    color: "white",
+  })),
 }));
 
 jest.mock("@/app/components/Icons/Back", () => ({
@@ -49,13 +52,21 @@ describe("DayCalendar (Task)", () => {
       {
         name: "Morning Task",
         dueAt: new Date("2025-01-06T10:00:00Z"),
-        status: "pending",
+        status: "PENDING",
         assignedTo: "user-1",
+        _id: "",
+        audience: "EMPLOYEE_TASK",
+        source: "CUSTOM",
+        category: "",
       } as Task,
       {
         name: "Unassigned Task",
         dueAt: new Date("2025-01-06T11:00:00Z"),
-        status: "completed",
+        status: "COMPLETED",
+        _id: "",
+        audience: "EMPLOYEE_TASK",
+        source: "CUSTOM",
+        category: "",
       } as Task,
     ];
 

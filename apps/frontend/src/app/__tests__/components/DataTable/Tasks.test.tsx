@@ -49,7 +49,7 @@ describe("Tasks table", () => {
     assignedBy: "team-1",
     assignedTo: "team-2",
     dueAt: new Date("2025-01-01T10:00:00Z"),
-    status: "pending",
+    status: "PENDING",
   } as Task;
 
   beforeEach(() => {

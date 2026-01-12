@@ -166,7 +166,7 @@ describe("<Companion />", () => {
   it("shows required field errors when missing", () => {
     const formData = buildCompanion({
       name: "",
-      type: "",
+      type: undefined,
       breed: "",
       dateOfBirth: undefined as unknown as Date,
     });

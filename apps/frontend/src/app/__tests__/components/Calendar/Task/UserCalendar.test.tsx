@@ -59,7 +59,11 @@ describe("UserCalendar (Task)", () => {
       name: "Task A",
       assignedTo: "user-1",
       dueAt: new Date("2025-01-06T10:00:00Z"),
-      status: "pending",
+      status: "PENDING",
+      _id: "",
+      audience: "EMPLOYEE_TASK",
+      source: "CUSTOM",
+      category: "",
     } as Task,
   ];
 

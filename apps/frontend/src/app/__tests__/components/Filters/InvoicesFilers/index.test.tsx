@@ -8,8 +8,25 @@ import { Invoice } from "@yosemite-crew/types";
 describe("InvoicesFilters", () => {
   it("filters list based on selected status", () => {
     const list: Invoice[] = [
-      { id: "1", status: "pending" } as Invoice,
-      { id: "2", status: "paid" } as Invoice,
+      {
+        id: "1",
+        status: "PENDING",
+        items: [],
+        subtotal: 10,
+        totalAmount: 15,
+        currency: "AED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Invoice,
+      {
+        id: "2",
+        status: "PAID",
+        subtotal: 10,
+        totalAmount: 15,
+        currency: "AED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Invoice,
     ];
     const setFilteredList = jest.fn();
 
@@ -19,6 +36,6 @@ describe("InvoicesFilters", () => {
 
     const filtered = setFilteredList.mock.calls.at(-1)?.[0] as Invoice[];
     expect(filtered).toHaveLength(1);
-    expect(filtered[0].status).toBe("paid");
+    expect(filtered[0].status).toBe("PAID");
   });
 });
