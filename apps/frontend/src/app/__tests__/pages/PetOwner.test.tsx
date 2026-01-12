@@ -41,14 +41,10 @@ describe("PetOwner page", () => {
     render(<PetOwner />);
 
     expect(
-      screen.getByRole("heading", {
-        name: /Your companion’s health, in your hands/i,
-      })
+      screen.getByText(/Your companion.?s health, in your hands/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /Your companion’s all-in-one Toolkit/i,
-      })
+      screen.getByText(/Your companion.?s all-in-one toolkit/i)
     ).toBeInTheDocument();
     expect(screen.getAllByTestId(/icon-solar:/)).not.toHaveLength(0);
     expect(screen.getByTestId("footer")).toBeInTheDocument();

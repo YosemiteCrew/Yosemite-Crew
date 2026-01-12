@@ -32,21 +32,8 @@
   align-items: center;
   text-align: center;
 }
-.PricingPage-header .PricinhHeadquote h2 {
-  font-family: var(--grotesk-font);
-  font-weight: 500;
-  font-size: 48px;
-  line-height: 120%;
+.PricingPage-header .PricinhHeadquote > div {
   margin: 0;
-  color: var(--black-text);
-}
-.PricingPage-header .PricinhHeadquote p {
-  font-family: var(--satoshi-font);
-  font-weight: 400;
-  font-size: 15px;
-  line-height: 160%;
-  margin: 0;
-  color: var(--black-text);
 }
 @media screen and (max-width: 1280px) {
   .pricingSection {
@@ -55,8 +42,9 @@
   .pricingSection .PricingData {
     gap: 64px;
   }
-  .PricingPage-header .PricinhHeadquote h2 {
-    font-size: 33px;
+  .PricingPage-header .PricinhHeadquote > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 768px) {
@@ -66,12 +54,13 @@
   .PricingPage-header {
     gap: 16px;
   }
-  .PricingPage-header .PricinhHeadquote h2 {
-    font-size: 23px;
+  .PricingPage-header .PricinhHeadquote > div:first-child {
+    font-size: 1.4375rem;
+    line-height: 1.75rem;
   }
-  .PricingPage-header .PricinhHeadquote p {
-    font-size: 13px;
-    line-height: 110%;
+  .PricingPage-header .PricinhHeadquote > div:last-child {
+    font-size: 0.8125rem;
+    line-height: 1.1875rem;
   }
 }
 /* PricingPage-header Ended   */

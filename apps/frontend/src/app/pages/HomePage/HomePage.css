@@ -36,12 +36,7 @@
   width: 100%;
   height: auto;
 }
-.herotext h1 {
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
-  font-family: var(--grotesk-font);
+.herotext > div {
   overflow: hidden;
   white-space: nowrap;
   padding: 5px 0px;
@@ -76,15 +71,10 @@
   flex-direction: column;
   gap: 16px;
 }
-.paraitem p {
+.paraitem > div {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--satoshi-font);
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 120%;
-  color: var(--black-text);
   margin: 0;
 }
 .HeroBtn {
@@ -139,8 +129,8 @@ a.UnFillbtn {
   .HomeHeroData {
     gap: 20px;
   }
-  .herotext h1 {
-    font-size: 33px;
+  .herotext > div {
+    font-size: 2.0625rem;
   }
 }
 @media screen and (max-width: 1024px) {
@@ -165,11 +155,11 @@ a.UnFillbtn {
   .LeftHeroDiv {
     gap: 12px;
   }
-  .herotext h1 {
-    font-size: 23px;
+  .herotext > div {
+    font-size: 1.4375rem;
   }
-  .paraitem p {
-    font-size: 15px;
+  .paraitem > div {
+    font-size: 0.9375rem;
     line-height: 160%;
   }
 }
@@ -197,13 +187,9 @@ a.UnFillbtn {
   gap: 28px;
   width: 100%;
 }
-.PractHeading h2 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
+.PractHeading > div {
   width: 40%;
+  margin: 0;
 }
 .Practice_Box_Data {
   width: 100%;
@@ -213,8 +199,8 @@ a.UnFillbtn {
   justify-items: center;
 }
 @media screen and (max-width: 1280px) {
-  .PractHeading h2 {
-    font-size: 33px;
+  .PractHeading > div {
+    font-size: 2.0625rem;
     text-align: center;
     width: 100%;
   }
@@ -233,8 +219,8 @@ a.UnFillbtn {
   }
 }
 @media screen and (max-width: 768px) {
-  .PractHeading h2 {
-    font-size: 23px;
+  .PractHeading > div {
+    font-size: 1.4375rem;
     text-align: center;
     width: 100%;
   }
@@ -277,21 +263,11 @@ a.UnFillbtn {
   margin: 0 auto;
   text-align: center;
 }
-.FocusTexted h2 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
+.FocusTexted > div:first-child {
   margin: 0;
 }
-.FocusTexted p {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 120%;
-  color: var(--black-text);
+.FocusTexted > div:last-child {
   margin: 0;
-  font-family: var(--satoshi-font);
   max-width: 422px;
 }
 .Focus_data {
@@ -301,8 +277,8 @@ a.UnFillbtn {
   padding: 10px 0px;
 }
 @media screen and (max-width: 1280px) {
-  .FocusTexted h2 {
-    font-size: 33px;
+  .FocusTexted > div:first-child {
+    font-size: 2.0625rem;
   }
   .Focus_data {
     grid-gap: 18px;
@@ -323,11 +299,11 @@ a.UnFillbtn {
   .FocusTexted {
     min-width: 100%;
   }
-  .FocusTexted h2 {
-    font-size: 23px;
+  .FocusTexted > div:first-child {
+    font-size: 1.4375rem;
   }
-  .FocusTexted p {
-    font-size: 13px;
+  .FocusTexted > div:last-child {
+    font-size: 0.8125rem;
     max-width: 328px;
   }
   .Focus_data {
@@ -484,22 +460,12 @@ a.UnFillbtn {
   flex-direction: column;
   gap: 8px;
 }
-.whocareData .lftcare h2 {
-  font-family: var(--grotesk-font);
-  color: var(--black-text);
+.whocareData .lftcare > div:first-child {
   margin: 0;
-  font-weight: 500;
-  font-size: 48px;
-  line-height: 120%;
   max-width: 432px;
 }
-.whocareData .lftcare p {
-  font-family: var(--satoshi-font);
-  color: var(--black-text);
+.whocareData .lftcare > div:last-child {
   margin: 0;
-  font-weight: 400;
-  font-size: 18px;
-  line-height: 120%;
 }
 .whocareData .rytcare {
   display: flex;
@@ -511,8 +477,8 @@ a.UnFillbtn {
   .whocareData {
     padding: 0px 0px;
   }
-  .whocareData .lftcare h2 {
-    font-size: 33px;
+  .whocareData .lftcare > div:first-child {
+    font-size: 2.0625rem;
     max-width: 300px;
   }
   .rytcare img:nth-child(1) {
@@ -537,12 +503,12 @@ a.UnFillbtn {
     grid-template-columns: 1fr;
     gap: 24px;
   }
-  .whocareData .lftcare h2 {
+  .whocareData .lftcare > div:first-child {
     text-align: center;
     width: 100%;
     max-width: none;
   }
-  .whocareData .lftcare p {
+  .whocareData .lftcare > div:last-child {
     text-align: center;
   }
   .whocareData .rytcare {
@@ -554,11 +520,11 @@ a.UnFillbtn {
   .whocareData .lftcare {
     gap: 4px;
   }
-  .whocareData .lftcare h2 {
-    font-size: 23px;
+  .whocareData .lftcare > div:first-child {
+    font-size: 1.4375rem;
   }
-  .whocareData .lftcare p {
-    font-size: 15px;
+  .whocareData .lftcare > div:last-child {
+    font-size: 0.9375rem;
     line-height: 160%;
   }
   .whocareData .rytcare {
@@ -605,20 +571,11 @@ a.UnFillbtn {
   flex-direction: column;
   gap: 8px;
 }
-.betInner h2 {
-  font-size: 48px;
-  font-weight: 500;
+.betInner .careText > div:first-child {
   margin: 0;
-  font-family: var(--grotesk-font);
-  color: var(--black-text);
-  line-height: 120%;
   max-width: 350px;
 }
-.betInner p {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 120%;
-  font-family: var(--satoshi-font);
+.betInner .careText > div:last-child {
   margin: 0;
 }
 .lftbetter img {
@@ -626,11 +583,11 @@ a.UnFillbtn {
   object-fit: cover;
 }
 @media screen and (max-width: 1280px) {
-  .betInner h2 {
-    font-size: 33px;
+  .betInner .careText > div:first-child {
+    font-size: 2.0625rem;
   }
-  .betInner p {
-    font-size: 13px;
+  .betInner .careText > div:last-child {
+    font-size: 0.8125rem;
   }
 }
 @media screen and (max-width: 1024px) {
@@ -640,16 +597,16 @@ a.UnFillbtn {
   .lftbetter img {
     height: 346px;
   }
-  .betInner h2 {
-  max-width: 100%;
-}
+  .betInner .careText > div:first-child {
+    max-width: 100%;
+  }
 }
 @media screen and (max-width: 768px) {
   .BettercareBox {
     gap: 0px;
   }
-  .betInner h2 {
-    font-size: 23px;
+  .betInner .careText > div:first-child {
+    font-size: 1.4375rem;
   }
   .betInner {
     gap: 12px;

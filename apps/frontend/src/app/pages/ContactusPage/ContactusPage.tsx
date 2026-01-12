@@ -189,8 +189,8 @@ const ContactusPage = () => {
           <div className="ContactUsData">
             <div className="LeftContactUs">
               <div className="conttexted">
-                <span>Contact us</span>
-                <h2>Need help? We’re all ears!</h2>
+                <div className="text-body-3-emphasis text-text-brand">Contact us</div>
+                <div className="text-display-2 text-text-primary">Need help? We&rsquo;re all ears!</div>
               </div>
               <Image
                 alt="Contact Image"
@@ -204,7 +204,7 @@ const ContactusPage = () => {
 
             <div className="RightContactUs">
               <div className="QueryText">
-                <h3>Submit your query</h3>
+                <div className="text-display-2 text-text-primary">Submit your query</div>
               </div>
 
               {/* Contact Form */}
@@ -254,7 +254,7 @@ const ContactusPage = () => {
               {selectedQueryType === "Data Service Access Request" && (
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted">
-                    <p>You are submitting this request as</p>
+                    <div className="text-body-3-emphasis text-text-primary">You are submitting this request as</div>
                     {subrequestOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -270,9 +270,9 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>
+                    <div className="text-body-3-emphasis text-text-primary">
                       Under the rights of which law are you making this request?
-                    </p>
+                    </div>
                     <DynamicSelect
                       options={areaOptions}
                       value={area}
@@ -283,7 +283,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>You are submitting this request to</p>
+                    <div className="text-body-3-emphasis text-text-primary">You are submitting this request to</div>
                     {requestOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -313,7 +313,7 @@ const ContactusPage = () => {
                     {errors?.message && (
                       <div
                         style={{
-                          color: "#EA3729",
+                          color: "var(--color-danger-600)",
                           fontSize: "14px",
                           marginTop: "4px",
                         }}
@@ -324,7 +324,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>I confirm that</p>
+                    <div className="text-body-3-emphasis text-text-primary">I confirm that</div>
                     {confirmOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -356,7 +356,7 @@ const ContactusPage = () => {
               {selectedQueryType === "Complaint" && (
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted" style={{ gap: "16px" }}>
-                    <p>You are submitting this complaint as</p>
+                    <div className="text-body-3-emphasis text-text-primary">You are submitting this complaint as</div>
                     {subrequestOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -385,7 +385,7 @@ const ContactusPage = () => {
                     {errors?.message && (
                       <div
                         style={{
-                          color: "#EA3729",
+                          color: "var(--color-danger-600)",
                           fontSize: "14px",
                           marginTop: "4px",
                         }}
@@ -396,7 +396,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>Please add link regarding your complaint (optional)</p>
+                    <div className="text-body-3-emphasis text-text-primary">Please add link regarding your complaint (optional)</div>
                     <FormInput
                       intype="text"
                       inname="complaintLink"
@@ -407,7 +407,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>Please add image regarding your complaint (optional)</p>
+                    <div className="text-body-3-emphasis text-text-primary">Please add image regarding your complaint (optional)</div>
                     <div className="UploadBox">
                       <input
                         id="complaintImage"
@@ -432,7 +432,7 @@ const ContactusPage = () => {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>I confirm that</p>
+                    <div className="text-body-3-emphasis text-text-primary">I confirm that</div>
                     {confirmOptions.map((option) => (
                       <label key={option}>
                         <input
@@ -478,7 +478,7 @@ const ContactusPage = () => {
                     {errors?.message && (
                       <div
                         style={{
-                          color: "#EA3729",
+                          color: "var(--color-danger-600)",
                           fontSize: "14px",
                           marginTop: "4px",
                         }}
@@ -509,29 +509,29 @@ const ContactusPage = () => {
         <div className="ContactWrapper">
           <div className="ContactInfoData">
             <div className="LeftContInfo">
-              <span>Contact Info</span>
-              <h2>We are happy to assist you</h2>
+              <div className="text-body-3-emphasis text-text-brand">Contact Info</div>
+              <div className="text-display-2 text-text-primary">We are happy to assist you</div>
             </div>
             <div className="ContactInfoDetail">
               <div className="LeftDetails">
                 <div className="detailitem">
-                  <h4>Email Address</h4>
+                  <div className="text-body-3-emphasis text-text-primary">Email Address</div>
                 </div>
                 <div className="detailTexed">
-                  <Link href="mailto:support@yosemitecrew.com">
+                  <Link href="mailto:support@yosemitecrew.com" className="text-body-3-emphasis text-text-brand">
                     support@yosemitecrew.com
                   </Link>
-                  <p>Assistance hours: Monday - Friday 9 am to 5 pm EST</p>
+                  <div className="text-body-3 text-text-primary">Assistance hours: Monday - Friday 9 am to 5 pm EST</div>
                 </div>
               </div>
 
               <div className="LeftDetails">
                 <div className="detailitem">
-                  <h4>Phone</h4>
+                  <div className="text-body-3-emphasis text-text-primary">Phone</div>
                 </div>
                 <div className="detailTexed">
-                  <Link href="tel:+49 152 277 63275">+49 152 277 63275</Link>
-                  <p>Assistance hours: Monday - Friday 9 am to 5 pm EST</p>
+                  <Link href="tel:+49 152 277 63275" className="text-body-3-emphasis text-text-brand">+49 152 277 63275</Link>
+                  <div className="text-body-3 text-text-primary">Assistance hours: Monday - Friday 9 am to 5 pm EST</div>
                 </div>
               </div>
             </div>

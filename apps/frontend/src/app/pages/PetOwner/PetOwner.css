@@ -41,31 +41,23 @@
   gap: 10px;
   width: 42%;
 }
-.downlodetext h1 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 58.4px;
-  letter-spacing: -0.02em;
-  color: var(--black-text);
+.downlodetext > div {
+  margin: 0;
+}
+.downlodetext > div:first-child {
   max-width: 450px;
 }
-.downlodetext p {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 23.6px;
-  letter-spacing: -0.02em;
-  color: #000000;
+.downlodetext > div:last-child {
   max-width: 430px;
 }
 @media screen and (max-width: 1280px) {
   .downlodetext {
     width: 45%;
   }
-  .downlodetext h1 {
-    font-size: 33px;
+  .downlodetext > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
     max-width: 300px;
-    line-height: 120%;
   }
   .Downlode_Data img {
     width: 55%;
@@ -85,11 +77,11 @@
     width: 100%;
     align-items: center;
   }
-  .downlodetext h1 {
+  .downlodetext > div:first-child {
     text-align: center;
     max-width: 350px;
   }
-  .downlodetext p {
+  .downlodetext > div:last-child {
     text-align: center;
     width: 100%;
     max-width: 80%;
@@ -99,12 +91,13 @@
   .downlodetext {
     gap: 0px;
   }
-  .downlodetext h1 {
-    font-size: 23px;
+  .downlodetext > div:first-child {
+    font-size: 1.4375rem;
+    line-height: 1.75rem;
   }
-  .downlodetext p {
-    font-size: 13px;
-    line-height: 130%;
+  .downlodetext > div:last-child {
+    font-size: 0.8125rem;
+    line-height: 1.1875rem;
   }
 }
 
@@ -121,12 +114,7 @@
   gap: 28px;
   width: 100%;
 }
-.ToolkitHead h2 {
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  font-family: var(--grotesk-font);
-  color: var(--pureblack);
+.ToolkitHead > div {
   margin: 0;
   text-align: center;
 }
@@ -149,12 +137,8 @@
   top: -15px;
   right: -90px;
 }
-.CardToolItem h6 {
+.CardToolItem > div {
   text-align: center;
-  font-weight: 400;
-  font-size: 23px;
-  line-height: 120%;
-  color: var(--white-text);
   margin: 0;
 }
 @media screen and (max-width: 1280px) {
@@ -162,8 +146,8 @@
     height: 210px;
     width: 210px;
   }
-  .ToolkitHead h2 {
-    font-size: 33px;
+  .ToolkitHead > div {
+    font-size: 2.0625rem;
   }
   .CardToolItem svg {
     height: 120px;
@@ -171,8 +155,8 @@
     top: -15px;
     right: -70px;
   }
-  .CardToolItem h6 {
-    font-size: 19px;
+  .CardToolItem > div {
+    font-size: 1.1875rem;
   }
 }
 @media screen and (max-width: 768px) {
@@ -183,8 +167,8 @@
     height: 160px;
     width: 150px;
   }
-  .ToolkitHead h2 {
-    font-size: 23px;
+  .ToolkitHead > div {
+    font-size: 1.4375rem;
   }
   .CardToolItem svg {
     height: 90px;
@@ -192,8 +176,8 @@
     top: -15px;
     right: -50px;
   }
-  .CardToolItem h6 {
-    font-size: 14px;
+  .CardToolItem > div {
+    font-size: 0.875rem;
   }
 }
 @media screen and (max-width: 340px) {
@@ -219,12 +203,7 @@
 .PawsHead {
   text-align: center;
 }
-.PawsHead h2 {
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  font-family: var(--grotesk-font);
-  color: var(--pureblack);
+.PawsHead > div {
   margin: 0;
 }
 .BrownDiv img,
@@ -282,8 +261,8 @@
   }
 }
 @media screen and (max-width: 1280px) {
-  .PawsHead h2 {
-    font-size: 33px;
+  .PawsHead > div {
+    font-size: 2.0625rem;
   }
   .BrownDiv::after {
     left: 50px;
@@ -308,8 +287,8 @@
   .PawsPraisesSec {
     padding: 16px 0px;
   }
-  .PawsHead h2 {
-    font-size: 23px;
+  .PawsHead > div {
+    font-size: 1.4375rem;
   }
   .BrownDiv::after {
     left: 50px;
@@ -371,12 +350,7 @@
 .GlimsData .GlimpsHead {
   text-align: center;
 }
-.GlimsData .GlimpsHead h2 {
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  font-family: var(--grotesk-font);
-  color: var(--pureblack);
+.GlimsData .GlimpsHead > div {
   margin: 0;
 }
 .GlimpsImage {
@@ -389,8 +363,8 @@
   height: auto;
 }
 @media screen and (max-width: 1280px) {
-  .GlimsData .GlimpsHead h2 {
-    font-size: 33px;
+  .GlimsData .GlimpsHead > div {
+    font-size: 2.0625rem;
   }
   .GlimsData {
     gap: 10px;
@@ -398,8 +372,8 @@
   }
 }
 @media screen and (max-width: 768px) {
-  .GlimsData .GlimpsHead h2 {
-    font-size: 23px;
+  .GlimsData .GlimpsHead > div {
+    font-size: 1.4375rem;
   }
   .GlimsData {
     gap: 10px;
@@ -442,21 +416,10 @@
   flex-direction: column;
   gap: 18px;
 }
-.PetAppText h2 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 58.4px;
-  letter-spacing: -0.02em;
-  color: var(--black-text);
+.PetAppText > div:first-child {
   max-width: 500px;
 }
-.PetAppText p {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 23.6px;
-  letter-spacing: -0.02em;
-  color: #000000;
+.PetAppText > div:last-child {
   max-width: 407px;
   margin-bottom: 0px !important;
 }
@@ -473,26 +436,26 @@
   .PetAppData {
     gap: 20px;
   }
-  .PetAppText h2 {
-    font-size: 33px;
+  .PetAppText > div:first-child {
+    font-size: 2.0625rem;
     max-width: 300px;
     line-height: 120%;
   }
-  .PetAppText p {
-    font-size: 16px;
+  .PetAppText > div:last-child {
+    font-size: 1rem;
     line-height: 130%;
     max-width: 300px;
   }
 }
 @media screen and (max-width: 1024px) {
-  .PetAppText h2 {
+  .PetAppText > div:first-child {
     max-width: 100%;
     text-align: center;
   }
   .LftpetApp {
     align-items: center;
   }
-  .PetAppText p {
+  .PetAppText > div:last-child {
     max-width: 100%;
     text-align: center;
   }
@@ -505,11 +468,11 @@
   }
 }
 @media screen and (max-width: 768px) {
-  .PetAppText h2 {
-    font-size: 23px;
+  .PetAppText > div:first-child {
+    font-size: 1.4375rem;
   }
-  .PetAppText p {
-    font-size: 13px;
+  .PetAppText > div:last-child {
+    font-size: 0.8125rem;
   }
   .PetAppData {
     margin-bottom: 30px;
@@ -551,21 +514,22 @@
   display: flex;
   flex-direction: column;
 }
-.PetAppBtn a div p {
-  font-family: var(--font-grotesk);
+.app-store-text-small {
+  font-family: var(--grotesk-font);
   font-size: 13px;
   font-weight: 500;
   line-height: 120%;
   margin: 0;
   color: var(--white-text);
 }
-.PetAppBtn a div h6 {
+.app-store-text-large {
   color: var(--white-text);
-  font-family: var(--font-grotesk);
+  font-family: var(--grotesk-font);
   font-size: 23px;
   font-weight: 500;
   line-height: 120%;
   margin: 0;
+  white-space: nowrap;
 }
 
 @media screen and (max-width: 1280px) {
@@ -577,7 +541,7 @@
   .PetAppBtn a div {
     width: 130px;
   }
-  .PetAppBtn a div p {
+  .app-store-text-small {
     text-align: left;
   }
 }
@@ -590,10 +554,10 @@
   .PetAppBtn a div {
     width: 90px;
   }
-  .PetAppBtn a div p {
+  .app-store-text-small {
     font-size: 9px;
   }
-  .PetAppBtn a div h6 {
+  .app-store-text-large {
     font-size: 15px;
   }
 }
@@ -615,14 +579,8 @@
   max-width: 400px;
   cursor: pointer;
 }
-.ComingSoonBtn h3 {
-  color: var(--lightgrey);
+.ComingSoonBtn > div {
   text-align: center;
-  font-family: var(--satoshi-font);
-  font-size: 18px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: -0.36px;
   margin: 0px;
 }
 .ComingSoonStar {

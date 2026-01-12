@@ -16,13 +16,13 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="Downlode_Data">
               <div className="downlodetext">
-                <h1>Your companion&rsquo;s health, in your hands</h1>
-                <p>
+                <div className="text-display-1 text-text-primary">Your companion&rsquo;s health, in your hands</div>
+                <div className="text-body-3 text-text-primary">
                   Manage your companion&rsquo;s health records, hygiene, dietary
                   plans, and schedule vet appointments - all in one app that
                   connects you with groomers, boarders, sitters, vets, and
                   clinics for dogs, cats, or horses.
-                </p>
+                </div>
                 <PetDownBtn launched={true} />
               </div>
               <Image
@@ -42,7 +42,7 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="ToolkitData">
               <div className="ToolkitHead">
-                <h2>Your companion&rsquo;s all-in-one toolkit</h2>
+                <div className="text-display-1 text-text-primary">Your companion&rsquo;s all-in-one toolkit</div>
               </div>
               <div className="ToolkitCard">
                 <div className="CardToolItem">
@@ -51,19 +51,19 @@ const PetOwner = () => {
                     width="150"
                     height="150"
                   />
-                  <h6>Book and manage appointments</h6>
+                  <div className="text-heading-2 text-white">Book and manage appointments</div>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:library-bold" width="150" height="150" />
-                  <h6>Access documents anytime</h6>
+                  <div className="text-heading-2 text-white">Access documents anytime</div>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:health-bold" width="150" height="150" />
-                  <h6>Wellness management</h6>
+                  <div className="text-heading-2 text-white">Wellness management</div>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:bolt-bold" width="150" height="150" />
-                  <h6>Medication and health monitoring</h6>
+                  <div className="text-heading-2 text-white">Medication and health monitoring</div>
                 </div>
                 <div className="CardToolItem">
                   <Icon
@@ -71,7 +71,7 @@ const PetOwner = () => {
                     width="150"
                     height="150"
                   />
-                  <h6>Hygiene maintenance and dietary plans</h6>
+                  <div className="text-heading-2 text-white">Hygiene maintenance and dietary plans</div>
                 </div>
               </div>
             </div>
@@ -82,7 +82,7 @@ const PetOwner = () => {
         <section className="PawsPraisesSec">
           <div className="flex flex-col gap-4 md:gap-8! xl:gap-12! w-full">
             <div className="PawsHead">
-              <h2>Paws & praises from parents</h2>
+              <div className="text-display-1 text-text-primary">Paws & praises from parents</div>
             </div>
             <div className="w-full flex flex-col gap-6 md:gap-10 xl:gap-16">
               <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 BrownDiv">
@@ -125,7 +125,7 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="GlimsData">
               <div className="GlimpsHead">
-                <h2>Glimpse of paw-sibilities</h2>
+                <div className="text-display-1 text-text-primary">Glimpse of paw-sibilities</div>
               </div>
               <div className="GlimpsImage">
                 <Image
@@ -146,11 +146,11 @@ const PetOwner = () => {
             <div className="PetAppData">
               <div className="LftpetApp">
                 <div className="PetAppText">
-                  <h2>The only companion app you&rsquo;ll ever need</h2>
-                  <p>
+                  <div className="text-display-1 text-text-primary">The only companion app you&rsquo;ll ever need</div>
+                  <div className="text-body-3 text-text-primary">
                     Download Yosemite Crew app today and take the first step
                     towards better health for your companions.
-                  </p>
+                  </div>
                 </div>
                 <PetDownBtn launched={true} />
               </div>
@@ -189,7 +189,7 @@ const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
           color="#fff"
           className="ComingSoonStar"
         />
-        <h3>Coming Soon</h3>
+        <div className="text-body-3-emphasis text-white">Coming Soon</div>
       </div>
     );
   }
@@ -199,15 +199,15 @@ const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
       <Link href="https://apps.apple.com/in/app/yosemite-crew/id6756180296">
         <Icon icon="basil:apple-solid" width="29" height="29" />
         <div>
-          <p>Download on the</p>
-          <h6>App Store</h6>
+          <div className="app-store-text-small">Download on the</div>
+          <div className="app-store-text-large">App Store</div>
         </div>
       </Link>
       <Link href="https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share">
         <Icon icon="ion:logo-google-playstore" width="29" height="29" />
         <div>
-          <p>Get it on</p>
-          <h6>Google Play</h6>
+          <div className="app-store-text-small">Get it on</div>
+          <div className="app-store-text-large">Google Play</div>
         </div>
       </Link>
     </div>
