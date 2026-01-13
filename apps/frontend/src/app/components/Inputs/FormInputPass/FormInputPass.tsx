@@ -40,7 +40,7 @@ const FormInputPass = ({
             peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
             text-body-4 text-text-primary
             outline-none border
-            ${error ? "border-input-border-error" : "border-input-border-default"}
+            ${error ? "border-input-border-error!" : "border-input-border-default!"}
             focus:border-input-border-active!
           `}
         />

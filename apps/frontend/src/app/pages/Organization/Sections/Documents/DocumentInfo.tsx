@@ -3,7 +3,7 @@ import Modal from "@/app/components/Modal";
 import { OrganizationDocument } from "@/app/types/document";
 import React, { useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
-import { OrgDocumentCategoryOptions } from "../../types";
+import { OrgDocumentCategoryOptions2 } from "../../types";
 import { updateDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
 import { Primary, Secondary } from "@/app/components/Buttons";
@@ -21,7 +21,7 @@ const Fields = [
     label: "Category",
     key: "category",
     type: "dropdown",
-    options: OrgDocumentCategoryOptions,
+    options: OrgDocumentCategoryOptions2,
   },
 ];
 

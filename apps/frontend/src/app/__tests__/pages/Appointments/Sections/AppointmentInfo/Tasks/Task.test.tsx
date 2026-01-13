@@ -1,200 +1,138 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-// Import Path: Go up 8 levels to 'src/app', then down to 'pages'
-import Task from "../../../../../../pages/Appointments/Sections/AppointmentInfo/Tasks/Task";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
 
-// --- Mocks ---
+import Task from "@/app/pages/Appointments/Sections/AppointmentInfo/Tasks/Task";
 
-// Mock Accordion to render children directly
 jest.mock("@/app/components/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
-    <div data-testid={`accordion-${title}`}>
-      <h1>{title}</h1>
+    <section>
+      <h2>{title}</h2>
       {children}
-    </div>
+    </section>
   ),
 }));
 
-// Mock Dropdown
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, value, onChange, options }: any) => (
-    <div data-testid={`dropdown-${placeholder}`}>
-      <span data-testid={`selected-${placeholder}`}>{value}</span>
-      <select
-        data-testid={`select-${placeholder}`}
-        onChange={(e) => onChange(e.target.value)}
-        value={value}
-      >
-        <option value="">Select...</option>
-        {options?.map((opt: string) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
-    </div>
-  ),
-}));
-
-// Mock FormInput
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <input
-      data-testid={`input-${inlabel}`}
-      placeholder={inlabel}
-      value={value}
-      onChange={onChange}
-    />
-  ),
-}));
-
-// Mock FormDesc (Textarea)
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <textarea
-      data-testid={`textarea-${inlabel}`}
-      placeholder={inlabel}
-      value={value}
-      onChange={onChange}
-    />
-  ),
-}));
-
-// Mock Datepicker
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
-  __esModule: true,
-  default: ({ setCurrentDate, placeholder }: any) => (
-    <input
-      data-testid="datepicker"
-      placeholder={placeholder}
-      onChange={(e) => setCurrentDate(new Date(e.target.value))}
-    />
-  ),
-}));
-
-// Mock Button
 jest.mock("@/app/components/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
-    <button data-testid="save-btn" onClick={onClick}>
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
       {text}
     </button>
   ),
 }));
 
-// Mock LeadOptions since it's imported from another component
-jest.mock("@/app/components/CompanionInfo/Sections/AddAppointment", () => ({
-  LeadOptions: ["Staff A", "Staff B"],
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+  __esModule: true,
+  default: ({ placeholder, options = [], onSelect, error }: any) => (
+    <div>
+      <span>{placeholder}</span>
+      {options.map((option: any) => (
+        <button
+          key={`${placeholder}-${option.key}`}
+          type="button"
+          onClick={() => onSelect(option)}
+        >
+          {placeholder}: {option.label}
+        </button>
+      ))}
+      {error ? <div>{error}</div> : null}
+    </div>
+  ),
 }));
 
-describe("Task Component", () => {
-  // --- Section 1: Rendering & Structure ---
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ inlabel, value, onChange, error }: any) => (
+    <label>
+      {inlabel}
+      <input aria-label={inlabel} value={value ?? ""} onChange={onChange} />
+      {error ? <span>{error}</span> : null}
+    </label>
+  ),
+}));
 
-  it("renders the basic layout with all form fields", () => {
+jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+  __esModule: true,
+  default: ({ inlabel, value, onChange }: any) => (
+    <label>
+      {inlabel}
+      <textarea aria-label={inlabel} value={value ?? ""} onChange={onChange} />
+    </label>
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/Datepicker", () => ({
+  __esModule: true,
+  default: ({ placeholder, setCurrentDate }: any) => (
+    <button type="button" onClick={() => setCurrentDate(new Date("2025-01-01"))}>
+      {placeholder}
+    </button>
+  ),
+}));
+
+jest.mock("@/app/hooks/useCompanion", () => ({
+  useCompanionsForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock("@/app/hooks/useTeam", () => ({
+  useTeamForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock("@/app/services/taskService", () => ({
+  createTask: jest.fn(),
+}));
+
+import { useCompanionsForPrimaryOrg } from "@/app/hooks/useCompanion";
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { createTask } from "@/app/services/taskService";
+
+describe("AppointmentInfo Task Section", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useCompanionsForPrimaryOrg as jest.Mock).mockReturnValue([
+      { id: "comp-1", name: "Buddy", parentId: "parent-1" },
+    ]);
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: "team-1", name: "Dr. Avery" },
+    ]);
+  });
+
+  it("shows validation errors when required fields missing", () => {
     render(<Task />);
 
-    expect(screen.getByTestId("accordion-Task")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Save"));
 
-    // Check Dropdowns
-    expect(screen.getByTestId("dropdown-Category")).toBeInTheDocument();
-    expect(screen.getByTestId("dropdown-From")).toBeInTheDocument();
-    expect(screen.getByTestId("dropdown-To")).toBeInTheDocument();
-
-    // Check Inputs
-    expect(screen.getByTestId("input-Task")).toBeInTheDocument();
     expect(
-      screen.getByTestId("textarea-Description (optional)")
+      screen.getByText("Please select a companion or staff")
     ).toBeInTheDocument();
-
-    // Check Datepicker
-    expect(screen.getByTestId("datepicker")).toBeInTheDocument();
-
-    // Check Save Button
-    expect(screen.getByTestId("save-btn")).toBeInTheDocument();
+    expect(screen.getByText("Name is required")).toBeInTheDocument();
+    expect(screen.getByText("Category is required")).toBeInTheDocument();
+    expect(createTask).not.toHaveBeenCalled();
   });
 
-  // --- Section 2: Form Interaction (State Updates) ---
+  it("creates a task when valid", async () => {
+    (createTask as jest.Mock).mockResolvedValue({});
 
-  it("updates Category dropdown state", () => {
     render(<Task />);
-    const dropdown = screen.getByTestId("select-Category");
 
-    fireEvent.change(dropdown, { target: { value: "Template" } });
-
-    expect(screen.getByTestId("selected-Category")).toHaveTextContent(
-      "Template"
-    );
-  });
-
-  it("updates Task input state", () => {
-    render(<Task />);
-    const input = screen.getByTestId("input-Task");
-
-    fireEvent.change(input, { target: { value: "Follow up call" } });
-
-    expect(input).toHaveValue("Follow up call");
-  });
-
-  it("updates Description textarea state", () => {
-    render(<Task />);
-    const textarea = screen.getByTestId("textarea-Description (optional)");
-
-    fireEvent.change(textarea, {
-      target: { value: "Call patient about results" },
+    fireEvent.click(screen.getByText("Type: Employee Task"));
+    fireEvent.click(screen.getByText("To: Dr. Avery"));
+    fireEvent.change(screen.getByLabelText("Category"), {
+      target: { value: "Medical" },
     });
+    fireEvent.change(screen.getByLabelText("Task"), {
+      target: { value: "Follow up" },
+    });
+    fireEvent.click(screen.getByText("Save"));
 
-    expect(textarea).toHaveValue("Call patient about results");
-  });
-
-  it("updates 'From' and 'To' dropdown states", () => {
-    render(<Task />);
-
-    // From
-    const fromSelect = screen.getByTestId("select-From");
-    fireEvent.change(fromSelect, { target: { value: "Staff A" } });
-    expect(screen.getByTestId("selected-From")).toHaveTextContent("Staff A");
-
-    // To
-    const toSelect = screen.getByTestId("select-To");
-    fireEvent.change(toSelect, { target: { value: "Staff B" } });
-    expect(screen.getByTestId("selected-To")).toHaveTextContent("Staff B");
-  });
-
-  it("updates Due Date state via Datepicker", () => {
-    render(<Task />);
-    const dateInput = screen.getByTestId("datepicker");
-
-    // Simulate picking a date
-    const testDate = "2025-12-25";
-    fireEvent.change(dateInput, { target: { value: testDate } });
-
-    // Since we can't easily check internal state without a spy,
-    // we verify the interaction didn't crash.
-    // Real validation would happen if we spy on the state setter hook,
-    // but React Testing Library discourages that.
-    // Instead, we trust the mock callback was triggered.
-    expect(dateInput).toBeInTheDocument();
-  });
-
-  // --- Section 3: Submission Logic ---
-
-  it("handles Save button click (placeholder function)", () => {
-    render(<Task />);
-    const saveBtn = screen.getByTestId("save-btn");
-
-    // The current component has an empty createTask function `const createTask = () => {};`
-    // We just verify it's clickable and doesn't throw.
-    fireEvent.click(saveBtn);
-    expect(saveBtn).toBeInTheDocument();
-  });
-
-  // --- Section 4: Default State & Props ---
-
-  it("initializes with default Category 'Custom'", () => {
-    render(<Task />);
-    expect(screen.getByTestId("selected-Category")).toHaveTextContent("Custom");
+    await waitFor(() => {
+      expect(createTask).toHaveBeenCalled();
+    });
   });
 });
