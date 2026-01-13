@@ -2,6 +2,7 @@ import dogbreeds from "@/app/utils/dogBreeds.json";
 import catbreeds from "@/app/utils/catBreeds.json";
 import horsebreeds from "@/app/utils/horseBreeds.json";
 import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
+import countries from "@/app/utils/countryList.json";
 
 type OptionProp = {
   name: string;
@@ -36,10 +37,19 @@ export type SpeciesOption = {
   value: string;
   label: string;
 };
+export type Option = {
+  key: string;
+  label: string;
+};
 export const SpeciesOptions: SpeciesOption[] = [
   { value: "dog", label: "Dog" },
   { value: "cat", label: "Cat" },
   { value: "horse", label: "Horse" },
+];
+export const SpeciesOptions2: Option[] = [
+  { key: "dog", label: "Dog" },
+  { key: "cat", label: "Cat" },
+  { key: "horse", label: "Horse" },
 ];
 export type Breed = {
   speciesId: number;
@@ -47,11 +57,25 @@ export type Breed = {
   breedId: number;
   breedName: string;
 };
-export const BreedMap: Record<string, Breed[]> = {
-  dog: dogbreeds,
-  cat: catbreeds,
-  horse: horsebreeds,
+export const BreedMap: Record<string, Option[]> = {
+  dog: dogbreeds.map((breed) => ({
+    key: breed.breedId + "",
+    label: breed.breedName,
+  })),
+  cat: catbreeds.map((breed) => ({
+    key: breed.breedId + "",
+    label: breed.breedName,
+  })),
+  horse: horsebreeds.map((breed) => ({
+    key: breed.breedId + "",
+    label: breed.breedName,
+  })),
 };
+
+export const CountriesOptions: Option[] = countries.map((country) => ({
+  key: country.name,
+  label: country.name,
+}));
 
 export const EMPTY_STORED_PARENT: StoredParent = {
   id: "",

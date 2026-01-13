@@ -61,7 +61,7 @@ const TaskCalendar = ({
           setCurrentDate={setCurrentDate}
         />
       )}
-      {activeCalendar === "vet" && (
+      {activeCalendar === "team" && (
         <UserCalendar
           events={dayEvents}
           date={currentDate}

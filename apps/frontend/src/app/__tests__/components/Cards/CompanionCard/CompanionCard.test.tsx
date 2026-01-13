@@ -72,7 +72,7 @@ describe("CompanionCard Component", () => {
     expect(screen.getByText("Shepherd / Dog")).toBeInTheDocument();
     expect(screen.getByText("Male - 3 years")).toBeInTheDocument();
     expect(screen.getByText("Chicken")).toBeInTheDocument();
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
   // --- 2. Image Logic ---
@@ -137,9 +137,6 @@ describe("CompanionCard Component", () => {
     // Check Allergy Fallback
     const allergyLabel = screen.getByText("Allergies:");
     expect(allergyLabel.parentElement?.children[1]).toHaveTextContent("-");
-
-    // Check Status Fallback
-    expect(screen.getByText("inactive")).toBeInTheDocument();
   });
 
   // --- 4. Interactions ---

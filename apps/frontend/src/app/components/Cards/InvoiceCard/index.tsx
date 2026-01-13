@@ -2,6 +2,7 @@ import React from "react";
 import { getStatusStyle } from "../../DataTable/InvoiceTable";
 import { Invoice } from "@yosemite-crew/types";
 import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
+import { Secondary } from "../../Buttons";
 
 type InvoiceCardProps = {
   invoice: Invoice;
@@ -10,75 +11,63 @@ type InvoiceCardProps = {
 
 const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-hover bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
-        <div className="text-[23px] font-satoshi font-bold text-black-text">
+        <div className="text-body-3-emphasis text-text-primary">
           {invoice?.companionId || "-"}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Appointment ID:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Appointment ID:</div>
+        <div className="text-caption-1 text-text-primary">
           {invoice?.id || "-"}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Service:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Service:</div>
+        <div className="text-caption-1 text-text-primary">
           {invoice?.id || "-"}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Date / Time:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Date / Time:</div>
+        <div className="text-caption-1 text-text-primary">
           {formatDateLabel(invoice.createdAt) +
             " / " +
             formatTimeLabel(invoice.createdAt)}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Sub-total:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Sub-total:</div>
+        <div className="text-caption-1 text-text-primary">
           {"$ " + invoice?.subtotal}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Tax:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Tax:</div>
+        <div className="text-caption-1 text-text-primary">
           {"$ " + invoice?.taxTotal}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Total:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Total:</div>
+        <div className="text-caption-1 text-text-primary">
           {invoice?.totalAmount}
         </div>
       </div>
       <div
         style={getStatusStyle(invoice.status)}
-        className="w-full rounded-lg h-9 flex items-center justify-center text-[15px] font-satoshi font-bold"
+        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
         {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
       </div>
       <div className="flex gap-3 w-full">
-        <button
+        <Secondary
+          href="#"
           onClick={() => handleViewInvoice(invoice)}
-          className="w-full border border-black-text! rounded-2xl! h-12 flex items-center justify-center cursor-pointer"
-        >
-          View
-        </button>
+          text="View"
+          className="w-full"
+        />
       </div>
     </div>
   );

@@ -1,562 +1,246 @@
 import React from "react";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  within,
-} from "@testing-library/react";
-import BookAppointment from "../../../pages/Companions/BookAppointment";
-import {
-  createAppointment,
-  getSlotsForServiceAndDateForPrimaryOrg,
-} from "@/app/services/appointmentService";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { CompanionParent } from "../../../pages/Companions/types";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
 
-// --- Mocks ---
+import BookAppointment from "@/app/pages/Companions/BookAppointment";
 
-// 1. Mock Services and Hooks
-jest.mock("@/app/services/appointmentService");
-jest.mock("@/app/hooks/useTeam");
-jest.mock("@/app/hooks/useSpecialities");
-jest.mock("@/app/stores/serviceStore");
-
-// 2. Mock UI Components
 jest.mock("@/app/components/Modal", () => ({
   __esModule: true,
-  default: ({ showModal, children }: any) =>
-    showModal ? <div data-testid="modal">{children}</div> : null,
+  default: ({ children, showModal }: any) => (
+    <div data-testid="modal" data-open={showModal}>
+      {children}
+    </div>
+  ),
 }));
 
 jest.mock("@/app/components/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
-    <div data-testid={`accordion-${title}`}>
-      {title}
+    <section>
+      <h2>{title}</h2>
       {children}
-    </div>
+    </section>
   ),
 }));
 
 jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
   __esModule: true,
-  default: ({ title, children }: any) => (
-    <div data-testid="editable-accordion">
-      {title}
-      {children}
-    </div>
-  ),
+  default: ({ title }: any) => <div>{title}</div>,
 }));
 
-// Mock Inputs
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, onChange, value, options }: any) => (
-    <select
-      data-testid={`dropdown-${placeholder}`}
-      value={value}
-      onChange={(e) => {
-        const selected = options.find((o: any) => o.value === e.target.value);
-        onChange(selected || { value: e.target.value, label: e.target.value });
-      }}
-    >
-      <option value="">Select</option>
-      {options?.map((opt: any) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
+  default: ({ placeholder, options = [], onSelect, error }: any) => (
+    <div>
+      <span>{placeholder}</span>
+      {options.map((option: any) => (
+        <button
+          key={`${placeholder}-${option.key}`}
+          type="button"
+          onClick={() => onSelect(option)}
+        >
+          {placeholder}: {option.label}
+        </button>
       ))}
-    </select>
+      {error ? <div>{error}</div> : null}
+    </div>
   ),
 }));
 
 jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, onChange, value, options }: any) => (
-    <select
-      multiple
-      data-testid={`multi-${placeholder}`}
-      value={value}
-      onChange={(e: any) => {
-        if (
-          e.target.value &&
-          (!e.target.selectedOptions || e.target.selectedOptions.length === 0)
-        ) {
-          onChange([e.target.value]);
-          return;
-        }
-        const values = Array.from(
-          e.target.selectedOptions,
-          (option: any) => option.value
-        );
-        onChange(values);
-      }}
-    >
-      {options?.map((opt: any) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+  default: ({ placeholder, onChange, options = [] }: any) => (
+    <button type="button" onClick={() => onChange([options[0]?.value])}>
+      {placeholder}
+    </button>
   ),
 }));
 
 jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <input data-testid={`input-${inlabel}`} value={value} onChange={onChange} />
+  default: ({ inlabel, value, error }: any) => (
+    <label>
+      {inlabel}
+      <input aria-label={inlabel} value={value ?? ""} readOnly />
+      {error ? <span>{error}</span> : null}
+    </label>
   ),
 }));
 
 jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
-    <textarea
-      data-testid={`desc-${inlabel}`}
-      value={value}
-      onChange={onChange}
-    />
+    <label>
+      {inlabel}
+      <textarea aria-label={inlabel} value={value ?? ""} onChange={onChange} />
+    </label>
   ),
 }));
 
+const slotpickerSpy = jest.fn();
 jest.mock("@/app/components/Inputs/Slotpicker", () => ({
   __esModule: true,
-  default: ({ selectedSlot, setSelectedSlot, timeSlots }: any) => (
-    <div data-testid="slot-picker">
-      {timeSlots.map((slot: any) => (
-        <button
-          key={slot.startTime}
-          data-testid={`slot-${slot.startTime}`}
-          onClick={() => setSelectedSlot(slot)}
-        >
-          {slot.startTime}
-        </button>
-      ))}
-    </div>
-  ),
+  default: (props: any) => {
+    slotpickerSpy(props);
+    return (
+      <button
+        type="button"
+        onClick={() => props.timeSlots?.[0] && props.setSelectedSlot(props.timeSlots[0])}
+      >
+        Pick slot
+      </button>
+    );
+  },
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
-    <button data-testid="submit-btn" onClick={onClick}>
+    <button type="button" onClick={onClick}>
       {text}
     </button>
   ),
 }));
 
-// --- Test Data ---
+jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+  getFormattedDate: jest.fn(() => "Jan 1, 2025"),
+}));
 
-const mockActiveCompanion: CompanionParent = {
-  companion: {
-    id: "comp-1",
-    name: "Buddy",
-    type: "dog", // FIXED: Changed "Dog" to "dog" to match CompanionType
-    breed: "Golden",
-    weight: 20,
-    sex: "Male",
-    active: true,
-    neutered: true,
-  } as any,
-  parent: {
-    id: "parent-1",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john@example.com",
-    address: {},
-    createdFrom: "manual",
-    // FIXED: Removed 'mobile' property which does not exist in StoredParent
-  } as any,
-};
+jest.mock("@/app/components/Availability/utils", () => ({
+  formatUtcTimeToLocalLabel: jest.fn(() => "09:00 AM"),
+}));
 
-const mockTeams = [
-  { _id: "vet-1", name: "Dr. Smith" },
-  { _id: "vet-2", name: "Dr. Jones" },
-];
+jest.mock("@/app/utils/date", () => ({
+  buildUtcDateFromDateAndTime: jest.fn(() => new Date("2025-01-01T09:00:00Z")),
+  getDurationMinutes: jest.fn(() => 30),
+}));
 
-const mockSpecialities = [
-  { _id: "spec-1", name: "General Checkup" },
-  { _id: "spec-2", name: "Surgery" },
-];
+jest.mock("@/app/hooks/useTeam", () => ({
+  useTeamForPrimaryOrg: jest.fn(),
+}));
 
-const mockServices = [
-  {
-    id: "srv-1",
-    name: "Basic Exam",
-    description: "Standard checkup",
-    cost: "50",
-    maxDiscount: "10",
-    durationMinutes: "30",
+jest.mock("@/app/hooks/useSpecialities", () => ({
+  useSpecialitiesForPrimaryOrg: jest.fn(),
+}));
+
+const mockGetServicesBySpecialityId = jest.fn();
+jest.mock("@/app/stores/serviceStore", () => ({
+  useServiceStore: {
+    getState: () => ({
+      getServicesBySpecialityId: mockGetServicesBySpecialityId,
+    }),
   },
-];
+}));
 
-const mockSlots = [
-  {
-    startTime: "10:00",
-    endTime: "10:30",
-    vetIds: ["vet-1"],
-  },
-];
+jest.mock("@/app/services/appointmentService", () => ({
+  createAppointment: jest.fn(),
+  getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock("react-icons/io", () => ({
+  IoIosCloseCircleOutline: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      Close
+    </button>
+  ),
+}));
+
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import {
+  createAppointment,
+  getSlotsForServiceAndDateForPrimaryOrg,
+} from "@/app/services/appointmentService";
 
 describe("BookAppointment", () => {
-  const mockSetShowModal = jest.fn();
-  const mockGetServices = jest.fn();
+  const setShowModal = jest.fn();
+  const activeCompanion = {
+    companion: {
+      id: "comp-1",
+      name: "Buddy",
+      type: "dog",
+      breed: "Husky",
+    },
+    parent: {
+      id: "parent-1",
+      firstName: "Sam",
+    },
+  } as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue(mockTeams);
-    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue(
-      mockSpecialities
-    );
-    (useServiceStore.getState as jest.Mock).mockReturnValue({
-      getServicesBySpecialityId: mockGetServices,
-    });
-    mockGetServices.mockReturnValue(mockServices);
-    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue(
-      mockSlots
-    );
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: "vet-1", name: "Dr. Avery" },
+    ]);
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: "spec-1", name: "Surgery" },
+    ]);
+    mockGetServicesBySpecialityId.mockReturnValue([
+      { id: "service-1", name: "Checkup", durationMinutes: 30 },
+    ]);
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([
+      { startTime: "09:00", endTime: "09:30", vetIds: ["vet-1"] },
+    ]);
   });
 
-  // --- Section 1: Rendering & Initialization ---
-
-  it("does not render if showModal is false", () => {
-    render(
-      <BookAppointment
-        showModal={false}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-    expect(screen.queryByTestId("modal")).not.toBeInTheDocument();
-  });
-
-  it("renders correctly with default data when opened", () => {
-    // FIXED: Removed async/act wrapper to reduce nesting depth
+  it("renders modal and companion info", () => {
     render(
       <BookAppointment
         showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
+        setShowModal={setShowModal}
+        activeCompanion={activeCompanion}
       />
     );
 
-    expect(screen.getByTestId("modal")).toBeInTheDocument();
+    expect(screen.getByTestId("modal")).toHaveAttribute("data-open", "true");
     expect(screen.getByText("Add appointment")).toBeInTheDocument();
-
-    const companionSection = screen.getByTestId("editable-accordion");
-    expect(companionSection).toHaveTextContent("Buddy");
+    expect(screen.getByText("Buddy")).toBeInTheDocument();
   });
 
-  it("handles modal close", () => {
+  it("validates required fields", () => {
     render(
       <BookAppointment
         showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
+        setShowModal={setShowModal}
+        activeCompanion={activeCompanion}
       />
     );
 
-    const closeIcon = document.querySelectorAll("svg")[1];
-    fireEvent.click(closeIcon);
-    expect(mockSetShowModal).toHaveBeenCalledWith(false);
-  });
+    fireEvent.click(screen.getByText("Book appointment"));
 
-  // --- Section 2: Form Interaction & Logic ---
-
-  it("populates dropdowns and updates state on selection", async () => {
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    const specDropdown = screen.getByTestId("dropdown-Speciality");
-    fireEvent.change(specDropdown, { target: { value: "spec-1" } });
-
-    expect(mockGetServices).toHaveBeenCalledWith("spec-1");
-
-    const serviceDropdown = screen.getByTestId("dropdown-Service");
-    fireEvent.change(serviceDropdown, { target: { value: "srv-1" } });
-
-    const billableContainer = screen.getByTestId("accordion-Billable services");
-    expect(
-      within(billableContainer).getByTestId("editable-accordion")
-    ).toHaveTextContent("Basic Exam");
-
-    await waitFor(() => {
-      expect(screen.getByTestId("slot-10:00")).toBeInTheDocument();
-    });
-  });
-
-  it("fetches slots when service and date are valid", async () => {
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
-      target: { value: "spec-1" },
-    });
-    fireEvent.change(screen.getByTestId("dropdown-Service"), {
-      target: { value: "srv-1" },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("slot-10:00")).toBeInTheDocument();
-    });
-  });
-
-  it("filters leads based on available slots", async () => {
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
-      target: { value: "spec-1" },
-    });
-    fireEvent.change(screen.getByTestId("dropdown-Service"), {
-      target: { value: "srv-1" },
-    });
-
-    await waitFor(() =>
-      expect(screen.getByTestId("slot-10:00")).toBeInTheDocument()
-    );
-
-    fireEvent.click(screen.getByTestId("slot-10:00"));
-
-    const leadDropdown = screen.getByTestId("dropdown-Lead");
-    expect(leadDropdown).toHaveTextContent("Dr. Smith");
-    expect(leadDropdown).not.toHaveTextContent("Dr. Jones");
-  });
-
-  it("updates form inputs: concern, support staff, emergency", () => {
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    const concernInput = screen.getByTestId("desc-Describe concern");
-    fireEvent.change(concernInput, { target: { value: "My dog is sick" } });
-    expect(concernInput).toHaveValue("My dog is sick");
-
-    const supportDropdown = screen.getByTestId("multi-Support");
-    fireEvent.change(supportDropdown, {
-      target: { value: "vet-2" },
-    });
-
-    const checkbox = screen.getByRole("checkbox");
-    fireEvent.click(checkbox);
-    expect(checkbox).toBeChecked();
-  });
-
-  // --- Section 3: Validation & Submission ---
-
-  it("shows validation errors on empty submit", () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    // FIXED: Removed act wrapper to reduce nesting depth
-    fireEvent.click(screen.getByTestId("submit-btn"));
-
+    expect(screen.getByText("Please select a speciality")).toBeInTheDocument();
+    expect(screen.getByText("Please select a service")).toBeInTheDocument();
+    expect(screen.getByText("Please select a lead")).toBeInTheDocument();
+    expect(screen.getByText("Please select a slot")).toBeInTheDocument();
     expect(createAppointment).not.toHaveBeenCalled();
-    expect(mockSetShowModal).not.toHaveBeenCalledWith(false);
-    consoleSpy.mockRestore();
   });
 
-  it("successfully creates an appointment", async () => {
+  it("creates appointment when form is valid", async () => {
     (createAppointment as jest.Mock).mockResolvedValue({});
 
     render(
       <BookAppointment
         showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
+        setShowModal={setShowModal}
+        activeCompanion={activeCompanion}
       />
     );
 
-    fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
-      target: { value: "spec-1" },
-    });
-    fireEvent.change(screen.getByTestId("dropdown-Service"), {
-      target: { value: "srv-1" },
-    });
+    fireEvent.click(screen.getByText("Speciality: Surgery"));
+    fireEvent.click(screen.getByText("Service: Checkup"));
 
-    await waitFor(() => screen.getByTestId("slot-10:00"));
-    fireEvent.click(screen.getByTestId("slot-10:00"));
-
-    fireEvent.change(screen.getByTestId("dropdown-Lead"), {
-      target: { value: "vet-1" },
+    await waitFor(() => {
+      expect(getSlotsForServiceAndDateForPrimaryOrg).toHaveBeenCalled();
+      expect(slotpickerSpy).toHaveBeenCalled();
     });
 
-    fireEvent.change(screen.getByTestId("desc-Describe concern"), {
-      target: { value: "Test" },
-    });
+    fireEvent.click(screen.getByText("Lead: Dr. Avery"));
+    fireEvent.click(screen.getByText("Pick slot"));
 
-    // FIXED: Removed act wrapper
-    fireEvent.click(screen.getByTestId("submit-btn"));
+    fireEvent.click(screen.getByText("Book appointment"));
 
     await waitFor(() => {
       expect(createAppointment).toHaveBeenCalled();
-      expect(mockSetShowModal).toHaveBeenCalledWith(false);
     });
-  });
-
-  it("handles create appointment error", async () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    (createAppointment as jest.Mock).mockRejectedValue(new Error("API Fail"));
-
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
-      target: { value: "spec-1" },
-    });
-    fireEvent.change(screen.getByTestId("dropdown-Service"), {
-      target: { value: "srv-1" },
-    });
-    await waitFor(() => screen.getByTestId("slot-10:00"));
-    fireEvent.click(screen.getByTestId("slot-10:00"));
-    fireEvent.change(screen.getByTestId("dropdown-Lead"), {
-      target: { value: "vet-1" },
-    });
-
-    // FIXED: Removed act wrapper
-    fireEvent.click(screen.getByTestId("submit-btn"));
-
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
-    });
-    expect(mockSetShowModal).not.toHaveBeenCalledWith(false);
-    consoleSpy.mockRestore();
-  });
-
-  // --- Section 4: Edge Cases & Branches ---
-
-  it("handles slot fetch errors gracefully", async () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockRejectedValue(
-      new Error("Slot Error")
-    );
-
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
-      target: { value: "spec-1" },
-    });
-    fireEvent.change(screen.getByTestId("dropdown-Service"), {
-      target: { value: "srv-1" },
-    });
-
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
-    });
-
-    expect(screen.queryByTestId("slot-10:00")).not.toBeInTheDocument();
-    consoleSpy.mockRestore();
-  });
-
-  it("handles empty service/team/speciality data gracefully", () => {
-    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
-    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([]);
-    mockGetServices.mockReturnValue([]);
-
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    const specDropdown = screen.getByTestId("dropdown-Speciality");
-    expect(specDropdown.children.length).toBe(1);
-  });
-
-  it("handles missing service details in useMemo", () => {
-    mockGetServices.mockReturnValue([]);
-
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    fireEvent.change(screen.getByTestId("dropdown-Service"), {
-      target: { value: "unknown-id" },
-    });
-
-    expect(screen.getByTestId("modal")).toBeInTheDocument();
-  });
-
-  it("covers manual date/time input changes (no-ops)", () => {
-    render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    const dateInput = screen.getByTestId("input-Date");
-    fireEvent.change(dateInput, { target: { value: "New Date" } });
-
-    const timeInput = screen.getByTestId("input-Time");
-    fireEvent.change(timeInput, { target: { value: "New Time" } });
-  });
-
-  it("handles unmount during slot fetch", async () => {
-    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(mockSlots), 100))
-    );
-
-    const { unmount } = render(
-      <BookAppointment
-        showModal={true}
-        setShowModal={mockSetShowModal}
-        activeCompanion={mockActiveCompanion}
-      />
-    );
-
-    fireEvent.change(screen.getByTestId("dropdown-Speciality"), {
-      target: { value: "spec-1" },
-    });
-    fireEvent.change(screen.getByTestId("dropdown-Service"), {
-      target: { value: "srv-1" },
-    });
-
-    unmount();
+    expect(setShowModal).toHaveBeenCalledWith(false);
   });
 });

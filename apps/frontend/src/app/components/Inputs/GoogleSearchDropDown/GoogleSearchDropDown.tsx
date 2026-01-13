@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import countries from "../../../utils/countryList.json";
 import { Organisation } from "@yosemite-crew/types";
 import { UserProfile } from "@/app/types/profile";
-
-import "./GoogleSearchDropDown.css";
+import { IoIosWarning } from "react-icons/io";
 
 type GoogleSearchDropDownProps = {
   intype: string;
@@ -279,10 +277,8 @@ const GoogleSearchDropDown = ({
   };
 
   return (
-    <div className="w-100 search-container" ref={dropdownRef}>
-      <div
-        className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}
-      >
+    <div className="w-full relative" ref={dropdownRef}>
+      <div className={`relative`}>
         <input
           type={intype}
           name={inname}
@@ -303,18 +299,43 @@ const GoogleSearchDropDown = ({
             setIsFocused(false);
             setOpen(false);
           }}
-          className={error ? "is-invalid" : ""}
+          className={`
+            peer w-full min-h-12 bg-transparent px-6 py-2.5
+            text-body-4 text-text-primary
+            outline-none border
+            ${error && "border-input-border-error"}
+            focus:border-input-border-active!
+            ${open ? "border-input-border-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"}
+          `}
         />
-        <label htmlFor={inname}>{inlabel}</label>
+        <label
+          htmlFor={inname}
+          className={`
+            pointer-events-none absolute left-6
+            top-1/2 -translate-y-1/2
+            text-body-4 text-input-text-placeholder
+            transition-all duration-200
+            peer-focus:-top-[11px] peer-focus:translate-y-0
+            peer-focus:text-sm!
+            peer-focus:text-input-text-placeholder-active
+            peer-focus:bg-(--whitebg)
+            peer-focus:px-1 peer-not-placeholder-shown:px-1
+            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
+            peer-not-placeholder-shown:text-sm!
+            peer-not-placeholder-shown:bg-(--whitebg)
+          `}
+        >
+          {inlabel}
+        </label>
       </div>
       {open && (
         <div
-          className="search-dropdown"
+          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]"
           onPointerDown={(e) => e.preventDefault()}
         >
           {predictions?.map((pred: any) => (
             <button
-              className="search-dropdown-item"
+              className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
               key={pred.placeId}
               type="button"
               onMouseDown={(e) => {
@@ -336,9 +357,14 @@ const GoogleSearchDropDown = ({
         </div>
       )}
       {error && (
-        <div className="Errors">
-          <Icon icon="mdi:error" width="16" height="16" />
-          {error}
+        <div
+          className={`
+            mt-1.5 flex items-center gap-1 px-4
+            text-caption-2 text-text-error
+          `}
+        >
+          <IoIosWarning className="text-text-error" size={14} />
+          <span>{error}</span>
         </div>
       )}
     </div>

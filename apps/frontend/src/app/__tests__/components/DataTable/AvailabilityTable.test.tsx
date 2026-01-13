@@ -117,8 +117,8 @@ describe("AvailabilityTable Component", () => {
     it("returns default style for unknown status", () => {
       const style = getStatusStyle("Unknown");
       expect(style).toEqual({
-        color: "#6b7280",
-        backgroundColor: "rgba(107,114,128,0.1)",
+        color: "#302f2e",
+        backgroundColor: "#6b72801a",
       });
     });
 

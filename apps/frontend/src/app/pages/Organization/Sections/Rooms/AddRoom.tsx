@@ -7,10 +7,10 @@ import { RoomsTypes } from "../../types";
 import { Primary } from "@/app/components/Buttons";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import { OrganisationRoom } from "@yosemite-crew/types";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { createRoom } from "@/app/services/roomService";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 
 type AddRoomProps = {
   showModal: boolean;
@@ -108,19 +108,16 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                 error={formDataErrors.name}
                 className="min-h-12!"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Type"
-                value={formData.type}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    type: e,
+                    type: option.key as any,
                   })
                 }
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
+                defaultOption={formData.type}
                 options={RoomsTypes}
-                type="general"
               />
               <MultiSelectDropdown
                 placeholder="Assigned specialities"
