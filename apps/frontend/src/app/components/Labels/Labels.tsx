@@ -4,8 +4,6 @@ import SubLabels from "./SubLabels";
 type LabelItem = {
   key: string;
   name: string;
-  icon: React.ComponentType<{ size?: number; color?: string }>;
-  iconSize: number;
   labels: { key: string; name: string }[];
 };
 
@@ -28,18 +26,15 @@ const Labels = ({
   const subLabels = active ? active.labels : [];
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-center gap-3">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {labels.map((label) => (
           <button
             key={label.key}
             onClick={() => setActiveLabel(label.key)}
-            className={`${activeLabel === label.key ? "border-blue-text! bg-blue-light! text-blue-text shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-grey-light!"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] flex items-center justify-center h-[60px] w-[60px] rounded-2xl! bg-white! border!`}
+            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-secondary rounded-2xl! transition-all duration-300 ${label.key === activeLabel ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
           >
-            <label.icon
-              size={label.iconSize}
-              color={activeLabel === label.key ? "#247aed" : "#000"}
-            />
+            {label.name}
           </button>
         ))}
       </div>

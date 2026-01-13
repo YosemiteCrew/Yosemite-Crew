@@ -2,7 +2,6 @@ import Accordion from "@/app/components/Accordion/Accordion";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
 import React, { useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { EmploymentTypes, RoleOptions } from "../../types";
 import { Primary } from "@/app/components/Buttons";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
@@ -11,6 +10,7 @@ import { sendInvite } from "@/app/services/teamService";
 import { isValidEmail, toTitleCase } from "@/app/utils/validators";
 import { TeamFormDataType } from "@/app/types/team";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import Close from "@/app/components/Icons/Close";
 
 type AddTeamProps = {
   showModal: boolean;
@@ -24,7 +24,7 @@ const initialData = {
     key: "",
   },
   role: "",
-  type: EmploymentTypes[0].key,
+  type: EmploymentTypes[0].value,
 };
 
 const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
@@ -37,7 +37,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   }>({});
 
   const SpecialitiesOptions = useMemo(
-    () => specialities.map((s) => ({ label: s.name, key: s._id || s.name })),
+    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
     [specialities]
   );
 
@@ -62,25 +62,15 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add team
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add team</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
           <Accordion
             title="Add team"
             defaultOpen
@@ -106,7 +96,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                     ...formData,
                     speciality: {
                       name: option.label,
-                      key: option.key,
+                      key: option.value,
                     },
                   })
                 }
@@ -117,12 +107,12 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
               <LabelDropdown
                 placeholder="Role"
                 onSelect={(option) =>
-                  setFormData({ ...formData, role: option.key })
+                  setFormData({ ...formData, role: option.value })
                 }
                 defaultOption={formData.role}
                 error={formDataErrors.role}
                 options={RoleOptions.map((role) => ({
-                  key: role,
+                  value: role,
                   label: toTitleCase(role),
                 }))}
               />

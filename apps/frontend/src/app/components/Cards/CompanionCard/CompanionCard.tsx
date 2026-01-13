@@ -11,12 +11,14 @@ type CompanionCardProps = {
   companion: CompanionParent;
   handleViewCompanion: (companion: CompanionParent) => void;
   handleBookAppointment: (companion: CompanionParent) => void;
+  handleAddTask: (companion: CompanionParent) => void;
 };
 
 const CompanionCard = ({
   companion,
   handleViewCompanion,
   handleBookAppointment,
+  handleAddTask,
 }: CompanionCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
@@ -91,7 +93,7 @@ const CompanionCard = ({
         />
         <Secondary
           href="#"
-          onClick={() => {}}
+          onClick={() => handleAddTask(companion)}
           text="Task"
           className="w-full"
         />

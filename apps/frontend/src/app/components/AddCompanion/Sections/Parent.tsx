@@ -12,7 +12,7 @@ import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
 import { CountriesOptions } from "../type";
 
 type OptionProp = {
-  key: string;
+  label: string;
   value: string;
 };
 
@@ -45,8 +45,8 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
       results.map((p) => {
         const lastName = p.lastName ? ` ${p.lastName}` : "";
         return {
-          key: p.id,
-          value: `${p.firstName}${lastName}`,
+          value: p.id,
+          label: `${p.firstName}${lastName}`,
         };
       }),
     [results]
@@ -133,10 +133,6 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
       <div className="flex flex-col gap-6">
-        <div className="font-grotesk text-black-text text-[23px] font-medium">
-          Parents details
-        </div>
-
         <SearchDropdown
           placeholder="Search parent"
           options={options}
@@ -218,7 +214,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
               onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  address: { ...formData.address, country: option.key },
+                  address: { ...formData.address, country: option.value },
                 })
               }
               defaultOption={formData.address.country}

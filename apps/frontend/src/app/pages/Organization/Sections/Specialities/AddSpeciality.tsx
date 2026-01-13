@@ -2,11 +2,11 @@ import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
 import Modal from "@/app/components/Modal";
 import React, { useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import SpecialityCard from "./SpecialityCard";
 import { SpecialityWeb } from "@/app/types/speciality";
 import SpecialitySearchWeb from "@/app/components/Inputs/SpecialitySearch/SpecialitySearchWeb";
 import { createBulkSpecialityServices } from "@/app/services/specialityService";
+import Close from "@/app/components/Icons/Close";
 
 type AddSpecialityProps = {
   showModal: boolean;
@@ -27,7 +27,7 @@ const AddSpeciality = ({
 
   const handleSubmit = async () => {
     try {
-      console.log(formData)
+      console.log(formData);
       await createBulkSpecialityServices(formData);
       setFormData([]);
       setShowModal(false);
@@ -38,25 +38,17 @@ const AddSpeciality = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add specialities
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">
+              Add specialities
+            </div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
           <div className="flex flex-col gap-3">
             <SpecialitySearchWeb
               specialities={formData}

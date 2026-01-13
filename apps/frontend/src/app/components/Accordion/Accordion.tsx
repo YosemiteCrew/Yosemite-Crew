@@ -30,8 +30,8 @@ const Accordion: React.FC<AccordionProps> = ({
     children && !(Array.isArray(children) && children.length === 0);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+    <div className={`flex flex-col ${open ? "gap-1" : "gap-0"}`}>
+      <div className={`flex items-center justify-between border-card-border px-3 py-3 ${open ? "border-x border-t rounded-t-2xl" : "border rounded-2xl"}`}>
         <button
           className="flex items-center gap-2.5"
           onClick={() => setOpen(!open)}
@@ -42,7 +42,7 @@ const Accordion: React.FC<AccordionProps> = ({
               open ? "rotate-0" : "-rotate-90"
             }`}
           />
-          <div className="font-grotesk text-black-text text-[19px] font-medium text-left">
+          <div className="text-body-2 text-text-primary text-left">
             {title}
           </div>
         </button>
@@ -73,7 +73,7 @@ const Accordion: React.FC<AccordionProps> = ({
 
       {open && hasChildren && (
         <div
-          className={`${isEditing ? "py-2.5!" : "px-4! py-2.5! rounded-2xl border border-grey-light"}`}
+          className={`pb-2 px-3 border-x border-b border-card-border rounded-b-2xl`}
         >
           {children}
         </div>

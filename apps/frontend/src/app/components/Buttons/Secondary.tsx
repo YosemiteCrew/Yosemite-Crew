@@ -29,7 +29,7 @@ const Secondary = ({
   size = "default",
 }: Readonly<ButtonProps>) => {
   const baseClasses =
-    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105";
+    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out";
 
   return (
     <Link

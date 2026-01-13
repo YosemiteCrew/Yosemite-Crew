@@ -64,21 +64,21 @@ const Documents = () => {
           <LabelDropdown
             placeholder="Category"
             onSelect={(option) =>
-              setFormData({ ...formData, category: option.key })
+              setFormData({ ...formData, category: option.value })
             }
             defaultOption={formData.category}
             options={Object.keys(DocumentsOptions).map((category) => ({
-              key: category,
+              value: category,
               label: category,
             }))}
             error={formDataErrors.category}
           />
           <LabelDropdown
             placeholder="Sub-category"
-            onSelect={(option) => setFormData({ ...formData, sub: option.key })}
+            onSelect={(option) => setFormData({ ...formData, sub: option.value })}
             defaultOption={formData.sub}
             options={(DocumentsOptions[formData.category] ?? []).map((sub) => ({
-              key: sub,
+              value: sub,
               label: sub,
             }))}
             error={formDataErrors.sub}
