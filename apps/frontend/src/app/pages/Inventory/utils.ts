@@ -149,20 +149,20 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
   const key = (statusLabel || "").toLowerCase();
   switch (key) {
     case "low stock":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+      return { color: "#F7F7F7", backgroundColor: "#BF9FAA" };
     case "expired":
     case "out of stock":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
+      return { color: "#F7F7F7", backgroundColor: "#D28F9A" };
     case "hidden":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+      return { color: "#F7F7F7", backgroundColor: "#A8A181" };
     case "expiring soon":
-      return { color: "#C47F00", backgroundColor: "#FEF7E5" };
+      return { color: "#F7F7F7", backgroundColor: "#5C614B" };
     case "healthy":
-      return { color: "#247AED", backgroundColor: "#EAF3FF" };
+      return { color: "#F7F7F7", backgroundColor: "#D9A488" };
     case "active":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#302f2e", backgroundColor: "#F1D4B0" };
     default:
-      return { color: "#247AED", backgroundColor: "#EAF3FF" };
+      return { color: "#EAF3FF", backgroundColor: "#247AED" };
   }
 };
 
