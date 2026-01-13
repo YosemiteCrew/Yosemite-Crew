@@ -84,14 +84,7 @@
   .DevlpHeroData {
     grid-gap: 16px;
   }
-  .LeftDevBanr .devbanrtext > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
-  }
-  .LeftDevBanr .devbanrtext > div:last-child {
-    font-size: 0.8125rem;
-    line-height: 1.1875rem;
-  }
+  /* Typography handled by global classes */
 }
 /* DevlYousmiteSec */
 
@@ -260,14 +253,7 @@
     max-width: 650px;
     gap: 10px;
   }
-  .crewText > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
-  }
-  .crewText > div:last-child {
-    font-size: 0.8125rem;
-    line-height: 1.1875rem;
-  }
+  /* Typography handled by global classes */
   .crewbox1 {
     height: 220px;
     width: 220px;
@@ -308,10 +294,7 @@
     align-items: center;
     text-align: center;
   }
-  .YousmiteCrew > div {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
-  }
+  /* Typography handled by global classes */
   .DevYousmiteBoxed::after {
     height: 100px;
     width: 100px;
@@ -506,15 +489,11 @@
     flex-direction: column;
   }
   .leftResorch > div {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
     width: 100%;
     max-width: 100%;
     text-align: center;
   }
   .RytResorch > div {
-    font-size: 0.8125rem;
-    line-height: 1.1875rem;
     width: 100%;
     max-width: 100%;
     text-align: center;
@@ -633,8 +612,6 @@
     gap: 8px;
   }
   .leftSimpleStep > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
     text-align: center;
   }
   .leftSimpleStep a {
@@ -648,14 +625,6 @@
     padding: 20px 20px 40px 20px;
     align-items: center;
     text-align: center;
-  }
-  .Stepitems .Stepstext > div:first-child {
-    font-size: 1.1875rem;
-    line-height: 1.5rem;
-  }
-  .Stepitems .Stepstext > div:last-child {
-    font-size: 0.8125rem;
-    line-height: 1.1875rem;
   }
   .Stepitems:nth-child(1) img,
   .Stepitems:nth-child(2) img {

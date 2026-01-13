@@ -290,29 +290,29 @@ input[type="number"] {
 }
 
 @layer components {
-  /* Display text - 48px/3rem - Large headings (Desktop) */
+  /* Display text - 48px/3rem - Large headings (Desktop) | 24px Mobile */
   .text-display-1 {
-    @apply font-grotesk text-[3rem] font-medium leading-[3.625rem] tracking-[-0.06rem];
+    @apply font-satoshi text-[3rem] font-medium leading-[3.625rem] tracking-[-0.06rem];
   }
 
-  /* Display text - 40px/2.5rem - Medium display (Desktop) */
+  /* Display text - 40px/2.5rem - Medium display (Desktop) | 24px Mobile */
   .text-display-2 {
-    @apply font-grotesk text-[2.5rem] font-medium leading-[3rem] tracking-[-0.05rem];
+    @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.05rem];
   }
 
-  /* Heading - 28px/1.75rem - Main section titles */
+  /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
   .text-heading-1 {
-    @apply font-grotesk text-[1.75rem] font-normal leading-[2.125rem] tracking-[-0.035rem];
+    @apply font-satoshi text-[1.75rem] font-normal leading-[2.125rem] tracking-[-0.035rem];
   }
 
-  /* Heading - 22px/1.375rem - Subsection titles */
+  /* Heading - 22px/1.375rem - Subsection titles | 24px Mobile */
   .text-heading-2 {
-    @apply font-grotesk text-[1.375rem] font-normal leading-[1.75rem] tracking-[-0.0275rem];
+    @apply font-satoshi text-[1.375rem] font-normal leading-[1.75rem] tracking-[-0.0275rem];
   }
 
-  /* Heading - 20px/1.25rem - Section headings */
+  /* Heading - 20px/1.25rem - Section headings | 16px Mobile */
   .text-heading-3 {
-    @apply font-grotesk text-[1.25rem] font-normal leading-[1.5rem];
+    @apply font-satoshi text-[1.25rem] font-normal leading-[1.5rem];
   }
 
   /* Body - 24px/1.5rem - Large emphasized body (Mobile heading) */
@@ -320,12 +320,12 @@ input[type="number"] {
     @apply font-satoshi text-[1.5rem] font-medium leading-[1.875rem] tracking-[-0.03rem];
   }
 
-  /* Body - 20px/1.25rem - Regular subheading text */
+  /* Body - 20px/1.25rem - Regular subheading text | 16px Mobile */
   .text-body-2 {
     @apply font-satoshi text-[1.25rem] font-normal leading-[1.75rem] tracking-[-0.025rem];
   }
 
-  /* Body - 18px/1.125rem - Regular body text */
+  /* Body - 18px/1.125rem - Regular body text | 16px Mobile */
   .text-body-3 {
     @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.0225rem];
   }
@@ -358,6 +358,37 @@ input[type="number"] {
   /* Caption - 12px/0.75rem - Smallest text */
   .text-caption-2 {
     @apply font-satoshi text-[0.75rem] font-normal leading-[1.125rem] tracking-[-0.015rem];
+  }
+}
+
+/* Mobile responsive typography - applies to all heading/display classes */
+@media screen and (max-width: 768px) {
+  .text-display-1,
+  .text-display-2,
+  .text-heading-1,
+  .text-heading-2 {
+    font-family: var(--font-satoshi) !important;
+    font-size: 1.5rem !important;
+    font-weight: 500 !important;
+    line-height: 1.875rem !important;
+    letter-spacing: -0.03rem !important;
+  }
+
+  .text-heading-3,
+  .text-body-2,
+  .text-body-3,
+  .text-body-4 {
+    font-family: var(--font-satoshi) !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    line-height: 1.5rem !important;
+  }
+
+  .text-body-3-emphasis {
+    font-family: var(--font-satoshi) !important;
+    font-size: 1.125rem !important;
+    font-weight: 500 !important;
+    line-height: 1.625rem !important;
   }
 }
 

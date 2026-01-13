@@ -105,14 +105,6 @@
     align-items: center;
     text-align: center;
   }
-  .downlodetext > div:first-child {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
-  .downlodetext > div:last-child {
-    font-size: 0.75rem;
-    line-height: 1.1875rem;
-  }
   .Downlode_Data {
     gap: 24px;
   }
@@ -195,15 +187,9 @@
     width: 150px;
     gap: 10px;
   }
-  .ToolkitHead > div {
-    font-size: 1.4375rem;
-  }
   .CardToolItem svg {
     height: 70px;
     width: 70px;
-  }
-  .CardToolItem > div {
-    font-size: 0.875rem;
   }
 }
 @media screen and (max-width: 340px) {
@@ -318,9 +304,7 @@
   .PawsPraisesSec {
     padding: 16px 0px;
   }
-  .PawsHead > div {
-    font-size: 1.4375rem;
-  }
+  /* Typography handled by global classes */
   .BrownDiv::after {
     left: 50px;
     top: -15px;
@@ -403,9 +387,6 @@
   }
 }
 @media screen and (max-width: 768px) {
-  .GlimsData .GlimpsHead > div {
-    font-size: 1.4375rem;
-  }
   .GlimsData {
     gap: 10px;
     padding-top: 20px;
@@ -499,12 +480,6 @@
   }
 }
 @media screen and (max-width: 768px) {
-  .PetAppText > div:first-child {
-    font-size: 1.4375rem;
-  }
-  .PetAppText > div:last-child {
-    font-size: 0.8125rem;
-  }
   .PetAppData {
     margin-bottom: 30px;
   }

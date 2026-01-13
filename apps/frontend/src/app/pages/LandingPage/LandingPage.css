@@ -196,28 +196,10 @@
     min-height: 80px;
     padding: 16px;
   }
-  .carousel-text > div,
-  .carousel-text .text-heading-1 {
-    font-family: var(--font-grotesk);
-    font-size: 1.25rem !important;
-    font-weight: 400;
-    line-height: 1.625rem !important;
-    letter-spacing: -0.025rem !important;
-  }
   .LeftHeroText .text-display-1 {
-    font-family: var(--font-satoshi);
-    font-size: 1.25rem !important;
-    font-weight: 500;
-    line-height: 1.625rem !important;
-    letter-spacing: -0.025rem !important;
     text-align: center;
   }
   .LeftHeroText .text-body-2 {
-    font-family: var(--font-satoshi);
-    font-size: 0.875rem !important;
-    font-weight: 400;
-    line-height: 1.25rem !important;
-    letter-spacing: -0.0175rem !important;
     max-width: 520px;
     text-align: center;
   }
@@ -230,22 +212,8 @@
     text-align: center;
     padding: 16px;
   }
-  .LeftHeroText .text-display-1 {
-    font-size: 1.125rem !important;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.0225rem !important;
-  }
   .LeftHeroText .text-body-2 {
-    font-size: 0.75rem !important;
-    line-height: 1.125rem !important;
-    letter-spacing: -0.015rem !important;
     max-width: 100%;
-  }
-  .carousel-text > div,
-  .carousel-text .text-heading-1 {
-    font-size: 1.125rem !important;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.02rem !important;
   }
 }
 

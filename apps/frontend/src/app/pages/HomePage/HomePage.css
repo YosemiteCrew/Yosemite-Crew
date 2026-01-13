@@ -161,13 +161,7 @@ a.UnFillbtn {
     text-align: center;
   }
   .herotext > div {
-    font-size: 1.25rem;
     padding: 2px 0px;
-    line-height: 1.4;
-  }
-  .paraitem > div {
-    font-size: 0.875rem;
-    line-height: 150%;
   }
 }
 @media screen and (max-width: 640px) {
@@ -224,10 +218,7 @@ a.UnFillbtn {
     grid-template-columns: repeat(auto-fit, minmax(180px, 210px));
     gap: 12px;
   }
-  .PractHeading > div {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
+  /* Typography handled by global classes */
 }
 @media screen and (max-width: 550px) {
   .Practice_Box_Data {
@@ -288,10 +279,6 @@ a.UnFillbtn {
 @media screen and (max-width: 768px) {
   .FocusTexted {
     min-width: 100%;
-  }
-  .FocusTexted > div:first-child {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
   }
   .Focus_data {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -507,14 +494,6 @@ a.UnFillbtn {
   .whocareData .lftcare {
     gap: 4px;
   }
-  .whocareData .lftcare > div:first-child {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
-  .whocareData .lftcare > div:last-child {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
   .whocareData .rytcare {
     gap: 14px;
     flex-wrap: wrap;
@@ -599,14 +578,6 @@ a.UnFillbtn {
   .betInner {
     gap: 10px;
     width: 100%;
-  }
-  .betInner .careText > div:first-child {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
-  .betInner .careText > div:last-child {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
   }
   .lftbetter img {
     height: auto;
