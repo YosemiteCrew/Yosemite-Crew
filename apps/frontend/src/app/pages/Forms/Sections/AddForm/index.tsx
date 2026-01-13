@@ -6,10 +6,7 @@ import Details from "./Details";
 import Build from "./Build";
 import Review from "./Review";
 import { FormsCategory, FormsProps } from "@/app/types/forms";
-import {
-  publishForm,
-  saveFormDraft,
-} from "@/app/services/formService";
+import { publishForm, saveFormDraft } from "@/app/services/formService";
 
 const Labels = [
   {
@@ -59,15 +56,13 @@ const AddForm = ({
   const [formData, setFormData] = useState<FormsProps>(
     draft ?? initialForm ?? defaultForm()
   );
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const detailValidatorRef = useRef<() => boolean>(() => true);
   const buildValidatorRef = useRef<() => boolean>(() => true);
   const [isSaving, setIsSaving] = useState(false);
   const wasOpenRef = useRef(false);
 
-  const isEditing = useMemo(
-    () => Boolean(initialForm?._id),
-    [initialForm]
-  );
+  const isEditing = useMemo(() => Boolean(initialForm?._id), [initialForm]);
 
   useEffect(() => {
     if (showModal && !wasOpenRef.current) {
@@ -118,7 +113,8 @@ const AddForm = ({
 
     if (targetIndex > currentIndex) {
       for (let i = 0; i < targetIndex; i++) {
-        if (order[i] === "form-details" && !detailValidatorRef.current()) return;
+        if (order[i] === "form-details" && !detailValidatorRef.current())
+          return;
         if (order[i] === "build-form" && !buildValidatorRef.current()) return;
       }
     }
@@ -170,6 +166,10 @@ const AddForm = ({
     }
   };
 
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [activeLabel]);
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
@@ -203,7 +203,7 @@ const AddForm = ({
           setActiveLabel={handleLabelClick}
         />
 
-        <div className="flex overflow-y-auto flex-1">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
           {activeLabel === "form-details" && (
             <Details
               formData={formData}

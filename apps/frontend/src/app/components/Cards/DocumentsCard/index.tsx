@@ -1,5 +1,6 @@
 import React from "react";
 import { OrganizationDocument } from "@/app/types/document";
+import { Secondary } from "../../Buttons";
 
 type DocumentsCardProps = {
   document: OrganizationDocument;
@@ -11,35 +12,31 @@ const DocumentsCard = ({
   handleViewDocument,
 }: DocumentsCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
-        <div className="text-[23px] font-satoshi font-bold text-black-text">
+        <div className="text-body-3-emphasis text-text-primary">
           {document.title}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Description:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Description:</div>
+        <div className="text-caption-1 text-text-primary">
           {document.description}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Category:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Category:</div>
+        <div className="text-caption-1 text-text-primary">
           {document.category}
         </div>
       </div>
       <div className="flex gap-3 w-full">
-        <button
+        <Secondary
+          href="#"
           onClick={() => handleViewDocument(document)}
-          className="w-full border border-black-text! rounded-2xl! h-12 flex items-center justify-center cursor-pointer"
-        >
-          View
-        </button>
+          text="View"
+          className="w-full"
+        />
       </div>
     </div>
   );

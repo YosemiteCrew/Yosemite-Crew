@@ -2,42 +2,54 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Appointments from "../DataTable/Appointments";
 import Tasks from "../DataTable/Tasks";
-import classNames from "classnames";
-import Link from "next/link";
 
-import "./Summary.css";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 import { useTasksForPrimaryOrg } from "@/app/hooks/useTask";
+import { Secondary } from "../Buttons";
+
+import "./Summary.css";
 
 const AppointmentLabels = [
   {
+    name: "No payment",
+    key: "no_payment",
+    bg: "#5C614B",
+    text: "#fff",
+  },
+  {
     name: "Requested",
     key: "requested",
-    bg: "#eaeaea",
-    text: "#302f2e",
+    bg: "#747283",
+    text: "#fff",
   },
   {
     name: "Upcoming",
     key: "upcoming",
-    bg: "#247AED",
-    text: "#fff",
+    bg: "#F1D4B0",
+    text: "#000",
   },
   {
     name: "Checked-in",
     key: "checked_in",
-    bg: "#FEF3E9",
-    text: "#F68523",
+    bg: "#A8A181",
+    text: "#fff",
   },
   {
     name: "In progress",
     key: "in_progress",
-    bg: "#E6F4EF",
-    text: "#54B492",
+    bg: "#BF9FAA",
+    text: "#fff",
   },
   {
     name: "Completed",
     key: "completed",
-    bg: "#008F5D",
+    bg: "#D28F9A",
+    text: "#fff",
+  },
+  {
+    name: "Cancelled",
+    key: "cancelled",
+    bg: "#D9A488",
     text: "#fff",
   },
 ];
@@ -45,25 +57,25 @@ const TasksLabels = [
   {
     name: "Pending",
     key: "pending",
-    bg: "#eaeaea",
-    text: "#302f2e",
+    bg: "#747283",
+    text: "#fff",
   },
   {
     name: "In progress",
     key: "in_progress",
-    bg: "#E6F4EF",
-    text: "#54B492",
+    bg: "#BF9FAA",
+    text: "#fff",
   },
   {
     name: "Completed",
     key: "completed",
-    bg: "#008F5D",
+    bg: "#D28F9A",
     text: "#fff",
   },
   {
     name: "Cancelled",
     key: "cancelled",
-    bg: "#008F5D",
+    bg: "#D9A488",
     text: "#fff",
   },
 ];
@@ -113,38 +125,41 @@ const AppointmentTask = () => {
 
   return (
     <div className="summary-container">
-      <div className="summary-title">
+      <div className="text-text-primary text-heading-1">
         Schedule{" "}
-        <span>
+        <span className="text-text-tertiary">
           ({activeTable === "Appointments" ? appointments.length : tasks.length}
           )
         </span>
       </div>
       <div className="summary-labels flex-wrap gap-2">
-        <div className="summary-labels-left">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            className={classNames("summary-label-left", {
-              "active-label-left": activeTable === "Appointments",
-            })}
+            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${activeTable === "Appointments" ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
             onClick={() => setActiveTable("Appointments")}
           >
             Appointments
           </button>
           <button
-            className={classNames("summary-label-left", {
-              "active-label-left": activeTable === "Tasks",
-            })}
+            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${activeTable === "Tasks" ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
             onClick={() => setActiveTable("Tasks")}
           >
             Tasks
           </button>
         </div>
-        <div className="summary-labels-right flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {activeLabels?.map((label) => (
             <button
-              className={`summary-label-right hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${label.key === activeSubLabel ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
               key={label.name}
-              style={{ color: label.text, background: label.bg }}
+              className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+              style={
+                label.key === activeSubLabel
+                  ? {
+                      background: label.bg,
+                      color: label.text,
+                    }
+                  : {}
+              }
               onClick={() => setActiveSubLabel(label.key)}
             >
               {label.name}
@@ -157,13 +172,11 @@ const AppointmentTask = () => {
       ) : (
         <Tasks filteredList={filteredTaskList.slice(0, 5)} hideActions />
       )}
-      <div className="see-all-button">
-        <Link
-          className="see-all-button-link"
+      <div className="w-full justify-center flex items-center">
+        <Secondary
           href={activeTable === "Appointments" ? "/appoinments" : "/tasks"}
-        >
-          See all
-        </Link>
+          text="See all"
+        />
       </div>
     </div>
   );

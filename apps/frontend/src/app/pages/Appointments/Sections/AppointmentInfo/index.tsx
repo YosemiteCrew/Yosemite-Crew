@@ -1,7 +1,7 @@
 import Labels from "@/app/components/Labels/Labels";
 import Modal from "@/app/components/Modal";
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BsChatHeartFill } from "react-icons/bs";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 import { IoDocumentText, IoEye } from "react-icons/io5";
@@ -15,7 +15,6 @@ import Subjective from "./Prescription/Subjective";
 import Objective from "./Prescription/Objective";
 import Assessment from "./Prescription/Assessment";
 import Chat from "./Tasks/Chat";
-import ParentTask from "./Tasks/ParentTask";
 import Details from "./Finance/Details";
 import Documents from "./Prescription/Documents";
 import Discharge from "./Prescription/Discharge";
@@ -94,7 +93,6 @@ const labels = [
     labels: [
       { key: "parent-chat", name: "Companion parent chat" },
       { key: "task", name: "Task" },
-      { key: "parent-task", name: "Parent task" },
     ],
   },
   {
@@ -127,7 +125,6 @@ const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
   tasks: {
     "parent-chat": Chat,
     task: Task,
-    "parent-task": ParentTask,
   },
   finance: {
     summary: Summary,
@@ -144,6 +141,8 @@ const AppoitmentInfo = ({
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
     labels[0].labels[0].key
   );
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
   const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
   const [formData, setFormData] = useState<FormDataProps>(
     createEmptyFormData()
@@ -191,6 +190,10 @@ const AppoitmentInfo = ({
     };
   }, [activeAppointment?.id]);
 
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [activeLabel, activeSubLabel]);
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
@@ -235,7 +238,7 @@ const AppoitmentInfo = ({
           setActiveSubLabel={setActiveSubLabel}
         />
 
-        <div className="flex overflow-y-auto flex-1">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
           {Content ? (
             <Content
               activeAppointment={activeAppointment}

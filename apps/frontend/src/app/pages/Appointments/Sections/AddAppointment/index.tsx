@@ -1,6 +1,5 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
@@ -27,6 +26,7 @@ import {
   getDurationMinutes,
 } from "@/app/utils/date";
 import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -166,7 +166,7 @@ const AddAppointment = ({
       .filter((team) => vetIdSet.has(team._id))
       .map((team) => ({
         label: team.name || team._id,
-        value: team._id,
+        key: team._id,
       }));
   }, [teams, timeSlots, selectedSlot]);
 
@@ -183,7 +183,7 @@ const AddAppointment = ({
     () =>
       specialities?.map((speciality) => ({
         label: speciality.name,
-        value: speciality._id || speciality.name,
+        key: speciality._id || speciality.name,
       })),
     [specialities]
   );
@@ -200,7 +200,7 @@ const AddAppointment = ({
     () =>
       services?.map((service) => ({
         label: service.name,
-        value: service.id,
+        key: service.id,
       })),
     [services]
   );
@@ -359,13 +359,8 @@ const AddAppointment = ({
                   query={query}
                   setQuery={setQuery}
                   minChars={0}
+                  error={formDataErrors.companionId}
                 />
-                {formDataErrors.companionId && !formData.companion.id && (
-                  <div className="Errors">
-                    <Icon icon="mdi:error" width="16" height="16" />
-                    {formDataErrors.companionId}
-                  </div>
-                )}
                 {formData.companion.name && (
                   <EditableAccordion
                     title={formData.companion.name}
@@ -383,37 +378,33 @@ const AddAppointment = ({
               isEditing={true}
             >
               <div className="flex flex-col gap-3">
-                <Dropdown
+                <LabelDropdown
                   placeholder="Speciality"
-                  value={formData.appointmentType?.speciality.id || ""}
-                  onChange={(e) =>
+                  onSelect={(option) =>
                     setFormData({
                       ...formData,
                       appointmentType: {
                         id: "",
                         name: "",
                         speciality: {
-                          id: e.value,
-                          name: e.label,
+                          id: option.key,
+                          name: option.label,
                         },
                       },
                     })
                   }
+                  defaultOption={formData.appointmentType?.speciality.id}
                   error={formDataErrors.specialityId}
-                  className="min-h-12!"
                   options={SpecialitiesOptions}
-                  dropdownClassName="h-fit! max-h-[150px]!"
-                  returnObject
                 />
-                <Dropdown
+                <LabelDropdown
                   placeholder="Service"
-                  value={formData.appointmentType?.id || ""}
-                  onChange={(e) =>
+                  onSelect={(option) =>
                     setFormData({
                       ...formData,
                       appointmentType: {
-                        id: e.value,
-                        name: e.label,
+                        id: option.key,
+                        name: option.label,
                         speciality: formData.appointmentType?.speciality ?? {
                           id: "",
                           name: "",
@@ -421,11 +412,9 @@ const AddAppointment = ({
                       },
                     })
                   }
+                  defaultOption={formData.appointmentType?.id}
                   error={formDataErrors.serviceId}
-                  className="min-h-12!"
                   options={ServicesOptions}
-                  dropdownClassName="h-fit! max-h-[150px]!"
-                  returnObject
                 />
                 <FormDesc
                   intype="text"
@@ -476,23 +465,20 @@ const AddAppointment = ({
                       className="min-h-12!"
                     />
                   </div>
-                  <Dropdown
+                  <LabelDropdown
                     placeholder="Lead"
-                    value={formData.lead?.id || ""}
-                    onChange={(e) =>
+                    onSelect={(option) =>
                       setFormData({
                         ...formData,
                         lead: {
-                          name: e.label,
-                          id: e.value,
+                          name: option.label,
+                          id: option.key,
                         },
                       })
                     }
+                    defaultOption={formData.lead?.id}
                     error={formDataErrors.leadId}
-                    className="min-h-12!"
                     options={LeadOptions}
-                    dropdownClassName="h-fit! max-h-[150px]!"
-                    returnObject
                   />
                   <MultiSelectDropdown
                     placeholder="Support"

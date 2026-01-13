@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { IoEye, IoDocumentTextSharp } from "react-icons/io5";
 import { IoIosCloseCircleOutline } from "react-icons/io";
@@ -72,6 +72,8 @@ const CompanionInfo = ({
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
     labels[0].labels[0].key
   );
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
   const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
 
   useEffect(() => {
@@ -80,6 +82,10 @@ const CompanionInfo = ({
       setActiveSubLabel(current.labels[0].key);
     }
   }, [activeLabel]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [activeLabel, activeSubLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -129,7 +135,7 @@ const CompanionInfo = ({
           setActiveSubLabel={setActiveSubLabel}
         />
 
-        <div className="flex overflow-y-auto flex-1">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
           {Content ? <Content companion={activeCompanion} /> : null}
         </div>
       </div>

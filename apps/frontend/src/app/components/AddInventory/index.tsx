@@ -360,7 +360,7 @@ const AddInventory = ({
             color="#302f2e"
             className="opacity-0"
           />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
+          <div className="flex justify-center text-heading-1 text-text-primary">
             Add Inventory
           </div>
           <IoIosCloseCircleOutline

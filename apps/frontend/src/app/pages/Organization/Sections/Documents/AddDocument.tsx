@@ -1,10 +1,9 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
-import { OrganizationDocument } from "@/app/types/document";
+import { OrganizationDocument, OrgDocumentCategory } from "@/app/types/document";
 import React, { useState } from "react";
 import { IoIosCloseCircleOutline } from "react-icons/io";
 import { OrgDocumentCategoryOptions } from "../../types";
@@ -12,6 +11,7 @@ import { createDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 
 type AddDocumentProps = {
   showModal: boolean;
@@ -99,19 +99,16 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
                 error={formDataErrors.title}
                 className="min-h-12!"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Type"
-                value={formData.category}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    category: e,
+                    category: option.key as OrgDocumentCategory,
                   })
                 }
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
+                defaultOption={formData.category}
                 options={OrgDocumentCategoryOptions}
-                type="general"
               />
               <FormDesc
                 intype="text"

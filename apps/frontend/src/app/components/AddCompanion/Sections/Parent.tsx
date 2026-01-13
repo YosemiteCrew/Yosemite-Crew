@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import FormInput from "../../Inputs/FormInput/FormInput";
-import Dropdown from "../../Inputs/Dropdown/Dropdown";
 import { Primary } from "../../Buttons";
 import Accordion from "../../Accordion/Accordion";
 import Datepicker from "../../Inputs/Datepicker";
@@ -9,6 +8,8 @@ import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import SearchDropdown from "../../Inputs/SearchDropdown";
 import { searchParent } from "@/app/services/companionService";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
+import { CountriesOptions } from "../type";
 
 type OptionProp = {
   key: string;
@@ -212,19 +213,16 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                 </div>
               )}
             </div>
-            <Dropdown
+            <LabelDropdown
               placeholder="Choose country"
-              value={formData.address.country || ""}
-              onChange={(e) =>
+              onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  address: { ...formData.address, country: e },
+                  address: { ...formData.address, country: option.key },
                 })
               }
-              error={formDataErrors.country}
-              className="min-h-12!"
-              type="country"
-              search
+              defaultOption={formData.address.country}
+              options={CountriesOptions}
             />
             <FormInput
               intype="text"

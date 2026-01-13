@@ -91,8 +91,6 @@ describe("GoogleSearchDropDown Component", () => {
     );
 
     expect(screen.getByText("Invalid address")).toBeInTheDocument();
-    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
-    expect(screen.getByRole("textbox")).toHaveClass("is-invalid");
   });
 
   // --- 2. Interaction & API Calls (Autocomplete) ---

@@ -84,19 +84,19 @@ describe("Organization Types and Constants", () => {
     });
 
     it("should have valid RoomsTypes mappings", () => {
-      expect(RoomsTypes).toContainEqual({ label: "CONSULTATION", value: "CONSULTATION" });
-      expect(RoomsTypes).toContainEqual({ label: "SURGERY", value: "SURGERY" });
+      expect(RoomsTypes).toContainEqual({ label: "CONSULTATION", key: "CONSULTATION" });
+      expect(RoomsTypes).toContainEqual({ label: "SURGERY", key: "SURGERY" });
       expect(RoomsTypes).toHaveLength(4);
     });
 
     it("should have valid OrgDocumentCategoryOptions mappings", () => {
       expect(OrgDocumentCategoryOptions).toContainEqual({
         label: "TERMS AND CONDITIONS",
-        value: "TERMS_AND_CONDITIONS"
+        key: "TERMS_AND_CONDITIONS"
       });
       expect(OrgDocumentCategoryOptions).toContainEqual({
         label: "GENERAL",
-        value: "GENERAL"
+        key: "GENERAL"
       });
       expect(OrgDocumentCategoryOptions).toHaveLength(5);
     });

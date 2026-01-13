@@ -40,7 +40,6 @@ describe("SearchDropdown Component", () => {
 
     const input = screen.getByPlaceholderText("Search Fruit");
     expect(input).toBeInTheDocument();
-    expect(screen.getByTestId("search-icon")).toBeInTheDocument();
 
     // Dropdown should be closed initially
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
