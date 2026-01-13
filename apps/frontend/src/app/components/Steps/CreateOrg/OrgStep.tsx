@@ -128,7 +128,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
                   address: { ...formData.address, country: option.value },
                 })
               }
-              defaultOption={formData.address?.postalCode}
+              defaultOption={formData.address?.country}
               options={CountriesOptions}
               error={formDataErrors.country}
             />
