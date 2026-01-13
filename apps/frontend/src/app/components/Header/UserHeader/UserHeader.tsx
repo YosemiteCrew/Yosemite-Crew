@@ -132,7 +132,7 @@ const UserHeader = () => {
   const orgVerified = !!primaryOrg?.isVerified;
 
   return (
-    <div className="flex items-center justify-between px-3 sm:px-[60px]! w-full h-20 gap-10">
+    <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -170,7 +170,7 @@ const UserHeader = () => {
                   />
                 </button>
                 {selectOrg && (
-                  <div className="absolute top-[120%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full max-w-[200px] px-2">
+                  <div className="absolute top-[100%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full max-w-[200px] px-2">
                     {orgs.slice(0, 3).map((org, i) => (
                       <button
                         key={org.name + i}
@@ -242,13 +242,13 @@ const UserHeader = () => {
         {primaryOrg && (
           <div className="relative" ref={orgDropdownRef}>
             <button
-              className={`flex items-center gap-2 w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
+              className={`flex items-center gap-2 w-60 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
               onClick={() => setSelectOrg((e) => !e)}
             >
               <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
                 <HiBuildingOffice2 size={18} color="#302f2e" />
               </div>
-              <div className="text-black-text text-body-4 truncate max-w-[200px]">
+              <div className="text-black-text text-body-4 truncate flex-1">
                 {primaryOrg?.name}
               </div>
               <FaCaretDown
@@ -283,7 +283,7 @@ const UserHeader = () => {
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        <Search value={search} setSearch={setSearch} />
+        <Search value={search} setSearch={setSearch} className={"lg:flex hidden"} />
 
         <MdNotificationsActive
           color="#302f2e"
@@ -307,7 +307,7 @@ const UserHeader = () => {
               width={32}
               className="rounded-full object-cover h-8 min-w-8 max-h-8"
             />
-            <div className="text-black-text text-body-4 max-w-[200px] truncate">
+            <div className="text-black-text text-body-4 flex-1 truncate">
               {attributes?.given_name + " " + attributes?.family_name}
             </div>
             <FaCaretDown

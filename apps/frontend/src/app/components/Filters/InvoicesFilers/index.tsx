@@ -1,56 +1,48 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Search from "../../Inputs/Search";
 import { Invoice } from "@yosemite-crew/types";
-
-const Category = [
-  {
-    name: "All",
-    key: "all",
-  },
-];
 
 const Statuses = [
   {
     name: "All",
     key: "all",
-    bg: "#fff",
-    text: "#302f2e",
+    bg: "#F1D4B0",
+    text: "#000",
   },
   {
     name: "Pending",
     key: "pending",
-    bg: "#FEF3E9",
-    text: "#F68523",
+    bg: "#747283",
+    text: "#fff",
   },
   {
     name: "Awaiting payment",
     key: "awaiting_payment",
-    bg: "#EAF3FF",
-    text: "#247AED",
+    bg: "#A8A181",
+    text: "#fff",
   },
   {
     name: "Paid",
     key: "paid",
-    bg: "#E6F4EF",
-    text: "#54B492",
+    bg: "#D28F9A",
+    text: "#fff",
   },
   {
     name: "Failed",
     key: "failed",
-    bg: "#FDEBEA",
-    text: "#EA3729",
+    bg: "#5C614B",
+    text: "#fff",
   },
   {
     name: "Cancelled",
     key: "cancelled",
-    bg: "#FDEBEA",
-    text: "#EA3729",
+    bg: "#D9A488",
+    text: "#fff",
   },
   {
     name: "Refunded",
     key: "refunded",
-    bg: "#EAEAEA",
-    text: "#302F2E",
+    bg: "#BF9FAA",
+    text: "#fff",
   },
 ];
 
@@ -60,22 +52,16 @@ type InvoicesFiltersProps = {
 };
 
 const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
-  const [activeCategory, setActiveCategory] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
-  const [search, setSearch] = useState("");
 
   const filteredList = useMemo(() => {
     return list.filter((item: Invoice) => {
       const matchesStatus =
         activeStatus === "all" ||
         item.status.toLowerCase() === activeStatus.toLowerCase();
-      const matchesCategory = activeCategory === "all";
-      const matchesSearch =
-        item.parentId?.toLowerCase().includes(search.toLowerCase()) ||
-        item.companionId?.toLowerCase().includes(search.toLowerCase());
-      return matchesStatus && matchesCategory && matchesSearch;
+      return matchesStatus;
     });
-  }, [list, activeCategory, activeStatus, search]);
+  }, [list, activeStatus]);
 
   useEffect(() => {
     setFilteredList(filteredList);
@@ -84,32 +70,21 @@ const InvoicesFilters = ({ list, setFilteredList }: InvoicesFiltersProps) => {
   return (
     <div className="w-full flex items-center justify-between flex-wrap gap-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          {Category.map((category) => (
-            <button
-              key={category.key}
-              onClick={() => setActiveCategory(category.key)}
-              className={`px-3 h-9 rounded-xl! border font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${category.key === activeCategory ? "border-blue-text! bg-blue-light! text-blue-text! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-[#302f2e]!"}`}
-            >
-              {category.name}
-            </button>
-          ))}
-        </div>
-        <div className="flex">
-          <Search value={search} setSearch={setSearch} />
-        </div>
+        
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {Statuses.map((status) => (
           <button
             key={status.key}
-            className={`px-3 h-9 rounded-xl! font-satoshi! text-[15px]! font-bold hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${status.key === activeStatus ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
-            style={{
-              background: status.bg,
-              color: status.text,
-              borderColor:
-                status.key === activeStatus ? status.text : status.bg,
-            }}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+            style={
+              status.key === activeStatus
+                ? {
+                    background: status.bg,
+                    color: status.text,
+                  }
+                : {}
+            }
             onClick={() => setActiveStatus(status.key)}
           >
             {status.name}

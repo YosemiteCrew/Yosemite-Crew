@@ -8,6 +8,7 @@ import { Task } from "@/app/types/task";
 import "./DataTable.css";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { Team } from "@/app/types/team";
+import { toTitleCase } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -26,13 +27,13 @@ type TaskTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case "pending":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+      return { color: "#fff", backgroundColor: "#747283" };
     case "in_progress":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#fff", backgroundColor: "#BF9FAA" };
     case "completed":
-      return { color: "#fff", backgroundColor: "#008F5D" };
+      return { color: "#fff", backgroundColor: "#D28F9A" };
     default:
-      return { color: "#fff", backgroundColor: "#008F5D" };
+      return { color: "#fff", backgroundColor: "#D9A488" };
   }
 };
 
@@ -121,7 +122,7 @@ const Tasks = ({
       width: "15%",
       render: (item: Task) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
-          {item.status}
+          {toTitleCase(item.status)}
         </div>
       ),
     },
@@ -157,7 +158,7 @@ const Tasks = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );

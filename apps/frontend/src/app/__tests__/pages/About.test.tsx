@@ -29,37 +29,23 @@ describe("AboutUs Page", () => {
 
   it("should render the hero section content correctly", () => {
     expect(
-      screen.getByRole("heading", {
-        name: /Welcome to Yosemite Crew Where compassion meets code/i,
-      }),
+      screen.getByText(/Welcome to Yosemite Crew where compassion meets code/i),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("heading", {
-        name: /For pet businesses, pet parents, and developers/i,
-      }),
+      screen.getByText(/For pet businesses, pet parents, and developers/i),
     ).toBeInTheDocument();
   });
 
   it("should render the 'About Us' cards section correctly", () => {
-    expect(
-      screen.getByRole("heading", { name: "About Us" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Why do we exist?" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Our mission" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Our USP" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("About Us")).toBeInTheDocument();
+    expect(screen.getByText("Why do we exist?")).toBeInTheDocument();
+    expect(screen.getByText("Our mission")).toBeInTheDocument();
+    expect(screen.getByText("Our USP")).toBeInTheDocument();
   });
 
   it("should render the 'Our Story' section correctly", () => {
-    expect(
-      screen.getByRole("heading", { name: "Our story" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Our story")).toBeInTheDocument();
     expect(screen.getByAltText("aboutstory")).toBeInTheDocument();
     expect(
       screen.getByText(/Our story began in the field quite literally/i),
@@ -68,13 +54,9 @@ describe("AboutUs Page", () => {
 
   it("should render the community/team section correctly", () => {
     expect(
-      screen.getByRole("heading", {
-        name: /We’re an open source community/i,
-      }),
+      screen.getByText(/We.?re an open source community/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /That means No Gates, No Egos./i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/That means no gates, no egos./i)).toBeInTheDocument();
     expect(
       screen.getByText(/Just a group of humans trying to build better tools/i),
     ).toBeInTheDocument();

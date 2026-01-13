@@ -3,6 +3,8 @@ import React from "react";
 import { Team } from "@/app/types/team";
 import { isHttpsImageUrl } from "@/app/utils/urls";
 import { getStatusStyle } from "../../DataTable/AvailabilityTable";
+import { toTitleCase } from "@/app/utils/validators";
+import { Secondary } from "../../Buttons";
 
 type AvailabilityCardProps = {
   team: Team;
@@ -11,7 +13,7 @@ type AvailabilityCardProps = {
 
 const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-[#EAEAEA] bg-[#FFFEFE] px-3 py-4 flex flex-col justify-between gap-2.5 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <Image
           alt={""}
@@ -26,57 +28,51 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           className="h-10 w-10 rounded-full"
         />
         <div className="flex flex-col gap-0">
-          <div className="text-[13px] font-satoshi font-bold text-black-text">
+          <div className="text-body-3-emphasis text-text-primary">
             {team.name}
           </div>
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Role:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
-          {team.role}
+        <div className="text-caption-1 text-text-extra">Role:</div>
+        <div className="text-caption-1 text-text-primary">
+          {toTitleCase(team.role)}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
-          Speciality:
-        </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-extra">Speciality:</div>
+        <div className="text-caption-1 text-text-primary">
           {team?.speciality?.name}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
+        <div className="text-caption-1 text-text-extra">
           Today&apos;s Appointment:
         </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-primary">
           {team.todayAppointment}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-[13px] font-satoshi font-bold text-grey-noti">
+        <div className="text-caption-1 text-text-extra">
           Weekly working hours:
         </div>
-        <div className="text-[13px] font-satoshi font-bold text-black-text">
+        <div className="text-caption-1 text-text-primary">
           {team.weeklyWorkingHours}
         </div>
       </div>
       <div
         style={getStatusStyle(team.status)}
-        className="w-full rounded-lg h-9 flex items-center justify-center text-[15px] font-satoshi font-bold"
+        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
         {team.status}
       </div>
-      <div className="flex gap-3 w-full">
-        <button
-          onClick={() => handleViewTeam(team)}
-          className="w-full border border-black-text! rounded-2xl! h-12 flex items-center justify-center cursor-pointer"
-        >
-          View
-        </button>
-      </div>
+      <Secondary
+        href="#"
+        onClick={() => handleViewTeam(team)}
+        text="View"
+        className="w-full"
+      />
     </div>
   );
 };

@@ -27,6 +27,7 @@ type CompanionsTableProps = {
   setActiveCompanion: (companion: CompanionParent) => void;
   setViewCompanion: (open: boolean) => void;
   setBookAppointment: (open: boolean) => void;
+  setAddTask: (open: boolean) => void;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -48,6 +49,7 @@ const CompanionsTable = ({
   setActiveCompanion,
   setViewCompanion,
   setBookAppointment,
+  setAddTask,
 }: CompanionsTableProps) => {
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
@@ -59,13 +61,18 @@ const CompanionsTable = ({
     setBookAppointment(true);
   };
 
+  const handleAddTask = (companion: CompanionParent) => {
+    setActiveCompanion(companion);
+    setAddTask(true);
+  };
+
   const columns: Column<CompanionParent>[] = [
     {
       label: "",
       key: "image",
       width: "5%",
       render: (item: CompanionParent) => (
-        <div className="appointment-profile">
+        <div className="appointment-profile w-10 h-10">
           <Image
             src={
               isHttpsImageUrl(item.companion.photoUrl)
@@ -183,7 +190,10 @@ const CompanionsTable = ({
           >
             <FaCalendar size={14} color="#302F2E" />
           </button>
-          <button className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer">
+          <button
+            onClick={() => handleAddTask(item)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          >
             <FaTasks size={14} color="#302F2E" />
           </button>
         </div>
@@ -200,7 +210,7 @@ const CompanionsTable = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );
@@ -211,6 +221,7 @@ const CompanionsTable = ({
               companion={companion}
               handleViewCompanion={handleViewCompanion}
               handleBookAppointment={handleBookAppointment}
+              handleAddTask={handleAddTask}
             />
           ));
         })()}

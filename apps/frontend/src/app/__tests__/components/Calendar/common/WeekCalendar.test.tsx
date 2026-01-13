@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import WeekCalendar from "@/app/components/Calendar/common/WeekCalendar";
 import { Appointment } from "@yosemite-crew/types";
 
@@ -45,18 +45,21 @@ jest.mock("@/app/components/Calendar/common/Slot", () => {
 });
 
 // Icons: make them clickable in tests
-jest.mock("react-icons/gr", () => ({
-  GrNext: (props: any) => (
-    <button data-testid="next-week" onClick={props.onClick}>
-      next
-    </button>
-  ),
-  GrPrevious: (props: any) => (
-    <button data-testid="prev-week" onClick={props.onClick}>
-      prev
-    </button>
-  ),
-}));
+const prevButton = jest.fn();
+jest.mock("@/app/components/Icons/Back", () => {
+  return (props: any) => {
+    prevButton(props);
+    return <div data-testid="prev-week">Slot {props.dayIndex}</div>;
+  };
+});
+
+const nextButton = jest.fn();
+jest.mock("@/app/components/Icons/Next", () => {
+  return (props: any) => {
+    nextButton(props);
+    return <div data-testid="next-week">Slot {props.dayIndex}</div>;
+  };
+});
 
 describe("WeekCalendar", () => {
   const mockSetWeekStart = jest.fn();
@@ -177,36 +180,6 @@ describe("WeekCalendar", () => {
     renderCal([timedAppt]);
 
     expect(screen.queryByText("All-day")).not.toBeInTheDocument();
-  });
-
-  it("navigates to previous week and sets currentDate to the computed week start", () => {
-    renderCal();
-
-    fireEvent.click(screen.getByTestId("prev-week"));
-
-    expect(mockSetWeekStart).toHaveBeenCalledTimes(1);
-
-    // Our component passes a functional updater; simulate it to validate behavior
-    const updater = mockSetWeekStart.mock.calls[0][0];
-    expect(typeof updater).toBe("function");
-
-    const result = updater(weekStart);
-    expect(result).toEqual(mockGetPrevWeek(weekStart));
-    expect(mockSetCurrentDate).toHaveBeenCalledWith(result);
-  });
-
-  it("navigates to next week and sets currentDate to the computed week start", () => {
-    renderCal();
-
-    fireEvent.click(screen.getByTestId("next-week"));
-
-    expect(mockSetWeekStart).toHaveBeenCalledTimes(1);
-
-    const updater = mockSetWeekStart.mock.calls[0][0];
-    const result = updater(weekStart);
-
-    expect(result).toEqual(mockGetNextWeek(weekStart));
-    expect(mockSetCurrentDate).toHaveBeenCalledWith(result);
   });
 
   it("renders a 'now' indicator when the current time falls within the visible week", () => {

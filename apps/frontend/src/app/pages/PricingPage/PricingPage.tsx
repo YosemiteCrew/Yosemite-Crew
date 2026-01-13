@@ -64,11 +64,11 @@ const PricingPage = () => {
           <div className="PricingPage-header">
             <div className="PriceBackdiv">
               <div className="PricinhHeadquote">
-                <h2>Transparent pricing, no hidden fees</h2>
-                <p>
+                <div className="text-display-1 text-text-primary">Transparent pricing, no hidden fees</div>
+                <div className="text-body-3 text-text-primary">
                   Choose a plan that fits your pet-care practice. Upgrade
                   anytime as you grow.
-                </p>
+                </div>
               </div>
             </div>
             <div className="flex gap-4 flex-col w-full max-w-5xl">
@@ -109,7 +109,7 @@ const PricingPage = () => {
                         {plan.title}
                       </div>
                       {plan.recommended && (
-                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-semibold">
+                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-normal">
                           Recommended
                         </div>
                       )}
@@ -134,7 +134,7 @@ const PricingPage = () => {
                       {plan.description}
                     </div>
                     <Link
-                      className="w-full rounded-2xl! hover:shadow-[0_0_16px_0_rgba(0,0,0,0.16)] transition duration-300 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-grotesk text-[19px] font-medium"
+                      className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-grotesk text-[19px] font-medium"
                       href={plan.buttonSrc}
                       onClick={() => plan.id === 3 && setNotify(true)}
                     >
@@ -215,7 +215,7 @@ const PricingPage = () => {
           )}
 
           <div className="flex flex-col gap-3 md:gap-9">
-            <div className="font-grotesk text-[23px] md:text-[33px] xl:text-[48px] text-black-text text-center font-medium">
+            <div className="text-display-1 text-text-primary text-center plansFeaturesHeading">
               Plans and features
             </div>
             <div className="flex gap-3">
@@ -236,7 +236,7 @@ const PricingPage = () => {
                     </div>
                   </div>
                   <Link
-                    className="w-full rounded-2xl! hover:shadow-[0_0_16px_0_rgba(0,0,0,0.16)] text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] font-medium"
+                    className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] font-medium"
                     href={plan.buttonSrc}
                   >
                     {plan.buttonText}
@@ -298,7 +298,7 @@ const NeedHealp = () => {
     <div className="NeedHelpDiv">
       <div className="Needhelpitem">
         <div className="helpText">
-          <h3>Need Help? We’re All Ears!</h3>
+          <h3>Need Help? We&rsquo;re All Ears!</h3>
           <p>
             Got questions or need assistance? Just reach out! Our team is here
             to help.

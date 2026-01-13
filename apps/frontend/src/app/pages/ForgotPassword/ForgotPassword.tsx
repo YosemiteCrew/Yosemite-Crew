@@ -260,22 +260,37 @@ const ForgotPassword = () => {
   };
 
   return (
-    <section className="SignInSec">
+    <section
+      className={`
+        relative flex w-full flex-1 items-center justify-center
+        bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')]
+        bg-cover bg-center bg-no-repeat
+        h-[calc(100vh-80px)]
+      `}
+    >
       {ErrorTostPopup}
-      <div className="RightSignIn">
+      <div
+        className={`
+          flex h-fit w-[450px] flex-col items-center justify-center gap-6
+          rounded-3xl border border-card-border
+          bg-(--whitebg)
+          p-[1.25rem]
+          elevation-1
+        `}
+      >
         {!showVerifyCode && !showNewPassword && (
-          <div className="SignIninner">
-            <div className="ForgetHead">
-              <h2>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <div className="text-display-2 text-text-primary text-center">
                 Forgot password?
-              </h2>
-              <p>
+              </div>
+              <div className="text-body-4 text-text-primary text-center">
                 {" "}
                 Enter your registered email, and we’ll send you a code to reset
                 it.
-              </p>
+              </div>
             </div>
-            <Form>
+            <Form className="flex flex-col gap-6">
               <FormInput
                 intype="email"
                 inname="email"
@@ -283,7 +298,7 @@ const ForgotPassword = () => {
                 inlabel="Email Address"
                 onChange={(e) => setEmail(e.target.value)}
               />
-              <div className="SignButtons">
+              <div className="flex flex-col gap-2">
                 <Primary href="#" onClick={handleOtp} text="Send code" />
                 <Secondary href="/signin" text="Back" />
               </div>
@@ -292,16 +307,16 @@ const ForgotPassword = () => {
         )}
 
         {showVerifyCode && (
-          <div className="SignIninner">
-            <div className="ForgetHead">
-              <h2>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <div className="text-display-2 text-text-primary text-center">
                 Verify code
-              </h2>
-              <p>
+              </div>
+              <div className="text-body-4 text-text-primary text-center">
                 {" "}
                 Enter the code we just sent to your email to proceed with
                 resetting your password.
-              </p>
+              </div>
             </div>
 
             <Form style={{ marginBottom: "0px" }}>
@@ -320,47 +335,55 @@ const ForgotPassword = () => {
               </div>
             </Form>
 
-            <div className="SignButtons">
-              <Primary href="#" onClick={handleVerifyOtp} text="Verify code" />
+            <div className="flex flex-col gap-3 items-center w-full">
+              <Primary
+                href="#"
+                onClick={handleVerifyOtp}
+                text="Verify code"
+                style={{ width: "100%" }}
+              />
               <Secondary
                 href="#"
                 text="Back"
                 onClick={() => setShowVerifyCode(false)}
+                style={{ width: "100%" }}
               />
-              <h6>
+              <div className="text-body-4 text-text-primary">
                 {" "}
-                Didn’t receive the code?{" "}
-                <Link onClick={handleOtp} href="#">
-                  Request New Code.
+                Didn&apos;t receive the code?{" "}
+                <Link href="#" onClick={handleOtp} className="text-text-brand">
+                  Request New Code
                 </Link>
-              </h6>
+              </div>
             </div>
           </div>
         )}
 
         {showNewPassword && (
-          <div className="SignIninner">
-            <Form>
-              <div className="TopSignInner">
-                <h2>
+          <div className="flex flex-col gap-6 w-full">
+            <Form className="flex flex-col gap-6 w-full">
+              <div className="flex flex-col gap-6 w-full">
+                <div className="text-display-2 text-text-primary text-center">
                   Set new password
-                </h2>
-                <FormInputPass
-                  intype="password"
-                  inname="password"
-                  value={password}
-                  inlabel="Enter New Password"
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <FormInputPass
-                  intype="password"
-                  inname="confirmPassword"
-                  value={confirmPassword}
-                  inlabel="Confirm Password"
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <FormInputPass
+                    intype="password"
+                    inname="password"
+                    value={password}
+                    inlabel="Enter New Password"
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <FormInputPass
+                    intype="password"
+                    inname="confirmPassword"
+                    value={confirmPassword}
+                    inlabel="Confirm Password"
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="SignButtons">
+              <div className="flex flex-col gap-3 w-full">
                 <Primary
                   href="#"
                   onClick={handlePasswordChange}

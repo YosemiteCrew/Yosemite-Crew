@@ -1,16 +1,16 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
 import React, { useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { EmploymentTypes, RoleOptions } from "../../types";
 import { Primary } from "@/app/components/Buttons";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { sendInvite } from "@/app/services/teamService";
-import { isValidEmail } from "@/app/utils/validators";
+import { isValidEmail, toTitleCase } from "@/app/utils/validators";
 import { TeamFormDataType } from "@/app/types/team";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import Close from "@/app/components/Icons/Close";
 
 type AddTeamProps = {
   showModal: boolean;
@@ -24,7 +24,7 @@ const initialData = {
     key: "",
   },
   role: "",
-  type: EmploymentTypes[0].key,
+  type: EmploymentTypes[0].value,
 };
 
 const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
@@ -62,25 +62,15 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add team
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add team</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
           <Accordion
             title="Add team"
             defaultOpen
@@ -99,33 +89,32 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 error={formDataErrors.email}
                 className="min-h-12!"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Speciality"
-                value={formData.speciality.key}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
                     speciality: {
-                      name: e.label,
-                      key: e.value
+                      name: option.label,
+                      key: option.value,
                     },
                   })
                 }
-                returnObject
+                defaultOption={formData.speciality.key}
                 error={formDataErrors.speciality}
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
                 options={SpecialitiesOptions}
-                type="general"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Role"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e })}
+                onSelect={(option) =>
+                  setFormData({ ...formData, role: option.value })
+                }
+                defaultOption={formData.role}
                 error={formDataErrors.role}
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
-                options={RoleOptions}
+                options={RoleOptions.map((role) => ({
+                  value: role,
+                  label: toTitleCase(role),
+                }))}
               />
               <SelectLabel
                 title="Employee type"

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Col, Form, Row } from "react-bootstrap";
+import { Form } from "react-bootstrap";
 import Link from "next/link";
 import { GoCheckCircleFill } from "react-icons/go";
 import { Icon } from "@iconify/react/dist/iconify.js";
@@ -12,9 +12,9 @@ import OtpModal from "@/app/components/OtpModal/OtpModal";
 import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { Primary } from "@/app/components/Buttons";
-
-import "./SignUp.css";
 import { IoIosWarning } from "react-icons/io";
+
+import "../AuthPages.css";
 
 type SignUpProps = {
   postAuthRedirect?: string;
@@ -188,212 +188,214 @@ const SignUp = ({
 
   return (
     <section
-      className="MainSignUpSec"
-      style={
-        isDeveloper
-          ? {
-              backgroundImage:
-                'linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.55)), url("/assets/bgDev.jpg")',
-            }
-          : undefined
-      }
+      className={`
+        relative flex w-full flex-1 items-center justify-center
+        bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')]
+        bg-cover bg-center bg-no-repeat
+      `}
     >
-      <Row className="MainSignUpRow">
-        <Col md={6} className="MainSignCol">
-          <div className="BuildEveryone gap-10!">
-            <div className="max-w-[350px]">
-              <div className="text-display-2 text-text-primary">
-                {isDeveloper
-                  ? "Build, test, and ship apps on Yosemite Crew"
-                  : "Built for everyone, from day one"}
+      <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 sm:my-12 md:flex-row flex-col items-center md:items-start">
+        <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
+          <div className="flex w-full items-center justify-center">
+            <div className="text-display-2 text-text-primary text-center max-w-[350px] auth-title">
+              {isDeveloper
+                ? "Build, test, and ship apps on Yosemite Crew"
+                : "Built for everyone, from day one"}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <div className="flex gap-2">
+              <div className="w-[20px]">
+                <GoCheckCircleFill
+                  color="#247aed"
+                  size={20}
+                  className="mt-[3px]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
+                  {isDeveloper
+                    ? "API-first, self-host or managed"
+                    : "Enjoy smooth online solutions with us!"}
+                </div>
+                <p className="text-caption-1 text-text-primary auth-feature-desc">
+                  {isDeveloper
+                    ? "Open source core with APIs built for integrations. Run it yourself or use our managed stack."
+                    : "Our services are built on a strong foundation for great performance and flexibility."}
+                </p>
               </div>
             </div>
 
-            <div className="BuildCloud">
-              <div className="CloudItems">
-                <div className="CloudIcon">
-                  <span>
-                    <GoCheckCircleFill />
-                  </span>
-                </div>
-                <div className="CloudText">
-                  <div className="text-body-3-emphasis text-text-primary">
-                    {isDeveloper
-                      ? "API-first, self-host or managed"
-                      : "Enjoy smooth online solutions with us!"}
-                  </div>
-                  <p className="text-caption-1 text-text-primary">
-                    {isDeveloper
-                      ? "Open source core with APIs built for integrations. Run it yourself or use our managed stack."
-                      : "Our services are built on a strong foundation for great performance and flexibility."}
-                  </p>
-                </div>
+            <div className="flex gap-2">
+              <div className="w-[20px]">
+                <GoCheckCircleFill
+                  color="#247aed"
+                  size={20}
+                  className="mt-[3px]"
+                />
               </div>
-
-              <div className="CloudItems">
-                <div className="CloudIcon">
-                  <span>
-                    <GoCheckCircleFill />
-                  </span>
+              <div className="flex flex-col gap-1">
+                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
+                  {isDeveloper
+                    ? "Local dev + production ready"
+                    : "Start free and upgrade as needed."}
                 </div>
-                <div className="CloudText">
-                  <div className="text-body-3-emphasis text-text-primary">
-                    {isDeveloper
-                      ? "Local dev + production ready"
-                      : "Start free and upgrade as needed."}
-                  </div>
-                  <p className="text-caption-1 text-text-primary">
-                    {isDeveloper
-                      ? "Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted."
-                      : "Enjoy generous free usage. Upgrade only when you need."}
-                  </p>
-                </div>
+                <p className="text-caption-1 text-text-primary auth-feature-desc">
+                  {isDeveloper
+                    ? "Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted."
+                    : "Enjoy generous free usage. Upgrade only when you need."}
+                </p>
               </div>
+            </div>
 
-              <div className="CloudItems">
-                <div className="CloudIcon">
-                  <span>
-                    <GoCheckCircleFill />
-                  </span>
+            <div className="flex gap-2">
+              <div className="w-[20px]">
+                <GoCheckCircleFill
+                  color="#247aed"
+                  size={20}
+                  className="mt-[3px]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
+                  {isDeveloper
+                    ? "Secure by default"
+                    : "Our servers are EU-based and GDPR compliant."}
                 </div>
-                <div className="CloudText">
-                  <div className="text-body-3-emphasis text-text-primary">
-                    {isDeveloper
-                      ? "Secure by default"
-                      : "Our servers are EU-based and GDPR compliant."}
-                  </div>
-                  <p className="text-caption-1 text-text-primary">
-                    {isDeveloper
-                      ? "Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed."
-                      : "All data is securely stored in the EU, fully GDPR compliant."}
-                  </p>
-                </div>
+                <p className="text-caption-1 text-text-primary auth-feature-desc">
+                  {isDeveloper
+                    ? "Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed."
+                    : "All data is securely stored in the EU, fully GDPR compliant."}
+                </p>
               </div>
             </div>
           </div>
-        </Col>
+        </div>
 
-        <Col md={6} className="MainSignCol">
-          <div className="SignUpFormDiv">
-            <Form onSubmit={handleSignUp} method="post">
-              <div className="TopSignUp">
-                <div className="Headingtext">
-                  <div className="text-display-2 text-text-primary text-center">
-                    {isDeveloper ? "Sign up for developer access" : "Sign up"}
-                  </div>
-                </div>
-
-                <div className="SignFormItems">
-                  <FormInput
-                    intype="text"
-                    inname="first name"
-                    value={firstName}
-                    inlabel="First name"
-                    onChange={(e) => setFirstName(e.target.value)}
-                    error={inputErrors.firstName}
-                  />
-                  <FormInput
-                    intype="text"
-                    inname="last name"
-                    value={lastName}
-                    inlabel="Last name"
-                    onChange={(e) => setLastName(e.target.value)}
-                    error={inputErrors.lastName}
-                  />
-                  <FormInput
-                    intype="email"
-                    inname="email"
-                    value={email}
-                    inlabel="Enter email"
-                    onChange={(e) => setEmail(e.target.value)}
-                    error={inputErrors.email}
-                  />
-                  <FormInputPass
-                    intype="password"
-                    inname="password"
-                    value={password}
-                    inlabel="Set up password"
-                    onChange={(e) => setPassword(e.target.value)}
-                    error={inputErrors.pError}
-                  />
-                  <FormInputPass
-                    intype="password"
-                    inname="confirm-password"
-                    value={confirmPassword}
-                    inlabel="Confirm password"
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    error={inputErrors.confirmPError}
-                  />
-                </div>
+        <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
+          <Form
+            onSubmit={handleSignUp}
+            method="post"
+            className="flex flex-col gap-6"
+          >
+            <div className="flex flex-col gap-6">
+              <div className="text-display-2 text-text-primary text-center auth-title">
+                {isDeveloper ? "Sign up for developer access" : "Sign up"}
               </div>
 
-              <div className="Sign_check">
-                <Form.Check
-                  type="checkbox"
-                  label={
-                    <>
-                      I agree to Yosemite Crew’s{" "}
-                      <Link className="policylink" href="/terms-and-conditions">
-                        terms and conditions
-                      </Link>{" "}
-                      and{" "}
-                      <Link className="policylink" href="/privacy-policy">
-                        privacy policy
-                      </Link>
-                    </>
-                  }
-                  onChange={(e) => setAgree(e.target.checked)}
+              <div className="flex flex-col gap-3">
+                <FormInput
+                  intype="text"
+                  inname="first name"
+                  value={firstName}
+                  inlabel="First name"
+                  onChange={(e) => setFirstName(e.target.value)}
+                  error={inputErrors.firstName}
                 />
-                {/* Show error for terms */}
-                {inputErrors.agree && (
-                  <div
-                    className={`
+                <FormInput
+                  intype="text"
+                  inname="last name"
+                  value={lastName}
+                  inlabel="Last name"
+                  onChange={(e) => setLastName(e.target.value)}
+                  error={inputErrors.lastName}
+                />
+                <FormInput
+                  intype="email"
+                  inname="email"
+                  value={email}
+                  inlabel="Enter email"
+                  onChange={(e) => setEmail(e.target.value)}
+                  error={inputErrors.email}
+                />
+                <FormInputPass
+                  intype="password"
+                  inname="password"
+                  value={password}
+                  inlabel="Set up password"
+                  onChange={(e) => setPassword(e.target.value)}
+                  error={inputErrors.pError}
+                />
+                <FormInputPass
+                  intype="password"
+                  inname="confirm-password"
+                  value={confirmPassword}
+                  inlabel="Confirm password"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  error={inputErrors.confirmPError}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Form.Check
+                type="checkbox"
+                label={
+                  <>
+                    I agree to Yosemite Crew’s{" "}
+                    <Link className="policylink" href="/terms-and-conditions">
+                      terms and conditions
+                    </Link>{" "}
+                    and{" "}
+                    <Link className="policylink" href="/privacy-policy">
+                      privacy policy
+                    </Link>
+                  </>
+                }
+                className="flex! gap-2! items-start text-caption-1 text-text-primary"
+                onChange={(e) => setAgree(e.target.checked)}
+              />
+              {/* Show error for terms */}
+              {inputErrors.agree && (
+                <div
+                  className={`
                       flex items-center gap-1 px-4
                       text-caption-2 text-text-error
                     `}
-                  >
-                    <IoIosWarning className="text-text-error" size={14} />
-                    {inputErrors.agree}
-                  </div>
-                )}
-                <Form.Check
-                  type="checkbox"
-                  label={<>Sign me up for newsletter and promotional emails</>}
-                  onChange={(e) => setSubscribe(e.target.checked)}
-                />
-                {/* Show error for newsletter */}
-                {inputErrors.subscribe && (
-                  <div
-                    className={`
+                >
+                  <IoIosWarning className="text-text-error" size={14} />
+                  {inputErrors.agree}
+                </div>
+              )}
+              <Form.Check
+                type="checkbox"
+                label={<>Sign me up for newsletter and promotional emails</>}
+                onChange={(e) => setSubscribe(e.target.checked)}
+                className="flex! gap-2! items-end! text-caption-1 text-text-primary"
+              />
+              {/* Show error for newsletter */}
+              {inputErrors.subscribe && (
+                <div
+                  className={`
                         flex items-center gap-1 px-4
                         text-caption-2 text-text-error
                       `}
-                  >
-                    <IoIosWarning className="text-text-error" size={14} />
-                    {inputErrors.subscribe}
-                  </div>
-                )}
-              </div>
-
-              <div className="Signbtn">
-                <Primary
-                  text="Sign up"
-                  onClick={handleSignUp}
-                  href="#"
-                  style={{ width: "100%" }}
-                />
-                <div className="text-body-4 text-text-primary">
-                  {" "}
-                  Already have an account?{" "}
-                  <Link href={signinHref} className="text-text-brand">
-                    Sign In
-                  </Link>
+                >
+                  <IoIosWarning className="text-text-error" size={14} />
+                  {inputErrors.subscribe}
                 </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-center gap-3">
+              <Primary
+                text="Sign up"
+                onClick={handleSignUp}
+                href="#"
+                style={{ width: "100%" }}
+              />
+              <div className="text-body-4 text-text-primary auth-inline-text">
+                {" "}
+                Already have an account?{" "}
+                <Link href={signinHref} className="text-text-brand">
+                  Sign In
+                </Link>
               </div>
-            </Form>
-          </div>
-        </Col>
-      </Row>
+            </div>
+          </Form>
+        </div>
+      </div>
       <OtpModal
         email={email}
         password={password}

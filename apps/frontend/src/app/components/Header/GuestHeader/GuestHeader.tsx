@@ -61,7 +61,7 @@ const GuestHeader = () => {
             <li key={item.label}>
               <Link
                 href={item.href ? item.href : "#"}
-                className={`text-body-4 text-text-secondary!`}
+                className={`${item.href === pathname ? "text-text-primary!" : "text-text-tertiary!"} inline-block text-body-4 hover:text-text-brand! transition-all duration-200 ease-out hover:scale-108!`}
               >
                 {item.label}
               </Link>

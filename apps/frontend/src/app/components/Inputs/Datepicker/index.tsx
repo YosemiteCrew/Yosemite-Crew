@@ -44,10 +44,11 @@ const Datepicker = ({
   type = "icon",
   className,
   containerClassName,
-  placeholder
+  placeholder,
 }: DatepickerProps) => {
-  const updateDate =
-    setCurrentDate as React.Dispatch<React.SetStateAction<Date | null>>;
+  const updateDate = setCurrentDate as React.Dispatch<
+    React.SetStateAction<Date | null>
+  >;
   const [isOpen, setIsOpen] = useState(false);
   const today = new Date();
   const initialYear = currentDate?.getFullYear() ?? today.getFullYear();
@@ -123,7 +124,7 @@ const Datepicker = ({
   return (
     <div className={`relative ${containerClassName}`} ref={containerRef}>
       {type === "input" ? (
-        <div className={`SignInput floating-input relative ${className}`}>
+        <div className={`relative ${className}`}>
           <input
             type={"text"}
             name={"date-input"}
@@ -131,12 +132,34 @@ const Datepicker = ({
             value={currentDate ? getFormattedDate(currentDate) : ""}
             autoComplete="off"
             readOnly
-            placeholder={placeholder || "Select date"}
-            className={`min-h-12!`}
-            onClick={() => setIsOpen((prev) => !prev)}
+            placeholder={""}
+            className={`
+            peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
+            text-body-4 text-text-primary
+            outline-none border
+            border-input-border-default!
+            focus:border-input-border-active!
+          `}
+            onClick={() => setIsOpen(true)}
             onFocus={() => setIsOpen(true)}
           />
-          <label htmlFor={"date-input"} className="sr-only">
+          <label
+            htmlFor={"date-input"}
+            className={`
+            pointer-events-none absolute left-6
+            top-1/2 -translate-y-1/2
+            text-body-4 text-input-text-placeholder
+            transition-all duration-200
+            peer-focus:-top-[11px] peer-focus:translate-y-0
+            peer-focus:text-sm!
+            peer-focus:text-input-text-placeholder-active
+            peer-focus:bg-(--whitebg)
+            peer-focus:px-1 peer-not-placeholder-shown:px-1
+            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
+            peer-not-placeholder-shown:text-sm!
+            peer-not-placeholder-shown:bg-(--whitebg)
+          `}
+          >
             {placeholder || "Select date"}
           </label>
           <button
@@ -151,9 +174,9 @@ const Datepicker = ({
       ) : (
         <button
           onClick={() => setIsOpen((prev) => !prev)}
-          className="rounded-2xl! border! border-grey-light! px-3 py-3 hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out"
+          className="rounded-2xl! border! border-input-border-default! px-[13px] py-[13px] transition-all duration-300 ease-in-out"
         >
-          <IoCalendarClear size={30} color="#302f2e" />
+          <IoCalendarClear size={20} color="#302f2e" />
         </button>
       )}
 

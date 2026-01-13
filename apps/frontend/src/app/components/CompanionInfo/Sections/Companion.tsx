@@ -1,13 +1,12 @@
 import React from "react";
 import EditableAccordion from "../../Accordion/EditableAccordion";
 import { CompanionParent } from "@/app/pages/Companions/types";
-
-const GenderOptions: string[] = ["Male", "Female", "Others"];
+import { GenderOptions, PetSourceOptions } from "@/app/types/companion";
 
 const Fields = [
   { label: "Date of birth", key: "dateOfBirth", type: "date" },
   { label: "Gender", key: "gender", type: "select", options: GenderOptions },
-  { label: "Current weight", key: "currentWeight", type: "text" },
+  { label: "Current weight (lbs)", key: "currentWeight", type: "text" },
   { label: "Color", key: "colour", type: "text" },
   {
     label: "Neutered status",
@@ -22,7 +21,7 @@ const Fields = [
     label: "Pet came from",
     key: "source",
     type: "select",
-    options: ["Breeder", "Foster/Shelter", "Shop", "Friends/Family", "Other"],
+    options: PetSourceOptions,
   },
   { label: "Microchip number", key: "microchipNumber", type: "text" },
   { label: "Passport number", key: "passportNumber", type: "text" },
@@ -37,10 +36,6 @@ type CompanionType = {
 const Companion = ({ companion }: CompanionType) => {
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div className="font-grotesk text-black-text text-[23px] font-medium">
-        Companion information
-      </div>
-
       <EditableAccordion
         title="Companion information"
         fields={Fields}

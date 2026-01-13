@@ -21,9 +21,11 @@ const Slot: React.FC<SlotProps> = ({
   if (slotEvents.length === 0) {
     return (
       <div
-        className={`relative border-l border-grey-light ${dayIndex === length && "border-r"}`}
+        className={`relative border-l border-grey-light text-caption-1 text-text-primary flex items-center justify-center ${dayIndex === length && "border-r"}`}
         style={{ height: `${height}px` }}
-      />
+      >
+        No appointments
+      </div>
     );
   }
   return (
@@ -31,7 +33,7 @@ const Slot: React.FC<SlotProps> = ({
       className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && "border-r"}`}
       style={{ height: `${height}px` }}
     >
-      <div className="flex flex-col gap-1 rounded-2xl border border-grey-light p-2 mt-2 bg-white">
+      <div className="flex flex-col gap-1 rounded-2xl p-2 bg-white">
         {slotEvents.map((ev, i) => (
           <button
             key={`${ev.companion.name}-${ev.startTime.toISOString()}-${i}`}
@@ -39,7 +41,7 @@ const Slot: React.FC<SlotProps> = ({
             style={getStatusStyle(ev.status)}
             onClick={() => handleViewAppointment(ev)}
           >
-            <div className="font-satoshi text-[15px] font-medium truncate">
+            <div className="text-body-4 truncate">
               {ev.companion.name}
             </div>
             <Image

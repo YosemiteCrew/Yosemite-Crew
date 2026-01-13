@@ -107,7 +107,7 @@ const SpecialitiesTable = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );

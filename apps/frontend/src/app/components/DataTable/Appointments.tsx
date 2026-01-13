@@ -13,6 +13,7 @@ import {
   acceptAppointment,
   cancelAppointment,
 } from "@/app/services/appointmentService";
+import { toTitleCase } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -31,19 +32,19 @@ type AppointmentTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case "no_payment":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+      return { color: "#fff", backgroundColor: "#5C614B" };
     case "in_progress":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#fff", backgroundColor: "#BF9FAA" };
     case "completed":
-      return { color: "#fff", backgroundColor: "#008F5D" };
+      return { color: "#fff", backgroundColor: "#D28F9A" };
     case "checked_in":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+      return { color: "#fff", backgroundColor: "#A8A181" };
     case "requested":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+      return { color: "#fff", backgroundColor: "#747283" };
     case "cancelled":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+      return { color: "#fff", backgroundColor: "#D9A488" };
     default:
-      return { color: "#fff", backgroundColor: "#247AED" };
+      return { color: "#000", backgroundColor: "#F1D4B0" };
   }
 };
 
@@ -76,11 +77,11 @@ const Appointments = ({
 
   const columns: Column<Appointment>[] = [
     {
-      label: "Name",
-      key: "name",
-      width: "15%",
+      label: "",
+      key: "logo",
+      width: "5%",
       render: (item: Appointment) => (
-        <div className="appointment-profile truncate">
+        <div className="appointment-profile w-10 h-10">
           <Image
             src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
             alt=""
@@ -88,6 +89,15 @@ const Appointments = ({
             width={40}
             style={{ borderRadius: "50%" }}
           />
+        </div>
+      ),
+    },
+    {
+      label: "Name",
+      key: "name",
+      width: "10%",
+      render: (item: Appointment) => (
+        <div className="appointment-profile truncate">
           <div className="appointment-profile-two">
             <div className="appointment-profile-title">
               {item?.companion?.name || "-"}
@@ -179,7 +189,7 @@ const Appointments = ({
       width: "15%",
       render: (item: Appointment) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
-          {item.status}
+          {toTitleCase(item.status)}
         </div>
       ),
     },
@@ -234,7 +244,7 @@ const Appointments = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );

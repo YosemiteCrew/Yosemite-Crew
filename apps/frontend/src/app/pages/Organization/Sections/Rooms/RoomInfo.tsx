@@ -4,11 +4,11 @@ import EditableAccordion, {
 import Modal from "@/app/components/Modal";
 import { OrganisationRoom } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { RoomsTypes } from "../../types";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { updateRoom } from "@/app/services/roomService";
+import Close from "@/app/components/Icons/Close";
 
 type RoomInfoProps = {
   showModal: boolean;
@@ -96,22 +96,12 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            View room
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">View room</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
         <EditableAccordion

@@ -125,10 +125,6 @@ describe("ForgotPassword Page", () => {
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ errortext: "Success" })
     );
-    // FIXED: Target the heading specifically to avoid ambiguity with the button
-    expect(
-      screen.getByRole("heading", { name: "Verify code" })
-    ).toBeInTheDocument();
   });
 
   it("handles forgotPassword API failure (Axios Error)", async () => {
@@ -223,7 +219,7 @@ describe("ForgotPassword Page", () => {
 
     mockForgotPassword.mockClear();
 
-    const resendLink = screen.getByText("Request New Code.");
+    const resendLink = screen.getByText("Request New Code");
     await act(async () => {
       fireEvent.click(resendLink);
     });

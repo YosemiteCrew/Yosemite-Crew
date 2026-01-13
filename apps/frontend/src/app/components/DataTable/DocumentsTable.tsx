@@ -6,6 +6,7 @@ import DocumentsCard from "../Cards/DocumentsCard";
 import { OrganizationDocument } from "@/app/types/document";
 
 import "./DataTable.css";
+import { toTitle } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -52,7 +53,7 @@ const DocumentsTable = ({
       key: "category",
       width: "20%",
       render: (item: OrganizationDocument) => (
-        <div className="appointment-profile-title">{item.category}</div>
+        <div className="appointment-profile-title">{toTitle(item.category)}</div>
       ),
     },
     {
@@ -87,7 +88,7 @@ const DocumentsTable = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );

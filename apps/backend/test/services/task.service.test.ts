@@ -451,7 +451,7 @@ describe("TaskService", () => {
 
       expect(mockedTaskModel.find).toHaveBeenCalledWith({
         audience: "PARENT_TASK",
-        assignedTo: "parent-1",
+        $or: [{ assignedTo: "parent-1" }, { createdBy: "parent-1" }],
         companionId: "comp-1",
         status: { $in: ["PENDING"] },
         dueAt: {

@@ -1,10 +1,11 @@
 .Container {
-  padding: 80px 80px;
+  padding: 32px 80px 82px;
   max-width: 1560px;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 85vh;
 }
 @media screen and (max-width: 1280px) {
   .Container {
@@ -34,20 +35,8 @@
   max-width: 600px;
   padding-right: 50px;
 }
-.LeftDevBanr .devbanrtext h2 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
-}
-.LeftDevBanr .devbanrtext p {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 120%;
+.LeftDevBanr .devbanrtext > div {
   margin: 0;
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
 }
 .DevbanrBtn {
   display: flex;
@@ -72,11 +61,9 @@
   }
 }
 @media screen and (max-width: 1280px) {
-  .LeftDevBanr .devbanrtext h2 {
-    font-size: 33px;
-  }
-  .LeftDevBanr .devbanrtext p {
-    font-size: 18px;
+  .LeftDevBanr .devbanrtext > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 1024px) {
@@ -89,10 +76,7 @@
     grid-template-columns: 1fr;
     grid-gap: 32px;
   }
-  .LeftDevBanr .devbanrtext h2 {
-    text-align: center;
-  }
-  .LeftDevBanr .devbanrtext p {
+  .LeftDevBanr .devbanrtext > div {
     text-align: center;
   }
 }
@@ -100,12 +84,7 @@
   .DevlpHeroData {
     grid-gap: 16px;
   }
-  .LeftDevBanr .devbanrtext h2 {
-    font-size: 23px;
-  }
-  .LeftDevBanr .devbanrtext p {
-    font-size: 13px;
-  }
+  /* Typography handled by global classes */
 }
 /* DevlYousmiteSec */
 
@@ -128,12 +107,7 @@
   flex-direction: column;
   gap: 16px;
 }
-.YousmiteCrew h4 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
+.YousmiteCrew > div {
   margin: 0;
 }
 .DevYousmiteBoxed {
@@ -166,20 +140,7 @@
   flex-direction: column;
   gap: 12px;
 }
-.crewText h3 {
-  font-family: var(--grotesk-font);
-  font-size: 33px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
-  margin: 0;
-}
-.crewText p {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 120%;
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
+.crewText > div {
   margin: 0;
 }
 .crewbox1 {
@@ -279,8 +240,9 @@
   }
 }
 @media screen and (max-width: 1280px) {
-  .YousmiteCrew h4 {
-    font-size: 33px;
+  .YousmiteCrew > div {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
   }
   .DevYousmiteBoxed::after {
     top: 35%;
@@ -291,12 +253,7 @@
     max-width: 650px;
     gap: 10px;
   }
-  .crewText h3 {
-    font-size: 23px;
-  }
-  .crewText p {
-    font-size: 13px;
-  }
+  /* Typography handled by global classes */
   .crewbox1 {
     height: 220px;
     width: 220px;
@@ -334,10 +291,10 @@
   }
   .DevCrewBox {
     padding: 16px 8px;
+    align-items: center;
+    text-align: center;
   }
-  .YousmiteCrew h4 {
-    font-size: 23px;
-  }
+  /* Typography handled by global classes */
   .DevYousmiteBoxed::after {
     height: 100px;
     width: 100px;
@@ -415,6 +372,8 @@
   }
   .DevCrewBox {
     padding: 16px 16px;
+    align-items: center;
+    text-align: center;
   }
   .DevYousmiteBoxed {
     max-width: 100%;
@@ -491,12 +450,15 @@
   align-items: center;
   justify-content: center;
   background: var(--lightblue);
+  min-height: 100vh;
 }
 .DevlpToolData {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: 100%;
+  justify-content: center;
 }
 .TopResorchTool {
   display: flex;
@@ -504,44 +466,34 @@
   justify-content: space-between;
   gap: 8px;
 }
-.leftResorch h2 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
+.leftResorch > div {
   margin: 0;
   max-width: 524px;
 }
-.RytResorch p {
+.RytResorch > div {
   max-width: 478px;
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 120%;
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
   margin: 0;
 }
 @media screen and (max-width: 1280px) {
-  .leftResorch h2 {
-    font-size: 33px;
+  .leftResorch > div {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
   }
-  .RytResorch p {
-    font-size: 15px;
+  .RytResorch > div {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
   }
 }
 @media screen and (max-width: 768px) {
   .TopResorchTool {
     flex-direction: column;
   }
-  .leftResorch h2 {
-    font-size: 23px;
+  .leftResorch > div {
     width: 100%;
     max-width: 100%;
     text-align: center;
   }
-  .RytResorch p {
-    font-size: 13px;
+  .RytResorch > div {
     width: 100%;
     max-width: 100%;
     text-align: center;
@@ -589,13 +541,7 @@
   color: var(--chilli-red);
   margin: 0;
 }
-.leftSimpleStep h2 {
-  font-family: var(--grotesk-font);
-  font-size: 48px;
-  font-weight: 500;
-  line-height: 57.6px;
-  letter-spacing: -0.02em;
-  color: var(--black-text);
+.leftSimpleStep > div:first-child {
   margin: 0;
 }
 
@@ -603,6 +549,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  justify-content: center;
 }
 .Stepitems {
   display: flex;
@@ -617,21 +564,7 @@
   flex-direction: column;
   gap: 8px;
 }
-.Stepitems .Stepstext h4 {
-  font-family: var(--grotesk-font);
-  font-size: 33px;
-  font-weight: 500;
-  line-height: 28.6px;
-  letter-spacing: -0.02em;
-  color: var(--black-text);
-  margin: 0;
-}
-.Stepitems .Stepstext p {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 16.6px;
-  letter-spacing: -0.02em;
-  color: var(--black-text);
+.Stepitems .Stepstext > div {
   margin: 0;
 }
 @media screen and (max-width: 1280px) {
@@ -640,8 +573,9 @@
     align-items: center;
     gap: 16px;
   }
-  .leftSimpleStep h2 {
-    font-size: 33px;
+  .leftSimpleStep > div:first-child {
+    font-size: 2.0625rem;
+    line-height: 2.5rem;
     text-align: center;
   }
   .leftSimpleStep a {
@@ -654,12 +588,15 @@
   }
   .RytSimpleStep {
     padding: 40px 40px;
+    align-items: center;
   }
-  .Stepitems .Stepstext h4 {
-    font-size: 28px;
+  .Stepitems .Stepstext > div:first-child {
+    font-size: 1.75rem;
+    line-height: 2.125rem;
   }
-  .Stepitems .Stepstext p {
-    font-size: 15px;
+  .Stepitems .Stepstext > div:last-child {
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
   }
   .SimpleStepSec::after {
     width: 544px;
@@ -674,8 +611,7 @@
     align-items: center;
     gap: 8px;
   }
-  .leftSimpleStep h2 {
-    font-size: 23px;
+  .leftSimpleStep > div:first-child {
     text-align: center;
   }
   .leftSimpleStep a {
@@ -687,12 +623,8 @@
   }
   .RytSimpleStep {
     padding: 20px 20px 40px 20px;
-  }
-  .Stepitems .Stepstext h4 {
-    font-size: 19px;
-  }
-  .Stepitems .Stepstext p {
-    font-size: 13px;
+    align-items: center;
+    text-align: center;
   }
   .Stepitems:nth-child(1) img,
   .Stepitems:nth-child(2) img {

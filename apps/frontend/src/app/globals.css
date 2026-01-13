@@ -160,13 +160,14 @@
   --color-text-extra: var(--color-neutral-500);
   --color-surface-card: var(--color-neutral-0);
   --color-card-border: var(--color-neutral-100);
+  --color-card-bg: var(--color-neutral-100);
   --color-border-card-selected: var(--color-neutral-200);
   --color-state-hover: var(--color-neutral-950);
   --color-state-selected: var(--color-neutral-950);
   
   --color-input-text-placeholder: var(--color-neutral-700);
   --color-input-text-placeholder-active: var(--color-brand-950);
-  --color-input-border-default: var(--color-neutral-200);
+  --color-input-border-default: var(--color-neutral-100);
   --color-input-border-error: var(--color-danger-600);
   --color-input-border-active: var(--color-brand-950);
 
@@ -270,33 +271,10 @@ input[type="checkbox"]:checked::after {
   transform: translate(-50%, -50%) rotate(45deg);
 }
 input[type="radio"] {
-  width: 16px;
-  height: 16px;
-  -moz-appearance: none;
-  -webkit-appearance: none;
-  appearance: none;
-  border-radius: 50%;
-  border: 1px solid var(--black-text) !important;
-  background-color: transparent;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
-  position: relative;
-  font-weight: 500;
-  font-family: var(--grotesk-font);
-}
-input[type="radio"]:checked {
-  background-color: var(--blue-text) !important;
-  border: 1px solid var(--blue-text) !important;
-}
-input[type="radio"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--whitebg);
-  transform: translate(-50%, -50%);
+  accent-color: var(--blue-text);
 }
 /* Chrome, Safari, Edge, Opera */
 input::-webkit-outer-spin-button,
@@ -311,47 +289,107 @@ input[type="number"] {
   appearance: textfield;
 }
 
-.text-display-1 {
-  @apply font-grotesk text-5xl font-medium leading-[120%] tracking-[-0.96px];
+@layer components {
+  /* Display text - 48px/3rem - Large headings (Desktop) | 24px Mobile */
+  .text-display-1 {
+    @apply font-satoshi text-[3rem] font-medium leading-[3.625rem] tracking-[-0.06rem];
+  }
+
+  /* Display text - 40px/2.5rem - Medium display (Desktop) | 24px Mobile */
+  .text-display-2 {
+    @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.05rem];
+  }
+
+  /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
+  .text-heading-1 {
+    @apply font-satoshi text-[1.75rem] font-normal leading-[2.125rem] tracking-[-0.035rem];
+  }
+
+  /* Heading - 22px/1.375rem - Subsection titles | 24px Mobile */
+  .text-heading-2 {
+    @apply font-satoshi text-[1.375rem] font-normal leading-[1.75rem] tracking-[-0.0275rem];
+  }
+
+  /* Heading - 20px/1.25rem - Section headings | 16px Mobile */
+  .text-heading-3 {
+    @apply font-satoshi text-[1.25rem] font-normal leading-[1.5rem];
+  }
+
+  /* Body - 24px/1.5rem - Large emphasized body (Mobile heading) */
+  .text-body-1 {
+    @apply font-satoshi text-[1.5rem] font-medium leading-[1.875rem] tracking-[-0.03rem];
+  }
+
+  /* Body - 20px/1.25rem - Regular subheading text | 16px Mobile */
+  .text-body-2 {
+    @apply font-satoshi text-[1.25rem] font-normal leading-[1.75rem] tracking-[-0.025rem];
+  }
+
+  /* Body - 18px/1.125rem - Regular body text | 16px Mobile */
+  .text-body-3 {
+    @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.0225rem];
+  }
+
+  /* Body - 18px/1.125rem - Emphasized body (buttons) */
+  .text-body-3-emphasis {
+    @apply font-satoshi text-[1.125rem] font-medium leading-[1.625rem];
+  }
+
+  /* Body - 16px/1rem - Small body text */
+  .text-body-4 {
+    @apply font-satoshi text-[1rem] font-normal leading-[1.5rem];
+  }
+
+  /* Body - 16px/1rem - Small emphasized body */
+  .text-body-4-emphasis {
+    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.02rem];
+  }
+
+  /* Label - 16px/1rem - Button/link labels */
+  .text-label-1 {
+    @apply font-satoshi text-[1rem] font-medium leading-[1rem] tracking-[-0.02rem];
+  }
+
+  /* Caption - 14px/0.875rem - Small text */
+  .text-caption-1 {
+    @apply font-satoshi text-[0.875rem] font-normal leading-[1.25rem] tracking-[-0.0175rem];
+  }
+
+  /* Caption - 12px/0.75rem - Smallest text */
+  .text-caption-2 {
+    @apply font-satoshi text-[0.75rem] font-normal leading-[1.125rem] tracking-[-0.015rem];
+  }
 }
-.text-display-2 {
-  @apply font-grotesk text-[2.5rem] font-medium leading-[120%] tracking-[-0.8px];
-}
-.text-heading-1 {
-  @apply font-grotesk text-[1.75rem] font-normal leading-[107%] tracking-[-0.56px];
-}
-.text-heading-2 {
-  @apply font-grotesk text-[1.375rem] font-normal leading-[127%] tracking-[-0.44px];
-}
-.text-heading-3 {
-  @apply font-grotesk text-xl font-normal leading-[120%] tracking-[-0.4px];
-}
-.text-body-1 {
-  @apply font-satoshi text-2xl font-medium leading-[125%] tracking-[-0.48px];
-}
-.text-body-2 {
-  @apply font-satoshi text-xl font-normal leading-[170%] tracking-[-0.4px];
-}
-.text-body-3 {
-  @apply font-satoshi text-lg font-normal leading-[144%] tracking-[-0.36px];
-}
-.text-body-3-emphasis {
-  @apply font-satoshi text-lg font-medium leading-[144%] tracking-[-0.36px];
-}
-.text-body-4 {
-  @apply font-satoshi text-base font-normal leading-[150%] tracking-[-0.32px];
-}
-.text-body-4-emphasis {
-  @apply font-satoshi text-base font-medium leading-[150%] tracking-[-0.32px];
-}
-.text-label-1 {
-  @apply font-satoshi text-base font-medium leading-[100%] tracking-[-0.32px];
-}
-.text-caption-1 {
-  @apply font-satoshi text-sm font-normal leading-[142%] tracking-[-0.28px];
-}
-.text-caption-2 {
-  @apply font-satoshi text-xs font-normal leading-[150%] tracking-[-0.24px];
+
+/* Mobile responsive typography - applies to all heading/display classes */
+@media screen and (max-width: 768px) {
+  .text-display-1,
+  .text-display-2,
+  .text-heading-1,
+  .text-heading-2 {
+    font-family: var(--font-satoshi) !important;
+    font-size: 1.5rem !important;
+    font-weight: 500 !important;
+    line-height: 1.875rem !important;
+    letter-spacing: -0.03rem !important;
+  }
+
+  .text-heading-3,
+  .text-body-2,
+  .text-body-3,
+  .text-body-4 {
+    font-family: var(--font-satoshi) !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    line-height: 1.5rem !important;
+  }
+
+  .text-body-3-emphasis {
+    font-family: var(--font-satoshi) !important;
+    font-size: 1.125rem !important;
+    font-weight: 500 !important;
+    line-height: 1.625rem !important;
+  }
 }
 
 .elevation-0 {

@@ -10,10 +10,10 @@ import {
 import Modal from "@/app/components/Modal";
 import { Team } from "@/app/types/team";
 import React, { useEffect, useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import PermissionsEditor from "./PermissionsEditor";
 import { Permission, toPermissionArray } from "@/app/utils/permissions";
 import { getProfileForUserForPrimaryOrg } from "@/app/services/teamService";
+import Close from "@/app/components/Icons/Close";
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -134,10 +134,10 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
   const { role } = useMemo(() => {
     const role_code = profile?.mapping?.roleCode ?? null;
     const permissions = profile?.mapping?.effectivePermissions ?? [];
-    const availability = profile?.baseAvailability ?? []
-    const normalAvailabilty = convertFromGetApi(availability)
-    console.log(availability, normalAvailabilty)
-    setAvailability(normalAvailabilty)
+    const availability = profile?.baseAvailability ?? [];
+    const normalAvailabilty = convertFromGetApi(availability);
+    console.log(availability, normalAvailabilty);
+    setAvailability(normalAvailabilty);
     setPerms(toPermissionArray(permissions));
     return {
       role: role_code,
@@ -146,24 +146,14 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            View team
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">View team</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
-        <div className="flex flex-col gap-8 overflow-y-auto flex-1 w-full">
+        <div className="flex flex-col gap-8 overflow-y-auto flex-1 w-full scrollbar-hidden">
           <EditableAccordion
             title="Personal details"
             fields={Fields}

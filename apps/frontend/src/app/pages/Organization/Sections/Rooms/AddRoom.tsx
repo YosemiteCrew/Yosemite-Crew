@@ -2,15 +2,15 @@ import Accordion from "@/app/components/Accordion/Accordion";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
 import React, { useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { RoomsTypes } from "../../types";
 import { Primary } from "@/app/components/Buttons";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import { OrganisationRoom } from "@yosemite-crew/types";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { createRoom } from "@/app/services/roomService";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import Close from "@/app/components/Icons/Close";
 
 type AddRoomProps = {
   showModal: boolean;
@@ -71,25 +71,15 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add room
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add room</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
           <Accordion
             title="Add room"
             defaultOpen
@@ -108,19 +98,16 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                 error={formDataErrors.name}
                 className="min-h-12!"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Type"
-                value={formData.type}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    type: e,
+                    type: option.value as any,
                   })
                 }
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
+                defaultOption={formData.type}
                 options={RoomsTypes}
-                type="general"
               />
               <MultiSelectDropdown
                 placeholder="Assigned specialities"

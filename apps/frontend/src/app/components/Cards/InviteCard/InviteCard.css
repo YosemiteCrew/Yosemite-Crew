@@ -2,12 +2,11 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 12px;
-  gap: 12px;
+  padding: 16px;
+  gap: 8px;
   border-radius: 16px;
   border: 1px solid var(--lightgrey);
-  background: #fffefe;
-  box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.08);
+  background: #fff;
   width: 100%;
   min-width: 300px;
 }

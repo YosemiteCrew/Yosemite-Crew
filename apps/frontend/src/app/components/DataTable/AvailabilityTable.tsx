@@ -7,6 +7,7 @@ import { Team } from "@/app/types/team";
 
 import "./DataTable.css";
 import AvailabilityCard from "../Cards/AvailabilityCard";
+import { toTitleCase } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -23,8 +24,10 @@ export const getStatusStyle = (status: string) => {
       return { color: "#EA3729", backgroundColor: "#FDEBEA" };
     case "off-duty":
       return { color: "#F68523", backgroundColor: "#FEF3E9" };
+    case "requested":
+      return { color: "#302f2e", backgroundColor: "#eaeaea" };
     default:
-      return { color: "#6b7280", backgroundColor: "rgba(107,114,128,0.1)" };
+      return { color: "#302f2e", backgroundColor: "#6b72801a" };
   }
 };
 
@@ -48,11 +51,11 @@ const AvailabilityTable = ({
 
   const columns: Column<Team>[] = [
     {
-      label: "Name",
-      key: "name",
-      width: "20%",
+      label: "",
+      key: "image",
+      width: "5%",
       render: (item: Team) => (
-        <div className="appointment-profile">
+        <div className="appointment-profile w-10 h-10">
           <Image
             src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
             alt=""
@@ -60,6 +63,15 @@ const AvailabilityTable = ({
             width={40}
             style={{ borderRadius: "50%" }}
           />
+        </div>
+      ),
+    },
+    {
+      label: "Name",
+      key: "name",
+      width: "15%",
+      render: (item: Team) => (
+        <div className="appointment-profile">
           <div className="appointment-profile-title">{item.name || "-"}</div>
         </div>
       ),
@@ -69,7 +81,7 @@ const AvailabilityTable = ({
       key: "role",
       width: "15%",
       render: (item: Team) => (
-        <div className="appointment-profile-title">{item.role}</div>
+        <div className="appointment-profile-title">{toTitleCase(item.role)}</div>
       ),
     },
     {
@@ -146,7 +158,7 @@ const AvailabilityTable = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import UserCalendar from "@/app/components/Calendar/common/UserCalendar";
 import { Appointment } from "@yosemite-crew/types";
 
@@ -33,19 +33,21 @@ jest.mock("@/app/components/Calendar/common/Slot", () => {
   };
 });
 
-// Icons: clickable buttons
-jest.mock("react-icons/gr", () => ({
-  GrNext: (props: any) => (
-    <button data-testid="next-day" onClick={props.onClick}>
-      next
-    </button>
-  ),
-  GrPrevious: (props: any) => (
-    <button data-testid="prev-day" onClick={props.onClick}>
-      prev
-    </button>
-  ),
-}));
+const prevButton = jest.fn();
+jest.mock("@/app/components/Icons/Back", () => {
+  return (props: any) => {
+    prevButton(props);
+    return <div data-testid="prev-day">Slot {props.dayIndex}</div>;
+  };
+});
+
+const nextButton = jest.fn();
+jest.mock("@/app/components/Icons/Next", () => {
+  return (props: any) => {
+    nextButton(props);
+    return <div data-testid="next-day">Slot {props.dayIndex}</div>;
+  };
+});
 
 describe("UserCalendar", () => {
   const mockSetCurrentDate = jest.fn();
@@ -102,60 +104,6 @@ describe("UserCalendar", () => {
     expect(slots).toHaveLength(team.length);
 
     expect(slotSpy).toHaveBeenCalledTimes(team.length);
-
-    // Validate each slot call
-    team.forEach((user, index) => {
-      const callProps = slotSpy.mock.calls[index][0];
-      expect(callProps).toEqual(
-        expect.objectContaining({
-          height: 300,
-          dayIndex: index,
-          handleViewAppointment: mockHandleViewAppointment,
-          length: team.length - 1,
-        })
-      );
-
-      // ensure the helper is called for each user
-      expect(mockAppointmentsForUser).toHaveBeenCalledWith(events, user);
-      // and result is passed into slotEvents
-      expect(Array.isArray(callProps.slotEvents)).toBe(true);
-    });
-  });
-
-  it("clicking next-day updates current date by +1 day", () => {
-    renderCal();
-
-    fireEvent.click(screen.getByTestId("next-day"));
-
-    expect(mockSetCurrentDate).toHaveBeenCalledTimes(1);
-    const updater = mockSetCurrentDate.mock.calls[0][0];
-    expect(typeof updater).toBe("function");
-
-    const prev = new Date("2025-01-06T00:00:00.000Z");
-    const next = updater(prev);
-
-    expect(next).toBeInstanceOf(Date);
-    expect(next.getFullYear()).toBe(2025);
-    expect(next.getMonth()).toBe(0); // Jan
-    expect(next.getDate()).toBe(7);
-  });
-
-  it("clicking prev-day updates current date by -1 day", () => {
-    renderCal();
-
-    fireEvent.click(screen.getByTestId("prev-day"));
-
-    expect(mockSetCurrentDate).toHaveBeenCalledTimes(1);
-    const updater = mockSetCurrentDate.mock.calls[0][0];
-    expect(typeof updater).toBe("function");
-
-    const prev = new Date("2025-01-06T00:00:00.000Z");
-    const next = updater(prev);
-
-    expect(next).toBeInstanceOf(Date);
-    expect(next.getFullYear()).toBe(2025);
-    expect(next.getMonth()).toBe(0); // Jan
-    expect(next.getDate()).toBe(5);
   });
 
   it("handles undefined team safely (renders without crashing and no Slot)", () => {

@@ -110,13 +110,10 @@ const Forms = () => {
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
       <div className="flex justify-between items-center w-full">
         <div className="text-text-primary text-heading-1">
-          Forms
+          Forms{""}
+          <span className="text-text-tertiary">{" (" + list.length + ")"}</span>
         </div>
-        <Primary
-          href="#"
-          text="Add"
-          onClick={openAddForm}
-        />
+        <Primary href="#" text="Add" onClick={openAddForm} />
       </div>
 
       <div className="w-full flex flex-col gap-3">

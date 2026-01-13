@@ -1,12 +1,10 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 import Modal from "@/app/components/Modal";
 import React, { useEffect, useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Slotpicker from "@/app/components/Inputs/Slotpicker";
 import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
@@ -27,10 +25,13 @@ import {
   getDurationMinutes,
 } from "@/app/utils/date";
 import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import Close from "@/app/components/Icons/Close";
 
 type AddAppointmentProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  showErrorTost: any;
 };
 
 export const EMPTY_APPOINTMENT: Appointment = {
@@ -75,7 +76,11 @@ const ServiceFields = [
   { label: "Max discount", key: "maxDiscount", type: "text" },
 ];
 
-const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
+const AddAppointment = ({
+  showModal,
+  setShowModal,
+  showErrorTost,
+}: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
@@ -146,8 +151,8 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   const CompanionOptions = useMemo(
     () =>
       companions?.map((companion) => ({
-        value: companion.companion.name,
-        key: companion.companion.id,
+        label: companion.companion.name,
+        value: companion.companion.id,
       })),
     [companions]
   );
@@ -287,32 +292,48 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
       setFormDataErrors({});
+      showErrorTost({
+        message: "Appointment created",
+        errortext: "Success",
+        iconElement: (
+          <Icon
+            icon="solar:check-circle-bold"
+            width="20"
+            height="20"
+            color="#008F5D"
+          />
+        ),
+        className: "CongratsBg",
+      });
     } catch (error) {
       console.log(error);
+      showErrorTost({
+        message: "Error creating appointment",
+        errortext: "Error",
+        iconElement: (
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="#EA3729"
+          />
+        ),
+        className: "errofoundbg",
+      });
     }
   };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add appointment
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add appointment</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
           <div className="flex flex-col gap-6 w-full">
             <Accordion
               title="Companion details"
@@ -328,13 +349,8 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
                   query={query}
                   setQuery={setQuery}
                   minChars={0}
+                  error={formDataErrors.companionId}
                 />
-                {formDataErrors.companionId && !formData.companion.id && (
-                  <div className="Errors">
-                    <Icon icon="mdi:error" width="16" height="16" />
-                    {formDataErrors.companionId}
-                  </div>
-                )}
                 {formData.companion.name && (
                   <EditableAccordion
                     title={formData.companion.name}
@@ -352,37 +368,33 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
               isEditing={true}
             >
               <div className="flex flex-col gap-3">
-                <Dropdown
+                <LabelDropdown
                   placeholder="Speciality"
-                  value={formData.appointmentType?.speciality.id || ""}
-                  onChange={(e) =>
+                  onSelect={(option) =>
                     setFormData({
                       ...formData,
                       appointmentType: {
                         id: "",
                         name: "",
                         speciality: {
-                          id: e.value,
-                          name: e.label,
+                          id: option.value,
+                          name: option.label,
                         },
                       },
                     })
                   }
+                  defaultOption={formData.appointmentType?.speciality.id}
                   error={formDataErrors.specialityId}
-                  className="min-h-12!"
                   options={SpecialitiesOptions}
-                  dropdownClassName="h-fit! max-h-[150px]!"
-                  returnObject
                 />
-                <Dropdown
+                <LabelDropdown
                   placeholder="Service"
-                  value={formData.appointmentType?.id || ""}
-                  onChange={(e) =>
+                  onSelect={(option) =>
                     setFormData({
                       ...formData,
                       appointmentType: {
-                        id: e.value,
-                        name: e.label,
+                        id: option.value,
+                        name: option.label,
                         speciality: formData.appointmentType?.speciality ?? {
                           id: "",
                           name: "",
@@ -390,11 +402,9 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
                       },
                     })
                   }
+                  defaultOption={formData.appointmentType?.id}
                   error={formDataErrors.serviceId}
-                  className="min-h-12!"
                   options={ServicesOptions}
-                  dropdownClassName="h-fit! max-h-[150px]!"
-                  returnObject
                 />
                 <FormDesc
                   intype="text"
@@ -445,23 +455,20 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
                       className="min-h-12!"
                     />
                   </div>
-                  <Dropdown
+                  <LabelDropdown
                     placeholder="Lead"
-                    value={formData.lead?.id || ""}
-                    onChange={(e) =>
+                    onSelect={(option) =>
                       setFormData({
                         ...formData,
                         lead: {
-                          name: e.label,
-                          id: e.value,
+                          name: option.label,
+                          id: option.value,
                         },
                       })
                     }
+                    defaultOption={formData.lead?.id}
                     error={formDataErrors.leadId}
-                    className="min-h-12!"
                     options={LeadOptions}
-                    dropdownClassName="h-fit! max-h-[150px]!"
-                    returnObject
                   />
                   <MultiSelectDropdown
                     placeholder="Support"
@@ -513,7 +520,7 @@ const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
                   }))
                 }
               />
-              <div className="font-satoshi text-black-text text-[16px] font-semibold">
+              <div className="text-body-4 text-text-primary">
                 I confirm this is an emergency.
               </div>
             </div>

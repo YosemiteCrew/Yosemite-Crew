@@ -4,7 +4,7 @@ import { IoIosSearch } from "react-icons/io";
 const Search = ({ value, setSearch, className }: any) => {
   return (
     <div
-      className={`${className ?? ""} w-[280px] rounded-2xl border! border-card-border! px-6 py-[7px] flex items-center justify-center`}
+      className={`${className ?? ""} w-60 xl:w-[280px] rounded-2xl border! border-input-border-default! px-6 py-[7px] flex items-center justify-center`}
     >
       <input
         type="text"
