@@ -154,7 +154,7 @@ const PersonalStep = ({
                   ...formData.personalDetails,
                   address: {
                     ...formData.personalDetails?.address,
-                    country: option.key,
+                    country: option.value,
                   },
                 },
               })

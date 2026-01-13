@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoIosSearch, IoIosWarning } from "react-icons/io";
 
 type OptionProps = {
-  key: string;
   value: string;
+  label: string;
 };
 
 type SearchDropdownProps = {
@@ -81,11 +81,11 @@ const SearchDropdown = ({
         <div className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
           {filtered.map((option, i) => (
             <button
-              key={option.key}
-              onClick={() => onSelectOption(option.key)}
+              key={option.value}
+              onClick={() => onSelectOption(option.value)}
               className={`px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start`}
             >
-              {option.value}
+              {option.label}
             </button>
           ))}
         </div>

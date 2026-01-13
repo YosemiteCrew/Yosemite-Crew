@@ -30,15 +30,6 @@ const SpecialityCard = ({
     [teams]
   );
 
-  const TeamOptions2 = useMemo(
-    () =>
-      teams?.map((team) => ({
-        label: team.name || team._id,
-        key: team._id,
-      })),
-    [teams]
-  );
-
   const updateServiceList = (
     serviceIndex: number,
     key: string,
@@ -115,7 +106,7 @@ const SpecialityCard = ({
           updateLead(option)
         }
         defaultOption={speciality.headUserId}
-        options={TeamOptions2}
+        options={TeamOptions}
       />
       <MultiSelectDropdown
         placeholder="Assigned staff"

@@ -11,14 +11,14 @@ import { EMPTY_TASK, Task as TaskProps } from "@/app/types/task";
 import React, { useEffect, useMemo, useState } from "react";
 
 const TaskSourceOptions = [
-  { key: "YC_LIBRARY", label: "YC Library" },
-  { key: "ORG_TEMPLATE", label: "Org Template" },
-  { key: "CUSTOM", label: "Custom" },
+  { value: "YC_LIBRARY", label: "YC Library" },
+  { value: "ORG_TEMPLATE", label: "Org Template" },
+  { value: "CUSTOM", label: "Custom" },
 ];
 
 const TaskTypeOptions = [
-  { key: "EMPLOYEE_TASK", label: "Employee Task" },
-  { key: "PARENT_TASK", label: "Parent Task" },
+  { value: "EMPLOYEE_TASK", label: "Employee Task" },
+  { value: "PARENT_TASK", label: "Parent Task" },
 ];
 
 const Task = () => {
@@ -45,7 +45,7 @@ const Task = () => {
     () =>
       companions?.map((companion) => ({
         label: companion.name,
-        key: companion.parentId,
+        value: companion.parentId,
       })),
     [companions]
   );
@@ -54,7 +54,7 @@ const Task = () => {
     () =>
       teams?.map((team) => ({
         label: team.name || team._id,
-        key: team._id,
+        value: team._id,
       })),
     [teams]
   );
@@ -99,7 +99,7 @@ const Task = () => {
             onSelect={(option) =>
               setFormData({
                 ...formData,
-                audience: option.key as any,
+                audience: option.value as any,
               })
             }
             defaultOption={formData.audience}
@@ -110,7 +110,7 @@ const Task = () => {
             onSelect={(option) =>
               setFormData({
                 ...formData,
-                source: option.key as any,
+                source: option.value as any,
               })
             }
             defaultOption={formData.source}
@@ -152,7 +152,7 @@ const Task = () => {
               onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  assignedTo: option.key,
+                  assignedTo: option.value,
                 })
               }
               defaultOption={formData.assignedTo}
@@ -163,12 +163,12 @@ const Task = () => {
             <LabelDropdown
               placeholder="To"
               onSelect={(option) => {
-                const companion = companions?.find((c) => c.id === option.key);
+                const companion = companions?.find((c) => c.id === option.value);
                 if (companion) {
                   setFormData({
                     ...formData,
                     companionId: companion.id,
-                    assignedTo: option.key,
+                    assignedTo: option.value,
                   });
                 }
               }}

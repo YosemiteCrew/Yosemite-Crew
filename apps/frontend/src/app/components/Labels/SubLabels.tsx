@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 
 type SubLabelItem = {
   key: string;
@@ -20,36 +20,9 @@ const SubLabels = ({
   statuses = {},
   disableClicking = false,
 }: SubLabelsProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [isOverflowing, setIsOverflowing] = useState(false);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const checkOverflow = () => {
-      setIsOverflowing(el.scrollWidth > el.clientWidth);
-    };
-    checkOverflow();
-    window.addEventListener("resize", checkOverflow);
-    return () => window.removeEventListener("resize", checkOverflow);
-  }, [labels]);
-
-  useEffect(() => {
-    const activeButton = buttonRefs.current[activeLabel];
-    if (activeButton && typeof activeButton.scrollIntoView === "function") {
-      activeButton.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
-      });
-    }
-  }, [activeLabel, labels]);
-
   return (
     <div
-      ref={containerRef}
-      className={`flex gap-2 overflow-x-auto overflow-y-hidden shrink-0 ${isOverflowing ? "justify-start" : "justify-center"}`}
+      className={`flex gap-2 justify-start flex-wrap items-center rounded-2xl p-0.5 bg-card-hover`}
     >
       {labels.map((label) => (
         <button
@@ -62,7 +35,7 @@ const SubLabels = ({
             }
           }}
           onClick={() => !disableClicking && setActiveLabel(label.key)}
-          className={`${activeLabel === label.key ? " bg-blue-light text-blue-text! border-text-brand! border shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border border-card-border!"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-9 px-3 border! flex items-center whitespace-nowrap text-body-4 rounded-2xl!`}
+          className={`${activeLabel === label.key ? "bg-white! text-blue-text!" : "text-black-text hover:bg-white"} transition-all duration-300  text-text-secondary text-body-4 h-9 px-3 flex items-center rounded-2xl!`}
         >
           <span className="flex items-center gap-2">
             {label.name}

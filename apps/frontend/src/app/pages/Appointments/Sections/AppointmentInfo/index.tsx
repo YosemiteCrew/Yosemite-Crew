@@ -2,10 +2,6 @@ import Labels from "@/app/components/Labels/Labels";
 import Modal from "@/app/components/Modal";
 import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
-import { BsChatHeartFill } from "react-icons/bs";
-import { IoIosCloseCircleOutline } from "react-icons/io";
-import { IoDocumentText, IoEye } from "react-icons/io5";
-import { PiMoneyWavyFill } from "react-icons/pi";
 import Summary from "./Finance/Summary";
 import Task from "./Tasks/Task";
 import AppointmentInfo from "./Info/AppointmentInfo";
@@ -22,6 +18,7 @@ import Audit from "./Prescription/Audit";
 import Plan from "./Prescription/Plan";
 import { Appointment, FormSubmission, Service } from "@yosemite-crew/types";
 import { fetchSubmissions } from "@/app/services/soapService";
+import Close from "@/app/components/Icons/Close";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
@@ -62,8 +59,6 @@ const labels = [
   {
     key: "info",
     name: "Info",
-    icon: IoEye,
-    iconSize: 32,
     labels: [
       { key: "appointment", name: "Appointment" },
       { key: "companion", name: "Companion" },
@@ -73,8 +68,6 @@ const labels = [
   {
     key: "prescription",
     name: "Prescription",
-    icon: IoDocumentText,
-    iconSize: 32,
     labels: [
       { key: "subjective", name: "Subjective" },
       { key: "objective", name: "Objective" },
@@ -88,8 +81,6 @@ const labels = [
   {
     key: "tasks",
     name: "Tasks",
-    icon: BsChatHeartFill,
-    iconSize: 24,
     labels: [
       { key: "parent-chat", name: "Companion parent chat" },
       { key: "task", name: "Task" },
@@ -98,8 +89,6 @@ const labels = [
   {
     key: "finance",
     name: "Finance",
-    icon: PiMoneyWavyFill,
-    iconSize: 24,
     labels: [
       { key: "summary", name: "Summary" },
       { key: "payment-details", name: "Payment details" },
@@ -196,49 +185,40 @@ const AppoitmentInfo = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex flex-col">
-          <div className="flex justify-between">
-            <IoIosCloseCircleOutline
-              size={28}
-              color="#302f2e"
-              className="opacity-0"
-            />
-            <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <div className="flex justify-center items-center gap-2">
               <Image
                 alt="pet image"
                 src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
                 className="rounded-full"
-                height={80}
-                width={80}
+                height={40}
+                width={40}
               />
+              <div className="text-body-1 text-text-primary">
+                {activeAppointment?.companion.name}
+              </div>
+              <div className="text-body-4 text-text-primary mt-1">
+                {activeAppointment?.companion.breed}
+              </div>
             </div>
-            <IoIosCloseCircleOutline
-              size={28}
-              color="#302f2e"
-              onClick={() => setShowModal(false)}
-              className="cursor-pointer"
-            />
+            <Close onClick={() => setShowModal(false)} />
           </div>
-          <div className="flex justify-center font-grotesk font-medium text-[23px] text-black-text">
-            {activeAppointment?.companion?.name}
-          </div>
-          <div className="flex justify-center font-satoshi font-medium text-[14px] text-black-text">
-            {activeAppointment?.companion?.breed +
-              " / " +
-              activeAppointment?.companion?.species}
-          </div>
+
+          <Labels
+            labels={labels}
+            activeLabel={activeLabel}
+            setActiveLabel={setActiveLabel}
+            activeSubLabel={activeSubLabel}
+            setActiveSubLabel={setActiveSubLabel}
+          />
         </div>
 
-        <Labels
-          labels={labels}
-          activeLabel={activeLabel}
-          setActiveLabel={setActiveLabel}
-          activeSubLabel={activeSubLabel}
-          setActiveSubLabel={setActiveSubLabel}
-        />
-
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
+        <div
+          ref={scrollRef}
+          className="flex overflow-y-auto flex-1 scrollbar-hidden"
+        >
           {Content ? (
             <Content
               activeAppointment={activeAppointment}

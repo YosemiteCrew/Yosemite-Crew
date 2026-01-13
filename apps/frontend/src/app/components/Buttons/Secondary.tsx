@@ -28,7 +28,7 @@ const Secondary = ({
   size = "default",
 }: Readonly<ButtonProps>) => {
   const baseClasses =
-    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 font-satoshi text-[18px] font-medium leading-[26px] text-center";
+    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out";
 
   return (
     <Link

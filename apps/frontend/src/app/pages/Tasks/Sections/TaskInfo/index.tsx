@@ -1,10 +1,10 @@
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import Close from "@/app/components/Icons/Close";
 import Modal from "@/app/components/Modal";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { Task } from "@/app/types/task";
 import { Team } from "@/app/types/team";
 import React, { useMemo } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 
 type TaskInfoProps = {
   showModal: boolean;
@@ -20,14 +20,13 @@ const TaskFields = [
     type: "text",
   },
   { label: "Description", key: "description", type: "text" },
-  { label: "From", key: "assignedBy", type: "text", editable: false },
+  { label: "From", key: "assignedBy", type: "text", },
   { label: "To", key: "assignedTo", type: "text" },
   { label: "Due", key: "dueAt", type: "date" },
   {
     label: "Status",
     key: "status",
-    type: "dropdown",
-    options: ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+    type: "status",
   },
 ];
 
@@ -56,24 +55,14 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            View task
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">View task</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
-        <div className="flex overflow-y-auto flex-1">
+        <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
           <EditableAccordion
             key={"task-key"}
             title={"Task details"}

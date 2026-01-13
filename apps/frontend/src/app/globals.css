@@ -167,7 +167,7 @@
   
   --color-input-text-placeholder: var(--color-neutral-700);
   --color-input-text-placeholder-active: var(--color-brand-950);
-  --color-input-border-default: var(--color-neutral-200);
+  --color-input-border-default: var(--color-neutral-100);
   --color-input-border-error: var(--color-danger-600);
   --color-input-border-active: var(--color-brand-950);
 
