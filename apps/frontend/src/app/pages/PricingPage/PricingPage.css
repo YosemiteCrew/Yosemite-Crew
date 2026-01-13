@@ -61,18 +61,7 @@
   .PricingPage-header {
     gap: 16px;
   }
-  .PricingPage-header .PricinhHeadquote > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
-  }
-  .PricingPage-header .PricinhHeadquote > div:last-child {
-    font-size: 0.8125rem;
-    line-height: 1.1875rem;
-  }
-  .plansFeaturesHeading {
-    font-size: 1.375rem;
-    line-height: 1.75rem;
-  }
+  /* Typography handled by global classes */
 }
 /* PricingPage-header Ended   */
 /* NeedHelpDiv */
@@ -162,12 +151,7 @@
   .Needhelpitem {
     padding: 16px;
   }
-  .helpText h3 {
-    font-size: 20px;
-  }
-  .helpText p {
-    font-size: 16px;
-  }
+  /* Typography handled by global classes */
   .Needhelpitem::after {
     right: 0px;
     bottom: 0px;

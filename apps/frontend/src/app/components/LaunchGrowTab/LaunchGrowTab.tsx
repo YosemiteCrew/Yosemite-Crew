@@ -106,7 +106,7 @@ const LaunchGrowTab = () => {
                   </div>
                   <div className="BottomText">
                     <div className="Texted">
-                      <h2>{growtab.heading}</h2>
+                      <div className="text-heading-1">{growtab.heading}</div>
                       <ul>
                         {growtab.details?.map((detail, index) => (
                           <li key={index + detail}>
@@ -116,7 +116,7 @@ const LaunchGrowTab = () => {
                               height="24"
                               style={{ color: "#247AED", flexShrink: 0 }}
                             />
-                            {detail}
+                            <span className="text-body-3">{detail}</span>
                           </li>
                         ))}
                       </ul>
@@ -143,7 +143,7 @@ const LaunchGrowTab = () => {
             </div>
             <div className="BottomText">
               <div className="Texted">
-                <h2>{activeTabData.heading}</h2>
+                <div className="text-heading-1">{activeTabData.heading}</div>
                 <ul>
                   {activeTabData.details?.map((detail, index) => (
                     <li key={index + detail}>
@@ -157,7 +157,7 @@ const LaunchGrowTab = () => {
                           marginTop: "2px",
                         }}
                       />
-                      {detail}
+                      <span className="text-body-3">{detail}</span>
                     </li>
                   ))}
                 </ul>

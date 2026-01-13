@@ -24,7 +24,7 @@ const footerLinks = [
   {
     title: "Community",
     links: [
-      { label: "Discord", href: "https://discord.gg/4zDVekEz" },
+      { label: "Discord", href: "https://discord.com/invite/SwM6mX85KD" },
       {
         label: "GitHub",
         href: "https://github.com/YosemiteCrew/Yosemite-Crew",

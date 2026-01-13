@@ -163,17 +163,12 @@
     padding: 20px;
     gap: 12px;
   }
-  .AboutHeroSec .AbtHeroData .abttopHero > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
-  }
   .AboutHeroSec .AbtHeroData .abttopHero > div:last-child {
-    font-size: 1.125rem;
-    line-height: 1.5rem;
+    font-size: 1.125rem !important;
+    line-height: 1.625rem !important;
   }
-  .AbutheroBtm > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
+  .AbutheroBtm > div:first-child,
+  .AbutheroBtm .text-display-2 {
     color: var(--color-neutral-0) !important;
   }
   .AbutheroBtm .abtherocard {
@@ -188,7 +183,7 @@
   }
   .AbutheroBtm .abtherocard .AbtCardItem .body {
     min-height: fit-content;
-    padding: 0px 8px;
+    padding: 0px 8px 10px;
   }
 }
 /* AboutHeroSec started  */
@@ -255,14 +250,7 @@
     align-items: center;
     text-align: center;
   }
-  .OurStorySec .StoryData .storyTexted > div:first-child {
-    font-size: 1.25rem;
-    line-height: 1.6rem;
-  }
-  .OurStorySec .StoryData .storyTexted .ourstorypara > div {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
+  /* Typography handled by global classes */
 }
 /* OurStorySec Ended  */
 
@@ -319,17 +307,14 @@
   }
 }
 @media screen and (max-width: 768px) {
-  .AbtTeamSec .AbtTeamdata .AbtTeamHead > div:first-child {
-    font-size: 1.4375rem;
-    line-height: 1.75rem;
-  }
   .AbtTeamSec .AbtTeamdata .AbtTeamHead > div:nth-child(2) {
-    font-size: 1.1875rem;
-    line-height: 1.5rem;
+    font-size: 1.125rem !important;
+    line-height: 1.625rem !important;
   }
   .AbtTeamSec .AbtTeamdata .AbtTeamHead .para > div {
-    font-size: 1rem;
-    line-height: 1.375rem;
+    font-size: 1.125rem !important;
+    line-height: 1.625rem !important;
   }
+  /* Typography handled by global classes */
 }
 /* AbtTeamSec Ended  */

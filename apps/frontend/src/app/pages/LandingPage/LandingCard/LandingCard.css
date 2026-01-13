@@ -102,11 +102,6 @@
     padding: 0px 15px;
   }
   .landingSection .landingTop .text-display-2 {
-    font-family: var(--font-satoshi);
-    font-size: 1.125rem !important;
-    font-weight: 500;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.0225rem !important;
     text-align: center;
   }
   .landingSection .LandingData {
@@ -119,38 +114,12 @@
   .landingSection .LandingData .LeftLanding .landingTexed {
     gap: 16px;
   }
-  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed .text-display-1 {
-    font-family: var(--font-satoshi);
-    font-size: 1.25rem !important;
-    font-weight: 500;
-    line-height: 1.625rem !important;
-    letter-spacing: -0.025rem !important;
-    text-align: center;
-  }
+  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed .text-display-1,
   .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed .text-body-2 {
-    font-family: var(--font-satoshi);
-    font-size: 0.9375rem !important;
-    font-weight: 400;
-    line-height: 1.375rem !important;
-    letter-spacing: -0.0175rem !important;
     text-align: center;
   }
 }
 
 @media screen and (max-width: 640px) {
-  .landingSection .landingTop .text-display-2 {
-    font-size: 1rem !important;
-    line-height: 1.375rem !important;
-    letter-spacing: -0.02rem !important;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed .text-display-1 {
-    font-size: 1.125rem !important;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.0225rem !important;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed .text-body-2 {
-    font-size: 0.75rem !important;
-    line-height: 1.125rem !important;
-    letter-spacing: -0.015rem !important;
-  }
+  /* Typography handled by global classes */
 }

@@ -47,14 +47,7 @@
     max-width: 200px;
     padding: 12px;
   }
-  .focusTitle {
-    font-size: 1.125rem;
-    line-height: 1.5rem;
-  }
-  .focusDesc {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
+  /* Typography handled by global classes */
 }
 @media screen and (max-width: 550px) {
   .FocusItem {
