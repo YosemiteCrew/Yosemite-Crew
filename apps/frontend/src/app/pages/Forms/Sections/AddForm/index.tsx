@@ -1,12 +1,12 @@
 import SubLabels from "@/app/components/Labels/SubLabels";
 import Modal from "@/app/components/Modal";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import Details from "./Details";
 import Build from "./Build";
 import Review from "./Review";
 import { FormsCategory, FormsProps } from "@/app/types/forms";
 import { publishForm, saveFormDraft } from "@/app/services/formService";
+import Close from "@/app/components/Icons/Close";
 
 const Labels = [
   {
@@ -172,11 +172,12 @@ const AddForm = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <div className="w-16" />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            {isEditing ? "Edit form" : "Add form"}
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">
+              {isEditing ? "Edit form" : "Add form"}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {!isEditing && (
@@ -188,12 +189,7 @@ const AddForm = ({
                 Clear
               </button>
             )}
-            <IoIosCloseCircleOutline
-              size={28}
-              color="#302f2e"
-              onClick={closeModal}
-              className="cursor-pointer"
-            />
+            <Close onClick={closeModal} />
           </div>
         </div>
 
@@ -203,7 +199,10 @@ const AddForm = ({
           setActiveLabel={handleLabelClick}
         />
 
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
+        <div
+          ref={scrollRef}
+          className="flex overflow-y-auto flex-1 scrollbar-hidden"
+        >
           {activeLabel === "form-details" && (
             <Details
               formData={formData}

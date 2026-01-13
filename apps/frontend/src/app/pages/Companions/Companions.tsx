@@ -10,6 +10,7 @@ import OrgGuard from "@/app/components/OrgGuard";
 import { useCompanionsParentsForPrimaryOrg } from "@/app/hooks/useCompanion";
 import { CompanionParent } from "./types";
 import BookAppointment from "./BookAppointment";
+import AddTask from "./AddTask";
 
 const Companions = () => {
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -20,6 +21,7 @@ const Companions = () => {
   const [activeCompanion, setActiveCompanion] =
     useState<CompanionParent | null>(companions[0] ?? null);
   const [bookAppointment, setBookAppointment] = useState(false);
+  const [addTask, setAddTask] = useState(false);
 
   useEffect(() => {
     setActiveCompanion((prev) => {
@@ -57,6 +59,7 @@ const Companions = () => {
           setActiveCompanion={setActiveCompanion}
           setViewCompanion={setViewCompanion}
           setBookAppointment={setBookAppointment}
+          setAddTask={setAddTask}
         />
       </div>
 
@@ -72,6 +75,13 @@ const Companions = () => {
         <BookAppointment
           showModal={bookAppointment}
           setShowModal={setBookAppointment}
+          activeCompanion={activeCompanion}
+        />
+      )}
+      {activeCompanion && (
+        <AddTask
+          showModal={addTask}
+          setShowModal={setAddTask}
           activeCompanion={activeCompanion}
         />
       )}

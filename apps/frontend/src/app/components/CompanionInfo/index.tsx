@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { IoEye, IoDocumentTextSharp } from "react-icons/io5";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { CompanionParent } from "../../pages/Companions/types";
 import Labels from "../Labels/Labels";
 import Modal from "../Modal";
@@ -15,6 +13,7 @@ import {
   AddTask,
 } from "./Sections";
 import { isHttpsImageUrl } from "@/app/utils/urls";
+import Close from "../Icons/Close";
 
 type CompanionInfoProps = {
   showModal: boolean;
@@ -28,8 +27,6 @@ const labels = [
   {
     key: "info",
     name: "Info",
-    icon: IoEye,
-    iconSize: 32,
     labels: [
       { key: "companion-information", name: "Companion information" },
       { key: "parent-information", name: "Parent information" },
@@ -38,8 +35,6 @@ const labels = [
   {
     key: "records",
     name: "Records",
-    icon: IoDocumentTextSharp,
-    iconSize: 32,
     labels: [
       { key: "history", name: "History" },
       { key: "documents", name: "Documents" },
@@ -89,15 +84,10 @@ const CompanionInfo = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex flex-col">
-          <div className="flex justify-between">
-            <IoIosCloseCircleOutline
-              size={28}
-              color="#302f2e"
-              className="opacity-0"
-            />
-            <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <div className="flex justify-center items-center gap-2">
               <Image
                 alt="pet image"
                 src={
@@ -105,37 +95,30 @@ const CompanionInfo = ({
                     ? activeCompanion?.companion.photoUrl
                     : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
                 }
-                className="rounded-full min-w-20 max-h-20 object-cover"
-                height={80}
-                width={80}
+                className="rounded-full h-10 w-10 object-cover"
+                height={40}
+                width={40}
               />
+              <div className="text-body-1 text-text-primary">
+                {activeCompanion?.companion.name}
+              </div>
+              <div className="text-body-4 text-text-primary mt-1">
+                {activeCompanion?.companion.breed}
+              </div>
             </div>
-            <IoIosCloseCircleOutline
-              size={28}
-              color="#302f2e"
-              onClick={() => setShowModal(false)}
-              className="cursor-pointer"
-            />
+            <Close onClick={() => setShowModal(false)} />
           </div>
-          <div className="flex justify-center font-grotesk font-medium text-[23px] text-black-text">
-            {activeCompanion?.companion.name}
-          </div>
-          <div className="flex justify-center font-satoshi font-medium text-[14px] text-black-text">
-            {activeCompanion?.companion.breed +
-              " / " +
-              activeCompanion?.companion.type}
-          </div>
+
+          <Labels
+            labels={labels}
+            activeLabel={activeLabel}
+            setActiveLabel={setActiveLabel}
+            activeSubLabel={activeSubLabel}
+            setActiveSubLabel={setActiveSubLabel}
+          />
         </div>
 
-        <Labels
-          labels={labels}
-          activeLabel={activeLabel}
-          setActiveLabel={setActiveLabel}
-          activeSubLabel={activeSubLabel}
-          setActiveSubLabel={setActiveSubLabel}
-        />
-
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
           {Content ? <Content companion={activeCompanion} /> : null}
         </div>
       </div>

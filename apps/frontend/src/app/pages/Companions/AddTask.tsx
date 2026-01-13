@@ -12,6 +12,7 @@ import { createTask } from "@/app/services/taskService";
 import { EMPTY_TASK, Task } from "@/app/types/task";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import React, { useEffect, useMemo, useState } from "react";
+import { CompanionParent } from "./types";
 
 const TaskSourceOptions = [
   { value: "YC_LIBRARY", label: "YC Library" },
@@ -27,10 +28,16 @@ const TaskTypeOptions = [
 type AddTaskProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  showErrorTost: any;
+  showErrorTost?: any;
+  activeCompanion: CompanionParent;
 };
 
-const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
+const AddTask = ({
+  showModal,
+  setShowModal,
+  showErrorTost,
+  activeCompanion,
+}: AddTaskProps) => {
   const teams = useTeamForPrimaryOrg();
   const companions = useCompanionsForPrimaryOrg();
   const [formData, setFormData] = useState<Task>(EMPTY_TASK);
@@ -87,7 +94,7 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
       setShowModal(false);
       setFormData(EMPTY_TASK);
       setFormDataErrors({});
-      showErrorTost({
+      showErrorTost?.({
         message: "Task created",
         errortext: "Success",
         iconElement: (
@@ -102,7 +109,7 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
       });
     } catch (error) {
       console.log(error);
-      showErrorTost({
+      showErrorTost?.({
         message: "Error creating task",
         errortext: "Error",
         iconElement: (
