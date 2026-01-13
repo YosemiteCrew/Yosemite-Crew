@@ -322,7 +322,28 @@ export const FieldBuilder: React.FC<{
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   createField: (t: OptionKey) => FormField;
-}> = ({ field, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, createField }) => {
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
+  isDragging?: boolean;
+}> = ({
+  field,
+  onChange,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+  createField,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging,
+}) => {
   const Component = builderComponentMap[field.type];
 
   return (
@@ -333,6 +354,12 @@ export const FieldBuilder: React.FC<{
       onMoveDown={onMoveDown}
       canMoveUp={canMoveUp}
       canMoveDown={canMoveDown}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      isDragging={isDragging}
     >
       <Component field={field} onChange={onChange} createField={createField} />
     </BuilderWrapper>
@@ -741,6 +768,10 @@ const Build = ({
   registerValidator,
 }: BuildProps) => {
   const [buildError, setBuildError] = useState<string>("");
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const builderRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollVelocityRef = React.useRef<number>(0);
+  const scrollAnimRef = React.useRef<number | null>(null);
   const createField = (key: OptionKey): FormField => {
     const id = crypto.randomUUID();
     return fieldFactory[key](id, serviceOptions);
@@ -813,6 +844,103 @@ const Build = ({
     });
   };
 
+  const reorderField = (from: number, to: number) => {
+    if (from === to) return;
+    setFormData((prev) => {
+      const schema = [...(prev.schema ?? [])];
+      if (from < 0 || to < 0 || from >= schema.length || to >= schema.length) {
+        return prev;
+      }
+      const targetIndex = from < to ? to - 1 : to;
+      const [moved] = schema.splice(from, 1);
+      schema.splice(targetIndex, 0, moved);
+      return { ...prev, schema };
+    });
+  };
+
+  const handleDragStart = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", index.toString());
+  };
+
+  const handleDragOver = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const scrollable =
+      builderRef.current && builderRef.current.scrollHeight > builderRef.current.clientHeight
+        ? builderRef.current
+        : (document.scrollingElement as HTMLElement | null);
+
+    if (scrollable) {
+      const rect =
+        scrollable === builderRef.current
+          ? scrollable.getBoundingClientRect()
+          : { top: 0, bottom: window.innerHeight, height: window.innerHeight };
+      const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
+      const turboZone = softZone / 3;
+      const distanceToTop = Math.max(0, e.clientY - rect.top);
+      const distanceToBottom = Math.max(0, rect.bottom - e.clientY);
+
+      if (distanceToTop < softZone && scrollable.scrollTop > 0) {
+        const ratio = (softZone - distanceToTop) / softZone;
+        const turbo = distanceToTop < turboZone ? 14 : 0;
+        const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+        scrollVelocityRef.current = -speed;
+      } else if (distanceToBottom < softZone) {
+        const ratio = (softZone - distanceToBottom) / softZone;
+        const turbo = distanceToBottom < turboZone ? 14 : 0;
+        const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+        scrollVelocityRef.current = speed;
+      } else {
+        scrollVelocityRef.current = 0;
+      }
+
+      if (scrollAnimRef.current === null) {
+        const step = () => {
+          const vel = scrollVelocityRef.current;
+          if (!scrollable) {
+            scrollAnimRef.current = null;
+            return;
+          }
+          if (vel !== 0) {
+            scrollable.scrollTop += vel;
+            scrollAnimRef.current = requestAnimationFrame(step);
+          } else {
+            scrollAnimRef.current = null;
+          }
+        };
+        scrollAnimRef.current = requestAnimationFrame(step);
+      }
+    }
+  };
+
+  const handleDrop = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (dragIndex === null) return;
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const isAfter = e.clientY > rect.top + rect.height / 2;
+    const destination = isAfter ? index + 1 : index;
+    reorderField(dragIndex, destination);
+    setDragIndex(null);
+    scrollVelocityRef.current = 0;
+    if (scrollAnimRef.current !== null) {
+      cancelAnimationFrame(scrollAnimRef.current);
+      scrollAnimRef.current = null;
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    scrollVelocityRef.current = 0;
+    if (scrollAnimRef.current !== null) {
+      cancelAnimationFrame(scrollAnimRef.current);
+      scrollAnimRef.current = null;
+    }
+  };
+
   useEffect(() => {
     if (!serviceOptions.length) return;
     setFormData((prev) => ({
@@ -839,7 +967,7 @@ const Build = ({
   }, [registerValidator, validate]);
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between">
+    <div className="flex flex-col gap-6 w-full flex-1 justify-between" ref={builderRef}>
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div className="font-grotesk text-black-text text-[23px] font-medium">
@@ -856,6 +984,7 @@ const Build = ({
           if (field.type === "group") {
             // Handle medication groups separately
             if (isMedicationGroup(field)) {
+              const isDragging = dragIndex === index;
               return (
                 <BuilderWrapper
                   key={fieldId}
@@ -867,6 +996,12 @@ const Build = ({
                   onMoveDown={() => moveField(index, "down")}
                   canMoveUp={canMoveUp}
                   canMoveDown={canMoveDown}
+                  draggable
+                  onDragStart={handleDragStart(index)}
+                  onDragOver={handleDragOver(index)}
+                  onDrop={handleDrop(index)}
+                  onDragEnd={handleDragEnd}
+                  isDragging={isDragging}
                 >
                   <MedicationGroupBuilder
                     field={field}
@@ -882,6 +1017,7 @@ const Build = ({
             // Handle service groups and regular groups
             if (isServiceGroup(field)) {
               const ensured = ensureServiceCheckbox(field, serviceOptions).group;
+              const isDragging = dragIndex === index;
               return (
                 <BuilderWrapper
                   key={ensured.id}
@@ -893,6 +1029,12 @@ const Build = ({
                   onMoveDown={() => moveField(index, "down")}
                   canMoveUp={canMoveUp}
                   canMoveDown={canMoveDown}
+                  draggable
+                  onDragStart={handleDragStart(index)}
+                  onDragOver={handleDragOver(index)}
+                  onDrop={handleDrop(index)}
+                  onDragEnd={handleDragEnd}
+                  isDragging={isDragging}
                 >
                   <GroupBuilder
                     field={ensured}
@@ -918,6 +1060,12 @@ const Build = ({
                 onMoveDown={() => moveField(index, "down")}
                 canMoveUp={canMoveUp}
                 canMoveDown={canMoveDown}
+                draggable
+                onDragStart={handleDragStart(index)}
+                onDragOver={handleDragOver(index)}
+                onDrop={handleDrop(index)}
+                onDragEnd={handleDragEnd}
+                isDragging={dragIndex === index}
               >
                 <GroupBuilder
                   field={field}
@@ -945,6 +1093,12 @@ const Build = ({
               canMoveUp={canMoveUp}
               canMoveDown={canMoveDown}
               createField={createField}
+              draggable
+              onDragStart={handleDragStart(index)}
+              onDragOver={handleDragOver(index)}
+              onDrop={handleDrop(index)}
+              onDragEnd={handleDragEnd}
+              isDragging={dragIndex === index}
             />
           );
         })}
