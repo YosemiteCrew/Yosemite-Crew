@@ -174,10 +174,6 @@ const AddForm = ({
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
         <div className="flex items-center justify-between">
-          <div className="w-16" />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            {isEditing ? "Edit form" : "Add form"}
-          </div>
           <div className="flex items-center gap-3">
             {!isEditing && (
               <button
@@ -188,6 +184,11 @@ const AddForm = ({
                 Clear
               </button>
             )}
+          </div>
+          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
+            {isEditing ? "Edit form" : "Add form"}
+          </div>
+          <div className="flex items-center gap-3">
             <IoIosCloseCircleOutline
               size={28}
               color="#302f2e"

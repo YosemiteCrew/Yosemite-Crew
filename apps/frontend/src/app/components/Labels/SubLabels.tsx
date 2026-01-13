@@ -21,6 +21,7 @@ const SubLabels = ({
   disableClicking = false,
 }: SubLabelsProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   useEffect(() => {
@@ -34,6 +35,17 @@ const SubLabels = ({
     return () => window.removeEventListener("resize", checkOverflow);
   }, [labels]);
 
+  useEffect(() => {
+    const activeButton = buttonRefs.current[activeLabel];
+    if (activeButton && typeof activeButton.scrollIntoView === "function") {
+      activeButton.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [activeLabel, labels]);
+
   return (
     <div
       ref={containerRef}
@@ -42,6 +54,13 @@ const SubLabels = ({
       {labels.map((label) => (
         <button
           key={label.key}
+          ref={(node) => {
+            if (node) {
+              buttonRefs.current[label.key] = node;
+            } else {
+              delete buttonRefs.current[label.key];
+            }
+          }}
           onClick={() => !disableClicking && setActiveLabel(label.key)}
           className={`${activeLabel === label.key ? " bg-blue-light text-blue-text! border-text-brand! border shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border border-card-border!"} hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-9 px-3 border! flex items-center whitespace-nowrap text-body-4 rounded-2xl!`}
         >

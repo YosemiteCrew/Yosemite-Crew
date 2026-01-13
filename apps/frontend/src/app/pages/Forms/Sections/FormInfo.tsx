@@ -16,6 +16,8 @@ import {
   unpublishForm,
 } from "@/app/services/formService";
 import FormRenderer from "./AddForm/components/FormRenderer";
+import { useErrorTost } from "@/app/components/Toast/Toast";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
@@ -97,16 +99,40 @@ const FormInfo = ({
   onEdit,
   serviceOptions,
 }: FormInfoProps) => {
+  const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
   const [unpublishLoading, setUnpublishLoading] = React.useState(false);
   const [archiveLoading, setArchiveLoading] = React.useState(false);
   const actionLoading = publishLoading || unpublishLoading || archiveLoading;
+
+  const showActionError = (message: string) =>
+    showErrorTost({
+      message,
+      errortext: "Error",
+      iconElement: (
+        <Icon
+          icon="solar:danger-triangle-bold"
+          width="20"
+          height="20"
+          color="#EA3729"
+        />
+      ),
+      className: "errofoundbg",
+    });
 
   const handlePublish = async () => {
     if (!activeForm._id) return;
     setPublishLoading(true);
     try {
       await publishForm(activeForm._id);
+      setShowModal(false);
+    } catch (err: any) {
+      console.error("Failed to publish form", err);
+      showActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to publish form"
+      );
     } finally {
       setPublishLoading(false);
     }
@@ -117,6 +143,14 @@ const FormInfo = ({
     setUnpublishLoading(true);
     try {
       await unpublishForm(activeForm._id);
+      setShowModal(false);
+    } catch (err: any) {
+      console.error("Failed to unpublish form", err);
+      showActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to unpublish form"
+      );
     } finally {
       setUnpublishLoading(false);
     }
@@ -127,6 +161,14 @@ const FormInfo = ({
     setArchiveLoading(true);
     try {
       await archiveForm(activeForm._id);
+      setShowModal(false);
+    } catch (err: any) {
+      console.error("Failed to archive form", err);
+      showActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to archive form"
+      );
     } finally {
       setArchiveLoading(false);
     }
@@ -263,12 +305,16 @@ const FormInfo = ({
             <Secondary
               href="#"
               text="Edit form"
-              onClick={() => onEdit(activeForm)}
+              onClick={() => {
+                setShowModal(false);
+                onEdit(activeForm);
+              }}
               className="h-12! text-[16px]!"
               isDisabled={actionLoading}
             />
           </div>
         </div>
+        {ErrorTostPopup}
       </div>
     </Modal>
   );

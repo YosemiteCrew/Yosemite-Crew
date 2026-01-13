@@ -196,7 +196,6 @@ const DeveloperLanding = () => {
                 href="/developers/signin"
                 onClick={handleDeveloperCTA}
                 text="Developer portal"
-                style={{ width: "100%" }}
                 size="large"
               />
             </div>

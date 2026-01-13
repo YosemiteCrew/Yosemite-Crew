@@ -347,7 +347,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
             {existingBatches.map((batch, batchIdx) => (
               <div
                 key={batch._id ?? batchIdx}
-                className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
+                className={`flex flex-col gap-3 ${isEditing ? "border border-grey-light rounded-xl p-3" : ""}`}
               >
                 <div className="font-satoshi font-semibold text-black-text">
                   Existing batch {batchIdx + 1}

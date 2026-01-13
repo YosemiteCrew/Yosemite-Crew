@@ -255,7 +255,6 @@ const HomePage = () => {
                 <Primary
                   text="Book demo"
                   href="/book-demo"
-                  style={{ width: "100%" }}
                   size="large"
                 />
               </div>

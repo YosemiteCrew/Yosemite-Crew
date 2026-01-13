@@ -33,11 +33,11 @@ type OptionProp = {
 
 const addOptions: OptionProp[] = [
   {
-    name: "Text area",
+    name: "Long Text",
     key: "textarea",
   },
   {
-    name: "Input",
+    name: "Short Text",
     key: "input",
   },
   {
@@ -45,19 +45,19 @@ const addOptions: OptionProp[] = [
     key: "number",
   },
   {
-    name: "Dropdown",
+    name: "Select List",
     key: "dropdown",
   },
   {
-    name: "Radio",
+    name: "Single Choice",
     key: "radio",
   },
   {
-    name: "Checkbox",
+    name: "Multiple Choice",
     key: "checkbox",
   },
   {
-    name: "Boolean",
+    name: "Yes / No",
     key: "boolean",
   },
   {
@@ -69,15 +69,15 @@ const addOptions: OptionProp[] = [
     key: "signature",
   },
   {
-    name: "Group",
+    name: "Field Group",
     key: "group",
   },
   {
-    name: "Medication group",
+    name: "Medications",
     key: "medication",
   },
   {
-    name: "Service group",
+    name: "Services",
     key: "service-group",
   },
 ];
@@ -317,12 +317,23 @@ export const FieldBuilder: React.FC<{
   field: FormField;
   onChange: (f: FormField) => void;
   onDelete: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   createField: (t: OptionKey) => FormField;
-}> = ({ field, onChange, onDelete, createField }) => {
+}> = ({ field, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, createField }) => {
   const Component = builderComponentMap[field.type];
 
   return (
-    <BuilderWrapper field={field} onDelete={onDelete}>
+    <BuilderWrapper
+      field={field}
+      onDelete={onDelete}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
+    >
       <Component field={field} onChange={onChange} createField={createField} />
     </BuilderWrapper>
   );
@@ -787,6 +798,21 @@ const Build = ({
     }));
   };
 
+  const moveField = (index: number, direction: "up" | "down") => {
+    setFormData((prev) => {
+      const schema = [...(prev.schema ?? [])];
+      const newIndex = direction === "up" ? index - 1 : index + 1;
+
+      if (newIndex < 0 || newIndex >= schema.length) return prev;
+
+      const temp = schema[index];
+      schema[index] = schema[newIndex];
+      schema[newIndex] = temp;
+
+      return { ...prev, schema };
+    });
+  };
+
   useEffect(() => {
     if (!serviceOptions.length) return;
     setFormData((prev) => ({
@@ -822,8 +848,10 @@ const Build = ({
           <AddFieldDropdown onSelect={addField} buttonClassName="w-fit" />
         </div>
 
-        {formData.schema?.map((field) => {
+        {formData.schema?.map((field, index) => {
           const fieldId = field.id; // Store ID to avoid TypeScript narrowing issues
+          const canMoveUp = index > 0;
+          const canMoveDown = index < (formData.schema?.length ?? 0) - 1;
 
           if (field.type === "group") {
             // Handle medication groups separately
@@ -835,6 +863,10 @@ const Build = ({
                   onDelete={() =>
                     setFormData((prev) => removeFieldById(prev, fieldId))
                   }
+                  onMoveUp={() => moveField(index, "up")}
+                  onMoveDown={() => moveField(index, "down")}
+                  canMoveUp={canMoveUp}
+                  canMoveDown={canMoveDown}
                 >
                   <MedicationGroupBuilder
                     field={field}
@@ -857,6 +889,10 @@ const Build = ({
                   onDelete={() =>
                     setFormData((prev) => removeFieldById(prev, fieldId))
                   }
+                  onMoveUp={() => moveField(index, "up")}
+                  onMoveDown={() => moveField(index, "down")}
+                  canMoveUp={canMoveUp}
+                  canMoveDown={canMoveDown}
                 >
                   <GroupBuilder
                     field={ensured}
@@ -878,6 +914,10 @@ const Build = ({
                 onDelete={() =>
                   setFormData((prev) => removeFieldById(prev, fieldId))
                 }
+                onMoveUp={() => moveField(index, "up")}
+                onMoveDown={() => moveField(index, "down")}
+                canMoveUp={canMoveUp}
+                canMoveDown={canMoveDown}
               >
                 <GroupBuilder
                   field={field}
@@ -900,6 +940,10 @@ const Build = ({
               onDelete={() =>
                 setFormData((prev) => removeFieldById(prev, fieldId))
               }
+              onMoveUp={() => moveField(index, "up")}
+              onMoveDown={() => moveField(index, "down")}
+              canMoveUp={canMoveUp}
+              canMoveDown={canMoveDown}
               createField={createField}
             />
           );
@@ -907,6 +951,19 @@ const Build = ({
         {buildError && (
           <span className="text-red-500 text-sm">{buildError}</span>
         )}
+
+        {/* Add Field Button at bottom */}
+        <div className="flex flex-col items-center gap-2 py-4 border-2 border-dashed border-grey-light rounded-2xl hover:border-grey-noti transition-colors">
+          <div className="flex flex-col items-center gap-1">
+            <AddFieldDropdown
+              onSelect={addField}
+              buttonClassName="w-fit"
+            />
+            <span className="text-sm font-satoshi font-medium text-grey-noti">
+              Add Field
+            </span>
+          </div>
+        </div>
       </div>
       <Primary
         href="#"

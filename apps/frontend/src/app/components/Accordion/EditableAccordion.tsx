@@ -51,28 +51,64 @@ const FieldComponents: Record<
     onChange: (v: any) => void;
   }>
 > = {
-  text: ({ field, value, onChange, error }) => (
-    <FormInput
-      intype={field.type || "text"}
-      inname={field.key}
-      value={value}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      className="min-h-12!"
-    />
-  ),
-  number: ({ field, value, onChange, error }) => (
-    <FormInput
-      intype={field.type || "text"}
-      inname={field.key}
-      value={value}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      className="min-h-12!"
-    />
-  ),
+  text: ({ field, value, onChange, error }) => {
+    const isCurrency = isCurrencyField(field.key);
+    return isCurrency ? (
+      <div className="relative">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-body-4 text-text-primary font-satoshi font-semibold z-10">
+          $
+        </div>
+        <FormInput
+          intype={field.type || "text"}
+          inname={field.key}
+          value={value}
+          inlabel={field.label}
+          error={error}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-12! pl-10!"
+        />
+      </div>
+    ) : (
+      <FormInput
+        intype={field.type || "text"}
+        inname={field.key}
+        value={value}
+        inlabel={field.label}
+        error={error}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-12!"
+      />
+    );
+  },
+  number: ({ field, value, onChange, error }) => {
+    const isCurrency = isCurrencyField(field.key);
+    return isCurrency ? (
+      <div className="relative">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-body-4 text-text-primary font-satoshi font-semibold z-10">
+          $
+        </div>
+        <FormInput
+          intype={field.type || "text"}
+          inname={field.key}
+          value={value}
+          inlabel={field.label}
+          error={error}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-12! pl-10!"
+        />
+      </div>
+    ) : (
+      <FormInput
+        intype={field.type || "text"}
+        inname={field.key}
+        value={value}
+        inlabel={field.label}
+        error={error}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-12!"
+      />
+    );
+  },
   select: ({ field, value, onChange }) => (
     <Dropdown
       placeholder={field.label}
@@ -184,6 +220,15 @@ const RenderField = (
   );
 };
 
+const isCurrencyField = (fieldKey: string) => {
+  return fieldKey === "purchaseCost" || fieldKey === "selling";
+};
+
+const formatCurrencyValue = (value: any) => {
+  if (!value || value === "-") return "-";
+  return `$${value}`;
+};
+
 const FieldValueComponents: Record<
   string,
   React.FC<{
@@ -201,9 +246,12 @@ const FieldValueComponents: Record<
         {field.label + ":"}
       </div>
       <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-        {Array.isArray(formValues[field.key])
-          ? (formValues[field.key] as string[]).join(", ")
-          : formValues[field.key] || "-"}
+        {(() => {
+          const value = Array.isArray(formValues[field.key])
+            ? (formValues[field.key] as string[]).join(", ")
+            : formValues[field.key] || "-";
+          return isCurrencyField(field.key) ? formatCurrencyValue(value) : value;
+        })()}
       </div>
     </div>
   ),
@@ -215,7 +263,9 @@ const FieldValueComponents: Record<
         {field.label + ":"}
       </div>
       <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
-        {formValues[field.key] || "-"}
+        {isCurrencyField(field.key)
+          ? formatCurrencyValue(formValues[field.key])
+          : formValues[field.key] || "-"}
       </div>
     </div>
   ),

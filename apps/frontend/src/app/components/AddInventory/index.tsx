@@ -355,20 +355,26 @@ const AddInventory = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="px-4! py-8! flex flex-col h-full gap-6">
         <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="text-sm font-satoshi font-semibold text-grey-noti underline decoration-1 underline-offset-4"
+            >
+              Clear
+            </button>
+          </div>
           <div className="flex justify-center text-heading-1 text-text-primary">
             Add Inventory
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <div className="flex items-center gap-3">
+            <IoIosCloseCircleOutline
+              size={28}
+              color="#302f2e"
+              onClick={() => setShowModal(false)}
+              className="cursor-pointer"
+            />
+          </div>
         </div>
 
         <SubLabels
