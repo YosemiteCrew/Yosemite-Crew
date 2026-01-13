@@ -27,13 +27,6 @@ const SubLabels = ({
       {labels.map((label) => (
         <button
           key={label.key}
-          ref={(node) => {
-            if (node) {
-              buttonRefs.current[label.key] = node;
-            } else {
-              delete buttonRefs.current[label.key];
-            }
-          }}
           onClick={() => !disableClicking && setActiveLabel(label.key)}
           className={`${activeLabel === label.key ? "bg-white! text-blue-text!" : "text-black-text hover:bg-white"} transition-all duration-300  text-text-secondary text-body-4 h-9 px-3 flex items-center rounded-2xl!`}
         >

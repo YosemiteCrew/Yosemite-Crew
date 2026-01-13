@@ -135,10 +135,12 @@ const AddInventory = ({
     section: InventorySectionKey,
     details: Record<string, string>
   ) => {
-    console.error(
-      `[Inventory] Validation failed for ${section}`,
-      JSON.stringify(details)
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        `[Inventory] Validation failed for ${section}`,
+        JSON.stringify(details)
+      );
+    }
   };
 
   const updateSection = (
@@ -344,7 +346,9 @@ const AddInventory = ({
   const handleNext = async () => {
     const currentValid = validateSection(activeLabel);
     if (!currentValid) {
-      console.error(`[Inventory] Validation failed at step ${activeLabel}`);
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`[Inventory] Validation failed at step ${activeLabel}`);
+      }
       return;
     }
     const currentIndex = labels.findIndex((l) => l.key === activeLabel);

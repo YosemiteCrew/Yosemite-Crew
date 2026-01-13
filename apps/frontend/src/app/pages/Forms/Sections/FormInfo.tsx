@@ -16,6 +16,8 @@ import {
 } from "@/app/services/formService";
 import FormRenderer from "./AddForm/components/FormRenderer";
 import Close from "@/app/components/Icons/Close";
+import { useErrorTost } from "@/app/components/Toast/Toast";
+import { Icon } from "@iconify/react";
 
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
