@@ -14,9 +14,8 @@ type ButtonProps = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: "py-[12px] text-body-4-emphasis md:py-[11px]",
-  large:
-    "py-[12px] text-body-4-emphasis md:py-[14px] md:text-body-3-emphasis",
+  default: "py-[12px] md:py-[11px]",
+  large: "py-[12px] md:py-[14px]",
 };
 
 const Secondary = ({

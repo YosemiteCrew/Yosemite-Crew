@@ -504,11 +504,11 @@
   border-radius: 16px;
   padding: 16px 28px;
   gap: 10px;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-in-out;
 }
 .PetAppBtn a:hover {
   background: var(--black-bg);
-  box-shadow: 0 0 32px 0 rgba(0, 0, 0, 0.32);
+  transform: scale(1.05);
 }
 .PetAppBtn a svg {
   color: var(--whitebg);
@@ -521,8 +521,8 @@
   flex-direction: column;
 }
 .app-store-text-small {
-  font-family: var(--grotesk-font);
-  font-size: 13px;
+  font-family: var(--satoshi-font);
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 120%;
   margin: 0;
@@ -530,8 +530,8 @@
 }
 .app-store-text-large {
   color: var(--white-text);
-  font-family: var(--grotesk-font);
-  font-size: 23px;
+  font-family: var(--satoshi-font);
+  font-size: 1.375rem;
   font-weight: 500;
   line-height: 120%;
   margin: 0;

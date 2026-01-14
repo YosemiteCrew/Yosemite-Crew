@@ -61,6 +61,7 @@ const MultiSelectDropdown = ({
       newValue = [...value, option];
     }
     onChange(newValue);
+    setOpen(false);
   };
 
   const removeOption = (option: string) => {
@@ -72,6 +73,7 @@ const MultiSelectDropdown = ({
     <div className="select-wrapper gap-2">
       <div className="select-container" ref={dropdownRef}>
         <button
+          type="button"
           className={classNames(
             "select-input-container",
             { blueborder: value.length > 0 },
@@ -88,6 +90,7 @@ const MultiSelectDropdown = ({
           <div className={`select-input-dropdown ${dropdownClassName}`}>
             {availableOptions.map((option, index: number) => (
               <button
+                type="button"
                 className={`select-input-dropdown-item ${index === list.length - 1 ? "" : "border-b border-grey-light"}`}
                 key={option.value + index}
                 onClick={() => toggleOption(option.value)}

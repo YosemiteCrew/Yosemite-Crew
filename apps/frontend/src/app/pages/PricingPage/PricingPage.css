@@ -100,19 +100,19 @@
   gap: 6px;
 }
 .helpText h3 {
-  font-family: var(--grotesk-font);
-  font-size: 28px;
+  font-family: var(--satoshi-font);
+  font-size: 1.75rem;
   font-weight: 500;
-  line-height: 39.6px;
+  line-height: 2.125rem;
   letter-spacing: -0.02em;
   color: var(--white-text);
   margin: 0;
 }
 .helpText p {
   font-family: var(--satoshi-font);
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 400;
-  line-height: 21.6px;
+  line-height: 1.5rem;
   letter-spacing: -0.02em;
   color: var(--white-text);
   margin: 0;
@@ -120,22 +120,27 @@
 }
 .helpbtn a {
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 6px;
   background-color: var(--blue-text);
-  border: none;
+  border: 1px solid var(--blue-text);
   border-radius: 16px;
-  padding: 14px 24px;
-  font-size: 18px;
+  padding: 12px 32px;
+  font-size: 1rem;
   font-weight: 500;
-  line-height: 22.8px;
-  letter-spacing: -0.02em;
-  font-family: var(--grotesk-font);
+  line-height: 1.25rem;
+  font-family: var(--satoshi-font);
   color: var(--white-text);
   width: fit-content;
+  transition: all 0.3s ease-in-out;
   &:hover {
-    background: var(--whitebg);
-    color: var(--black-text);
+    transform: scale(1.05);
+  }
+}
+@media screen and (min-width: 768px) {
+  .helpbtn a {
+    padding: 11px 32px;
   }
 }
 @media screen and (max-width: 1024px) {
