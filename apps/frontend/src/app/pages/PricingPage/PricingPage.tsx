@@ -104,7 +104,7 @@ const PricingPage = () => {
                   >
                     <div className="flex items-center gap-2 font-medium h-[23px] lg:h-[38px]">
                       <div
-                        className={`font-grotesk text-[14px] lg:text-[19px] ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        className={`font-satoshi text-[0.875rem] lg:text-[1.125rem] ${plan.active ? "text-black-text" : "text-grey-border"}`}
                       >
                         {plan.title}
                       </div>
@@ -116,7 +116,7 @@ const PricingPage = () => {
                     </div>
                     <div className="flex gap-2 items-end">
                       <div
-                        className={`font-grotesk text-[28px] lg:text-[40px] font-medium ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        className={`font-satoshi text-[28px] lg:text-[40px] font-medium ${plan.active ? "text-black-text" : "text-grey-border"}`}
                       >
                         {activeCycle === "monthly"
                           ? plan.amount
@@ -134,7 +134,7 @@ const PricingPage = () => {
                       {plan.description}
                     </div>
                     <Link
-                      className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-grotesk text-[19px] font-medium"
+                      className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-satoshi text-[1.125rem] font-medium"
                       href={plan.buttonSrc}
                       onClick={() => plan.id === 3 && setNotify(true)}
                     >
@@ -167,7 +167,7 @@ const PricingPage = () => {
                 <button className="opacity-0">
                   <IoIosCloseCircleOutline size={28} color="#302f2e" />
                 </button>
-                <div className="font-grotesk font-medium text-[23px] text-black-text">
+                <div className="font-satoshi font-medium text-[1.375rem] text-black-text">
                   Get notified
                 </div>
                 <button onClick={() => setNotify(false)}>
@@ -226,17 +226,17 @@ const PricingPage = () => {
                   className="w-[calc(33%-10px)] flex flex-col gap-2"
                 >
                   <div className="flex justify-between items-center flex-wrap">
-                    <div className="font-grotesk text-[14px] md:text-[19px] font-medium text-black-text">
+                    <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
                       {plan.title.split(" ")[0]}
                     </div>
-                    <div className="font-grotesk text-[14px] md:text-[19px] font-medium text-black-text">
+                    <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
                       {activeCycle === "monthly"
                         ? plan.amount
                         : plan.amountYearly}
                     </div>
                   </div>
                   <Link
-                    className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] font-medium"
+                    className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium"
                     href={plan.buttonSrc}
                   >
                     {plan.buttonText}

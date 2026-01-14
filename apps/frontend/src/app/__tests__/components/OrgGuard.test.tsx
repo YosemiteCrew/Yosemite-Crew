@@ -67,6 +67,16 @@ const baseProfileState = {
 };
 
 describe("OrgGuard", () => {
+  const originalAuthGuard = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = "false";
+  });
+
+  afterAll(() => {
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = originalAuthGuard;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseOrgStore.mockImplementation((selector: any) =>

@@ -86,31 +86,31 @@ const PetOwner = () => {
             <div className="w-full flex flex-col gap-6 md:gap-10 xl:gap-16">
               <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 BrownDiv">
                 <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! pl-16! pr-4! sm:pl-0! sm:pr-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
-                  <div className="font-grotesk text-black-text text-[16px] md:text-[23px] xl:text-[32px] font-medium">
+                  <div className="font-satoshi text-black-text text-[1rem] md:text-[1.375rem] xl:text-[2.5rem] font-medium">
                     This app has been a game-changer! I never forget my dog&rsquo;s
                     meds anymore
                   </div>
-                  <div className="font-grotesk text-grey-noti text-[13px] md:text-[16px] xl:text-[28px] font-medium text-right">
+                  <div className="font-satoshi text-grey-noti text-[0.875rem] md:text-[1rem] xl:text-[1.75rem] font-medium text-right">
                     ~ Germaine, Dog parent
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-center bg-[#EAF3FF] w-full rotate-2 PurpleDiv">
                 <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! px-10! sm:px-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
-                  <div className="font-grotesk text-black-text text-[16px] md:text-[23px] xl:text-[32px] font-medium">
+                  <div className="font-satoshi text-black-text text-[1rem] md:text-[1.375rem] xl:text-[2.5rem] font-medium">
                     Scheduling vet visits has never been this easy. Love it!
                   </div>
-                  <div className="font-grotesk text-grey-noti text-[13px] md:text-[16px] xl:text-[28px] font-medium text-right">
+                  <div className="font-satoshi text-grey-noti text-[0.875rem] md:text-[1rem] xl:text-[1.75rem] font-medium text-right">
                     ~ Maria, Dog parent
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 GreenDiv">
                 <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! px-10! sm:px-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
-                  <div className="font-grotesk text-black-text text-[16px] md:text-[23px] xl:text-[32px] font-medium">
+                  <div className="font-satoshi text-black-text text-[1rem] md:text-[1.375rem] xl:text-[2.5rem] font-medium">
                     Finally, a pet app that understands what we need
                   </div>
-                  <div className="font-grotesk text-grey-noti text-[13px] md:text-[16px] xl:text-[28px] font-medium text-right">
+                  <div className="font-satoshi text-grey-noti text-[0.875rem] md:text-[1rem] xl:text-[1.75rem] font-medium text-right">
                     ~ Joan, Dog parent
                   </div>
                 </div>

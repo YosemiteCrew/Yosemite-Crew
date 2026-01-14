@@ -33,6 +33,7 @@ const Details = ({
     category?: string;
     species?: string;
     description?: string;
+    services?: string;
   }>({});
 
   const handleCategoryChange = (category: FormsCategory) => {
@@ -55,6 +56,7 @@ const Details = ({
       category?: string;
       species?: string;
       description?: string;
+      services?: string;
     } = {};
     if (!formData.name.trim()) {
       errors.name = "Form name is required";
@@ -67,6 +69,10 @@ const Details = ({
     }
     if (!formData.species || formData.species.length === 0) {
       errors.species = "Select at least one species";
+    }
+    // Service is required for all categories except "Custom"
+    if (formData.category !== "Custom" && (!formData.services || formData.services.length === 0)) {
+      errors.services = "Service is required for this form category";
     }
     setFormDataErrors(errors);
     return Object.keys(errors).length === 0;
@@ -156,13 +162,19 @@ const Details = ({
               options={FormsUsageOptions}
             />
             <MultiSelectDropdown
-              placeholder="Service (Optional)"
+              placeholder={formData.category === "Custom" ? "Service (Optional)" : "Service"}
               value={formData.services || []}
-              onChange={(e) => setFormData({ ...formData, services: e })}
+              onChange={(e) => {
+                setFormData({ ...formData, services: e });
+                setFormDataErrors((prev) => ({ ...prev, services: undefined }));
+              }}
               className="min-h-12!"
               options={serviceOptions}
               dropdownClassName="h-fit! max-h-[150px]!"
             />
+            {formDataErrors.services && (
+              <span className="text-red-500 text-sm">{formDataErrors.services}</span>
+            )}
             <MultiSelectDropdown
               placeholder="Species"
               value={formData.species || []}

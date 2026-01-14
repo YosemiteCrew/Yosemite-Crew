@@ -31,7 +31,7 @@
 .ContactUsData .LeftContactUs {
   display: flex;
   flex-direction: column;
-  width: 50%;
+  width: 45%;
   justify-content: start;
 }
 .ContactUsData .LeftContactUs img {
@@ -55,13 +55,14 @@
   border: 1px solid var(--color-card-border);
   background: var(--color-neutral-0);
   padding: 20px;
-  height: 83vh;
+  min-height: 65vh;
+  height: fit-content;
   border-radius: 24px;
   width: 36%;
   max-width: 500px;
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly;
+  justify-content: flex-start;
   gap: 24px;
 }
 .ContactUsData .RightContactUs .QueryText > div {
@@ -382,6 +383,7 @@
   .ContactUsData {
     flex-direction: column;
     gap: 14px;
+    align-items: center;
   }
   .ContactUsData .LeftContactUs {
     width: 100%;

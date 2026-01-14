@@ -93,10 +93,10 @@ a.Fillbtn {
   gap: 8px;
   color: var(--white-text);
   transition: all 0.3s ease;
-  font-size: 21px;
+  font-size: 1.25rem;
   font-weight: 500;
   line-height: 120%;
-  font-family: var(--grotesk-font);
+  font-family: var(--satoshi-font);
   min-height: 60px;
   &:hover {
     background: var(--black-hover);
@@ -113,10 +113,10 @@ a.UnFillbtn {
   justify-content: center;
   gap: 8px;
   transition: all 0.3s ease;
-  font-size: 21px;
+  font-size: 1.25rem;
   font-weight: 500;
   line-height: 120%;
-  font-family: var(--grotesk-font);
+  font-family: var(--satoshi-font);
   &:hover {
     box-shadow: 0px 2px 70px 6px #00000029;
   }
@@ -181,7 +181,7 @@ a.UnFillbtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 0 32px;
+  padding: 32px 0 24px;
 }
 .PracticedData {
   display: flex;
@@ -205,7 +205,7 @@ a.UnFillbtn {
 }
 @media screen and (max-width: 1280px) {
   .PracticedSection {
-    padding: 36px 0 28px;
+    padding: 24px 0 20px;
   }
 }
 @media screen and (max-width: 1024px) {
@@ -238,12 +238,12 @@ a.UnFillbtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 36px 0;
+  padding: 16px 0;
 }
 .FocusData {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   width: 100%;
 }
 .FocusTexted {
@@ -301,7 +301,7 @@ a.UnFillbtn {
 /* TrustExpertSec Started */
 
 .TrustExpertSec {
-  padding: 100px 0px 80px 0px;
+  padding: 48px 0px 40px 0px;
 }
 .ExptMaindata {
   display: flex;
@@ -312,8 +312,8 @@ a.UnFillbtn {
 }
 .ExprtTexted h4 {
   font-weight: 500;
-  font-size: 40px;
-  font-family: var(--grotesk-font);
+  font-size: 2.5rem;
+  font-family: var(--satoshi-font);
   line-height: 120%;
   margin: 0;
   color: var(--black-text);
@@ -322,7 +322,7 @@ a.UnFillbtn {
   display: flex;
   justify-content: center;
   gap: 32px;
-  padding: 50px 0px;
+  padding: 32px 0px;
   position: relative;
 }
 .TrustExpertData::after {
@@ -422,13 +422,13 @@ a.UnFillbtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 0 24px;
+  padding: 16px 0;
 }
 .whocareData {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
-  padding: 12px 0px;
+  padding: 0px;
   width: 100%;
 }
 .whocareData .lftcare {
@@ -484,6 +484,7 @@ a.UnFillbtn {
   }
   .whocareData .lftcare > div:last-child {
     text-align: center;
+    align-self: center;
   }
   .whocareData .rytcare {
     justify-content: center;
