@@ -7,6 +7,7 @@ import {
 } from "@/app/types/forms";
 import React, { useEffect, useMemo, useState } from "react";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import { getStatusStyle as getFormsStatusStyle } from "@/app/components/DataTable/FormsTable";
 
 type FormsFiltersProps = {
   list: FormsProps[];
@@ -45,15 +46,24 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
   return (
     <div className="w-full flex items-center justify-between flex-wrap gap-3">
       <div className="flex items-center gap-2 flex-wrap">
-        {FormsStatusFilters.map((status) => (
-          <button
-            key={status}
-            onClick={() => setActiveStatus(status)}
-            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${status === activeStatus ? "bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
-          >
-            {status}
-          </button>
-        ))}
+        {FormsStatusFilters.map((status) => {
+          const active = status === activeStatus;
+          const statusStyle =
+            status === "All"
+              ? { color: "#EAF3FF", backgroundColor: "#247AED" }
+              : getFormsStatusStyle(status || "");
+
+          return (
+            <button
+              key={status}
+              onClick={() => setActiveStatus(status)}
+              className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
+              style={active ? statusStyle : undefined}
+            >
+              {status}
+            </button>
+          );
+        })}
       </div>
       <div className="w-full sm:w-[220px] min-w-[180px]">
         <LabelDropdown

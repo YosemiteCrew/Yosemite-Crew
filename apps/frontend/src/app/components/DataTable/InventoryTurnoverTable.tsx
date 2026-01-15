@@ -35,6 +35,16 @@ export const getStatusStyle = (status?: string) => {
   }
 };
 
+export const formatTurnoverStatus = (status?: string) => {
+  const label = (status || "").toString().trim();
+  if (!label) return "—";
+  return label
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
 const InventoryTurnoverTable = ({
   filteredList,
 }: InventoryTurnoverTableProps) => {
@@ -124,7 +134,7 @@ const InventoryTurnoverTable = ({
           className="appointment-status"
           style={getStatusStyle(item.status)}
         >
-          {item.status || "—"}
+          {formatTurnoverStatus(item.status)}
         </div>
       ),
     },
