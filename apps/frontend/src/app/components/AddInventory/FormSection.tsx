@@ -6,8 +6,8 @@ import LabelDropdown from "../Inputs/Dropdown/LabelDropdown";
 import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import FormDesc from "../Inputs/FormDesc/FormDesc";
 import Datepicker from "../Inputs/Datepicker";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import { BusinessType } from "@/app/types/org";
+import { IoIosWarning } from "react-icons/io";
 
 import { InventoryItem, InventoryErrors } from "@/app/pages/Inventory/types";
 import {
@@ -139,9 +139,9 @@ const FormSection: React.FC<FormSectionProps> = ({
             className="min-h-12!"
           />
           {error && (
-            <div className="Errors">
-              <Icon icon="mdi:error" width="16" height="16" />
-              {error}
+            <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
+              <IoIosWarning className="text-text-error" size={14} />
+              <span>{error}</span>
             </div>
           )}
         </div>
@@ -180,6 +180,7 @@ const FormSection: React.FC<FormSectionProps> = ({
           value={arrayValue}
           onChange={(vals) => handleChange(field, vals, index)}
           className="min-h-12!"
+          error={error}
           options={options || []}
           dropdownClassName="h-fit!"
         />

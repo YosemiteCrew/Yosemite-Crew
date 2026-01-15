@@ -158,6 +158,7 @@ const Details = ({
             <MultiSelectDropdown
               placeholder={formData.category === "Custom" ? "Service (Optional)" : "Service"}
               value={formData.services || []}
+              error={formDataErrors.services}
               onChange={(e) => {
                 setFormData({ ...formData, services: e });
                 setFormDataErrors((prev) => ({ ...prev, services: undefined }));
@@ -166,12 +167,10 @@ const Details = ({
               options={serviceOptions}
               dropdownClassName="h-fit! max-h-[150px]!"
             />
-            {formDataErrors.services && (
-              <span className="text-red-500 text-sm">{formDataErrors.services}</span>
-            )}
             <MultiSelectDropdown
               placeholder="Species"
               value={formData.species || []}
+              error={formDataErrors.species}
               onChange={(e) => {
                 setFormData({ ...formData, species: e });
                 setFormDataErrors((prev) => ({ ...prev, species: undefined }));
@@ -180,9 +179,6 @@ const Details = ({
               options={["Dog", "Cat", "Horse"]}
               dropdownClassName="h-fit!"
             />
-            {formDataErrors.species && (
-              <span className="text-red-500 text-sm">{formDataErrors.species}</span>
-            )}
           </div>
         </Accordion>
       </div>
