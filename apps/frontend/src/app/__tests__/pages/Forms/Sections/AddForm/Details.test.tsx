@@ -332,6 +332,7 @@ describe("Details Component", () => {
       name: "Valid Name",
       description: "Desc",
       category: "Consent form",
+      services: ["A"],
       species: ["Dog"],
       usage: "Internal",
     };

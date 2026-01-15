@@ -1,6 +1,6 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import React, { useState } from "react";
 
@@ -33,18 +33,18 @@ const Documents = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto">
-      {Object.keys(DocumentsOptions).map((key) => (
+      {Object.keys(DocumentsOptions).map((key, index) => (
         <Accordion
-          key={key}
+          key={key+index}
           title={key}
           defaultOpen={false}
           showEditIcon={false}
           isEditing={true}
         >
           <div className="flex flex-col gap-2 px-2">
-            {DocumentsOptions[key].map((list) => (
+            {DocumentsOptions[key].map((list, index) => (
               <Accordion
-                key={list}
+                key={list+index}
                 title={list}
                 defaultOpen={false}
                 showEditIcon={false}
@@ -61,21 +61,27 @@ const Documents = () => {
         isEditing={true}
       >
         <div className="flex flex-col gap-3">
-          <Dropdown
+          <LabelDropdown
             placeholder="Category"
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e })}
-            className="min-h-12!"
-            options={Object.keys(DocumentsOptions)}
-            dropdownClassName="h-fit!"
+            onSelect={(option) =>
+              setFormData({ ...formData, category: option.value })
+            }
+            defaultOption={formData.category}
+            options={Object.keys(DocumentsOptions).map((category) => ({
+              value: category,
+              label: category,
+            }))}
+            error={formDataErrors.category}
           />
-          <Dropdown
+          <LabelDropdown
             placeholder="Sub-category"
-            value={formData.sub}
-            onChange={(e) => setFormData({ ...formData, sub: e })}
-            className="min-h-12!"
-            options={DocumentsOptions[formData.category]}
-            dropdownClassName="h-fit!"
+            onSelect={(option) => setFormData({ ...formData, sub: option.value })}
+            defaultOption={formData.sub}
+            options={(DocumentsOptions[formData.category] ?? []).map((sub) => ({
+              value: sub,
+              label: sub,
+            }))}
+            error={formDataErrors.sub}
           />
           <FormInput
             intype="text"

@@ -2,11 +2,11 @@ import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import Modal from "@/app/components/Modal";
 import { OrganizationDocument } from "@/app/types/document";
 import React, { useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { OrgDocumentCategoryOptions } from "../../types";
 import { updateDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
 import { Primary, Secondary } from "@/app/components/Buttons";
+import Close from "@/app/components/Icons/Close";
 
 type DocumentInfoProps = {
   showModal: boolean;
@@ -70,25 +70,15 @@ const DocumentInfo = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            View document
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">View document</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col flex-1 gap-5 w-full overflow-y-hidden justify-between">
+        <div className="flex flex-col flex-1 gap-5 w-full overflow-y-hidden justify-between scrollbar-hidden">
           <div className="flex flex-col gap-6">
             <EditableAccordion
               title="Document info"

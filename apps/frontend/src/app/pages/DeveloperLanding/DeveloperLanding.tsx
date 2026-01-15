@@ -29,16 +29,16 @@ const DeveloperLanding = () => {
           <div className="DevlpHeroData">
             <div className="LeftDevBanr">
               <div className="devbanrtext">
-                <h2>
+                <div className="text-display-1 text-text-primary">
                   Build, customise, and launch powerful apps for the animal
                   health ecosystem
-                </h2>
-                <p>
+                </div>
+                <div className="text-body-3 text-text-primary">
                   {" "}
                   Transform animal care with your ideas. Yosemite Crew offers
                   tools and APIs to build custom apps for pet businesses,
                   including AI scribe and voice calls.
-                </p>
+                </div>
               </div>
               <div className="DevbanrBtn">
                 <Primary
@@ -66,16 +66,16 @@ const DeveloperLanding = () => {
         <div className="Container">
           <div className="DevlYousmiteSecData">
             <div className="YousmiteCrew">
-              <h4>Why developers choose Yosemite Crew</h4>
+              <div className="text-display-1 text-text-primary">Why developers choose Yosemite Crew</div>
             </div>
             <div className="DevYousmiteBoxed">
               <div className="DevCrewBox crewbox1">
                 <div className="crewText">
-                  <h3>Flexibilty</h3>
-                  <p>
+                  <div className="text-heading-1 text-text-primary">Flexibilty</div>
+                  <div className="text-body-3 text-text-primary">
                     Create custom solutions for pet businesses, adapting to any
                     need.
-                  </p>
+                  </div>
                 </div>
                 <Image
                   src="https://d2il6osz49gpup.cloudfront.net/Images/devchose1.png"
@@ -92,20 +92,20 @@ const DeveloperLanding = () => {
                   height={140}
                 />
                 <div className="crewText">
-                  <h3>Seamless integrations</h3>
-                  <p>
+                  <div className="text-heading-1 text-text-primary">Seamless integrations</div>
+                  <div className="text-body-3 text-text-primary">
                     Easily integrate with existing healthcare systems and
                     third-party tools to enhance app functionality.
-                  </p>
+                  </div>
                 </div>
               </div>
               <div className="DevCrewBox crewbox3">
                 <div className="crewText">
-                  <h3>Open source</h3>
-                  <p>
+                  <div className="text-heading-1 text-text-primary">Open source</div>
+                  <div className="text-body-3 text-text-primary">
                     Developer-friendly API pricing based on an open source
                     framework under the GPL V3 license.
-                  </p>
+                  </div>
                 </div>
                 <Image
                   src="https://d2il6osz49gpup.cloudfront.net/Images/devchose3.png"
@@ -122,11 +122,11 @@ const DeveloperLanding = () => {
                   height={102}
                 />
                 <div className="crewText">
-                  <h3>Scalability</h3>
-                  <p>
+                  <div className="text-heading-1 text-text-primary">Scalability</div>
+                  <div className="text-body-3 text-text-primary">
                     Build apps that seamlessly grow as your user base and
                     features expand.
-                  </p>
+                  </div>
                 </div>
               </div>
               <div className="DevCrewBox crewbox5">
@@ -137,20 +137,20 @@ const DeveloperLanding = () => {
                   height={92}
                 />
                 <div className="crewText">
-                  <h3>Comprehensive tools</h3>
-                  <p>
+                  <div className="text-heading-1 text-text-primary">Comprehensive tools</div>
+                  <div className="text-body-3 text-text-primary">
                     Access a wide range of APIs, SDKs, and pre-built templates
                     that simplify development.
-                  </p>
+                  </div>
                 </div>
               </div>
               <div className="DevCrewBox crewbox6">
                 <div className="crewText">
-                  <h3>Secure data handling</h3>
-                  <p>
+                  <div className="text-heading-1 text-text-primary">Secure data handling</div>
+                  <div className="text-body-3 text-text-primary">
                     Built with industry-leading security protocols, ensuring
                     sensitive healthcare data is always protected.
-                  </p>
+                  </div>
                 </div>
                 <Image
                   src="https://d2il6osz49gpup.cloudfront.net/Images/devchose6.png"
@@ -169,14 +169,14 @@ const DeveloperLanding = () => {
           <div className="DevlpToolData">
             <div className="TopResorchTool">
               <div className="leftResorch">
-                <h2>Everything you need to build and launch</h2>
+                <div className="text-display-1 text-text-primary">Everything you need to build and launch</div>
               </div>
               <div className="RytResorch">
-                <p>
+                <div className="text-body-3 text-text-primary">
                   From robust APIs to intuitive SDKs and customizable templates,
                   Yosemite Crew provides every tool you need to create powerful
                   applications.
-                </p>
+                </div>
               </div>
             </div>
 
@@ -191,12 +191,11 @@ const DeveloperLanding = () => {
         <div className="Container">
           <div className="StepsData">
             <div className="leftSimpleStep">
-              <h2>Get started in three simple steps</h2>
+              <div className="text-display-1 text-text-primary">Get started in three simple steps</div>
               <Primary
                 href="/developers/signin"
                 onClick={handleDeveloperCTA}
                 text="Developer portal"
-                style={{ width: "100%" }}
                 size="large"
               />
             </div>
@@ -209,8 +208,8 @@ const DeveloperLanding = () => {
                   height={114}
                 />
                 <div className="Stepstext">
-                  <h4>Sign up</h4>
-                  <p>Create your developer account and access our portal.</p>
+                  <div className="text-heading-1 text-text-primary">Sign up</div>
+                  <div className="text-body-3 text-text-primary">Create your developer account and access our portal.</div>
                 </div>
               </div>
               <div className="Stepitems">
@@ -221,8 +220,8 @@ const DeveloperLanding = () => {
                   height={114}
                 />
                 <div className="Stepstext">
-                  <h4>Explore</h4>
-                  <p>Browse APIs, SDKs, and templates to suit your needs.</p>
+                  <div className="text-heading-1 text-text-primary">Explore</div>
+                  <div className="text-body-3 text-text-primary">Browse APIs, SDKs, and templates to suit your needs.</div>
                 </div>
               </div>
               <div className="Stepitems">
@@ -233,8 +232,8 @@ const DeveloperLanding = () => {
                   height={48}
                 />
                 <div className="Stepstext">
-                  <h4>Build</h4>
-                  <p>Develop, test, and deploy your app seamlessly.</p>
+                  <div className="text-heading-1 text-text-primary">Build</div>
+                  <div className="text-body-3 text-text-primary">Develop, test, and deploy your app seamlessly.</div>
                 </div>
               </div>
             </div>
@@ -277,12 +276,12 @@ const DeveloperLanding = () => {
             <div className="leftBuild">
               <div className="leftBuilinner">
                 <div className="texted">
-                  <h4>Ready to Build?</h4>
-                  <p>
+                  <h4>Ready to Build?</div>
+                  <div className="text-body-3 text-text-primary">
                     {" "}
                     Join a growing community of developers creating
                     transformative solutions for the veterinary world.
-                  </p>
+                  </div>
                 </div>
                 <FillBtn
                   icon={<Icon icon="solar:bolt-bold" width="24" height="24" />}

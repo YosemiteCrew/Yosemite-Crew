@@ -1,7 +1,8 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
+import Close from "@/app/components/Icons/Close";
 import Datepicker from "@/app/components/Inputs/Datepicker";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
@@ -11,7 +12,6 @@ import { createTask } from "@/app/services/taskService";
 import { EMPTY_TASK, Task } from "@/app/types/task";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import React, { useEffect, useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 
 const TaskSourceOptions = [
   { value: "YC_LIBRARY", label: "YC Library" },
@@ -50,25 +50,23 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
     }
   }, [due]);
 
-  const Options = useMemo(() => {
-    if (formData.audience === "EMPLOYEE_TASK") {
-      return (
-        teams?.map((team) => ({
-          label: team.name || team._id,
-          value: team._id,
-        })) || []
-      );
-    }
-    if (formData.audience === "PARENT_TASK") {
-      return (
-        companions?.map((companion) => ({
-          label: companion.name,
-          value: companion.parentId,
-        })) || []
-      );
-    }
-    return [];
-  }, [formData.audience, teams, companions]);
+  const CompanionOptions = useMemo(
+    () =>
+      companions?.map((companion) => ({
+        label: companion.name,
+        value: companion.parentId,
+      })),
+    [companions]
+  );
+
+  const TeamOptions = useMemo(
+    () =>
+      teams?.map((team) => ({
+        label: team.name || team._id,
+        value: team._id,
+      })),
+    [teams]
+  );
 
   const handleCreate = async () => {
     const errors: {
@@ -130,25 +128,15 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add task
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add task</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
           <Accordion
             title="Add task"
             defaultOpen
@@ -156,33 +144,27 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
             isEditing={true}
           >
             <div className="flex flex-col gap-3">
-              <Dropdown
+              <LabelDropdown
                 placeholder="Type"
-                value={formData.audience}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    audience: e.value,
+                    audience: option.value as any,
                   })
                 }
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit"
+                defaultOption={formData.audience}
                 options={TaskTypeOptions}
-                returnObject
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Source"
-                value={formData.source}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    source: e.value,
+                    source: option.value as any,
                   })
                 }
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit"
+                defaultOption={formData.source}
                 options={TaskSourceOptions}
-                returnObject
               />
               <FormInput
                 intype="text"
@@ -216,32 +198,39 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
                 }
                 className="min-h-[120px]!"
               />
-              <Dropdown
-                placeholder="To"
-                value={formData.assignedTo}
-                onChange={(e) => {
-                  if (formData.audience === "EMPLOYEE_TASK") {
+              {formData.audience === "EMPLOYEE_TASK" ? (
+                <LabelDropdown
+                  placeholder="To"
+                  onSelect={(option) =>
                     setFormData({
                       ...formData,
-                      assignedTo: e.value,
-                    });
-                  } else {
-                    const companion = companions?.find((c) => c.id === e.value);
+                      assignedTo: option.value,
+                    })
+                  }
+                  defaultOption={formData.assignedTo}
+                  error={formDataErrors.assignedTo}
+                  options={TeamOptions}
+                />
+              ) : (
+                <LabelDropdown
+                  placeholder="To"
+                  onSelect={(option) => {
+                    const companion = companions?.find(
+                      (c) => c.id === option.value
+                    );
                     if (companion) {
                       setFormData({
                         ...formData,
                         companionId: companion.id,
-                        assignedTo: e.value,
+                        assignedTo: option.value,
                       });
                     }
-                  }
-                }}
-                error={formDataErrors.assignedTo}
-                className="min-h-12!"
-                options={Options}
-                dropdownClassName="h-fit! max-h-[150px]!"
-                returnObject
-              />
+                  }}
+                  defaultOption={formData.assignedTo}
+                  error={formDataErrors.assignedTo}
+                  options={CompanionOptions}
+                />
+              )}
               <Datepicker
                 currentDate={due}
                 setCurrentDate={setDue}

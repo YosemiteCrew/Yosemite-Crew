@@ -1,17 +1,20 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Modal from "@/app/components/Modal";
-import { OrganizationDocument } from "@/app/types/document";
+import {
+  OrganizationDocument,
+  OrgDocumentCategory,
+} from "@/app/types/document";
 import React, { useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { OrgDocumentCategoryOptions } from "../../types";
 import { createDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import Close from "@/app/components/Icons/Close";
 
 type AddDocumentProps = {
   showModal: boolean;
@@ -62,25 +65,15 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add document
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add document</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
           <Accordion
             title="Add room"
             defaultOpen
@@ -99,19 +92,16 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
                 error={formDataErrors.title}
                 className="min-h-12!"
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Type"
-                value={formData.category}
-                onChange={(e) =>
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    category: e,
+                    category: option.value as OrgDocumentCategory,
                   })
                 }
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit !max-h-[200px]"
+                defaultOption={formData.category}
                 options={OrgDocumentCategoryOptions}
-                type="general"
               />
               <FormDesc
                 intype="text"

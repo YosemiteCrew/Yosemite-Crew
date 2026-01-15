@@ -20,6 +20,34 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Development Features
+
+### Auth Guard Override
+
+For development and testing purposes, you can disable authentication guards to access protected routes (like Inventory and Forms) without logging in.
+
+**To disable auth guards:**
+
+1. Open `apps/frontend/.env`
+2. Set `NEXT_PUBLIC_DISABLE_AUTH_GUARD=true`
+3. Restart your development server
+
+```bash
+# In .env file
+NEXT_PUBLIC_DISABLE_AUTH_GUARD=true
+```
+
+**Important Notes:**
+- This flag bypasses both `ProtectedRoute` (authentication check) and `OrgGuard` (organization check)
+- **Only use this in development environments**
+- Never deploy to production with this flag enabled
+- Set back to `false` when testing actual authentication flows
+
+**Affected Routes:**
+- `/inventory` - Inventory management page
+- `/forms` - Forms management page
+- Any other route wrapped with `ProtectedRoute` or `OrgGuard`
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

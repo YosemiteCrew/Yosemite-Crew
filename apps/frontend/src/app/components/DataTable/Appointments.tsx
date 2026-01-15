@@ -81,7 +81,7 @@ const Appointments = ({
       key: "logo",
       width: "5%",
       render: (item: Appointment) => (
-        <div className="appointment-profile truncate">
+        <div className="appointment-profile w-10 h-10">
           <Image
             src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
             alt=""
@@ -244,7 +244,7 @@ const Appointments = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
                 No data available
               </div>
             );

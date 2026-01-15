@@ -1,7 +1,5 @@
-import React, { useState } from "react";
-import { Icon } from "@iconify/react/dist/iconify.js";
-
-import "./FormDesc.css";
+import React from "react";
+import { IoIosWarning } from "react-icons/io";
 
 type FormDescProps = {
   intype: string;
@@ -24,15 +22,11 @@ const FormDesc = ({
   onBlur,
   readonly,
   error,
-  className
+  className,
 }: Readonly<FormDescProps>) => {
-  const [isFocused, setIsFocused] = useState(false);
-
   return (
-    <div className="w-100">
-      <div
-        className={`SignInput floating-input-desc ${isFocused || value ? "focused" : ""}`}
-      >
+    <div className="w-full">
+      <div className={`relative`}>
         <textarea
           name={inname}
           id={inname}
@@ -42,17 +36,45 @@ const FormDesc = ({
           readOnly={readonly}
           required
           placeholder=" "
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className={`${error ? "is-invalid" : ""} ${className}`}
+          className={`
+            peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
+            text-body-4 text-text-primary
+            outline-none border
+            ${error ? "border-input-border-error!" : "border-input-border-default!"}
+            focus:border-input-border-active!
+            ${className ?? ""}
+          `}
         />
-        <label htmlFor={inname}>{inlabel}</label>
+        <label
+          htmlFor={inname}
+          className={`
+            pointer-events-none absolute left-6
+            top-[20%] -translate-y-1/2
+            text-body-4 text-input-text-placeholder
+            transition-all duration-200
+            peer-focus:-top-[11px] peer-focus:translate-y-0
+            peer-focus:text-sm!
+            peer-focus:text-input-text-placeholder-active
+            peer-focus:bg-(--whitebg)
+            peer-focus:px-1 peer-not-placeholder-shown:px-1
+            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
+            peer-not-placeholder-shown:text-sm!
+            peer-not-placeholder-shown:bg-(--whitebg)
+          `}
+        >
+          {inlabel}
+        </label>
       </div>
-      {/* Show error as bottom red text only for input validation */}
+
       {error && (
-        <div className="Errors">
-          <Icon icon="mdi:error" width="16" height="16" />
-          {error}
+        <div
+          className={`
+            mt-1.5 flex items-center gap-1 px-4
+            text-caption-2 text-text-error
+          `}
+        >
+          <IoIosWarning className="text-text-error" size={14} />
+          <span>{error}</span>
         </div>
       )}
     </div>

@@ -1,6 +1,5 @@
 import Modal from "@/app/components/Modal";
 import React, { useEffect, useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { CompanionParent } from "./types";
 import { EMPTY_APPOINTMENT } from "../Appointments/Sections/AddAppointment";
 import { Appointment } from "@yosemite-crew/types";
@@ -22,10 +21,11 @@ import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
 import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import Slotpicker from "@/app/components/Inputs/Slotpicker";
 import { Primary } from "@/app/components/Buttons";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import Close from "@/app/components/Icons/Close";
 
 type BookAppointmentProps = {
   showModal: boolean;
@@ -256,25 +256,15 @@ const BookAppointment = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add appointment
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add appointment</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
           <div className="flex flex-col gap-6 w-full">
             {formData.companion.name && (
               <EditableAccordion
@@ -291,37 +281,33 @@ const BookAppointment = ({
               isEditing={true}
             >
               <div className="flex flex-col gap-3">
-                <Dropdown
+                <LabelDropdown
                   placeholder="Speciality"
-                  value={formData.appointmentType?.speciality.id || ""}
-                  onChange={(e) =>
+                  onSelect={(option) =>
                     setFormData({
                       ...formData,
                       appointmentType: {
                         id: "",
                         name: "",
                         speciality: {
-                          id: e.value,
-                          name: e.label,
+                          id: option.value,
+                          name: option.label,
                         },
                       },
                     })
                   }
+                  defaultOption={formData.appointmentType?.speciality.id}
                   error={formDataErrors.specialityId}
-                  className="min-h-12!"
                   options={SpecialitiesOptions}
-                  dropdownClassName="h-fit! max-h-[150px]!"
-                  returnObject
                 />
-                <Dropdown
+                <LabelDropdown
                   placeholder="Service"
-                  value={formData.appointmentType?.id || ""}
-                  onChange={(e) =>
+                  onSelect={(option) =>
                     setFormData({
                       ...formData,
                       appointmentType: {
-                        id: e.value,
-                        name: e.label,
+                        id: option.value,
+                        name: option.label,
                         speciality: formData.appointmentType?.speciality ?? {
                           id: "",
                           name: "",
@@ -329,11 +315,9 @@ const BookAppointment = ({
                       },
                     })
                   }
+                  defaultOption={formData.appointmentType?.id}
                   error={formDataErrors.serviceId}
-                  className="min-h-12!"
                   options={ServicesOptions}
-                  dropdownClassName="h-fit! max-h-[150px]!"
-                  returnObject
                 />
                 <FormDesc
                   intype="text"
@@ -384,23 +368,20 @@ const BookAppointment = ({
                       className="min-h-12!"
                     />
                   </div>
-                  <Dropdown
+                  <LabelDropdown
                     placeholder="Lead"
-                    value={formData.lead?.id || ""}
-                    onChange={(e) =>
+                    onSelect={(option) =>
                       setFormData({
                         ...formData,
                         lead: {
-                          name: e.label,
-                          id: e.value,
+                          name: option.label,
+                          id: option.value,
                         },
                       })
                     }
+                    defaultOption={formData.lead?.id}
                     error={formDataErrors.leadId}
-                    className="min-h-12!"
                     options={LeadOptions}
-                    dropdownClassName="h-fit! max-h-[150px]!"
-                    returnObject
                   />
                   <MultiSelectDropdown
                     placeholder="Support"
@@ -452,7 +433,7 @@ const BookAppointment = ({
                   }))
                 }
               />
-              <div className="font-satoshi text-black-text text-[16px] font-semibold">
+              <div className="text-body-4 text-text-primary">
                 I confirm this is an emergency.
               </div>
             </div>

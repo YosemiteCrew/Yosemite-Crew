@@ -3,64 +3,44 @@
   border: 1px solid var(--lightgrey);
   border-radius: 16px;
   width: 100%;
-  min-height: 300px;
-  max-width: 350px;
-  padding: 24px;
+  min-height: 240px;
+  max-width: 320px;
+  padding: 20px;
   margin: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
 }
-.PracBox h4 {
-  font-family: var(--grotesk-font);
-  font-size: 28px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
-  margin-top: 12px;
-  margin-bottom: 4px;
-}
-.PracBox p {
-  font-family: var(--satoshi-font);
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 120%;
-  color: var(--black-text);
+.pracTitle {
   margin: 0;
-  opacity: 80%;
+}
+.pracDesc {
+  margin: 0;
 }
 
 @media screen and (max-width: 1280px) {
   .PracBox {
-    min-height: 205px;
-    max-width: 250px;
+    min-height: 210px;
+    max-width: 260px;
     padding: 16px;
-  }
-  .PracBox h4 {
-    font-size: 19px;
-  }
-  .PracBox p {
-    font-size: 13px;
+    gap: 8px;
   }
   .PracBox img {
-    width: 64px;
-    height: 64px;
+    width: 58px;
+    height: 58px;
   }
 }
 @media screen and (max-width: 768px) {
   .PracBox {
-    min-height: 170px;
+    min-height: 180px;
     max-width: 200px;
-  }
-  .PracBox h4 {
-    font-size: 19px;
-  }
-  .PracBox p {
-    font-size: 13px;
+    padding: 14px;
   }
   .PracBox img {
-    width: 46px;
-    height: 46px;
+    width: 48px;
+    height: 48px;
   }
 }
 @media screen and (max-width: 550px) {

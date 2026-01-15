@@ -1,13 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { IoIosCloseCircle, IoIosCheckmarkCircle } from "react-icons/io";
 import { usePathname } from "next/navigation";
 
-import { FillBtn, UnFillBtn } from "@/app/pages/HomePage/HomePage";
 import { publicRoutes } from "@/app/utils/const";
-
-import "./Cookies.css";
+import { Primary, Secondary } from "../Buttons";
 
 const Cookies = () => {
   const [showCookiePopup, setShowCookiePopup] = useState(false);
@@ -35,47 +32,25 @@ const Cookies = () => {
   if (!showCookiePopup) return null;
 
   return (
-    <div className="CookieMain">
-      <div className="CookieSec">
-        <div className="CookieInner">
-          <div className="TopCokieInner">
+    <div className="fixed left-20 bottom-[130px] z-9999">
+      <div className="bg-white rounded-2xl max-w-[300px] p-3 z-22 border border-card-border">
+        <div className="flex flex-col gap-2">
+          <div className="text-body-4-emphasis text-text-primary">
             Yosemite Crew doesn&apos;t use third party cookies Only a single
             in-house cookie.
           </div>
-          <div className="BottomCokieInner">
+          <div className="text-caption-1 text-text-primary">
             No data is sent to a third party.
           </div>
         </div>
 
-        <div className="CookieBotm">
-          <FillBtn
-            icon={<IoIosCheckmarkCircle />}
-            text="Accept"
-            onClick={handleConsent}
-            href="/"
-            style={{
-              padding: "10px 16px",
-              minHeight: "40px",
-              fontSize: "16px",
-              fontWeight: 500,
-            }}
-          />
-          <UnFillBtn
-            icon={<IoIosCloseCircle />}
-            text="Decline"
-            href="/"
-            onClick={handleRejection}
-            style={{
-              padding: "10px 16px",
-              minHeight: "40px",
-              fontSize: "16px",
-              fontWeight: 500,
-            }}
-          />
+        <div className="flex flex-col mt-3 mb-[10px] gap-2">
+          <Primary text="Accept" href="#" onClick={handleConsent} />
+          <Secondary text="Reject" href="#" onClick={handleRejection} />
         </div>
       </div>
 
-      <div className="CookieImg">
+      <div className="absolute -bottom-[250px] left-[60px] pointer-events-none z-25">
         <Image
           src="https://d2il6osz49gpup.cloudfront.net/Images/cookie.png"
           alt="aboutstory"
@@ -83,7 +58,7 @@ const Cookies = () => {
           height={314}
         />
       </div>
-      <div className="CookieImg2">
+      <div className="absolute -bottom-[150px] left-[45px] -z-25">
         <Image
           src="https://d2il6osz49gpup.cloudfront.net/Images/cookie-bg.png"
           alt="aboutstory"

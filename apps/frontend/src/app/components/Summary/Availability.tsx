@@ -1,8 +1,8 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import AvailabilityTable from "../DataTable/AvailabilityTable";
-import Link from "next/link";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Secondary } from "../Buttons";
 
 import "./Summary.css";
 
@@ -10,27 +10,32 @@ const AvailabilityLabels = [
   {
     name: "All",
     value: "all",
-    background: "#fff",
+    background: "#6b72801a",
     color: "#302f2e",
   },
   {
     name: "Available",
     value: "available",
     background: "#E6F4EF",
-    color: "#008F5D",
+    color: "#54B492",
   },
   {
     name: "Consulting",
     value: "consulting",
-    background: "#EAF3FF",
-    color: "#247AED",
+    background: "#FDEBEA",
+    color: "#EA3729",
   },
-
+  {
+    name: "Requested",
+    value: "requested",
+    background: "#FDEBEA",
+    color: "#EA3729",
+  },
   {
     name: "Off-Duty",
     value: "off-duty",
-    background: "#EAEAEA",
-    color: "#302F2E",
+    background: "#FEF3E9",
+    color: "#F68523",
   },
 ];
 
@@ -49,19 +54,22 @@ const Availability = () => {
 
   return (
     <div className="summary-container">
-      <div className="summary-title">
-        Availability&nbsp;<span>({teams.length})</span>
+      <div className="text-text-primary text-heading-1">
+        Availability&nbsp;<span className="text-text-tertiary">({teams.length})</span>
       </div>
-      <div className="summary-labels-left flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap">
         {AvailabilityLabels?.map((label, i) => (
           <button
-            className={`summary-label-right hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] ${label.value === selectedLabel ? "border! shadow-[0_0_8px_0_rgba(0,0,0,0.16)]" : "border-0!"}`}
             key={label.name + i}
-            style={{
-              color: label.color,
-              background: label.background,
-              border: i === 0 ? "1px solid #302f2e" : "",
-            }}
+            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+            style={
+              label.value === selectedLabel
+                ? {
+                    background: label.background,
+                    color: label.color,
+                  }
+                : {}
+            }
             onClick={() => setSelectedLabel(label.value)}
           >
             {label.name}
@@ -69,10 +77,8 @@ const Availability = () => {
         ))}
       </div>
       <AvailabilityTable filteredList={filteredList.slice(0, 5)} hideActions />
-      <div className="see-all-button">
-        <Link className="see-all-button-link" href={"/organization"}>
-          See all
-        </Link>
+      <div className="w-full justify-center flex items-center">
+        <Secondary href="/organization" text="See all" />
       </div>
     </div>
   );

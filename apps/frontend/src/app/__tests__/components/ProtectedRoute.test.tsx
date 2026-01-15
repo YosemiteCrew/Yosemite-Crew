@@ -20,6 +20,15 @@ jest.mock("@/app/stores/authStore", () => ({
 describe("ProtectedRoute Component", () => {
   const mockReplace = jest.fn();
   const mockPathname = "/dashboard/protected";
+  const originalAuthGuard = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = "false";
+  });
+
+  afterAll(() => {
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = originalAuthGuard;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();

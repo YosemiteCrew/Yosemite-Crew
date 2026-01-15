@@ -19,12 +19,8 @@ describe("HomePage Component", () => {
   test("renders the main hero headings", () => {
     render(<HomePage />);
 
-    const heading1 = screen.getByRole("heading", {
-      name: /helping you help pets/i,
-    });
-    const heading2 = screen.getByRole("heading", {
-      name: /without the hassle/i,
-    });
+    const heading1 = screen.getByText(/helping you help pets/i);
+    const heading2 = screen.getByText(/without the hassle/i);
 
     expect(heading1).toBeInTheDocument();
     expect(heading2).toBeInTheDocument();
@@ -33,9 +29,7 @@ describe("HomePage Component", () => {
   test("renders call-to-action buttons with correct links", () => {
     render(<HomePage />);
 
-    const mainHeading = screen.getByRole("heading", {
-      name: /helping you help pets/i,
-    });
+    const mainHeading = screen.getByText(/helping you help pets/i);
 
     const heroSection = mainHeading.closest("section");
 
@@ -57,9 +51,7 @@ describe("HomePage Component", () => {
   test('renders the "Run Your Practice" section heading', () => {
     render(<HomePage />);
 
-    const practiceHeading = screen.getByRole("heading", {
-      name: /everything you need to run your pet business/i,
-    });
+    const practiceHeading = screen.getByText(/everything you need to run your pet business/i);
     expect(practiceHeading).toBeInTheDocument();
   });
 
@@ -75,18 +67,14 @@ describe("HomePage Component", () => {
   test('renders the "Focus on Care" section heading', () => {
     render(<HomePage />);
 
-    const focusHeading = screen.getByRole("heading", {
-      name: /focus on care, not admin/i,
-    });
+    const focusHeading = screen.getByText(/focus on care, not admin/i);
     expect(focusHeading).toBeInTheDocument();
   });
 
   test('renders the "Caring for the Vets" section heading', () => {
     render(<HomePage />);
 
-    const caringHeading = screen.getByRole("heading", {
-      name: /caring for vets, who care for pets/i,
-    });
+    const caringHeading = screen.getByText(/caring for vets, who care for pets/i);
     expect(caringHeading).toBeInTheDocument();
   });
 });

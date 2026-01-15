@@ -21,9 +21,6 @@
   padding: 20px 0px;
   width: 40%;
 }
-.landingSection .landingTop > div {
-  color: var(--blue-text);
-}
 
 .landingSection .LandingData .LeftLanding .landingTexed {
   display: flex;
@@ -38,7 +35,6 @@
 }
 .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed > div {
   margin: 0;
-  color: var(--black-text);
 }
 .landingSection .LandingData .RightLanding {
   width: 60%;
@@ -102,8 +98,11 @@
   .landingContainer {
     padding: 24px 16px;
   }
-  .landingSection .landingTop > div {
+  .landingSection .landingTop {
     padding: 0px 15px;
+  }
+  .landingSection .landingTop .text-display-2 {
+    text-align: center;
   }
   .landingSection .LandingData {
     gap: 16px;
@@ -115,4 +114,12 @@
   .landingSection .LandingData .LeftLanding .landingTexed {
     gap: 16px;
   }
+  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed .text-display-1,
+  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed .text-body-2 {
+    text-align: center;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  /* Typography handled by global classes */
 }

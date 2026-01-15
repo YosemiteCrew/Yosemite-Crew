@@ -3,7 +3,6 @@ import classNames from "classnames";
 import { useRouter } from "next/navigation";
 
 import FormInput from "../../Inputs/FormInput/FormInput";
-import Dropdown from "../../Inputs/Dropdown/Dropdown";
 import GoogleSearchDropDown from "../../Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 import { Primary, Secondary } from "../../Buttons";
 import LogoUploader from "../../UploadImage/LogoUploader";
@@ -13,6 +12,8 @@ import { createOrg } from "@/app/services/orgService";
 import { Organisation } from "@yosemite-crew/types";
 
 import "./Step.css";
+import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
+import { CountriesOptions } from "../../AddCompanion/type";
 
 type OrgStepProps = {
   nextStep: () => void;
@@ -119,19 +120,17 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
             />
           </div>
           <div className="step-two-input">
-            <Dropdown
+            <LabelDropdown
               placeholder="Select country"
-              value={formData.address?.country || ""}
-              onChange={(e) =>
+              onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  address: { ...formData.address, country: e },
+                  address: { ...formData.address, country: option.value },
                 })
               }
+              defaultOption={formData.address?.country}
+              options={CountriesOptions}
               error={formDataErrors.country}
-              type="country"
-              dropdownClassName="h-fit! max-h-[200px]!"
-              search={false}
             />
             <FormInput
               intype="tel"

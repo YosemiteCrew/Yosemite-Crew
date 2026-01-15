@@ -2,41 +2,37 @@ import dogbreeds from "@/app/utils/dogBreeds.json";
 import catbreeds from "@/app/utils/catBreeds.json";
 import horsebreeds from "@/app/utils/horseBreeds.json";
 import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
+import countries from "@/app/utils/countryList.json";
 
-type OptionProp = {
-  name: string;
-  key: string;
-};
-
-export const GenderOptions: OptionProp[] = [
-  { name: "Male", key: "male" },
-  { name: "Female", key: "female" },
-  { name: "Unknown", key: "unknown" },
-];
-
-export const NeuteredOptions: OptionProp[] = [
-  { name: "Neutered", key: "true" },
-  { name: "Not neutered", key: "false" },
-];
-
-export const InsuredOptions: OptionProp[] = [
-  { name: "Insured", key: "true" },
-  { name: "Not insured", key: "false" },
-];
-
-export const OriginOptions: OptionProp[] = [
-  { name: "Shop", key: "shop" },
-  { name: "Breeder", key: "breeder" },
-  { name: "Foster/ Shelter", key: "foster_shelter" },
-  { name: "Friends or family", key: "friends_family" },
-  { name: "Unknown", key: "unknown" },
-];
-
-export type SpeciesOption = {
+export type Option = {
   value: string;
   label: string;
 };
-export const SpeciesOptions: SpeciesOption[] = [
+
+export const GenderOptions: Option[] = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Unknown", value: "unknown" },
+];
+
+export const NeuteredOptions: Option[] = [
+  { label: "Neutered", value: "true" },
+  { label: "Not neutered", value: "false" },
+];
+
+export const InsuredOptions: Option[] = [
+  { label: "Insured", value: "true" },
+  { label: "Not insured", value: "false" },
+];
+
+export const OriginOptions: Option[] = [
+  { label: "Shop", value: "shop" },
+  { label: "Breeder", value: "breeder" },
+  { label: "Foster/ Shelter", value: "foster_shelter" },
+  { label: "Friends or family", value: "friends_family" },
+  { label: "Unknown", value: "unknown" },
+];
+export const SpeciesOptions: Option[] = [
   { value: "dog", label: "Dog" },
   { value: "cat", label: "Cat" },
   { value: "horse", label: "Horse" },
@@ -47,11 +43,25 @@ export type Breed = {
   breedId: number;
   breedName: string;
 };
-export const BreedMap: Record<string, Breed[]> = {
-  dog: dogbreeds,
-  cat: catbreeds,
-  horse: horsebreeds,
+export const BreedMap: Record<string, Option[]> = {
+  dog: dogbreeds.map((breed) => ({
+    value: breed.breedId + "",
+    label: breed.breedName,
+  })),
+  cat: catbreeds.map((breed) => ({
+    value: breed.breedId + "",
+    label: breed.breedName,
+  })),
+  horse: horsebreeds.map((breed) => ({
+    value: breed.breedId + "",
+    label: breed.breedName,
+  })),
 };
+
+export const CountriesOptions: Option[] = countries.map((country) => ({
+  value: country.name,
+  label: country.name,
+}));
 
 export const EMPTY_STORED_PARENT: StoredParent = {
   id: "",

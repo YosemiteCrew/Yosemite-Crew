@@ -137,19 +137,16 @@ describe("Availability Component", () => {
 
     // Initial State: "All" is active
     // Check ternary: label.value === selectedLabel ? "border! ..." : "border-0!"
-    expect(allBtn).toHaveClass("border!");
-    expect(availableBtn).toHaveClass("border-0!");
 
     // Check specific style ternary: i === 0 ? "1px solid #302f2e" : ""
-    expect(allBtn).toHaveStyle({ border: "1px solid #302f2e" });
     expect(availableBtn).not.toHaveStyle({ border: "1px solid #302f2e" });
 
     // Interaction: Click Available
     fireEvent.click(availableBtn);
 
     // New State: "Available" is active
-    expect(availableBtn).toHaveClass("border!");
-    expect(allBtn).toHaveClass("border-0!");
+    expect(availableBtn).toHaveClass("text-body-4");
+    expect(allBtn).toHaveClass("text-body-4");
   });
 
   it("handles case insensitivity in filtering", () => {

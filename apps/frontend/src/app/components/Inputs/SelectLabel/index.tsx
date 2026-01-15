@@ -1,8 +1,8 @@
 import React from "react";
 
 type OptionProp = {
-  name: string;
-  key: string;
+  label: string;
+  value: string;
 };
 
 type SelectLabelProps = {
@@ -24,7 +24,7 @@ const SelectLabel = ({
     <div
       className={`${type === "coloumn" ? "flex-col" : "flex-row items-center"} flex justify-between gap-3`}
     >
-      <div className="font-satoshi font-semibold text-[18px] text-black-text">
+      <div className="text-body-4-emphasis text-text-secondary">
         {title}
       </div>
       <div
@@ -32,11 +32,11 @@ const SelectLabel = ({
       >
         {options.map((option) => (
           <button
-            key={option.key}
-            onClick={() => setOption(option.key)}
-            className={`${type === "coloumn" ? "" : "flex-1"} ${activeOption === option.key ? "border-blue-text! bg-blue-light! text-blue-text!" : "border-black-text! text-black-text"} rounded-2xl! border! px-4! h-12! font-satoshi font-light text-[16px]`}
+            key={option.value}
+            onClick={() => setOption(option.value)}
+            className={`${type === "coloumn" ? "" : "flex-1"} ${activeOption === option.value ? "border-blue-text! bg-blue-light! text-blue-text!" : "border-black-text! text-black-text"} rounded-2xl! border! px-4! h-10! text-body-4`}
           >
-            {option.name}
+            {option.label}
           </button>
         ))}
       </div>

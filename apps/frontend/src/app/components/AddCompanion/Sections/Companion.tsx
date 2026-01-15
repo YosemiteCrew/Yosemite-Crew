@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Primary, Secondary } from "../../Buttons";
 import FormInput from "../../Inputs/FormInput/FormInput";
-import Dropdown from "../../Inputs/Dropdown/Dropdown";
 import SelectLabel from "../../Inputs/SelectLabel";
 import {
   BreedMap,
+  CountriesOptions,
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
   GenderOptions,
@@ -25,9 +25,11 @@ import {
 } from "@/app/services/companionService";
 import SearchDropdown from "../../Inputs/SearchDropdown";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
+import { CompanionType } from "@yosemite-crew/types";
 
 type OptionProp = {
-  key: string;
+  label: string;
   value: string;
 };
 
@@ -66,8 +68,8 @@ const Companion = ({
     () =>
       results.map((p) => {
         return {
-          key: p.id,
-          value: `${p.name}`,
+          value: p.id,
+          label: `${p.name}`,
         };
       }),
     [results]
@@ -174,10 +176,6 @@ const Companion = ({
   return (
     <div className="flex flex-col justify-between flex-1 gap-6 w-full">
       <div className="flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[23px]">
-          Companion information
-        </div>
-
         <SearchDropdown
           placeholder="Search companion"
           options={options}
@@ -206,24 +204,26 @@ const Companion = ({
               className="min-h-12!"
             />
             <div className="grid grid-cols-2 gap-3">
-              <Dropdown
+              <LabelDropdown
                 placeholder="Species"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e })}
-                error={formDataErrors.species}
-                className="min-h-12!"
-                dropdownClassName="top-[55px]! !h-fit"
+                onSelect={(option) =>
+                  setFormData({
+                    ...formData,
+                    type: option.value as CompanionType,
+                  })
+                }
+                defaultOption={formData.type}
                 options={SpeciesOptions}
+                error={formDataErrors.species}
               />
-              <Dropdown
+              <LabelDropdown
                 placeholder="Breed"
-                value={formData.breed}
-                onChange={(e) => setFormData({ ...formData, breed: e })}
+                onSelect={(option) =>
+                  setFormData({ ...formData, breed: option.value })
+                }
+                defaultOption={formData.breed}
+                options={BreedMap[formData.type] ?? []}
                 error={formDataErrors.breed}
-                className="min-h-12!"
-                dropdownClassName="top-[55px]!"
-                options={(BreedMap[formData.type] ?? []) as any}
-                type="breed"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -294,14 +294,13 @@ const Companion = ({
               }
               className="min-h-12!"
             />
-            <Dropdown
+            <LabelDropdown
               placeholder="Country of origin (optional)"
-              value={formData.countryOfOrigin || ""}
-              onChange={(e) => setFormData({ ...formData, countryOfOrigin: e })}
-              className="min-h-12!"
-              dropdownClassName="top-[55px]! h-[150px]!"
-              type="country"
-              search
+              onSelect={(option) =>
+                setFormData({ ...formData, countryOfOrigin: option.value })
+              }
+              defaultOption={formData.countryOfOrigin}
+              options={CountriesOptions}
             />
             <SelectLabel
               title="My pet comes from:"

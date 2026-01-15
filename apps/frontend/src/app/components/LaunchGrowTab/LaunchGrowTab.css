@@ -1,7 +1,7 @@
 .BuildLaunchTabSec {
   display: flex;
   align-items: stretch;
-  height: 720px;
+  height: 520px;
   background: #fff2e3;
   border-radius: 24px;
   overflow: hidden;
@@ -95,10 +95,10 @@
 .GrowTabInner {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 24px;
   justify-content: center;
   background: var(--whitebg);
-  padding: 48px;
+  padding: 32px 48px;
   overflow-y: auto;
 }
 
@@ -110,7 +110,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 32px;
+  gap: 20px;
   width: 100%;
   max-width: 700px;
 }
@@ -119,17 +119,10 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 20px;
+  gap: 12px;
 }
 
-.Texted h2 {
-  font-size: 40px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
-  margin: 0;
-  text-align: left;
-}
+/* Typography handled by global classes */
 
 .Texted ul {
   padding: 0;
@@ -137,20 +130,17 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 18px;
+  gap: 12px;
 }
 
 .Texted ul li {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-family: var(--satoshi-font);
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 140%;
   color: var(--notibg);
   text-align: left;
 }
+/* Typography handled by global classes */
 
 @media screen and (max-width: 1280px) {
   .LaunchTabDiv {
@@ -165,9 +155,7 @@
     padding: 24px;
     gap: 24px;
   }
-  .Texted h2 {
-    font-size: 33px;
-  }
+  /* Typography handled by global classes */
 }
 
 /* Hide mobile elements on desktop by default */
@@ -210,12 +198,7 @@
   .mobile-content-container .IconPic {
     justify-content: flex-start;
   }
-  .mobile-content-container .Texted h2 {
-    font-size: 23px;
-  }
-  .mobile-content-container .Texted ul li {
-    font-size: 13px;
-  }
+  /* Typography handled by global classes */
 
   /* === CORRECTED MOBILE TAB NAVIGATION (matches Figma) === */
   .mobile-tab-nav {

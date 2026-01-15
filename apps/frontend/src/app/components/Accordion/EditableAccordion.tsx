@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Accordion from "./Accordion";
 import FormInput from "../Inputs/FormInput/FormInput";
 import { Primary, Secondary } from "../Buttons";
-import Dropdown from "../Inputs/Dropdown/Dropdown";
 import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import Datepicker from "../Inputs/Datepicker";
 import { formatDisplayDate } from "@/app/pages/Inventory/utils";
 import { getFormattedDate } from "../Calendar/weekHelpers";
 import { formatTimeLabel } from "@/app/utils/forms";
+import { toTitleCase } from "@/app/utils/validators";
+import LabelDropdown from "../Inputs/Dropdown/LabelDropdown";
+import { CountriesOptions } from "../AddCompanion/type";
 
 export type FieldConfig = {
   label: string;
@@ -51,46 +53,78 @@ const FieldComponents: Record<
     onChange: (v: any) => void;
   }>
 > = {
-  text: ({ field, value, onChange, error }) => (
-    <FormInput
-      intype={field.type || "text"}
-      inname={field.key}
-      value={value}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      className="min-h-12!"
-    />
-  ),
-  number: ({ field, value, onChange, error }) => (
-    <FormInput
-      intype={field.type || "text"}
-      inname={field.key}
-      value={value}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      className="min-h-12!"
-    />
-  ),
+  text: ({ field, value, onChange, error }) => {
+    const isCurrency = isCurrencyField(field.key);
+    return isCurrency ? (
+      <div className="relative">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-body-4 text-text-primary font-satoshi font-semibold z-10">
+          $
+        </div>
+        <FormInput
+          intype={field.type || "text"}
+          inname={field.key}
+          value={value}
+          inlabel={field.label}
+          error={error}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-12! pl-10!"
+        />
+      </div>
+    ) : (
+      <FormInput
+        intype={field.type || "text"}
+        inname={field.key}
+        value={value}
+        inlabel={field.label}
+        error={error}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-12!"
+      />
+    );
+  },
+  number: ({ field, value, onChange, error }) => {
+    const isCurrency = isCurrencyField(field.key);
+    return isCurrency ? (
+      <div className="relative">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-body-4 text-text-primary font-satoshi font-semibold z-10">
+          $
+        </div>
+        <FormInput
+          intype={field.type || "text"}
+          inname={field.key}
+          value={value}
+          inlabel={field.label}
+          error={error}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-12! pl-10!"
+        />
+      </div>
+    ) : (
+      <FormInput
+        intype={field.type || "text"}
+        inname={field.key}
+        value={value}
+        inlabel={field.label}
+        error={error}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-12!"
+      />
+    );
+  },
   select: ({ field, value, onChange }) => (
-    <Dropdown
+    <LabelDropdown
       placeholder={field.label}
-      value={value || ""}
-      onChange={(e) => onChange(e)}
-      className="min-h-12!"
-      dropdownClassName="top-[55px]! !h-fit"
-      options={field.options || []}
+      onSelect={(option) => onChange(option.value)}
+      defaultOption={value}
+      options={field.options}
     />
   ),
   dropdown: ({ field, value, onChange }) => (
-    <Dropdown
+    <LabelDropdown
       placeholder={field.label}
-      value={value || ""}
-      onChange={(e) => onChange(e)}
-      className="min-h-12!"
-      dropdownClassName="top-[55px]! !h-fit"
-      options={field.options || []}
+      onSelect={(option) => onChange(option.value)}
+      defaultOption={value}
+      options={field.options}
     />
   ),
   multiSelect: ({ field, value, onChange }) => (
@@ -104,13 +138,11 @@ const FieldComponents: Record<
     />
   ),
   country: ({ field, value, onChange }) => (
-    <Dropdown
-      placeholder={field.label}
-      value={value || ""}
-      onChange={(e) => onChange(e)}
-      className="min-h-12!"
-      dropdownClassName="top-[55px]! !h-fit"
-      type="country"
+    <LabelDropdown
+      placeholder="Choose country"
+      onSelect={(option) => onChange(option.value)}
+      defaultOption={value}
+      options={CountriesOptions}
     />
   ),
   date: ({ field, value, onChange }) => {
@@ -184,6 +216,15 @@ const RenderField = (
   );
 };
 
+const isCurrencyField = (fieldKey: string) => {
+  return fieldKey === "purchaseCost" || fieldKey === "selling";
+};
+
+const formatCurrencyValue = (value: any) => {
+  if (!value || value === "-") return "-";
+  return `$${value}`;
+};
+
 const FieldValueComponents: Record<
   string,
   React.FC<{
@@ -195,38 +236,50 @@ const FieldValueComponents: Record<
 > = {
   text: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
     >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+      <div className="text-body-4-emphasis text-text-tertiary">
+        {field.label}
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+      <div className="text-body-4 text-text-primary">
         {Array.isArray(formValues[field.key])
           ? (formValues[field.key] as string[]).join(", ")
           : formValues[field.key] || "-"}
       </div>
     </div>
   ),
+  status: ({ field, index, fields, formValues }) => (
+    <div
+      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
+    >
+      <div className="text-body-4-emphasis text-text-tertiary">
+        {field.label}
+      </div>
+      <div className="text-body-4 text-text-primary">
+        {toTitleCase(formValues[field.key])}
+      </div>
+    </div>
+  ),
   number: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
     >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+      <div className="text-body-4-emphasis text-text-tertiary">
+        {field.label}
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+      <div className="text-body-4 text-text-primary">
         {formValues[field.key] || "-"}
       </div>
     </div>
   ),
   select: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
     >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+      <div className="text-body-4-emphasis text-text-tertiary">
+        {field.label}
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+      <div className="text-body-4 text-text-primary">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
@@ -238,12 +291,12 @@ const FieldValueComponents: Record<
   ),
   dropdown: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-2 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
     >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+      <div className="text-body-4-emphasis text-text-tertiary">
+        {field.label}
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+      <div className="text-body-4 text-text-primary">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
@@ -255,12 +308,12 @@ const FieldValueComponents: Record<
   ),
   multiSelect: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
     >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+      <div className="text-body-4-emphasis text-text-tertiary">
+        {field.label}
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+      <div className="text-body-4 text-text-primary">
         {(() => {
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
@@ -283,12 +336,12 @@ const FieldValueComponents: Record<
   ),
   country: ({ field, index, fields, formValues }) => (
     <div
-      className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+      className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
     >
-      <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-        {field.label + ":"}
+      <div className="text-body-4-emphasis text-text-tertiary">
+        {field.label}
       </div>
-      <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+      <div className="text-body-4 text-text-primary">
         {formValues[field.key] || "-"}
       </div>
     </div>
@@ -297,12 +350,12 @@ const FieldValueComponents: Record<
     const value = formValues[field.key];
     return (
       <div
-        className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+        className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
       >
-        <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-          {field.label + ":"}
+        <div className="text-body-4-emphasis text-text-tertiary">
+          {field.label}
         </div>
-        <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        <div className="text-body-4 text-text-primary">
           {typeof value === "string"
             ? formatDisplayDate(value) || "-"
             : getFormattedDate(formValues[field.key])}
@@ -314,12 +367,12 @@ const FieldValueComponents: Record<
     const value = formValues[field.key];
     return (
       <div
-        className={`px-3! py-2! flex items-center gap-4 border-b border-grey-light ${index === fields.length - 1 ? "border-b-0" : ""}`}
+        className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
       >
-        <div className="font-satoshi font-semibold text-grey-bg text-[16px]">
-          {field.label + ":"}
+        <div className="text-body-4-emphasis text-text-tertiary">
+          {field.label}
         </div>
-        <div className="font-satoshi font-semibold text-black-text text-[16px] overflow-scroll scrollbar-hidden">
+        <div className="text-body-4 text-text-primary">
           {formatTimeLabel(value)}
         </div>
       </div>
@@ -490,7 +543,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   );
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-3 w-full">
       <Accordion
         title={title}
         defaultOpen={defaultOpen}
@@ -500,18 +553,14 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         showDeleteIcon={showDeleteIcon}
         onDeleteClick={onDelete}
       >
-        <div
-          className={`flex flex-col ${
-            !readOnly && effectiveEditing ? "gap-3" : "gap-0"
-          }`}
-        >
+        <div className={`flex flex-col`}>
           {fields.map((field, index) => {
             const canEditThisField =
               !readOnly && effectiveEditing && isFieldEditable(field);
             return (
               <div key={field.key}>
                 {canEditThisField ? (
-                  <div className="flex-1">
+                  <div className="flex-1 mb-3">
                     {RenderField(
                       field,
                       formValues[field.key],
@@ -532,18 +581,8 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
 
       {isEditing && !hideInlineActions && (
         <div className="grid grid-cols-2 gap-3">
-          <Secondary
-            href="#"
-            onClick={handleCancel}
-            text="Cancel"
-            className="h-13!"
-          />
-          <Primary
-            href="#"
-            text="Save"
-            classname="h-13!"
-            onClick={handleSave}
-          />
+          <Primary href="#" text="Save" onClick={handleSave} />
+          <Secondary href="#" onClick={handleCancel} text="Cancel" />
         </div>
       )}
     </div>

@@ -14,6 +14,8 @@ import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import { Primary } from "@/app/components/Buttons";
 import { IoIosWarning } from "react-icons/io";
 
+import "../AuthPages.css";
+
 type SignUpProps = {
   postAuthRedirect?: string;
   signinHref?: string;
@@ -195,7 +197,7 @@ const SignUp = ({
       <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 sm:my-12 md:flex-row flex-col items-center md:items-start">
         <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
           <div className="flex w-full items-center justify-center">
-            <div className="text-display-2 text-text-primary text-center max-w-[350px]">
+            <div className="text-display-2 text-text-primary text-center max-w-[350px] auth-title">
               {isDeveloper
                 ? "Build, test, and ship apps on Yosemite Crew"
                 : "Built for everyone, from day one"}
@@ -212,12 +214,12 @@ const SignUp = ({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <div className="text-body-3-emphasis text-text-primary">
+                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
                   {isDeveloper
                     ? "API-first, self-host or managed"
                     : "Enjoy smooth online solutions with us!"}
                 </div>
-                <p className="text-caption-1 text-text-primary">
+                <p className="text-caption-1 text-text-primary auth-feature-desc">
                   {isDeveloper
                     ? "Open source core with APIs built for integrations. Run it yourself or use our managed stack."
                     : "Our services are built on a strong foundation for great performance and flexibility."}
@@ -234,12 +236,12 @@ const SignUp = ({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <div className="text-body-3-emphasis text-text-primary">
+                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
                   {isDeveloper
                     ? "Local dev + production ready"
                     : "Start free and upgrade as needed."}
                 </div>
-                <p className="text-caption-1 text-text-primary">
+                <p className="text-caption-1 text-text-primary auth-feature-desc">
                   {isDeveloper
                     ? "Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted."
                     : "Enjoy generous free usage. Upgrade only when you need."}
@@ -256,12 +258,12 @@ const SignUp = ({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <div className="text-body-3-emphasis text-text-primary">
+                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
                   {isDeveloper
                     ? "Secure by default"
                     : "Our servers are EU-based and GDPR compliant."}
                 </div>
-                <p className="text-caption-1 text-text-primary">
+                <p className="text-caption-1 text-text-primary auth-feature-desc">
                   {isDeveloper
                     ? "Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed."
                     : "All data is securely stored in the EU, fully GDPR compliant."}
@@ -278,7 +280,7 @@ const SignUp = ({
             className="flex flex-col gap-6"
           >
             <div className="flex flex-col gap-6">
-              <div className="text-display-2 text-text-primary text-center">
+              <div className="text-display-2 text-text-primary text-center auth-title">
                 {isDeveloper ? "Sign up for developer access" : "Sign up"}
               </div>
 
@@ -383,7 +385,7 @@ const SignUp = ({
                 href="#"
                 style={{ width: "100%" }}
               />
-              <div className="text-body-4 text-text-primary">
+              <div className="text-body-4 text-text-primary auth-inline-text">
                 {" "}
                 Already have an account?{" "}
                 <Link href={signinHref} className="text-text-brand">

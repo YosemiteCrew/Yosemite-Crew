@@ -24,7 +24,7 @@ const footerLinks = [
   {
     title: "Community",
     links: [
-      { label: "Discord", href: "https://discord.gg/4zDVekEz" },
+      { label: "Discord", href: "https://discord.gg/yosemitecrew" },
       {
         label: "GitHub",
         href: "https://github.com/YosemiteCrew/Yosemite-Crew",
@@ -130,14 +130,14 @@ const Footer = () => {
                   key={section.title}
                   variants={ftDivVariants}
                 >
-                  <div className="text-heading-3">{section.title}</div>
+                  <div className="text-heading-3 text-text-tertiary">{section.title}</div>
                   <ul className="FtLinks">
                     {section.links.map((link) => (
                       <li key={link.label}>
                         <Link
                           href={link.href}
                           target={section.title === "Company" ? "" : "_blank"}
-                          className="text-label-1"
+                          className="text-body-4 text-text-tertiary"
                         >
                           {link.label}
                         </Link>
@@ -151,18 +151,18 @@ const Footer = () => {
           {/* <hr className="footer-divider" aria-hidden="true" /> */}
           <div className="Footer_Bottom">
             <div className="Bootom_Foot">
-              <div className="text-caption-1 font-bold">Copyright &copy; 2026 DuneXploration</div>
-              <div className="text-caption-1 text-center">
+              <div className="text-body-4-emphasis text-text-secondary text-center footer-copy-primary">Copyright &copy; 2026 DuneXploration</div>
+              <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
                 DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127
                 Mainz
                 <br />
                 email:{" "}
-                <a className="text-caption-1 font-bold Bootom_Foot_Focus" href="mailto:support@yosemitecrew.com">
+                <a className="text-body-4 text-text-brand footer-copy-link" href="mailto:support@yosemitecrew.com">
                   support@yosemitecrew.com
                 </a>{" "}
-                , phone: <a className="text-caption-1 font-bold Bootom_Foot_Focus" href="tel:+4915227763275">+49 152 277 63275</a>
+                , phone: <a className="text-body-4 text-text-brand footer-copy-link" href="tel:+4915227763275">+49 152 277 63275</a>
               </div>
-              <div className="text-caption-1 text-center">
+              <div className="text-body-4 text-text-secondary text-center footer-copy-secondary">
                 Geschaftsfuhrer: Ankit Upadhyay Amtsgericht Mainz unter HRB
                 52778, VAT: DE367920596
               </div>

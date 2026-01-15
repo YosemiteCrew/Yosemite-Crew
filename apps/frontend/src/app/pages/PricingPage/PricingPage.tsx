@@ -64,11 +64,11 @@ const PricingPage = () => {
           <div className="PricingPage-header">
             <div className="PriceBackdiv">
               <div className="PricinhHeadquote">
-                <h2>Transparent pricing, no hidden fees</h2>
-                <p>
+                <div className="text-display-1 text-text-primary">Transparent pricing, no hidden fees</div>
+                <div className="text-body-3 text-text-primary">
                   Choose a plan that fits your pet-care practice. Upgrade
                   anytime as you grow.
-                </p>
+                </div>
               </div>
             </div>
             <div className="flex gap-4 flex-col w-full max-w-5xl">
@@ -104,19 +104,19 @@ const PricingPage = () => {
                   >
                     <div className="flex items-center gap-2 font-medium h-[23px] lg:h-[38px]">
                       <div
-                        className={`font-grotesk text-[14px] lg:text-[19px] ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        className={`font-satoshi text-[0.875rem] lg:text-[1.125rem] ${plan.active ? "text-black-text" : "text-grey-border"}`}
                       >
                         {plan.title}
                       </div>
                       {plan.recommended && (
-                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-semibold">
+                        <div className="p-1 lg:p-2 rounded-lg bg-blue-light text-blue-text font-satoshi text-[12px] lg:text-[15px] font-normal">
                           Recommended
                         </div>
                       )}
                     </div>
                     <div className="flex gap-2 items-end">
                       <div
-                        className={`font-grotesk text-[28px] lg:text-[40px] font-medium ${plan.active ? "text-black-text" : "text-grey-border"}`}
+                        className={`font-satoshi text-[28px] lg:text-[40px] font-medium ${plan.active ? "text-black-text" : "text-grey-border"}`}
                       >
                         {activeCycle === "monthly"
                           ? plan.amount
@@ -134,7 +134,7 @@ const PricingPage = () => {
                       {plan.description}
                     </div>
                     <Link
-                      className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-grotesk text-[19px] font-medium"
+                      className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! transition duration-200 ease-in-out text-black-text! border-black-text! border! h-12 flex items-center justify-center font-satoshi text-[1.125rem] font-medium"
                       href={plan.buttonSrc}
                       onClick={() => plan.id === 3 && setNotify(true)}
                     >
@@ -167,7 +167,7 @@ const PricingPage = () => {
                 <button className="opacity-0">
                   <IoIosCloseCircleOutline size={28} color="#302f2e" />
                 </button>
-                <div className="font-grotesk font-medium text-[23px] text-black-text">
+                <div className="font-satoshi font-medium text-[1.375rem] text-black-text">
                   Get notified
                 </div>
                 <button onClick={() => setNotify(false)}>
@@ -215,7 +215,7 @@ const PricingPage = () => {
           )}
 
           <div className="flex flex-col gap-3 md:gap-9">
-            <div className="font-grotesk text-[23px] md:text-[33px] xl:text-[48px] text-black-text text-center font-medium">
+            <div className="text-display-1 text-text-primary text-center plansFeaturesHeading">
               Plans and features
             </div>
             <div className="flex gap-3">
@@ -226,17 +226,17 @@ const PricingPage = () => {
                   className="w-[calc(33%-10px)] flex flex-col gap-2"
                 >
                   <div className="flex justify-between items-center flex-wrap">
-                    <div className="font-grotesk text-[14px] md:text-[19px] font-medium text-black-text">
+                    <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
                       {plan.title.split(" ")[0]}
                     </div>
-                    <div className="font-grotesk text-[14px] md:text-[19px] font-medium text-black-text">
+                    <div className="font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium text-black-text">
                       {activeCycle === "monthly"
                         ? plan.amount
                         : plan.amountYearly}
                     </div>
                   </div>
                   <Link
-                    className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-grotesk text-[14px] md:text-[19px] font-medium"
+                    className="w-full rounded-2xl! hover:border-text-brand! hover:text-text-brand! hover:scale-105! text-black-text! border-black-text! border! transition duration-300 ease-in-out h-8 md:h-12 flex items-center justify-center font-satoshi text-[0.875rem] md:text-[1.125rem] font-medium"
                     href={plan.buttonSrc}
                   >
                     {plan.buttonText}
@@ -298,7 +298,7 @@ const NeedHealp = () => {
     <div className="NeedHelpDiv">
       <div className="Needhelpitem">
         <div className="helpText">
-          <h3>Need Help? We’re All Ears!</h3>
+          <h3>Need Help? We&rsquo;re All Ears!</h3>
           <p>
             Got questions or need assistance? Just reach out! Our team is here
             to help.

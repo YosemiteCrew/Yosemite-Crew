@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { IoSearch } from "react-icons/io5";
+import { IoIosSearch, IoIosWarning } from "react-icons/io";
 
 type OptionProps = {
-  key: string;
   value: string;
+  label: string;
 };
 
 type SearchDropdownProps = {
@@ -12,7 +12,8 @@ type SearchDropdownProps = {
   placeholder: string;
   query: string;
   setQuery: (v: string) => void;
-  minChars?: number
+  minChars?: number;
+  error?: string;
 };
 
 const SearchDropdown = ({
@@ -21,10 +22,12 @@ const SearchDropdown = ({
   placeholder,
   query,
   setQuery,
-  minChars = 2
+  minChars = 2,
+  error
 }: SearchDropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [hasSelected, setHasSelected] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -50,6 +53,7 @@ const SearchDropdown = ({
 
   const onSelectOption = (key: string) => {
     onSelect(key);
+    setHasSelected(true);
     setOpen(false);
   };
 
@@ -58,7 +62,7 @@ const SearchDropdown = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <div
-        className={`h-12 rounded-2xl border! border-[#BFBFBE]! px-4 py-2.5 flex items-center justify-center w-full`}
+        className={`h-12 border px-4 py-2.5 flex items-center justify-center w-full ${canSearch ? "border-input-border-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"}`}
       >
         <input
           type="text"
@@ -68,22 +72,33 @@ const SearchDropdown = ({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          className="outline-none border-0 text-[18px]! w-full"
+          className="outline-none border-0 text-body-4 text-text-primary w-full placeholder:text-input-text-placeholder placeholder:text-body-4"
           placeholder={placeholder}
         />
-        <IoSearch size={22} color="#302F2E" className="cursor-pointer" />
+        <IoIosSearch size={22} color="#302F2E" className="cursor-pointer" />
       </div>
       {canSearch && (
-        <div className="absolute left-0 mt-1 border border-grey-noti bg-white z-10 rounded-xl max-h-[150px] w-full overflow-auto flex flex-col py-1 px-2 scrollbar-hidden">
+        <div className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
           {filtered.map((option, i) => (
             <button
-              key={option.key}
-              onClick={() => onSelectOption(option.key)}
-              className={`${i != filtered.length - 1 && "border-b border-grey-light"} py-2 px-2 outline-none bg-white text-[13px] font-satoshi font-semibold text-black-text text-start`}
+              key={option.value}
+              onClick={() => onSelectOption(option.value)}
+              className={`px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start`}
             >
-              {option.value}
+              {option.label}
             </button>
           ))}
+        </div>
+      )}
+      {!open && error && !hasSelected && (
+        <div
+          className={`
+            mt-1.5 flex items-center gap-1 px-4
+            text-caption-2 text-text-error
+            `}
+        >
+          <IoIosWarning className="text-text-error" size={14} />
+          <span>{error}</span>
         </div>
       )}
     </div>

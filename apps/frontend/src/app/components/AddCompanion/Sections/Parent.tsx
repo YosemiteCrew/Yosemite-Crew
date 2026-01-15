@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import FormInput from "../../Inputs/FormInput/FormInput";
-import Dropdown from "../../Inputs/Dropdown/Dropdown";
 import { Primary } from "../../Buttons";
 import Accordion from "../../Accordion/Accordion";
 import Datepicker from "../../Inputs/Datepicker";
@@ -9,9 +8,11 @@ import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import SearchDropdown from "../../Inputs/SearchDropdown";
 import { searchParent } from "@/app/services/companionService";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
+import { CountriesOptions } from "../type";
 
 type OptionProp = {
-  key: string;
+  label: string;
   value: string;
 };
 
@@ -44,8 +45,8 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
       results.map((p) => {
         const lastName = p.lastName ? ` ${p.lastName}` : "";
         return {
-          key: p.id,
-          value: `${p.firstName}${lastName}`,
+          value: p.id,
+          label: `${p.firstName}${lastName}`,
         };
       }),
     [results]
@@ -132,10 +133,6 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
       <div className="flex flex-col gap-6">
-        <div className="font-grotesk text-black-text text-[23px] font-medium">
-          Parents details
-        </div>
-
         <SearchDropdown
           placeholder="Search parent"
           options={options}
@@ -212,19 +209,16 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                 </div>
               )}
             </div>
-            <Dropdown
+            <LabelDropdown
               placeholder="Choose country"
-              value={formData.address.country || ""}
-              onChange={(e) =>
+              onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  address: { ...formData.address, country: e },
+                  address: { ...formData.address, country: option.value },
                 })
               }
-              error={formDataErrors.country}
-              className="min-h-12!"
-              type="country"
-              search
+              defaultOption={formData.address.country}
+              options={CountriesOptions}
             />
             <FormInput
               intype="text"

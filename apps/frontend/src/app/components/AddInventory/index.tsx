@@ -1,15 +1,12 @@
 import React, { useState } from "react";
 import Modal from "../Modal";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import SubLabels from "../Labels/SubLabels";
-import {
-  InventoryItem,
-  InventoryErrors,
-} from "@/app/pages/Inventory/types";
+import { InventoryItem, InventoryErrors } from "@/app/pages/Inventory/types";
 import { calculateBatchTotals } from "@/app/pages/Inventory/utils";
 import { BusinessType } from "@/app/types/org";
 import FormSection from "./FormSection";
 import { InventorySectionKey } from "./InventoryConfig";
+import Close from "../Icons/Close";
 
 const labels: { key: InventorySectionKey; name: string }[] = [
   { key: "basicInfo", name: "Basic Information" },
@@ -138,10 +135,12 @@ const AddInventory = ({
     section: InventorySectionKey,
     details: Record<string, string>
   ) => {
-    console.error(
-      `[Inventory] Validation failed for ${section}`,
-      JSON.stringify(details)
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        `[Inventory] Validation failed for ${section}`,
+        JSON.stringify(details)
+      );
+    }
   };
 
   const updateSection = (
@@ -151,15 +150,20 @@ const AddInventory = ({
   ) => {
     if (section === "batch") {
       setFormData((prev) => {
-        const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
+        const batches =
+          prev.batches && prev.batches.length > 0
+            ? [...prev.batches]
+            : [prev.batch];
         const targetIndex = index ?? 0;
         const currentBatch = batches[targetIndex] ?? emptyInventoryItem.batch;
         batches[targetIndex] = { ...currentBatch, ...patch };
         const totals = calculateBatchTotals(batches);
         const stock = { ...prev.stock };
         if (totals.onHand !== undefined) stock.current = String(totals.onHand);
-        if (totals.allocated !== undefined) stock.allocated = String(totals.allocated);
-        if (totals.available !== undefined) stock.available = String(totals.available);
+        if (totals.allocated !== undefined)
+          stock.allocated = String(totals.allocated);
+        if (totals.available !== undefined)
+          stock.available = String(totals.available);
         return {
           ...prev,
           batch: batches[0],
@@ -175,7 +179,9 @@ const AddInventory = ({
     }));
   };
 
-  const validateBasicInfo = (): Partial<Record<keyof typeof formData.basicInfo, string>> => {
+  const validateBasicInfo = (): Partial<
+    Record<keyof typeof formData.basicInfo, string>
+  > => {
     const basic = formData.basicInfo;
     const errors: Partial<Record<keyof typeof formData.basicInfo, string>> = {};
     if (!basic.name) errors.name = "Name is required";
@@ -184,7 +190,9 @@ const AddInventory = ({
     return errors;
   };
 
-  const validatePricing = (): Partial<Record<keyof typeof formData.pricing, string>> => {
+  const validatePricing = (): Partial<
+    Record<keyof typeof formData.pricing, string>
+  > => {
     const pricing = formData.pricing;
     const errors: Partial<Record<keyof typeof formData.pricing, string>> = {};
     if (!pricing.purchaseCost) {
@@ -200,7 +208,9 @@ const AddInventory = ({
     return errors;
   };
 
-  const validateStock = (): Partial<Record<keyof typeof formData.stock, string>> => {
+  const validateStock = (): Partial<
+    Record<keyof typeof formData.stock, string>
+  > => {
     const stock = formData.stock;
     const errors: Partial<Record<keyof typeof formData.stock, string>> = {};
     if (!stock.current) {
@@ -219,7 +229,10 @@ const AddInventory = ({
   const validateSection = (section: InventorySectionKey): boolean => {
     const nextErrors: InventoryErrors = { ...errors };
     const updateStatus = (valid: boolean) => {
-      setSectionStatus((prev) => ({ ...prev, [section]: valid ? "valid" : "error" }));
+      setSectionStatus((prev) => ({
+        ...prev,
+        [section]: valid ? "valid" : "error",
+      }));
     };
 
     if (section === "basicInfo") {
@@ -286,7 +299,9 @@ const AddInventory = ({
         (l) => sectionStatus[l.key] === "error" || !validateSection(l.key)
       );
       if (firstInvalid) {
-        console.error(`[Inventory] Validation halted at section ${firstInvalid.key}`);
+        console.error(
+          `[Inventory] Validation halted at section ${firstInvalid.key}`
+        );
         setActiveLabel(firstInvalid.key);
       }
     }
@@ -331,7 +346,9 @@ const AddInventory = ({
   const handleNext = async () => {
     const currentValid = validateSection(activeLabel);
     if (!currentValid) {
-      console.error(`[Inventory] Validation failed at step ${activeLabel}`);
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`[Inventory] Validation failed at step ${activeLabel}`);
+      }
       return;
     }
     const currentIndex = labels.findIndex((l) => l.key === activeLabel);
@@ -353,22 +370,12 @@ const AddInventory = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add Inventory
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add Inventory</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
         <SubLabels
@@ -378,7 +385,7 @@ const AddInventory = ({
           statuses={sectionStatus}
         />
 
-        <div className="flex overflow-y-auto flex-1">
+        <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
           <FormSection
             businessType={businessType}
             sectionKey={activeLabel}
@@ -396,7 +403,10 @@ const AddInventory = ({
             onClear={resetForm}
             onAddBatch={() =>
               setFormData((prev) => {
-                const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
+                const batches =
+                  prev.batches && prev.batches.length > 0
+                    ? [...prev.batches]
+                    : [prev.batch];
                 const nextBatches = [
                   ...batches,
                   {
@@ -413,9 +423,12 @@ const AddInventory = ({
                 ];
                 const totals = calculateBatchTotals(nextBatches);
                 const stock = { ...prev.stock };
-                if (totals.onHand !== undefined) stock.current = String(totals.onHand);
-                if (totals.allocated !== undefined) stock.allocated = String(totals.allocated);
-                if (totals.available !== undefined) stock.available = String(totals.available);
+                if (totals.onHand !== undefined)
+                  stock.current = String(totals.onHand);
+                if (totals.allocated !== undefined)
+                  stock.allocated = String(totals.allocated);
+                if (totals.available !== undefined)
+                  stock.available = String(totals.available);
                 return {
                   ...prev,
                   batches: nextBatches,
@@ -426,13 +439,19 @@ const AddInventory = ({
             }
             onRemoveBatch={(index) =>
               setFormData((prev) => {
-                const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
+                const batches =
+                  prev.batches && prev.batches.length > 0
+                    ? [...prev.batches]
+                    : [prev.batch];
                 const next = batches.filter((_, i) => i !== index);
                 const totals = calculateBatchTotals(next);
                 const stock = { ...prev.stock };
-                if (totals.onHand !== undefined) stock.current = String(totals.onHand);
-                if (totals.allocated !== undefined) stock.allocated = String(totals.allocated);
-                if (totals.available !== undefined) stock.available = String(totals.available);
+                if (totals.onHand !== undefined)
+                  stock.current = String(totals.onHand);
+                if (totals.allocated !== undefined)
+                  stock.allocated = String(totals.allocated);
+                if (totals.available !== undefined)
+                  stock.available = String(totals.available);
                 return {
                   ...prev,
                   batch: next[0] ?? emptyInventoryItem.batch,

@@ -51,6 +51,10 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Check if auth guard is disabled via environment variable
+  const isAuthGuardDisabled =
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === "true";
+
   const orgStatus = useOrgStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrg = useOrgStore((s) =>
@@ -81,6 +85,10 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    if (isAuthGuardDisabled) {
+      setChecked(true);
+      return;
+    }
     if (orgStatus === "idle" || orgStatus === "loading") {
       return;
     }
@@ -146,6 +154,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
 
     setChecked(true);
   }, [
+    isAuthGuardDisabled,
     primaryOrgId,
     primaryOrg,
     getSpecialitiesByOrgId,

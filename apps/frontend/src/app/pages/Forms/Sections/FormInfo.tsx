@@ -9,38 +9,40 @@ import {
   FormsUsageOptions,
 } from "@/app/types/forms";
 import React from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import {
   archiveForm,
   publishForm,
   unpublishForm,
 } from "@/app/services/formService";
 import FormRenderer from "./AddForm/components/FormRenderer";
+import Close from "@/app/components/Icons/Close";
+import { useErrorTost } from "@/app/components/Toast/Toast";
+import { Icon } from "@iconify/react";
 
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
     items.forEach((field) => {
-    if (field.type === "group") {
-      walk(field.fields ?? []);
-      return;
-    }
-    // Check for defaultValue first (for readonly fields from inventory)
-    const defaultValue = (field as any).defaultValue;
+      if (field.type === "group") {
+        walk(field.fields ?? []);
+        return;
+      }
+      // Check for defaultValue first (for readonly fields from inventory)
+      const defaultValue = (field as any).defaultValue;
 
-    if (field.type === "checkbox") {
-      acc[field.id] = defaultValue ?? [];
-      return;
-    }
-    if (field.type === "boolean") {
-      acc[field.id] = defaultValue ?? false;
-      return;
-    }
-    if (field.type === "date") {
-      acc[field.id] = defaultValue ?? "";
-      return;
-    }
-    if (field.type === "number") {
+      if (field.type === "checkbox") {
+        acc[field.id] = defaultValue ?? [];
+        return;
+      }
+      if (field.type === "boolean") {
+        acc[field.id] = defaultValue ?? false;
+        return;
+      }
+      if (field.type === "date") {
+        acc[field.id] = defaultValue ?? "";
+        return;
+      }
+      if (field.type === "number") {
         acc[field.id] = defaultValue ?? field.placeholder ?? "";
         return;
       }
@@ -97,16 +99,40 @@ const FormInfo = ({
   onEdit,
   serviceOptions,
 }: FormInfoProps) => {
+  const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
   const [unpublishLoading, setUnpublishLoading] = React.useState(false);
   const [archiveLoading, setArchiveLoading] = React.useState(false);
   const actionLoading = publishLoading || unpublishLoading || archiveLoading;
+
+  const showActionError = (message: string) =>
+    showErrorTost({
+      message,
+      errortext: "Error",
+      iconElement: (
+        <Icon
+          icon="solar:danger-triangle-bold"
+          width="20"
+          height="20"
+          color="#EA3729"
+        />
+      ),
+      className: "errofoundbg",
+    });
 
   const handlePublish = async () => {
     if (!activeForm._id) return;
     setPublishLoading(true);
     try {
       await publishForm(activeForm._id);
+      setShowModal(false);
+    } catch (err: any) {
+      console.error("Failed to publish form", err);
+      showActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to publish form"
+      );
     } finally {
       setPublishLoading(false);
     }
@@ -117,6 +143,14 @@ const FormInfo = ({
     setUnpublishLoading(true);
     try {
       await unpublishForm(activeForm._id);
+      setShowModal(false);
+    } catch (err: any) {
+      console.error("Failed to unpublish form", err);
+      showActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to unpublish form"
+      );
     } finally {
       setUnpublishLoading(false);
     }
@@ -127,6 +161,14 @@ const FormInfo = ({
     setArchiveLoading(true);
     try {
       await archiveForm(activeForm._id);
+      setShowModal(false);
+    } catch (err: any) {
+      console.error("Failed to archive form", err);
+      showActionError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to archive form"
+      );
     } finally {
       setArchiveLoading(false);
     }
@@ -200,25 +242,15 @@ const FormInfo = ({
       showModal={showModal}
       setShowModal={setShowModal}
     >
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            View form
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add form</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto pr-1">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto pr-1 scrollbar-hidden">
           <div className="flex flex-col gap-6">
             <EditableAccordion
               key={`details-${activeForm._id || activeForm.name}`}
@@ -263,12 +295,16 @@ const FormInfo = ({
             <Secondary
               href="#"
               text="Edit form"
-              onClick={() => onEdit(activeForm)}
+              onClick={() => {
+                setShowModal(false);
+                onEdit(activeForm);
+              }}
               className="h-12! text-[16px]!"
               isDisabled={actionLoading}
             />
           </div>
         </div>
+        {ErrorTostPopup}
       </div>
     </Modal>
   );

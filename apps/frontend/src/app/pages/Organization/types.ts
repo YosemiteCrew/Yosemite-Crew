@@ -42,9 +42,9 @@ export const StaffOptions: string[] = [
   "Dr. Philip philips",
 ];
 export const EmploymentTypes = [
-  { name: "Full time", key: "FULL_TIME" },
-  { name: "Part time", key: "PART_TIME" },
-  { name: "Contract", key: "CONTRACTOR" },
+  { label: "Full time", value: "FULL_TIME" },
+  { label: "Part time", value: "PART_TIME" },
+  { label: "Contract", value: "CONTRACTOR" },
 ];
 export const RoomsTypes = [
   { label: "CONSULTATION", value: "CONSULTATION" },

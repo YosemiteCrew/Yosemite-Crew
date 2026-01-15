@@ -3,7 +3,6 @@ import { Primary, Secondary } from "../../Buttons";
 import classNames from "classnames";
 
 import FormInput from "../../Inputs/FormInput/FormInput";
-import Dropdown from "../../Inputs/Dropdown/Dropdown";
 import GoogleSearchDropDown from "../../Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 import LogoUploader from "../../UploadImage/LogoUploader";
 import { GenderOptions, UserProfile } from "@/app/types/profile";
@@ -14,6 +13,8 @@ import { formatDateLocal } from "@/app/utils/date";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
 import "./Step.css";
+import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
+import { CountriesOptions } from "../../AddCompanion/type";
 
 type PersonalStepProps = {
   nextStep: () => void;
@@ -144,25 +145,23 @@ const PersonalStep = ({
         </div>
 
         <div className="team-personal-two">
-          <Dropdown
+          <LabelDropdown
             placeholder="Select country"
-            value={formData.personalDetails?.address?.country || ""}
-            onChange={(e) =>
+            onSelect={(option) =>
               setFormData({
                 ...formData,
                 personalDetails: {
                   ...formData.personalDetails,
                   address: {
                     ...formData.personalDetails?.address,
-                    country: e,
+                    country: option.value,
                   },
                 },
               })
             }
+            defaultOption={formData.personalDetails?.address?.country}
+            options={CountriesOptions}
             error={formDataErrors.country}
-            type="country"
-            dropdownClassName="h-fit! max-h-[200px]!"
-            search
           />
           <FormInput
             intype="tel"

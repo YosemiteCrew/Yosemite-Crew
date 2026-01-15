@@ -17,12 +17,21 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const isAuthed =
     status === "authenticated" || status === "signin-authenticated";
 
+  // Check if auth guard is disabled via environment variable
+  const isAuthGuardDisabled =
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === "true";
+
   useEffect(() => {
+    if (isAuthGuardDisabled) return;
     if (isChecking) return;
     if (!isAuthed) {
       router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
     }
-  }, [isChecking, isAuthed, router, pathname]);
+  }, [isAuthGuardDisabled, isChecking, isAuthed, router, pathname]);
+
+  if (isAuthGuardDisabled) {
+    return <>{children}</>;
+  }
 
   if (isChecking) {
     return null;
