@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import AccordionButton from "@/app/components/Accordion/AccordionButton";
 import ProfileCard from "./ProfileCard";
 import { Organisation } from "@yosemite-crew/types";
 import { updateOrg } from "@/app/services/orgService";
+import { BusinessOptions } from "@/app/types/org";
 
 const BasicFields = [
   {
@@ -10,7 +10,8 @@ const BasicFields = [
     key: "type",
     required: true,
     editable: false,
-    type: "text",
+    type: "select",
+    options: BusinessOptions
   },
   {
     label: "Organization name",
@@ -121,27 +122,21 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
   };
 
   return (
-    <AccordionButton
-      title="Organization profile"
-      defaultOpen
-      showButton={false}
-    >
-      <div className="flex flex-col gap-4">
-        <ProfileCard
-          title="Organization"
-          fields={BasicFields}
-          org={{ ...formData, country: formData.address?.country }}
-          showProfile
-          onSave={handleOrgSave}
-        />
-        <ProfileCard
-          title="Address"
-          fields={AddressFields}
-          org={{ ...formData.address }}
-          onSave={handleAddressSave}
-        />
-      </div>
-    </AccordionButton>
+    <div className="flex flex-col gap-6">
+      <ProfileCard
+        title="Organization"
+        fields={BasicFields}
+        org={{ ...formData, country: formData.address?.country }}
+        showProfile
+        onSave={handleOrgSave}
+      />
+      <ProfileCard
+        title="Address"
+        fields={AddressFields}
+        org={{ ...formData.address }}
+        onSave={handleAddressSave}
+      />
+    </div>
   );
 };
 

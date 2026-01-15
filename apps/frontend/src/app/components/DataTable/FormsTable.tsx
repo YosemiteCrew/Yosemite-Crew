@@ -124,7 +124,13 @@ const FormsTable = ({
             Loading forms...
           </div>
         ) : (
-          <GenericTable data={filteredList} columns={columns} bordered={false} />
+          <GenericTable
+            data={filteredList}
+            columns={columns}
+            bordered={false}
+            pagination
+            pageSize={5}
+          />
         )}
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">

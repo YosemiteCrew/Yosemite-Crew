@@ -168,9 +168,7 @@ const Details = ({
                 setFormData({ ...formData, services: e });
                 setFormDataErrors((prev) => ({ ...prev, services: undefined }));
               }}
-              className="min-h-12!"
               options={serviceOptions}
-              dropdownClassName="h-fit! max-h-[150px]!"
             />
             {formDataErrors.services && (
               <span className="text-red-500 text-sm">{formDataErrors.services}</span>
@@ -182,9 +180,7 @@ const Details = ({
                 setFormData({ ...formData, species: e });
                 setFormDataErrors((prev) => ({ ...prev, species: undefined }));
               }}
-              className="min-h-12!"
               options={["Dog", "Cat", "Horse"]}
-              dropdownClassName="h-fit!"
             />
             {formDataErrors.species && (
               <span className="text-red-500 text-sm">{formDataErrors.species}</span>

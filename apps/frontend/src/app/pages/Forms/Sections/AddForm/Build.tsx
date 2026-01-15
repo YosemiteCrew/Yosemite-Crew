@@ -424,8 +424,6 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           value={selected}
           onChange={updateOptions}
           options={serviceOptions}
-          className="min-h-12!"
-          dropdownClassName="!h-fit max-h-[200px]!"
         />
       </div>
     );

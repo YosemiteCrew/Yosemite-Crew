@@ -32,7 +32,7 @@ const SearchDropdown = ({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return options.filter((s: OptionProps) => {
-      const name = s.value.toLowerCase();
+      const name = s.label.toLowerCase();
       if (!q) return true;
       return name.includes(q);
     });

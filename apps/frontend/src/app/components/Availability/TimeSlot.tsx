@@ -7,8 +7,6 @@ import {
   TimeOption,
 } from "./utils";
 
-import "./Availability.css";
-
 type Field = keyof Interval;
 
 interface TimeSlotProps {
@@ -65,22 +63,26 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
   }, []);
 
   return (
-    <div className="availability-interval-time" ref={availabilityContainerRef}>
+    <div className="relative w-[120px]" ref={availabilityContainerRef}>
       <button
-        className="availability-interval-time-title"
+        className="bg-white rounded-2xl! border border-text-primary justify-center w-full outline-none px-3 py-[11px]"
         onClick={() => setOpen((e: boolean) => !e)}
       >
-        {getTimeLabelFromValue(interval[field]) || "Select"}
+        <span className="text-body-4 text-text-primary ">
+          {getTimeLabelFromValue(interval[field]) || "Select"}
+        </span>
       </button>
       {open && (
-        <div className="availability-interval-dropdown scrollbar-hidden">
+        <div className="max-h-[200px] z-10 w-[120px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[110%] py-2 px-2">
           {timeOptions.map((opt: TimeOption) => (
             <button
               key={opt.value}
-              className="availability-interval-dropdown-item"
+              className="border-none outline-none bg-white text-center py-2 px-3 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
               onClick={() => handleTimeChange(opt.value)}
             >
-              {opt.label}
+              <span className="text-body-4 text-text-primary ">
+                {opt.label}
+              </span>
             </button>
           ))}
         </div>

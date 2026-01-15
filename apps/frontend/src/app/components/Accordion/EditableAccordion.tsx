@@ -132,9 +132,7 @@ const FieldComponents: Record<
       placeholder={field.label}
       value={value || []}
       onChange={(e) => onChange(e)}
-      className="min-h-12!"
       options={field.options || []}
-      dropdownClassName="h-fit!"
     />
   ),
   country: ({ field, value, onChange }) => (

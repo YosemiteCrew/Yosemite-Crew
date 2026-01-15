@@ -5,7 +5,6 @@ import Tasks from "../DataTable/Tasks";
 
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 import { useTasksForPrimaryOrg } from "@/app/hooks/useTask";
-import { Secondary } from "../Buttons";
 
 import "./Summary.css";
 
@@ -168,16 +167,10 @@ const AppointmentTask = () => {
         </div>
       </div>
       {activeTable === "Appointments" ? (
-        <Appointments filteredList={filteredList.slice(0, 5)} hideActions />
+        <Appointments filteredList={filteredList} />
       ) : (
-        <Tasks filteredList={filteredTaskList.slice(0, 5)} hideActions />
+        <Tasks filteredList={filteredTaskList} />
       )}
-      <div className="w-full justify-center flex items-center">
-        <Secondary
-          href={activeTable === "Appointments" ? "/appoinments" : "/tasks"}
-          text="See all"
-        />
-      </div>
     </div>
   );
 };
