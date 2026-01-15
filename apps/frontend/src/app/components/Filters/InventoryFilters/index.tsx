@@ -54,7 +54,7 @@ const InventoryFilters = ({
             key={status.key}
             disabled={loading}
             onClick={() => updateFilters({ status: status.key })}
-            className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
+            className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
             style={
               status.key === filters.status
                 ? {

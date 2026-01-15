@@ -117,8 +117,7 @@ const Forms = () => {
             </span>
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
-            Build and reuse forms templates, link them to services, and track
-            drafts and submitted responses for every patient visit.
+            Build and reuse forms templates, link them to services, and use custom available templates.
           </p>
         </div>
         <Primary href="#" text="Add" onClick={openAddForm} />
