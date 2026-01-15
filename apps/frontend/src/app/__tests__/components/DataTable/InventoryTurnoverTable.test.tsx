@@ -66,44 +66,44 @@ describe("InventoryTurnoverTable Component", () => {
   describe("getStatusStyle", () => {
     it("returns correct style for excellent", () => {
       expect(getStatusStyle("Excellent")).toEqual({
-        color: "#54B492",
-        backgroundColor: "#E6F4EF",
+        color: "#F7F7F7",
+        backgroundColor: "#747283",
       });
     });
     it("returns correct style for low", () => {
       expect(getStatusStyle("Low")).toEqual({
-        color: "#EA3729",
-        backgroundColor: "#FDEBEA",
+        color: "#F7F7F7",
+        backgroundColor: "#D28F9A",
       });
     });
     it("returns correct style for moderate", () => {
       expect(getStatusStyle("Moderate")).toEqual({
-        color: "#F68523",
-        backgroundColor: "#FEF3E9",
+        color: "#F7F7F7",
+        backgroundColor: "#BF9FAA",
       });
     });
     it("returns correct style for out of stock", () => {
       expect(getStatusStyle("Out of stock")).toEqual({
-        color: "#302f2e",
-        backgroundColor: "#eaeaea",
+        color: "#F7F7F7",
+        backgroundColor: "#D28F9A",
       });
     });
     it("returns correct style for healthy", () => {
       expect(getStatusStyle("Healthy")).toEqual({
-        color: "#247AED",
-        backgroundColor: "#EAF3FF",
+        color: "#F7F7F7",
+        backgroundColor: "#D9A488",
       });
     });
     it("returns default style for unknown", () => {
       expect(getStatusStyle("Unknown")).toEqual({
-        color: "#6b7280",
-        backgroundColor: "rgba(107,114,128,0.1)",
+        color: "#F7F7F7",
+        backgroundColor: "#A8A181",
       });
     });
     it("handles undefined status gracefully", () => {
       expect(getStatusStyle()).toEqual({
-        color: "#6b7280",
-        backgroundColor: "rgba(107,114,128,0.1)",
+        color: "#F7F7F7",
+        backgroundColor: "#A8A181",
       });
     });
   });

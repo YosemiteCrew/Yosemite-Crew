@@ -37,6 +37,7 @@ jest.mock("react-icons/io", () => ({
       +
     </button>
   ),
+  IoIosWarning: () => <span data-testid="warning-icon">!</span>,
 }));
 
 // 3. Mock UI Components
