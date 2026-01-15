@@ -1,6 +1,6 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import {
@@ -131,17 +131,13 @@ const Details = ({
               error={formDataErrors.description}
               className="min-h-12!"
             />
-            <Dropdown
+            <LabelDropdown
               placeholder="Category"
-              value={formData.category || ""}
-              onChange={(e) => handleCategoryChange(e as FormsCategory)}
-              className="min-h-12!"
-              dropdownClassName="top-[55px]! !h-fit"
-              options={FormsCategoryOptions}
+              defaultOption={formData.category || ""}
+              onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
+              options={FormsCategoryOptions.map((cat) => ({ label: cat, value: cat }))}
+              error={formDataErrors.category}
             />
-            {formDataErrors.category && (
-              <span className="text-red-500 text-sm">{formDataErrors.category}</span>
-            )}
           </div>
         </Accordion>
         <Accordion
@@ -151,15 +147,13 @@ const Details = ({
           isEditing={true}
         >
           <div className="flex flex-col gap-3">
-            <Dropdown
+            <LabelDropdown
               placeholder="Visibility type"
-              value={formData.usage}
-              onChange={(e) =>
-                setFormData({ ...formData, usage: e as FormsUsage })
+              defaultOption={formData.usage}
+              onSelect={(option) =>
+                setFormData({ ...formData, usage: option.value as FormsUsage })
               }
-              className="min-h-12!"
-              dropdownClassName="top-[55px]! !h-fit"
-              options={FormsUsageOptions}
+              options={FormsUsageOptions.map((opt) => ({ label: opt, value: opt }))}
             />
             <MultiSelectDropdown
               placeholder={formData.category === "Custom" ? "Service (Optional)" : "Service"}

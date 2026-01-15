@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo } from "react";
 import { InventoryFiltersState } from "@/app/pages/Inventory/types";
-import Search from "../../Inputs/Search";
-import Dropdown from "../../Inputs/Dropdown/Dropdown";
+import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
 
+// Colors match getStatusBadgeStyle in utils.ts for consistency with table badges
 const Statuses = [
-  { name: "All", key: "ALL", bg: "#747283", text: "#F7F7F7" },
+  { name: "All", key: "ALL", bg: "#247AED", text: "#EAF3FF" },
   { name: "Active", key: "ACTIVE", bg: "#F1D4B0", text: "#302f2e" },
   { name: "Hidden", key: "HIDDEN", bg: "#A8A181", text: "#F7F7F7" },
   { name: "Low stock", key: "LOW_STOCK", bg: "#BF9FAA", text: "#F7F7F7" },
@@ -47,21 +47,8 @@ const InventoryFilters = ({
   };
 
   return (
-    <div className="w-full flex flex-col gap-3 min-[1520px]:flex-row min-[1520px]:items-center min-[1520px]:justify-between">
-      <div className="flex items-center gap-3 flex-1 flex-wrap">
-        <div className="min-w-[220px]">
-          <Dropdown
-            placeholder="Category"
-            value={filters.category}
-            onChange={(val: string) => updateFilters({ category: val })}
-            options={categoryOptions}
-            className="min-h-12!"
-            dropdownClassName="top-[55px]! !h-fit"
-            disabled={loading}
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap md:justify-start min-[1520px]:justify-end">
+    <div className="w-full flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
         {Statuses.map((status) => (
           <button
             key={status.key}
@@ -80,6 +67,14 @@ const InventoryFilters = ({
             {status.name}
           </button>
         ))}
+      </div>
+      <div className="w-full sm:w-[220px] min-w-[180px]">
+        <LabelDropdown
+          placeholder="Category"
+          options={categoryOptions}
+          defaultOption={filters.category}
+          onSelect={(option) => updateFilters({ category: option.value })}
+        />
       </div>
     </div>
   );

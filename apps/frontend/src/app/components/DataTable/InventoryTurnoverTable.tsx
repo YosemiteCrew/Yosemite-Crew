@@ -21,17 +21,17 @@ export const getStatusStyle = (status?: string) => {
   const key = (status || "").toLowerCase();
   switch (key) {
     case "excellent":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#F7F7F7", backgroundColor: "#747283" };
     case "low":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
+      return { color: "#F7F7F7", backgroundColor: "#D28F9A" };
     case "moderate":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+      return { color: "#F7F7F7", backgroundColor: "#BF9FAA" };
     case "out of stock":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+      return { color: "#F7F7F7", backgroundColor: "#D28F9A" };
     case "healthy":
-      return { color: "#247AED", backgroundColor: "#EAF3FF" };
+      return { color: "#F7F7F7", backgroundColor: "#D9A488" };
     default:
-      return { color: "#6b7280", backgroundColor: "rgba(107,114,128,0.1)" };
+      return { color: "#F7F7F7", backgroundColor: "#A8A181" };
   }
 };
 

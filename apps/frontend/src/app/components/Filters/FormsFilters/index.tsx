@@ -6,7 +6,7 @@ import {
   FormsStatusFilters,
 } from "@/app/types/forms";
 import React, { useEffect, useMemo, useState } from "react";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 
 type FormsFiltersProps = {
   list: FormsProps[];
@@ -17,6 +17,15 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
   const [activeStatus, setActiveStatus] = useState<FormsStatus | "All">("All");
   const [activeCategory, setActiveCategory] = useState<FormsCategory | "All">(
     "All"
+  );
+
+  const categoryOptions = useMemo(
+    () =>
+      ["All", ...FormsCategoryOptions].map((cat) => ({
+        label: cat,
+        value: cat,
+      })),
+    []
   );
 
   const filteredList = useMemo(() => {
@@ -35,32 +44,26 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
 
   return (
     <div className="w-full flex items-center justify-between flex-wrap gap-3">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          {FormsStatusFilters.map((status) => (
-            <button
-              key={status}
-              onClick={() => setActiveStatus(status)}
-              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${status === activeStatus ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-        <div className="flex">
-          <Dropdown
-            placeholder="Category"
-            value={activeCategory}
-            onChange={(val) => {
-              const next =
-                (val as FormsCategory | "All") || "All";
-              setActiveCategory(next);
-            }}
-            className="h-10! min-h-10! w-full sm:w-[220px]! min-w-[180px]!"
-            dropdownClassName="top-[55px]! !h-fit min-w-[220px]! w-full sm:w-auto"
-            options={["All", ...FormsCategoryOptions]}
-          />
-        </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        {FormsStatusFilters.map((status) => (
+          <button
+            key={status}
+            onClick={() => setActiveStatus(status)}
+            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${status === activeStatus ? "bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+      <div className="w-full sm:w-[220px] min-w-[180px]">
+        <LabelDropdown
+          placeholder="Category"
+          options={categoryOptions}
+          defaultOption={activeCategory}
+          onSelect={(option) => {
+            setActiveCategory(option.value as FormsCategory | "All");
+          }}
+        />
       </div>
     </div>
   );

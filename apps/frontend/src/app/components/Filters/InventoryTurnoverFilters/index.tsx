@@ -50,7 +50,7 @@ const InventoryTurnoverFilters = ({
           <button
             key={category.key}
             onClick={() => setActiveCategory(category.key)}
-            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! ${category.key === activeCategory ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border!"}`}
+            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${category.key === activeCategory ? "bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border! hover:bg-card-hover!"}`}
           >
             {category.name}
           </button>

@@ -2,7 +2,7 @@ import React from "react";
 import Accordion from "../Accordion/Accordion";
 import { Primary, Secondary } from "../Buttons";
 import FormInput from "../Inputs/FormInput/FormInput";
-import Dropdown from "../Inputs/Dropdown/Dropdown";
+import LabelDropdown from "../Inputs/Dropdown/LabelDropdown";
 import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import FormDesc from "../Inputs/FormDesc/FormDesc";
 import Datepicker from "../Inputs/Datepicker";
@@ -149,16 +149,17 @@ const FormSection: React.FC<FormSectionProps> = ({
     }
 
     if (component === "dropdown") {
+      const dropdownOptions = (options || []).map((opt) =>
+        typeof opt === "string" ? { label: opt, value: opt } : opt
+      );
       return (
-        <Dropdown
+        <LabelDropdown
           key={key ?? field.name}
           placeholder={placeholder || ""}
-          value={value}
-          onChange={(v) => handleChange(field, v, index)}
+          defaultOption={value}
+          onSelect={(opt) => handleChange(field, opt.value, index)}
           error={error}
-          className="min-h-12!"
-          dropdownClassName="top-[55px]! !h-fit max-h-[180px]!"
-          options={options || []}
+          options={dropdownOptions}
         />
       );
     }
