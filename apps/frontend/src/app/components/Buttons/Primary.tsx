@@ -14,9 +14,8 @@ type ButtonProps = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: "py-[12px] text-body-4-emphasis",
-  large:
-    "py-[12px] text-body-4-emphasis md:py-[15px] md:text-body-3-emphasis",
+  default: "py-[12px]",
+  large: "py-[12px] md:py-[15px]",
 };
 
 const Primary = ({
@@ -29,7 +28,7 @@ const Primary = ({
   size = "default",
 }: Readonly<ButtonProps>) => {
   const baseClasses =
-    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105";
+    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 font-satoshi text-[18px] font-medium leading-[26px] text-center";
 
   return (
     <Link

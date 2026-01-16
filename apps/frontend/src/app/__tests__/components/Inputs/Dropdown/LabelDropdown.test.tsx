@@ -1,78 +1,64 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 
 jest.mock("react-icons/fa6", () => ({
-  FaCaretDown: () => <span data-testid="caret" />,
+  FaCaretDown: () => <span data-testid="icon-caret" />,
 }));
 
 jest.mock("react-icons/io", () => ({
-  IoIosWarning: () => <span data-testid="warning" />,
+  IoIosWarning: () => <span data-testid="icon-warning" />,
 }));
 
 describe("LabelDropdown", () => {
   const options = [
-    { key: "one", label: "One" },
-    { key: "two", label: "Two" },
+    { label: "Dog", value: "dog" },
+    { label: "Cat", value: "cat" },
   ];
 
-  it("renders placeholder and opens options", () => {
-    const onSelect = jest.fn();
+  it("renders placeholder and error when no selection", () => {
     render(
       <LabelDropdown
-        placeholder="Select"
-        options={options}
-        onSelect={onSelect}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button"));
-    expect(screen.getByText("One")).toBeInTheDocument();
-    expect(screen.getByText("Two")).toBeInTheDocument();
-  });
-
-  it("selects option and calls onSelect", () => {
-    const onSelect = jest.fn();
-    render(
-      <LabelDropdown
-        placeholder="Select"
-        options={options}
-        onSelect={onSelect}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button"));
-    fireEvent.click(screen.getByText("Two"));
-
-    expect(onSelect).toHaveBeenCalledWith(options[1]);
-  });
-
-  it("shows error when provided and no selection", () => {
-    render(
-      <LabelDropdown
-        placeholder="Select"
+        placeholder="Species"
         options={options}
         onSelect={jest.fn()}
         error="Required"
       />
     );
 
+    expect(screen.getByText("Species")).toBeInTheDocument();
     expect(screen.getByText("Required")).toBeInTheDocument();
-    expect(screen.getByTestId("warning")).toBeInTheDocument();
+    expect(screen.getByTestId("icon-warning")).toBeInTheDocument();
   });
 
-  it("shows default selection when defaultOption is set", () => {
+  it("opens and selects an option", () => {
+    const onSelect = jest.fn();
     render(
       <LabelDropdown
-        placeholder="Select"
+        placeholder="Species"
         options={options}
-        defaultOption="two"
+        onSelect={onSelect}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(screen.getByText("Cat"));
+
+    expect(onSelect).toHaveBeenCalledWith({ label: "Cat", value: "cat" });
+    expect(screen.getByText("Cat")).toBeInTheDocument();
+  });
+
+  it("preselects default option", () => {
+    render(
+      <LabelDropdown
+        placeholder="Species"
+        options={options}
+        defaultOption="dog"
         onSelect={jest.fn()}
       />
     );
 
-    expect(screen.getByText("Two")).toBeInTheDocument();
+    expect(screen.getByText("Dog")).toBeInTheDocument();
   });
 });

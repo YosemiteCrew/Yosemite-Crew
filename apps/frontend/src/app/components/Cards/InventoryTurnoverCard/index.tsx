@@ -1,5 +1,8 @@
 import React from "react";
-import { getStatusStyle } from "../../DataTable/InventoryTurnoverTable";
+import {
+  formatTurnoverStatus,
+  getStatusStyle,
+} from "../../DataTable/InventoryTurnoverTable";
 
 const InventoryTurnoverCard = ({ item }: any) => {
   const averageInventory = item.averageInventory ?? item.avgInventory ?? 0;
@@ -56,7 +59,7 @@ const InventoryTurnoverCard = ({ item }: any) => {
         style={getStatusStyle(item.status)}
         className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
-        {item.status || "—"}
+        {formatTurnoverStatus(item.status)}
       </div>
     </div>
   );

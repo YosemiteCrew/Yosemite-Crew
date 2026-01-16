@@ -27,6 +27,7 @@ type CompanionsTableProps = {
   setActiveCompanion: (companion: CompanionParent) => void;
   setViewCompanion: (open: boolean) => void;
   setBookAppointment: (open: boolean) => void;
+  setAddTask: (open: boolean) => void;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -48,6 +49,7 @@ const CompanionsTable = ({
   setActiveCompanion,
   setViewCompanion,
   setBookAppointment,
+  setAddTask,
 }: CompanionsTableProps) => {
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
@@ -57,6 +59,11 @@ const CompanionsTable = ({
   const handleBookAppointment = (companion: CompanionParent) => {
     setActiveCompanion(companion);
     setBookAppointment(true);
+  };
+
+  const handleAddTask = (companion: CompanionParent) => {
+    setActiveCompanion(companion);
+    setAddTask(true);
   };
 
   const columns: Column<CompanionParent>[] = [
@@ -183,7 +190,10 @@ const CompanionsTable = ({
           >
             <FaCalendar size={14} color="#302F2E" />
           </button>
-          <button className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer">
+          <button
+            onClick={() => handleAddTask(item)}
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          >
             <FaTasks size={14} color="#302F2E" />
           </button>
         </div>
@@ -194,7 +204,13 @@ const CompanionsTable = ({
   return (
     <div className="w-full">
       <div className="hidden xl:flex">
-        <GenericTable data={filteredList} columns={columns} bordered={false} />
+        <GenericTable
+          data={filteredList}
+          columns={columns}
+          bordered={false}
+          pagination
+          pageSize={5}
+        />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {(() => {
@@ -211,6 +227,7 @@ const CompanionsTable = ({
               companion={companion}
               handleViewCompanion={handleViewCompanion}
               handleBookAppointment={handleBookAppointment}
+              handleAddTask={handleAddTask}
             />
           ));
         })()}

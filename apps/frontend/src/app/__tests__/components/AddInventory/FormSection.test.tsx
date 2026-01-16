@@ -37,11 +37,11 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => (props: any) => (
   />
 ));
 
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => (props: any) => (
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => (props: any) => (
   <select
     data-testid={`dropdown-${props.placeholder}`}
-    value={props.value}
-    onChange={(e) => props.onChange(e.target.value)}
+    value={props.defaultOption}
+    onChange={(e) => props.onSelect({ value: e.target.value, label: e.target.value })}
   >
     <option value="">Select</option>
     {props.options.map((o: any) => (

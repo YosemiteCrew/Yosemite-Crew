@@ -37,6 +37,7 @@ jest.mock("react-icons/io", () => ({
       +
     </button>
   ),
+  IoIosWarning: () => <span data-testid="warning-icon">!</span>,
 }));
 
 // 3. Mock UI Components
@@ -284,8 +285,8 @@ describe("Build Component", () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId("add-icon"));
-    fireEvent.click(screen.getByText("Input"));
+    fireEvent.click(screen.getAllByTestId("add-icon")[0]);
+    fireEvent.click(screen.getByText("Short Text"));
 
     expect(mockSetFormData).toHaveBeenCalled();
     const lastCall = mockSetFormData.mock.calls.at(-1)!;
@@ -306,8 +307,8 @@ describe("Build Component", () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId("add-icon"));
-    fireEvent.click(screen.getByText("Service group"));
+    fireEvent.click(screen.getAllByTestId("add-icon")[0]);
+    fireEvent.click(screen.getByText("Services"));
 
     const lastCall = mockSetFormData.mock.calls.at(-1)!;
     const updater = lastCall[0];
@@ -502,7 +503,7 @@ describe("Build Component", () => {
     // Click the FIRST one (root level)
     fireEvent.click(addButtons[0]);
 
-    fireEvent.click(screen.getByText("Medication group"));
+    fireEvent.click(screen.getByText("Medications"));
     const lastCall = mockSetFormData.mock.calls.at(-1)!;
 
     const updater = lastCall[0];
@@ -525,8 +526,8 @@ describe("Build Component", () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId("add-icon"));
-    expect(screen.getByText("Input")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByTestId("add-icon")[0]);
+    expect(screen.getByText("Short Text")).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText("Input")).not.toBeInTheDocument();

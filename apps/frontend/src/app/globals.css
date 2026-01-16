@@ -167,11 +167,12 @@
   
   --color-input-text-placeholder: var(--color-neutral-700);
   --color-input-text-placeholder-active: var(--color-brand-950);
-  --color-input-border-default: var(--color-neutral-200);
+  --color-input-border-default: var(--color-neutral-100);
   --color-input-border-error: var(--color-danger-600);
   --color-input-border-active: var(--color-brand-950);
 
   --color-card-hover: #f7f7f7;
+  --color-card-warning: #fef3e9;
 
   --color-black-text: #302f2e;
   --color-black-bg: #302f2e;
@@ -302,17 +303,17 @@ input[type="number"] {
 
   /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
   .text-heading-1 {
-    @apply font-satoshi text-[1.75rem] font-normal leading-[2.125rem] tracking-[-0.035rem];
+    @apply font-satoshi text-[1.75rem] font-medium leading-[2.125rem] tracking-[-0.035rem];
   }
 
   /* Heading - 22px/1.375rem - Subsection titles | 24px Mobile */
   .text-heading-2 {
-    @apply font-satoshi text-[1.375rem] font-normal leading-[1.75rem] tracking-[-0.0275rem];
+    @apply font-satoshi text-[1.375rem] font-medium leading-[1.75rem] tracking-[-0.0275rem];
   }
 
   /* Heading - 20px/1.25rem - Section headings | 16px Mobile */
   .text-heading-3 {
-    @apply font-satoshi text-[1.25rem] font-normal leading-[1.5rem];
+    @apply font-satoshi text-[1.25rem] font-medium leading-[1.5rem];
   }
 
   /* Body - 24px/1.5rem - Large emphasized body (Mobile heading) */

@@ -1,72 +1,8 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-
 import PersonalStep from "@/app/components/Steps/TeamOnboarding/PersonalStep";
-
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text }: any) => <button type="button">{text}</button>,
-}));
-
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
-    <label>
-      {inlabel}
-      <input aria-label={inlabel} value={value ?? ""} onChange={onChange} />
-      {error ? <span>{error}</span> : null}
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
-    <label>
-      {inlabel}
-      <input aria-label={inlabel} value={value ?? ""} onChange={onChange} />
-      {error ? <span>{error}</span> : null}
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/UploadImage/LogoUploader", () => ({
-  __esModule: true,
-  default: () => <div data-testid="logo-uploader" />,
-}));
-
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
-  __esModule: true,
-  default: ({ placeholder, setCurrentDate }: any) => (
-    <button type="button" onClick={() => setCurrentDate(new Date("2025-01-01"))}>
-      {placeholder}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, options = [], onSelect, error }: any) => (
-    <div>
-      <span>{placeholder}</span>
-      {options.map((option: any) => (
-        <button
-          key={`${placeholder}-${option.key}`}
-          type="button"
-          onClick={() => onSelect(option)}
-        >
-          {placeholder}: {option.label}
-        </button>
-      ))}
-      {error ? <div>{error}</div> : null}
-    </div>
-  ),
-}));
+import { UserProfile } from "@/app/types/profile";
 
 jest.mock("@/app/services/profileService", () => ({
   createUserProfile: jest.fn(),
@@ -78,31 +14,107 @@ jest.mock("@/app/utils/validators", () => ({
 }));
 
 jest.mock("@/app/utils/date", () => ({
-  formatDateLocal: jest.fn(() => "2025-01-01"),
+  formatDateLocal: () => "2024-01-01",
+}));
+
+jest.mock("@/app/components/UploadImage/LogoUploader", () => ({
+  __esModule: true,
+  default: ({ title }: any) => <div>{title}</div>,
+}));
+
+jest.mock("@/app/components/Inputs/Datepicker", () => ({
+  __esModule: true,
+  default: ({ placeholder }: any) => <button>{placeholder}</button>,
+}));
+
+jest.mock(
+  "@/app/components/Inputs/GoogleSearchDropDown/GoogleSearchDropDown",
+  () => ({
+    __esModule: true,
+    default: ({ inlabel, value, onChange, error }: any) => (
+      <label>
+        {inlabel}
+        <input value={value} onChange={onChange} aria-label={inlabel} />
+        {error && <span>{error}</span>}
+      </label>
+    ),
+  })
+);
+
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ inlabel, value, onChange, error }: any) => (
+    <label>
+      {inlabel}
+      <input value={value} onChange={onChange} aria-label={inlabel} />
+      {error && <span>{error}</span>}
+    </label>
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+  __esModule: true,
+  default: ({ placeholder, onSelect, error }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onSelect({ value: "USA", label: "USA" })}
+      >
+        {placeholder}
+      </button>
+      {error && <span>{error}</span>}
+    </div>
+  ),
+}));
+
+jest.mock("@/app/components/Buttons", () => ({
+  Primary: ({ onClick, text }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+  Secondary: ({ text }: any) => <button type="button">{text}</button>,
 }));
 
 jest.mock("@iconify/react/dist/iconify.js", () => ({
   Icon: () => <span data-testid="icon" />,
 }));
 
-import { createUserProfile } from "@/app/services/profileService";
-import { getCountryCode, validatePhone } from "@/app/utils/validators";
+const profileService = jest.requireMock("@/app/services/profileService");
+const validators = jest.requireMock("@/app/utils/validators");
 
 describe("PersonalStep", () => {
   const nextStep = jest.fn();
   const setFormData = jest.fn();
+  const baseFormData: UserProfile = {
+    _id: "",
+    organizationId: "",
+    personalDetails: {
+      dateOfBirth: "",
+      phoneNumber: "",
+      gender: "MALE",
+      address: {
+        country: "",
+        addressLine: "",
+        city: "",
+        state: "",
+        postalCode: "",
+      },
+    },
+  } as UserProfile;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (getCountryCode as jest.Mock).mockReturnValue({ dial_code: "+1" });
-    (validatePhone as jest.Mock).mockReturnValue(true);
   });
 
-  it("shows validation errors when required fields are missing", () => {
+  it("shows validation errors for required fields", () => {
+    validators.getCountryCode.mockReturnValue(null);
+    validators.validatePhone.mockReturnValue(false);
+
     render(
       <PersonalStep
         nextStep={nextStep}
-        formData={{ _id: "", organizationId: "" } as any}
+        formData={baseFormData}
         setFormData={setFormData}
         orgIdFromQuery="org-1"
       />
@@ -111,32 +123,35 @@ describe("PersonalStep", () => {
     fireEvent.click(screen.getByText("Next"));
 
     expect(screen.getByText("Date of birth is required")).toBeInTheDocument();
-    expect(screen.getByText("Number is required")).toBeInTheDocument();
-    expect(createUserProfile).not.toHaveBeenCalled();
+    expect(screen.getByText("Valid number is required")).toBeInTheDocument();
+    expect(screen.getByText("Address is required")).toBeInTheDocument();
   });
 
-  it("submits profile when data is valid", async () => {
-    (createUserProfile as jest.Mock).mockResolvedValue({});
+  it("creates profile when data is valid", async () => {
+    validators.getCountryCode.mockReturnValue({ dial_code: "+1" });
+    validators.validatePhone.mockReturnValue(true);
 
     render(
       <PersonalStep
         nextStep={nextStep}
-        formData={{
-          _id: "user-1",
-          organizationId: "org-1",
-          personalDetails: {
-            dateOfBirth: "2025-01-01",
-            phoneNumber: "1234567890",
-            gender: "female",
-            address: {
-              country: "United States",
-              addressLine: "123 Main",
-              city: "Austin",
-              state: "TX",
-              postalCode: "78701",
+        formData={
+          {
+            _id: "",
+            organizationId: "",
+            personalDetails: {
+              dateOfBirth: "2024-01-01",
+              phoneNumber: "123456",
+              gender: "FEMALE",
+              address: {
+                country: "USA",
+                addressLine: "123 Main",
+                city: "Austin",
+                state: "TX",
+                postalCode: "78701",
+              },
             },
-          },
-        } as any}
+          } as UserProfile
+        }
         setFormData={setFormData}
         orgIdFromQuery="org-1"
       />
@@ -145,7 +160,7 @@ describe("PersonalStep", () => {
     fireEvent.click(screen.getByText("Next"));
 
     await waitFor(() => {
-      expect(createUserProfile).toHaveBeenCalled();
+      expect(profileService.createUserProfile).toHaveBeenCalled();
     });
   });
 });

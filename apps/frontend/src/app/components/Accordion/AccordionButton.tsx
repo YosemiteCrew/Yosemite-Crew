@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { IoIosArrowDown } from "react-icons/io";
+import { Secondary } from "../Buttons";
 
 interface AccordionButtonProps {
   title: string;
@@ -21,10 +22,10 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-grey-light px-3 py-4">
+    <div className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${showButton ? "py-2" : "py-[20px]"}`}>
       <div className="flex items-center justify-between">
         <button
-          className="flex items-center gap-3"
+          className="flex items-center gap-2"
           onClick={() => setOpen(!open)}
         >
           <IoIosArrowDown
@@ -34,17 +35,16 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
               open ? "rotate-0" : "-rotate-90"
             }`}
           />
-          <div className="font-grotesk text-black-text text-[33px] font-medium">
+          <div className="text-heading-3 text-text-primary">
             {title}
           </div>
         </button>
-        {showButton && (
-          <button
+        {showButton && buttonTitle && (
+          <Secondary
+            href="#"
             onClick={() => buttonClick(true)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out px-4 py-2 border border-black-text! rounded-2xl! font-grotesk text-black-text text-[16px] font-medium"
-          >
-            {buttonTitle}
-          </button>
+            text={buttonTitle}
+          />
         )}
       </div>
 

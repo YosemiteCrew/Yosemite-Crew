@@ -102,13 +102,13 @@ jest.mock("@/app/components/Inputs/Datepicker", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
-  default: ({ value, onChange }: any) => (
+  default: ({ defaultOption, onSelect }: any) => (
     <select
       data-testid="input-dropdown"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
+      value={defaultOption}
+      onChange={(e) => onSelect({ value: e.target.value, label: e.target.value })}
     >
       <option value="opt1">Option 1</option>
       <option value="opt2">Option 2</option>

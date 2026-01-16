@@ -108,10 +108,17 @@ const Forms = () => {
 
   return (
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
-      <div className="flex justify-between items-center w-full">
-        <div className="text-text-primary text-heading-1">
-          Forms{""}
-          <span className="text-text-tertiary">{" (" + list.length + ")"}</span>
+      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+          <div className="text-text-primary text-heading-1">
+            Forms{""}
+            <span className="text-text-tertiary">
+              {" (" + list.length + ")"}
+            </span>
+          </div>
+          <p className="text-body-3 text-text-secondary max-w-3xl">
+            Build and reuse forms templates, link them to services, and use custom available templates.
+          </p>
         </div>
         <Primary href="#" text="Add" onClick={openAddForm} />
       </div>

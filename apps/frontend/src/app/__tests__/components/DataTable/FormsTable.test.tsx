@@ -105,22 +105,22 @@ describe("FormsTable Component", () => {
   describe("getStatusStyle", () => {
     it("returns correct style for 'Published'", () => {
       const style = getStatusStyle("Published");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
+      expect(style).toEqual({ color: "#F7F7F7", backgroundColor: "#747283" });
     });
 
     it("returns correct style for 'published' (case insensitive)", () => {
       const style = getStatusStyle("published");
-      expect(style).toEqual({ color: "#54B492", backgroundColor: "#E6F4EF" });
+      expect(style).toEqual({ color: "#F7F7F7", backgroundColor: "#747283" });
     });
 
     it("returns correct style for 'Draft'", () => {
       const style = getStatusStyle("Draft");
-      expect(style).toEqual({ color: "#F68523", backgroundColor: "#FEF3E9" });
+      expect(style).toEqual({ color: "#F7F7F7", backgroundColor: "#BF9FAA" });
     });
 
     it("returns default style for unknown status", () => {
       const style = getStatusStyle("Archived");
-      expect(style).toEqual({ color: "#EA3729", backgroundColor: "#FDEBEA" });
+      expect(style).toEqual({ color: "#F7F7F7", backgroundColor: "#D9A488" });
     });
 
     it("returns empty style for empty status", () => {

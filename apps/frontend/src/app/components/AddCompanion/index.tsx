@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import Parent from "./Sections/Parent";
 import Companion from "./Sections/Companion";
 import Modal from "../Modal";
 import SubLabels from "../Labels/SubLabels";
 import { EMPTY_STORED_COMPANION, EMPTY_STORED_PARENT } from "./type";
 import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
+import Close from "../Icons/Close";
 
 const Labels = [
   {
@@ -38,22 +38,12 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add Companion
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add Companion</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
         <SubLabels
@@ -63,7 +53,7 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
           disableClicking
         />
 
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
           {activeLabel === "parents" && (
             <Parent
               setActiveLabel={setActiveLabel}

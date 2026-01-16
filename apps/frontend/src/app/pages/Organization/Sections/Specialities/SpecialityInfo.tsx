@@ -14,8 +14,8 @@ import { SpecialityWeb } from "@/app/types/speciality";
 import { Service, Speciality } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
 import { MdDeleteForever } from "react-icons/md";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import { deleteService } from "@/app/services/serviceService";
+import Close from "@/app/components/Icons/Close";
 
 type SpecialityInfoProps = {
   showModal: boolean;
@@ -95,28 +95,18 @@ const SpecialityInfo = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            View speciality
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">View speciality</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 flex-1 overflow-y-auto">
-          <div className={`px-3! py-2! flex items-center gap-2`}>
+        <div className="flex flex-col gap-6 flex-1 overflow-y-auto scrollbar-hidden">
+          <div className={`flex items-center gap-2`}>
             <div className="flex items-center justify-between w-full">
-              <div className="font-satoshi font-semibold text-black-text text-[23px] overflow-scroll scrollbar-hidden">
+              <div className="text-body-2 text-text-primary">
                 {activeSpeciality.name || "-"}
               </div>
               <MdDeleteForever

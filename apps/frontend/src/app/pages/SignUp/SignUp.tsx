@@ -189,7 +189,7 @@ const SignUp = ({
   return (
     <section
       className={`
-        relative flex w-full flex-1 items-center justify-center
+        relative flex w-full flex-1 min-h-screen items-center justify-center
         bg-[url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')]
         bg-cover bg-center bg-no-repeat
       `}

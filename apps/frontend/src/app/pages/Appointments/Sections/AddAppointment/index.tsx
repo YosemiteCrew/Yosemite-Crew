@@ -5,7 +5,6 @@ import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 import Modal from "@/app/components/Modal";
 import React, { useEffect, useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import Slotpicker from "@/app/components/Inputs/Slotpicker";
 import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
@@ -27,6 +26,7 @@ import {
 } from "@/app/utils/date";
 import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
+import Close from "@/app/components/Icons/Close";
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -151,8 +151,8 @@ const AddAppointment = ({
   const CompanionOptions = useMemo(
     () =>
       companions?.map((companion) => ({
-        value: companion.companion.name,
-        key: companion.companion.id,
+        label: companion.companion.name,
+        value: companion.companion.id,
       })),
     [companions]
   );
@@ -166,7 +166,7 @@ const AddAppointment = ({
       .filter((team) => vetIdSet.has(team._id))
       .map((team) => ({
         label: team.name || team._id,
-        key: team._id,
+        value: team._id,
       }));
   }, [teams, timeSlots, selectedSlot]);
 
@@ -183,7 +183,7 @@ const AddAppointment = ({
     () =>
       specialities?.map((speciality) => ({
         label: speciality.name,
-        key: speciality._id || speciality.name,
+        value: speciality._id || speciality.name,
       })),
     [specialities]
   );
@@ -200,7 +200,7 @@ const AddAppointment = ({
     () =>
       services?.map((service) => ({
         label: service.name,
-        key: service.id,
+        value: service.id,
       })),
     [services]
   );
@@ -325,25 +325,15 @@ const AddAppointment = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add appointment
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add appointment</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto px-4">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
           <div className="flex flex-col gap-6 w-full">
             <Accordion
               title="Companion details"
@@ -387,7 +377,7 @@ const AddAppointment = ({
                         id: "",
                         name: "",
                         speciality: {
-                          id: option.key,
+                          id: option.value,
                           name: option.label,
                         },
                       },
@@ -403,7 +393,7 @@ const AddAppointment = ({
                     setFormData({
                       ...formData,
                       appointmentType: {
-                        id: option.key,
+                        id: option.value,
                         name: option.label,
                         speciality: formData.appointmentType?.speciality ?? {
                           id: "",
@@ -472,7 +462,7 @@ const AddAppointment = ({
                         ...formData,
                         lead: {
                           name: option.label,
-                          id: option.key,
+                          id: option.value,
                         },
                       })
                     }
@@ -497,9 +487,7 @@ const AddAppointment = ({
                         })),
                       });
                     }}
-                    className="min-h-12!"
                     options={TeamOptions}
-                    dropdownClassName="h-fit! max-h-[150px]!"
                   />
                 </div>
               </div>
@@ -530,7 +518,7 @@ const AddAppointment = ({
                   }))
                 }
               />
-              <div className="font-satoshi text-black-text text-[16px] font-semibold">
+              <div className="text-body-4 text-text-primary">
                 I confirm this is an emergency.
               </div>
             </div>

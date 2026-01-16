@@ -42,7 +42,7 @@ const getAppointmentFields = ({
     {
       label: "Status",
       key: "status",
-      type: "text",
+      type: "status",
       editable: false,
     },
   ] satisfies FieldConfig[];

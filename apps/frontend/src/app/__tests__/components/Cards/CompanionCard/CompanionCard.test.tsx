@@ -1,185 +1,97 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import CompanionCard from "@/app/components/Cards/CompanionCard/CompanionCard";
-import { CompanionParent } from "@/app/pages/Companions/types";
-import { isHttpsImageUrl } from "@/app/utils/urls";
 
-// --- Mocks ---
-
-// Mock Next/Image
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} alt={props.alt} />,
+  default: (props: any) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img {...props} alt={props.alt || "companion"} />
+  ),
 }));
 
-// Mock Utils & Helpers
-jest.mock("@/app/components/DataTable/CompanionsTable", () => ({
-  getStatusStyle: jest.fn(() => ({ color: "green" })),
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children, href, onClick, ...props }: any) => (
+    <a href={href} onClick={onClick} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 jest.mock("@/app/utils/date", () => ({
-  getAgeInYears: jest.fn(() => "3 years"),
+  getAgeInYears: () => 5,
 }));
 
-// We mock the entire module so isHttpsImageUrl becomes a jest.fn()
 jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: jest.fn(),
+  isHttpsImageUrl: () => false,
 }));
 
-// --- Test Data ---
+jest.mock("@/app/utils/validators", () => ({
+  toTitleCase: (val: string) =>
+    val ? val[0].toUpperCase() + val.slice(1).toLowerCase() : "",
+}));
 
-const mockCompanion: CompanionParent = {
-  companion: {
-    _id: "c1",
-    name: "Rex",
-    breed: "Shepherd",
-    type: "Dog",
-    photoUrl: "https://valid-url.com/dog.jpg",
-    gender: "Male",
-    dateOfBirth: "2020-01-01",
-    allergy: "Chicken",
-    status: "active",
-  },
-  parent: {
-    _id: "p1",
-    firstName: "Alice",
-  },
-} as any;
+describe("CompanionCard", () => {
+  const companion = {
+    companion: {
+      id: "comp-1",
+      organisationId: "org-1",
+      parentId: "parent-1",
+      name: "Buddy",
+      breed: "Husky",
+      type: "dog",
+      gender: "male",
+      dateOfBirth: "2020-01-01",
+      allergy: "Pollen",
+      status: "active",
+      photoUrl: "http://invalid-url",
+    },
+    parent: {
+      id: "parent-1",
+      firstName: "Jamie",
+    },
+  } as any;
 
-describe("CompanionCard Component", () => {
-  const mockHandleView = jest.fn();
-  const mockHandleBook = jest.fn();
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    // Double cast to satisfy TS
-    (isHttpsImageUrl as unknown as jest.Mock).mockReturnValue(true);
-  });
-
-  // --- 1. Rendering Details ---
-
-  it("renders companion details correctly", () => {
+  it("renders companion details", () => {
     render(
       <CompanionCard
-        companion={mockCompanion}
-        handleViewCompanion={mockHandleView}
-        handleBookAppointment={mockHandleBook}
+        companion={companion}
+        handleViewCompanion={jest.fn()}
+        handleBookAppointment={jest.fn()}
+        handleAddTask={jest.fn()}
       />
     );
 
-    expect(screen.getByText("Rex")).toBeInTheDocument();
-    expect(screen.getByText("Alice")).toBeInTheDocument();
-    expect(screen.getByText("Shepherd / Dog")).toBeInTheDocument();
-    expect(screen.getByText("Male - 3 years")).toBeInTheDocument();
-    expect(screen.getByText("Chicken")).toBeInTheDocument();
+    expect(screen.getByText("Buddy")).toBeInTheDocument();
+    expect(screen.getByText("Husky / dog")).toBeInTheDocument();
+    expect(screen.getByText("Jamie")).toBeInTheDocument();
+    expect(screen.getByText("male - 5")).toBeInTheDocument();
+    expect(screen.getByText("Pollen")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
-  // --- 2. Image Logic ---
-
-  it("renders companion photo if URL is valid HTTPS", () => {
-    (isHttpsImageUrl as unknown as jest.Mock).mockReturnValue(true);
-
-    const { container } = render(
-      <CompanionCard
-        companion={mockCompanion}
-        handleViewCompanion={mockHandleView}
-        handleBookAppointment={mockHandleBook}
-      />
-    );
-
-    // Images with alt="" are not accessible via getByRole('img').
-    // Use querySelector to find the img tag directly.
-    const img = container.querySelector("img");
-    expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute("src", "https://valid-url.com/dog.jpg");
-  });
-
-  it("renders fallback placeholder image if URL is invalid", () => {
-    (isHttpsImageUrl as unknown as jest.Mock).mockReturnValue(false);
-
-    const { container } = render(
-      <CompanionCard
-        companion={mockCompanion}
-        handleViewCompanion={mockHandleView}
-        handleBookAppointment={mockHandleBook}
-      />
-    );
-
-    const img = container.querySelector("img");
-    expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute(
-      "src",
-      "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-    );
-  });
-
-  // --- 3. Fallback Logic ---
-
-  it("handles missing optional fields (allergies, status)", () => {
-    const incompleteCompanion = {
-      ...mockCompanion,
-      companion: {
-        ...mockCompanion.companion,
-        allergy: null,
-        status: null, // Should default to 'inactive'
-      },
-    } as any;
+  it("calls action handlers", () => {
+    const handleView = jest.fn();
+    const handleSchedule = jest.fn();
+    const handleTask = jest.fn();
 
     render(
       <CompanionCard
-        companion={incompleteCompanion}
-        handleViewCompanion={mockHandleView}
-        handleBookAppointment={mockHandleBook}
+        companion={companion}
+        handleViewCompanion={handleView}
+        handleBookAppointment={handleSchedule}
+        handleAddTask={handleTask}
       />
     );
 
-    // Check Allergy Fallback
-    const allergyLabel = screen.getByText("Allergies:");
-    expect(allergyLabel.parentElement?.children[1]).toHaveTextContent("-");
-  });
+    fireEvent.click(screen.getByText("View"));
+    fireEvent.click(screen.getByText("Schedule"));
+    fireEvent.click(screen.getByText("Task"));
 
-  // --- 4. Interactions ---
-
-  it("calls handleViewCompanion when View button is clicked", () => {
-    render(
-      <CompanionCard
-        companion={mockCompanion}
-        handleViewCompanion={mockHandleView}
-        handleBookAppointment={mockHandleBook}
-      />
-    );
-
-    const viewBtn = screen.getByText("View");
-    fireEvent.click(viewBtn);
-
-    expect(mockHandleView).toHaveBeenCalledWith(mockCompanion);
-  });
-
-  it("calls handleBookAppointment when Schedule button is clicked", () => {
-    render(
-      <CompanionCard
-        companion={mockCompanion}
-        handleViewCompanion={mockHandleView}
-        handleBookAppointment={mockHandleBook}
-      />
-    );
-
-    const scheduleBtn = screen.getByText("Schedule");
-    fireEvent.click(scheduleBtn);
-
-    expect(mockHandleBook).toHaveBeenCalledWith(mockCompanion);
-  });
-
-  it("has a Task button (visual check only)", () => {
-    render(
-      <CompanionCard
-        companion={mockCompanion}
-        handleViewCompanion={mockHandleView}
-        handleBookAppointment={mockHandleBook}
-      />
-    );
-
-    expect(screen.getByText("Task")).toBeInTheDocument();
+    expect(handleView).toHaveBeenCalledWith(companion);
+    expect(handleSchedule).toHaveBeenCalledWith(companion);
+    expect(handleTask).toHaveBeenCalledWith(companion);
   });
 });

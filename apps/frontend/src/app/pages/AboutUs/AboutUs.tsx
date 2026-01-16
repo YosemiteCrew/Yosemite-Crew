@@ -46,7 +46,7 @@ const AboutUs = () => {
                   <div className="body">
                     <div className="text-body-3 text-text-secondary">
                       Empower the pet business ecosystem with a platform that
-                      actually works.We&rsquo;ve got your back whether you&rsquo;re a solo
+                      actually works. We&rsquo;ve got your back whether you&rsquo;re a solo
                       vet, a clinic manager, or a tech-savvy developer ready to
                       build tools that matter.
                     </div>

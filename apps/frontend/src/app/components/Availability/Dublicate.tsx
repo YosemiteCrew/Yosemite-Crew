@@ -8,8 +8,6 @@ import {
 } from "./utils";
 import { IoCopy } from "react-icons/io5";
 
-import "./Availability.css";
-
 type DublicateProps = {
   setAvailability: SetAvailability;
   day: string;
@@ -69,42 +67,37 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
   };
 
   return (
-    <div className="availability-dublicate">
+    <div className="relative flex items-center h-[45px]">
       <IoCopy
         color="#000"
         size={20}
-        className="availability-dublicate-icon"
+        className="cursor-pointer"
         onClick={() => setOpen((e) => !e)}
         aria-label="dublicate-button"
       />
       {open && (
-        <div className="availability-dublicate-dropdown">
+        <div className="max-h-[200px] z-10 w-[120px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[120%] py-1 px-1">
           {copyTargets.map((d, i) => (
             <button
               key={d.name}
-              className="availability-dublicate-dropdown-item"
+              className="border-none outline-none bg-white text-left px-2 py-2 flex items-center gap-1"
             >
-              <label
-                htmlFor={`availability-duplicate-${d.name}-check`}
-                className="availability-dublicate-dropdown-item-label"
-              >
-                <input
-                  id={`availability-duplicate-${d.name}-check`}
-                  type="checkbox"
-                  checked={d.active}
-                  disabled={d.disable}
-                  className="availability-dublicate-dropdown-item-check"
-                  onClick={() => handleSelect(d.name)}
-                />
-                <span>{d.name}</span>
-              </label>
+              <input
+                id={`availability-duplicate-${d.name}-check`}
+                type="checkbox"
+                checked={d.active}
+                disabled={d.disable}
+                className="h-4! w-4!"
+                onChange={() => handleSelect(d.name)}
+              />
+              <span className="text-caption-1 text-text-primary">{d.name}</span>
             </button>
           ))}
           <button
-            className="availability-dublicate-dropdown-button"
+            className="border-none outline-none bg-white text-center border-t! border-t-card-border! py-2 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
             onClick={handleApply}
           >
-            Apply
+            <span className="text-caption-1 text-text-primary">Apply</span>
           </button>
         </div>
       )}

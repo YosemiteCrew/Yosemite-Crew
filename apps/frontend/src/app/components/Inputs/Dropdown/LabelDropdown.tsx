@@ -3,7 +3,7 @@ import { FaCaretDown } from "react-icons/fa6";
 import { IoIosWarning } from "react-icons/io";
 
 type Option = {
-  key: string;
+  value: string;
   label: string;
 };
 
@@ -29,7 +29,7 @@ const LabelDropdown = ({
 
   useEffect(() => {
     if (!defaultOption) return;
-    const found = options.find((option) => option.key === defaultOption);
+    const found = options.find((option) => option.value === defaultOption);
     if (found) {
       setSelected(found);
     }
@@ -97,7 +97,7 @@ const LabelDropdown = ({
         <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
           {options.length > 0 && options.map((option, i) => (
             <button
-              key={option.key + i}
+              key={option.value + i}
               className="px-[1.25rem] py-[0.75rem] text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
               onClick={() => {
                 setSelected(option);

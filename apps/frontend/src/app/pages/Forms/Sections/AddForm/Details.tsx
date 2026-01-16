@@ -1,6 +1,6 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary } from "@/app/components/Buttons";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import {
@@ -33,6 +33,7 @@ const Details = ({
     category?: string;
     species?: string;
     description?: string;
+    services?: string;
   }>({});
 
   const handleCategoryChange = (category: FormsCategory) => {
@@ -55,6 +56,7 @@ const Details = ({
       category?: string;
       species?: string;
       description?: string;
+      services?: string;
     } = {};
     if (!formData.name.trim()) {
       errors.name = "Form name is required";
@@ -67,6 +69,10 @@ const Details = ({
     }
     if (!formData.species || formData.species.length === 0) {
       errors.species = "Select at least one species";
+    }
+    // Service is required for all categories except "Custom"
+    if (formData.category !== "Custom" && (!formData.services || formData.services.length === 0)) {
+      errors.services = "Service is required for this form category";
     }
     setFormDataErrors(errors);
     return Object.keys(errors).length === 0;
@@ -125,17 +131,13 @@ const Details = ({
               error={formDataErrors.description}
               className="min-h-12!"
             />
-            <Dropdown
+            <LabelDropdown
               placeholder="Category"
-              value={formData.category || ""}
-              onChange={(e) => handleCategoryChange(e as FormsCategory)}
-              className="min-h-12!"
-              dropdownClassName="top-[55px]! !h-fit"
-              options={FormsCategoryOptions}
+              defaultOption={formData.category || ""}
+              onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
+              options={FormsCategoryOptions.map((cat) => ({ label: cat, value: cat }))}
+              error={formDataErrors.category}
             />
-            {formDataErrors.category && (
-              <span className="text-red-500 text-sm">{formDataErrors.category}</span>
-            )}
           </div>
         </Accordion>
         <Accordion
@@ -145,38 +147,34 @@ const Details = ({
           isEditing={true}
         >
           <div className="flex flex-col gap-3">
-            <Dropdown
+            <LabelDropdown
               placeholder="Visibility type"
-              value={formData.usage}
-              onChange={(e) =>
-                setFormData({ ...formData, usage: e as FormsUsage })
+              defaultOption={formData.usage}
+              onSelect={(option) =>
+                setFormData({ ...formData, usage: option.value as FormsUsage })
               }
-              className="min-h-12!"
-              dropdownClassName="top-[55px]! !h-fit"
-              options={FormsUsageOptions}
+              options={FormsUsageOptions.map((opt) => ({ label: opt, value: opt }))}
             />
             <MultiSelectDropdown
-              placeholder="Service (Optional)"
+              placeholder={formData.category === "Custom" ? "Service (Optional)" : "Service"}
               value={formData.services || []}
-              onChange={(e) => setFormData({ ...formData, services: e })}
-              className="min-h-12!"
+              error={formDataErrors.services}
+              onChange={(e) => {
+                setFormData({ ...formData, services: e });
+                setFormDataErrors((prev) => ({ ...prev, services: undefined }));
+              }}
               options={serviceOptions}
-              dropdownClassName="h-fit! max-h-[150px]!"
             />
             <MultiSelectDropdown
               placeholder="Species"
               value={formData.species || []}
+              error={formDataErrors.species}
               onChange={(e) => {
                 setFormData({ ...formData, species: e });
                 setFormDataErrors((prev) => ({ ...prev, species: undefined }));
               }}
-              className="min-h-12!"
               options={["Dog", "Cat", "Horse"]}
-              dropdownClassName="h-fit!"
             />
-            {formDataErrors.species && (
-              <span className="text-red-500 text-sm">{formDataErrors.species}</span>
-            )}
           </div>
         </Accordion>
       </div>

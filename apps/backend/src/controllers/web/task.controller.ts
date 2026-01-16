@@ -13,7 +13,11 @@ import {
   TaskAudience,
   TaskUpdateInput,
 } from "src/services/task.service";
-import { TaskLibraryService } from "src/services/taskLibrary.service";
+import {
+  CreateTaskLibraryDefinitionInput,
+  TaskLibraryService,
+  UpdateTaskLibraryDefinitionInput,
+} from "src/services/taskLibrary.service";
 import {
   CreateTaskTemplateInput,
   TaskTemplateService,
@@ -415,6 +419,37 @@ export const TaskLibraryController = {
       const id = req.params.libraryId;
       const item = await TaskLibraryService.getById(id);
       res.json(item);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  create: async (
+    req: Request<ParamsDictionary, unknown, CreateTaskLibraryDefinitionInput>,
+    res: Response,
+  ) => {
+    try {
+      const doc = await TaskLibraryService.create(req.body);
+      res.status(201).json(doc);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  update: async (
+    req: Request<
+      { libraryId: string },
+      unknown,
+      UpdateTaskLibraryDefinitionInput
+    >,
+    res: Response,
+  ) => {
+    try {
+      const doc = await TaskLibraryService.update(
+        req.params.libraryId,
+        req.body,
+      );
+      res.json(doc);
     } catch (error) {
       handleError(error, res);
     }

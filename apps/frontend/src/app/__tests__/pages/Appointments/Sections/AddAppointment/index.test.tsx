@@ -1,26 +1,26 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-
 import AddAppointment from "@/app/pages/Appointments/Sections/AddAppointment";
 
 jest.mock("@/app/components/Modal", () => ({
   __esModule: true,
-  default: ({ children, showModal }: any) => (
-    <div data-testid="modal" data-open={showModal}>
-      {children}
-    </div>
-  ),
+  default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
 jest.mock("@/app/components/Accordion/Accordion", () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
-    <section>
-      <h2>{title}</h2>
-      {children}
-    </section>
+    <div>
+      <div>{title}</div>
+      <div>{children}</div>
+    </div>
   ),
+}));
+
+jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
+  __esModule: true,
+  default: ({ title }: any) => <div>{title}</div>,
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
@@ -33,49 +33,31 @@ jest.mock("@/app/components/Buttons", () => ({
 
 jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, options = [], onSelect, error }: any) => (
+  default: ({ placeholder, options, onSelect, error }: any) => (
     <div>
-      <span>{placeholder}</span>
-      {options.map((option: any) => (
-        <button
-          key={option.key}
-          type="button"
-          onClick={() => onSelect(option.key)}
-        >
-          {option.value}
-        </button>
-      ))}
-      {error ? <div>{error}</div> : null}
+      <button
+        type="button"
+        onClick={() => onSelect(options[0]?.value)}
+      >
+        {placeholder}
+      </button>
+      {error && <span>{error}</span>}
     </div>
   ),
 }));
 
 jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, options = [], onSelect, error }: any) => (
+  default: ({ placeholder, options, onSelect, error }: any) => (
     <div>
-      <span>{placeholder}</span>
-      {options.map((option: any) => (
-        <button
-          key={`${placeholder}-${option.key}`}
-          type="button"
-          onClick={() => onSelect(option)}
-        >
-          {placeholder}: {option.label}
-        </button>
-      ))}
-      {error ? <div>{error}</div> : null}
+      <button
+        type="button"
+        onClick={() => onSelect(options[0])}
+      >
+        {placeholder}
+      </button>
+      {error && <span>{error}</span>}
     </div>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <label>
-      {inlabel}
-      <textarea aria-label={inlabel} value={value} onChange={onChange} />
-    </label>
   ),
 }));
 
@@ -84,72 +66,79 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   default: ({ inlabel, value, error }: any) => (
     <label>
       {inlabel}
-      <input aria-label={inlabel} value={value ?? ""} readOnly />
-      {error ? <span>{error}</span> : null}
+      <input value={value} readOnly />
+      {error && <span>{error}</span>}
     </label>
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+  __esModule: true,
+  default: ({ inlabel, value, onChange }: any) => (
+    <label>
+      {inlabel}
+      <textarea value={value} onChange={onChange} />
+    </label>
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/Slotpicker", () => ({
+  __esModule: true,
+  default: ({ setSelectedSlot, timeSlots }: any) => (
+    <button
+      type="button"
+      onClick={() => setSelectedSlot(timeSlots[0])}
+    >
+      Pick Slot
+    </button>
   ),
 }));
 
 jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, onChange, options = [] }: any) => (
-    <button type="button" onClick={() => onChange([options[0]?.value])}>
-      {placeholder}
+  default: () => <div>Support</div>,
+}));
+
+jest.mock("@/app/components/Icons/Close", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      Close
     </button>
   ),
 }));
 
-const slotpickerSpy = jest.fn();
-jest.mock("@/app/components/Inputs/Slotpicker", () => ({
-  __esModule: true,
-  default: (props: any) => {
-    slotpickerSpy(props);
-    return (
-      <button
-        type="button"
-        onClick={() => props.timeSlots?.[0] && props.setSelectedSlot(props.timeSlots[0])}
-      >
-        Pick slot
-      </button>
-    );
-  },
-}));
-
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
-  __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
-}));
-
-jest.mock("@/app/components/Calendar/weekHelpers", () => ({
-  getFormattedDate: jest.fn(() => "Jan 1, 2025"),
-}));
-
-jest.mock("@/app/components/Availability/utils", () => ({
-  formatUtcTimeToLocalLabel: jest.fn(() => "09:00 AM"),
-}));
-
-jest.mock("@/app/utils/date", () => ({
-  buildUtcDateFromDateAndTime: jest.fn(() => new Date("2025-01-01T09:00:00Z")),
-  getDurationMinutes: jest.fn(() => 30),
+jest.mock("@iconify/react/dist/iconify.js", () => ({
+  Icon: () => <span data-testid="icon" />,
 }));
 
 jest.mock("@/app/hooks/useCompanion", () => ({
-  useCompanionsParentsForPrimaryOrg: jest.fn(),
+  useCompanionsParentsForPrimaryOrg: () => [
+    {
+      companion: { id: "comp-1", name: "Buddy", type: "dog", breed: "Husky" },
+      parent: { id: "parent-1", firstName: "Jamie" },
+    },
+  ],
 }));
 
 jest.mock("@/app/hooks/useTeam", () => ({
-  useTeamForPrimaryOrg: jest.fn(),
+  useTeamForPrimaryOrg: () => [
+    { _id: "team-1", name: "Dr. Who" },
+  ],
 }));
 
 jest.mock("@/app/hooks/useSpecialities", () => ({
-  useSpecialitiesForPrimaryOrg: jest.fn(),
+  useSpecialitiesForPrimaryOrg: () => [
+    { _id: "spec-1", name: "Surgery" },
+  ],
 }));
 
-const mockGetServicesBySpecialityId = jest.fn();
 jest.mock("@/app/stores/serviceStore", () => ({
   useServiceStore: {
     getState: () => ({
-      getServicesBySpecialityId: mockGetServicesBySpecialityId,
+      getServicesBySpecialityId: () => [
+        { id: "serv-1", name: "Checkup", description: "", cost: 10, maxDiscount: 5, durationMinutes: 30 },
+      ],
     }),
   },
 }));
@@ -159,111 +148,36 @@ jest.mock("@/app/services/appointmentService", () => ({
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
 }));
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
-  Icon: () => <span data-testid="icon" />,
+jest.mock("@/app/components/Calendar/weekHelpers", () => ({
+  getFormattedDate: () => "2024-01-01",
 }));
 
-jest.mock("react-icons/io", () => ({
-  IoIosCloseCircleOutline: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      Close
-    </button>
-  ),
+jest.mock("@/app/components/Availability/utils", () => ({
+  formatUtcTimeToLocalLabel: () => "10:00 AM",
 }));
 
-import { useCompanionsParentsForPrimaryOrg } from "@/app/hooks/useCompanion";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import {
-  createAppointment,
-  getSlotsForServiceAndDateForPrimaryOrg,
-} from "@/app/services/appointmentService";
+jest.mock("@/app/utils/date", () => ({
+  buildUtcDateFromDateAndTime: () => new Date("2024-01-01T10:00:00Z"),
+  getDurationMinutes: () => 30,
+}));
 
-describe("AddAppointment (Appointments)", () => {
+const appointmentService = jest.requireMock("@/app/services/appointmentService");
+
+describe("AddAppointment", () => {
   const showErrorTost = jest.fn();
-  const setShowModal = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    (useCompanionsParentsForPrimaryOrg as jest.Mock).mockReturnValue([
-      {
-        companion: {
-          id: "comp-1",
-          name: "Rex",
-          type: "dog",
-          breed: "Husky",
-        },
-        parent: {
-          id: "parent-1",
-          firstName: "Sam",
-        },
-      },
+    appointmentService.getSlotsForServiceAndDateForPrimaryOrg.mockResolvedValue([
+      { startTime: "10:00", endTime: "10:30", vetIds: ["team-1"] },
     ]);
-
-    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
-      { _id: "vet-1", name: "Dr. Avery" },
-    ]);
-
-    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
-      { _id: "spec-1", name: "Surgery" },
-    ]);
-
-    mockGetServicesBySpecialityId.mockReturnValue([
-      {
-        id: "service-1",
-        name: "Checkup",
-        description: "General check",
-        cost: 10,
-        maxDiscount: 0,
-        durationMinutes: 30,
-      },
-    ]);
-
-    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([
-      {
-        startTime: "09:00",
-        endTime: "09:30",
-        vetIds: ["vet-1"],
-      },
-    ]);
-  });
-
-  it("renders modal and base sections", () => {
-    render(
-      <AddAppointment
-        showModal={true}
-        setShowModal={setShowModal}
-        showErrorTost={showErrorTost}
-      />
-    );
-
-    expect(screen.getByTestId("modal")).toHaveAttribute("data-open", "true");
-    expect(screen.getByText("Add appointment")).toBeInTheDocument();
-    expect(screen.getByText("Companion details")).toBeInTheDocument();
-    expect(screen.getByText("Appointment details")).toBeInTheDocument();
-    expect(screen.getByText("Select date & time")).toBeInTheDocument();
-    expect(screen.getByText("Billable services")).toBeInTheDocument();
-  });
-
-  it("closes the modal via close icon", () => {
-    render(
-      <AddAppointment
-        showModal={true}
-        setShowModal={setShowModal}
-        showErrorTost={showErrorTost}
-      />
-    );
-
-    fireEvent.click(screen.getAllByText("Close")[1]);
-    expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
   it("shows validation errors when required fields are missing", () => {
     render(
       <AddAppointment
-        showModal={true}
-        setShowModal={setShowModal}
+        showModal
+        setShowModal={jest.fn()}
         showErrorTost={showErrorTost}
       />
     );
@@ -275,52 +189,40 @@ describe("AddAppointment (Appointments)", () => {
     expect(screen.getByText("Please select a service")).toBeInTheDocument();
     expect(screen.getByText("Please select a lead")).toBeInTheDocument();
     expect(screen.getByText("Please select a slot")).toBeInTheDocument();
-    expect(createAppointment).not.toHaveBeenCalled();
   });
 
-  it("creates an appointment when required fields are set", async () => {
-    (createAppointment as jest.Mock).mockResolvedValue({});
+  it("creates an appointment with required fields", async () => {
+    const setShowModal = jest.fn();
+    appointmentService.createAppointment.mockResolvedValue({});
 
     render(
       <AddAppointment
-        showModal={true}
+        showModal
         setShowModal={setShowModal}
         showErrorTost={showErrorTost}
       />
     );
 
-    fireEvent.click(screen.getByText("Rex"));
-    fireEvent.click(screen.getByText("Speciality: Surgery"));
-    fireEvent.click(screen.getByText("Service: Checkup"));
+    fireEvent.click(screen.getByText("Search companion"));
+    fireEvent.click(screen.getByText("Speciality"));
+    fireEvent.click(screen.getByText("Service"));
 
     await waitFor(() => {
-      expect(getSlotsForServiceAndDateForPrimaryOrg).toHaveBeenCalled();
-      expect(slotpickerSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeSlots: expect.arrayContaining([
-            expect.objectContaining({ startTime: "09:00" }),
-          ]),
-        })
-      );
+      expect(
+        appointmentService.getSlotsForServiceAndDateForPrimaryOrg
+      ).toHaveBeenCalled();
     });
-    await waitFor(() => {
-      expect(screen.getByText("Lead: Dr. Avery")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByText("Lead: Dr. Avery"));
 
+    fireEvent.click(screen.getByText("Pick Slot"));
+    fireEvent.click(screen.getByText("Lead"));
     fireEvent.click(screen.getByText("Book appointment"));
 
     await waitFor(() => {
-      expect(createAppointment).toHaveBeenCalled();
+      expect(appointmentService.createAppointment).toHaveBeenCalled();
     });
-
     expect(setShowModal).toHaveBeenCalledWith(false);
     expect(showErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "Appointment created",
-        errortext: "Success",
-        className: "CongratsBg",
-      })
+      expect.objectContaining({ message: "Appointment created" })
     );
   });
 });

@@ -11,7 +11,7 @@ import {
   InsuredOptions,
   NeuteredOptions,
   OriginOptions,
-  SpeciesOptions2,
+  SpeciesOptions,
 } from "../type";
 import Accordion from "../../Accordion/Accordion";
 import FormDesc from "../../Inputs/FormDesc/FormDesc";
@@ -29,7 +29,7 @@ import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
 import { CompanionType } from "@yosemite-crew/types";
 
 type OptionProp = {
-  key: string;
+  label: string;
   value: string;
 };
 
@@ -68,8 +68,8 @@ const Companion = ({
     () =>
       results.map((p) => {
         return {
-          key: p.id,
-          value: `${p.name}`,
+          value: p.id,
+          label: `${p.name}`,
         };
       }),
     [results]
@@ -176,10 +176,6 @@ const Companion = ({
   return (
     <div className="flex flex-col justify-between flex-1 gap-6 w-full">
       <div className="flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[23px]">
-          Companion information
-        </div>
-
         <SearchDropdown
           placeholder="Search companion"
           options={options}
@@ -213,17 +209,17 @@ const Companion = ({
                 onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    type: option.key as CompanionType,
+                    type: option.value as CompanionType,
                   })
                 }
                 defaultOption={formData.type}
-                options={SpeciesOptions2}
+                options={SpeciesOptions}
                 error={formDataErrors.species}
               />
               <LabelDropdown
                 placeholder="Breed"
                 onSelect={(option) =>
-                  setFormData({ ...formData, breed: option.key })
+                  setFormData({ ...formData, breed: option.value })
                 }
                 defaultOption={formData.breed}
                 options={BreedMap[formData.type] ?? []}
@@ -301,7 +297,7 @@ const Companion = ({
             <LabelDropdown
               placeholder="Country of origin (optional)"
               onSelect={(option) =>
-                setFormData({ ...formData, countryOfOrigin: option.key })
+                setFormData({ ...formData, countryOfOrigin: option.value })
               }
               defaultOption={formData.countryOfOrigin}
               options={CountriesOptions}

@@ -14,6 +14,13 @@ export const BusinessTypes: BusinessType[] = [
   "GROOMER",
 ];
 
+export const BusinessOptions = [
+  { label: "Hospital", value: "HOSPITAL" },
+  { label: "Breeder", value: "BREEDER" },
+  { label: "Boarder", value: "BOARDER" },
+  { label: "Groomer", value: "GROOMER" },
+];
+
 export const RolesByBusinessType: string[] = [
   "Owner",
   "Admin",

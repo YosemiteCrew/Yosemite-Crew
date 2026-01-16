@@ -1,17 +1,27 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { BatchValues, InventoryItem } from "@/app/pages/Inventory/types";
 import { BusinessType } from "@/app/types/org";
 import { formatDisplayDate, toStringSafe } from "@/app/pages/Inventory/utils";
-import { ConfigItem, InventoryFormConfig, InventorySectionKey } from "@/app/components/AddInventory/InventoryConfig";
+import {
+  ConfigItem,
+  InventoryFormConfig,
+  InventorySectionKey,
+} from "@/app/components/AddInventory/InventoryConfig";
 import Accordion from "../Accordion/Accordion";
 import { Primary, Secondary } from "../Buttons";
 import Datepicker from "../Inputs/Datepicker";
-import Dropdown from "../Inputs/Dropdown/Dropdown";
+import LabelDropdown from "../Inputs/Dropdown/LabelDropdown";
 import FormInput from "../Inputs/FormInput/FormInput";
 import SubLabels from "../Labels/SubLabels";
 import Modal from "../Modal";
 import InfoSection from "./InfoSection";
+import Close from "../Icons/Close";
 
 const emptyBatch: BatchValues = {
   batch: "",
@@ -32,14 +42,12 @@ type BatchEditorProps = {
   onSave: (values: { newBatches: BatchValues[] }) => Promise<void>;
   onEditingChange?: (editing: boolean) => void;
   onRegisterActions?: (
-    actions:
-      | {
-          save: () => Promise<void>;
-          cancel: () => void;
-          startEditing?: () => void;
-          isEditing?: () => boolean;
-        }
-      | null
+    actions: {
+      save: () => Promise<void>;
+      cancel: () => void;
+      startEditing?: () => void;
+      isEditing?: () => boolean;
+    } | null
   ) => void;
 };
 
@@ -98,14 +106,17 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     onEditingChange?.(isEditing);
   }, [isEditing, onEditingChange]);
 
-  const handleChange = useCallback((index: number, name: keyof BatchValues, value: string) => {
-    setNewBatches((prev) => {
-      const next = [...prev];
-      next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
-      return next;
-    });
-    if (!isEditing) setIsEditing(true);
-  }, [isEditing]);
+  const handleChange = useCallback(
+    (index: number, name: keyof BatchValues, value: string) => {
+      setNewBatches((prev) => {
+        const next = [...prev];
+        next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
+        return next;
+      });
+      if (!isEditing) setIsEditing(true);
+    },
+    [isEditing]
+  );
 
   const addBatch = useCallback(() => {
     setNewBatches((prev) => [...prev, { ...emptyBatch }]);
@@ -150,7 +161,14 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       isEditing: () => isEditing,
     });
     return () => onRegisterActions?.(null);
-  }, [onRegisterActions, handleSave, handleCancel, beginEditing, inventory, isEditing]);
+  }, [
+    onRegisterActions,
+    handleSave,
+    handleCancel,
+    beginEditing,
+    inventory,
+    isEditing,
+  ]);
 
   const normalizeOptions = (
     options?: Array<string | { label: string; value: string }>
@@ -168,11 +186,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     return formatDisplayDate(value) || "—";
   };
 
-  const renderField = (
-    field: any,
-    batchIndex: number,
-    key?: React.Key
-  ) => {
+  const renderField = (field: any, batchIndex: number, key?: React.Key) => {
     const { placeholder, component, options, name } = field;
     const typedName = name as keyof BatchValues;
     const value = newBatches[batchIndex]?.[typedName] ?? "";
@@ -183,7 +197,9 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
         <Datepicker
           key={key ?? name}
           currentDate={currentDate}
-          setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
+          setCurrentDate={(
+            next: Date | null | ((prev: Date | null) => Date | null)
+          ) => {
             const resolved =
               typeof next === "function"
                 ? (next as (prev: Date | null) => Date | null)(currentDate)
@@ -202,15 +218,16 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     }
 
     if (component === "dropdown") {
+      const dropdownOptions = (options || []).map((opt: any) =>
+        typeof opt === "string" ? { label: opt, value: opt } : opt
+      );
       return (
-        <Dropdown
+        <LabelDropdown
           key={key ?? name}
           placeholder={placeholder || ""}
-          value={value}
-          onChange={(v) => handleChange(batchIndex, typedName, v)}
-          className="min-h-12!"
-          dropdownClassName="top-[55px]! !h-fit"
-          options={options || []}
+          defaultOption={value}
+          onSelect={(opt) => handleChange(batchIndex, typedName, opt.value)}
+          options={dropdownOptions}
         />
       );
     }
@@ -228,7 +245,11 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     );
   };
 
-  const getFieldDisplay = (component: string, value: any, normalizedOptions: any[]): string | string[] => {
+  const getFieldDisplay = (
+    component: string,
+    value: any,
+    normalizedOptions: any[]
+  ): string | string[] => {
     if (component === "multiSelect") {
       if (Array.isArray(value)) return value;
       if (typeof value === "string" && value.trim() !== "") {
@@ -347,7 +368,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
             {existingBatches.map((batch, batchIdx) => (
               <div
                 key={batch._id ?? batchIdx}
-                className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
+                className={`flex flex-col gap-3 ${isEditing ? "border border-grey-light rounded-xl p-3" : ""}`}
               >
                 <div className="font-satoshi font-semibold text-black-text">
                   Existing batch {batchIdx + 1}
@@ -488,7 +509,10 @@ const InventoryInfo = ({
     if (!activeInventory || isUpdating || isHiding) return;
     setIsUpdating(true);
     const logValidation = (msg: string, details?: Record<string, any>) => {
-      console.error(`[Inventory] ${msg}`, details ? JSON.stringify(details) : "");
+      console.error(
+        `[Inventory] ${msg}`,
+        details ? JSON.stringify(details) : ""
+      );
     };
 
     const validateBasicInfo = (): Record<string, string> => {
@@ -507,7 +531,8 @@ const InventoryInfo = ({
 
     const validatePricing = (): Record<string, string> => {
       const errs: Record<string, string> = {};
-      const purchase = values.purchaseCost ?? activeInventory.pricing.purchaseCost;
+      const purchase =
+        values.purchaseCost ?? activeInventory.pricing.purchaseCost;
       const selling = values.selling ?? activeInventory.pricing.selling;
       if (purchase === "" || purchase === undefined) {
         errs.purchaseCost = "Purchase cost is required";
@@ -543,11 +568,14 @@ const InventoryInfo = ({
       let updated: InventoryItem;
       if (section === "batch") {
         const newBatches: BatchValues[] =
-          (values as any).newBatches && Array.isArray((values as any).newBatches)
+          (values as any).newBatches &&
+          Array.isArray((values as any).newBatches)
             ? (values as any).newBatches
             : [];
         if (newBatches.length === 0) {
-          logValidation("Batch validation failed: at least one batch required when saving batch section");
+          logValidation(
+            "Batch validation failed: at least one batch required when saving batch section"
+          );
           setIsUpdating(false);
           return;
         }
@@ -557,7 +585,10 @@ const InventoryInfo = ({
         setIsUpdating(false);
         return;
       } else {
-        const sectionErrors: Record<InventorySectionKey, Record<string, string>> = {
+        const sectionErrors: Record<
+          InventorySectionKey,
+          Record<string, string>
+        > = {
           basicInfo: validateBasicInfo(),
           classification: {},
           pricing: validatePricing(),
@@ -650,22 +681,14 @@ const InventoryInfo = ({
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            {activeInventory?.basicInfo.name}
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">
+              {activeInventory?.basicInfo.name}
+            </div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
         <SubLabels
@@ -674,7 +697,7 @@ const InventoryInfo = ({
           setActiveLabel={setActiveLabel}
         />
 
-        <div className="flex overflow-y-auto flex-1">
+        <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
           {activeInventory && (
             <>
               {activeLabel === "batch" ? (
@@ -716,7 +739,12 @@ const InventoryInfo = ({
           />
           <Primary
             href="#"
-            text={getPrimaryButtonText(inEditMode, isUpdating, isHiding, isHidden)}
+            text={getPrimaryButtonText(
+              inEditMode,
+              isUpdating,
+              isHiding,
+              isHidden
+            )}
             onClick={handlePrimaryAction}
             isDisabled={
               (inEditMode && isUpdating) ||

@@ -1,128 +1,18 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-
 import Companion from "@/app/components/AddCompanion/Sections/Companion";
 import {
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
 } from "@/app/components/AddCompanion/type";
-import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ title, children }: any) => (
-    <section>
-      <h2>{title}</h2>
+  default: ({ children, href, onClick, ...props }: any) => (
+    <a href={href} onClick={onClick} {...props}>
       {children}
-    </section>
-  ),
-}));
-
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
-  __esModule: true,
-  default: ({ placeholder, setCurrentDate }: any) => (
-    <button type="button" onClick={() => setCurrentDate(new Date("2020-01-01"))}>
-      {placeholder}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, options = [], onSelect, error }: any) => (
-    <div>
-      <span>{placeholder}</span>
-      <button
-        type="button"
-        onClick={() => options[0] && onSelect(options[0])}
-      >
-        Select
-      </button>
-      {error ? <span>{error}</span> : null}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <label>
-      {inlabel}
-      <textarea
-        aria-label={inlabel}
-        value={value ?? ""}
-        onChange={onChange}
-      />
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
-    <label>
-      {inlabel}
-      <input
-        aria-label={inlabel}
-        value={value ?? ""}
-        onChange={onChange}
-      />
-      {error ? <span>{error}</span> : null}
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, options = [], query, setQuery, onSelect }: any) => (
-    <div>
-      <input
-        placeholder={placeholder}
-        value={query ?? ""}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-      {options.map((option: any) => (
-        <button
-          key={option.key}
-          type="button"
-          onClick={() => onSelect(option.key)}
-        >
-          {option.value}
-        </button>
-      ))}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/SelectLabel", () => ({
-  __esModule: true,
-  default: ({ title, options = [], setOption }: any) => (
-    <div>
-      <span>{title}</span>
-      {options.map((option: any) => (
-        <button
-          key={option.key}
-          type="button"
-          onClick={() => setOption(option.key)}
-        >
-          {option.name ?? option.label}
-        </button>
-      ))}
-    </div>
+    </a>
   ),
 }));
 
@@ -137,84 +27,89 @@ jest.mock("@/app/services/companionService", () => ({
   linkCompanion: jest.fn(),
 }));
 
-import {
-  createCompanion,
-  createParent,
-  getCompanionForParent,
-  linkCompanion,
-} from "@/app/services/companionService";
+jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
+  __esModule: true,
+  default: ({ placeholder, query, setQuery }: any) => (
+    <label>
+      {placeholder}
+      <input
+        aria-label={placeholder}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+    </label>
+  ),
+}));
 
-const baseParent: StoredParent = {
-  ...EMPTY_STORED_PARENT,
-  address: {
-    ...EMPTY_STORED_PARENT.address,
-  },
-};
+jest.mock("@/app/components/Inputs/Datepicker", () => ({
+  __esModule: true,
+  default: ({ placeholder }: any) => (
+    <button type="button">{placeholder}</button>
+  ),
+}));
 
-const buildCompanion = (overrides: Partial<StoredCompanion>) =>
-  ({
-    ...EMPTY_STORED_COMPANION,
-    ...overrides,
-  }) as StoredCompanion;
+const companionService = jest.requireMock("@/app/services/companionService");
 
-describe("<Companion />", () => {
+describe("AddCompanion Companion section", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (getCompanionForParent as jest.Mock).mockResolvedValue([]);
+    companionService.getCompanionForParent.mockResolvedValue([]);
+    companionService.createParent.mockResolvedValue("parent-1");
   });
 
-  it("shows required field errors when missing", () => {
-    const formData = buildCompanion({
-      name: "",
-      type: undefined,
-      breed: "",
-      dateOfBirth: undefined as unknown as Date,
-    });
-
+  it("shows validation errors when required fields are missing", async () => {
     render(
       <Companion
-        formData={formData}
-        setFormData={jest.fn()}
-        parentFormData={baseParent}
-        setParentFormData={jest.fn()}
         setActiveLabel={jest.fn()}
+        formData={{
+          ...EMPTY_STORED_COMPANION,
+          name: "",
+          type: "" as any,
+          breed: "",
+          dateOfBirth: undefined as any,
+        }}
+        setFormData={jest.fn()}
+        parentFormData={{ ...EMPTY_STORED_PARENT, id: "parent-1" }}
+        setParentFormData={jest.fn()}
         setShowModal={jest.fn()}
       />
     );
 
     fireEvent.click(screen.getByText("Save"));
 
-    expect(screen.getByText("Name is required")).toBeInTheDocument();
+    expect(await screen.findByText("Name is required")).toBeInTheDocument();
     expect(screen.getByText("Species is required")).toBeInTheDocument();
     expect(screen.getByText("Breed is required")).toBeInTheDocument();
-    expect(screen.getByText("Date of birth is required")).toBeInTheDocument();
+    expect(
+      screen.getByText("Date of birth is required")
+    ).toBeInTheDocument();
+
+    expect(companionService.createCompanion).not.toHaveBeenCalled();
+    expect(companionService.linkCompanion).not.toHaveBeenCalled();
   });
 
-  it("links an existing companion for an existing parent", async () => {
+  it("creates a new companion for an existing parent", async () => {
     const setShowModal = jest.fn();
     const setActiveLabel = jest.fn();
     const setFormData = jest.fn();
     const setParentFormData = jest.fn();
 
-    const parentFormData: StoredParent = {
-      ...baseParent,
-      id: "parent-1",
-    };
-    const formData = buildCompanion({
-      id: "companion-1",
-      name: "Rex",
-      type: "dog",
-      breed: "1",
-      dateOfBirth: new Date("2020-01-01"),
-    });
+    companionService.createCompanion.mockResolvedValue(undefined);
 
     render(
       <Companion
-        formData={formData}
-        setFormData={setFormData}
-        parentFormData={parentFormData}
-        setParentFormData={setParentFormData}
         setActiveLabel={setActiveLabel}
+        formData={{
+          ...EMPTY_STORED_COMPANION,
+          id: "",
+          name: "Buddy",
+          type: "dog" as any,
+          breed: "husky",
+          dateOfBirth: new Date("2020-01-01"),
+        }}
+        setFormData={setFormData}
+        parentFormData={{ ...EMPTY_STORED_PARENT, id: "parent-1" }}
+        setParentFormData={setParentFormData}
         setShowModal={setShowModal}
       />
     );
@@ -222,21 +117,71 @@ describe("<Companion />", () => {
     fireEvent.click(screen.getByText("Save"));
 
     await waitFor(() => {
-      expect(linkCompanion).toHaveBeenCalled();
+      expect(companionService.createCompanion).toHaveBeenCalled();
     });
 
-    expect(linkCompanion).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "companion-1",
-        parentId: "parent-1",
-      }),
-      parentFormData
-    );
-    expect(createCompanion).not.toHaveBeenCalled();
-    expect(createParent).not.toHaveBeenCalled();
+    expect(companionService.linkCompanion).not.toHaveBeenCalled();
     expect(setShowModal).toHaveBeenCalledWith(false);
-    expect(setActiveLabel).toHaveBeenCalledWith("parents");
     expect(setFormData).toHaveBeenCalledWith(EMPTY_STORED_COMPANION);
     expect(setParentFormData).toHaveBeenCalledWith(EMPTY_STORED_PARENT);
+    expect(setActiveLabel).toHaveBeenCalledWith("parents");
+  });
+
+  it("links an existing companion for the parent", async () => {
+    companionService.linkCompanion.mockResolvedValue(undefined);
+
+    render(
+      <Companion
+        setActiveLabel={jest.fn()}
+        formData={{
+          ...EMPTY_STORED_COMPANION,
+          id: "comp-1",
+          name: "Buddy",
+          type: "dog" as any,
+          breed: "husky",
+          dateOfBirth: new Date("2020-01-01"),
+        }}
+        setFormData={jest.fn()}
+        parentFormData={{ ...EMPTY_STORED_PARENT, id: "parent-1" }}
+        setParentFormData={jest.fn()}
+        setShowModal={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Save"));
+
+    await waitFor(() => {
+      expect(companionService.linkCompanion).toHaveBeenCalled();
+    });
+    expect(companionService.createCompanion).not.toHaveBeenCalled();
+  });
+
+  it("creates a parent before creating a companion when parent is missing", async () => {
+    companionService.createCompanion.mockResolvedValue(undefined);
+
+    render(
+      <Companion
+        setActiveLabel={jest.fn()}
+        formData={{
+          ...EMPTY_STORED_COMPANION,
+          id: "",
+          name: "Buddy",
+          type: "dog" as any,
+          breed: "husky",
+          dateOfBirth: new Date("2020-01-01"),
+        }}
+        setFormData={jest.fn()}
+        parentFormData={{ ...EMPTY_STORED_PARENT, id: "" }}
+        setParentFormData={jest.fn()}
+        setShowModal={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Save"));
+
+    await waitFor(() => {
+      expect(companionService.createParent).toHaveBeenCalled();
+    });
+    expect(companionService.createCompanion).toHaveBeenCalled();
   });
 });

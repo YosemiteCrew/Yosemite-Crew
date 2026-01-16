@@ -3,93 +3,49 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Labels from "@/app/components/Labels/Labels";
 
-const subLabelsMock = jest.fn(
-  ({ labels, setActiveLabel }: any) => (
-    <div data-testid="sub-labels-mock">
-      {labels.map((label: any) => (
-        <button
-          key={label.key}
-          data-testid={`sub-${label.key}`}
-          onClick={() => setActiveLabel(label.key)}
-        >
-          {label.name}
-        </button>
-      ))}
-    </div>
-  )
-);
+describe("Labels", () => {
+  const labels = [
+    {
+      key: "details",
+      name: "Details",
+      labels: [
+        { key: "core", name: "Core" },
+        { key: "history", name: "History" },
+      ],
+    },
+    { key: "documents", name: "Documents", labels: [] },
+  ];
 
-jest.mock("@/app/components/Labels/SubLabels", () => ({
-  __esModule: true,
-  default: (props: any) => subLabelsMock(props),
-}));
-
-const makeIcon =
-  (label: string) =>
-  ({ color }: { color?: string }) =>
-    <span>{`${label} icon (${color})`}</span>;
-
-const LABELS = [
-  {
-    key: "info",
-    name: "Info",
-    icon: makeIcon("Info"),
-    iconSize: 24,
-    labels: [
-      { key: "details", name: "Details" },
-      { key: "care", name: "Care" },
-    ],
-  },
-  {
-    key: "actions",
-    name: "Actions",
-    icon: makeIcon("Actions"),
-    iconSize: 24,
-    labels: [{ key: "log", name: "Log activity" }],
-  },
-];
-
-describe("<Labels />", () => {
-  beforeEach(() => {
-    subLabelsMock.mockClear();
-  });
-
-  test("renders icon buttons and triggers setActiveLabel", () => {
-    const setActiveLabel = jest.fn();
+  it("renders main labels and sublabels for active label", () => {
     render(
       <Labels
-        labels={LABELS}
-        activeLabel="info"
-        setActiveLabel={setActiveLabel}
-        activeSubLabel="details"
+        labels={labels}
+        activeLabel="details"
+        setActiveLabel={jest.fn()}
+        activeSubLabel="core"
         setActiveSubLabel={jest.fn()}
       />
     );
 
-    const actionButton = screen.getByRole("button", { name: /Actions icon/i });
-    fireEvent.click(actionButton);
-    expect(setActiveLabel).toHaveBeenCalledWith("actions");
-    expect(subLabelsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        labels: LABELS[0].labels,
-        activeLabel: "details",
-      })
-    );
+    expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(screen.getByText("Documents")).toBeInTheDocument();
+    expect(screen.getByText("Core")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
   });
 
-  test("forwards sub label interactions to setActiveSubLabel", () => {
-    const setActiveSubLabel = jest.fn();
+  it("calls setActiveLabel when clicking a label", () => {
+    const setActiveLabel = jest.fn();
     render(
       <Labels
-        labels={LABELS}
-        activeLabel="info"
-        setActiveLabel={jest.fn()}
-        activeSubLabel="details"
-        setActiveSubLabel={setActiveSubLabel}
+        labels={labels}
+        activeLabel="details"
+        setActiveLabel={setActiveLabel}
+        activeSubLabel="core"
+        setActiveSubLabel={jest.fn()}
       />
     );
 
-    fireEvent.click(screen.getByTestId("sub-care"));
-    expect(setActiveSubLabel).toHaveBeenCalledWith("care");
+    fireEvent.click(screen.getByText("Documents"));
+    expect(setActiveLabel).toHaveBeenCalledWith("documents");
   });
 });

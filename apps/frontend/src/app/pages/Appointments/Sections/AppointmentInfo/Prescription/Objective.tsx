@@ -34,8 +34,8 @@ const Objective = ({
   const FormOptions = useMemo(
     () =>
       forms?.map((form) => ({
-        key: form._id || form.name,
-        value: form.name,
+        value: form._id || form.name,
+        label: form.name,
       })),
     [forms]
   );

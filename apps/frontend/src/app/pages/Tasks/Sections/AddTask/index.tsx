@@ -1,5 +1,6 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
+import Close from "@/app/components/Icons/Close";
 import Datepicker from "@/app/components/Inputs/Datepicker";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
@@ -11,17 +12,16 @@ import { createTask } from "@/app/services/taskService";
 import { EMPTY_TASK, Task } from "@/app/types/task";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import React, { useEffect, useMemo, useState } from "react";
-import { IoIosCloseCircleOutline } from "react-icons/io";
 
 const TaskSourceOptions = [
-  { key: "YC_LIBRARY", label: "YC Library" },
-  { key: "ORG_TEMPLATE", label: "Org Template" },
-  { key: "CUSTOM", label: "Custom" },
+  { value: "YC_LIBRARY", label: "YC Library" },
+  { value: "ORG_TEMPLATE", label: "Org Template" },
+  { value: "CUSTOM", label: "Custom" },
 ];
 
 const TaskTypeOptions = [
-  { key: "EMPLOYEE_TASK", label: "Employee Task" },
-  { key: "PARENT_TASK", label: "Parent Task" },
+  { value: "EMPLOYEE_TASK", label: "Employee Task" },
+  { value: "PARENT_TASK", label: "Parent Task" },
 ];
 
 type AddTaskProps = {
@@ -54,7 +54,7 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
     () =>
       companions?.map((companion) => ({
         label: companion.name,
-        key: companion.parentId,
+        value: companion.parentId,
       })),
     [companions]
   );
@@ -63,7 +63,7 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
     () =>
       teams?.map((team) => ({
         label: team.name || team._id,
-        key: team._id,
+        value: team._id,
       })),
     [teams]
   );
@@ -128,25 +128,15 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="px-4! py-8! flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            className="opacity-0"
-          />
-          <div className="flex justify-center font-grotesk text-black-text font-medium text-[28px]">
-            Add task
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center items-center gap-2">
+            <div className="text-body-1 text-text-primary">Add task</div>
           </div>
-          <IoIosCloseCircleOutline
-            size={28}
-            color="#302f2e"
-            onClick={() => setShowModal(false)}
-            className="cursor-pointer"
-          />
+          <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
           <Accordion
             title="Add task"
             defaultOpen
@@ -159,7 +149,7 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
                 onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    audience: option.key as any,
+                    audience: option.value as any,
                   })
                 }
                 defaultOption={formData.audience}
@@ -170,7 +160,7 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
                 onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    source: option.key as any,
+                    source: option.value as any,
                   })
                 }
                 defaultOption={formData.source}
@@ -214,7 +204,7 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
                   onSelect={(option) =>
                     setFormData({
                       ...formData,
-                      assignedTo: option.key,
+                      assignedTo: option.value,
                     })
                   }
                   defaultOption={formData.assignedTo}
@@ -225,12 +215,14 @@ const AddTask = ({ showModal, setShowModal, showErrorTost }: AddTaskProps) => {
                 <LabelDropdown
                   placeholder="To"
                   onSelect={(option) => {
-                    const companion = companions?.find((c) => c.id === option.key);
+                    const companion = companions?.find(
+                      (c) => c.id === option.value
+                    );
                     if (companion) {
                       setFormData({
                         ...formData,
                         companionId: companion.id,
-                        assignedTo: option.key,
+                        assignedTo: option.value,
                       });
                     }
                   }}

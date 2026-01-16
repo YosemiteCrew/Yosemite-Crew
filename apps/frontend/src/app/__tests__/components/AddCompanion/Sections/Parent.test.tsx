@@ -1,87 +1,15 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-
 import Parent from "@/app/components/AddCompanion/Sections/Parent";
-import { StoredParent } from "@/app/pages/Companions/types";
+import { EMPTY_STORED_PARENT } from "@/app/components/AddCompanion/type";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ title, children }: any) => (
-    <section>
-      <h2>{title}</h2>
+  default: ({ children, href, onClick, ...props }: any) => (
+    <a href={href} onClick={onClick} {...props}>
       {children}
-    </section>
-  ),
-}));
-
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
-  __esModule: true,
-  default: ({ placeholder, setCurrentDate }: any) => (
-    <button type="button" onClick={() => setCurrentDate(new Date("2020-01-01"))}>
-      {placeholder}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, options = [], onSelect, error }: any) => (
-    <div>
-      <span>{placeholder}</span>
-      <button
-        type="button"
-        onClick={() => options[0] && onSelect(options[0])}
-      >
-        Select
-      </button>
-      {error ? <span>{error}</span> : null}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
-    <label>
-      {inlabel}
-      <input
-        aria-label={inlabel}
-        value={value ?? ""}
-        onChange={onChange}
-      />
-      {error ? <span>{error}</span> : null}
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, options = [], query, setQuery, onSelect }: any) => (
-    <div>
-      <input
-        placeholder={placeholder}
-        value={query ?? ""}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-      {options.map((option: any) => (
-        <button
-          key={option.key}
-          type="button"
-          onClick={() => onSelect(option.key)}
-        >
-          {option.value}
-        </button>
-      ))}
-    </div>
+    </a>
   ),
 }));
 
@@ -98,97 +26,147 @@ jest.mock("@/app/utils/validators", () => ({
   validatePhone: jest.fn(),
 }));
 
-import { searchParent } from "@/app/services/companionService";
-import { getCountryCode, validatePhone } from "@/app/utils/validators";
+jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
+  __esModule: true,
+  default: ({ placeholder, query, setQuery }: any) => (
+    <label>
+      {placeholder}
+      <input
+        aria-label={placeholder}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+    </label>
+  ),
+}));
 
-const baseFormData: StoredParent = {
-  id: "",
-  firstName: "",
-  lastName: "",
-  email: "",
-  birthDate: undefined,
-  phoneNumber: "",
-  address: {
-    addressLine: "",
-    country: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    latitude: undefined,
-    longitude: undefined,
-  },
-  createdFrom: "pms",
-};
+jest.mock("@/app/components/Inputs/Datepicker", () => ({
+  __esModule: true,
+  default: ({ placeholder }: any) => (
+    <button type="button">{placeholder}</button>
+  ),
+}));
 
-describe("<Parent />", () => {
+const companionService = jest.requireMock("@/app/services/companionService");
+const validators = jest.requireMock("@/app/utils/validators");
+
+describe("AddCompanion Parent section", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("fetches parents on query and renders options", async () => {
-    jest.useFakeTimers();
-    (searchParent as jest.Mock).mockResolvedValue([
-      {
-        id: "parent-1",
-        firstName: "Sam",
-        lastName: "Smith",
-      },
-    ]);
+  it("shows validation errors when required fields are missing", async () => {
+    validators.validatePhone.mockReturnValue(true);
+    validators.getCountryCode.mockReturnValue(null);
 
     render(
       <Parent
-        formData={baseFormData}
-        setFormData={jest.fn()}
         setActiveLabel={jest.fn()}
-      />
-    );
-
-    fireEvent.change(screen.getByPlaceholderText("Search parent"), {
-      target: { value: "Sam" },
-    });
-
-    jest.advanceTimersByTime(300);
-
-    await waitFor(() => {
-      expect(searchParent).toHaveBeenCalledWith("Sam");
-      expect(screen.getByText("Sam Smith")).toBeInTheDocument();
-    });
-
-    jest.useRealTimers();
-  });
-
-  it("advances to companion section when required fields are valid", () => {
-    (validatePhone as jest.Mock).mockReturnValue(true);
-    (getCountryCode as jest.Mock).mockReturnValue({ dial_code: "+1" });
-
-    const setActiveLabel = jest.fn();
-    const formData: StoredParent = {
-      ...baseFormData,
-      firstName: "Jane",
-      email: "jane@example.com",
-      phoneNumber: "1234567890",
-      birthDate: new Date("1990-01-01"),
-      address: {
-        ...baseFormData.address,
-        country: "United States",
-        addressLine: "123 Main",
-        city: "Austin",
-        state: "TX",
-        postalCode: "78701",
-      },
-    };
-
-    render(
-      <Parent
-        formData={formData}
+        formData={EMPTY_STORED_PARENT}
         setFormData={jest.fn()}
-        setActiveLabel={setActiveLabel}
       />
     );
 
     fireEvent.click(screen.getByText("Next"));
 
-    expect(setActiveLabel).toHaveBeenCalledWith("companion");
-    expect(screen.queryByText("Valid number is required")).not.toBeInTheDocument();
+    expect(await screen.findByText("First name is required")).toBeInTheDocument();
+    expect(screen.getByText("Email is required")).toBeInTheDocument();
+    expect(screen.getByText("Number is required")).toBeInTheDocument();
+    expect(screen.getByText("Date of birth is required")).toBeInTheDocument();
+    expect(screen.getByText("Address is required")).toBeInTheDocument();
+    expect(screen.getByText("City is required")).toBeInTheDocument();
+    expect(screen.getByText("Postal code is required")).toBeInTheDocument();
+    expect(screen.getByText("State is required")).toBeInTheDocument();
+  });
+
+  it("validates phone number with country code when needed", async () => {
+    validators.validatePhone.mockReturnValue(false);
+    validators.getCountryCode.mockReturnValue({ dial_code: "+1" });
+
+    render(
+      <Parent
+        setActiveLabel={jest.fn()}
+        formData={{
+          ...EMPTY_STORED_PARENT,
+          firstName: "Jamie",
+          email: "jamie@test.com",
+          phoneNumber: "123456",
+          birthDate: new Date("1990-01-01"),
+          address: {
+            ...EMPTY_STORED_PARENT.address,
+            country: "United States",
+            addressLine: "123 Test",
+            city: "Austin",
+            state: "TX",
+            postalCode: "78701",
+          },
+        }}
+        setFormData={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Next"));
+
+    expect(await screen.findByText("Valid number is required")).toBeInTheDocument();
+  });
+
+  it("advances to companion section when data is valid", async () => {
+    const setActiveLabel = jest.fn();
+    validators.validatePhone.mockReturnValue(true);
+    validators.getCountryCode.mockReturnValue(null);
+
+    render(
+      <Parent
+        setActiveLabel={setActiveLabel}
+        formData={{
+          ...EMPTY_STORED_PARENT,
+          firstName: "Jamie",
+          email: "jamie@test.com",
+          phoneNumber: "123456",
+          birthDate: new Date("1990-01-01"),
+          address: {
+            ...EMPTY_STORED_PARENT.address,
+            country: "United States",
+            addressLine: "123 Test",
+            city: "Austin",
+            state: "TX",
+            postalCode: "78701",
+          },
+        }}
+        setFormData={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Next"));
+
+    await waitFor(() => {
+      expect(setActiveLabel).toHaveBeenCalledWith("companion");
+    });
+  });
+
+  it("searches parents after a debounce", async () => {
+    companionService.searchParent.mockResolvedValue([]);
+    jest.useFakeTimers();
+
+    render(
+      <Parent
+        setActiveLabel={jest.fn()}
+        formData={EMPTY_STORED_PARENT}
+        setFormData={jest.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("Search parent"), {
+      target: { value: "Jamie" },
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(companionService.searchParent).toHaveBeenCalledWith("Jamie");
+    });
+    jest.useRealTimers();
   });
 });

@@ -1,54 +1,43 @@
 import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SubLabels from "@/app/components/Labels/SubLabels";
 
-const LABELS = [
-  { key: "companion", name: "Companion" },
-  { key: "parent", name: "Parent" },
-];
+describe("SubLabels", () => {
+  const labels = [
+    { key: "core", name: "Core" },
+    { key: "history", name: "History" },
+  ];
 
-describe("<SubLabels />", () => {
-  test("renders buttons with active styling and handles clicks", () => {
-    const setActiveLabel = jest.fn();
-    const { container } = render(
+  it("renders status indicators", () => {
+    render(
       <SubLabels
-        labels={LABELS}
-        activeLabel="companion"
-        setActiveLabel={setActiveLabel}
+        labels={labels}
+        activeLabel="core"
+        setActiveLabel={jest.fn()}
+        statuses={{ core: "valid", history: "error" }}
       />
     );
 
-    const wrapper = container.firstChild as HTMLDivElement;
-    expect(wrapper.className).toContain("justify-center");
+    const coreButton = screen.getByText("Core").closest("button");
+    const historyButton = screen.getByText("History").closest("button");
 
-    fireEvent.click(screen.getByRole("button", { name: "Parent" }));
-    expect(setActiveLabel).toHaveBeenCalledWith("parent");
+    expect(within(coreButton!).getByText("•")).toBeInTheDocument();
+    expect(within(historyButton!).getByText("•")).toBeInTheDocument();
   });
 
-  test("switches to justify-start when content overflows", () => {
-    const { container } = render(
+  it("prevents clicking when disabled", () => {
+    const setActiveLabel = jest.fn();
+    render(
       <SubLabels
-        labels={LABELS}
-        activeLabel="companion"
-        setActiveLabel={jest.fn()}
+        labels={labels}
+        activeLabel="core"
+        setActiveLabel={setActiveLabel}
+        disableClicking
       />
     );
-    const wrapper = container.firstChild as HTMLDivElement;
 
-    Object.defineProperty(wrapper, "scrollWidth", {
-      configurable: true,
-      value: 200,
-    });
-    Object.defineProperty(wrapper, "clientWidth", {
-      configurable: true,
-      value: 100,
-    });
-
-    act(() => {
-      globalThis.dispatchEvent(new Event("resize"));
-    });
-
-    expect(wrapper.className).toContain("justify-start");
+    fireEvent.click(screen.getByText("History"));
+    expect(setActiveLabel).not.toHaveBeenCalled();
   });
 });

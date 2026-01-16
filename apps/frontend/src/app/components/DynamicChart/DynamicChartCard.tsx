@@ -11,8 +11,6 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-
-import "./BarGraph.css";
 import { LayoutType } from "recharts/types/util/types";
 
 type ChartProps = {
@@ -81,11 +79,11 @@ const DynamicChartCard: React.FC<ChartProps> = ({
   };
 
   return (
-    <div className="chart-card">
+    <div className="bg-white border border-card-border p-3 flex flex-col gap-2 rounded-2xl">
       {!hideKeys && (
-        <div className="chart-card-labels">
+        <div className="flex items-center justify-center w-full gap-6">
           {keys.map((key) => (
-            <span key={key.name} className="chart-card-label">
+            <span key={key.name} className="flex items-center gap-1.5">
               <span
                 style={{
                   width: "16px",
@@ -95,7 +93,7 @@ const DynamicChartCard: React.FC<ChartProps> = ({
                   display: "inline-block",
                 }}
               />
-              <span>{key.name}</span>
+              <span className="text-capton-1 text-text-primary">{key.name}</span>
             </span>
           ))}
         </div>
@@ -103,7 +101,6 @@ const DynamicChartCard: React.FC<ChartProps> = ({
       <ResponsiveContainer
         width="100%"
         height={300}
-        className={"chard-card-container"}
       >
         {renderChart()}
       </ResponsiveContainer>
