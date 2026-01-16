@@ -15,17 +15,31 @@ import * as streamChatService from "@/app/services/streamChatService";
 // --- Mocks ---
 
 // 1. Mock Stores
-jest.mock("@/app/stores/authStore", () => ({
-  useAuthStore: {
-    getState: jest.fn(),
-  },
-}));
+const mockAuthState: any = {
+  attributes: null,
+  status: "checking",
+  loading: false,
+};
+const mockOrgState: any = {
+  primaryOrgId: null,
+  status: "idle",
+};
 
-jest.mock("@/app/stores/orgStore", () => ({
-  useOrgStore: {
-    getState: jest.fn(),
-  },
-}));
+jest.mock("@/app/stores/authStore", () => {
+  const useAuthStore: any = jest.fn((selector?: any) =>
+    selector ? selector(mockAuthState) : mockAuthState
+  );
+  useAuthStore.getState = jest.fn(() => mockAuthState);
+  return { useAuthStore };
+});
+
+jest.mock("@/app/stores/orgStore", () => {
+  const useOrgStore: any = jest.fn((selector?: any) =>
+    selector ? selector(mockOrgState) : mockOrgState
+  );
+  useOrgStore.getState = jest.fn(() => mockOrgState);
+  return { useOrgStore };
+});
 
 // 2. Mock Services
 jest.mock("@/app/services/streamChatService", () => ({
@@ -107,23 +121,29 @@ jest.mock("../../../components/OrgGuard", () => ({ children }: any) => (
 
 describe("ChatContainer Component", () => {
   const setupStoreSuccess = () => {
-    (useAuthStore.getState as jest.Mock).mockReturnValue({
-      attributes: {
-        sub: "user-123",
-        email: "test@example.com",
-        given_name: "Test",
-        family_name: "User",
-      },
-    });
-    (useOrgStore.getState as jest.Mock).mockReturnValue({
-      primaryOrgId: "org-1",
-    });
+    mockAuthState.attributes = {
+      sub: "user-123",
+      email: "test@example.com",
+      given_name: "Test",
+      family_name: "User",
+    };
+    mockAuthState.status = "authenticated";
+    mockAuthState.loading = false;
+
+    mockOrgState.primaryOrgId = "org-1";
+    mockOrgState.status = "loaded";
+
     (streamChatService.getChatClient as jest.Mock).mockReturnValue(mockClient);
     (streamChatService.connectStreamUser as jest.Mock).mockResolvedValue({});
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuthState.attributes = null;
+    mockAuthState.status = "checking";
+    mockAuthState.loading = false;
+    mockOrgState.primaryOrgId = null;
+    mockOrgState.status = "idle";
     Object.defineProperty(globalThis, "innerWidth", {
       writable: true,
       configurable: true,
@@ -150,26 +170,22 @@ describe("ChatContainer Component", () => {
     expect(await screen.findByTestId("loading-indicator")).toBeInTheDocument();
   });
 
-  it("renders error if user profile is missing", async () => {
-    (useAuthStore.getState as jest.Mock).mockReturnValue({ attributes: null });
-    (useOrgStore.getState as jest.Mock).mockReturnValue({
-      primaryOrgId: "org-1",
-    });
+  it("keeps loading while user profile is not ready", async () => {
+    mockAuthState.attributes = null;
+    mockAuthState.status = "checking";
+    mockOrgState.primaryOrgId = "org-1";
+    mockOrgState.status = "loaded";
 
     render(<ChatContainer />);
 
-    await waitFor(() => {
-      expect(screen.getByText("User profile not loaded")).toBeInTheDocument();
-    });
+    expect(await screen.findByTestId("loading-indicator")).toBeInTheDocument();
   });
 
   it("renders error if connection fails", async () => {
-    (useAuthStore.getState as jest.Mock).mockReturnValue({
-      attributes: { sub: "user-123", email: "test@example.com" },
-    });
-    (useOrgStore.getState as jest.Mock).mockReturnValue({
-      primaryOrgId: "org-1",
-    });
+    mockAuthState.attributes = { sub: "user-123", email: "test@example.com" };
+    mockAuthState.status = "authenticated";
+    mockOrgState.primaryOrgId = "org-1";
+    mockOrgState.status = "loaded";
     (streamChatService.getChatClient as jest.Mock).mockReturnValue({
       ...mockClient,
       userID: "different-id",
@@ -214,7 +230,7 @@ describe("ChatContainer Component", () => {
 
     const channelList = screen.getByTestId("stream-channel-list");
     const previewSpan = within(channelList).getByTestId("preview-messenger");
-    const previewButton = previewSpan.closest("button");
+    const previewButton = previewSpan.closest("[role='button']");
 
     expect(previewButton).toBeInTheDocument();
     fireEvent.click(previewButton!);

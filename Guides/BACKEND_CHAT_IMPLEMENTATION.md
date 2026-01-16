@@ -4,7 +4,10 @@
 
 This guide is for backend engineers implementing Stream Chat token generation, channel management, and webhook handlers for the Yosemite Crew veterinary app.
 
-**Current Status**: Frontend implementation is complete and working. Backend needs to replace mock services with real API endpoints.
+**Current Status**: Frontend implementation is complete and working. Backend needs to replace mock services with real API endpoints and supply metadata for the new chat audiences:
+- **Clients** (pet parents + PMS staff on appointments)
+- **Colleagues** (internal PMS employee 1:1 chat)
+- **Common Groups** (shared rooms/announcements per business)
 
 ---
 
@@ -33,6 +36,20 @@ Backend    → Uses API Secret to Create Channels & Tokens
    - API Secret (keep secure on backend only)
 3. **Node.js >= 20**
 4. **Backend Framework**: Express, NestJS, or your preference
+
+---
+
+## Channel Metadata (frontend expectations)
+
+To power the new chat audience pills on the web app, set these fields whenever you create or update a channel:
+
+- `chatCategory`: one of `client` | `colleague` | `group`
+- `orgId`: business/org identifier (used for colleague/group scoping)
+- `isGroup`: boolean flag for group rooms (also set `member_count` if available)
+- `appointmentId`, `petOwnerName`, `petName`: keep these on appointment/client chats for accurate labels
+- `status`: `'active' | 'ended'` (frontend shows “Session closed” if `status` is `'ended'` or `frozen` is `true`)
+
+Channels without `chatCategory` will default to `colleague` on the frontend, so set it explicitly for client chats to keep them grouped correctly.
 
 ---
 
@@ -275,7 +292,394 @@ export const getAppointmentChannel = async (
 
 ---
 
-### 3. End/Close Chat Channel
+### 3. Create or Get Internal Staff Channel (Colleague → Colleague)
+
+**Purpose**: Allow PMS employees to chat with each other (1:1) inside a business.
+
+**Endpoint**:
+```
+POST /api/chat/channels/internal
+```
+
+**Request**:
+```typescript
+{
+  orgId: string;
+  memberIds: [string, string]; // exactly two users
+  createdBy: string;           // user id creating the channel
+}
+```
+
+**Implementation**:
+```javascript
+app.post('/api/chat/channels/internal', async (req, res) => {
+  try {
+    const { orgId, memberIds, createdBy } = req.body;
+    if (!Array.isArray(memberIds) || memberIds.length !== 2) {
+      return res.status(400).json({ error: 'Exactly two members required' });
+    }
+
+    // Authorize creator belongs to org
+    if (!req.user || req.user.orgId !== orgId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const serverClient = StreamChat.getInstance(
+      process.env.STREAM_API_KEY,
+      process.env.STREAM_API_SECRET
+    );
+
+    // Idempotent: reuse existing DM for this pair if it exists
+    const sortedMembers = [...memberIds].sort();
+    const existing = await serverClient.queryChannels(
+      {
+        type: 'messaging',
+        chatCategory: 'colleague',
+        orgId,
+        members: { $eq: sortedMembers },
+      },
+      [{ last_message_at: -1 }],
+      { limit: 1 }
+    );
+
+    if (existing.length) {
+      const ch = existing[0];
+      return res.json({ channelId: ch.id, channelType: 'messaging', members: sortedMembers });
+    }
+
+    const channelId = `staff-${orgId}-${sortedMembers.join('-')}`;
+
+    const channel = serverClient.channel('messaging', channelId, {
+      name: 'Team chat',
+      members: sortedMembers,
+      orgId,
+      chatCategory: 'colleague',
+      isGroup: false,
+      created_by_id: createdBy,
+      status: 'active',
+    });
+
+    await channel.create();
+    res.json({ channelId, channelType: 'messaging', members: sortedMembers });
+  } catch (error) {
+    console.error('[Stream] Internal channel error:', error);
+    res.status(500).json({ error: 'Failed to create staff channel' });
+  }
+});
+```
+
+**Frontend flow**: User types in search (section 5) → selects a colleague → call this endpoint to reuse/create the DM → channel then appears in the colleague list via the standard channel query.
+
+---
+
+### 4. Create or Get Group Channel (Common room)
+
+**Purpose**: A shared room for all PMS teammates (and optionally clients) inside an org, with optional avatar and controlled membership.
+
+**Endpoint**:
+```
+POST /api/chat/channels/group
+```
+
+**Request**:
+```typescript
+{
+  orgId: string;
+  name: string;
+  memberIds: string[];   // at least two
+  createdBy: string;
+  isReadOnly?: boolean;  // optional broadcast-only mode
+  image?: string;        // optional group avatar URL
+  channelId?: string;    // optional slug/ID; if absent, backend should slugify name
+}
+```
+
+**Implementation**:
+```javascript
+app.post('/api/chat/channels/group', async (req, res) => {
+  try {
+    const {
+      orgId,
+      name,
+      memberIds,
+      createdBy,
+      isReadOnly = false,
+      image,
+      channelId: channelIdInput,
+    } = req.body;
+    if (!Array.isArray(memberIds) || memberIds.length < 2) {
+      return res.status(400).json({ error: 'At least two members required' });
+    }
+
+    const serverClient = StreamChat.getInstance(
+      process.env.STREAM_API_KEY,
+      process.env.STREAM_API_SECRET
+    );
+
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const channelId = channelIdInput || `group-${orgId}-${slug}`;
+
+    const channel = serverClient.channel('messaging', channelId, {
+      name,
+      members: memberIds,
+      orgId,
+      chatCategory: 'group',
+      isGroup: true,
+      status: 'active',
+      created_by_id: createdBy,
+      read_only: isReadOnly,
+      image,
+    });
+
+    await channel.create();
+    res.json({ channelId, channelType: 'messaging', members: memberIds });
+  } catch (error) {
+    console.error('[Stream] Group channel error:', error);
+    res.status(500).json({ error: 'Failed to create group channel' });
+  }
+});
+```
+
+**Frontend flow**: "Create group" modal collects name, optional image URL, and members (from the search endpoint). Call this endpoint to create the group, then call the member update endpoint (section 6) for any subsequent adds/removals.
+
+---
+
+### 5. Search Organisation Colleagues (typeahead for DM and group picker)
+
+**Purpose**: Typeahead search so users can find a teammate by name/email before starting a DM or adding them to a group. UI only shows results, not the entire org list by default.
+
+**Endpoint**:
+```
+GET /api/orgs/:orgId/search
+```
+
+**Query Parameters**:
+```typescript
+{
+  query: string;       // partial name/email
+  limit?: number;      // default 10
+}
+```
+
+**Response**:
+```typescript
+{
+  results: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    image?: string;
+    role?: string;
+  }>;
+}
+```
+
+**Implementation**:
+```javascript
+app.get('/api/orgs/:orgId/search', async (req, res) => {
+  const { orgId } = req.params;
+  const { query, limit = 10 } = req.query;
+
+  if (!query || String(query).trim().length < 2) {
+    return res.status(400).json({ error: 'Query must be at least 2 characters' });
+  }
+
+  if (!req.user || req.user.orgId !== orgId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const results = await UserOrgMapping.find({
+    orgId,
+    $or: [
+      { 'user.firstName': new RegExp(query, 'i') },
+      { 'user.lastName': new RegExp(query, 'i') },
+      { 'user.email': new RegExp(query, 'i') },
+    ],
+  })
+    .limit(Number(limit))
+    .populate('user');
+
+  res.json({
+    results: results.map((m) => ({
+      id: m.user._id.toString(),
+      name: `${m.user.firstName || ''} ${m.user.lastName || ''}`.trim() || m.user.email,
+      email: m.user.email,
+      image: m.user.avatarUrl,
+      role: m.role,
+    })),
+  });
+});
+```
+
+**Frontend flow**: Use this for both DM typeahead and the group member picker; when a user is selected, call the DM endpoint (section 3) or the group member endpoint (section 6).
+
+---
+
+### 6. Add or Remove Group Members (post-creation)
+
+**Purpose**: Allow a creator/admin to add/remove members when editing a group (used by the group creation UI and later member management).
+
+**Endpoint**:
+```
+POST /api/chat/channels/group/:channelId/members
+```
+
+**Request**:
+```typescript
+{
+  add?: string[];       // user IDs to add
+  remove?: string[];    // user IDs to remove
+  addedBy: string;      // user performing the action (for audit)
+}
+```
+
+**Implementation**:
+```javascript
+app.post('/api/chat/channels/group/:channelId/members', async (req, res) => {
+  const { channelId } = req.params;
+  const { add = [], remove = [], addedBy } = req.body;
+
+  if (!req.user || req.user.id !== addedBy) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const serverClient = StreamChat.getInstance(
+    process.env.STREAM_API_KEY,
+    process.env.STREAM_API_SECRET
+  );
+
+  const channel = serverClient.channel('messaging', channelId);
+
+  if (add.length) {
+    await channel.addMembers(add, { text: `${addedBy} added members` });
+  }
+
+  if (remove.length) {
+    await channel.removeMembers(remove, { text: `${addedBy} removed members` });
+  }
+
+  res.json({ success: true });
+});
+```
+
+**Frontend flow**: After creating a group (or when editing), call this endpoint to add/remove selected users from the search endpoint. The channel list will reflect membership on the next query.
+
+---
+
+### 7. List Organisation Colleagues (for “Colleagues” audience)
+
+**Purpose**: Let the PMS frontend show all teammates who can be added to internal chats.
+
+**Endpoint**:
+```
+GET /api/orgs/:orgId/members
+```
+
+**Response**:
+```typescript
+{
+  members: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    image?: string;
+    role?: string;
+  }>;
+}
+```
+
+**Implementation** (example using Mongo):
+```javascript
+app.get('/api/orgs/:orgId/members', async (req, res) => {
+  const { orgId } = req.params;
+
+  // Ensure requester belongs to this org
+  if (!req.user || req.user.orgId !== orgId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const members = await UserOrgMapping.find({ orgId }).populate('user');
+  const payload = members.map((m) => ({
+    id: m.user._id.toString(),
+    name: `${m.user.firstName || ''} ${m.user.lastName || ''}`.trim() || m.user.email,
+    email: m.user.email,
+    image: m.user.avatarUrl,
+    role: m.role,
+  }));
+
+  res.json({ members: payload });
+});
+```
+
+---
+
+### 8. List Group Channels for an Org
+
+**Purpose**: Fetch common rooms/broadcast channels per business to populate the “Common Groups” tab.
+
+**Endpoint**:
+```
+GET /api/chat/channels/groups?orgId=:orgId
+```
+
+**Response**:
+```typescript
+{
+  channels: Array<{
+    id: string;
+    name: string;
+    members: string[];
+    status: 'active' | 'ended';
+    isGroup: true;
+    chatCategory: 'group';
+  }>;
+}
+```
+
+**Implementation**:
+```javascript
+app.get('/api/chat/channels/groups', async (req, res) => {
+  const { orgId } = req.query;
+  const userId = req.user.id;
+
+  if (!orgId) {
+    return res.status(400).json({ error: 'orgId is required' });
+  }
+
+  const serverClient = StreamChat.getInstance(
+    process.env.STREAM_API_KEY,
+    process.env.STREAM_API_SECRET
+  );
+
+  const filter = {
+    type: 'messaging',
+    chatCategory: 'group',
+    orgId,
+    members: { $in: [userId] },
+  };
+
+  const channels = await serverClient.queryChannels(filter, [{ last_message_at: -1 }], {
+    watch: true,
+    state: true,
+    presence: true,
+  });
+
+  res.json({
+    channels: channels.map((ch) => ({
+      id: ch.id,
+      name: ch.data?.name || 'Group',
+      members: ch.members.map((m) => m.user_id),
+      status: ch.data?.status || 'active',
+      isGroup: true,
+      chatCategory: 'group',
+    })),
+  });
+});
+```
+
+---
+
+### 9. End/Close Chat Channel
 
 **Purpose**: Manually close a chat channel (called by PMS when appointment ends)
 
@@ -345,7 +749,7 @@ app.post('/api/chat/channels/:channelId/end', async (req, res) => {
 
 ---
 
-### 4. Get Active Channels for User
+### 10. Get Active Channels for User
 
 **Purpose**: Fetch all active chat channels for a user (used by web PMS to show chat list)
 
@@ -357,7 +761,9 @@ GET /api/chat/channels
 **Query Parameters**:
 ```typescript
 {
-  role?: 'pet-owner' | 'vet';  // Optional filter
+  role?: 'pet-owner' | 'vet';     // Optional filter
+  category?: 'client' | 'colleague' | 'group'; // For UI pills
+  orgId?: string;                 // Scope internal/group chats to an org
 }
 ```
 
@@ -372,6 +778,9 @@ GET /api/chat/channels
     lastMessageAt?: number;
     appointmentId: string;
     status: 'active' | 'ended';
+    chatCategory?: 'client' | 'colleague' | 'group';
+    orgId?: string;
+    isGroup?: boolean;
   }>;
 }
 ```
@@ -382,6 +791,7 @@ app.get('/api/chat/channels', async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role;
+    const { category, orgId } = req.query;
 
     const serverClient = StreamChat.getInstance(
       process.env.STREAM_API_KEY,
@@ -393,6 +803,14 @@ app.get('/api/chat/channels', async (req, res) => {
       type: 'messaging',
       members: { $in: [userId] },
     };
+
+    if (category) {
+      filter.chatCategory = category;
+    }
+
+    if (orgId) {
+      filter.orgId = orgId;
+    }
 
     const sort = [{ last_message_at: -1 }];
 
@@ -412,6 +830,9 @@ app.get('/api/chat/channels', async (req, res) => {
       lastMessageAt: ch.state.latestMessages[0]?.created_at,
       appointmentId: ch.data?.appointmentId,
       status: ch.data?.status || 'active',
+      chatCategory: ch.data?.chatCategory || ch.data?.category,
+      orgId: ch.data?.orgId,
+      isGroup: ch.data?.isGroup === true || ch.state?.members?.length > 2,
     }));
 
     res.json({ channels: response });
@@ -424,7 +845,7 @@ app.get('/api/chat/channels', async (req, res) => {
 
 ---
 
-### 5. Webhook Handler (Optional but Recommended)
+### 11. Webhook Handler (Optional but Recommended)
 
 **Purpose**: Receive real-time events from Stream (new messages, channel updates, etc.)
 
@@ -594,6 +1015,7 @@ Update your Appointment model to include chat references:
 **Key Functions to Update**:
 1. `connectStreamUser()` - Get token from `/api/chat/token`
 2. Add chat channel listing (uses `/api/chat/channels` GET endpoint)
+3. Supply `chatCategory` metadata so the web pills (Clients / Colleagues / Common Groups) filter correctly
 
 ---
 
@@ -604,7 +1026,7 @@ Update your Appointment model to include chat references:
    npm install stream-chat
    ```
 
-2. **Implement All 5 Endpoints** (use examples above)
+2. **Implement All 11 Endpoints** (token, appointment, DM creation, group creation, typeahead search, group membership updates, list colleagues, list groups, close chat, user channel list, webhook)
 
 3. **Configure Environment Variables**
 
@@ -657,6 +1079,62 @@ curl -X POST http://localhost:3000/api/chat/channels \
     "vetId": "vet-1",
     "appointmentTime": "2025-01-15T14:00:00Z"
   }'
+```
+
+### Test Internal Staff Channel
+```bash
+curl -X POST http://localhost:3000/api/chat/channels/internal \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "orgId": "org-1",
+    "memberIds": ["vet-1", "tech-2"],
+    "createdBy": "vet-1"
+  }'
+```
+
+### Test Group Channel
+```bash
+curl -X POST http://localhost:3000/api/chat/channels/group \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "orgId": "org-1",
+    "name": "Announcements",
+    "memberIds": ["vet-1", "tech-2", "frontdesk-3"],
+    "createdBy": "vet-1",
+    "isReadOnly": true
+  }'
+```
+
+### Test Search Colleagues (typeahead)
+```bash
+curl -X GET "http://localhost:3000/api/orgs/org-1/search?query=har&limit=5" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Test Add Group Members
+```bash
+curl -X POST http://localhost:3000/api/chat/channels/group/group-org-1-announcements/members \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "add": ["tech-3"],
+    "remove": [],
+    "addedBy": "vet-1"
+  }'
+```
+
+### Test List Colleagues
+```bash
+curl -X GET http://localhost:3000/api/orgs/org-1/members \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Test List Group Channels
+```bash
+curl -X GET "http://localhost:3000/api/chat/channels/groups?orgId=org-1" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### Test Get Channels
