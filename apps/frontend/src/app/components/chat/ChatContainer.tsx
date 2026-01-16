@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Chat,
   Channel,
@@ -38,6 +38,7 @@ interface ChatContainerProps {
   appointmentId?: string;
   onChannelSelect?: (channel: StreamChannel | null) => void;
   className?: string;
+  scope?: ChatScope;
 }
 
 interface ChannelPreviewWrapperProps extends ChannelPreviewUIComponentProps {
@@ -54,6 +55,8 @@ interface ChatLayoutProps {
   previewComponent: React.ComponentType<ChannelPreviewUIComponentProps>;
   onBack: () => void;
   currentUserId?: string | null;
+  channelFilter?: ChannelListProps["channelRenderFilterFn"];
+  showEmpty?: boolean;
 }
 
 interface ChatMainPanelProps {
@@ -62,6 +65,7 @@ interface ChatMainPanelProps {
   showBackButton: boolean;
   onBack: () => void;
   currentUserId?: string | null;
+  showEmpty?: boolean;
 }
 
 interface ChatWindowProps {
@@ -79,6 +83,8 @@ interface ChannelState {
   frozen: boolean;
   updatedAt?: string;
 }
+
+export type ChatScope = "clients" | "colleagues" | "groups";
 
 const getChannelDisplayInfo = (
   channel: StreamChannel | null | undefined,
@@ -120,6 +126,78 @@ const getChannelDisplayInfo = (
     counterpartImage;
 
   return { title, image };
+};
+
+const resolveChannelScope = (
+  channel: StreamChannel,
+  currentUserId?: string | null
+): ChatScope => {
+  const data = (channel.data || {}) as Record<string, unknown>;
+  const rawCategory = [
+    data.chatCategory,
+    data.channelCategory,
+    data.category,
+    (data.chat_type as string | undefined),
+    (data.channelType as string | undefined),
+  ].find((value) => typeof value === "string") as string | undefined;
+
+  const normalizedCategory = rawCategory?.toLowerCase();
+
+  if (
+    normalizedCategory === "client" ||
+    normalizedCategory === "clients" ||
+    normalizedCategory === "pet-parent" ||
+    normalizedCategory === "pet_parent"
+  ) {
+    return "clients";
+  }
+
+  if (
+    normalizedCategory === "colleague" ||
+    normalizedCategory === "colleagues" ||
+    normalizedCategory === "team" ||
+    normalizedCategory === "staff" ||
+    normalizedCategory === "internal"
+  ) {
+    return "colleagues";
+  }
+
+  if (
+    normalizedCategory === "group" ||
+    normalizedCategory === "groups" ||
+    normalizedCategory === "common" ||
+    normalizedCategory === "broadcast"
+  ) {
+    return "groups";
+  }
+
+  const memberCount =
+    channel.state?.members && Object.keys(channel.state.members).length > 0
+      ? Object.keys(channel.state.members).length
+      : typeof (data as any)?.member_count === "number"
+        ? Number((data as any)?.member_count)
+        : 0;
+
+  const hasAppointmentDetails = Boolean(
+    (data as any)?.appointmentId ||
+      (data as any)?.petOwnerId ||
+      (data as any)?.petOwnerName
+  );
+
+  if (hasAppointmentDetails) {
+    return "clients";
+  }
+
+  if (
+    (data as any)?.isGroup === true ||
+    (data as any)?.group === true ||
+    memberCount > 2
+  ) {
+    return "groups";
+  }
+
+  // Default to colleagues for internal PMS chats when no metadata is present
+  return "colleagues";
 };
 
 // Custom hook for channel state management
@@ -208,7 +286,9 @@ const ChannelHeaderWithCounterpart: React.FC<{
   const hasSessionClosed = sessionClosed;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', gap: '12px' }}>
+    <div
+      className="chat-header-bar"
+    >
       <ChannelHeader title={title} />
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {hasSessionClosed && (
@@ -269,23 +349,19 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   currentUserId,
   ...previewProps
 }) => {
-  const handlePreviewSelect: React.MouseEventHandler<HTMLButtonElement> = (
+  const handlePreviewSelect: React.MouseEventHandler<HTMLDivElement> = (
     event
   ) => {
-    previewProps.onSelect?.(
-      event as unknown as React.MouseEvent<HTMLDivElement>
-    );
+    previewProps.onSelect?.(event);
     onPreviewSelect?.(previewProps.channel ?? null);
   };
 
-  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event
   ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      handlePreviewSelect(
-        event as unknown as React.MouseEvent<HTMLButtonElement>
-      );
+      handlePreviewSelect(event as unknown as React.MouseEvent<HTMLDivElement>);
     }
   };
 
@@ -295,20 +371,20 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
   );
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
       tabIndex={0}
       className="chat-preview-trigger"
       onClick={handlePreviewSelect}
       onKeyDown={handleKeyDown}
-      style={{ 
-        cursor: 'pointer',
-        background: 'none',
-        border: 'none',
+      style={{
+        cursor: "pointer",
+        background: "none",
+        border: "none",
         padding: 0,
         margin: 0,
-        textAlign: 'left',
-        width: '100%'
+        textAlign: "left",
+        width: "100%",
       }}
     >
       <ChannelPreviewMessenger
@@ -316,7 +392,7 @@ const ChannelPreviewWrapper: React.FC<ChannelPreviewWrapperProps> = ({
         displayTitle={title}
         displayImage={image}
       />
-    </button>
+    </div>
   );
 };
 
@@ -464,6 +540,7 @@ const ChatMainPanel: React.FC<ChatMainPanelProps> = ({
   showBackButton,
   onBack,
   currentUserId,
+  showEmpty,
 }) => {
   const shouldShowChat = isMobile ? isChannelSelected : true;
 
@@ -476,11 +553,36 @@ const ChatMainPanel: React.FC<ChatMainPanelProps> = ({
         minHeight: 0,
       }}
     >
-      <ChatWindow
-        showBackButton={showBackButton && isMobile && isChannelSelected}
-        onBack={onBack}
-        currentUserId={currentUserId}
-      />
+      {showEmpty ? (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#f8fbff",
+            color: "#595958",
+            fontFamily: "var(--font-satoshi)",
+            padding: "24px",
+            textAlign: "center",
+          }}
+        >
+          <div>
+            <p style={{ margin: 0, fontWeight: 600, fontSize: "16px" }}>
+              Select a conversation to start chatting
+            </p>
+            <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#747473" }}>
+              Choose a channel from the list to load messages here.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <ChatWindow
+          showBackButton={showBackButton && isMobile && isChannelSelected}
+          onBack={onBack}
+          currentUserId={currentUserId}
+        />
+      )}
     </div>
   );
 };
@@ -495,6 +597,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   previewComponent,
   onBack,
   currentUserId,
+  channelFilter,
+  showEmpty,
 
 }) => {
   const shouldShowChannelList = !isMobile || !isChannelSelected;
@@ -510,6 +614,8 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
           sort={sort}
           options={options}
           Preview={previewComponent}
+          channelRenderFilterFn={channelFilter}
+          setActiveChannelOnMount={false}
         />
       </div>
 
@@ -519,6 +625,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
         showBackButton
         onBack={onBack}
         currentUserId={currentUserId}
+        showEmpty={showEmpty}
       />
     </div>
   );
@@ -528,12 +635,21 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   appointmentId,
   onChannelSelect,
   className = "",
+  scope = "clients",
 }) => {
+  const attributes = useAuthStore((state) => state.attributes);
+  const authStatus = useAuthStore((state) => state.status);
+  const authLoading = useAuthStore((state) => state.loading);
+
+  const primaryOrgId = useOrgStore((state) => state.primaryOrgId);
+  const orgStatus = useOrgStore((state) => state.status);
   const [client, setClient] = useState<StreamChat | null>(null);
+  const scopeInitialized = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isChannelSelected, setIsChannelSelected] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showEmptyPlaceholder, setShowEmptyPlaceholder] = useState(false);
 
   // Detect mobile
   useEffect(() => {
@@ -552,14 +668,16 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
     const init = async () => {
       try {
-        const { attributes } = useAuthStore.getState();
-        const { primaryOrgId } = useOrgStore.getState();
-
-        if (!attributes || !primaryOrgId) {
+        if (authStatus === "unauthenticated") {
           if (!cancelled) {
-            setError("User profile not loaded");
+            setError("User not authenticated");
             setLoading(false);
           }
+          return;
+        }
+
+        // Wait until auth/org data is available
+        if (!attributes || !primaryOrgId) {
           return;
         }
 
@@ -576,6 +694,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
         if (!cancelled) {
           setClient(chatClient);
+          setError(null);
           setLoading(false);
         }
       } catch (err: any) {
@@ -591,24 +710,48 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attributes, primaryOrgId, authStatus]);
 
   const handlePreviewSelect = useCallback(
     (channel: StreamChannel | null) => {
       setIsChannelSelected(true);
+      setShowEmptyPlaceholder(false);
       onChannelSelect?.(channel);
     },
     [onChannelSelect]
   );
+
+  useEffect(() => {
+    // Reset selection when switching audience scopes so stale channels do not persist
+    const hasInitialized = scopeInitialized.current;
+    scopeInitialized.current = true;
+    if (!hasInitialized) return;
+
+    setIsChannelSelected(false);
+    setShowEmptyPlaceholder(true);
+    onChannelSelect?.(null);
+  }, [scope, onChannelSelect]);
 
   const previewComponent = useMemo(
     () => createPreviewComponent(handlePreviewSelect, client?.userID),
     [handlePreviewSelect, client?.userID]
   );
 
+  const channelFilter = useCallback<NonNullable<ChannelListProps["channelRenderFilterFn"]>>(
+    (channels) => {
+      if (!scope) return channels;
+      return channels.filter(
+        (chan) => resolveChannelScope(chan, client?.userID) === scope
+      );
+    },
+    [scope, client?.userID]
+  );
+
   // Extract conditional rendering logic
-  const isLoading = loading;
-  const hasError = error || !client;
+  const isAuthPending =
+    authStatus === "checking" || authLoading || orgStatus === "loading";
+  const isLoading = loading || (!client && (!error || isAuthPending));
+  const hasError = error || (!client && !isAuthPending && !loading);
 
   if (isLoading) {
     return (
@@ -639,6 +782,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         <p style={{ color: "#d32f2f" }}>{errorMessage}</p>
       </div>
     );
+  }
+
+  if (!client) {
+    return null;
   }
 
   const filters = {
@@ -673,14 +820,23 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       isMobile={isMobile}
       isChannelSelected={isChannelSelected}
       previewComponent={previewComponent}
-      onBack={() => setIsChannelSelected(false)}
+      onBack={() => {
+        setIsChannelSelected(false);
+        setShowEmptyPlaceholder(true);
+      }}
       currentUserId={client.userID}
+      channelFilter={channelFilter}
+      showEmpty={!appointmentId && showEmptyPlaceholder}
     />
   );
 
   return (
     <div className={className}>
-      <Chat client={client} theme="str-chat__theme-light">
+      <Chat
+        key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
+        client={client}
+        theme="str-chat__theme-light"
+      >
         {chatContent}
       </Chat>
     </div>
