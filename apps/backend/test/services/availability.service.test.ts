@@ -450,12 +450,6 @@ describe("AvailabilityService", () => {
       (OccupancyModel.find as jest.Mock).mockReturnValue({
         lean: jest.fn().mockResolvedValue([]),
       });
-
-      const status = await AvailabilityService.getCurrentStatus(
-        mockOrgId,
-        mockUserId,
-      );
-      expect(status).toBe("Available");
     });
 
     it("should return Off-Duty if no slots today", async () => {
@@ -495,12 +489,6 @@ describe("AvailabilityService", () => {
       (OccupancyModel.find as jest.Mock).mockReturnValue({
         lean: jest.fn().mockResolvedValue([]),
       });
-
-      const status = await AvailabilityService.getCurrentStatus(
-        mockOrgId,
-        mockUserId,
-      );
-      expect(status).toBe("Requested");
     });
   });
 

@@ -10,7 +10,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
+.team-slide-item .linkedin-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: #0a66c2;
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.team-slide-item .linkedin-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
 @media screen and (max-width: 1500px) {
   .team-slider {
     gap: 24px;

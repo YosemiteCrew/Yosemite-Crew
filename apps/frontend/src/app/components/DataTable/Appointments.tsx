@@ -238,6 +238,8 @@ const Appointments = ({
           data={filteredList}
           columns={finalColoumns}
           bordered={false}
+          pagination={true}
+          pageSize={5}
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">

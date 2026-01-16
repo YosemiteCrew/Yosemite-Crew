@@ -4,7 +4,7 @@ import { FormField, FormFieldType, FormsProps, buildMedicationFields } from "@/a
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { IoIosAddCircleOutline } from "react-icons/io";
+import { IoIosAddCircleOutline, IoIosWarning } from "react-icons/io";
 import TextBuilder from "./components/Text/TextBuilder";
 import InputBuilder from "./components/Input/InputBuilder";
 import DropdownBuilder from "./components/Dropdown/DropdownBuilder";
@@ -424,8 +424,6 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           value={selected}
           onChange={updateOptions}
           options={serviceOptions}
-          className="min-h-12!"
-          dropdownClassName="!h-fit max-h-[200px]!"
         />
       </div>
     );
@@ -1103,7 +1101,10 @@ const Build = ({
           );
         })}
         {buildError && (
-          <span className="text-red-500 text-sm">{buildError}</span>
+          <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
+            <IoIosWarning className="text-text-error" size={14} />
+            <span>{buildError}</span>
+          </div>
         )}
 
         {/* Add Field Button at bottom */}

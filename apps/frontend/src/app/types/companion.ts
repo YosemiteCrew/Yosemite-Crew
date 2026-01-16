@@ -15,9 +15,9 @@ export type Breed = {
 export type Gender = "Male" | "Female" | "Others";
 
 export const GenderOptions: Option[] = [
-  { value: "Male", label: "Male" },
-  { value: "Female", label: "Female" },
-  { value: "Others", label: "Others" },
+  { value: "MALE", label: "Male" },
+  { value: "FEMALE", label: "Female" },
+  { value: "OTHERS", label: "Others" },
 ];
 
 export const PetSourceOptions: Option[] = [

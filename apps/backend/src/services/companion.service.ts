@@ -23,6 +23,9 @@ import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
 import CompanionOrganisationModel from "src/models/companion-organisation";
+import logger from "src/utils/logger";
+import { TaskLibraryService } from "./taskLibrary.service";
+import { CreateFromLibraryInput, TaskService } from "./task.service";
 
 export class CompanionServiceError extends Error {
   constructor(
@@ -138,6 +141,60 @@ type CompanionCreateContext = {
   parentMongoId?: Types.ObjectId;
 };
 
+const createDefaultTasks = async (input: {
+  organisationId?: string;
+  companionId: string;
+  parentId: string;
+  species: string;
+}) => {
+  try {
+    const libraryTasks = await TaskLibraryService.listForSpecies({
+      species: input.species,
+    });
+
+    if (!libraryTasks.length) return;
+
+    const now = new Date();
+
+    for (const lib of libraryTasks) {
+      // 2️⃣ Build recurrence from library definition
+      let recurrence: CreateFromLibraryInput["recurrence"] | undefined;
+
+      const libRecurrence = lib.schema.recurrence?.default;
+      if (libRecurrence) {
+        recurrence = {
+          type: libRecurrence.type,
+          cronExpression: libRecurrence.cronExpression,
+          endDate: libRecurrence.endAfterDays
+            ? new Date(
+                now.getTime() +
+                  libRecurrence.endAfterDays * 24 * 60 * 60 * 1000,
+              )
+            : undefined,
+        };
+      }
+
+      // 3️⃣ Create task using EXISTING METHOD
+      await TaskService.createFromLibrary({
+        organisationId: input.organisationId,
+        companionId: input.companionId,
+        createdBy: input.parentId,
+        assignedTo: input.parentId,
+        audience: "PARENT_TASK",
+        libraryTaskId: lib._id.toString(),
+        dueAt: now,
+        recurrence,
+      });
+    }
+  } catch (error) {
+    logger.error(
+      "Error creating default tasks for companion type:",
+      input.species,
+      error,
+    );
+  }
+};
+
 export const CompanionService = {
   async create(payload: CompanionRequestDTO, context?: CompanionCreateContext) {
     if (!context) {
@@ -198,6 +255,13 @@ export const CompanionService = {
         document.photoUrl = profileUrl;
         await document.save();
       }
+      // Create default tasks based on companion type
+      void createDefaultTasks({
+        organisationId: context.parentMongoId?.toString(),
+        companionId: document._id.toString(),
+        parentId: parentMongoId.toString(),
+        species: persistable.type,
+      });
 
       return { response: toFHIR(document) };
     } catch (error) {

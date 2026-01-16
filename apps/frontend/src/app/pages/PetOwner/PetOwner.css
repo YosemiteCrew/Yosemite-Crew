@@ -355,6 +355,8 @@
     no-repeat;
   background-size: 100% 80%;
   margin-top: 50px;
+  padding-bottom: 55vh;
+  margin-bottom: -30vh;
 }
 .GlimsData {
   display: flex;

@@ -96,6 +96,10 @@ router.post(
 
 router.get("/pms/library", authorizeCognito, TaskLibraryController.list);
 
+router.post("/pms/library", TaskLibraryController.create);
+
+router.put("/pms/library/:libraryId", TaskLibraryController.update);
+
 router.get(
   "/pms/library/:libraryId",
   authorizeCognito,

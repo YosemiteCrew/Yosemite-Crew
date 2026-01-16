@@ -1,7 +1,8 @@
+import { CountriesOptions } from "@/app/components/AddCompanion/type";
 import { Primary, Secondary } from "@/app/components/Buttons";
 import { getFormattedDate } from "@/app/components/Calendar/weekHelpers";
 import Datepicker from "@/app/components/Inputs/Datepicker";
-import Dropdown from "@/app/components/Inputs/Dropdown/Dropdown";
+import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
@@ -17,7 +18,7 @@ type FieldConfig = {
   type?: string;
   required?: boolean;
   editable?: boolean;
-  options?: Array<string | { label: string; value: string }>;
+  options?: Array<{ label: string; value: string }>;
 };
 
 type ProfileCardProps = {
@@ -117,22 +118,18 @@ const FieldComponents: Record<
     />
   ),
   select: ({ field, value, onChange }) => (
-    <Dropdown
+    <LabelDropdown
       placeholder={field.label}
-      value={value || ""}
-      onChange={(e) => onChange(e)}
-      className="min-h-12!"
-      dropdownClassName="top-[55px]! !h-fit"
+      onSelect={(option) => onChange(option.value)}
+      defaultOption={value}
       options={field.options || []}
     />
   ),
   dropdown: ({ field, value, onChange }) => (
-    <Dropdown
+    <LabelDropdown
       placeholder={field.label}
-      value={value || ""}
-      onChange={(e) => onChange(e)}
-      className="min-h-12!"
-      dropdownClassName="top-[55px]! !h-fit"
+      onSelect={(option) => onChange(option.value)}
+      defaultOption={value}
       options={field.options || []}
     />
   ),
@@ -141,20 +138,15 @@ const FieldComponents: Record<
       placeholder={field.label}
       value={value || []}
       onChange={(e) => onChange(e)}
-      className="min-h-12!"
       options={field.options || []}
-      dropdownClassName="h-fit!"
     />
   ),
   country: ({ field, value, onChange }) => (
-    <Dropdown
+    <LabelDropdown
       placeholder={field.label}
-      value={value || ""}
-      onChange={(e) => onChange(e)}
-      className="min-h-12!"
-      dropdownClassName="top-[55px]! !h-fit"
-      type="country"
-      search
+      onSelect={(option) => onChange(option.value)}
+      defaultOption={value}
+      options={CountriesOptions}
     />
   ),
   date: ({ field, value, onChange }) => (
@@ -191,12 +183,10 @@ const FieldValueRow: React.FC<{
   showDivider: boolean;
 }> = ({ label, value, showDivider }) => (
   <div
-    className={`px-6! py-3! flex items-center gap-2 ${showDivider ? "border-b border-b-grey-light" : ""}`}
+    className={`px-6! py-[10px]! flex items-center justify-between gap-2 ${showDivider ? "border-b border-b-card-border" : ""}`}
   >
-    <div className="font-satoshi font-semibold text-grey-noti text-[18px]">
-      {label}:
-    </div>
-    <div className="font-satoshi font-semibold text-black-text text-[18px] overflow-scroll scrollbar-hidden">
+    <div className="text-body-4 text-text-tertiary">{label}</div>
+    <div className="text-body-4 text-text-primary text-right">
       {value ?? "-"}
     </div>
   </div>
@@ -238,11 +228,7 @@ const toDateOrNull = (raw: any): Date | null => {
 const renderValue = (field: FieldConfig, formValues: FormValues) => {
   const type = field.type || "text";
   const raw = formValues[field.key];
-  if (type === "date") {
-    const dt = toDateOrNull(raw);
-    return dt ? getFormattedDate(dt) : "-";
-  }
-  if (type === "dateString") {
+  if (type === "date" || type === "dateString") {
     const dt = toDateOrNull(raw);
     return dt ? getFormattedDate(dt) : "-";
   }
@@ -327,14 +313,12 @@ const ProfileCard = ({
   };
 
   return (
-    <div className="border border-grey-light rounded-2xl">
-      <div className="px-6! py-4! border-b border-b-grey-light flex items-center justify-between">
-        <div className="font-grotesk font-medium text-black-text text-[19px]">
-          {title}
-        </div>
+    <div className="border border-card-border rounded-2xl">
+      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
+        <div className="text-body-3 text-text-primary">{title}</div>
         {isActuallyEditable && !isEditing && (
           <RiEdit2Fill
-            size={20}
+            size={18}
             color="#302f2e"
             className="cursor-pointer"
             onClick={() => setIsEditing(true)}
@@ -343,7 +327,7 @@ const ProfileCard = ({
       </div>
       <div className={`px-3! py-2! flex flex-col`}>
         {showProfileUser && (
-          <div className="px-6! py-3! flex gap-3 items-center">
+          <div className="px-6! py-2! flex gap-2 items-center">
             <Image
               src={
                 isHttpsImageUrl(profile?.personalDetails?.profilePictureUrl)
@@ -351,11 +335,11 @@ const ProfileCard = ({
                   : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
               }
               alt="Logo"
-              height={60}
-              width={60}
-              className="rounded-full object-cover h-[60px] min-w-[60px] max-h-[60px]"
+              height={40}
+              width={40}
+              className="rounded-full object-cover h-10 min-w-10 max-h-10"
             />
-            <div className="font-grotesk font-medium text-black-text text-[28px]">
+            <div className="text-body-3 text-text-primary">
               {(attributes?.given_name || "") +
                 " " +
                 (attributes?.family_name || "")}
@@ -363,9 +347,9 @@ const ProfileCard = ({
           </div>
         )}
         {showProfile && (
-          <div className="px-6! py-3! flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div className="px-6! py-2! flex flex-col gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
                 <Image
                   src={
                     isHttpsImageUrl(org?.imageURL)
@@ -373,22 +357,16 @@ const ProfileCard = ({
                       : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
                   }
                   alt="Logo"
-                  height={60}
-                  width={60}
-                  className="rounded-full object-cover h-[60px] min-w-[60px] max-h-[60px]"
+                  height={40}
+                  width={40}
+                  className="rounded-full object-cover h-10 min-w-10 max-h-10"
                 />
-                <div className="flex flex-col">
-                  <div className="font-grotesk font-medium text-black-text text-[28px]">
-                    {org.name}
-                  </div>
-                  <div
-                    className="px-3.5! py-1.5! rounded-xl w-fit font-satoshi font-semibold text-[16px]"
-                    style={getStatusStyle(
-                      org.isVerified ? "Active" : "Pending"
-                    )}
-                  >
-                    {org.isVerified ? "Active" : "Pending"}
-                  </div>
+                <div className="text-body-3 text-text-primary">{org.name}</div>
+                <div
+                  className="px-3! py-1! rounded-2xl w-fit text-caption-1"
+                  style={getStatusStyle(org.isVerified ? "Active" : "Pending")}
+                >
+                  {org.isVerified ? "Verified" : "Pending"}
                 </div>
               </div>
               {!org?.isVerified && (
@@ -400,7 +378,7 @@ const ProfileCard = ({
               )}
             </div>
             {!org?.isVerified && (
-              <div className="font-satoshi font-medium text-grey-noti text-[18px]">
+              <div className="text-caption-1 text-text-primary w-full sm:max-w-1/2">
                 <span className="text-[#247AED]">Note : </span>This short chat
                 helps us confirm your business and add you to our trusted
                 network of verified pet professionals - so you can start
@@ -436,19 +414,9 @@ const ProfileCard = ({
         })}
       </div>
       {isEditing && (
-        <div className="px-6! py-4! flex items-center justify-end w-full gap-3">
-          <Secondary
-            text="Cancel"
-            href="#"
-            className="h-13!"
-            onClick={handleCancel}
-          />
-          <Primary
-            text="Save"
-            href="#"
-            classname="h-13!"
-            onClick={handleSave}
-          />
+        <div className="px-6! py-3! flex items-center justify-end w-full gap-3">
+          <Secondary text="Cancel" href="#" onClick={handleCancel} />
+          <Primary text="Save" href="#" onClick={handleSave} />
         </div>
       )}
     </div>

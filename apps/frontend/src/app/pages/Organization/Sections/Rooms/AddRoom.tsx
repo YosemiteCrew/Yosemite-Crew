@@ -115,9 +115,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                 onChange={(e) =>
                   setFormData({ ...formData, assignedSpecialiteis: e })
                 }
-                className="min-h-12!"
                 options={SpecialitiesOptions}
-                dropdownClassName="h-fit!"
               />
               <MultiSelectDropdown
                 placeholder="Assigned staff"
@@ -125,9 +123,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                 onChange={(e) =>
                   setFormData({ ...formData, assignedStaffs: e })
                 }
-                className="min-h-12!"
                 options={TeamOptions}
-                dropdownClassName="h-fit!"
               />
             </div>
           </Accordion>

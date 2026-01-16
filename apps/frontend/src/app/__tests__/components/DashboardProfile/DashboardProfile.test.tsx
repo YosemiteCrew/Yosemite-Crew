@@ -1,78 +1,74 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-
 import DashboardProfile from "@/app/components/DashboardProfile/DashboardProfile";
 
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: any) => <img {...props} alt={props.alt} />,
-}));
-
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text }: any) => <button type="button">{text}</button>,
-  Secondary: ({ text }: any) => <button type="button">{text}</button>,
-}));
+const usePrimaryOrgMock = jest.fn();
+const usePrimaryOrgProfileMock = jest.fn();
+const useAuthStoreMock = jest.fn();
 
 jest.mock("@/app/hooks/useOrgSelectors", () => ({
-  usePrimaryOrg: jest.fn(),
+  usePrimaryOrg: () => usePrimaryOrgMock(),
 }));
 
 jest.mock("@/app/hooks/useProfiles", () => ({
-  usePrimaryOrgProfile: jest.fn(),
+  usePrimaryOrgProfile: () => usePrimaryOrgProfileMock(),
 }));
 
 jest.mock("@/app/stores/authStore", () => ({
-  useAuthStore: (selector: any) =>
-    selector({ attributes: { given_name: "Alex", family_name: "Lee" } }),
+  useAuthStore: (selector: any) => selector(useAuthStoreMock()),
+}));
+
+jest.mock("@/app/components/Buttons", () => ({
+  Primary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
+
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: any) => <img alt={props.alt} {...props} />,
 }));
 
 jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: jest.fn(() => true),
+  isHttpsImageUrl: () => false,
 }));
-
-import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
-import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 
 describe("DashboardProfile", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (usePrimaryOrgProfile as jest.Mock).mockReturnValue({
-      personalDetails: { profilePictureUrl: "https://example.com/avatar.png" },
+    usePrimaryOrgProfileMock.mockReturnValue({
+      personalDetails: {
+        profilePictureUrl: "",
+      },
+    });
+    useAuthStoreMock.mockReturnValue({
+      attributes: { given_name: "Jamie", family_name: "Lee" },
     });
   });
 
-  it("returns null when no primary org", () => {
-    (usePrimaryOrg as jest.Mock).mockReturnValue(null);
+  it("renders nothing when no primary org", () => {
+    usePrimaryOrgMock.mockReturnValue(null);
+
     const { container } = render(<DashboardProfile />);
-    expect(container.firstChild).toBeNull();
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders verified state actions", () => {
-    (usePrimaryOrg as jest.Mock).mockReturnValue({
-      _id: "org-1",
-      isVerified: true,
-    });
+  it("renders verification banner when org is not verified", () => {
+    usePrimaryOrgMock.mockReturnValue({ isVerified: false });
 
     render(<DashboardProfile />);
 
-    expect(screen.getAllByText("Setup stripe").length).toBeGreaterThan(1);
-    expect(screen.getAllByText("Add services").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Invite team").length).toBeGreaterThan(0);
-    expect(screen.getByText("Alex Lee")).toBeInTheDocument();
-  });
-
-  it("renders unverified state notice", () => {
-    (usePrimaryOrg as jest.Mock).mockReturnValue({
-      _id: "org-1",
-      isVerified: false,
-    });
-
-    render(<DashboardProfile />);
-
+    expect(screen.getByText("Welcome")).toBeInTheDocument();
+    expect(screen.getByText("Jamie Lee")).toBeInTheDocument();
     expect(
-      screen.getByText("Verification in progress — Limited access enabled")
+      screen.getByText(
+        "Verification in progress — Limited access enabled"
+      )
     ).toBeInTheDocument();
-    expect(screen.getByText("Book onboarding call")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Book onboarding call" })
+    ).toBeInTheDocument();
   });
 });

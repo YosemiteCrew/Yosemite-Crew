@@ -1,43 +1,32 @@
 import React from "react";
-import { render } from "@testing-library/react";
-
-const mockCardHeader = jest.fn();
-const mockChart = jest.fn();
+import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import AppointmentStat from "@/app/components/Stats/AppointmentStat";
+import CardHeader from "@/app/components/Cards/CardHeader/CardHeader";
+import DynamicChartCard from "@/app/components/DynamicChart/DynamicChartCard";
 
 jest.mock("@/app/components/Cards/CardHeader/CardHeader", () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockCardHeader(props);
-    return null;
-  },
+  default: jest.fn(({ title }: any) => (
+    <div data-testid="card-header">{title}</div>
+  )),
 }));
 
-jest.mock("@/app/components/BarGraph/DynamicChartCard", () => ({
+jest.mock("@/app/components/DynamicChart/DynamicChartCard", () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockChart(props);
-    return null;
-  },
+  default: jest.fn(({ data, keys }: any) => (
+    <div data-testid="chart" data-points={data.length} data-keys={keys.length} />
+  )),
 }));
-
-import AppointmentStat from "@/app/components/Stats/AppointmentStat";
 
 describe("AppointmentStat", () => {
-  test("wires CardHeader and DynamicChartCard with expected props", () => {
+  it("renders header and chart data", () => {
     render(<AppointmentStat />);
 
-    expect(mockCardHeader).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Appointments" })
-    );
-    expect(mockChart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.any(Array),
-        keys: [
-          { name: "Completed", color: "#111" },
-          { name: "Cancelled", color: "#ccc" },
-        ],
-      })
-    );
-    expect(mockChart.mock.calls[0][0].data).toHaveLength(6);
+    expect(screen.getByTestId("card-header")).toHaveTextContent("Appointments");
+    expect(screen.getByTestId("chart")).toHaveAttribute("data-points", "6");
+    expect(screen.getByTestId("chart")).toHaveAttribute("data-keys", "2");
+    expect(CardHeader).toHaveBeenCalled();
+    expect(DynamicChartCard).toHaveBeenCalled();
   });
 });

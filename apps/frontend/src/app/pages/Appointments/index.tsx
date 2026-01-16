@@ -47,6 +47,7 @@ const Appointments = () => {
         <TitleCalendar
           activeCalendar={activeCalendar}
           title="Appointments"
+          description="Schedule and manage appointments across day, week, and team views, then drill into tasks, chat, and billing details for each visit."
           setActiveCalendar={setActiveCalendar}
           setAddPopup={setAddPopup}
           currentDate={currentDate}

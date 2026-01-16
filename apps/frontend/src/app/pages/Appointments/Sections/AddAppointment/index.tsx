@@ -487,9 +487,7 @@ const AddAppointment = ({
                         })),
                       });
                     }}
-                    className="min-h-12!"
                     options={TeamOptions}
-                    dropdownClassName="h-fit! max-h-[150px]!"
                   />
                 </div>
               </div>

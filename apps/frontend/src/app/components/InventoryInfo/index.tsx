@@ -16,7 +16,7 @@ import {
 import Accordion from "../Accordion/Accordion";
 import { Primary, Secondary } from "../Buttons";
 import Datepicker from "../Inputs/Datepicker";
-import Dropdown from "../Inputs/Dropdown/Dropdown";
+import LabelDropdown from "../Inputs/Dropdown/LabelDropdown";
 import FormInput from "../Inputs/FormInput/FormInput";
 import SubLabels from "../Labels/SubLabels";
 import Modal from "../Modal";
@@ -218,15 +218,16 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     }
 
     if (component === "dropdown") {
+      const dropdownOptions = (options || []).map((opt: any) =>
+        typeof opt === "string" ? { label: opt, value: opt } : opt
+      );
       return (
-        <Dropdown
+        <LabelDropdown
           key={key ?? name}
           placeholder={placeholder || ""}
-          value={value}
-          onChange={(v) => handleChange(batchIndex, typedName, v)}
-          className="min-h-12!"
-          dropdownClassName="top-[55px]! !h-fit"
-          options={options || []}
+          defaultOption={value}
+          onSelect={(opt) => handleChange(batchIndex, typedName, opt.value)}
+          options={dropdownOptions}
         />
       );
     }

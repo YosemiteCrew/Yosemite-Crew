@@ -1,67 +1,35 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import ProtectedSettings from "@/app/pages/Settings/index";
+import "@testing-library/jest-dom";
+import Settings from "@/app/pages/Settings";
 
-// --- Mocks ---
-
-// Mock the authentication wrapper to render children directly
 jest.mock("@/app/components/ProtectedRoute", () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="protected-route">{children}</div>
-  ),
+  default: ({ children }: any) => <div data-testid="protected">{children}</div>,
 }));
 
-// Mock the child sections to isolate the test to the layout component
 jest.mock("@/app/pages/Settings/Sections/Personal", () => ({
   __esModule: true,
-  default: () => <div data-testid="personal-section">Personal Settings</div>,
-}));
-
-jest.mock("@/app/pages/Settings/Sections/Delete", () => ({
-  __esModule: true,
-  default: () => <div data-testid="delete-section">Delete Account</div>,
+  default: () => <div>Personal Section</div>,
 }));
 
 jest.mock("@/app/pages/Settings/Sections/OrgSection", () => ({
   __esModule: true,
-  default: () => <div data-testid="org-section">Organization Settings</div>,
+  default: () => <div>Org Section</div>,
 }));
 
-describe("Settings Page", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+jest.mock("@/app/pages/Settings/Sections/DeleteProfile", () => ({
+  __esModule: true,
+  default: () => <div>Delete Profile</div>,
+}));
 
-  // --- 1. Rendering Structure ---
+describe("Settings page", () => {
+  it("renders settings sections inside protected route", () => {
+    render(<Settings />);
 
-  it("renders within the ProtectedRoute wrapper", () => {
-    render(<ProtectedSettings />);
-
-    // Verifies that the page is protected
-    expect(screen.getByTestId("protected-route")).toBeInTheDocument();
-  });
-
-  it("renders all setting sections correctly", () => {
-    render(<ProtectedSettings />);
-
-    // Verifies all sub-components are present
-    expect(screen.getByTestId("personal-section")).toBeInTheDocument();
-    expect(screen.getByTestId("org-section")).toBeInTheDocument();
-    expect(screen.getByTestId("delete-section")).toBeInTheDocument();
-  });
-
-  it("renders the layout container with correct classes", () => {
-    const { container } = render(<ProtectedSettings />);
-
-    // Select the first div inside the ProtectedRoute (the Settings component root)
-    const settingsRoot = container.querySelector(".flex.flex-col");
-
-    expect(settingsRoot).toHaveClass(
-      "px-4!",
-      "py-6!",
-      "md:px-12!",
-      "lg:px-10!"
-    );
+    expect(screen.getByTestId("protected")).toBeInTheDocument();
+    expect(screen.getByText("Personal Section")).toBeInTheDocument();
+    expect(screen.getByText("Org Section")).toBeInTheDocument();
+    expect(screen.getByText("Delete Profile")).toBeInTheDocument();
   });
 });
