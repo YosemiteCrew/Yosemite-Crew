@@ -1,39 +1,34 @@
 import React from "react";
-import { render } from "@testing-library/react";
-
-const mockCardHeader = jest.fn();
-const mockChart = jest.fn();
+import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import AppointmentLeadersStat from "@/app/components/Stats/AppointmentLeadersStat";
+import CardHeader from "@/app/components/Cards/CardHeader/CardHeader";
+import DynamicChartCard from "@/app/components/DynamicChart/DynamicChartCard";
 
 jest.mock("@/app/components/Cards/CardHeader/CardHeader", () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockCardHeader(props);
-    return null;
-  },
+  default: jest.fn(({ title }: any) => (
+    <div data-testid="card-header">{title}</div>
+  )),
 }));
 
-jest.mock("@/app/components/BarGraph/DynamicChartCard", () => ({
+jest.mock("@/app/components/DynamicChart/DynamicChartCard", () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockChart(props);
-    return null;
-  },
+  default: jest.fn(({ layout, hideKeys }: any) => (
+    <div data-testid="chart" data-layout={layout} data-hide={String(hideKeys)} />
+  )),
 }));
-
-import AppointmentLeadersStat from "@/app/components/Stats/AppointmentLeadersStat";
 
 describe("AppointmentLeadersStat", () => {
-  test("configures chart with vertical layout and hidden keys", () => {
+  it("renders leader chart with vertical layout", () => {
     render(<AppointmentLeadersStat />);
 
-    expect(mockCardHeader).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Appointment leaders" })
+    expect(screen.getByTestId("card-header")).toHaveTextContent(
+      "Appointment leaders"
     );
-    expect(mockChart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        layout: "vertical",
-        hideKeys: true,
-      })
-    );
+    expect(screen.getByTestId("chart")).toHaveAttribute("data-layout", "vertical");
+    expect(screen.getByTestId("chart")).toHaveAttribute("data-hide", "true");
+    expect(CardHeader).toHaveBeenCalled();
+    expect(DynamicChartCard).toHaveBeenCalled();
   });
 });

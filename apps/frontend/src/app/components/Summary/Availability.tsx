@@ -2,7 +2,6 @@
 import React, { useMemo, useState } from "react";
 import AvailabilityTable from "../DataTable/AvailabilityTable";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { Secondary } from "../Buttons";
 
 import "./Summary.css";
 
@@ -28,8 +27,8 @@ const AvailabilityLabels = [
   {
     name: "Requested",
     value: "requested",
-    background: "#FDEBEA",
-    color: "#EA3729",
+    background: "#eaeaea",
+    color: "#302f2e",
   },
   {
     name: "Off-Duty",
@@ -76,10 +75,7 @@ const Availability = () => {
           </button>
         ))}
       </div>
-      <AvailabilityTable filteredList={filteredList.slice(0, 5)} hideActions />
-      <div className="w-full justify-center flex items-center">
-        <Secondary href="/organization" text="See all" />
-      </div>
+      <AvailabilityTable filteredList={filteredList} />
     </div>
   );
 };

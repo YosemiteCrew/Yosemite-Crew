@@ -14,8 +14,6 @@ import TimeSlot from "./TimeSlot";
 import { FaCirclePlus, FaCircleMinus } from "react-icons/fa6";
 import Dublicate from "./Dublicate";
 
-import "./Availability.css";
-
 type AvailabilityProps = {
   availability: AvailabilityState;
   setAvailability: SetAvailability;
@@ -67,28 +65,28 @@ const Availability: React.FC<AvailabilityProps> = ({
   };
 
   return (
-    <div className="availability-container">
+    <div className="flex flex-col gap-4 w-full">
       {daysOfWeek.map((day: string, dayIndex: number) => (
-        <div key={day} className="availability-day">
-          <label className="availability-check-label">
+        <div key={day} className="flex items-start w-full gap-6 flex-wrap">
+          <div className="flex items-center gap-2 w-[150px]">
             <input
               type="checkbox"
               checked={availability[day].enabled}
               onChange={() => toggleDay(day)}
-              className="availability-check"
+              className="w-[18px]! h-[18px]!"
             />
-            <span className="availability-check-title">{day}</span>
-          </label>
+            <span className="text-body-4 text-text-primary">{day}</span>
+          </div>
 
           {availability[day].enabled && (
-            <div className="availability-intervals">
+            <div className="flex flex-col gap-3">
               {availability[day].intervals.map(
                 (interval: Interval, i: number) => {
                   const endOptions = getEndOptions(interval.start);
                   return (
                     <div
                       key={i + interval.start}
-                      className="availability-interval"
+                      className="flex items-center gap-3"
                     >
                       <TimeSlot
                         interval={interval}
@@ -107,21 +105,23 @@ const Availability: React.FC<AvailabilityProps> = ({
                         field="end"
                       />
                       {i === 0 ? (
-                        <button
-                          onClick={() => addInterval(day)}
-                          className="availability-interval-buttons"
-                          title="Add interval"
-                        >
-                          <FaCirclePlus color="#000" size={20} />
-                        </button>
+                        <div className="border-none outline-none bg-white flex items-center justify-center">
+                          <FaCirclePlus
+                            color="#302f2e"
+                            size={20}
+                            onClick={() => addInterval(day)}
+                            className="cursor-pointer"
+                          />
+                        </div>
                       ) : (
-                        <button
-                          onClick={() => deleteInterval(day, i)}
-                          className="availability-interval-buttons"
-                          title="Delete interval"
-                        >
-                          <FaCircleMinus color="#000" size={20} />
-                        </button>
+                        <div className="border-none outline-none bg-white flex items-center justify-center">
+                          <FaCircleMinus
+                            color="#302f2e"
+                            size={20}
+                            onClick={() => deleteInterval(day, i)}
+                            className="cursor-pointer"
+                          />
+                        </div>
                       )}
                     </div>
                   );

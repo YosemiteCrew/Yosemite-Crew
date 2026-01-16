@@ -112,9 +112,7 @@ const SpecialityCard = ({
         placeholder="Assigned staff"
         value={speciality.teamMemberIds || []}
         onChange={(e) => updateStaff(e)}
-        className="min-h-12!"
         options={TeamOptions}
-        dropdownClassName="h-fit!"
       />
       <ServiceSearch speciality={speciality} setSpecialities={setFormData} />
       {speciality?.services?.map((service, i) => (

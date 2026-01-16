@@ -179,10 +179,8 @@ const FormSection: React.FC<FormSectionProps> = ({
           placeholder={placeholder || ""}
           value={arrayValue}
           onChange={(vals) => handleChange(field, vals, index)}
-          className="min-h-12!"
           error={error}
           options={options || []}
-          dropdownClassName="h-fit!"
         />
       );
     }

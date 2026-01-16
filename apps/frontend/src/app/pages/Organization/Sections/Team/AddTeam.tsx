@@ -7,7 +7,7 @@ import { Primary } from "@/app/components/Buttons";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { sendInvite } from "@/app/services/teamService";
-import { isValidEmail, toTitleCase } from "@/app/utils/validators";
+import { isValidEmail } from "@/app/utils/validators";
 import { TeamFormDataType } from "@/app/types/team";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
@@ -111,10 +111,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 }
                 defaultOption={formData.role}
                 error={formDataErrors.role}
-                options={RoleOptions.map((role) => ({
-                  value: role,
-                  label: toTitleCase(role),
-                }))}
+                options={RoleOptions}
               />
               <SelectLabel
                 title="Employee type"

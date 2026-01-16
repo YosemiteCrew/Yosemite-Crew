@@ -1,6 +1,6 @@
 import React from "react";
 import CardHeader from "../Cards/CardHeader/CardHeader";
-import DynamicChartCard from "../BarGraph/DynamicChartCard";
+import DynamicChartCard from "../DynamicChart/DynamicChartCard";
 
 const blankData = [
   { month: "Mar", Completed: 0, Cancelled: 0 },
@@ -13,7 +13,7 @@ const blankData = [
 
 const RevenueStat = () => {
   return (
-    <div className="stat-container">
+    <div className="flex flex-col gap-2">
       <CardHeader
         title={"Revenue"}
         options={["Last week", "Last month", "Last 6 months", "Last 1 year"]}

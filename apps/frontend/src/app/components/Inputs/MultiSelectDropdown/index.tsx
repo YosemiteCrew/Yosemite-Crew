@@ -1,17 +1,13 @@
-import classNames from "classnames";
-import React, { useEffect, useRef, useState } from "react";
-import { FaSortDown } from "react-icons/fa";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoIosClose, IoIosWarning } from "react-icons/io";
-
-import "../Dropdown/Dropdown.css";
+import { Option } from "@/app/types/companion";
+import { FaCaretDown } from "react-icons/fa6";
 
 type DropdownProps = {
   placeholder: string;
   value: string[];
   onChange: (e: string[]) => void;
   error?: string;
-  className?: string;
-  dropdownClassName?: string;
   options?: Array<string | { label: string; value: string }>;
 };
 
@@ -20,22 +16,31 @@ const MultiSelectDropdown = ({
   onChange,
   value,
   error,
-  className,
-  dropdownClassName,
   options,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const list =
-    options?.map((opt) =>
-      typeof opt === "string" ? { label: opt, value: opt } : opt
-    ) ?? [];
-  const availableOptions = list.filter(
-    (option) => !value.includes(option.value)
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const list: Option[] = useMemo(() => {
+    return (
+      options?.map((opt) =>
+        typeof opt === "string" ? { label: opt, value: opt } : opt
+      ) ?? []
+    );
+  }, [options]);
+
+  const valueSet = useMemo(() => new Set(value), [value]);
+
+  const selectedOptions = useMemo(
+    () => list.filter((opt) => valueSet.has(opt.value)),
+    [list, valueSet]
   );
 
-  const getLabel = (val: string) =>
-    list.find((opt) => opt.value === val)?.label ?? val;
+  const availableOptions = useMemo(
+    () => list.filter((opt) => !valueSet.has(opt.value)),
+    [list, valueSet]
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -44,6 +49,7 @@ const MultiSelectDropdown = ({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setOpen(false);
+        buttonRef.current?.blur();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -52,71 +58,80 @@ const MultiSelectDropdown = ({
     };
   }, []);
 
-  const toggleOption = (option: string) => {
-    const isSelected = value.includes(option);
-    let newValue: string[];
-    if (isSelected) {
-      newValue = value.filter((item) => item !== option);
-    } else {
-      newValue = [...value, option];
-    }
-    onChange(newValue);
+  const toggleOption = (option: Option) => {
+    const isSelected = valueSet.has(option.value);
+    const next = isSelected
+      ? value.filter((v) => v !== option.value)
+      : [...value, option.value];
+
+    onChange(next);
     setOpen(false);
+    buttonRef.current?.blur();
   };
 
-  const removeOption = (option: string) => {
-    const newValue = value.filter((item) => item !== option);
-    onChange(newValue);
+  const removeOption = (val: string) => {
+    onChange(value.filter((v) => v !== val));
   };
 
   return (
-    <div className="select-wrapper gap-2">
-      <div className="select-container" ref={dropdownRef}>
+    <div className="flex flex-col gap-2">
+      <div className="relative w-full" ref={dropdownRef}>
         <button
-          type="button"
-          className={classNames(
-            "select-input-container",
-            { blueborder: value.length > 0 },
-            className,
-            error ? "border-input-border-error!" : "border-input-border-default!"
-          )}
-          onClick={() => setOpen((prev) => !prev)}
+          className={`w-full peer flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border border-input-border-default! focus:border-input-text-placeholder-active! ${selectedOptions.length === 0 && error && "border-input-border-error!"} ${open ? "rounded-t-2xl!" : "rounded-2xl!"}`}
+          onClick={() => {
+            setOpen((e) => !e);
+            requestAnimationFrame(() => buttonRef.current?.focus());
+          }}
+          ref={buttonRef}
         >
-          <div className="select-input-placeholder">{placeholder}</div>
-          <div className="select-input-drop-icon">
-            <FaSortDown color="#747473" size={20} />
+          <div className="text-input-text-placeholder text-body-4">
+            {placeholder}
           </div>
+          <FaCaretDown
+            size={20}
+            className={`text-black-text transition-transform cursor-pointer`}
+          />
         </button>
         {open && availableOptions.length > 0 && (
-          <div className={`select-input-dropdown ${dropdownClassName}`}>
+          <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
             {availableOptions.map((option, index: number) => (
               <button
-                type="button"
-                className={`select-input-dropdown-item ${index === list.length - 1 ? "" : "border-b border-grey-light"}`}
+                className="px-[1.25rem] py-[0.75rem] text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
                 key={option.value + index}
-                onClick={() => toggleOption(option.value)}
+                onClick={() => toggleOption(option)}
               >
                 {option.label}
               </button>
             ))}
           </div>
         )}
+        {!open && !selectedOptions && error && (
+          <div
+            className={`
+              mt-1.5 flex items-center gap-1 px-4
+              text-caption-2 text-text-error
+            `}
+          >
+            <IoIosWarning className="text-text-error" size={14} />
+            <span>{error}</span>
+          </div>
+        )}
       </div>
-      {value && value.length > 0 && (
+      {selectedOptions && selectedOptions.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {value.map((item) => (
+          {selectedOptions.map((item) => (
             <div
-              key={item}
-              className="px-4! py-2! rounded-2xl border border-grey-light flex gap-1 items-center"
+              key={item.value}
+              className="px-3! py-1.5! rounded-2xl border border-grey-light flex gap-1 items-center"
             >
-              <span className="font-satoshi font-semibold text-[15px] text-black-text">
-                {getLabel(item)}
+              <span className="text-caption-1 text-text-primary">
+                {item.label}
               </span>
               <IoIosClose
                 color="#302f2e"
                 className="pt-0.5! cursor-pointer"
-                size={28}
-                onClick={() => removeOption(item)}
+                size={24}
+                onClick={() => removeOption(item.value)}
               />
             </div>
           ))}

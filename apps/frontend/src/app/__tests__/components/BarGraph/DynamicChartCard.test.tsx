@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import DynamicChartCard from '../../../components/BarGraph/DynamicChartCard';
+import DynamicChartCard from '../../../components/DynamicChart/DynamicChartCard';
 
 let yAxisProps: any = {};
 

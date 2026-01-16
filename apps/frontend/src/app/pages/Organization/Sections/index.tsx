@@ -1,4 +1,4 @@
-export { default as Delete } from "./Delete";
+export { default as DeleteOrg } from "./DeleteOrg";
 export { default as Documents } from "./Documents/Documents";
 export { default as Payment } from "./Payment";
 export { default as Profile } from "./Profile";

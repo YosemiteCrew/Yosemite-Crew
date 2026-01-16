@@ -1,4 +1,3 @@
-import AccordionButton from "@/app/components/Accordion/AccordionButton";
 import React, { useEffect, useMemo, useState } from "react";
 import ProfileCard from "../../Organization/Sections/ProfileCard";
 import Availability from "@/app/components/Availability/Availability";
@@ -15,8 +14,10 @@ import {
 import { upsertAvailability } from "@/app/services/availability";
 import { usePrimaryAvailability } from "@/app/hooks/useAvailabiities";
 import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
-import { Gender, GenderOptions, UserProfile } from "@/app/types/profile";
+import { Gender, UserProfile } from "@/app/types/profile";
 import { upsertUserProfile } from "@/app/services/profileService";
+import { GenderOptions } from "@/app/types/companion";
+import { EmploymentTypes, RoleOptions } from "../../Organization/types";
 
 const ProfessionalFields = [
   {
@@ -107,14 +108,16 @@ const OrgRelatedFields = [
     key: "roleDisplay",
     required: true,
     editable: false,
-    type: "text",
+    type: "select",
+    options: RoleOptions
   },
   {
     label: "Employment type",
     key: "employmentType",
     required: true,
     editable: false,
-    type: "text",
+    type: "select",
+    options: EmploymentTypes
   },
   {
     label: "Gender",
@@ -167,7 +170,7 @@ const OrgSection = () => {
       return acc;
     }, {} as AvailabilityState)
   );
-  const [overides, setOverides] = useState<ApiOverrides[]>([])
+  const [overides, setOverides] = useState<ApiOverrides[]>([]);
 
   const orgInfoData = useMemo(
     () => ({
@@ -228,7 +231,7 @@ const OrgSection = () => {
 
   const updateOrgFields = async (values: any) => {
     try {
-      if (!profile) return
+      if (!profile) return;
       const payload: UserProfile = {
         ...profile,
         _id: profile?._id,
@@ -251,7 +254,7 @@ const OrgSection = () => {
 
   const updateAddressFields = async (values: any) => {
     try {
-      if (!profile) return
+      if (!profile) return;
       const payload: UserProfile = {
         ...profile,
         _id: profile?._id,
@@ -274,7 +277,7 @@ const OrgSection = () => {
 
   const updateProfessionalFields = async (values: any) => {
     try {
-      if (!profile) return
+      if (!profile) return;
       const payload: UserProfile = {
         ...profile,
         _id: profile?._id,
@@ -295,51 +298,48 @@ const OrgSection = () => {
   };
 
   return (
-    <AccordionButton title="Org Details" defaultOpen showButton={false}>
-      <div className="flex flex-col gap-4">
-        <ProfileCard
-          title="Info"
-          fields={OrgRelatedFields}
-          org={orgInfoData}
-          onSave={updateOrgFields}
-        />
-        <ProfileCard
-          title="Address"
-          fields={AddressFields}
-          org={addressData}
-          onSave={updateAddressFields}
-        />
-        <ProfileCard
-          title="Professional details"
-          fields={ProfessionalFields}
-          org={professionalData}
-          onSave={updateProfessionalFields}
-        />
-        <div className="border border-grey-light rounded-2xl">
-          <div className="px-6! py-4! border-b border-b-grey-light flex items-center justify-between">
-            <div className="font-grotesk font-medium text-black-text text-[19px]">
-              Availability
-            </div>
+    <div className="flex flex-col gap-6">
+      <ProfileCard
+        title="Org Details"
+        fields={OrgRelatedFields}
+        org={orgInfoData}
+        onSave={updateOrgFields}
+      />
+      <ProfileCard
+        title="Address"
+        fields={AddressFields}
+        org={addressData}
+        onSave={updateAddressFields}
+      />
+      <ProfileCard
+        title="Professional details"
+        fields={ProfessionalFields}
+        org={professionalData}
+        onSave={updateProfessionalFields}
+      />
+      <div className="border border-card-border rounded-2xl">
+        <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
+          <div className="text-body-3 text-text-primary">
+            Availability
           </div>
-          <div className="px-10! py-10! flex flex-col gap-4">
-            <Availability
-              availability={availability}
-              setAvailability={setAvailability}
-              overides={overides}
-              setOverides={setOverides}
+        </div>
+        <div className="flex flex-col px-6! py-6! gap-6">
+          <Availability
+            availability={availability}
+            setAvailability={setAvailability}
+            overides={overides}
+            setOverides={setOverides}
+          />
+          <div className="w-full flex justify-end!">
+            <Primary
+              href="#"
+              text="Save"
+              onClick={handleClick}
             />
-            <div className="w-full flex justify-end!">
-              <Primary
-                href="#"
-                text="Save"
-                style={{ width: "160px" }}
-                onClick={handleClick}
-              />
-            </div>
           </div>
         </div>
       </div>
-    </AccordionButton>
+    </div>
   );
 };
 

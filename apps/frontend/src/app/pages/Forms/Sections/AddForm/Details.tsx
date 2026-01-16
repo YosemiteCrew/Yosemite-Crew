@@ -163,9 +163,7 @@ const Details = ({
                 setFormData({ ...formData, services: e });
                 setFormDataErrors((prev) => ({ ...prev, services: undefined }));
               }}
-              className="min-h-12!"
               options={serviceOptions}
-              dropdownClassName="h-fit! max-h-[150px]!"
             />
             <MultiSelectDropdown
               placeholder="Species"
@@ -175,9 +173,7 @@ const Details = ({
                 setFormData({ ...formData, species: e });
                 setFormDataErrors((prev) => ({ ...prev, species: undefined }));
               }}
-              className="min-h-12!"
               options={["Dog", "Cat", "Horse"]}
-              dropdownClassName="h-fit!"
             />
           </div>
         </Accordion>

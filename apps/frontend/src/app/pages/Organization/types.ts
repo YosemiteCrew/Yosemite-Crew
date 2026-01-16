@@ -28,13 +28,13 @@ export const SpecialityOptions = [
   "Dermatology",
 ];
 export const RoleOptions = [
-  "OWNER",
-  "ADMIN",
-  "SUPERVISOR",
-  "VETERINARIAN",
-  "TECHNICIAN",
-  "ASSISTANT",
-  "RECEPTIONIST",
+  { label: "Owner", value: "OWNER" },
+  { label: "Admin", value: "ADMIN" },
+  { label: "Supervisor", value: "SUPERVISOR" },
+  { label: "Veterinarian", value: "VETERINARIAN" },
+  { label: "Technician", value: "TECHNICIAN" },
+  { label: "Assistant", value: "ASSISTANT" },
+  { label: "Receptionist", value: "RECEPTIONIST" },
 ];
 export const StaffOptions: string[] = [
   "Dr. Emily brown",

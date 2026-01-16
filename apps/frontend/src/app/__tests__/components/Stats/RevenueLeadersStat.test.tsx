@@ -1,28 +1,27 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-
-const mockCardHeader = jest.fn();
+import RevenueLeadersStat from "@/app/components/Stats/RevenueLeadersStat";
+import CardHeader from "@/app/components/Cards/CardHeader/CardHeader";
 
 jest.mock("@/app/components/Cards/CardHeader/CardHeader", () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockCardHeader(props);
-    return <div data-testid="card-header">{props.title}</div>;
-  },
+  default: jest.fn(({ title }: any) => (
+    <div data-testid="card-header">{title}</div>
+  )),
 }));
 
-import RevenueLeadersStat from "@/app/components/Stats/RevenueLeadersStat";
-
 describe("RevenueLeadersStat", () => {
-  test("renders leaders list and configures CardHeader", () => {
+  it("renders revenue tiles", () => {
     render(<RevenueLeadersStat />);
 
-    expect(mockCardHeader).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Revenue leaders" })
+    expect(screen.getByTestId("card-header")).toHaveTextContent(
+      "Revenue leaders"
     );
-    const zeros = screen.getAllByText("$0");
-    expect(zeros).toHaveLength(3);
+    expect(screen.getAllByText("$0")).toHaveLength(3);
     expect(screen.getByText("General Medicine")).toBeInTheDocument();
+    expect(screen.getByText("Surgery")).toBeInTheDocument();
+    expect(screen.getByText("Oncology")).toBeInTheDocument();
+    expect(CardHeader).toHaveBeenCalled();
   });
 });

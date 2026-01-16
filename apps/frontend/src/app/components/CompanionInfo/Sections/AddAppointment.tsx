@@ -108,9 +108,7 @@ const AddAppointment = () => {
             value={formData.support}
             onChange={(e) => setFormData({ ...formData, support: e })}
             error={formDataErrors.lead}
-            className="min-h-12!"
             options={SupportOptions}
-            dropdownClassName="h-fit!"
           />
         </div>
       </Accordion>
