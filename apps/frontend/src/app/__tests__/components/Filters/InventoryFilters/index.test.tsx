@@ -3,14 +3,16 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import InventoryFilters from "@/app/components/Filters/InventoryFilters";
 
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
-  default: ({ value, onChange, options, disabled }: any) => (
+  default: ({ options, defaultOption, onSelect }: any) => (
     <select
       data-testid="category-dropdown"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
+      value={defaultOption}
+      onChange={(e) => {
+        const option = options.find((opt: any) => opt.value === e.target.value);
+        if (option) onSelect(option);
+      }}
     >
       {options.map((opt: any) => (
         <option key={opt.value} value={opt.value}>
@@ -77,7 +79,9 @@ describe("InventoryFilters", () => {
       />
     );
 
-    expect(screen.getByTestId("category-dropdown")).toBeDisabled();
+    // Status buttons should be disabled when loading
     expect(screen.getByText("Active")).toBeDisabled();
+    expect(screen.getByText("All")).toBeDisabled();
+    expect(screen.getByText("Expired")).toBeDisabled();
   });
 });
