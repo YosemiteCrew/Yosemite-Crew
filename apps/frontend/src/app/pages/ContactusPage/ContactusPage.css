@@ -55,7 +55,6 @@
   border: 1px solid var(--color-card-border);
   background: var(--color-neutral-0);
   padding: 20px;
-  min-height: 65vh;
   height: fit-content;
   border-radius: 24px;
   width: 36%;

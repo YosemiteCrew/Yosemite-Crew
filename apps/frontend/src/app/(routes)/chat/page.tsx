@@ -21,13 +21,13 @@ function ChatPageContent() {
   const appointmentId = searchParams.get("appointmentId");
 
   return (
-    <div className="chat-page">
-      <ProtectedRoute>
-        <OrgGuard>
+    <ProtectedRoute>
+      <OrgGuard>
+        <div className="chat-page">
           <ChatContainer appointmentId={appointmentId || undefined} />
-        </OrgGuard>
-      </ProtectedRoute>
-    </div>
+        </div>
+      </OrgGuard>
+    </ProtectedRoute>
   );
 }
 

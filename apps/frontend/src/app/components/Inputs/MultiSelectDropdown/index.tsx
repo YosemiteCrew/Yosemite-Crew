@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import React, { useEffect, useRef, useState } from "react";
 import { FaSortDown } from "react-icons/fa";
-import { IoIosClose } from "react-icons/io";
+import { IoIosClose, IoIosWarning } from "react-icons/io";
 
 import "../Dropdown/Dropdown.css";
 
@@ -77,7 +77,8 @@ const MultiSelectDropdown = ({
           className={classNames(
             "select-input-container",
             { blueborder: value.length > 0 },
-            className
+            className,
+            error ? "border-input-border-error!" : "border-input-border-default!"
           )}
           onClick={() => setOpen((prev) => !prev)}
         >
@@ -119,6 +120,12 @@ const MultiSelectDropdown = ({
               />
             </div>
           ))}
+        </div>
+      )}
+      {error && (
+        <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
+          <IoIosWarning className="text-text-error" size={14} />
+          <span>{error}</span>
         </div>
       )}
     </div>

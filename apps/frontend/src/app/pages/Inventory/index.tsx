@@ -219,9 +219,15 @@ const Inventory = () => {
 
   return (
     <div className="flex flex-col gap-5 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
-      <div className="flex justify-between items-center w-full">
-        <div className="font-grotesk text-heading-1 text-text-primary text-[33px]">
-          Inventory
+      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+          <div className="font-grotesk text-heading-1 text-text-primary text-[33px]">
+            Inventory
+          </div>
+          <p className="text-body-3 text-text-secondary max-w-3xl">
+            Organize stock, track batches and expiry, and monitor turnover so you
+            know what to reorder and which items need attention.
+          </p>
         </div>
         <Primary
           href="#"

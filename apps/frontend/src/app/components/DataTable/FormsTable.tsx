@@ -25,11 +25,13 @@ export const getStatusStyle = (status: string) => {
   if (!status) return { color: "#302F2E", backgroundColor: "#F3F3F3" };
   switch (status.toLowerCase()) {
     case "published":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
+      return { color: "#F7F7F7", backgroundColor: "#747283" };
     case "draft":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
+      return { color: "#F7F7F7", backgroundColor: "#BF9FAA" };
+    case "archived":
+      return { color: "#F7F7F7", backgroundColor: "#D9A488" };
     default:
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
+      return { color: "#F7F7F7", backgroundColor: "#D28F9A" };
   }
 };
 
@@ -124,7 +126,7 @@ const FormsTable = ({
             Loading forms...
           </div>
         ) : (
-          <GenericTable data={filteredList} columns={columns} bordered={false} />
+          <GenericTable data={filteredList} columns={columns} bordered={false} pagination pageSize={10} />
         )}
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
