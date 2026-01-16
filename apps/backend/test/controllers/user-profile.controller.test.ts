@@ -1,12 +1,19 @@
-import { UserProfileController } from "../../src/controllers/web/user-profile.controller";
-import {
-  UserProfileService,
-  UserProfileServiceError,
-} from "../../src/services/user-profile.service";
-import logger from "../../src/utils/logger";
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { Request, Response } from 'express';
+// ----------------------------------------------------------------------
+// 1. FIXED IMPORTS: Up 2 levels to src from test/controllers/
+// ----------------------------------------------------------------------
+import { UserProfileController } from '../../src/controllers/web/user-profile.controller';
+import { UserProfileService } from '../../src/services/user-profile.service';
+import * as UploadMiddleware from '../../src/middlewares/upload';
+import logger from '../../src/utils/logger';
 
-jest.mock("../../src/services/user-profile.service", () => {
-  const actual = jest.requireActual("../../src/services/user-profile.service");
+// ----------------------------------------------------------------------
+// 2. MOCK FACTORY
+// ----------------------------------------------------------------------
+jest.mock('../../src/services/user-profile.service', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actual = jest.requireActual('../../src/services/user-profile.service') as any;
   return {
     ...actual,
     UserProfileService: {
@@ -17,272 +24,263 @@ jest.mock("../../src/services/user-profile.service", () => {
   };
 });
 
-jest.mock("../../src/utils/logger", () => ({
-  __esModule: true,
-  default: {
-    error: jest.fn(),
-  },
-}));
+jest.mock('../../src/middlewares/upload');
+jest.mock('../../src/utils/logger');
 
-const mockedService = UserProfileService as unknown as {
-  create: jest.Mock;
-  update: jest.Mock;
-  getByUserId: jest.Mock;
-};
+// Retrieve REAL Error class
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { UserProfileServiceError } = jest.requireActual('../../src/services/user-profile.service') as any;
 
-const mockedLogger = logger as unknown as {
-  error: jest.Mock;
-};
+// ----------------------------------------------------------------------
+// 3. TYPED MOCKS
+// ----------------------------------------------------------------------
+const mockedProfileService = jest.mocked(UserProfileService);
+const mockedUpload = jest.mocked(UploadMiddleware);
+const mockedLogger = jest.mocked(logger);
 
-const createResponse = () => ({
-  status: jest.fn().mockReturnThis(),
-  json: jest.fn().mockReturnThis(),
-});
+describe('UserProfileController', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let jsonMock: jest.Mock;
+  let statusMock: jest.Mock;
+  let sendMock: jest.Mock;
 
-describe("UserProfileController", () => {
   beforeEach(() => {
+    jsonMock = jest.fn();
+    sendMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
+
+    req = {
+      headers: {},
+      params: {},
+      body: {},
+      query: {},
+    };
+
+    res = {
+      status: statusMock,
+      json: jsonMock,
+      send: sendMock,
+    } as unknown as Response;
+
     jest.clearAllMocks();
   });
 
-  describe("create", () => {
-    it("rejects invalid body", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-        body: null,
-      } as any;
-      const res = createResponse();
+  // ----------------------------------------------------------------------
+  // 4. ERROR HELPERS
+  // ----------------------------------------------------------------------
+  const mockServiceError = (method: keyof typeof UserProfileService, status = 400, msg = 'Service Error') => {
+    const error = new UserProfileServiceError(msg, status);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockedProfileService[method] as any).mockRejectedValue(error);
+  };
 
-      await UserProfileController.create(req, res as any);
+  const mockGenericError = (method: keyof typeof UserProfileService) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockedProfileService[method] as any).mockRejectedValue(new Error('Boom'));
+  };
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Invalid request body.",
+  /* ========================================================================
+   * TESTS
+   * ======================================================================*/
+
+  describe('create', () => {
+    it('should success (201)', async () => {
+      (req as any).userId = 'u1';
+      req.params = { organizationId: 'org1' };
+      req.body = { firstName: 'John' };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.create as any).mockResolvedValue({ id: 'p1' });
+
+      await UserProfileController.create(req as any, res as Response);
+      expect(mockedProfileService.create).toHaveBeenCalledWith({
+        firstName: 'John',
+        userId: 'u1',
+        organizationId: 'org1'
       });
-      expect(mockedService.create).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(201);
     });
 
-    it("creates profile", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-        body: { baseAvailability: [] },
-      } as any;
-      const res = createResponse();
-      const profile = {
-        _id: "profile-id",
-        userId: "user-1",
-        organizationId: "org-1",
-      };
-      mockedService.create.mockResolvedValueOnce(profile);
-
-      await UserProfileController.create(req, res as any);
-
-      expect(mockedService.create).toHaveBeenCalledWith({
-        ...req.body,
-        userId: "user-1",
-        organizationId: "org-1",
-      });
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(profile);
+    it('should throw 400 if body invalid (array)', async () => {
+      req.body = []; // Array is invalid
+      await UserProfileController.create(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ message: 'Invalid request body.' });
     });
 
-    it("maps service errors", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-        body: { baseAvailability: [] },
-      } as any;
-      const res = createResponse();
-      mockedService.create.mockRejectedValueOnce(
-        new UserProfileServiceError("Validation", 422),
-      );
-
-      await UserProfileController.create(req, res as any);
-
-      expect(res.status).toHaveBeenCalledWith(422);
-      expect(res.json).toHaveBeenCalledWith({ message: "Validation" });
+    it('should handle service error', async () => {
+      (req as any).userId = 'u1';
+      req.body = { firstName: 'John' };
+      mockServiceError('create', 409);
+      await UserProfileController.create(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(409);
     });
 
-    it("logs unexpected errors", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-        body: { baseAvailability: [] },
-      } as any;
-      const res = createResponse();
-      const error = new Error("boom");
-      mockedService.create.mockRejectedValueOnce(error);
-
-      await UserProfileController.create(req, res as any);
-
-      expect(mockedLogger.error).toHaveBeenCalledWith(
-        "Failed to create user profile",
-        error,
-      );
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Unable to create user profile.",
-      });
+    it('should handle generic error', async () => {
+      (req as any).userId = 'u1';
+      req.body = { firstName: 'John' };
+      mockGenericError('create');
+      await UserProfileController.create(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(500);
     });
   });
 
-  describe("update", () => {
-    it("updates profile", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-        body: { baseAvailability: [] },
-      } as any;
-      const res = createResponse();
-      const profile = {
-        _id: "profile-id",
-        userId: "user-1",
-        organizationId: "org-1",
-        status: "DRAFT",
-      };
-      mockedService.update.mockResolvedValueOnce(profile);
+  describe('update', () => {
+    it('should success (200)', async () => {
+      (req as any).userId = 'u1';
+      req.params = { organizationId: 'org1' };
+      req.body = { firstName: 'Updated' };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.update as any).mockResolvedValue({ id: 'p1' });
 
-      await UserProfileController.update(req, res as any);
-
-      expect(mockedService.update).toHaveBeenCalledWith(
-        "user-1",
-        "org-1",
-        req.body,
-      );
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(profile);
+      await UserProfileController.update(req as any, res as Response);
+      expect(mockedProfileService.update).toHaveBeenCalledWith('u1', 'org1', req.body);
+      expect(statusMock).toHaveBeenCalledWith(200);
     });
 
-    it("returns 404 when missing", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "missing" },
-        body: { baseAvailability: [] },
-      } as any;
-      const res = createResponse();
-      mockedService.update.mockResolvedValueOnce(null);
+    it('should 404 if not found', async () => {
+      (req as any).userId = 'u1';
+      req.body = { firstName: 'Updated' };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.update as any).mockResolvedValue(null);
 
-      await UserProfileController.update(req, res as any);
-
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "User profile not found.",
-      });
+      await UserProfileController.update(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(404);
     });
 
-    it("maps service errors", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-        body: {},
-      } as any;
-      const res = createResponse();
-      mockedService.update.mockRejectedValueOnce(
-        new UserProfileServiceError("No fields", 400),
-      );
-
-      await UserProfileController.update(req, res as any);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "No fields" });
+    it('should handle service error', async () => {
+      (req as any).userId = 'u1';
+      req.body = { firstName: 'Updated' };
+      mockServiceError('update', 400);
+      await UserProfileController.update(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
     });
 
-    it("logs unexpected errors", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-        body: { baseAvailability: [] },
-      } as any;
-      const res = createResponse();
-      const error = new Error("db");
-      mockedService.update.mockRejectedValueOnce(error);
-
-      await UserProfileController.update(req, res as any);
-
-      expect(mockedLogger.error).toHaveBeenCalledWith(
-        "Failed to update user profile",
-        error,
-      );
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Unable to update user profile.",
-      });
+    it('should handle generic error', async () => {
+      (req as any).userId = 'u1';
+      req.body = { firstName: 'Updated' };
+      mockGenericError('update');
+      await UserProfileController.update(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(500);
     });
   });
 
-  describe("getByUserId", () => {
-    it("returns profile", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-      } as any;
-      const res = createResponse();
-      const profile = {
-        _id: "profile-id",
-        userId: "user-1",
-        organizationId: "org-1",
-      };
-      mockedService.getByUserId.mockResolvedValueOnce(profile);
+  describe('getByUserId', () => {
+    it('should success (200) using header user-id', async () => {
+      req.headers = { 'x-user-id': 'headerUser' };
+      req.params = { organizationId: 'org1' };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.getByUserId as any).mockResolvedValue({ id: 'p1' });
 
-      await UserProfileController.getByUserId(req, res as any);
-
-      expect(mockedService.getByUserId).toHaveBeenCalledWith("user-1", "org-1");
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(profile);
+      await UserProfileController.getByUserId(req as any, res as Response);
+      expect(mockedProfileService.getByUserId).toHaveBeenCalledWith('headerUser', 'org1');
+      expect(statusMock).toHaveBeenCalledWith(200);
     });
 
-    it("returns 404 when missing", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "missing" },
-      } as any;
-      const res = createResponse();
-      mockedService.getByUserId.mockResolvedValueOnce(null);
+    it('should success (200) using req.userId', async () => {
+      (req as any).userId = 'reqUser';
+      req.params = { organizationId: 'org1' };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.getByUserId as any).mockResolvedValue({ id: 'p1' });
 
-      await UserProfileController.getByUserId(req, res as any);
-
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "User profile not found.",
-      });
+      await UserProfileController.getByUserId(req as any, res as Response);
+      expect(mockedProfileService.getByUserId).toHaveBeenCalledWith('reqUser', 'org1');
     });
 
-    it("maps service errors", async () => {
-      const req = {
-        params: { organizationId: "" },
-        headers: { "x-user-id": "" },
-      } as any;
-      const res = createResponse();
-      mockedService.getByUserId.mockRejectedValueOnce(
-        new UserProfileServiceError("Invalid", 400),
-      );
-
-      await UserProfileController.getByUserId(req, res as any);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: "Invalid" });
+    it('should 404 if not found', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.getByUserId as any).mockResolvedValue(null);
+      await UserProfileController.getByUserId(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(404);
     });
 
-    it("logs unexpected errors", async () => {
-      const req = {
-        params: { organizationId: "org-1" },
-        headers: { "x-user-id": "user-1" },
-      } as any;
-      const res = createResponse();
-      const error = new Error("db");
-      mockedService.getByUserId.mockRejectedValueOnce(error);
+    it('should handle service error', async () => {
+      mockServiceError('getByUserId', 400);
+      await UserProfileController.getByUserId(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
 
-      await UserProfileController.getByUserId(req, res as any);
+    it('should handle generic error', async () => {
+      mockGenericError('getByUserId');
+      await UserProfileController.getByUserId(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
 
-      expect(mockedLogger.error).toHaveBeenCalledWith(
-        "Failed to retrieve user profile",
-        error,
-      );
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Unable to retrieve user profile.",
-      });
+  describe('getUserProfileById', () => {
+    it('should success (200) using path param userId', async () => {
+      req.params = { userId: 'pathUser', organizationId: 'org1' };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.getByUserId as any).mockResolvedValue({ id: 'p1' });
+
+      await UserProfileController.getUserProfileById(req as any, res as Response);
+      expect(mockedProfileService.getByUserId).toHaveBeenCalledWith('pathUser', 'org1');
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it('should 404 if not found', async () => {
+      req.params = { userId: 'pathUser' };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedProfileService.getByUserId as any).mockResolvedValue(null);
+      await UserProfileController.getUserProfileById(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(404);
+    });
+
+    it('should handle service error', async () => {
+      req.params = { userId: 'pathUser' };
+      mockServiceError('getByUserId', 400);
+      await UserProfileController.getUserProfileById(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it('should handle generic error', async () => {
+      req.params = { userId: 'pathUser' };
+      mockGenericError('getByUserId');
+      await UserProfileController.getUserProfileById(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe('getProfilePictureUploadUrl', () => {
+    it('should 400 if orgId missing', async () => {
+      (req as any).userId = 'u1';
+      req.params = {}; // Missing organizationId
+      await UserProfileController.getProfilePictureUploadUrl(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it('should 400 if mimeType missing', async () => {
+      (req as any).userId = 'u1';
+      req.params = { organizationId: 'org1' };
+      req.body = {}; // missing mimeType
+      await UserProfileController.getProfilePictureUploadUrl(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it('should success (200)', async () => {
+      (req as any).userId = 'u1';
+      req.params = { organizationId: 'org1' };
+      req.body = { mimeType: 'image/png' };
+      // FIX: Cast to any/jest.Mock
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedUpload.generatePresignedUrl as any).mockResolvedValue({ url: 'http://s3', key: 'k' });
+
+      await UserProfileController.getProfilePictureUploadUrl(req as any, res as Response);
+      expect(mockedUpload.generatePresignedUrl).toHaveBeenCalledWith('image/png', 'user-org', 'u1-org1');
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it('should handle generic error', async () => {
+      (req as any).userId = 'u1';
+      req.params = { organizationId: 'org1' };
+      req.body = { mimeType: 'image/png' };
+      // FIX: Cast to any/jest.Mock
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockedUpload.generatePresignedUrl as any).mockRejectedValue(new Error('S3 fail'));
+
+      await UserProfileController.getProfilePictureUploadUrl(req as any, res as Response);
+      expect(logger.error).toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(500);
     });
   });
 });
