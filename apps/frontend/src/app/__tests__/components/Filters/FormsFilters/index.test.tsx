@@ -24,20 +24,20 @@ jest.mock("@/app/components/Inputs/Search", () => ({
   ),
 }));
 
-// Mock Dropdown Component
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+// Mock LabelDropdown Component
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
-  default: ({ value, onChange, options }: any) => (
+  default: ({ defaultOption, onSelect, options }: any) => (
     <div data-testid="mock-dropdown">
-      <div data-testid="dropdown-current-value">{value}</div>
+      <div data-testid="dropdown-current-value">{defaultOption}</div>
       <div className="dropdown-options">
-        {options.map((opt: string) => (
+        {options.map((opt: any) => (
           <button
-            key={opt}
-            data-testid={`option-${opt}`}
-            onClick={() => onChange(opt)}
+            key={opt.value}
+            data-testid={`option-${opt.value}`}
+            onClick={() => onSelect(opt)}
           >
-            {opt}
+            {opt.label}
           </button>
         ))}
       </div>

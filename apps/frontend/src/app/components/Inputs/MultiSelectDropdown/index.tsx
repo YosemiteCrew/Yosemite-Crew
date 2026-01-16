@@ -137,6 +137,12 @@ const MultiSelectDropdown = ({
           ))}
         </div>
       )}
+      {error && (
+        <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
+          <IoIosWarning className="text-text-error" size={14} />
+          <span>{error}</span>
+        </div>
+      )}
     </div>
   );
 };

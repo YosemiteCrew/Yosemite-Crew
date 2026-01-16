@@ -38,14 +38,14 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, value, onChange }: any) => (
+  default: ({ placeholder, defaultOption, onSelect }: any) => (
     <div data-testid={`dropdown-${placeholder}`}>
-      <span data-testid={`dropdown-value-${placeholder}`}>{value}</span>
+      <span data-testid={`dropdown-value-${placeholder}`}>{defaultOption}</span>
       <button
         data-testid={`dropdown-select-${placeholder}`}
-        onClick={() => onChange("SelectedValue")}
+        onClick={() => onSelect({ value: "SelectedValue", label: "SelectedValue" })}
       >
         Select
       </button>
@@ -55,7 +55,7 @@ jest.mock("@/app/components/Inputs/Dropdown/Dropdown", () => ({
 
 jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
   __esModule: true,
-  default: ({ placeholder, value, onChange }: any) => (
+  default: ({ placeholder, value, onChange, error }: any) => (
     <div data-testid={`multi-${placeholder}`}>
       <span data-testid={`multi-val-${placeholder}`}>{value.join(",")}</span>
       <button
@@ -64,6 +64,7 @@ jest.mock("@/app/components/Inputs/MultiSelectDropdown", () => ({
       >
         Select Multi
       </button>
+      {error && <span data-testid={`multi-error-${placeholder}`}>{error}</span>}
     </div>
   ),
 }));

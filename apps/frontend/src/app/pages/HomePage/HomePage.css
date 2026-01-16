@@ -197,11 +197,13 @@ a.UnFillbtn {
 }
 .Practice_Box_Data {
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
-  grid-gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   justify-content: center;
-  justify-items: center;
+}
+.Practice_Box_Data .PracBox {
+  width: 260px;
 }
 @media screen and (max-width: 1280px) {
   .PracticedSection {
@@ -209,25 +211,29 @@ a.UnFillbtn {
   }
 }
 @media screen and (max-width: 1024px) {
-  .Practice_Box_Data {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 240px));
+  .Practice_Box_Data .PracBox {
+    width: 240px;
   }
 }
 @media screen and (max-width: 768px) {
   .Practice_Box_Data {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 210px));
     gap: 12px;
+  }
+  .Practice_Box_Data .PracBox {
+    width: 210px;
   }
   /* Typography handled by global classes */
 }
 @media screen and (max-width: 550px) {
-  .Practice_Box_Data {
-    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  .Practice_Box_Data .PracBox {
+    width: calc(50% - 6px);
+    min-width: 140px;
   }
 }
 @media screen and (max-width: 400px) {
-  .Practice_Box_Data {
-    grid-template-columns: repeat(1, 1fr);
+  .Practice_Box_Data .PracBox {
+    width: 100%;
+    max-width: 280px;
   }
 }
 /* PracticedSection Ended  */

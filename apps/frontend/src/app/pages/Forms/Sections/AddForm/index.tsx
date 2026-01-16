@@ -121,13 +121,6 @@ const AddForm = ({
     setActiveLabel(target);
   };
 
-  const handleClear = () => {
-    const cleared = initialForm ?? defaultForm();
-    setFormData(cleared);
-    setActiveLabel("form-details");
-    onDraftChange?.(cleared);
-  };
-
   const handleSaveDraft = async () => {
     setIsSaving(true);
     try {
@@ -179,18 +172,7 @@ const AddForm = ({
               {isEditing ? "Edit form" : "Add form"}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {!isEditing && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="text-sm font-satoshi font-semibold text-grey-noti underline decoration-1 underline-offset-4"
-              >
-                Clear
-              </button>
-            )}
-            <Close onClick={closeModal} />
-          </div>
+          <Close onClick={closeModal} />
         </div>
 
         <SubLabels

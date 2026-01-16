@@ -1,22 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const Category = [
-  {
-    name: "All",
-    key: "all",
-  },
-  {
-    name: "Medicines",
-    key: "medicine",
-  },
-  {
-    name: "Consumables",
-    key: "consumable",
-  },
-  {
-    name: "Equipments",
-    key: "equipment",
-  },
+  { name: "All", key: "all", bg: "#247AED", text: "#EAF3FF" },
+  { name: "Medicines", key: "medicine", bg: "#747283", text: "#F7F7F7" },
+  { name: "Consumables", key: "consumable", bg: "#BF9FAA", text: "#F7F7F7" },
+  { name: "Equipments", key: "equipment", bg: "#D9A488", text: "#F7F7F7" },
 ];
 
 type InventoryTurnoverFiltersProps = {
@@ -44,13 +32,18 @@ const InventoryTurnoverFilters = ({
   }, [filteredList, setFilteredList]);
 
   return (
-    <div className="w-full flex items-center justify-between flex-wrap gap-2">
+    <div className="w-full flex items-center justify-between flex-wrap gap-3">
       <div className="flex items-center gap-2 flex-wrap">
         {Category.map((category) => (
           <button
             key={category.key}
             onClick={() => setActiveCategory(category.key)}
-            className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! ${category.key === activeCategory ? " bg-blue-light text-blue-text! border-text-brand! border" : "border border-card-border!"}`}
+            className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
+            style={
+              category.key === activeCategory
+                ? { backgroundColor: category.bg, color: category.text }
+                : undefined
+            }
           >
             {category.name}
           </button>
