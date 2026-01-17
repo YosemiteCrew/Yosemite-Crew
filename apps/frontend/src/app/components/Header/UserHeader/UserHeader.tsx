@@ -87,6 +87,16 @@ const UserHeader = () => {
     router.push("/dashboard");
   };
 
+  const handleMobileOrgClick = (orgId: string) => {
+    console.log(orgId);
+    setPrimaryOrg(orgId);
+    setSelectOrg(false);
+    setMenuOpen(false);
+    setTimeout(() => {
+      router.push("/dashboard");
+    }, 300);
+  };
+
   const handleClick = (item: any) => {
     setMenuOpen(false);
     setTimeout(() => {
@@ -153,9 +163,9 @@ const UserHeader = () => {
             className="px-3 sm:px-12! py-6 bg-white z-999 fixed top-full left-0 w-screen overflow-auto flex flex-col gap-3"
           >
             {primaryOrg && (
-              <div className="relative">
+              <div className="relative w-fit" ref={orgDropdownRef}>
                 <button
-                  className="flex items-center gap-2"
+                  className={`flex items-center gap-2 w-60 z-1000 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
                   onClick={() => setSelectOrg((e) => !e)}
                 >
                   <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
@@ -170,13 +180,13 @@ const UserHeader = () => {
                   />
                 </button>
                 {selectOrg && (
-                  <div className="absolute top-[100%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full max-w-[200px] px-2">
+                  <div className="absolute top-[100%] left-0 z-1000 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
                     {orgs.slice(0, 3).map((org, i) => (
                       <button
                         key={org.name + i}
-                        className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl text-text-secondary! hover:text-text-primary! max-w-[200px] w-full truncate border-b! border-b-card-border!"
+                        className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! transition-all duration-300 text-text-secondary! hover:text-text-primary! w-full truncate"
                         onClick={() =>
-                          handleOrgClick(org._id?.toString() || org.name)
+                          handleMobileOrgClick(org._id?.toString() || org.name)
                         }
                       >
                         {org.name}
@@ -185,7 +195,7 @@ const UserHeader = () => {
                     <Link
                       href={"/organizations"}
                       onClick={() => setSelectOrg(false)}
-                      className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full"
+                      className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
                     >
                       View all
                     </Link>
@@ -283,7 +293,11 @@ const UserHeader = () => {
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        <Search value={search} setSearch={setSearch} className={"lg:flex hidden"} />
+        <Search
+          value={search}
+          setSearch={setSearch}
+          className={"lg:flex hidden"}
+        />
 
         <MdNotificationsActive
           color="#302f2e"

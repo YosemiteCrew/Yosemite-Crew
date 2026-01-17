@@ -165,7 +165,7 @@ const Datepicker = ({
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer bg-transparent border-0 p-0"
+            className="absolute right-6 top-1/2 -translate-y-1/2 cursor-pointer bg-transparent border-0 p-0"
             aria-label="Toggle calendar"
           >
             <IoCalendarClear size={20} color="#302f2e" />

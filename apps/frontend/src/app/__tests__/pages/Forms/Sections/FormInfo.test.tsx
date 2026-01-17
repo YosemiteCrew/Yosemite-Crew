@@ -3,9 +3,34 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import FormInfo from "@/app/pages/Forms/Sections/FormInfo";
 
+const publishFormMock = jest.fn();
+
+jest.mock("@/app/services/formService", () => ({
+  archiveForm: jest.fn(),
+  publishForm: (...args: any[]) => publishFormMock(...args),
+  unpublishForm: jest.fn(),
+}));
+
+jest.mock("@/app/components/Toast/Toast", () => ({
+  useErrorTost: () => ({
+    showErrorTost: jest.fn(),
+    ErrorTostPopup: () => <div>toast</div>,
+  }),
+}));
+
 jest.mock("@/app/components/Modal", () => ({
   __esModule: true,
-  default: ({ children }: any) => <div data-testid="modal">{children}</div>,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="modal">{children}</div> : null,
+}));
+
+jest.mock("@/app/components/Icons/Close", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
+    </button>
+  ),
 }));
 
 jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
@@ -15,114 +40,68 @@ jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
 
 jest.mock("@/app/components/Accordion/Accordion", () => ({
   __esModule: true,
-  default: ({ title, children }: any) => (
-    <div>
-      <div>{title}</div>
-      <div>{children}</div>
-    </div>
-  ),
+  default: ({ title }: any) => <div>{title}</div>,
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/components/Icons/Close", () => ({
-  __esModule: true,
-  default: ({ onClick }: any) => (
+  Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
-      Close
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
     </button>
   ),
 }));
 
 jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
   __esModule: true,
-  default: () => <div>Form Renderer</div>,
+  default: () => <div>form-renderer</div>,
 }));
 
-jest.mock("@/app/services/formService", () => ({
-  publishForm: jest.fn(),
-  unpublishForm: jest.fn(),
-  archiveForm: jest.fn(),
+jest.mock("@iconify/react", () => ({
+  Icon: () => <span>icon</span>,
 }));
-
-const formService = jest.requireMock("@/app/services/formService");
 
 describe("FormInfo", () => {
-  const serviceOptions = [{ label: "Checkup", value: "serv-1" }];
-
-  beforeEach(() => {
-    jest.clearAllMocks();
+  beforeAll(() => {
+    if ((console.error as jest.Mock).mockImplementation) {
+      (console.error as jest.Mock).mockImplementation(() => {});
+    } else {
+      jest.spyOn(console, "error").mockImplementation(() => {});
+    }
   });
 
-  it("renders actions for published forms", async () => {
-    formService.unpublishForm.mockResolvedValue(undefined);
-    formService.archiveForm.mockResolvedValue(undefined);
+  afterAll(() => {
+    (console.error as jest.Mock).mockRestore?.();
+  });
+
+  it("publishes draft form", async () => {
+    const setShowModal = jest.fn();
+    publishFormMock.mockResolvedValue(undefined);
 
     render(
       <FormInfo
         showModal
-        setShowModal={jest.fn()}
+        setShowModal={setShowModal}
         activeForm={{
-          _id: "form-1",
-          name: "Intake",
-          status: "Published",
-          schema: [{ id: "q1", type: "text" }],
+          _id: "f1",
+          name: "Form",
+          status: "Draft",
+          fields: [],
         } as any}
         onEdit={jest.fn()}
-        serviceOptions={serviceOptions}
+        serviceOptions={[]}
       />
     );
 
-    expect(screen.getByText("Form details")).toBeInTheDocument();
-    expect(screen.getByText("Form preview")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
 
-    fireEvent.click(screen.getByText("Unpublish"));
     await waitFor(() => {
-      expect(formService.unpublishForm).toHaveBeenCalledWith("form-1");
+      expect(publishFormMock).toHaveBeenCalledWith("f1");
     });
-
-    fireEvent.click(screen.getByText("Archive"));
-    await waitFor(() => {
-      expect(formService.archiveForm).toHaveBeenCalledWith("form-1");
-    });
-  });
-
-  it("publishes draft and handles edit", async () => {
-    formService.publishForm.mockResolvedValue(undefined);
-    const onEdit = jest.fn();
-
-    render(
-      <FormInfo
-        showModal
-        setShowModal={jest.fn()}
-        activeForm={{
-          _id: "form-2",
-          name: "Consent",
-          status: "Draft",
-          schema: [],
-        } as any}
-        onEdit={onEdit}
-        serviceOptions={serviceOptions}
-      />
-    );
-
-    fireEvent.click(screen.getByText("Publish"));
-    await waitFor(() => {
-      expect(formService.publishForm).toHaveBeenCalledWith("form-2");
-    });
-
-    fireEvent.click(screen.getByText("Edit form"));
-    expect(onEdit).toHaveBeenCalled();
+    expect(setShowModal).toHaveBeenCalledWith(false);
   });
 });

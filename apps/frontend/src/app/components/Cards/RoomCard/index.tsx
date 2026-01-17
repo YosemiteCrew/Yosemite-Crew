@@ -2,6 +2,7 @@ import React from "react";
 import { OrganisationRoom } from "@yosemite-crew/types";
 import { joinNames } from "../../DataTable/RoomTable";
 import { Secondary } from "../../Buttons";
+import { toTitleCase } from "@/app/utils/validators";
 
 type RoomCardProps = {
   room: OrganisationRoom;
@@ -25,7 +26,9 @@ const RoomCard = ({
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Type:</div>
-        <div className="text-caption-1 text-text-primary">{room.type}</div>
+        <div className="text-caption-1 text-text-primary">
+          {toTitleCase(room.type)}
+        </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">

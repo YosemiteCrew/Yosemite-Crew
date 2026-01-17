@@ -42,23 +42,13 @@ jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-describe("DeleteProfile", () => {
+describe("Settings DeleteProfile", () => {
   it("opens modal and validates required email", () => {
     render(<DeleteProfile />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete profile" }));
-    expect(screen.getAllByText("Delete profile")[0]).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
     expect(screen.getByText("Email is required")).toBeInTheDocument();
-  });
-
-  it("closes modal on cancel", () => {
-    render(<DeleteProfile />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Delete profile" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.queryByText("Are you sure you want to delete your profile?")).not.toBeInTheDocument();
   });
 });

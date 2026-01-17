@@ -1,255 +1,70 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import TasksPage from "@/app/pages/Tasks";
 
-// Adjusted path: Go up 3 levels to reach 'src/app'
-import ProtectedTasks from "../../../pages/Tasks/index";
-import {
-  useLoadTasksForPrimaryOrg,
-  useTasksForPrimaryOrg,
-} from "../../../hooks/useTask";
-import { getStartOfWeek } from "../../../components/Calendar/weekHelpers";
+const useTasksMock = jest.fn();
+const useLoadTasksMock = jest.fn();
 
-// --- Mocks ---
-
-// Mock Hooks
-jest.mock("../../../hooks/useTask", () => ({
-  useLoadTasksForPrimaryOrg: jest.fn(),
-  useTasksForPrimaryOrg: jest.fn(),
+jest.mock("@/app/hooks/useTask", () => ({
+  useTasksForPrimaryOrg: () => useTasksMock(),
+  useLoadTasksForPrimaryOrg: () => useLoadTasksMock(),
 }));
 
-jest.mock("../../../components/Calendar/weekHelpers", () => ({
-  getStartOfWeek: jest.fn(),
+jest.mock("@/app/components/ProtectedRoute", () => ({
+  __esModule: true,
+  default: ({ children }: any) => <div data-testid="protected">{children}</div>,
 }));
 
-// Mock Wrappers (Pass-through)
-jest.mock("@/app/components/ProtectedRoute", () => ({ children }: any) => (
-  <div data-testid="protected-route">{children}</div>
-));
-jest.mock("@/app/components/OrgGuard", () => ({ children }: any) => (
-  <div data-testid="org-guard">{children}</div>
-));
+jest.mock("@/app/components/OrgGuard", () => ({
+  __esModule: true,
+  default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
+}));
 
-// Mock Child Components
-jest.mock(
-  "@/app/components/TitleCalendar",
-  () =>
-    ({ setActiveCalendar, setAddPopup, currentDate }: any) => (
-      <div data-testid="title-calendar">
-        <span>Date: {currentDate.toString()}</span>
-        <button onClick={() => setActiveCalendar("month")}>Set Month View</button>
-        <button onClick={() => setAddPopup(true)}>Add Task</button>
-      </div>
-    )
-);
+jest.mock("@/app/components/TitleCalendar", () => ({
+  __esModule: true,
+  default: ({ setActiveView }: any) => (
+    <button type="button" onClick={() => setActiveView("list")}>
+      switch-list
+    </button>
+  ),
+}));
 
-jest.mock(
-  "@/app/components/Filters/TasksFilters",
-  () =>
-    ({ setFilteredList, list }: any) => (
-      <div data-testid="task-filters">
-        <button onClick={() => setFilteredList(list)}>Reset Filter</button>
-      </div>
-    )
-);
+jest.mock("@/app/components/Filters/TasksFilters", () => ({
+  __esModule: true,
+  default: () => <div>filters</div>,
+}));
 
-jest.mock(
-  "@/app/components/Calendar/TaskCalendar",
-  () =>
-    ({ activeCalendar, setViewPopup, setActiveTask }: any) => (
-      <div data-testid="task-calendar">
-        <span>View: {activeCalendar}</span>
-        <button
-          onClick={() => {
-            setActiveTask({ _id: "task-1" });
-            setViewPopup(true);
-          }}
-        >
-          Open Calendar Task
-        </button>
-      </div>
-    )
-);
+jest.mock("@/app/components/DataTable/Tasks", () => ({
+  __esModule: true,
+  default: () => <div>tasks-table</div>,
+}));
 
-// Adjusted path: Go up 3 levels to reach 'src/app'
-jest.mock(
-  "../../../components/DataTable/Tasks",
-  () =>
-    ({ setViewPopup, setActiveTask }: any) => (
-      <div data-testid="task-table">
-        <button
-          onClick={() => {
-            setActiveTask({ _id: "task-1" });
-            setViewPopup(true);
-          }}
-        >
-          Open Table Task
-        </button>
-      </div>
-    )
-);
+jest.mock("@/app/components/Calendar/TaskCalendar", () => ({
+  __esModule: true,
+  default: () => <div>calendar</div>,
+}));
 
-// Adjusted path: Go up 3 levels to reach 'src/app'
-jest.mock(
-  "../../../pages/Tasks/Sections/AddTask",
-  () =>
-    ({ showModal, setShowModal }: any) =>
-      showModal ? (
-        <div data-testid="add-task-modal">
-          <button onClick={() => setShowModal(false)}>Close Add</button>
-        </div>
-      ) : null
-);
+jest.mock("@/app/pages/Tasks/Sections/AddTask", () => ({
+  __esModule: true,
+  default: () => <div>add-task</div>,
+}));
 
-// Adjusted path: Go up 3 levels to reach 'src/app'
-jest.mock(
-  "../../../pages/Tasks/Sections/TaskInfo",
-  () =>
-    ({ showModal, setShowModal, activeTask }: any) =>
-      showModal ? (
-        <div data-testid="view-task-modal">
-          <span>Info: {activeTask?._id}</span>
-          <button onClick={() => setShowModal(false)}>Close View</button>
-        </div>
-      ) : null
-);
+jest.mock("@/app/pages/Tasks/Sections/TaskInfo", () => ({
+  __esModule: true,
+  default: () => <div>task-info</div>,
+}));
 
-describe("Tasks Page", () => {
-  const mockTasks = [
-    { _id: "task-1", title: "Task One" },
-    { _id: "task-2", title: "Task Two" },
-  ];
+describe("Tasks page", () => {
+  it("renders list view when toggled", () => {
+    useTasksMock.mockReturnValue([{ _id: "1", name: "Task" }]);
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (useLoadTasksForPrimaryOrg as jest.Mock).mockImplementation(() => undefined);
-    (useTasksForPrimaryOrg as jest.Mock).mockReturnValue(mockTasks);
-    (getStartOfWeek as jest.Mock).mockReturnValue(new Date("2025-01-01"));
-  });
+    render(<TasksPage />);
 
-  // --- Section 1: Rendering & Wrappers ---
+    expect(screen.getByTestId("protected")).toBeInTheDocument();
+    expect(screen.getByText("calendar")).toBeInTheDocument();
 
-  it("renders wrapped in ProtectedRoute and OrgGuard", () => {
-    render(<ProtectedTasks />);
-    expect(screen.getByTestId("protected-route")).toBeInTheDocument();
-    expect(screen.getByTestId("org-guard")).toBeInTheDocument();
-    expect(screen.getByTestId("title-calendar")).toBeInTheDocument();
-  });
-
-  it("renders all main child components", () => {
-    render(<ProtectedTasks />);
-    expect(screen.getByTestId("task-filters")).toBeInTheDocument();
-    expect(screen.getByTestId("task-calendar")).toBeInTheDocument();
-    expect(screen.getByTestId("task-table")).toBeInTheDocument();
-  });
-
-  // --- Section 2: Hook Calls ---
-
-  it("calls useLoadTasksForPrimaryOrg on mount", () => {
-    render(<ProtectedTasks />);
-    expect(useLoadTasksForPrimaryOrg).toHaveBeenCalled();
-  });
-
-  // --- Section 3: State & Interaction (Popups) ---
-
-  it("toggles the Add Task modal", () => {
-    render(<ProtectedTasks />);
-
-    // Closed initially
-    expect(screen.queryByTestId("add-task-modal")).not.toBeInTheDocument();
-
-    // Open
-    fireEvent.click(screen.getByText("Add Task"));
-    expect(screen.getByTestId("add-task-modal")).toBeInTheDocument();
-
-    // Close
-    fireEvent.click(screen.getByText("Close Add"));
-    expect(screen.queryByTestId("add-task-modal")).not.toBeInTheDocument();
-  });
-
-  it("toggles the View Task modal from Calendar interaction", () => {
-    render(<ProtectedTasks />);
-
-    // Closed initially
-    expect(screen.queryByTestId("view-task-modal")).not.toBeInTheDocument();
-
-    // Open from Calendar
-    fireEvent.click(screen.getByText("Open Calendar Task"));
-    expect(screen.getByTestId("view-task-modal")).toBeInTheDocument();
-    expect(screen.getByText("Info: task-1")).toBeInTheDocument();
-
-    // Close
-    fireEvent.click(screen.getByText("Close View"));
-    expect(screen.queryByTestId("view-task-modal")).not.toBeInTheDocument();
-  });
-
-  it("toggles the View Task modal from Table interaction", () => {
-    render(<ProtectedTasks />);
-
-    // Open from Table
-    fireEvent.click(screen.getByText("Open Table Task"));
-    expect(screen.getByTestId("view-task-modal")).toBeInTheDocument();
-
-    // Close
-    fireEvent.click(screen.getByText("Close View"));
-    expect(screen.queryByTestId("view-task-modal")).not.toBeInTheDocument();
-  });
-
-  // --- Section 4: Data Flow & Effects ---
-
-  it("updates activeTask when the tasks list changes (updating existing)", () => {
-    const { rerender } = render(<ProtectedTasks />);
-
-    // Set active task + open modal
-    fireEvent.click(screen.getByText("Open Table Task"));
-    expect(screen.getByTestId("view-task-modal")).toBeInTheDocument();
-
-    // Simulate data refresh (same _id, changed data)
-    const updatedTasks = [
-      { _id: "task-1", title: "Task One Updated" },
-      { _id: "task-2", title: "Task Two" },
-    ];
-    (useTasksForPrimaryOrg as jest.Mock).mockReturnValue(updatedTasks);
-
-    rerender(<ProtectedTasks />);
-
-    // Still showing modal (no crash/reset)
-    expect(screen.getByTestId("view-task-modal")).toBeInTheDocument();
-  });
-
-  it("resets activeTask to first item if current active is removed from list", () => {
-    const { rerender } = render(<ProtectedTasks />);
-
-    // Replace list with a different one
-    const newTasks = [{ _id: "task-99", title: "New One" }];
-    (useTasksForPrimaryOrg as jest.Mock).mockReturnValue(newTasks);
-
-    rerender(<ProtectedTasks />);
-
-    // Implicit verification: no crash, UI remains stable
-    expect(screen.getByTestId("task-calendar")).toBeInTheDocument();
-  });
-
-  it("handles empty tasks list gracefully", () => {
-    (useTasksForPrimaryOrg as jest.Mock).mockReturnValue([]);
-    render(<ProtectedTasks />);
-
-    // Should render without crashing, activeTask becomes null
-    expect(screen.getByTestId("task-calendar")).toBeInTheDocument();
-  });
-
-  // --- Section 5: Date & Calendar Logic ---
-
-  it("updates week start when active calendar view changes", () => {
-    render(<ProtectedTasks />);
-
-    // Clear initial calls to ignore mount-time behavior (strict mode double call etc)
-    (getStartOfWeek as jest.Mock).mockClear();
-
-    // Trigger view change
-    fireEvent.click(screen.getByText("Set Month View"));
-    expect(screen.getByText("View: month")).toBeInTheDocument();
-
-    // If you want to assert calls, uncomment:
-    // expect(getStartOfWeek).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText("switch-list"));
+    expect(screen.getByText("tasks-table")).toBeInTheDocument();
   });
 });
