@@ -531,16 +531,9 @@ export const ChatService = {
       isPrivate: updates.isPrivate,
     };
 
-    await channel.updatePartial({
-
-    })
-
-    await channel.updatePartial({
-      set: {
-        ...data,
-      },
-    });
-
+    await channel.updatePartial(
+      { set: data }
+    );
     return session;
   },
 
