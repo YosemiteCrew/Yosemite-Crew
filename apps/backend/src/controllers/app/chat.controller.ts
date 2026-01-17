@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import { ChatService, ChatServiceError } from "src/services/chat.service";
 import ChatSessionModel from "src/models/chatSession";
-import { AuthenticatedRequest } from "src/middlewares/auth"; // adjust path as needed
+import { AuthenticatedRequest } from "src/middlewares/auth";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 
@@ -17,181 +17,206 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
   return authReq.userId;
 };
 
+const getObjectBody = (req: Request): Record<string, unknown> =>
+  typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
+
+const getStringArray = (value: string[]): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  if (value.every((entry) => typeof entry === "string")) {
+    return value;
+  }
+  return undefined;
+};
+
 export const ChatController = {
-  /**
-   * Generate Stream chat token for current user
-   * POST /chat/token
-   */
-  generateToken: async (req: Request, res: Response) => {
-    try {
-      const userId = resolveUserIdFromRequest(req);
 
-      if (!userId) {
-        return res
-          .status(401)
-          .json({ message: "Not authenticated: userId is missing." });
+  async generateToken(req: Request, res: Response) {
+    try {
+      const providerUserId = resolveUserIdFromRequest(req);
+      if (!providerUserId) {
+        return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const authUser = await AuthUserMobileService.getByProviderUserId(userId);
-      if (!authUser) {
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(providerUserId);
+
+      if (!authUser?.parentId) {
         return res
           .status(404)
-          .json({ message: "User not found for provided userId." });
+          .json({ message: "User not linked to parent account" });
       }
-
-      const parentId = authUser.parentId?.toString();
-      if (!parentId) {
-        return res
-          .status(404)
-          .json({ message: "User is not linked to a parent account." });
-      }
-
-      const tokenInfo = ChatService.generateToken(parentId);
-      return res.status(200).json(tokenInfo);
-    } catch (err) {
-      if (err instanceof ChatServiceError) {
-        return res.status(err.statusCode).json({ message: err.message });
-      }
-      logger.error("Error generating chat token", err);
-      return res
-        .status(500)
-        .json({ message: "Failed to generate chat token." });
-    }
-  },
-
-  generateTokenForPMS: (req: Request, res: Response) => {
-    try {
-      const userId = resolveUserIdFromRequest(req);
-
-      if (!userId) {
-        return res
-          .status(401)
-          .json({ message: "Not authenticated: userId is missing." });
-      }
-
-      const tokenInfo = ChatService.generateToken(userId);
-      return res.status(200).json(tokenInfo);
-    } catch (err) {
-      if (err instanceof ChatServiceError) {
-        return res.status(err.statusCode).json({ message: err.message });
-      }
-      logger.error("Error generating chat token", err);
-      return res
-        .status(500)
-        .json({ message: "Failed to generate chat token." });
-    }
-  },
-
-  /**
-   * Ensure chat session exists for an appointment.
-   * Creates Stream channel + ChatSession document if needed.
-   *
-   * POST /chat/sessions/:appointmentId
-   */
-  async ensureSession(this: void, req: Request, res: Response) {
-    try {
-      const { appointmentId } = req.params;
-
-      if (!appointmentId) {
-        return res.status(400).json({ message: "appointmentId is required." });
-      }
-
-      const session = await ChatService.ensureSession(appointmentId);
-
-      return res.status(200).json({
-        appointmentId: session.appointmentId,
-        channelId: session.channelId,
-        organisationId: session.organisationId,
-        companionId: session.companionId,
-        parentId: session.parentId,
-        vetId: session.vetId,
-        members: session.members,
-        status: session.status,
-        allowedFrom: session.allowedFrom,
-        allowedUntil: session.allowedUntil,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-      });
-    } catch (err) {
-      if (err instanceof ChatServiceError) {
-        return res.status(err.statusCode).json({ message: err.message });
-      }
-      logger.error("Error ensuring chat session", err);
-      return res
-        .status(500)
-        .json({ message: "Failed to ensure chat session." });
-    }
-  },
-
-  /**
-   * Get chat session details for an appointment (no Stream call, just DB).
-   *
-   * GET /chat/sessions/:appointmentId
-   */
-  async getSession(this: void, req: Request, res: Response) {
-    try {
-      const { appointmentId } = req.params;
-
-      if (!appointmentId) {
-        return res.status(400).json({ message: "appointmentId is required." });
-      }
-
-      const session = await ChatSessionModel.findOne({ appointmentId }).lean();
-
-      if (!session) {
-        return res.status(404).json({ message: "Chat session not found." });
-      }
-
-      return res.status(200).json(session);
-    } catch (err) {
-      logger.error("Error fetching chat session", err);
-      return res.status(500).json({ message: "Failed to fetch chat session." });
-    }
-  },
-
-  async getSessionByUserId(this: void, req: Request, res: Response) {
-    try {
-      const userId = resolveUserIdFromRequest(req);
-
-      if (!userId) {
-        return res.status(400).json({ message: "Not Authenticated" });
-      }
-
-      const sessions = await ChatSessionModel.find({
-        vetId: userId,
-      });
-
-      return res.status(200).json(sessions);
-    } catch (err) {
-      logger.error("Error fetching chat session", err);
-      return res.status(500).json({ message: "Failed to fetch chat session." });
-    }
-  },
-
-  /**
-   * Close an appointment chat session (freeze channel + mark CLOSED).
-   *
-   * POST /chat/sessions/:appointmentId/close
-   */
-  async closeSession(this: void, req: Request, res: Response) {
-    try {
-      const { appointmentId } = req.params;
-
-      if (!appointmentId) {
-        return res.status(400).json({ message: "appointmentId is required." });
-      }
-
-      await ChatService.closeSession(appointmentId);
 
       return res
         .status(200)
-        .json({ message: "Chat session closed successfully." });
+        .json(ChatService.generateToken(authUser.parentId.toString()));
+    } catch (err) {
+      logger.error("Generate token failed", err);
+      return res.status(500).json({ message: "Token generation failed" });
+    }
+  },
+
+  generateTokenForPMS(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      return res.status(200).json(ChatService.generateToken(userId));
+    } catch (err) {
+      logger.error("Generate PMS token failed", err);
+      return res.status(500).json({ message: "Token generation failed" });
+    }
+  },
+
+  async ensureAppointmentSession(req: Request, res: Response) {
+    try {
+      const { appointmentId } = req.params;
+      if (!appointmentId) {
+        return res.status(400).json({ message: "appointmentId required" });
+      }
+
+      const session =
+        await ChatService.ensureAppointmentChat(appointmentId);
+
+      return res.status(200).json(session);
     } catch (err) {
       if (err instanceof ChatServiceError) {
         return res.status(err.statusCode).json({ message: err.message });
       }
-      logger.error("Error closing chat session", err);
-      return res.status(500).json({ message: "Failed to close chat session." });
+      logger.error("Ensure appointment session failed", err);
+      return res.status(500).json({ message: "Failed to ensure session" });
+    }
+  },
+
+  async createOrgDirectChat(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const body = getObjectBody(req);
+      const organisationId =
+        typeof body.organisationId === "string" ? body.organisationId : undefined;
+      const otherUserId =
+        typeof body.otherUserId === "string" ? body.otherUserId : undefined;
+
+      if (!userId || !organisationId || !otherUserId) {
+        return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      const session = await ChatService.createOrgDirectChat(
+        organisationId,
+        userId,
+        otherUserId,
+      );
+
+      return res.status(201).json(session);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Create org direct chat failed", err);
+      return res.status(500).json({ message: "Failed to create chat" });
+    }
+  },
+
+  async createOrgGroupChat(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const body = getObjectBody(req);
+      const organisationId =
+        typeof body.organisationId === "string" ? body.organisationId : undefined;
+      const title = typeof body.title === "string" ? body.title : undefined;
+      const memberIds = getStringArray(body.memberIds as string[]);
+      const isPrivate =
+        typeof body.isPrivate === "boolean" ? body.isPrivate : undefined;
+
+      if (!userId || !organisationId || !title || !Array.isArray(memberIds)) {
+        return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      const session = await ChatService.createOrgGroupChat({
+        organisationId,
+        createdBy: userId,
+        title,
+        memberIds,
+        isPrivate,
+      });
+
+      return res.status(201).json(session);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Create org group chat failed", err);
+      return res.status(500).json({ message: "Failed to create group chat" });
+    }
+  },
+
+  async openChat(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const { sessionId } = req.params;
+
+      if (!userId || !sessionId) {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+
+      const data = await ChatService.openChatBySessionId(
+        sessionId,
+        userId,
+      );
+
+      return res.status(200).json(data);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Open chat failed", err);
+      return res.status(500).json({ message: "Failed to open chat" });
+    }
+  },
+
+  async listMySessions(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const organisationId = req.params.organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId required" });
+      }
+
+      const sessions = await ChatSessionModel.find({
+        organisationId,
+        members: userId,
+        status: { $ne: "CLOSED" },
+      })
+        .sort({ updatedAt: -1 })
+        .lean();
+
+      return res.status(200).json(sessions);
+    } catch (err) {
+      logger.error("List sessions failed", err);
+      return res.status(500).json({ message: "Failed to list sessions" });
+    }
+  },
+
+  async closeSession(req: Request, res: Response) {
+    try {
+      const { sessionId } = req.params;
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId required" });
+      }
+
+      await ChatService.closeSession(sessionId);
+      return res.status(200).json({ message: "Chat closed successfully" });
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Close chat failed", err);
+      return res.status(500).json({ message: "Failed to close chat" });
     }
   },
 };

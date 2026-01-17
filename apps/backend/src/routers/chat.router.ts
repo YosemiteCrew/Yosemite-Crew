@@ -1,58 +1,80 @@
 import { Router } from "express";
 import { ChatController } from "../controllers/app/chat.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import {
+  authorizeCognito,
+  authorizeCognitoMobile,
+} from "src/middlewares/auth";
 
 export const chatRouter = Router();
 
-// Generate Stream chat token for current user
+/* ------------------------------ MOBILE ---------------------------------- */
+
 chatRouter.post(
   "/mobile/token",
   authorizeCognitoMobile,
-  ChatController.generateToken,
+  (req, res) => ChatController.generateToken(req, res),
 );
 
-// Ensure chat session exists for an appointment
 chatRouter.post(
-  "/mobile/sessions/:appointmentId",
+  "/mobile/appointments/:appointmentId",
   authorizeCognitoMobile,
-  ChatController.ensureSession,
+  (req, res) => ChatController.ensureAppointmentSession(req, res),
+);
+
+chatRouter.post(
+  "/mobile/sessions/:sessionId/open",
+  authorizeCognitoMobile,
+  (req, res) => ChatController.openChat(req, res),
 );
 
 chatRouter.get(
-  "/mobile/sessions/:appointmentId",
+  "/mobile/sessions",
   authorizeCognitoMobile,
-  ChatController.getSession,
+  (req, res) => ChatController.listMySessions(req, res),
 );
 
-// PMS endpoints
+/* ------------------------------- PMS ------------------------------------ */
+
 chatRouter.post(
   "/pms/token",
   authorizeCognito,
-  ChatController.generateTokenForPMS,
+  (req, res) => ChatController.generateTokenForPMS(req, res),
 );
 
 chatRouter.post(
-  "/pms/sessions/:appointmentId",
+  "/pms/appointments/:appointmentId",
   authorizeCognito,
-  ChatController.ensureSession,
-);
-
-chatRouter.get(
-  "/pms/sessions/list",
-  authorizeCognito,
-  ChatController.getSessionByUserId,
-);
-
-chatRouter.get(
-  "/pms/sessions/:appointmentId",
-  authorizeCognito,
-  ChatController.getSession,
+  (req, res) => ChatController.ensureAppointmentSession(req, res),
 );
 
 chatRouter.post(
-  "/pms/sessions/:appointmentId/close",
+  "/pms/org/direct",
   authorizeCognito,
-  ChatController.closeSession,
+  (req, res) => ChatController.createOrgDirectChat(req, res),
+);
+
+chatRouter.post(
+  "/pms/org/group",
+  authorizeCognito,
+  (req, res) => ChatController.createOrgGroupChat(req, res),
+);
+
+chatRouter.post(
+  "/pms/sessions/:sessionId/open",
+  authorizeCognito,
+  (req, res) => ChatController.openChat(req, res),
+);
+
+chatRouter.get(
+  "/pms/sessions/:organisationId",
+  authorizeCognito,
+  (req, res) => ChatController.listMySessions(req, res),
+);
+
+chatRouter.post(
+  "/pms/sessions/:sessionId/close",
+  authorizeCognito,
+  (req, res) => ChatController.closeSession(req, res),
 );
 
 export default chatRouter;
