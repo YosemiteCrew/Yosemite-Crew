@@ -20,13 +20,11 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
 const getObjectBody = (req: Request): Record<string, unknown> =>
   typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
 
-const getStringArray = (value: string[]): string[] | undefined => {
-  if (!Array.isArray(value)) return undefined;
-  if (value.every((entry) => typeof entry === "string")) {
-    return value;
-  }
-  return undefined;
-};
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((entry) => typeof entry === "string");
+
+const getStringArray = (value: unknown): string[] | undefined =>
+  isStringArray(value) ? value : undefined;
 
 export const ChatController = {
 
@@ -217,6 +215,107 @@ export const ChatController = {
       }
       logger.error("Close chat failed", err);
       return res.status(500).json({ message: "Failed to close chat" });
+    }
+  },
+
+  async addGroupMembers(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const { sessionId } = req.params;
+      const body = getObjectBody(req);
+      const memberIds = getStringArray(body.memberIds);
+
+      if (!userId || !sessionId || !memberIds) {
+        return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      const session = await ChatService.addMembersToGroup(
+        sessionId,
+        userId,
+        memberIds,
+      );
+
+      return res.status(200).json(session);
+    } catch (err) {
+      logger.error("Add group members failed", err);
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      return res.status(500).json({ message: "Failed to add members" });
+    }
+  },
+
+  async removeGroupMembers(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const { sessionId } = req.params;
+      const body = getObjectBody(req);
+      const memberIds = getStringArray(body.memberIds);
+
+      if (!userId || !sessionId || !memberIds) {
+        return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      const session = await ChatService.removeMembersFromGroup(
+        sessionId,
+        userId,
+        memberIds,
+      );
+
+      return res.status(200).json(session);
+    } catch (err) {
+      logger.error("Remove group members failed", err);
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      return res.status(500).json({ message: "Failed to remove members" });
+    }
+  },
+
+  async updateGroup(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const { sessionId } = req.params;
+      if (!userId || !sessionId) {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+      const body = getObjectBody(req);
+      const title = typeof body.title === "string" ? body.title : undefined;
+      const isPrivate =
+        typeof body.isPrivate === "boolean" ? body.isPrivate : undefined;
+
+      const session = await ChatService.updateGroup(
+        sessionId,
+        userId,
+        { title, isPrivate },
+      );
+
+      return res.status(200).json(session);
+    } catch (err) {
+      logger.error("Update group failed", err);
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      return res.status(500).json({ message: "Failed to update group" });
+    }
+  },
+
+  async deleteGroup(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const { sessionId } = req.params;
+
+      await ChatService.deleteGroup(sessionId, userId!);
+
+      return res
+        .status(200)
+        .json({ message: "Group deleted successfully" });
+    } catch (err) {
+      logger.error("Delete group failed", err);
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      return res.status(500).json({ message: "Failed to delete group" });
     }
   },
 };

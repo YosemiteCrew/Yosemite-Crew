@@ -44,6 +44,11 @@ type YosemiteChannelData = ChannelData & {
   isPrivate?: boolean;
 };
 
+type YosemiteChannelResponse = ChannelData & {
+  name?: string;
+  isPrivate?: boolean;
+}
+
 export class ChatServiceError extends Error {
   constructor(
     message: string,
@@ -120,9 +125,22 @@ const assertUserCanAccess = (
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                CHAT SERVICE                                */
-/* -------------------------------------------------------------------------- */
+const assertGroupAdmin = (
+  session: ChatSessionDocument,
+  userId: string,
+) => {
+  if (session.type !== "ORG_GROUP") {
+    throw new ChatServiceError("Not a group chat", 400);
+  }
+
+  if (session.createdBy !== userId) {
+    throw new ChatServiceError("Only group owner can perform this action", 403);
+  }
+
+  if (session.status === "CLOSED") {
+    throw new ChatServiceError("Chat is closed", 400);
+  }
+};
 
 export const ChatService = {
   /* ------------------------------ AUTH ----------------------------------- */
@@ -402,4 +420,147 @@ export const ChatService = {
     session.closedAt = new Date();
     await session.save();
   },
+
+  async addMembersToGroup(
+    sessionId: string,
+    actorUserId: string,
+    memberIds: string[],
+  ) {
+    const session = await ChatSessionModel.findById(sessionId);
+    if (!session) {
+      throw new ChatServiceError("Chat session not found", 404);
+    }
+
+    assertGroupAdmin(session, actorUserId);
+
+    const newMembers = memberIds.filter(
+      (id) => !session.members.includes(id),
+    );
+
+    if (newMembers.length === 0) return session;
+
+
+    // Upsert users in Stream
+    for (const userId of newMembers) {
+
+      const userProfile = await UserProfileService.getByUserId(userId,session.organisationId);
+      const user = await UserService.getById(userId);
+
+      await streamServer.upsertUser({
+        name: user?.firstName + " " + user?.lastName || "User",
+        id: userId,
+        image: userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
+        role: "user",
+      });
+    }
+
+    session.members.push(...newMembers);
+    await session.save();
+
+    const channel = streamServer.channel("team", session.channelId);
+    await channel.addMembers(newMembers);
+
+    return session;
+  },
+
+  async removeMembersFromGroup(
+    sessionId: string,
+    actorUserId: string,
+    memberIds: string[],
+  ) {
+    const session = await ChatSessionModel.findById(sessionId);
+    if (!session) {
+      throw new ChatServiceError("Chat session not found", 404);
+    }
+
+    assertGroupAdmin(session, actorUserId);
+
+    // prevent removing owner
+    if (memberIds.includes(session.createdBy!)) {
+      throw new ChatServiceError("Cannot remove group owner", 400);
+    }
+
+    session.members = session.members.filter(
+      (id) => !memberIds.includes(id),
+    );
+
+    if (session.members.length < 2) {
+      throw new ChatServiceError(
+        "Group must have at least 2 members",
+        400,
+      );
+    }
+
+    await session.save();
+
+    const channel = streamServer.channel("team", session.channelId);
+    await channel.removeMembers(memberIds);
+
+    return session;
+  },
+
+  async updateGroup(
+    sessionId: string,
+    actorUserId: string,
+    updates: {
+      title?: string;
+      isPrivate?: boolean;
+    },
+  ) {
+    const session = await ChatSessionModel.findById(sessionId);
+    if (!session) {
+      throw new ChatServiceError("Chat session not found", 404);
+    }
+
+    assertGroupAdmin(session, actorUserId);
+
+    if (updates.title !== undefined) {
+      session.title = updates.title;
+    }
+
+    if (updates.isPrivate !== undefined) {
+      session.isPrivate = updates.isPrivate;
+    }
+
+    await session.save();
+
+    const channel = streamServer.channel("team", session.channelId);
+
+    const data: YosemiteChannelResponse = {
+      name: updates.title,
+      isPrivate: updates.isPrivate,
+    };
+
+    await channel.updatePartial({
+
+    })
+
+    await channel.updatePartial({
+      set: {
+        ...data,
+      },
+    });
+
+    return session;
+  },
+
+  async deleteGroup(
+    sessionId: string,
+    actorUserId: string,
+  ) {
+    const session = await ChatSessionModel.findById(sessionId);
+    if (!session) return;
+
+    assertGroupAdmin(session, actorUserId);
+
+    const channel = streamServer.channel("team", session.channelId);
+
+    try {
+      await channel.delete();
+    } catch {
+      // Stream failure should not block DB cleanup
+    }
+
+    await ChatSessionModel.deleteOne({ _id: sessionId });
+  }
 };

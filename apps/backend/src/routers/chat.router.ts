@@ -77,4 +77,28 @@ chatRouter.post(
   (req, res) => ChatController.closeSession(req, res),
 );
 
+chatRouter.post(
+  "/pms/groups/:sessionId/members/add",
+  authorizeCognito,
+  (req, res) => ChatController.addGroupMembers(req, res),
+);
+
+chatRouter.post(
+  "/pms/groups/:sessionId/members/remove",
+  authorizeCognito,
+  (req, res) => ChatController.removeGroupMembers(req, res),
+);
+
+chatRouter.patch(
+  "/pms/groups/:sessionId",
+  authorizeCognito,
+  (req, res) => ChatController.updateGroup(req, res),
+);
+
+chatRouter.delete(
+  "/pms/groups/:sessionId",
+  authorizeCognito,
+  (req, res) => ChatController.deleteGroup(req, res),
+);
+
 export default chatRouter;
