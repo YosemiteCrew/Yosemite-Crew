@@ -8,12 +8,14 @@ type FormsState = {
   activeFormId: string | null;
   loading: boolean;
   error: string | null;
+  lastFetchedAt: string | null;
   setForms: (forms: FormsProps[]) => void;
   upsertForm: (form: FormsProps) => void;
   updateFormStatus: (formId: string, status: FormsStatus) => void;
   setActiveForm: (formId: string | null) => void;
   setLoading: (value: boolean) => void;
   setError: (message: string | null) => void;
+  setLastFetched: (timestamp: string | null) => void;
   clear: () => void;
 };
 
@@ -26,6 +28,7 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
   activeFormId: null,
   loading: false,
   error: null,
+  lastFetchedAt: null,
 
   setForms: (forms) =>
     set(() => {
@@ -37,7 +40,14 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
         formIds.push(id);
       }
       const activeFormId = formIds[0] ?? null;
-      return { formsById, formIds, activeFormId, loading: false, error: null };
+      return {
+        formsById,
+        formIds,
+        activeFormId,
+        loading: false,
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
     }),
 
   upsertForm: (form) =>
@@ -75,6 +85,8 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
 
   setError: (message) => set(() => ({ error: message ?? null })),
 
+  setLastFetched: (timestamp) => set(() => ({ lastFetchedAt: timestamp })),
+
   clear: () =>
     set(() => ({
       formsById: {},
@@ -82,5 +94,6 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
       activeFormId: null,
       loading: false,
       error: null,
+      lastFetchedAt: null,
     })),
 }));

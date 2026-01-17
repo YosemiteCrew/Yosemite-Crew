@@ -10,6 +10,10 @@ import type {
   CreateChatSessionResponse,
   ChatSessionListResponse,
   CloseChatSessionResponse,
+  OrgChatSession,
+  OrgDirectRequest,
+  OrgGroupRequest,
+  OrgUser,
 } from '../types/chat';
 
 // Utility function to log errors with context
@@ -152,5 +156,139 @@ export const closeChatSession = async (
       throw new Error(`Failed to close chat session: ${error.message}`);
     }
     throw new Error(`Failed to close chat session: ${sessionId}`);
+  }
+};
+
+/**
+ * Create a direct org chat (colleague/support DM)
+ */
+export const createOrgDirectChat = async (
+  payload: OrgDirectRequest
+): Promise<OrgChatSession> => {
+  try {
+    const response = await postData<OrgChatSession>('/v1/chat/pms/org/direct', payload);
+    return response.data;
+  } catch (error) {
+    const context = 'createOrgDirectChat - Failed to create direct org chat';
+    logError(context, error, { payload });
+    throw error;
+  }
+};
+
+/**
+ * Create an org group chat (team/broadcast)
+ */
+export const createOrgGroupChat = async (
+  payload: OrgGroupRequest
+): Promise<OrgChatSession> => {
+  try {
+    const response = await postData<OrgChatSession>('/v1/chat/pms/org/group', payload);
+    return response.data;
+  } catch (error) {
+    const context = 'createOrgGroupChat - Failed to create group org chat';
+    logError(context, error, { payload });
+    throw error;
+  }
+};
+
+/**
+ * List chat sessions for an organisation
+ */
+export const listOrgChatSessions = async (
+  organisationId: string
+): Promise<OrgChatSession[]> => {
+  try {
+    const response = await getData<OrgChatSession[]>(
+      `/v1/chat/pms/sessions/${organisationId}`
+    );
+    return response.data;
+  } catch (error) {
+    const context = 'listOrgChatSessions - Failed to list org chat sessions';
+    logError(context, error, { organisationId });
+    throw error;
+  }
+};
+
+/**
+ * Add members to a group
+ */
+export const addGroupMembers = async (
+  groupId: string,
+  memberIds: string[]
+): Promise<void> => {
+  if (!groupId || !memberIds.length) return;
+  await postData(`/v1/chat/pms/groups/${groupId}/members/add`, { memberIds });
+};
+
+/**
+ * Remove members from a group
+ */
+export const removeGroupMembers = async (
+  groupId: string,
+  memberIds: string[]
+): Promise<void> => {
+  if (!groupId || !memberIds.length) return;
+  await postData(`/v1/chat/pms/groups/${groupId}/members/remove`, { memberIds });
+};
+
+/**
+ * Update group metadata (title, privacy, description)
+ */
+export const updateGroup = async (
+  groupId: string,
+  payload: Partial<Pick<OrgGroupRequest, "title" | "isPrivate" | "description">>
+): Promise<OrgChatSession> => {
+  const response = await postData<OrgChatSession>(
+    `/v1/chat/pms/groups/${groupId}`,
+    payload,
+    { method: "PATCH" } as any
+  );
+  return response.data;
+};
+
+/**
+ * Delete group
+ */
+export const deleteGroup = async (groupId: string): Promise<void> => {
+  await postData(`/v1/chat/pms/groups/${groupId}`, undefined, { method: "DELETE" } as any);
+};
+
+/**
+ * Fetch org users for search (reuse existing org mapping API)
+ */
+export const fetchOrgUsers = async (organisationId: string): Promise<OrgUser[]> => {
+  if (!organisationId) {
+    throw new Error('Organisation ID is required to fetch users');
+  }
+  try {
+    const response = await getData<any[]>(
+      `/fhir/v1/user-organization/org/mapping/${organisationId}`
+    );
+    return response.data.map((entry: any) => ({
+      id:
+        entry?.userOrganisation?.practitioner?.reference ||
+        entry?.userOrganisation?.practitionerReference ||
+        entry?.userId ||
+        entry?.id,
+      userId:
+        entry?.userId ||
+        entry?.userOrganisation?.userReference ||
+        entry?.userOrganisation?.userId,
+      practitionerId:
+        entry?.userOrganisation?.practitioner?.reference ||
+        entry?.userOrganisation?.practitionerReference,
+      name: entry?.name || entry?.userOrganisation?.name || "User",
+      email: entry?.email,
+      image: entry?.profileUrl,
+      role:
+        entry?.userOrganisation?.code?.[0]?.coding?.[0]?.display ||
+        entry?.userOrganisation?.roleCode ||
+        entry?.role,
+      speciality: entry?.speciality?.name || entry?.speciality,
+    })) as OrgUser[];
+  } catch (error) {
+    const context = 'fetchOrgUsers - Failed to fetch org users for chat search';
+    logError(context, error, { organisationId });
+    throw error;
   }
 };

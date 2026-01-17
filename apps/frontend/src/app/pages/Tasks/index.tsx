@@ -49,7 +49,7 @@ const Tasks = () => {
         <TitleCalendar
           activeCalendar={activeCalendar}
           title="Tasks"
-          description="Track clinic to-dos with calendar views, assign owners and due dates, and open each task to review details and update status."
+          description="Track to-dos with calendar views, assign owners and due dates, and open each task to review details and update status."
           setActiveCalendar={setActiveCalendar}
           setAddPopup={setAddPopup}
           currentDate={currentDate}

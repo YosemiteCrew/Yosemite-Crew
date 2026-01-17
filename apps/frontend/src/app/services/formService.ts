@@ -32,8 +32,12 @@ const applyStatusToStore = (formId: string, status: FormsStatus) => {
   useFormsStore.getState().updateFormStatus(formId, status);
 };
 
-export const loadForms = async () => {
-  const { setLoading, setForms, setError } = useFormsStore.getState();
+export const loadForms = async (force = false) => {
+  const { setLoading, setForms, setError, loading, lastFetchedAt, setLastFetched } =
+    useFormsStore.getState();
+  if (!force && (loading || lastFetchedAt)) {
+    return;
+  }
   setLoading(true);
   try {
     const orgId = requireOrgId();
@@ -51,6 +55,7 @@ export const loadForms = async () => {
     throw err;
   } finally {
     setLoading(false);
+    setLastFetched(new Date().toISOString());
   }
 };
 

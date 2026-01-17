@@ -10,7 +10,7 @@ export const useLoadCompanionsForPrimaryOrg = () => {
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    void loadCompanionsForPrimaryOrg({force: true});
+    void loadCompanionsForPrimaryOrg();
   }, [primaryOrgId]);
 };
 
