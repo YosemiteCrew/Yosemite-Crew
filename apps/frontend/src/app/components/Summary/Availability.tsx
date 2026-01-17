@@ -1,9 +1,11 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AvailabilityTable from "../DataTable/AvailabilityTable";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Team as TeamProp } from "@/app/types/team";
 
 import "./Summary.css";
+import TeamInfo from "@/app/pages/Organization/Sections/Team/TeamInfo";
 
 const AvailabilityLabels = [
   {
@@ -40,6 +42,10 @@ const AvailabilityLabels = [
 
 const Availability = () => {
   const teams = useTeamForPrimaryOrg();
+  const [viewPopup, setViewPopup] = useState(false);
+  const [activeTeam, setActiveTeam] = useState<TeamProp | null>(
+    teams[0] ?? null
+  );
   const [selectedLabel, setSelectedLabel] = useState("all");
 
   const filteredList = useMemo(() => {
@@ -51,10 +57,22 @@ const Availability = () => {
     });
   }, [teams, selectedLabel]);
 
+  useEffect(() => {
+    setActiveTeam((prev) => {
+      if (teams.length === 0) return null;
+      if (prev?._id) {
+        const updated = teams.find((s) => s._id === prev._id);
+        if (updated) return updated;
+      }
+      return teams[0];
+    });
+  }, [teams]);
+
   return (
     <div className="summary-container">
       <div className="text-text-primary text-heading-1">
-        Availability&nbsp;<span className="text-text-tertiary">({teams.length})</span>
+        Availability{" "}
+        <span className="text-text-tertiary">({teams.length})</span>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {AvailabilityLabels?.map((label, i) => (
@@ -75,7 +93,18 @@ const Availability = () => {
           </button>
         ))}
       </div>
-      <AvailabilityTable filteredList={filteredList} />
+      <AvailabilityTable
+        filteredList={filteredList}
+        setActive={setActiveTeam}
+        setView={setViewPopup}
+      />
+      {activeTeam && (
+        <TeamInfo
+          showModal={viewPopup}
+          setShowModal={setViewPopup}
+          activeTeam={activeTeam}
+        />
+      )}
     </div>
   );
 };

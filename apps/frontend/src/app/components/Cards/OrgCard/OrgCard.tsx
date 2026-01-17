@@ -3,6 +3,7 @@ import { getStatusStyle } from "../../DataTable/OrganizationList";
 import { OrgWithMembership } from "@/app/types/org";
 
 import "./OrgCard.css";
+import { toTitleCase } from "@/app/utils/validators";
 
 type OrgCardProps = {
   org: OrgWithMembership;
@@ -20,12 +21,14 @@ const OrgCard = ({ org, handleOrgClick }: OrgCardProps) => {
       </button>
       <div className="org-card-item">
         <div className="text-caption-1 text-text-extra">Type :</div>
-        <div className="text-caption-1 text-text-primary">{org.org.type}</div>
+        <div className="text-caption-1 text-text-primary">
+          {toTitleCase(org.org.type)}
+        </div>
       </div>
       <div className="org-card-item">
         <div className="text-caption-1 text-text-extra">Role :</div>
         <div className="text-caption-1 text-text-primary">
-          {org.membership?.roleDisplay}
+          {toTitleCase(org.membership?.roleDisplay)}
         </div>
       </div>
       <div

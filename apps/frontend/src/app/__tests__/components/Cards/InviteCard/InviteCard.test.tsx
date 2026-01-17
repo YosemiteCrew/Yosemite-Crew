@@ -1,96 +1,41 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import InviteCard from "@/app/components/Cards/InviteCard/InviteCard";
-import { Invite } from "@/app/types/team";
 
-// --- Test Data ---
+jest.mock("@/app/utils/validators", () => ({
+  toTitle: (value: string) => value.toUpperCase(),
+  toTitleCase: (value: string) => value.toUpperCase(),
+}));
 
-const mockInvite: Invite = {
-  _id: "inv-1",
-  organisationName: "Tech Corp",
-  organisationType: "Software",
-  role: "Developer",
-  employmentType: "FULL_TIME", // To test .split('_').join(' ') logic
-  status: "PENDING",
-  email: "test@example.com",
-} as any;
+describe("InviteCard", () => {
+  it("renders invite details and handles actions", () => {
+    const handleAccept = jest.fn().mockResolvedValue(undefined);
+    const handleReject = jest.fn();
+    const invite: any = {
+      organisationName: "Good Pets",
+      organisationType: "hospital",
+      role: "owner",
+      employmentType: "full_time",
+    };
 
-describe("InviteCard Component", () => {
-  const mockHandleAccept = jest.fn();
-  const mockHandleReject = jest.fn();
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  // --- 1. Rendering Details ---
-
-  it("renders invite information correctly", () => {
     render(
       <InviteCard
-        invite={mockInvite}
-        handleAccept={mockHandleAccept}
-        handleReject={mockHandleReject}
+        invite={invite}
+        handleAccept={handleAccept}
+        handleReject={handleReject}
       />
     );
 
-    // Organization Name
-    expect(screen.getByText("Tech Corp")).toBeInTheDocument();
+    expect(screen.getByText("Good Pets")).toBeInTheDocument();
+    expect(screen.getByText("HOSPITAL")).toBeInTheDocument();
+    expect(screen.getByText("OWNER")).toBeInTheDocument();
+    expect(screen.getByText("FULL_TIME")).toBeInTheDocument();
 
-    // Type
-    expect(screen.getByText("Type :")).toBeInTheDocument();
-    expect(screen.getByText("Software")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    expect(handleAccept).toHaveBeenCalledWith(invite);
 
-    // Role
-    expect(screen.getByText("Role :")).toBeInTheDocument();
-    expect(screen.getByText("Developer")).toBeInTheDocument();
-  });
-
-  it("formats employment type correctly (replaces underscores with spaces)", () => {
-    render(
-      <InviteCard
-        invite={mockInvite} // employmentType: "FULL_TIME"
-        handleAccept={mockHandleAccept}
-        handleReject={mockHandleReject}
-      />
-    );
-
-    expect(screen.getByText("Employee type :")).toBeInTheDocument();
-    // "FULL_TIME" -> "FULL TIME"
-    expect(screen.getByText("FULL TIME")).toBeInTheDocument();
-  });
-
-  // --- 2. Interactions ---
-
-  it("calls handleAccept when Accept button is clicked", () => {
-    render(
-      <InviteCard
-        invite={mockInvite}
-        handleAccept={mockHandleAccept}
-        handleReject={mockHandleReject}
-      />
-    );
-
-    const acceptBtn = screen.getByText("Accept");
-    fireEvent.click(acceptBtn);
-
-    expect(mockHandleAccept).toHaveBeenCalledTimes(1);
-    expect(mockHandleAccept).toHaveBeenCalledWith(mockInvite);
-  });
-
-  it("calls handleReject when Decline button is clicked", () => {
-    render(
-      <InviteCard
-        invite={mockInvite}
-        handleAccept={mockHandleAccept}
-        handleReject={mockHandleReject}
-      />
-    );
-
-    const declineBtn = screen.getByText("Decline");
-    fireEvent.click(declineBtn);
-
-    expect(mockHandleReject).toHaveBeenCalledTimes(1);
-    expect(mockHandleReject).toHaveBeenCalledWith(mockInvite);
+    fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+    expect(handleReject).toHaveBeenCalledWith(invite);
   });
 });

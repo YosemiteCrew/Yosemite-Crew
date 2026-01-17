@@ -1,4 +1,3 @@
-import SubLabels from "@/app/components/Labels/SubLabels";
 import Modal from "@/app/components/Modal";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Details from "./Details";
@@ -7,8 +6,9 @@ import Review from "./Review";
 import { FormsCategory, FormsProps } from "@/app/types/forms";
 import { publishForm, saveFormDraft } from "@/app/services/formService";
 import Close from "@/app/components/Icons/Close";
+import Labels from "@/app/components/Labels/Labels";
 
-const Labels = [
+const LabelOptions = [
   {
     name: "Form details",
     key: "form-details",
@@ -167,6 +167,9 @@ const AddForm = ({
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">
               {isEditing ? "Edit form" : "Add form"}
@@ -175,8 +178,8 @@ const AddForm = ({
           <Close onClick={closeModal} />
         </div>
 
-        <SubLabels
-          labels={Labels}
+        <Labels
+          labels={LabelOptions}
           activeLabel={activeLabel}
           setActiveLabel={handleLabelClick}
         />

@@ -7,6 +7,10 @@ import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 import { useTasksForPrimaryOrg } from "@/app/hooks/useTask";
 
 import "./Summary.css";
+import { Appointment } from "@yosemite-crew/types";
+import AppoitmentInfo from "@/app/pages/Appointments/Sections/AppointmentInfo";
+import { Task } from "@/app/types/task";
+import TaskInfo from "@/app/pages/Tasks/Sections/TaskInfo";
 
 const AppointmentLabels = [
   {
@@ -83,6 +87,11 @@ const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
   const tasks = useTasksForPrimaryOrg();
   const [activeTable, setActiveTable] = useState("Appointments");
+  const [viewPopup, setViewPopup] = useState(false);
+  const [viewTaskPopup, setViewTaskPopup] = useState(false);
+  const [activeAppointment, setActiveAppointment] =
+    useState<Appointment | null>(appointments[0] ?? null);
+  const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
   const activeLabels = useMemo(() => {
     return activeTable === "Appointments" ? AppointmentLabels : TasksLabels;
   }, [activeTable]);
@@ -91,6 +100,28 @@ const AppointmentTask = () => {
       ? AppointmentLabels[0].key
       : TasksLabels[0].key
   );
+
+  useEffect(() => {
+    setActiveAppointment((prev) => {
+      if (appointments.length === 0) return null;
+      if (prev?.id) {
+        const updated = appointments.find((s) => s.id === prev.id);
+        if (updated) return updated;
+      }
+      return appointments[0];
+    });
+  }, [appointments]);
+
+  useEffect(() => {
+    setActiveTask((prev) => {
+      if (tasks.length === 0) return null;
+      if (prev?._id) {
+        const updated = tasks.find((s) => s._id === prev._id);
+        if (updated) return updated;
+      }
+      return tasks[0];
+    });
+  }, [tasks]);
 
   useEffect(() => {
     if (activeTable === "Appointments") {
@@ -167,9 +198,35 @@ const AppointmentTask = () => {
         </div>
       </div>
       {activeTable === "Appointments" ? (
-        <Appointments filteredList={filteredList} />
+        <Appointments
+          filteredList={filteredList}
+          setActiveAppointment={setActiveAppointment}
+          setViewPopup={setViewPopup}
+          small
+        />
       ) : (
-        <Tasks filteredList={filteredTaskList} />
+        <Tasks
+          filteredList={filteredTaskList}
+          setActiveTask={setActiveTask}
+          setViewPopup={setViewTaskPopup}
+          small
+        />
+      )}
+
+      {activeAppointment && (
+        <AppoitmentInfo
+          showModal={viewPopup}
+          setShowModal={setViewPopup}
+          activeAppointment={activeAppointment}
+        />
+      )}
+
+      {activeTask && (
+        <TaskInfo
+          showModal={viewTaskPopup}
+          setShowModal={setViewTaskPopup}
+          activeTask={activeTask}
+        />
       )}
     </div>
   );

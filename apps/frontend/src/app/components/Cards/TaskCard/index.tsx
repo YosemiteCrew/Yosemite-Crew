@@ -26,7 +26,7 @@ const TaskCard = ({ item, handleViewTask }: TaskCardProps) => {
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Category:</div>
-        <div className="text-caption-1 text-text-primary">{item.category}</div>
+        <div className="text-caption-1 text-text-primary">{toTitleCase(item.category)}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">From:</div>
