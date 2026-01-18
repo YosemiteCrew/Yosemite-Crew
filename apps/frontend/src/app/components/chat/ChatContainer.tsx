@@ -19,6 +19,8 @@ import type {
   ChannelPreviewUIComponentProps,
   ChannelListProps,
 } from "stream-chat-react";
+import { MdDeleteForever } from "react-icons/md";
+import { IoIosAddCircleOutline } from "react-icons/io";
 
 import "stream-chat-react/dist/css/v2/index.css";
 import "./ChatContainer.css";
@@ -41,6 +43,9 @@ import {
 import { YosemiteLoader } from "../Loader";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
+import Modal from "../Modal";
+import FormInput from "../Inputs/FormInput/FormInput";
+import Close from "../Icons/Close";
 
 const GroupModalContext = React.createContext<{
   openEdit?: (channel: StreamChannel) => void;
@@ -122,6 +127,14 @@ type OrgUserOption = {
   role?: string;
 };
 
+const primaryActionClasses =
+  "px-8 py-[12px] flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 font-satoshi text-[18px] font-medium leading-[26px] text-center bg-text-primary text-white";
+const outlineActionClasses =
+  "px-8 py-[12px] flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out border border-text-primary! text-text-primary! hover:text-text-brand! hover:border-text-brand!";
+const dangerActionClasses =
+  "px-8 py-[12px] flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 font-satoshi text-[18px] font-medium leading-[26px] text-center bg-text-error text-white";
+const disabledActionClasses = "opacity-60 cursor-not-allowed";
+
 interface GroupModalProps {
   open: boolean;
   mode: "create" | "edit";
@@ -171,7 +184,16 @@ const GroupModal: React.FC<GroupModalProps> = ({
   onRemoveMember,
   onDelete,
 }) => {
-  if (!open) return null;
+  const [showModal, setShowModal] = useState(open);
+
+  useEffect(() => {
+    setShowModal(open);
+  }, [open]);
+
+  const handleClose = () => {
+    setShowModal(false);
+    onClose();
+  };
 
   // In create mode, the current user is always the creator
   // In edit mode, check if ownerId matches currentUserId (with flexible ID matching)
@@ -228,381 +250,213 @@ const GroupModal: React.FC<GroupModalProps> = ({
 
   const handleAddMemberClick = (userId: string) => {
     if (mode === "create") {
-      // In create mode, just update local state
       onMembersChange([...members, userId]);
     } else {
-      // In edit mode, call API
       onAddMember(userId);
     }
   };
 
   const handleRemoveMemberClick = (userId: string) => {
     if (mode === "create") {
-      // In create mode, just update local state
       onMembersChange(members.filter((id) => id !== userId));
     } else {
-      // In edit mode, call API
       onRemoveMember(userId);
     }
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.4)",
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: "12px",
-          padding: "16px",
-          width: "min(420px, 95vw)",
-          maxHeight: "80vh",
-          overflowY: "auto",
-          boxShadow: "0 20px 45px rgba(0,0,0,0.15)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "12px",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-satoshi)",
-              fontWeight: 700,
-              fontSize: "16px",
-            }}
-          >
-            {mode === "create" ? "Create group" : "Group members"}
+    <Modal showModal={showModal} setShowModal={setShowModal} onClose={handleClose}>
+      <div className="flex flex-col h-full gap-6">
+        <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              border: "none",
-              background: "transparent",
-              fontSize: "16px",
-              cursor: "pointer",
-            }}
-          >
-            ×
-          </button>
+          <div className="text-body-1 text-text-primary">
+            {mode === "create" ? "Create group" : "Group info"}
+          </div>
+          <Close onClick={handleClose} />
         </div>
 
-        {/* Title input */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            marginBottom: "12px",
-          }}
-        >
-          {(mode === "create" || isCreator) && (
-            <>
-              <input
-                type="text"
-                placeholder={mode === "edit" ? placeholder || "Group title" : "Group title"}
-                value={title}
-                onChange={(e) => onTitleChange(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid #d1d5db",
-                  fontFamily: "var(--font-satoshi)",
-                  fontSize: "14px",
-                }}
+        <div className="flex-1 flex flex-col overflow-hidden gap-6">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-6 pt-1 scrollbar-hidden pr-1 px-3">
+            {(mode === "create" || isCreator) && (
+              <div className="flex flex-col gap-3">
+                <FormInput
+                  intype="text"
+                  inname="groupTitle"
+                  inlabel={mode === "edit" && placeholder ? placeholder : "Group Title"}
+                  value={title}
+                  onChange={(e) => onTitleChange(e.target.value)}
               />
               {mode === "edit" && (
                 <button
                   type="button"
                   onClick={handleSaveTitle}
                   disabled={busy || !title.trim()}
-                  className="font-satoshi"
-                  style={{
-                    padding: "12px 32px",
-                    alignSelf: "flex-start",
-                    background: "var(--color-text-primary)",
-                    color: "#fff",
-                    borderRadius: "16px",
-                    border: "none",
-                    fontWeight: 500,
-                    fontSize: "18px",
-                    lineHeight: "26px",
-                    cursor: busy || !title.trim() ? "not-allowed" : "pointer",
-                    opacity: busy || !title.trim() ? 0.6 : 1,
-                    transition: "all 300ms ease-in-out",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!busy && title.trim()) e.currentTarget.style.transform = "scale(1.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "scale(1)";
-                  }}
+                  className={`${primaryActionClasses} self-start ${
+                    busy || !title.trim() ? disabledActionClasses : "cursor-pointer"
+                  }`}
                 >
-                  {busy ? "Saving..." : "Save title"}
+                  {busy ? "Saving..." : "Save Title"}
                 </button>
               )}
-            </>
-          )}
-
-          {/* Members list - show in both create and edit mode */}
-          {memberDetails.length > 0 &&
-            memberDetails.map((m) => (
-              <div
-                key={m.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px 10px",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "10px",
-                  fontFamily: "var(--font-satoshi)",
-                  fontSize: "13px",
-                }}
-              >
-                <span>{m.name}</span>
-                {mode === "edit" && m.id === ownerId && (
-                  <span style={{ fontSize: "12px", color: "#6b7280" }}>Owner</span>
-                )}
-                {isCreator && m.id !== ownerId && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveMemberClick(m.id)}
-                    disabled={busy}
-                    className="font-satoshi"
-                    style={{
-                      padding: "8px 20px",
-                      background: "var(--color-danger-600)",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "12px",
-                      cursor: busy ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      fontWeight: 500,
-                      opacity: busy ? 0.6 : 1,
-                      transition: "all 300ms ease-in-out",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!busy) e.currentTarget.style.transform = "scale(1.05)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "scale(1)";
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
               </div>
-            ))}
-        </div>
+            )}
 
-        {/* Add members section */}
-        {(mode === "create" || isCreator) && (
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-          >
-            <div
-              style={{
-                fontSize: "13px",
-                color: "#111827",
-                fontWeight: 600,
-                fontFamily: "var(--font-satoshi)",
-              }}
-            >
-              {mode === "create" ? "Add members" : "Add more members"}
-            </div>
-            <input
-              type="text"
-              placeholder="Search teammates"
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: "10px",
-                border: "1px solid #d1d5db",
-                fontFamily: "var(--font-satoshi)",
-                fontSize: "14px",
-              }}
-            />
-            <div
-              style={{
-                maxHeight: "200px",
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
-              }}
-            >
-              {orgUsersLoading && (
-                <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                  Loading teammates…
-                </span>
-              )}
-              {!orgUsersLoading && availableUsers.length === 0 && (
-                <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                  {orgUsers.length === 0
-                    ? "No teammates available. Please wait..."
-                    : search.trim()
-                      ? "No teammates match your search."
-                      : "All teammates have been added."}
-                </span>
-              )}
-              {!orgUsersLoading &&
-                availableUsers.map((u) => (
-                  <div
-                    key={u.keyId}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "8px 10px",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "10px",
-                      fontFamily: "var(--font-satoshi)",
-                      fontSize: "13px",
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span>{u.name}</span>
-                      {u.email && (
-                        <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                          {u.email}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAddMemberClick(u.keyId!)}
-                      disabled={busy}
-                      className="font-satoshi"
-                      style={{
-                        padding: "8px 20px",
-                        background: "var(--color-text-primary)",
-                        color: "#fff",
-                        borderRadius: "12px",
-                        border: "none",
-                        cursor: busy ? "not-allowed" : "pointer",
-                        fontWeight: 500,
-                        fontSize: "14px",
-                        opacity: busy ? 0.6 : 1,
-                        transition: "all 300ms ease-in-out",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!busy) e.currentTarget.style.transform = "scale(1.05)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "scale(1)";
-                      }}
+            <div className="flex flex-col gap-3">
+              <div className="text-body-2 text-text-primary font-medium">
+                Members ({memberDetails.length})
+              </div>
+
+              {memberDetails.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {memberDetails.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex justify-between items-center px-3 py-3 border border-grey-light rounded-2xl bg-white"
                     >
-                      Add
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-card-hover flex items-center justify-center">
+                          <span className="font-satoshi text-black-text text-sm font-medium">
+                            {(m.name || "?").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-body-4 text-text-primary">{m.name}</span>
+                          {m.email && (
+                            <span className="text-caption-2 text-text-secondary">{m.email}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {mode === "edit" && m.id === ownerId && (
+                          <span className="text-caption-1 text-text-brand px-2 py-1 bg-blue-50 rounded-lg">Owner</span>
+                        )}
+                        {isCreator && m.id !== ownerId && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMemberClick(m.id)}
+                            disabled={busy}
+                            className={`p-1.5 rounded-lg hover:bg-red-50 transition-all duration-200 ${
+                              busy ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                            title="Remove member"
+                          >
+                            <MdDeleteForever size={20} color="#EA3729" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* Action buttons */}
-        <div
-          style={{
-            display: "flex",
-            gap: "8px",
-            marginTop: "16px",
-            justifyContent: "flex-end",
-          }}
-        >
-          {mode === "create" && (
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={busy}
-              className="font-satoshi"
-              style={{
-                padding: "12px 32px",
-                background: "var(--color-text-primary)",
-                color: "#fff",
-                borderRadius: "16px",
-                border: "none",
-                fontWeight: 500,
-                fontSize: "18px",
-                lineHeight: "26px",
-                cursor: busy ? "not-allowed" : "pointer",
-                opacity: busy ? 0.6 : 1,
-                transition: "all 300ms ease-in-out",
-              }}
-              onMouseEnter={(e) => {
-                if (!busy) e.currentTarget.style.transform = "scale(1.05)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
-              {busy ? "Creating..." : "Create group"}
-            </button>
-          )}
-          {mode === "edit" && isCreator && (
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={busy}
-              className="font-satoshi"
-              style={{
-                padding: "12px 32px",
-                background: "var(--color-danger-600)",
-                color: "#fff",
-                borderRadius: "16px",
-                border: "none",
-                fontWeight: 500,
-                fontSize: "18px",
-                lineHeight: "26px",
-                cursor: busy ? "not-allowed" : "pointer",
-                opacity: busy ? 0.6 : 1,
-                transition: "all 300ms ease-in-out",
-              }}
-              onMouseEnter={(e) => {
-                if (!busy) e.currentTarget.style.transform = "scale(1.05)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
-              {busy ? "Deleting..." : "Delete group"}
-            </button>
-          )}
+            {(mode === "create" || isCreator) && (
+              <div className="flex flex-col gap-3">
+                <div className="text-body-2 text-text-primary font-medium">
+                  {mode === "create" ? "Add members" : "Add more members"}
+                </div>
+
+                <FormInput
+                  intype="text"
+                  inname="searchMembers"
+                  inlabel="Search teammates"
+                  value={search}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                />
+
+                <div className="min-h-[120px] max-h-[300px] overflow-y-auto flex flex-col gap-2 pr-1">
+                  {orgUsersLoading && (
+                    <div className="flex items-center justify-center py-4">
+                      <span className="text-caption-1 text-text-secondary">Loading teammates…</span>
+                    </div>
+                  )}
+                  {!orgUsersLoading && availableUsers.length === 0 && (
+                    <div className="flex items-center justify-center py-4">
+                      <span className="text-caption-1 text-text-secondary">
+                        {orgUsers.length === 0
+                          ? "No teammates available. Please wait..."
+                          : search.trim()
+                            ? "No teammates match your search."
+                            : "All teammates have been added."}
+                      </span>
+                    </div>
+                  )}
+                  {!orgUsersLoading &&
+                    availableUsers.map((u) => (
+                      <div
+                        key={u.keyId}
+                        className="flex justify-between items-center px-3 py-3 border border-grey-light rounded-2xl bg-white hover:border-input-border-active transition-all duration-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-card-hover flex items-center justify-center">
+                            <span className="font-satoshi text-black-text text-sm font-medium">
+                              {(u.name || u.email || "?").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-body-4 text-text-primary">{u.name}</span>
+                            {u.email && (
+                              <span className="text-caption-2 text-text-secondary">{u.email}</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAddMemberClick(u.keyId!)}
+                          disabled={busy}
+                          className={`p-1.5 rounded-lg hover:bg-green-50 transition-all duration-200 ${
+                            busy ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                          }`}
+                          title="Add member"
+                        >
+                          <IoIosAddCircleOutline size={24} color="#302f2e" />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {!isCreator && mode === "edit" && (
+              <div className="px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-2xl">
+                <span className="text-caption-1 text-yellow-700">
+                  Only the group creator can modify this group.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-center gap-3 pb-1 px-3">
+            {mode === "create" && (
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={busy}
+                className={`${primaryActionClasses} ${
+                  busy ? disabledActionClasses : "cursor-pointer"
+                }`}
+              >
+                {busy ? "Creating..." : "Create Group"}
+              </button>
+            )}
+            {mode === "edit" && isCreator && (
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={busy}
+                className={`${dangerActionClasses} ${
+                  busy ? disabledActionClasses : "cursor-pointer"
+                }`}
+              >
+                {busy ? "Deleting..." : "Delete Group"}
+              </button>
+            )}
+          </div>
         </div>
-
-        {!isCreator && mode === "edit" && (
-          <div
-            style={{
-              fontSize: "12px",
-              color: "#6b7280",
-              marginTop: "8px",
-              fontFamily: "var(--font-satoshi)",
-            }}
-          >
-            Only the group creator can modify this group.
-          </div>
-        )}
       </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -848,51 +702,21 @@ const ChannelHeaderWithCounterpart: React.FC<{
     : 0;
 
   return (
-    <div
-      className="chat-header-bar"
-    >
+    <div className="chat-header-bar">
       <ChannelHeader title={title} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="flex items-center gap-3">
         {isGroupChat && (
           <button
             type="button"
-            className="font-satoshi"
-            style={{
-              padding: '12px 32px',
-              backgroundColor: 'var(--color-text-primary)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '16px',
-              fontSize: '18px',
-              fontWeight: 500,
-              lineHeight: '26px',
-              cursor: 'pointer',
-              transition: 'all 300ms ease-in-out',
-            }}
             onClick={() => groupModalCtx.openEdit?.(channel as StreamChannel)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
+            className={`${primaryActionClasses} cursor-pointer`}
           >
             Group Info
           </button>
         )}
         {isClientChat && hasSessionClosed && (
-          <div style={{
-            padding: '6px 12px',
-            backgroundColor: 'var(--grey-light)',
-            border: '1px solid var(--grey-border)',
-            borderRadius: '8px',
-          }}>
-            <p className="font-satoshi" style={{
-              fontSize: '12px',
-              fontWeight: 500,
-              color: 'var(--grey-text)',
-              margin: 0,
-            }}>
+          <div className="px-3 py-1.5 bg-grey-light border border-grey-border rounded-lg">
+            <p className="text-caption-1 text-text-secondary font-medium m-0">
               Session Closed
             </p>
           </div>
@@ -901,31 +725,11 @@ const ChannelHeaderWithCounterpart: React.FC<{
           <button
             onClick={handleCloseSession}
             disabled={closingSession}
-            className="font-satoshi"
-            style={{
-              padding: '8px 16px',
-              backgroundColor: 'var(--black-bg)',
-              color: 'var(--white-text)',
-              border: '1px solid var(--black-bg)',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: closingSession ? 'not-allowed' : 'pointer',
-              opacity: closingSession ? 0.6 : 1,
-              transition: 'all 0.3s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!closingSession) {
-                e.currentTarget.style.backgroundColor = 'var(--black-hover)';
-                e.currentTarget.style.boxShadow = '0 0 16px 0 rgba(0, 0, 0, 0.16)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--black-bg)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            className={`${primaryActionClasses} bg-black-bg border border-black-bg hover:shadow-lg ${
+              closingSession ? disabledActionClasses : "cursor-pointer"
+            }`}
           >
-            {closingSession ? 'Closing...' : 'Close Session'}
+            {closingSession ? "Closing..." : "Close Session"}
           </button>
         )}
       </div>
@@ -2058,20 +1862,13 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       showEmpty={!appointmentId && showEmptyPlaceholder}
       channelListHeader={
         (scope === "colleagues" || scope === "groups") && (
-          <div
-            style={{
-              padding: "12px",
-              borderBottom: "1px solid #e5e7eb",
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-            }}
-          >
+          <div className="p-3 border-b border-grey-light flex flex-col gap-3">
             {scope === "colleagues" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <input
-                  type="text"
-                  placeholder="Search teammate to chat"
+              <div className="flex flex-col gap-2">
+                <FormInput
+                  intype="text"
+                  inname="colleagueSearch"
+                  inlabel="Search teammate to chat"
                   value={directSearch}
                   onFocus={() => {
                     if (directBlurTimeout.current) {
@@ -2088,17 +1885,9 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                     }, 120);
                   }}
                   onChange={(e) => setDirectSearch(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    border: "1px solid #d1d5db",
-                    fontFamily: "var(--font-satoshi)",
-                    fontSize: "14px",
-                  }}
                 />
                 <div
-                  style={{ maxHeight: "160px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}
+                  className="max-h-40 overflow-y-auto flex flex-col gap-2"
                   onMouseEnter={() => setDirectListHover(true)}
                   onMouseLeave={() => {
                     setDirectListHover(false);
@@ -2106,7 +1895,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                   }}
                 >
                   {orgUsersLoading && (
-                    <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                    <span className="text-caption-1 text-text-secondary">
                       Loading teammates…
                     </span>
                   )}
@@ -2137,43 +1926,22 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                             })
                           }
                           disabled={creatingChat}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            padding: "8px 10px",
-                            borderRadius: "10px",
-                            border: "1px solid #e5e7eb",
-                            background: "#fff",
-                            cursor: "pointer",
-                            textAlign: "left",
-                            fontFamily: "var(--font-satoshi)",
-                          }}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-2xl! border border-grey-light bg-white cursor-pointer text-left hover:border-input-border-active transition-all duration-200 overflow-hidden"
                         >
-                          <div
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: "50%",
-                              background: "#eef2ff",
-                              display: "grid",
-                              placeItems: "center",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              color: "#4b5563",
-                            }}
-                          >
-                            {(u.name || u.email || "?")
-                              .split(" ")
-                              .map((p) => p[0])
-                              .join("")
-                              .slice(0, 2)
-                              .toUpperCase()}
+                          <div className="w-8 h-8 rounded-full bg-card-hover flex items-center justify-center">
+                            <span className="font-satoshi text-black-text text-sm font-medium">
+                              {(u.name || u.email || "?")
+                                .split(" ")
+                                .map((p) => p[0])
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase()}
+                            </span>
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                            <span style={{ fontSize: "14px", fontWeight: 600 }}>{u.name}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-body-4 text-text-primary font-medium">{u.name}</span>
                             {u.email && (
-                              <span style={{ fontSize: "12px", color: "#6b7280" }}>{u.email}</span>
+                              <span className="text-caption-2 text-text-secondary">{u.email}</span>
                             )}
                           </div>
                         </button>
@@ -2191,7 +1959,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                           .toLowerCase()
                           .includes(directSearch.toLowerCase())
                       ).length === 0 && (
-                      <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                      <span className="text-caption-1 text-text-secondary">
                         No teammates found. Adjust your search.
                       </span>
                     )}
@@ -2202,29 +1970,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
             {scope === "groups" && (
               <button
                 type="button"
-                className="font-satoshi"
                 onClick={openCreateGroupModal}
-                style={{
-                  padding: "12px 32px",
-                  background: "var(--color-text-primary)",
-                  color: "#fff",
-                  borderRadius: "16px",
-                  border: "none",
-                  fontSize: "18px",
-                  fontWeight: 500,
-                  lineHeight: "26px",
-                  cursor: "pointer",
-                  width: "fit-content",
-                  transition: "all 300ms ease-in-out",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.05)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
-                }}
+                className={`${primaryActionClasses} w-fit cursor-pointer`}
               >
-                Create group
+                Create Group
               </button>
             )}
           </div>

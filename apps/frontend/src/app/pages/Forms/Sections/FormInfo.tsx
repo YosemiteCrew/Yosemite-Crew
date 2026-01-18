@@ -289,7 +289,7 @@ const FormInfo = ({
               </Accordion>
             )}
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 px-3 pb-3">
             {renderActions()}
             <Secondary
               href="#"

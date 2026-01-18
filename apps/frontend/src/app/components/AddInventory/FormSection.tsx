@@ -277,7 +277,7 @@ const FormSection: React.FC<FormSectionProps> = ({
         </Accordion>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-3 pb-3">
         <Secondary
           href="#"
           text="Clear"

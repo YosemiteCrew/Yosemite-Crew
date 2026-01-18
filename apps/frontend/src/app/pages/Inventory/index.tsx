@@ -233,7 +233,6 @@ const Inventory = () => {
           href="#"
           text={savingItem ? "Saving..." : "Add"}
           onClick={() => setAddPopup(true)}
-          classname="w-[140px] sm:w-40"
           isDisabled={savingItem || !primaryOrgId}
         />
       </div>
