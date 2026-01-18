@@ -2,6 +2,7 @@ const DEFAULT_IMAGES = {
   dog: ["https://d2il6osz49gpup.cloudfront.net/avatar/dog.png"],
   cat: ["https://d2il6osz49gpup.cloudfront.net/avatar/cat.png"],
   horse: ["https://d2il6osz49gpup.cloudfront.net/avatar/horse.png"],
+  other: ["https://d2il6osz49gpup.cloudfront.net/avatar/dog.png"],
   person: ["https://d2il6osz49gpup.cloudfront.net/avatar/parent1.png"],
   business: ["https://d2il6osz49gpup.cloudfront.net/avatar/business1.png"],
 } as const;

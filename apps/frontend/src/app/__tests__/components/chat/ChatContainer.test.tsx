@@ -8,8 +8,6 @@ import {
   within,
 } from "@testing-library/react";
 import { ChatContainer } from "../../../components/chat/ChatContainer";
-import { useAuthStore } from "@/app/stores/authStore";
-import { useOrgStore } from "@/app/stores/orgStore";
 import * as streamChatService from "@/app/services/streamChatService";
 
 // --- Mocks ---
