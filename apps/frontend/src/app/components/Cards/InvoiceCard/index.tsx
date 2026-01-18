@@ -3,6 +3,7 @@ import { getStatusStyle } from "../../DataTable/InvoiceTable";
 import { Invoice } from "@yosemite-crew/types";
 import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 import { Secondary } from "../../Buttons";
+import { toTitleCase } from "@/app/utils/validators";
 
 type InvoiceCardProps = {
   invoice: Invoice;
@@ -59,7 +60,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
         style={getStatusStyle(invoice.status)}
         className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
-        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+        {toTitleCase(invoice?.status)}
       </div>
       <div className="flex gap-3 w-full">
         <Secondary

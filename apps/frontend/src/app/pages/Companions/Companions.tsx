@@ -88,7 +88,6 @@ const Companions = () => {
         <AddTask
           showModal={addTask}
           setShowModal={setAddTask}
-          activeCompanion={activeCompanion}
         />
       )}
     </div>

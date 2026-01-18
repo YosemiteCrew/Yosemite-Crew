@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import Parent from "./Sections/Parent";
 import Companion from "./Sections/Companion";
 import Modal from "../Modal";
-import SubLabels from "../Labels/SubLabels";
 import { EMPTY_STORED_COMPANION, EMPTY_STORED_PARENT } from "./type";
 import { StoredCompanion, StoredParent } from "@/app/pages/Companions/types";
 import Close from "../Icons/Close";
+import Labels from "../Labels/Labels";
 
-const Labels = [
+const LabelOptions = [
   {
     name: "Parents details",
     key: "parents",
@@ -40,20 +40,26 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add Companion</div>
+            <div className="text-body-1 text-text-primary">Add companion</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <SubLabels
-          labels={Labels}
+        <Labels
+          labels={LabelOptions}
           activeLabel={activeLabel}
           setActiveLabel={setActiveLabel}
           disableClicking
         />
 
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
+        <div
+          ref={scrollRef}
+          className="flex overflow-y-auto flex-1 scrollbar-hidden"
+        >
           {activeLabel === "parents" && (
             <Parent
               setActiveLabel={setActiveLabel}

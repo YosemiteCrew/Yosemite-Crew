@@ -3,7 +3,7 @@ import React from "react";
 import { getStatusStyle } from "../../DataTable/Appointments";
 import { Appointment } from "@yosemite-crew/types";
 import { formatDateLabel } from "@/app/utils/forms";
-import { toTitleCase } from "@/app/utils/validators";
+import { toTitle } from "@/app/utils/validators";
 import { Secondary } from "../../Buttons";
 
 type AppointmentCardProps = {
@@ -84,7 +84,7 @@ const AppointmentCard = ({
         style={getStatusStyle(appointment.status)}
         className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
-        {toTitleCase(appointment.status)}
+        {toTitle(appointment.status)}
       </div>
       <div className="flex gap-3 w-full">
         {appointment.status === "REQUESTED" ? (

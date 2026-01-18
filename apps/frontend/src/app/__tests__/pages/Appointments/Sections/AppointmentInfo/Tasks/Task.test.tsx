@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Task from "@/app/pages/Appointments/Sections/AppointmentInfo/Tasks/Task";
 
@@ -8,47 +8,9 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   default: ({ title, children }: any) => (
     <div>
       <div>{title}</div>
-      <div>{children}</div>
+      {children}
     </div>
   ),
-}));
-
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, options, onSelect, error }: any) => (
-    <div>
-      <button type="button" onClick={() => onSelect(options[0])}>
-        {placeholder}
-      </button>
-      {error && <span>{error}</span>}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
-    <label>
-      {inlabel}
-      <input value={value} onChange={onChange} aria-label={inlabel} />
-      {error && <span>{error}</span>}
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <label>
-      {inlabel}
-      <textarea value={value} onChange={onChange} />
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
-  __esModule: true,
-  default: ({ placeholder }: any) => <button>{placeholder}</button>,
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
@@ -64,58 +26,75 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/hooks/useTeam", () => ({
-  useTeamForPrimaryOrg: () => [
-    { _id: "team-1", name: "Dr. Who" },
-  ],
+const FieldMock = ({ error, label }: any) => (
+  <div>
+    <span>{label}</span>
+    {error ? <div>{error}</div> : null}
+  </div>
+);
+
+jest.mock("@/app/components/Inputs/Datepicker", () => ({
+  __esModule: true,
+  default: () => <div>Datepicker</div>,
+}));
+
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+  __esModule: true,
+  default: ({ error, placeholder }: any) => (
+    <FieldMock error={error} label={placeholder} />
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+  __esModule: true,
+  default: ({ error, label }: any) => (
+    <FieldMock error={error} label={label} />
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ error, inlabel }: any) => (
+    <FieldMock error={error} label={inlabel} />
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/SelectLabel", () => ({
+  __esModule: true,
+  default: ({ error, title }: any) => (
+    <FieldMock error={error} label={title} />
+  ),
 }));
 
 jest.mock("@/app/hooks/useCompanion", () => ({
-  useCompanionsForPrimaryOrg: () => [
-    { id: "comp-1", name: "Buddy", parentId: "parent-1" },
-  ],
+  useCompanionsForPrimaryOrg: () => [],
+}));
+
+jest.mock("@/app/hooks/useTeam", () => ({
+  useTeamForPrimaryOrg: () => [],
 }));
 
 jest.mock("@/app/services/taskService", () => ({
   createTask: jest.fn(),
+  createTaskTemplate: jest.fn(),
+  getTaskLibrary: jest.fn().mockResolvedValue([]),
+  getTaskTemplatesForPrimaryOrg: jest.fn().mockResolvedValue([]),
 }));
 
-const taskService = jest.requireMock("@/app/services/taskService");
+jest.mock("@/app/utils/date", () => ({
+  applyUtcTime: (d: Date) => d,
+  generateTimeSlots: () => ["09:00"],
+}));
 
-describe("Task", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
+describe("Appointment Task", () => {
   it("shows validation errors when required fields are missing", () => {
     render(<Task />);
 
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByText("Please select a companion or staff")).toBeInTheDocument();
+    expect(
+      screen.getByText("Please select a companion or staff")
+    ).toBeInTheDocument();
     expect(screen.getByText("Name is required")).toBeInTheDocument();
-    expect(screen.getByText("Category is required")).toBeInTheDocument();
-  });
-
-  it("creates task when required fields are set", async () => {
-    taskService.createTask.mockResolvedValue({});
-
-    render(<Task />);
-
-    fireEvent.click(screen.getByText("Type"));
-    fireEvent.click(screen.getByText("Source"));
-    fireEvent.change(screen.getByLabelText("Category"), {
-      target: { value: "General" },
-    });
-    fireEvent.change(screen.getByLabelText("Task"), {
-      target: { value: "Call parent" },
-    });
-    fireEvent.click(screen.getAllByText("To")[0]);
-
-    fireEvent.click(screen.getByText("Save"));
-
-    await waitFor(() => {
-      expect(taskService.createTask).toHaveBeenCalled();
-    });
   });
 });

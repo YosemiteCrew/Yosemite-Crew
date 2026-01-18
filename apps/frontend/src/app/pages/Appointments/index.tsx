@@ -11,17 +11,16 @@ import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
 import OrgGuard from "@/app/components/OrgGuard";
 import { useAppointmentsForPrimaryOrg } from "@/app/hooks/useAppointments";
 import { Appointment } from "@yosemite-crew/types";
-import { useErrorTost } from "@/app/components/Toast/Toast";
 
 const Appointments = () => {
   const appointments = useAppointmentsForPrimaryOrg();
-  const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [filteredList, setFilteredList] = useState<Appointment[]>(appointments);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeAppointment, setActiveAppointment] =
     useState<Appointment | null>(appointments[0] ?? null);
   const [activeCalendar, setActiveCalendar] = useState("day");
+  const [activeView, setActiveView] = useState("calendar");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
 
@@ -42,7 +41,6 @@ const Appointments = () => {
 
   return (
     <div className="flex flex-col relative">
-      {ErrorTostPopup}
       <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
         <TitleCalendar
           activeCalendar={activeCalendar}
@@ -53,6 +51,8 @@ const Appointments = () => {
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
           count={appointments.length}
+          activeView={activeView}
+          setActiveView={setActiveView}
         />
 
         <div className="w-full flex flex-col gap-3">
@@ -60,27 +60,29 @@ const Appointments = () => {
             list={appointments}
             setFilteredList={setFilteredList}
           />
-          <AppointmentCalendar
-            filteredList={appointments}
-            setActiveAppointment={setActiveAppointment}
-            setViewPopup={setViewPopup}
-            activeCalendar={activeCalendar}
-            currentDate={currentDate}
-            setCurrentDate={setCurrentDate}
-            weekStart={weekStart}
-            setWeekStart={setWeekStart}
-          />
-          <AppointmentsTable
-            filteredList={filteredList}
-            setActiveAppointment={setActiveAppointment}
-            setViewPopup={setViewPopup}
-          />
+          {activeView === "calendar" ? (
+            <AppointmentCalendar
+              filteredList={appointments}
+              setActiveAppointment={setActiveAppointment}
+              setViewPopup={setViewPopup}
+              activeCalendar={activeCalendar}
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              weekStart={weekStart}
+              setWeekStart={setWeekStart}
+            />
+          ) : (
+            <AppointmentsTable
+              filteredList={filteredList}
+              setActiveAppointment={setActiveAppointment}
+              setViewPopup={setViewPopup}
+            />
+          )}
         </div>
 
         <AddAppointment
           showModal={addPopup}
           setShowModal={setAddPopup}
-          showErrorTost={showErrorTost}
         />
         {activeAppointment && (
           <AppoitmentInfo

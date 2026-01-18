@@ -1,75 +1,68 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import AddCompanion from "@/app/components/AddCompanion";
 
-jest.mock("@/app/components/Modal", () => {
-  return function MockModal({ showModal, children }: any) {
-    return showModal ? <div data-testid="modal">{children}</div> : null;
-  };
-});
+jest.mock("@/app/components/Modal", () => ({
+  __esModule: true,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="modal">{children}</div> : null,
+}));
 
-jest.mock("@/app/components/Labels/SubLabels", () => {
-  return function MockSubLabels({ labels }: any) {
-    return (
-      <div data-testid="sublabels">
-        {labels.map((label: any) => (
-          <span key={label.key}>{label.name}</span>
-        ))}
-      </div>
-    );
-  };
-});
+jest.mock("@/app/components/Icons/Close", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
+    </button>
+  ),
+}));
 
-jest.mock("@/app/components/Icons/Close", () => {
-  return function MockClose({ onClick }: any) {
-    return (
-      <button type="button" onClick={onClick}>
-        Close
-      </button>
-    );
-  };
-});
-
-jest.mock("@/app/components/AddCompanion/Sections/Parent", () => {
-  return function MockParent({ setActiveLabel }: any) {
-    return (
-      <div>
-        <span>Parent Section</span>
-        <button type="button" onClick={() => setActiveLabel("companion")}>
-          Next
+jest.mock("@/app/components/Labels/Labels", () => ({
+  __esModule: true,
+  default: ({ labels, setActiveLabel }: any) => (
+    <div>
+      {labels.map((label: any) => (
+        <button
+          key={label.key}
+          type="button"
+          onClick={() => setActiveLabel(label.key)}
+        >
+          {label.name}
         </button>
-      </div>
-    );
-  };
-});
+      ))}
+    </div>
+  ),
+}));
 
-jest.mock("@/app/components/AddCompanion/Sections/Companion", () => {
-  return function MockCompanion() {
-    return <div>Companion Section</div>;
-  };
-});
+jest.mock("@/app/components/AddCompanion/Sections/Parent", () => ({
+  __esModule: true,
+  default: () => <div>parent-section</div>,
+}));
 
-describe("AddCompanion Component", () => {
-  it("renders modal content and parent section by default", () => {
+jest.mock("@/app/components/AddCompanion/Sections/Companion", () => ({
+  __esModule: true,
+  default: () => <div>companion-section</div>,
+}));
+
+describe("AddCompanion", () => {
+  it("renders modal and switches sections", () => {
     render(<AddCompanion showModal setShowModal={jest.fn()} />);
 
     expect(screen.getByTestId("modal")).toBeInTheDocument();
-    expect(screen.getByText("Add Companion")).toBeInTheDocument();
-    expect(screen.getByText("Parent Section")).toBeInTheDocument();
+    expect(screen.getByText("parent-section")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Companion information" })
+    );
+    expect(screen.getByText("companion-section")).toBeInTheDocument();
   });
 
-  it("closes the modal when Close icon is clicked", () => {
+  it("closes modal when close icon is clicked", () => {
     const setShowModal = jest.fn();
     render(<AddCompanion showModal setShowModal={setShowModal} />);
 
-    fireEvent.click(screen.getByText("Close"));
+    fireEvent.click(screen.getAllByText("close")[1]);
     expect(setShowModal).toHaveBeenCalledWith(false);
-  });
-
-  it("switches to the companion section when requested", () => {
-    render(<AddCompanion showModal setShowModal={jest.fn()} />);
-
-    fireEvent.click(screen.getByText("Next"));
-    expect(screen.getByText("Companion Section")).toBeInTheDocument();
   });
 });

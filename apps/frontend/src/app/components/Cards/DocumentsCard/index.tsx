@@ -1,6 +1,7 @@
 import React from "react";
 import { OrganizationDocument } from "@/app/types/document";
 import { Secondary } from "../../Buttons";
+import { toTitle } from "@/app/utils/validators";
 
 type DocumentsCardProps = {
   document: OrganizationDocument;
@@ -27,7 +28,7 @@ const DocumentsCard = ({
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Category:</div>
         <div className="text-caption-1 text-text-primary">
-          {document.category}
+          {toTitle(document.category)}
         </div>
       </div>
       <div className="flex gap-3 w-full">

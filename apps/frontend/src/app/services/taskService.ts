@@ -47,11 +47,11 @@ export const createTask = async (task: Task) => {
       ...task,
       organisationId: primaryOrgId,
     };
-    const type = task.source
-    const isCustomTask = type === "CUSTOM"
-    const isTemplateTask = type === "ORG_TEMPLATE"
-    const isLibraryTask = type === "YC_LIBRARY"
-    let route = "/v1/task/pms/"
+    const type = task.source;
+    const isCustomTask = type === "CUSTOM";
+    const isTemplateTask = type === "ORG_TEMPLATE";
+    const isLibraryTask = type === "YC_LIBRARY";
+    let route = "/v1/task/pms/";
     if (isCustomTask) {
       route = route + "custom";
     } else if (isTemplateTask) {
@@ -63,7 +63,9 @@ export const createTask = async (task: Task) => {
     }
     const res = await postData<Task>(route, payload);
     const normalTask = res.data;
-    upsertTask(normalTask);
+    if (normalTask.audience === "EMPLOYEE_TASK") {
+      upsertTask(normalTask);
+    }
   } catch (err) {
     console.error("Failed to create task:", err);
     throw err;
@@ -157,16 +159,9 @@ export const getTaskTemplatesForPrimaryOrg = async (): Promise<
   }
 };
 
-export const getTaskLibraryForPriaryOrg = async (): Promise<TaskLibrary[]> => {
-  const { primaryOrgId } = useOrgStore.getState();
-  if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
-    return [];
-  }
+export const getTaskLibrary = async (): Promise<TaskLibrary[]> => {
   try {
-    const res = await getData<TaskLibrary[]>(
-      "/v1/task/pms/organisation/" + primaryOrgId
-    );
+    const res = await getData<TaskLibrary[]>("/v1/task/pms/library");
     const data = res.data;
     return data;
   } catch (err) {

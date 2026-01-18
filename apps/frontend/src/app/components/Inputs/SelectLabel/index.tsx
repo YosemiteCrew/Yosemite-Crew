@@ -22,7 +22,7 @@ const SelectLabel = ({
 }: SelectLabelProps) => {
   return (
     <div
-      className={`${type === "coloumn" ? "flex-col" : "flex-row items-center"} flex justify-between gap-3`}
+      className={`${type === "coloumn" ? "flex-col" : "flex-row items-center"} flex justify-between gap-3 px-1`}
     >
       <div className="text-body-4-emphasis text-text-secondary">
         {title}
