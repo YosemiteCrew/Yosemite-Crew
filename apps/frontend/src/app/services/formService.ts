@@ -33,19 +33,30 @@ const applyStatusToStore = (formId: string, status: FormsStatus) => {
 };
 
 export const loadForms = async (force = false) => {
-  const { setLoading, setForms, setError, loading, lastFetchedAt, setLastFetched } =
+  const {
+    setLoading,
+    setForms,
+    setError,
+    loading,
+    lastFetchedByOrgId,
+    setLastFetched,
+  } =
     useFormsStore.getState();
+
+  let orgId = useOrgStore.getState().primaryOrgId;
+  const lastFetchedAt = orgId ? lastFetchedByOrgId[orgId] : null;
+
   if (!force && (loading || lastFetchedAt)) {
     return;
   }
   setLoading(true);
   try {
-    const orgId = requireOrgId();
+    orgId = requireOrgId();
     const res = await getData<FormResponseDTO[]>(
       `/fhir/v1/form/admin/${orgId}/forms`
     );
     const forms = res.data.map(mapQuestionnaireToUI);
-    setForms(forms);
+    setForms(forms, orgId);
     return forms;
   } catch (err) {
     const message = axios.isAxiosError(err)
@@ -55,7 +66,9 @@ export const loadForms = async (force = false) => {
     throw err;
   } finally {
     setLoading(false);
-    setLastFetched(new Date().toISOString());
+    if (orgId) {
+      setLastFetched(orgId, new Date().toISOString());
+    }
   }
 };
 

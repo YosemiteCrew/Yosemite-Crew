@@ -9,13 +9,14 @@ type FormsState = {
   loading: boolean;
   error: string | null;
   lastFetchedAt: string | null;
-  setForms: (forms: FormsProps[]) => void;
+  lastFetchedByOrgId: Record<string, string | null>;
+  setForms: (forms: FormsProps[], orgId?: string) => void;
   upsertForm: (form: FormsProps) => void;
   updateFormStatus: (formId: string, status: FormsStatus) => void;
   setActiveForm: (formId: string | null) => void;
   setLoading: (value: boolean) => void;
   setError: (message: string | null) => void;
-  setLastFetched: (timestamp: string | null) => void;
+  setLastFetched: (orgId: string, timestamp: string | null) => void;
   clear: () => void;
 };
 
@@ -29,9 +30,10 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
   loading: false,
   error: null,
   lastFetchedAt: null,
+  lastFetchedByOrgId: {},
 
-  setForms: (forms) =>
-    set(() => {
+  setForms: (forms, orgId) =>
+    set((state) => {
       const formsById: Record<string, FormsProps> = {};
       const formIds: string[] = [];
       for (const form of forms) {
@@ -40,13 +42,17 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
         formIds.push(id);
       }
       const activeFormId = formIds[0] ?? null;
+      const timestamp = new Date().toISOString();
       return {
         formsById,
         formIds,
         activeFormId,
         loading: false,
         error: null,
-        lastFetchedAt: new Date().toISOString(),
+        lastFetchedAt: timestamp,
+        lastFetchedByOrgId: orgId
+          ? { ...state.lastFetchedByOrgId, [orgId]: timestamp }
+          : state.lastFetchedByOrgId,
       };
     }),
 
@@ -85,7 +91,11 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
 
   setError: (message) => set(() => ({ error: message ?? null })),
 
-  setLastFetched: (timestamp) => set(() => ({ lastFetchedAt: timestamp })),
+  setLastFetched: (orgId, timestamp) =>
+    set((state) => ({
+      lastFetchedAt: timestamp,
+      lastFetchedByOrgId: { ...state.lastFetchedByOrgId, [orgId]: timestamp },
+    })),
 
   clear: () =>
     set(() => ({
@@ -95,5 +105,6 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
       loading: false,
       error: null,
       lastFetchedAt: null,
+      lastFetchedByOrgId: {},
     })),
 }));
