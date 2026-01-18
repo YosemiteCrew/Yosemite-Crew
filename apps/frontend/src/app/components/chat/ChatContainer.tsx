@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
 import {
   Chat,
   Channel,
@@ -41,6 +41,11 @@ import {
 import { YosemiteLoader } from "../Loader";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
+
+const GroupModalContext = React.createContext<{
+  openEdit?: (channel: StreamChannel) => void;
+  openCreate?: () => void;
+}>({});
 import ProtectedRoute from "../ProtectedRoute";
 import OrgGuard from "../OrgGuard";
 
@@ -115,6 +120,490 @@ type OrgUserOption = {
   email?: string;
   image?: string;
   role?: string;
+};
+
+interface GroupModalProps {
+  open: boolean;
+  mode: "create" | "edit";
+  title: string;
+  placeholder: string;
+  members: string[];
+  backendId?: string;
+  ownerId?: string;
+  currentUserId?: string;
+  search: string;
+  busy: boolean;
+  orgUsers: OrgUserOption[];
+  orgUsersLoading: boolean;
+  channel: StreamChannel | null;
+  onClose: () => void;
+  onTitleChange: (val: string) => void;
+  onSearchChange: (val: string) => void;
+  onMembersChange: (ids: string[]) => void;
+  onCreate: (title: string, memberIds: string[]) => Promise<void>;
+  onUpdateTitle: (title: string) => Promise<void>;
+  onAddMember: (userId: string) => Promise<void>;
+  onRemoveMember: (userId: string) => Promise<void>;
+  onDelete: () => Promise<void>;
+}
+
+const GroupModal: React.FC<GroupModalProps> = ({
+  open,
+  mode,
+  title,
+  placeholder,
+  members,
+  backendId,
+  ownerId,
+  currentUserId,
+  search,
+  busy,
+  orgUsers,
+  orgUsersLoading,
+  channel,
+  onClose,
+  onTitleChange,
+  onSearchChange,
+  onMembersChange,
+  onCreate,
+  onUpdateTitle,
+  onAddMember,
+  onRemoveMember,
+  onDelete,
+}) => {
+  if (!open) return null;
+
+  // In create mode, the current user is always the creator
+  // In edit mode, check if ownerId matches currentUserId (with flexible ID matching)
+  const isCreator = mode === "create" || Boolean(
+    ownerId && currentUserId && (
+      ownerId === currentUserId ||
+      // Also check if the owner matches any variant of the user's ID in orgUsers
+      orgUsers.some(u =>
+        (u.userId === currentUserId || u.id === currentUserId || u.practitionerId === currentUserId) &&
+        (u.userId === ownerId || u.id === ownerId || u.practitionerId === ownerId)
+      )
+    )
+  );
+
+  const memberDetails = members
+    .map((id) => {
+      const user = orgUsers.find(
+        (u) => u.userId === id || u.id === id || u.practitionerId === id
+      );
+      const channelMember = channel?.state?.members?.[id];
+      return {
+        id,
+        name: user?.name || channelMember?.user?.name || id,
+        email: user?.email,
+      };
+    });
+
+  const availableUsers = orgUsers
+    .map((u) => ({ ...u, keyId: u.userId ?? u.id }))
+    .filter((u) => u.keyId)
+    .filter((u) => u.keyId !== currentUserId) // Exclude current user from add list
+    .filter(
+      (u) =>
+        !members.includes(u.keyId!) &&
+        !members.includes(u.id) &&
+        (u.name + (u.email ?? "") + (u.role ?? ""))
+          .toLowerCase()
+          .includes(search.toLowerCase())
+    )
+    .slice(0, 10);
+
+  const handleCreate = async () => {
+    if (!title.trim() || members.length === 0) {
+      alert("Add a group title and at least one member.");
+      return;
+    }
+    await onCreate(title.trim(), members);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!title.trim()) return;
+    await onUpdateTitle(title.trim());
+  };
+
+  const handleAddMemberClick = (userId: string) => {
+    if (mode === "create") {
+      // In create mode, just update local state
+      onMembersChange([...members, userId]);
+    } else {
+      // In edit mode, call API
+      onAddMember(userId);
+    }
+  };
+
+  const handleRemoveMemberClick = (userId: string) => {
+    if (mode === "create") {
+      // In create mode, just update local state
+      onMembersChange(members.filter((id) => id !== userId));
+    } else {
+      // In edit mode, call API
+      onRemoveMember(userId);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.4)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: "12px",
+          padding: "16px",
+          width: "min(420px, 95vw)",
+          maxHeight: "80vh",
+          overflowY: "auto",
+          boxShadow: "0 20px 45px rgba(0,0,0,0.15)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "12px",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-satoshi)",
+              fontWeight: 700,
+              fontSize: "16px",
+            }}
+          >
+            {mode === "create" ? "Create group" : "Group members"}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: "none",
+              background: "transparent",
+              fontSize: "16px",
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Title input */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            marginBottom: "12px",
+          }}
+        >
+          {(mode === "create" || isCreator) && (
+            <>
+              <input
+                type="text"
+                placeholder={mode === "edit" ? placeholder || "Group title" : "Group title"}
+                value={title}
+                onChange={(e) => onTitleChange(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: "1px solid #d1d5db",
+                  fontFamily: "var(--font-satoshi)",
+                  fontSize: "14px",
+                }}
+              />
+              {mode === "edit" && (
+                <button
+                  type="button"
+                  onClick={handleSaveTitle}
+                  disabled={busy || !title.trim()}
+                  className="font-satoshi"
+                  style={{
+                    padding: "12px 32px",
+                    alignSelf: "flex-start",
+                    background: "var(--color-text-primary)",
+                    color: "#fff",
+                    borderRadius: "16px",
+                    border: "none",
+                    fontWeight: 500,
+                    fontSize: "18px",
+                    lineHeight: "26px",
+                    cursor: busy || !title.trim() ? "not-allowed" : "pointer",
+                    opacity: busy || !title.trim() ? 0.6 : 1,
+                    transition: "all 300ms ease-in-out",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!busy && title.trim()) e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  {busy ? "Saving..." : "Save title"}
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Members list - show in both create and edit mode */}
+          {memberDetails.length > 0 &&
+            memberDetails.map((m) => (
+              <div
+                key={m.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 10px",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "10px",
+                  fontFamily: "var(--font-satoshi)",
+                  fontSize: "13px",
+                }}
+              >
+                <span>{m.name}</span>
+                {mode === "edit" && m.id === ownerId && (
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>Owner</span>
+                )}
+                {isCreator && m.id !== ownerId && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMemberClick(m.id)}
+                    disabled={busy}
+                    className="font-satoshi"
+                    style={{
+                      padding: "8px 20px",
+                      background: "var(--color-danger-600)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "12px",
+                      cursor: busy ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      opacity: busy ? 0.6 : 1,
+                      transition: "all 300ms ease-in-out",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!busy) e.currentTarget.style.transform = "scale(1.05)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "scale(1)";
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+        </div>
+
+        {/* Add members section */}
+        {(mode === "create" || isCreator) && (
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+          >
+            <div
+              style={{
+                fontSize: "13px",
+                color: "#111827",
+                fontWeight: 600,
+                fontFamily: "var(--font-satoshi)",
+              }}
+            >
+              {mode === "create" ? "Add members" : "Add more members"}
+            </div>
+            <input
+              type="text"
+              placeholder="Search teammates"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: "1px solid #d1d5db",
+                fontFamily: "var(--font-satoshi)",
+                fontSize: "14px",
+              }}
+            />
+            <div
+              style={{
+                maxHeight: "200px",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              {orgUsersLoading && (
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                  Loading teammates…
+                </span>
+              )}
+              {!orgUsersLoading && availableUsers.length === 0 && (
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                  {orgUsers.length === 0
+                    ? "No teammates available. Please wait..."
+                    : search.trim()
+                      ? "No teammates match your search."
+                      : "All teammates have been added."}
+                </span>
+              )}
+              {!orgUsersLoading &&
+                availableUsers.map((u) => (
+                  <div
+                    key={u.keyId}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "8px 10px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "10px",
+                      fontFamily: "var(--font-satoshi)",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span>{u.name}</span>
+                      {u.email && (
+                        <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                          {u.email}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddMemberClick(u.keyId!)}
+                      disabled={busy}
+                      className="font-satoshi"
+                      style={{
+                        padding: "8px 20px",
+                        background: "var(--color-text-primary)",
+                        color: "#fff",
+                        borderRadius: "12px",
+                        border: "none",
+                        cursor: busy ? "not-allowed" : "pointer",
+                        fontWeight: 500,
+                        fontSize: "14px",
+                        opacity: busy ? 0.6 : 1,
+                        transition: "all 300ms ease-in-out",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!busy) e.currentTarget.style.transform = "scale(1.05)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            marginTop: "16px",
+            justifyContent: "flex-end",
+          }}
+        >
+          {mode === "create" && (
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={busy}
+              className="font-satoshi"
+              style={{
+                padding: "12px 32px",
+                background: "var(--color-text-primary)",
+                color: "#fff",
+                borderRadius: "16px",
+                border: "none",
+                fontWeight: 500,
+                fontSize: "18px",
+                lineHeight: "26px",
+                cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.6 : 1,
+                transition: "all 300ms ease-in-out",
+              }}
+              onMouseEnter={(e) => {
+                if (!busy) e.currentTarget.style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              {busy ? "Creating..." : "Create group"}
+            </button>
+          )}
+          {mode === "edit" && isCreator && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              className="font-satoshi"
+              style={{
+                padding: "12px 32px",
+                background: "var(--color-danger-600)",
+                color: "#fff",
+                borderRadius: "16px",
+                border: "none",
+                fontWeight: 500,
+                fontSize: "18px",
+                lineHeight: "26px",
+                cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.6 : 1,
+                transition: "all 300ms ease-in-out",
+              }}
+              onMouseEnter={(e) => {
+                if (!busy) e.currentTarget.style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              {busy ? "Deleting..." : "Delete group"}
+            </button>
+          )}
+        </div>
+
+        {!isCreator && mode === "edit" && (
+          <div
+            style={{
+              fontSize: "12px",
+              color: "#6b7280",
+              marginTop: "8px",
+              fontFamily: "var(--font-satoshi)",
+            }}
+          >
+            Only the group creator can modify this group.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const getChannelDisplayInfo = (
@@ -276,18 +765,10 @@ const ChannelHeaderWithCounterpart: React.FC<{
   currentUserId?: string | null;
 }> = ({ currentUserId }) => {
   const { channel } = useChannelStateContext();
+  const orgIdFromStore = useOrgStore((state) => state.primaryOrgId);
+  const groupModalCtx = useContext(GroupModalContext);
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
-  const [showMembersModal, setShowMembersModal] = useState(false);
-  const [membersSearch, setMembersSearch] = useState("");
-  const [orgUsersForModal, setOrgUsersForModal] = useState<OrgUserOption[]>([]);
-  const [orgUsersLoading, setOrgUsersLoading] = useState(false);
-  const [groupTitleDraft, setGroupTitleDraft] = useState("");
-  const [groupDescDraft, setGroupDescDraft] = useState("");
-  const [updatingGroup, setUpdatingGroup] = useState(false);
-  const [updatingMembers, setUpdatingMembers] = useState(false);
-  const [groupBackendId, setGroupBackendId] = useState<string | undefined>();
-  const addMemberInputRef = useRef<HTMLInputElement | null>(null);
   const { title } = getChannelDisplayInfo(
     channel as StreamChannel | null,
     currentUserId
@@ -305,12 +786,23 @@ const ChannelHeaderWithCounterpart: React.FC<{
     scope === "groups" ||
     isOrgGroupType ||
     (isTeamChannel && channelMemberCount > 2);
-  const organisationId = (channel?.data as any)?.organisationId as string | undefined;
+  const organisationId =
+    ((channel?.data as any)?.organisationId as string | undefined) ||
+    orgIdFromStore ||
+    undefined;
   const createdById =
     (channel?.data as any)?.createdBy ||
     (channel?.data as any)?.created_by_id ||
     (channel as any)?.created_by?.id;
-  const isCreator = createdById && currentUserId && createdById === currentUserId;
+  const memberRoleForCurrentUser =
+    currentUserId && channel?.state?.members?.[currentUserId]
+      ? (channel.state.members[currentUserId] as any)?.role ||
+        (channel.state.members[currentUserId] as any)?.channel_role
+      : undefined;
+  const isCreator =
+    Boolean(createdById && currentUserId && createdById === currentUserId) ||
+    (memberRoleForCurrentUser === "owner");
+  const channelId = channel?.id;
 
   // Check if session is already closed
   useEffect(() => {
@@ -351,127 +843,9 @@ const ChannelHeaderWithCounterpart: React.FC<{
 
   const hasSessionClosed = sessionClosed;
 
-  useEffect(() => {
-    if (!showMembersModal || !isGroupChat) return;
-    const dataGroupId =
-      (channel?.data as any)?.groupId ||
-      (channel?.data as any)?._id;
-    if (dataGroupId) {
-      setGroupBackendId(String(dataGroupId));
-    } else if (organisationId && channelId) {
-      listOrgChatSessions(organisationId)
-        .then((sessions) => {
-          const matched = sessions.find((s) => s.channelId === channelId);
-          if (matched?._id) {
-            setGroupBackendId(matched._id);
-            (channel as StreamChannel | undefined)?.update(
-              {
-                groupId: matched._id,
-                title: matched.title,
-                description: matched.description,
-                chatCategory: "group",
-                organisationId: matched.organisationId,
-                createdBy: matched.createdBy,
-              },
-              {}
-            );
-          }
-        })
-        .catch((err) =>
-          console.error("Failed to resolve backend group id for channel", err)
-        );
-    }
-
-    setGroupTitleDraft(normalizeName((channel?.data as any)?.title as string));
-    setGroupDescDraft(
-      normalizeName((channel?.data as any)?.description as string) ||
-        normalizeName((channel?.data as any)?.desc as string)
-    );
-    if (!organisationId) return;
-    setOrgUsersLoading(true);
-    fetchOrgUsers(organisationId)
-      .then((users) => {
-        setOrgUsersForModal(
-          users
-            .filter((u) => u?.id)
-            .map((u) => ({
-              id: u.id,
-              userId: u.userId,
-              practitionerId: u.practitionerId,
-              name: u.name || u.email || "User",
-              email: u.email,
-              image: u.image,
-              role: u.role,
-            }))
-        );
-      })
-      .catch((err) => console.error("Failed to load org users for modal", err))
-      .finally(() => setOrgUsersLoading(false));
-  }, [showMembersModal, isGroupChat, organisationId, channelId, channel]);
-
-  const membersArray = channel?.state?.members
-    ? Object.values(channel.state.members)
-    : [];
-  const memberOptions = membersArray.map((m) => ({
-    id: m.user?.id || m.user_id,
-    name: normalizeName(m.user?.name || m.user_id),
-    role: (m as any)?.role,
-  }));
-  const channelId = channel?.id;
-  const backendGroupId = (groupBackendId ||
-    (channel?.data as any)?.groupId ||
-    (channel?.data as any)?._id) as string | undefined;
-
-  const handleUpdateGroupMeta = async () => {
-    if (!isCreator || !backendGroupId) return;
-    setUpdatingGroup(true);
-    try {
-      await updateGroup(backendGroupId, {
-        title: groupTitleDraft.trim() || undefined,
-        description: groupDescDraft.trim() || undefined,
-      });
-      await (channel as StreamChannel | undefined)?.update({
-        title: groupTitleDraft.trim() || undefined,
-        description: groupDescDraft.trim() || undefined,
-      });
-      alert("Group updated");
-    } catch (err) {
-      console.error("Failed to update group", err);
-      alert("Unable to update group right now.");
-    } finally {
-      setUpdatingGroup(false);
-    }
-  };
-
-  const handleAddMember = async (userId?: string) => {
-    if (!isCreator || !backendGroupId || !userId) return;
-    setUpdatingMembers(true);
-    try {
-      await addGroupMembers(backendGroupId, [userId]);
-      await (channel as StreamChannel | undefined)?.watch();
-      alert("Member added");
-    } catch (err) {
-      console.error("Failed to add member", err);
-      alert("Unable to add member right now.");
-    } finally {
-      setUpdatingMembers(false);
-    }
-  };
-
-  const handleRemoveMember = async (userId?: string) => {
-    if (!isCreator || !backendGroupId || !userId) return;
-    setUpdatingMembers(true);
-    try {
-      await removeGroupMembers(backendGroupId, [userId]);
-      await (channel as StreamChannel | undefined)?.watch();
-      alert("Member removed");
-    } catch (err) {
-      console.error("Failed to remove member", err);
-      alert("Unable to remove member right now.");
-    } finally {
-      setUpdatingMembers(false);
-    }
-  };
+  const memberCount = channel?.state?.members
+    ? Object.keys(channel.state.members).length
+    : 0;
 
   return (
     <div
@@ -484,18 +858,26 @@ const ChannelHeaderWithCounterpart: React.FC<{
             type="button"
             className="font-satoshi"
             style={{
-              padding: '8px 12px',
-              backgroundColor: '#eef2ff',
-              color: '#111827',
-              border: '1px solid #e5e7eb',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: 600,
+              padding: '12px 32px',
+              backgroundColor: 'var(--color-text-primary)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '16px',
+              fontSize: '18px',
+              fontWeight: 500,
+              lineHeight: '26px',
               cursor: 'pointer',
+              transition: 'all 300ms ease-in-out',
             }}
-            onClick={() => setShowMembersModal(true)}
+            onClick={() => groupModalCtx.openEdit?.(channel as StreamChannel)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
           >
-            Members ({memberOptions.length})
+            Group Info
           </button>
         )}
         {isClientChat && hasSessionClosed && (
@@ -546,277 +928,7 @@ const ChannelHeaderWithCounterpart: React.FC<{
             {closingSession ? 'Closing...' : 'Close Session'}
           </button>
         )}
-        {isGroupChat && (
-          <button
-            type="button"
-            className="font-satoshi"
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#fff0f0',
-              color: '#b91c1c',
-              border: '1px solid #fca5a5',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-            onClick={async () => {
-              if (!isCreator || !backendGroupId) {
-                alert("Group id not available. Please reopen the chat and try again.");
-                return;
-              }
-              const confirmDelete = confirm("Delete this group? This cannot be undone.");
-              if (!confirmDelete) return;
-              try {
-                await deleteGroup(backendGroupId);
-                alert("Group deleted");
-                setShowMembersModal(false);
-                // Hide channel locally
-                await (channel as StreamChannel | undefined)?.hide?.();
-              } catch (err) {
-                console.error("Failed to delete group", err);
-                alert("Unable to delete group right now.");
-              }
-            }}
-          >
-            Delete group
-          </button>
-        )}
       </div>
-      {showMembersModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.4)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-          }}
-          onClick={() => setShowMembersModal(false)}
-        >
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: "12px",
-              padding: "16px",
-              width: "min(420px, 95vw)",
-              maxHeight: "80vh",
-              overflowY: "auto",
-              boxShadow: "0 20px 45px rgba(0,0,0,0.15)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <div style={{ fontFamily: "var(--font-satoshi)", fontWeight: 700, fontSize: "16px" }}>
-                Group members
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowMembersModal(false)}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  fontSize: "16px",
-                  cursor: "pointer",
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
-              {isCreator && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Group title"
-                    value={groupTitleDraft}
-                    onChange={(e) => setGroupTitleDraft(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: "10px",
-                      border: "1px solid #d1d5db",
-                      fontFamily: "var(--font-satoshi)",
-                      fontSize: "14px",
-                    }}
-                  />
-                  <textarea
-                    placeholder="Group description"
-                    value={groupDescDraft}
-                    onChange={(e) => setGroupDescDraft(e.target.value)}
-                    rows={2}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: "10px",
-                      border: "1px solid #d1d5db",
-                      fontFamily: "var(--font-satoshi)",
-                      fontSize: "14px",
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleUpdateGroupMeta}
-                    disabled={updatingGroup}
-                    style={{
-                      padding: "8px 12px",
-                      alignSelf: "flex-start",
-                      background: "#111827",
-                      color: "#fff",
-                      borderRadius: "10px",
-                      border: "1px solid #111827",
-                      fontWeight: 600,
-                      cursor: updatingGroup ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {updatingGroup ? "Saving..." : "Save changes"}
-                  </button>
-                </>
-              )}
-              {memberOptions.map((m) => (
-                <div
-                  key={m.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 10px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "10px",
-                    fontFamily: "var(--font-satoshi)",
-                    fontSize: "13px",
-                  }}
-                >
-                  <span>{m.name}</span>
-                  {m.id === createdById && (
-                    <span style={{ fontSize: "12px", color: "#6b7280" }}>Owner</span>
-                  )}
-                  {isCreator && m.id !== createdById && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMember(m.id)}
-                      disabled={updatingMembers}
-                      style={{
-                        padding: "4px 8px",
-                        background: "#fff0f0",
-                        color: "#b91c1c",
-                        border: "1px solid #fecdd3",
-                        borderRadius: "8px",
-                        cursor: updatingMembers ? "not-allowed" : "pointer",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {isCreator && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ fontSize: "13px", color: "#111827", fontWeight: 600, fontFamily: "var(--font-satoshi)" }}>
-                  Add members
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search teammates"
-                  value={membersSearch}
-                  onChange={(e) => setMembersSearch(e.target.value)}
-                  ref={addMemberInputRef}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    border: "1px solid #d1d5db",
-                    fontFamily: "var(--font-satoshi)",
-                    fontSize: "14px",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => addMemberInputRef.current?.focus()}
-                  style={{
-                    alignSelf: "flex-start",
-                    padding: "6px 10px",
-                    background: "#eef2ff",
-                    color: "#111827",
-                    borderRadius: "8px",
-                    border: "1px solid #e5e7eb",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontFamily: "var(--font-satoshi)",
-                  }}
-                >
-                  Add member
-                </button>
-                <div style={{ maxHeight: "200px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {orgUsersLoading && (
-                    <span style={{ fontSize: "12px", color: "#6b7280" }}>Loading teammates…</span>
-                  )}
-                  {!orgUsersLoading &&
-                    orgUsersForModal
-                      .map((u) => ({ ...u, keyId: u.userId ?? u.id }))
-                      .filter((u) => u.keyId)
-                      .filter(
-                        (u) =>
-                          !memberOptions.some((m) => m.id === u.keyId) &&
-                          (u.name + (u.email ?? "") + (u.role ?? ""))
-                            .toLowerCase()
-                            .includes(membersSearch.toLowerCase())
-                      )
-                      .slice(0, 10)
-                      .map((u) => (
-                        <div
-                          key={u.keyId}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "8px 10px",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: "10px",
-                            fontFamily: "var(--font-satoshi)",
-                            fontSize: "13px",
-                          }}
-                        >
-                          <div style={{ display: "flex", flexDirection: "column" }}>
-                            <span>{u.name}</span>
-                            {u.email && (
-                              <span style={{ fontSize: "12px", color: "#6b7280" }}>{u.email}</span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleAddMember(u.keyId!)}
-                            style={{
-                              padding: "6px 10px",
-                              background: "#111827",
-                              color: "#fff",
-                              borderRadius: "8px",
-                              border: "1px solid #111827",
-                              cursor: "pointer",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Add
-                          </button>
-                        </div>
-                      ))}
-                </div>
-              </div>
-            )}
-            {!isCreator && isGroupChat && (
-              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "8px", fontFamily: "var(--font-satoshi)" }}>
-                Only the group creator can add members.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -1137,23 +1249,151 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [creatingChat, setCreatingChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
-  const [groupSearchFocused, setGroupSearchFocused] = useState(false);
   const [directListHover, setDirectListHover] = useState(false);
+  const [groupSearchFocused, setGroupSearchFocused] = useState(false);
   const [groupListHover, setGroupListHover] = useState(false);
   const [groupListPinned, setGroupListPinned] = useState(false);
-  const [directListPinned, setDirectListPinned] = useState(false);
-  const [showGroupMembersModal, setShowGroupMembersModal] = useState(false);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [groupModalMode, setGroupModalMode] = useState<"create" | "edit">(
+    "create"
+  );
+  const [groupModalChannel, setGroupModalChannel] = useState<StreamChannel | null>(null);
+  const [groupModalTitle, setGroupModalTitle] = useState("");
+  const [groupModalPlaceholder, setGroupModalPlaceholder] = useState("");
+  const [groupModalMembers, setGroupModalMembers] = useState<string[]>([]);
+  const [groupModalBackendId, setGroupModalBackendId] = useState<string | undefined>();
   const [groupModalSearch, setGroupModalSearch] = useState("");
-  const directAreaRef = useRef<HTMLDivElement | null>(null);
-  const groupAreaRef = useRef<HTMLDivElement | null>(null);
+  const [groupModalBusy, setGroupModalBusy] = useState(false);
+  const groupModalOwnerRef = useRef<string | undefined>(undefined);
+  const groupBlurTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const directBlurTimeout = useRef<NodeJS.Timeout | null>(null);
-  const groupBlurTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setOrgUsersLoaded(false);
     setOrgUsers([]);
   }, [primaryOrgId]);
+
+  const deriveGroupIdFromChannelId = useCallback((chanId?: string) => {
+    if (!chanId) return undefined;
+    if (chanId.startsWith("org-group-")) return chanId.replace("org-group-", "");
+    return undefined;
+  }, []);
+
+  const resolveGroupIdForChannel = useCallback(
+    async (chan: StreamChannel | null) => {
+      if (!chan) return undefined;
+      // ALWAYS query backend sessions API to get the correct session _id
+      // The groupId/directId stored in channel data might be the Stream channel ID, not the backend session ID
+      if (!primaryOrgId) {
+        // Fallback to channel data if no org ID available
+        const dataId =
+          (chan.data as any)?.groupId ||
+          (chan.data as any)?.directId ||
+          (chan.data as any)?._id ||
+          undefined;
+        return dataId ? String(dataId) : undefined;
+      }
+      try {
+        // First check if channel already has a valid backend session ID stored
+        const storedGroupId = (chan.data as any)?.groupId;
+        const storedDirectId = (chan.data as any)?.directId;
+
+        console.log("Resolving group ID for channel:", chan.id, "cid:", chan.cid, "org:", primaryOrgId);
+        console.log("Stored IDs in channel data - groupId:", storedGroupId, "directId:", storedDirectId);
+
+        const sessions = await listOrgChatSessions(primaryOrgId);
+        console.log("Sessions from API:", sessions);
+
+        // Get channel members for matching
+        const channelMemberIds = chan.state?.members ? Object.keys(chan.state.members) : [];
+        const channelTitle = (chan.data as any)?.title || (chan.data as any)?.name;
+
+        // First, check if the stored groupId/directId matches any session _id
+        if (storedGroupId) {
+          const matchedByStoredId = sessions.find((s) => s._id === storedGroupId);
+          if (matchedByStoredId) {
+            console.log("Matched by stored groupId:", matchedByStoredId);
+            return matchedByStoredId._id;
+          }
+        }
+        if (storedDirectId) {
+          const matchedByStoredId = sessions.find((s) => s._id === storedDirectId);
+          if (matchedByStoredId) {
+            console.log("Matched by stored directId:", matchedByStoredId);
+            return matchedByStoredId._id;
+          }
+        }
+
+        // Match by channelId first, then by members as fallback
+        const matched = sessions.find((s) => {
+          // Exact match on channelId
+          if (s.channelId === chan.id) return true;
+          // Also check if channel cid matches (format: type:id)
+          if (chan.cid && s.channelId === chan.cid) return true;
+          // Check if channel ID contains the session channelId or vice versa
+          if (chan.id && s.channelId && chan.id.includes(s.channelId)) return true;
+          if (chan.id && s.channelId && s.channelId.includes(chan.id)) return true;
+
+          // Match by members for ORG_DIRECT (2 members)
+          if (s.type === "ORG_DIRECT" && channelMemberIds.length === 2) {
+            const sessionMembers = s.members || [];
+            // Check if both session members are in the channel
+            const allMembersMatch = sessionMembers.every((sm: string) =>
+              channelMemberIds.includes(sm)
+            );
+            if (allMembersMatch && sessionMembers.length === channelMemberIds.length) {
+              return true;
+            }
+          }
+
+          // Match by members and title for ORG_GROUP
+          if (s.type === "ORG_GROUP" && channelMemberIds.length > 2) {
+            const sessionMembers = s.members || [];
+            // Check if members overlap significantly
+            const matchingMembers = sessionMembers.filter((sm: string) =>
+              channelMemberIds.includes(sm)
+            );
+            // If most members match and title matches, it's likely the same group
+            if (matchingMembers.length >= Math.min(sessionMembers.length, channelMemberIds.length) - 1) {
+              if (s.title && channelTitle && s.title === channelTitle) {
+                return true;
+              }
+              // If member count is exact match
+              if (matchingMembers.length === sessionMembers.length && matchingMembers.length === channelMemberIds.length) {
+                return true;
+              }
+            }
+          }
+
+          return false;
+        });
+        console.log("Matched session:", matched);
+        if (matched?._id) {
+          return matched._id;
+        }
+
+        console.warn("No matching session found for channel. Channel members:", channelMemberIds, "Channel title:", channelTitle);
+        // Fallback to channel data if no session found
+        const dataId =
+          (chan.data as any)?.groupId ||
+          (chan.data as any)?.directId ||
+          (chan.data as any)?._id ||
+          undefined;
+        return dataId ? String(dataId) : undefined;
+      } catch (err) {
+        console.error("Failed to resolve group id for channel", err);
+        // Fallback to channel data on error
+        const dataId =
+          (chan.data as any)?.groupId ||
+          (chan.data as any)?.directId ||
+          (chan.data as any)?._id ||
+          undefined;
+        return dataId ? String(dataId) : undefined;
+      }
+    },
+    [primaryOrgId]
+  );
 
   // Detect mobile
   useEffect(() => {
@@ -1271,6 +1511,48 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       .finally(() => setOrgUsersLoading(false));
   }, [scope, primaryOrgId, orgUsersLoaded, orgUsersLoading]);
 
+  const openCreateGroupModal = useCallback(() => {
+    setGroupModalMode("create");
+    setGroupModalChannel(null);
+    setGroupModalTitle("");
+    setGroupModalPlaceholder("");
+    setGroupModalMembers([]);
+    setGroupModalBackendId(undefined);
+    groupModalOwnerRef.current = client?.userID;
+    setGroupModalSearch("");
+    setGroupModalOpen(true);
+  }, [client]);
+
+  const openEditGroupModal = useCallback(
+    async (chan: StreamChannel) => {
+      setGroupModalMode("edit");
+      setGroupModalChannel(chan);
+      const placeholder =
+        normalizeName((chan.data as any)?.title as string) ||
+        normalizeName((chan.data as any)?.name as string) ||
+        "";
+      setGroupModalPlaceholder(placeholder);
+      setGroupModalTitle("");
+      const memberIds = chan.state?.members
+        ? Object.keys(chan.state.members)
+        : [];
+      setGroupModalMembers(memberIds);
+      // Find owner from members array (role: "owner") or fallback to created_by
+      const membersArray = chan.state?.members ? Object.values(chan.state.members) : [];
+      const ownerMember = membersArray.find((m: any) => m.role === "owner");
+      groupModalOwnerRef.current =
+        ownerMember?.user_id ||
+        ownerMember?.user?.id ||
+        (chan.data as any)?.createdBy ||
+        (chan as any)?.created_by?.id;
+      const backendId = await resolveGroupIdForChannel(chan);
+      setGroupModalBackendId(backendId);
+      setGroupModalSearch("");
+      setGroupModalOpen(true);
+    },
+    [resolveGroupIdForChannel]
+  );
+
   const previewComponent = useMemo(
     () => createPreviewComponent(handlePreviewSelect, client?.userID),
     [handlePreviewSelect, client?.userID]
@@ -1322,6 +1604,99 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         return;
       }
       setCreatingChat(true);
+
+      // First, check if a direct channel already exists with this user
+      // by querying backend sessions API and also Stream Chat channels
+      try {
+        // Check backend sessions for existing direct chat with this user
+        const sessions = await listOrgChatSessions(primaryOrgId);
+        const existingSession = sessions.find((s) => {
+          if (s.type !== "ORG_DIRECT") return false;
+          // Check if this session involves one of the candidate user IDs
+          const sessionMembers = s.members || [];
+          return sessionMembers.some((m: any) => {
+            const memberId = m.userId || m.practitionerId || m.id || m;
+            return candidateIds.includes(memberId);
+          });
+        });
+
+        if (existingSession?.channelId) {
+          // Found existing session, try to load the channel
+          const queried = await client.queryChannels(
+            { id: { $eq: existingSession.channelId } } as Record<string, unknown>,
+            [{ last_message_at: -1 }],
+            { watch: true, state: true, presence: true, limit: 1 }
+          );
+          if (queried[0]) {
+            await queried[0].watch();
+            setIsChannelSelected(true);
+            setShowEmptyPlaceholder(false);
+            onChannelSelect?.(queried[0]);
+            setCreatingChat(false);
+            return;
+          }
+        }
+
+        // Also query Stream Chat channels directly as fallback
+        const existingChannels = await client.queryChannels(
+          {
+            type: "team",
+            members: { $in: [client.userID!] },
+          } as Record<string, unknown>,
+          [{ last_message_at: -1 }],
+          { watch: false, state: true, presence: false, limit: 100 }
+        );
+
+        // Find a channel that is a direct chat (2 members) with this specific user
+        const existingDirectChannel = existingChannels.find((chan) => {
+          const members = chan.state?.members || {};
+          const memberIds = Object.keys(members);
+          const chatCategory = (chan.data as any)?.chatCategory;
+          const dataType = (chan.data as any)?.type;
+
+          // Must be a 2-person channel
+          if (memberIds.length !== 2) return false;
+          // Must include current user
+          if (!memberIds.includes(client.userID!)) return false;
+          // Must be a colleagues/direct channel (or legacy without category)
+          // Allow: no chatCategory, "colleagues", or type "ORG_DIRECT"
+          if (chatCategory && chatCategory !== "colleagues" && dataType !== "ORG_DIRECT") return false;
+
+          // Check if the other member matches one of the candidate IDs
+          const otherMemberId = memberIds.find((id) => id !== client.userID!);
+          if (!otherMemberId) return false;
+
+          // Direct match on member ID
+          if (candidateIds.includes(otherMemberId)) return true;
+
+          // Also check user.id and user.name from member object
+          const otherMember = members[otherMemberId];
+          const otherUserIdFromMember = otherMember?.user?.id || otherMember?.user_id;
+          if (otherUserIdFromMember && candidateIds.includes(otherUserIdFromMember)) return true;
+
+          // Also match by name as last resort (for John Doe case where IDs might differ)
+          const otherUserName = otherMember?.user?.name;
+          if (otherUserName && user.name && otherUserName.toLowerCase() === user.name.toLowerCase()) {
+            return true;
+          }
+
+          return false;
+        });
+
+        if (existingDirectChannel) {
+          // Channel already exists, just select it
+          await existingDirectChannel.watch();
+          setIsChannelSelected(true);
+          setShowEmptyPlaceholder(false);
+          onChannelSelect?.(existingDirectChannel);
+          setCreatingChat(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking for existing channel:", err);
+        // Continue to create new channel if query fails
+      }
+
       let success = false;
       for (const otherUserId of candidateIds) {
         try {
@@ -1339,7 +1714,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
                 chatCategory: "colleagues",
                 organisationId: session.organisationId,
                 createdBy: session.createdBy,
-              },
+              } as Record<string, unknown>,
               {}
             );
           };
@@ -1372,7 +1747,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       }
       setCreatingChat(false);
     },
-    [primaryOrgId, client, activateChannelById]
+    [primaryOrgId, client, activateChannelById, onChannelSelect]
   );
 
   const handleCreateGroupChat = useCallback(async () => {
@@ -1400,7 +1775,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
             chatCategory: "group",
             organisationId: session.organisationId,
             createdBy: session.createdBy,
-          },
+          } as Record<string, unknown>,
           {}
         );
       };
@@ -1429,6 +1804,173 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
       setCreatingChat(false);
     }
   }, [primaryOrgId, client, groupTitle, groupMembers, activateChannelById]);
+
+  // Modal action handlers
+  const handleModalCreate = useCallback(
+    async (title: string, memberIds: string[]) => {
+      if (!primaryOrgId || !client) return;
+      setGroupModalBusy(true);
+      try {
+        const allMembers = Array.from(new Set([...memberIds, client.userID!]));
+        const session = await createOrgGroupChat({
+          organisationId: primaryOrgId,
+          title,
+          memberIds: allMembers,
+          isPrivate: true,
+        });
+        const applyMetadata = async (chan: StreamChannel) => {
+          await chan.update(
+            {
+              groupId: session._id,
+              title: session.title || title,
+              description: session.description,
+              type: session.type,
+              chatCategory: "group",
+              organisationId: session.organisationId,
+              createdBy: session.createdBy,
+            } as Record<string, unknown>,
+            {}
+          );
+        };
+        const queried = await client.queryChannels(
+          { id: { $eq: session.channelId } },
+          [{ last_message_at: -1 }],
+          { watch: true, state: true, presence: true, limit: 1 }
+        );
+        if (queried[0]) {
+          await queried[0].watch();
+          await applyMetadata(queried[0]);
+          setIsChannelSelected(true);
+          setShowEmptyPlaceholder(false);
+          onChannelSelect?.(queried[0]);
+        } else {
+          await activateChannelById(session.channelId);
+          const chan = client.channel("team", session.channelId);
+          await applyMetadata(chan);
+        }
+        setGroupModalOpen(false);
+      } catch (err) {
+        console.error("Failed to create group", err);
+        alert("Unable to create group. Please try again.");
+      } finally {
+        setGroupModalBusy(false);
+      }
+    },
+    [primaryOrgId, client, activateChannelById, onChannelSelect]
+  );
+
+  const handleModalUpdateTitle = useCallback(
+    async (title: string) => {
+      if (!groupModalBackendId) {
+        console.error("Group ID not available. groupModalBackendId:", groupModalBackendId);
+        alert("This group was created before the new system. Please create a new group to use this feature.");
+        return;
+      }
+      setGroupModalBusy(true);
+      try {
+        await updateGroup(groupModalBackendId, { title });
+        if (groupModalChannel) {
+          await groupModalChannel.update({ title } as Record<string, unknown>, {});
+        }
+        setGroupModalPlaceholder(title);
+        setGroupModalTitle("");
+      } catch (err) {
+        console.error("Failed to update group title", err);
+        alert("Unable to update title. Please try again.");
+      } finally {
+        setGroupModalBusy(false);
+      }
+    },
+    [groupModalBackendId, groupModalChannel]
+  );
+
+  const handleModalAddMember = useCallback(
+    async (userId: string) => {
+      if (!groupModalBackendId) {
+        console.error("Group ID not available for add member. groupModalBackendId:", groupModalBackendId);
+        alert("This group was created before the new system. Please create a new group to use this feature.");
+        return;
+      }
+      setGroupModalBusy(true);
+      try {
+        await addGroupMembers(groupModalBackendId, [userId]);
+        if (groupModalChannel) {
+          await groupModalChannel.addMembers([userId]);
+        }
+        setGroupModalMembers((prev) => [...prev, userId]);
+      } catch (err) {
+        console.error("Failed to add member", err);
+        alert("Unable to add member. Please try again.");
+      } finally {
+        setGroupModalBusy(false);
+      }
+    },
+    [groupModalBackendId, groupModalChannel]
+  );
+
+  const handleModalRemoveMember = useCallback(
+    async (userId: string) => {
+      if (!groupModalBackendId) {
+        console.error("Group ID not available for remove member. groupModalBackendId:", groupModalBackendId);
+        alert("This group was created before the new system. Please create a new group to use this feature.");
+        return;
+      }
+      setGroupModalBusy(true);
+      try {
+        await removeGroupMembers(groupModalBackendId, [userId]);
+        if (groupModalChannel) {
+          await groupModalChannel.removeMembers([userId]);
+        }
+        setGroupModalMembers((prev) => prev.filter((id) => id !== userId));
+      } catch (err) {
+        console.error("Failed to remove member", err);
+        alert("Unable to remove member. Please try again.");
+      } finally {
+        setGroupModalBusy(false);
+      }
+    },
+    [groupModalBackendId, groupModalChannel]
+  );
+
+  const handleModalDelete = useCallback(async () => {
+    if (!groupModalBackendId) {
+      alert("Group id not available.");
+      return;
+    }
+    const confirmed = confirm("Delete this group? This cannot be undone.");
+    if (!confirmed) return;
+    setGroupModalBusy(true);
+    try {
+      await deleteGroup(groupModalBackendId);
+      // Try to hide the channel from Stream Chat, but don't fail if it's already gone
+      if (groupModalChannel) {
+        try {
+          await groupModalChannel.hide?.();
+        } catch (hideErr) {
+          // Channel might already be deleted on Stream Chat side, ignore this error
+          console.log("Channel hide failed (likely already deleted):", hideErr);
+        }
+      }
+      setGroupModalOpen(false);
+      setIsChannelSelected(false);
+      setShowEmptyPlaceholder(true);
+      onChannelSelect?.(null);
+      alert("Group deleted successfully");
+    } catch (err) {
+      console.error("Failed to delete group", err);
+      alert("Unable to delete group. Please try again.");
+    } finally {
+      setGroupModalBusy(false);
+    }
+  }, [groupModalBackendId, groupModalChannel, onChannelSelect]);
+
+  const groupModalContextValue = useMemo(
+    () => ({
+      openCreate: openCreateGroupModal,
+      openEdit: openEditGroupModal,
+    }),
+    [openCreateGroupModal, openEditGroupModal]
+  );
 
   // Extract conditional rendering logic
   const isAuthPending =
@@ -1658,193 +2200,32 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
             )}
 
             {scope === "groups" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <input
-                  type="text"
-                  placeholder="Group title"
-                  value={groupTitle}
-                  onChange={(e) => setGroupTitle(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    border: "1px solid #d1d5db",
-                    fontFamily: "var(--font-satoshi)",
-                    fontSize: "14px",
-                  }}
-                />
-                <input
-                  type="text"
-                  placeholder="Search and add members"
-                  value={directSearch}
-                  onChange={(e) => setDirectSearch(e.target.value)}
-                  onFocus={() => {
-                    if (groupBlurTimeout.current) {
-                      clearTimeout(groupBlurTimeout.current);
-                      groupBlurTimeout.current = null;
-                    }
-                    setGroupSearchFocused(true);
-                    setGroupListPinned(true);
-                  }}
-                  onBlur={() => {
-                    groupBlurTimeout.current = setTimeout(() => {
-                      if (!groupListHover && !groupListPinned) {
-                        setGroupSearchFocused(false);
-                      }
-                    }, 120);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    border: "1px solid #d1d5db",
-                    fontFamily: "var(--font-satoshi)",
-                    fontSize: "14px",
-                  }}
-                />
-                {groupSearchFocused && (
-                  <div
-                    style={{ maxHeight: "180px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "6px", background: "#fff" }}
-                    onMouseEnter={() => setGroupListHover(true)}
-                    onMouseLeave={() => {
-                      setGroupListHover(false);
-                      if (!groupSearchFocused && !groupListPinned) {
-                        setGroupSearchFocused(false);
-                      }
-                    }}
-                    onClick={() => setGroupListPinned(true)}
-                  >
-                    {orgUsersLoading && (
-                      <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                        Loading teammates…
-                      </span>
-                    )}
-                    {!orgUsersLoading &&
-                      (groupSearchFocused || groupListHover || groupListPinned) &&
-                      orgUsers
-                        .map((u) => ({
-                          ...u,
-                          keyId: u.userId ?? u.id,
-                        }))
-                        .filter((u) =>
-                          (u.name + (u.email ?? "") + (u.role ?? ""))
-                            .toLowerCase()
-                            .includes(directSearch.toLowerCase())
-                        )
-                        .filter((u) => u.keyId !== client.userID)
-                        .map((u) => {
-                          const checked = groupMembers.includes(u.keyId);
-                          return (
-                            <label
-                              key={u.keyId}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                cursor: "pointer",
-                                fontFamily: "var(--font-satoshi)",
-                                fontSize: "13px",
-                                padding: "6px 4px",
-                                borderRadius: "8px",
-                                background: checked ? "#eef2ff" : "transparent",
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => {
-                                  setGroupMembers((prev) =>
-                                    e.target.checked
-                                      ? [...prev, u.keyId]
-                                      : prev.filter((id) => id !== u.keyId)
-                                  );
-                                }}
-                              />
-                              <span style={{ fontWeight: 600 }}>{u.name}</span>
-                              {u.role && (
-                                <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                                  {u.role}
-                                </span>
-                              )}
-                            </label>
-                          );
-                        })}
-                    {!orgUsersLoading &&
-                      (groupSearchFocused || groupListHover || groupListPinned) &&
-                      directSearch.trim().length > 0 &&
-                      orgUsers.filter((u) =>
-                        (u.name + (u.email ?? "") + (u.role ?? ""))
-                          .toLowerCase()
-                          .includes(directSearch.toLowerCase())
-                      ).length === 0 && (
-                        <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                          No teammates found for this search.
-                        </span>
-                      )}
-                  </div>
-                )}
-                {!!groupMembers.length && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                    {groupMembers.map((m) => {
-                      const user = orgUsers.find(
-                        (u) => (u.userId ?? u.id) === m
-                      );
-                      return (
-                        <span
-                          key={m}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "6px 10px",
-                            borderRadius: "999px",
-                            background: "#eef2ff",
-                            color: "#111827",
-                            fontSize: "12px",
-                            fontFamily: "var(--font-satoshi)",
-                          }}
-                        >
-                          {user?.name || m}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setGroupMembers((prev) =>
-                                prev.filter((id) => id !== m)
-                              )
-                            }
-                            style={{
-                              border: "none",
-                              background: "transparent",
-                              cursor: "pointer",
-                              color: "#6b7280",
-                              fontWeight: 700,
-                            }}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={handleCreateGroupChat}
-                  disabled={creatingChat}
-                  style={{
-                    padding: "10px 12px",
-                    background: "#111827",
-                    color: "#fff",
-                    borderRadius: "10px",
-                    border: "1px solid #111827",
-                    fontFamily: "var(--font-satoshi)",
-                    fontWeight: 600,
-                    cursor: creatingChat ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {creatingChat ? "Creating..." : "Create group"}
-                </button>
-              </div>
+              <button
+                type="button"
+                className="font-satoshi"
+                onClick={openCreateGroupModal}
+                style={{
+                  padding: "12px 32px",
+                  background: "var(--color-text-primary)",
+                  color: "#fff",
+                  borderRadius: "16px",
+                  border: "none",
+                  fontSize: "18px",
+                  fontWeight: 500,
+                  lineHeight: "26px",
+                  cursor: "pointer",
+                  width: "fit-content",
+                  transition: "all 300ms ease-in-out",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              >
+                Create group
+              </button>
             )}
           </div>
         )
@@ -1853,15 +2234,41 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   );
 
   return (
-    <div className={className}>
-      <Chat
-        key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
-        client={client}
-        theme="str-chat__theme-light"
-      >
-        {chatContent}
-      </Chat>
-    </div>
+    <GroupModalContext.Provider value={groupModalContextValue}>
+      <div className={className}>
+        <Chat
+          key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
+          client={client}
+          theme="str-chat__theme-light"
+        >
+          {chatContent}
+        </Chat>
+        <GroupModal
+          open={groupModalOpen}
+          mode={groupModalMode}
+          title={groupModalTitle}
+          placeholder={groupModalPlaceholder}
+          members={groupModalMembers}
+          backendId={groupModalBackendId}
+          ownerId={groupModalOwnerRef.current}
+          currentUserId={client.userID}
+          search={groupModalSearch}
+          busy={groupModalBusy}
+          orgUsers={orgUsers}
+          orgUsersLoading={orgUsersLoading}
+          channel={groupModalChannel}
+          onClose={() => setGroupModalOpen(false)}
+          onTitleChange={setGroupModalTitle}
+          onSearchChange={setGroupModalSearch}
+          onMembersChange={setGroupModalMembers}
+          onCreate={handleModalCreate}
+          onUpdateTitle={handleModalUpdateTitle}
+          onAddMember={handleModalAddMember}
+          onRemoveMember={handleModalRemoveMember}
+          onDelete={handleModalDelete}
+        />
+      </div>
+    </GroupModalContext.Provider>
   );
 };
 

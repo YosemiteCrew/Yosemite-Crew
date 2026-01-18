@@ -4,7 +4,7 @@
  * Handles all chat-related API calls to the backend
  */
 
-import { getData, postData } from './axios';
+import { getData, postData, deleteData, patchData } from './axios';
 import type {
   ChatTokenResponse,
   CreateChatSessionResponse,
@@ -238,10 +238,9 @@ export const updateGroup = async (
   groupId: string,
   payload: Partial<Pick<OrgGroupRequest, "title" | "isPrivate" | "description">>
 ): Promise<OrgChatSession> => {
-  const response = await postData<OrgChatSession>(
+  const response = await patchData<OrgChatSession>(
     `/v1/chat/pms/groups/${groupId}`,
-    payload,
-    { method: "PATCH" } as any
+    payload
   );
   return response.data;
 };
@@ -250,7 +249,7 @@ export const updateGroup = async (
  * Delete group
  */
 export const deleteGroup = async (groupId: string): Promise<void> => {
-  await postData(`/v1/chat/pms/groups/${groupId}`, undefined, { method: "DELETE" } as any);
+  await deleteData(`/v1/chat/pms/groups/${groupId}`);
 };
 
 /**
