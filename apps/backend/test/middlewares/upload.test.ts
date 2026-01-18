@@ -54,13 +54,14 @@ describe('Upload Middleware', () => {
   // 1. UTILITY FUNCTIONS & CONFIG
   // ======================================================================
   describe('Utilities & Configuration', () => {
-    it('should throw if bucket name env is missing', () => {
+    it('should throw if bucket name env is missing', async () => {
       delete process.env.AWS_S3_BUCKET_NAME;
-      // We need to wrap a function that calls getBucketName internally.
-      // Since getBucketName is not exported directly, we verify via a public function that uses it.
-      expect(UploadMiddleware.generatePresignedUrl('image/png', 'user', '123'))
-        .rejects.toThrow('AWS_S3_BUCKET_NAME is not defined');
+
+      await expect(
+        UploadMiddleware.generatePresignedUrl('image/png', 'user', '123')
+      ).rejects.toThrow('AWS_S3_BUCKET_NAME is not defined');
     });
+
 
     it('should throw if CloudFront URL is missing', () => {
       delete process.env.AWS_CLOUD_FRONT_BASE_URL;
