@@ -8,7 +8,8 @@ export type AppointmentStatus =
   | "CHECKED_IN"
   | "IN_PROGRESS"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "NO_SHOW";
 
 export interface AppointmentMongo {
   companion: {
@@ -119,6 +120,7 @@ const AppointmentSchema = new Schema<AppointmentMongo>(
         "COMPLETED",
         "CANCELLED",
         "NO_PAYMENT",
+        "NO_SHOW",
       ],
       default: "NO_PAYMENT",
     },

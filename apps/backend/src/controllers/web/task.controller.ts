@@ -252,6 +252,25 @@ export const TaskController = {
     }
   },
 
+  updateTaskPMS: async (
+    req: Request<{ taskId: string }, unknown, TaskUpdateInput>,
+    res: Response,
+  ) => {
+    try {
+      const actorId = resolveUserId(req);
+      const taskId = req.params.taskId;
+
+      if (!actorId) {
+        return res.status(403).json({ message: "Account not found" });
+      }
+
+      const task = await TaskService.updateTask(taskId, req.body, actorId);
+      res.json(task);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
   // Change Status
   changeStatus: async (
     req: Request<{ taskId: string }, unknown, ChangeStatusRequestBody>,

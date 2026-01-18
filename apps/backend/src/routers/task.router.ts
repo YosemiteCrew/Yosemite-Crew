@@ -14,7 +14,7 @@ const router = Router();
 
 router.post(
   "/mobile/",
-  //authorizeCognitoMobile,
+  authorizeCognitoMobile,
   TaskController.createCustomTask,
 );
 
@@ -81,17 +81,6 @@ router.get(
   TaskController.listForCompanion,
 );
 
-// Single task detail
-router.get("/pms/:taskId", authorizeCognito, TaskController.getById);
-
-router.patch("/pms/:taskId", authorizeCognito, TaskController.updateTask);
-
-router.post(
-  "/pms/:taskId/status",
-  authorizeCognito,
-  TaskController.changeStatus,
-);
-
 // Task library routes
 
 router.get("/pms/library", authorizeCognito, TaskLibraryController.list);
@@ -137,6 +126,17 @@ router.delete(
   "/pms/templates/:templateId",
   authorizeCognito,
   TaskTemplateController.archive,
+);
+
+// Single task detail
+router.get("/pms/:taskId", authorizeCognito, TaskController.getById);
+
+router.patch("/pms/:taskId", authorizeCognito, TaskController.updateTaskPMS);
+
+router.post(
+  "/pms/:taskId/status",
+  authorizeCognito,
+  TaskController.changeStatus,
 );
 
 export default router;

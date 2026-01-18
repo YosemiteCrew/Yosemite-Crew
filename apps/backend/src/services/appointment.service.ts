@@ -1205,6 +1205,38 @@ export const AppointmentService = {
 
     return docs.map((doc) => toAppointmentResponseDTO(toDomainLean(doc)));
   },
+
+  async markNoShowAppointments(params?: { graceMinutes?: number }) {
+    const graceMinutes = params?.graceMinutes ?? 15;
+
+    const now = new Date();
+    const cutoffTime = new Date(
+      now.getTime() - graceMinutes * 60 * 1000,
+    );
+
+    /**
+     * We ONLY mark:
+     * - UPCOMING appointments
+     * - whose endTime + grace < now
+     */
+    const result = await AppointmentModel.updateMany(
+      {
+        status: "UPCOMING",
+        endTime: { $lt: cutoffTime },
+      },
+      {
+        $set: {
+          status: "NO_SHOW",
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    return {
+      matched: result.matchedCount,
+      modified: result.modifiedCount,
+    };
+  },
 };
 
 const createObservationToolTaskForAppointment = async ({

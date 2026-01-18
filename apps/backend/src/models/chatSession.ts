@@ -6,16 +6,26 @@ export interface ChatParticipant {
 }
 
 export type ChatSessionStatus = "PENDING" | "ACTIVE" | "CLOSED";
+export type ChatSessionType =
+  | "APPOINTMENT"
+  | "ORG_DIRECT"
+  | "ORG_GROUP";
 
 export interface ChatSessionMongo {
-  appointmentId: string;
+  type: ChatSessionType;
+
+  appointmentId?: string;
   channelId: string;
 
   organisationId: string;
-  companionId: string;
-  parentId: string;
-  vetId: string | null;
-  supportStaffIds: string[];
+  companionId?: string;
+  parentId?: string;
+  vetId?: string | null;
+  supportStaffIds?: string[];
+
+  createdBy?: string;
+  title?: string;
+  isPrivate?: boolean; 
 
   /**
    * Flat list of all userIds in this chat.
@@ -55,12 +65,17 @@ const ChatParticipantSchema = new Schema<ChatParticipant>(
 
 const ChatSessionSchema = new Schema<ChatSessionMongo>(
   {
-    appointmentId: {
+    type: {
       type: String,
+      enum: ["APPOINTMENT", "ORG_DIRECT", "ORG_GROUP"],
       required: true,
       index: true,
-      unique: true, // one chat per appointment
-      trim: true,
+    },
+    appointmentId: {
+      type: String,
+      index: true,
+      unique: true,
+      sparse: true,
     },
     organisationId: {
       type: String,
@@ -70,12 +85,10 @@ const ChatSessionSchema = new Schema<ChatSessionMongo>(
     },
     companionId: {
       type: String,
-      required: true,
       trim: true,
     },
     parentId: {
       type: String,
-      required: true,
       trim: true,
     },
 
@@ -87,6 +100,10 @@ const ChatSessionSchema = new Schema<ChatSessionMongo>(
       required: true,
       trim: true,
     },
+
+    createdBy: { type: String },
+    title: { type: String },
+    isPrivate: { type: Boolean, default: true },
 
     // Flat member ids used with Stream
     members: {
@@ -119,6 +136,11 @@ const ChatSessionSchema = new Schema<ChatSessionMongo>(
 ChatSessionSchema.index({ organisationId: 1, status: 1 });
 ChatSessionSchema.index({ parentId: 1 });
 ChatSessionSchema.index({ vetId: 1 });
+ChatSessionSchema.index({
+  type: 1,
+  organisationId: 1,
+  members: 1,
+});
 
 export type ChatSessionDocument = HydratedDocument<ChatSessionMongo>;
 

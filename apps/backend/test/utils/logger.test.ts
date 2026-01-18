@@ -155,7 +155,7 @@ describe("Logger Utils", () => {
       };
 
       const result = logFormatter(info);
-      expect(result).toBe('2023-01-01 [info]: {"userId":123,"action":"login"}');
+      expect(result).toBe('2023-01-01 [info]: {"action":"login","userId":123}');
     });
 
     it("should handle circular objects gracefully in message (Catch Block)", () => {
@@ -169,8 +169,8 @@ describe("Logger Utils", () => {
       };
 
       const result = logFormatter(info);
-      // JSON.stringify throws, so it falls back to String(value)
-      expect(result).toBe("2023-01-01 [warn]: [object Object]");
+      // safe-stable-stringify handles circular refs.
+      expect(result).toBe('2023-01-01 [warn]: {"a":1,"self":"[Circular]"}');
     });
 
     it("should include metadata if provided", () => {
