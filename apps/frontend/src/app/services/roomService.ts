@@ -6,7 +6,7 @@ import {
 } from "@yosemite-crew/types";
 import { useOrgStore } from "../stores/orgStore";
 import { useOrganisationRoomStore } from "../stores/roomStore";
-import { getData, postData, putData } from "./axios";
+import { deleteData, getData, postData, putData } from "./axios";
 
 export const loadRoomsForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
@@ -85,6 +85,21 @@ export const updateRoom = async (payload: OrganisationRoom) => {
     upsertRoom(normalRoom);
   } catch (err) {
     console.error("Failed to create service:", err);
+    throw err;
+  }
+};
+
+export const deleteRoom = async (room: OrganisationRoom) => {
+  const { removeRoom } = useOrganisationRoomStore.getState();
+  try {
+    const id = room.id;
+    if (!id) {
+      throw new Error("Room ID is missing.");
+    }
+    await deleteData("/fhir/v1/organisation-room/" + id);
+    removeRoom(id);
+  } catch (err) {
+    console.error("Failed to delete room:", err);
     throw err;
   }
 };

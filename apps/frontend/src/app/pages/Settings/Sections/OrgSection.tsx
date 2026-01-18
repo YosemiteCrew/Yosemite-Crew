@@ -99,14 +99,14 @@ const OrgRelatedFields = [
   {
     label: "Name",
     key: "name",
-    required: true,
+    required: false,
     editable: false,
     type: "text",
   },
   {
     label: "Role",
     key: "roleDisplay",
-    required: true,
+    required: false,
     editable: false,
     type: "select",
     options: RoleOptions
@@ -114,7 +114,7 @@ const OrgRelatedFields = [
   {
     label: "Employment type",
     key: "employmentType",
-    required: true,
+    required: false,
     editable: false,
     type: "select",
     options: EmploymentTypes
@@ -122,7 +122,7 @@ const OrgRelatedFields = [
   {
     label: "Gender",
     key: "gender",
-    required: true,
+    required: false,
     editable: true,
     type: "select",
     options: GenderOptions,
@@ -137,14 +137,14 @@ const OrgRelatedFields = [
   {
     label: "Phone number",
     key: "phoneNumber",
-    required: true,
+    required: false,
     editable: true,
     type: "text",
   },
   {
     label: "Country",
     key: "country",
-    required: true,
+    required: false,
     editable: true,
     type: "country",
   },

@@ -2,6 +2,7 @@ import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import Close from "@/app/components/Icons/Close";
 import Modal from "@/app/components/Modal";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { updateTask } from "@/app/services/taskService";
 import { Task, TaskKindOptions, TaskStatusOptions } from "@/app/types/task";
 import { Team } from "@/app/types/team";
 import React, { useMemo } from "react";
@@ -56,6 +57,23 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
     [activeTask, teams]
   );
 
+  const handleUpdate = async (values: any) => {
+    try {
+      const payload: Task = {
+        ...activeTask,
+        name: values.name,
+        description: values.description,
+        category: values.category,
+        dueAt: new Date(values.dueAt),
+        status: values.status,
+      };
+      await updateTask(payload);
+      setShowModal(false)
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
@@ -75,17 +93,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
             fields={TaskFields}
             data={taskData}
             defaultOpen={true}
-            onSave={async (values) => {
-              const payload: Task = {
-                ...activeTask,
-                name: values.name,
-                description: values.description,
-                category: values.category,
-                dueAt: new Date(values.dueAt),
-                status: values.status,
-              };
-              console.log(payload);
-            }}
+            onSave={(values) => handleUpdate(values)}
           />
         </div>
       </div>

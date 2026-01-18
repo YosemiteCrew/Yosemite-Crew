@@ -99,7 +99,6 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 error={formDataErrors.name}
-                className="min-h-12!"
               />
               <LabelDropdown
                 placeholder="Type"
@@ -133,7 +132,6 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
           <Primary
             href="#"
             text="Save"
-            classname="max-h-12! text-lg! tracking-wide!"
             onClick={handleSave}
           />
         </div>

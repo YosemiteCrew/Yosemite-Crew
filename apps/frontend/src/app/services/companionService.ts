@@ -58,6 +58,7 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
         id: parentId,
       });
     }
+    console.log(companionById)
     setCompanionsForOrg(primaryOrgId, Array.from(companionById.values()));
     addBulkParents(Array.from(parentById.values()));
   } catch (err: any) {

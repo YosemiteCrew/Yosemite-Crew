@@ -1,7 +1,7 @@
 import Image from "next/image";
 import React from "react";
 import { Team } from "@/app/types/team";
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { getSafeImageUrl } from "@/app/utils/urls";
 import { getStatusStyle } from "../../DataTable/AvailabilityTable";
 import { toTitleCase } from "@/app/utils/validators";
 import { Secondary } from "../../Buttons";
@@ -15,18 +15,15 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
-        <Image
-          alt={""}
-          src={
-            isHttpsImageUrl(team.image)
-              ? team.image
-              : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-          }
-          height={40}
-          width={40}
-          style={{ borderRadius: "50%" }}
-          className="h-10 w-10 rounded-full"
-        />
+        <div className="h-10 w-10">
+          <Image
+            alt={""}
+            src={getSafeImageUrl(team.image, "person")}
+            height={40}
+            width={40}
+            className="h-10 w-10 rounded-full object-cover"
+          />
+        </div>
         <div className="flex flex-col gap-0">
           <div className="text-body-3-emphasis text-text-primary">
             {team.name}

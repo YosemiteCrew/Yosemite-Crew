@@ -76,10 +76,7 @@ export type TeamResponse = {
 
 export type TeamFormDataType = {
   email: string;
-  speciality: {
-    name: string;
-    key: string;
-  };
+  speciality: string[];
   role: string;
   type: string;
 };

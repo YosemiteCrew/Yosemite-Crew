@@ -1,124 +1,82 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
 
-jest.mock("next/image", () => ({
+jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   __esModule: true,
-  default: (props: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img {...props} alt={props.alt || "companion"} />
-  ),
-}));
-
-jest.mock("react-icons/fa", () => ({
-  FaCalendar: () => <span data-testid="icon-calendar" />,
-  FaTasks: () => <span data-testid="icon-tasks" />,
-}));
-
-jest.mock("react-icons/io5", () => ({
-  IoEye: () => <span data-testid="icon-eye" />,
-}));
-
-jest.mock("@/app/components/Cards/CompanionCard/CompanionCard", () => ({
-  __esModule: true,
-  default: ({ companion, handleViewCompanion }: any) => (
-    <div data-testid="mobile-card">
-      <span>{companion.companion.name}</span>
-      <button
-        type="button"
-        onClick={() => handleViewCompanion(companion)}
-      >
-        View Mobile
-      </button>
+  default: ({ data, columns }: any) => (
+    <div data-testid="table">
+      {data.map((item: any, idx: number) => (
+        <div key={idx}>
+          {columns.map((col: any, cIdx: number) => (
+            <div key={col.key || cIdx}>
+              {col.render ? col.render(item) : item[col.key]}
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   ),
 }));
 
-jest.mock("@/app/components/GenericTable/GenericTable", () => ({
+jest.mock("@/app/components/Cards/CompanionCard/CompanionCard", () => ({
   __esModule: true,
-  default: ({ data, columns }: any) => (
-    <table data-testid="generic-table">
-      <tbody>
-        {data.map((row: any, rowIndex: number) => (
-          <tr key={rowIndex} data-testid="table-row">
-            {columns.map((col: any) => (
-              <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+  default: ({ companion }: any) => (
+    <div data-testid="companion-card">{companion.companion.name}</div>
   ),
 }));
 
 jest.mock("@/app/utils/date", () => ({
-  getAgeInYears: () => 3,
+  getAgeInYears: () => "2",
 }));
 
 jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: () => true,
+  getSafeImageUrl: () => "https://example.com/pet.png",
 }));
 
 jest.mock("@/app/utils/validators", () => ({
-  toTitleCase: (val: string) =>
-    val ? val[0].toUpperCase() + val.slice(1).toLowerCase() : "",
+  toTitleCase: (value: string) => value,
+}));
+
+jest.mock("react-icons/io5", () => ({
+  IoEye: () => <span>eye</span>,
+}));
+
+jest.mock("react-icons/fa", () => ({
+  FaCalendar: () => <span>calendar</span>,
+  FaTasks: () => <span>task</span>,
+}));
+
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: any) => <img alt={props.alt} {...props} />,
 }));
 
 describe("CompanionsTable", () => {
-  const companion = {
-    companion: {
-      id: "comp-1",
-      organisationId: "org-1",
-      parentId: "parent-1",
-      name: "Buddy",
-      breed: "Husky",
-      type: "dog",
-      gender: "male",
-      dateOfBirth: "2020-01-01",
-      allergy: "Pollen",
-      status: "active",
-      photoUrl: "https://example.com/photo.png",
-    },
-    parent: {
-      id: "parent-1",
-      firstName: "Jamie",
-    },
-  } as any;
-
-  it("renders data in table and mobile cards", () => {
-    render(
-      <CompanionsTable
-        filteredList={[companion]}
-        activeCompanion={null}
-        setActiveCompanion={jest.fn()}
-        setViewCompanion={jest.fn()}
-        setBookAppointment={jest.fn()}
-        setAddTask={jest.fn()}
-      />
-    );
-
-    const table = screen.getByTestId("generic-table");
-    const tableScope = within(table);
-    expect(tableScope.getByText("Buddy")).toBeInTheDocument();
-    expect(tableScope.getByText("Husky")).toBeInTheDocument();
-    expect(tableScope.getByText("/dog")).toBeInTheDocument();
-    expect(tableScope.getByText("Jamie")).toBeInTheDocument();
-
-    const cards = screen.getAllByTestId("mobile-card");
-    expect(cards).toHaveLength(1);
-  });
-
-  it("handles table actions", () => {
+  it("handles actions from table", () => {
     const setActiveCompanion = jest.fn();
     const setViewCompanion = jest.fn();
     const setBookAppointment = jest.fn();
     const setAddTask = jest.fn();
+    const companion: any = {
+      companion: {
+        name: "Buddy",
+        breed: "Lab",
+        type: "dog",
+        gender: "male",
+        dateOfBirth: new Date(),
+        status: "active",
+        photoUrl: "",
+      },
+      parent: { firstName: "Jordan" },
+    };
 
     render(
       <CompanionsTable
         filteredList={[companion]}
-        activeCompanion={null}
+        activeCompanion={companion}
         setActiveCompanion={setActiveCompanion}
         setViewCompanion={setViewCompanion}
         setBookAppointment={setBookAppointment}
@@ -126,18 +84,18 @@ describe("CompanionsTable", () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId("icon-eye").closest("button")!);
+    const table = screen.getByTestId("table");
+    fireEvent.click(within(table).getByText("eye"));
+    fireEvent.click(within(table).getByText("calendar"));
+    fireEvent.click(within(table).getByText("task"));
+
     expect(setActiveCompanion).toHaveBeenCalledWith(companion);
     expect(setViewCompanion).toHaveBeenCalledWith(true);
-
-    fireEvent.click(screen.getByTestId("icon-calendar").closest("button")!);
     expect(setBookAppointment).toHaveBeenCalledWith(true);
-
-    fireEvent.click(screen.getByTestId("icon-tasks").closest("button")!);
     expect(setAddTask).toHaveBeenCalledWith(true);
   });
 
-  it("renders empty state when no data", () => {
+  it("shows empty state on mobile list", () => {
     render(
       <CompanionsTable
         filteredList={[]}

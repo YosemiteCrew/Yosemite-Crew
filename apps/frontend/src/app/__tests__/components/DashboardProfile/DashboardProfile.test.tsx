@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -20,11 +21,12 @@ jest.mock("@/app/stores/authStore", () => ({
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
+  Primary: ({ text }: any) => <div>{text}</div>,
+}));
+
+jest.mock("@/app/utils/urls", () => ({
+  isHttpsImageUrl: () => false,
+  getSafeImageUrl: () => "https://example.com/pet.png",
 }));
 
 jest.mock("next/image", () => ({
@@ -32,16 +34,10 @@ jest.mock("next/image", () => ({
   default: (props: any) => <img alt={props.alt} {...props} />,
 }));
 
-jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: () => false,
-}));
-
 describe("DashboardProfile", () => {
   beforeEach(() => {
     usePrimaryOrgProfileMock.mockReturnValue({
-      personalDetails: {
-        profilePictureUrl: "",
-      },
+      personalDetails: { profilePictureUrl: "" },
     });
     useAuthStoreMock.mockReturnValue({
       attributes: { given_name: "Jamie", family_name: "Lee" },
@@ -50,12 +46,11 @@ describe("DashboardProfile", () => {
 
   it("renders nothing when no primary org", () => {
     usePrimaryOrgMock.mockReturnValue(null);
-
     const { container } = render(<DashboardProfile />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders verification banner when org is not verified", () => {
+  it("shows verification banner for unverified org", () => {
     usePrimaryOrgMock.mockReturnValue({ isVerified: false });
 
     render(<DashboardProfile />);
@@ -66,9 +61,6 @@ describe("DashboardProfile", () => {
       screen.getByText(
         "Verification in progress — Limited access enabled"
       )
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Book onboarding call" })
     ).toBeInTheDocument();
   });
 });

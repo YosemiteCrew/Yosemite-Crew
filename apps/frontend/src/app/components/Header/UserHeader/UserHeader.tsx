@@ -4,7 +4,6 @@ import { MdNotificationsActive } from "react-icons/md";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import { useSignOut } from "@/app/hooks/useAuth";
-import { HiBuildingOffice2 } from "react-icons/hi2";
 
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
@@ -13,7 +12,7 @@ import { FaCaretDown } from "react-icons/fa6";
 import { useAuthStore } from "@/app/stores/authStore";
 import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 import Image from "next/image";
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { getSafeImageUrl } from "@/app/utils/urls";
 import Search from "../../Inputs/Search";
 
 type RouteItem = {
@@ -88,7 +87,6 @@ const UserHeader = () => {
   };
 
   const handleMobileOrgClick = (orgId: string) => {
-    console.log(orgId);
     setPrimaryOrg(orgId);
     setSelectOrg(false);
     setMenuOpen(false);
@@ -168,8 +166,14 @@ const UserHeader = () => {
                   className={`flex items-center gap-2 w-60 z-1000 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
                   onClick={() => setSelectOrg((e) => !e)}
                 >
-                  <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
-                    <HiBuildingOffice2 size={18} color="#302f2e" />
+                  <div className="flex justify-center h-8 w-8 shrink-0">
+                    <Image
+                      src={getSafeImageUrl(primaryOrg.imageURL, "business")}
+                      alt="Logo"
+                      height={32}
+                      width={32}
+                      className="rounded-full cursor-pointer h-8 w-8 object-cover"
+                    />
                   </div>
                   <div className="text-black-text text-body-4 truncate max-w-[200px]">
                     {primaryOrg?.name}
@@ -255,8 +259,14 @@ const UserHeader = () => {
               className={`flex items-center gap-2 w-60 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
               onClick={() => setSelectOrg((e) => !e)}
             >
-              <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
-                <HiBuildingOffice2 size={18} color="#302f2e" />
+              <div className="flex justify-center h-8 w-8 shrink-0">
+                <Image
+                  src={getSafeImageUrl(primaryOrg.imageURL, "business")}
+                  alt="Logo"
+                  height={32}
+                  width={32}
+                  className="rounded-full cursor-pointer h-8 w-8 object-cover"
+                />
               </div>
               <div className="text-black-text text-body-4 truncate flex-1">
                 {primaryOrg?.name}
@@ -311,11 +321,7 @@ const UserHeader = () => {
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image
-              src={
-                isHttpsImageUrl(profile?.personalDetails?.profilePictureUrl)
-                  ? profile?.personalDetails?.profilePictureUrl
-                  : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-              }
+              src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, "person")}
               alt="Logo"
               height={32}
               width={32}

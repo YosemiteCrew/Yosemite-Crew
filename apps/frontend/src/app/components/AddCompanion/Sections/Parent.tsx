@@ -7,7 +7,6 @@ import { StoredParent } from "@/app/pages/Companions/types";
 import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import SearchDropdown from "../../Inputs/SearchDropdown";
 import { searchParent } from "@/app/services/companionService";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
 import { CountriesOptions } from "../type";
 
@@ -193,22 +192,15 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
               error={formDataErrors.phoneNumber}
               className="min-h-12!"
             />
-            <div className="flex flex-col gap-1">
-              <Datepicker
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                type="input"
-                className="min-h-12!"
-                containerClassName="w-full"
-                placeholder="Date of birth"
-              />
-              {formDataErrors.dateOfBirth && (
-                <div className="Errors">
-                  <Icon icon="mdi:error" width="16" height="16" />
-                  {formDataErrors.dateOfBirth}
-                </div>
-              )}
-            </div>
+            <Datepicker
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              type="input"
+              className="min-h-12!"
+              containerClassName="w-full"
+              placeholder="Date of birth"
+              error={formDataErrors.dateOfBirth}
+            />
             <LabelDropdown
               placeholder="Choose country"
               onSelect={(option) =>
