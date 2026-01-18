@@ -49,6 +49,7 @@ describe("formService", () => {
   const mockSetError = jest.fn();
   const mockUpsertForm = jest.fn();
   const mockUpdateFormStatus = jest.fn();
+  const mockSetLastFetched = jest.fn();
 
   beforeEach(() => {
     // Reset all mocks to default states
@@ -61,6 +62,9 @@ describe("formService", () => {
       setError: mockSetError,
       upsertForm: mockUpsertForm,
       updateFormStatus: mockUpdateFormStatus,
+      setLastFetched: mockSetLastFetched,
+      lastFetchedAt: null,
+      loading: false,
     });
 
     (useOrgStore.getState as jest.Mock).mockReturnValue({
@@ -110,6 +114,7 @@ describe("formService", () => {
       );
       expect(result).toHaveLength(2);
       expect(mockSetLoading).toHaveBeenCalledWith(false);
+      expect(mockSetLastFetched).toHaveBeenCalledTimes(1);
     });
 
     it("throws error if no primary org is selected", async () => {

@@ -61,15 +61,13 @@ describe("useDocuments Hooks", () => {
       expect(loadDocumentsForOrgPrimaryOrg).not.toHaveBeenCalled();
     });
 
-    it("calls service with force:true when primaryOrgId is present", () => {
+    it("calls service when primaryOrgId is present", () => {
       mockOrgState.primaryOrgId = "org-1";
 
       renderHook(() => useLoadDocumentsForPrimaryOrg());
 
       expect(loadDocumentsForOrgPrimaryOrg).toHaveBeenCalledTimes(1);
-      expect(loadDocumentsForOrgPrimaryOrg).toHaveBeenCalledWith({
-        force: true,
-      });
+      expect(loadDocumentsForOrgPrimaryOrg).toHaveBeenCalledWith();
     });
 
     it("re-calls service when primaryOrgId changes", () => {
