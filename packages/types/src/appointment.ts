@@ -9,7 +9,8 @@ export type AppointmentStatus =
   | 'CHECKED_IN'
   | 'IN_PROGRESS'
   | 'COMPLETED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'NO_SHOW';
 
 export type Appointment = {
   id?: string;
