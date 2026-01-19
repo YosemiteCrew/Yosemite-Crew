@@ -8,11 +8,22 @@ import { Primary } from "@/app/components/Buttons";
 import FeatureBox from "./FeatureBox/FeatureBox";
 import FocusCard from "./FocusCard/FocusCard";
 import data from "./data.json";
+import { useAuthStore } from "@/app/stores/authStore";
 
 import "./HomePage.css";
 
 const HomePage = () => {
   const { focusCards, practiceFeatures, heroList } = data;
+  const { user, role } = useAuthStore();
+
+  const getCtaHref = () => {
+    if (user) {
+      return role === "developer" ? "/developers/home" : "/organizations";
+    }
+    return "/signup";
+  };
+
+  const ctaText = user ? "Go to app" : "Get started free";
 
   return (
     <>
@@ -44,9 +55,9 @@ const HomePage = () => {
               </div>
               <div className="HeroBtn">
                 <Primary
-                size="large"
-                  text="Book demo"
-                  href="/book-demo"
+                  size="large"
+                  text={ctaText}
+                  href={getCtaHref()}
                 />
               </div>
             </div>
@@ -253,8 +264,8 @@ const HomePage = () => {
                   </div>
                 </div>
                 <Primary
-                  text="Book demo"
-                  href="/book-demo"
+                  text={ctaText}
+                  href={getCtaHref()}
                   size="large"
                 />
               </div>

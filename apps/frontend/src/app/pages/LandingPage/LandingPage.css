@@ -249,3 +249,141 @@
     right: 10px !important;
   }
 }
+
+/* New Hero Section with Star Ripple Animation */
+.new-hero-section {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #c0e5ff 0%, #ebf7ff 50%, #d6edff 100%);
+  border-radius: 0 0 20px 20px;
+}
+
+.star-ripple-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ripple-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(232, 244, 252, 0.8) 30%,
+    rgba(184, 221, 245, 0.4) 60%,
+    rgba(134, 197, 237, 0.1) 100%
+  );
+  filter: blur(40px);
+}
+
+.new-hero-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 800px;
+  padding: 0 24px;
+  gap: 24px;
+  margin-top: -3%;
+}
+
+.new-hero-cta {
+  margin-top: 16px;
+}
+
+/* Hero animal images - positioned relative to .new-hero-section */
+.hero-dog-image {
+  position: absolute;
+  right: 0;
+  top: 5%;
+  transform: translateY(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.hero-dog-image img {
+  width: 8vw;
+}
+
+.hero-horse-image {
+  position: absolute;
+  left: -20px;
+  bottom: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.hero-horse-image img {
+  height: 60vh;
+  width: 25vw;
+  display: block;
+  object-fit: contain;
+  object-position: bottom left;
+}
+
+/* Responsive styles for new hero */
+@media screen and (max-width: 1024px) {
+  .new-hero-content {
+    padding: 0 80px;
+  }
+  .ripple-glow {
+    width: 500px;
+    height: 500px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .new-hero-section {
+    min-height: calc(100vh - 70px);
+  }
+  .new-hero-content {
+    gap: 20px;
+    padding: 0 20px;
+  }
+  .ripple-glow {
+    width: 400px;
+    height: 400px;
+  }
+  .hero-dog-image img {
+    width: 9.6vw;
+  }
+  .hero-horse-image img {
+    height: 66vh;
+    width: 27.5vw;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .new-hero-content {
+    gap: 16px;
+    padding: 0 16px;
+  }
+  .ripple-glow {
+    width: 300px;
+    height: 300px;
+  }
+  .hero-dog-image img {
+    width: 9.6vw;
+  }
+  .hero-horse-image img {
+    height: 66vh;
+    width: 27.5vw;
+  }
+}
