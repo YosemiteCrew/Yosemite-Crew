@@ -10,14 +10,14 @@ export const loadDocumentsForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, status, setDocumentsForOrg } =
+  const { startLoading, status, lastFetchedAt, setDocumentsForOrg } =
     useOrganizationDocumentStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn("No primary organization selected. Cannot load specialities.");
     return;
   }
-  if (!shouldFetchDocments(status, opts)) return;
+  if (!shouldFetchDocments(status, lastFetchedAt, opts)) return;
   if (!opts?.silent) startLoading();
   try {
     const res = await getData<{ data: OrganizationDocument[] }>(
@@ -32,9 +32,12 @@ export const loadDocumentsForOrgPrimaryOrg = async (opts?: {
 
 const shouldFetchDocments = (
   status: ReturnType<typeof useOrganizationDocumentStore.getState>["status"],
+  lastFetchedAt: string | null,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
+  if (status === "loading") return false;
+  if (status === "loaded" && lastFetchedAt) return false;
   return status === "idle" || status === "error";
 };
 

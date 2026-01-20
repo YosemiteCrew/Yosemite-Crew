@@ -138,6 +138,7 @@ export const useInventoryModule = (businessType: BusinessType) => {
   useEffect(() => {
     if (!primaryOrgId) return;
     if (status === "loading") return;
+    if (status === "error" && lastFetched) return;
     if (lastFetched) return;
     void loadInventory(primaryOrgId);
   }, [primaryOrgId, status, lastFetched, loadInventory]);

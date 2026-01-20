@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import HomePage, { FillBtn } from "../../pages/HomePage/HomePage";
 import userEvent from "@testing-library/user-event";
+import { useAuthStore } from "@/app/stores/authStore";
 
 jest.mock("@/app/components/Header/Header", () => {
   return function DummyHeader() {
@@ -13,6 +14,10 @@ jest.mock("@/app/components/Footer/Footer", () => {
   return function DummyFooter() {
     return <footer>Footer Mock</footer>;
   };
+});
+
+beforeEach(() => {
+  useAuthStore.setState({ user: null, role: null });
 });
 
 describe("HomePage Component", () => {
@@ -39,13 +44,13 @@ describe("HomePage Component", () => {
 
     expect(heroSection).toBeInTheDocument();
 
-    const bookDemoLink = within(heroSection).getByRole("link", {
-      name: /book demo/i,
+    const primaryCta = within(heroSection).getByRole("link", {
+      name: /get started free/i,
     });
 
-    expect(bookDemoLink).toBeInTheDocument();
+    expect(primaryCta).toBeInTheDocument();
 
-    expect(bookDemoLink).toHaveAttribute("href", "/book-demo");
+    expect(primaryCta).toHaveAttribute("href", "/signup");
   });
 
   test('renders the "Run Your Practice" section heading', () => {

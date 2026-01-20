@@ -66,11 +66,11 @@ describe("useCompanion Hooks", () => {
       expect(loadCompanionsForPrimaryOrg).not.toHaveBeenCalled();
     });
 
-    it("triggers loadCompanionsForPrimaryOrg with force:true when org is present", () => {
+    it("triggers loadCompanionsForPrimaryOrg when org is present", () => {
       mockOrgState.primaryOrgId = "org-1";
       renderHook(() => useLoadCompanionsForPrimaryOrg());
       expect(loadCompanionsForPrimaryOrg).toHaveBeenCalledTimes(1);
-      expect(loadCompanionsForPrimaryOrg).toHaveBeenCalledWith({ force: true });
+      expect(loadCompanionsForPrimaryOrg).toHaveBeenCalledWith();
     });
 
     it("re-triggers when primaryOrgId changes", () => {
