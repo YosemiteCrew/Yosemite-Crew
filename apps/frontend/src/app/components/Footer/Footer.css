@@ -79,7 +79,7 @@
   display: inline-block;
   text-decoration: none;
   color: var(--color-neutral-600);
-  font-family: Satoshi;
+  font-family: var(--font-satoshi);
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;

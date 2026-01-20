@@ -17,13 +17,13 @@ export type AppointmentStatus =
   | "CANCELLED";
 
 export const AppointmentStatusOptions = [
-  "NO_PAYMENT",
-  "REQUESTED",
-  "UPCOMING",
-  "CHECKED_IN",
-  "IN_PROGRESS",
-  "COMPLETED",
-  "CANCELLED",
+  { value: "NO_PAYMENT", label: "No Payment" },
+  { value: "REQUESTED", label: "Requested" },
+  { value: "UPCOMING", label: "Upcoming" },
+  { value: "CHECKED_IN", label: "Checked In" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 export type AppointmentsProps = {

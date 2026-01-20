@@ -12,7 +12,7 @@ import {
   AddAppointment,
   AddTask,
 } from "./Sections";
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 import Close from "../Icons/Close";
 
 type CompanionInfoProps = {
@@ -90,11 +90,10 @@ const CompanionInfo = ({
             <div className="flex justify-center items-center gap-2">
               <Image
                 alt="pet image"
-                src={
-                  isHttpsImageUrl(activeCompanion?.companion.photoUrl)
-                    ? activeCompanion?.companion.photoUrl
-                    : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-                }
+                src={getSafeImageUrl(
+                  activeCompanion?.companion.photoUrl,
+                  activeCompanion?.companion.type as ImageType
+                )}
                 className="rounded-full h-10 w-10 object-cover"
                 height={40}
                 width={40}
@@ -118,7 +117,10 @@ const CompanionInfo = ({
           />
         </div>
 
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
+        <div
+          ref={scrollRef}
+          className="flex overflow-y-auto flex-1 scrollbar-hidden"
+        >
           {Content ? <Content companion={activeCompanion} /> : null}
         </div>
       </div>

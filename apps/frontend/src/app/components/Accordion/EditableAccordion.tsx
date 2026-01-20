@@ -111,39 +111,43 @@ const FieldComponents: Record<
       />
     );
   },
-  select: ({ field, value, onChange }) => (
+  select: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={field.options}
+      error={error}
     />
   ),
-  dropdown: ({ field, value, onChange }) => (
+  dropdown: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={field.options}
+      error={error}
     />
   ),
-  multiSelect: ({ field, value, onChange }) => (
+  multiSelect: ({ field, value, onChange, error }) => (
     <MultiSelectDropdown
       placeholder={field.label}
       value={value || []}
       onChange={(e) => onChange(e)}
       options={field.options || []}
+      error={error}
     />
   ),
-  country: ({ field, value, onChange }) => (
+  country: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder="Choose country"
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={CountriesOptions}
+      error={error}
     />
   ),
-  date: ({ field, value, onChange }) => {
+  date: ({ field, value, onChange, error }) => {
     const parseDate = (val: any): Date | null => {
       if (!val) return null;
       if (typeof val === "string" && val.includes("/")) {
@@ -173,6 +177,7 @@ const FieldComponents: Record<
         }}
         type="input"
         placeholder={field.label}
+        error={error}
       />
     );
   },

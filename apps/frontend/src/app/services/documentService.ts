@@ -4,7 +4,7 @@ import {
   OrganisationDocumentResponse,
   OrganizationDocument,
 } from "../types/document";
-import { getData, patchData, postData } from "./axios";
+import { deleteData, getData, patchData, postData } from "./axios";
 
 export const loadDocumentsForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
@@ -82,7 +82,11 @@ export const updateDocument = async (document: OrganizationDocument) => {
     return;
   }
   try {
-    const url = "/v1/organisation-document/pms/" + primaryOrgId + "/documents/" + document._id;
+    const url =
+      "/v1/organisation-document/pms/" +
+      primaryOrgId +
+      "/documents/" +
+      document._id;
     const res = await patchData<OrganisationDocumentResponse>(url, document);
     const data = res.data?.data;
     const newDocument: OrganizationDocument = {
@@ -96,6 +100,24 @@ export const updateDocument = async (document: OrganizationDocument) => {
     upsertDocument(newDocument);
   } catch (err) {
     console.error("Failed to create service:", err);
+    throw err;
+  }
+};
+
+export const deleteRoom = async (room: OrganizationDocument) => {
+  const { removeDocument } = useOrganizationDocumentStore.getState();
+  try {
+    const id = room._id;
+    const orgId = room.organisationId;
+    if (!id || !orgId) {
+      throw new Error("Document ID is missing.");
+    }
+    await deleteData(
+      "/v1/organisation-document/pms/" + orgId + "/documents/" + id
+    );
+    removeDocument(id);
+  } catch (err) {
+    console.error("Failed to delete document:", err);
     throw err;
   }
 };

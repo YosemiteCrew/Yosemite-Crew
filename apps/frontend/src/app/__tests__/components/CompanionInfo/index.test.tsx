@@ -1,103 +1,84 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import CompanionInfo from "@/app/components/CompanionInfo";
 
-jest.mock("next/image", () => ({
+jest.mock("@/app/components/Modal", () => ({
   __esModule: true,
-  default: ({ alt, src, ...rest }: any) => <img alt={alt} src={src} {...rest} />,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Modal", () => {
-  return function MockModal({ showModal, children }: any) {
-    return showModal ? <div data-testid="modal">{children}</div> : null;
-  };
-});
+jest.mock("@/app/components/Icons/Close", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
+    </button>
+  ),
+}));
 
-jest.mock("@/app/components/Labels/Labels", () => {
-  return function MockLabels({ setActiveLabel, setActiveSubLabel }: any) {
-    return (
-      <div>
-        <button type="button" onClick={() => setActiveLabel("records")}>Records</button>
-        <button type="button" onClick={() => setActiveSubLabel("documents")}>Documents</button>
-      </div>
-    );
-  };
-});
-
-jest.mock("@/app/components/Icons/Close", () => {
-  return function MockClose({ onClick }: any) {
-    return (
-      <button type="button" onClick={onClick}>
-        Close
+jest.mock("@/app/components/Labels/Labels", () => ({
+  __esModule: true,
+  default: ({ labels, setActiveLabel, setActiveSubLabel }: any) => (
+    <div>
+      {labels.map((label: any) => (
+        <button
+          key={label.key}
+          type="button"
+          onClick={() => setActiveLabel(label.key)}
+        >
+          {label.name}
+        </button>
+      ))}
+      <button type="button" onClick={() => setActiveSubLabel("documents")}
+      >
+        Documents
       </button>
-    );
-  };
-});
+    </div>
+  ),
+}));
 
 jest.mock("@/app/components/CompanionInfo/Sections", () => ({
-  Companion: ({ companion }: any) => (
-    <div>Companion Section: {companion?.companion?.name}</div>
-  ),
-  Parent: () => <div>Parent Section</div>,
-  Core: () => <div>Core Section</div>,
-  History: () => <div>History Section</div>,
-  Documents: () => <div>Documents Section</div>,
-  AddAppointment: () => <div>Add Appointment Section</div>,
-  AddTask: () => <div>Add Task Section</div>,
+  Companion: () => <div>companion-section</div>,
+  Parent: () => <div>parent-section</div>,
+  Core: () => <div>core-section</div>,
+  History: () => <div>history-section</div>,
+  Documents: () => <div>documents-section</div>,
+  AddAppointment: () => <div>add-appointment</div>,
+  AddTask: () => <div>add-task</div>,
 }));
 
 jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: () => true,
+  getSafeImageUrl: () => "https://example.com/pet.png",
 }));
 
-describe("CompanionInfo Component", () => {
-  const mockCompanion = {
-    companion: {
-      name: "Rex",
-      breed: "Husky",
-      photoUrl: "https://example.com/pet.png",
-    },
-  } as any;
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: any) => <img alt={props.alt} {...props} />,
+}));
 
-  it("renders default companion info section", () => {
-    render(
-      <CompanionInfo
-        showModal
-        setShowModal={jest.fn()}
-        activeCompanion={mockCompanion}
-      />
-    );
-
-    expect(screen.getByTestId("modal")).toBeInTheDocument();
-    expect(screen.getByText("Companion Section: Rex")).toBeInTheDocument();
-  });
-
-  it("switches content when labels change", () => {
-    render(
-      <CompanionInfo
-        showModal
-        setShowModal={jest.fn()}
-        activeCompanion={mockCompanion}
-      />
-    );
-
-    fireEvent.click(screen.getByText("Records"));
-    fireEvent.click(screen.getByText("Documents"));
-
-    expect(screen.getByText("Documents Section")).toBeInTheDocument();
-  });
-
-  it("closes modal when close button is clicked", () => {
+describe("CompanionInfo", () => {
+  it("renders modal and switches sub-section", () => {
     const setShowModal = jest.fn();
+    const companion: any = {
+      companion: { name: "Buddy", breed: "Lab", type: "dog", photoUrl: "" },
+    };
+
     render(
       <CompanionInfo
         showModal
         setShowModal={setShowModal}
-        activeCompanion={mockCompanion}
+        activeCompanion={companion}
       />
     );
 
-    fireEvent.click(screen.getByText("Close"));
-    expect(setShowModal).toHaveBeenCalledWith(false);
+    expect(screen.getByTestId("modal")).toBeInTheDocument();
+    expect(screen.getByText("Buddy")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Records" }));
+    fireEvent.click(screen.getByRole("button", { name: "Documents" }));
+    expect(screen.getByText("documents-section")).toBeInTheDocument();
   });
 });

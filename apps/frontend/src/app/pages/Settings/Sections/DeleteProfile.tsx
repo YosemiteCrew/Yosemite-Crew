@@ -87,6 +87,7 @@ const DeleteProfile = () => {
               id="consent-checkbox"
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
+              className="shrink-0"
             />
             <label
               htmlFor="consent-checkbox"

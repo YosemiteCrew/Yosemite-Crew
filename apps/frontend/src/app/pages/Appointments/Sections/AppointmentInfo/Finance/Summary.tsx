@@ -4,14 +4,20 @@ import { FormDataProps } from "..";
 import Image from "next/image";
 import { Primary } from "@/app/components/Buttons";
 import { Appointment } from "@yosemite-crew/types";
+import { AppointmentStatusOptions } from "@/app/types/appointments";
 
 const AppointmentFields = [
   { label: "Service", key: "service", type: "text" },
   { label: "Reason", key: "concern", type: "text" },
   { label: "Date", key: "date", type: "date" },
-  { label: "Time", key: "time", type: "date" },
+  { label: "Time", key: "time", type: "time" },
   { label: "Lead", key: "lead", type: "text" },
-  { label: "Status", key: "status", type: "text" },
+  {
+    label: "Status",
+    key: "status",
+    type: "select",
+    options: AppointmentStatusOptions,
+  },
 ];
 
 type SummaryProps = {
@@ -38,11 +44,8 @@ const Summary = ({
   );
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
       <div className="flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[23px]">
-          Summary
-        </div>
         <EditableAccordion
           key={"Appointments-key"}
           title={"Appointments details"}
@@ -51,11 +54,9 @@ const Summary = ({
           defaultOpen={true}
           showEditIcon={false}
         />
-        <div className="flex flex-col px-4! py-2.5! rounded-2xl border border-grey-light">
-          <div className="flex items-center justify-between pb-3 px-1">
-            <div className="font-satoshi font-semibold text-black-text text-[23px]">
-              Pay
-            </div>
+        <div className="flex flex-col px-3! py-3! rounded-2xl border border-card-border">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-body-1 text-text-primary">Pay</div>
             <Image
               alt={"Powered by stripe"}
               src={"https://d2il6osz49gpup.cloudfront.net/payment/stripe.png"}
@@ -63,19 +64,29 @@ const Summary = ({
               width={120}
             />
           </div>
-          <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-            <div>SubTotal: </div>
-            <div>${formData.subTotal}</div>
+          <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+            <div className="text-body-4-emphasis text-text-tertiary">
+              SubTotal:{" "}
+            </div>
+            <div className="text-body-4 text-text-primary text-right">
+              ${formData.subTotal}
+            </div>
           </div>
-          <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-            <div>Tax: </div>
-            <div>${formData.tax || "0.00"}</div>
+          <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+            <div className="text-body-4-emphasis text-text-tertiary">Tax: </div>
+            <div className="text-body-4 text-text-primary text-right">
+              ${formData.tax || "0.00"}
+            </div>
           </div>
-          <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-            <div>Estimatted total: </div>
-            <div>${formData.total || "0.00"}</div>
+          <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+            <div className="text-body-4-emphasis text-text-tertiary">
+              Estimatted total:{" "}
+            </div>
+            <div className="text-body-4 text-text-primary text-right">
+              ${formData.total || "0.00"}
+            </div>
           </div>
-          <div className="font-satoshi font-semibold text-[15px] text-grey-noti px-3 py-2">
+          <div className="text-caption-1 text-text-secondary py-2">
             <span className="text-[#247AED]">Note : </span>Yosemite Crew uses
             Stripe for secure payments. Your payment details are encrypted and
             never stored on our servers.

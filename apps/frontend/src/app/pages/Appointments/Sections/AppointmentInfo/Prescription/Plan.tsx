@@ -78,7 +78,7 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
           <div className="font-grotesk font-medium text-black-text text-[23px]">

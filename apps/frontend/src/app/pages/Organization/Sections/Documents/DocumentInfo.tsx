@@ -3,7 +3,7 @@ import Modal from "@/app/components/Modal";
 import { OrganizationDocument } from "@/app/types/document";
 import React, { useState } from "react";
 import { OrgDocumentCategoryOptions } from "../../types";
-import { updateDocument } from "@/app/services/documentService";
+import { deleteRoom, updateDocument } from "@/app/services/documentService";
 import DocUploader from "@/app/components/UploadImage/DocUploader";
 import { Primary, Secondary } from "@/app/components/Buttons";
 import Close from "@/app/components/Icons/Close";
@@ -89,6 +89,8 @@ const DocumentInfo = ({
               data={activeDocument}
               defaultOpen={true}
               onSave={handleUpdate}
+              showDeleteIcon
+              onDelete={() => deleteRoom(activeDocument)}
             />
             <DocUploader
               placeholder="Upload document"
@@ -103,17 +105,11 @@ const DocumentInfo = ({
               <Secondary
                 href={activeDocument.fileUrl}
                 text="Download document"
-                className="max-h-12! text-lg! tracking-wide!"
                 onClick={handleDownload}
               />
             )}
             {fileUrl && (
-              <Primary
-                href="#"
-                text="Save"
-                classname="max-h-12! text-lg! tracking-wide!"
-                onClick={handleUpdateFile}
-              />
+              <Primary href="#" text="Save" onClick={handleUpdateFile} />
             )}
           </div>
         </div>

@@ -32,7 +32,7 @@ const Documents = () => {
   }>({});
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto">
+    <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto scrollbar-hidden">
       {Object.keys(DocumentsOptions).map((key, index) => (
         <Accordion
           key={key+index}

@@ -7,7 +7,7 @@ import React, { useMemo } from "react";
 import { RoomsTypes } from "../../types";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import { updateRoom } from "@/app/services/roomService";
+import { deleteRoom, updateRoom } from "@/app/services/roomService";
 import Close from "@/app/components/Icons/Close";
 
 type RoomInfoProps = {
@@ -113,6 +113,8 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
           data={roomInfoData}
           defaultOpen={true}
           onSave={handleUpdate}
+          showDeleteIcon
+          onDelete={() => deleteRoom(activeRoom)}
         />
       </div>
     </Modal>
