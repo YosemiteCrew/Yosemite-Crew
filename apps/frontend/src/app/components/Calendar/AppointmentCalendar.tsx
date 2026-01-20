@@ -15,6 +15,7 @@ type AppointmentCalendarProps = {
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
+  setReschedulePopup: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const AppointmentCalendar = ({
@@ -25,11 +26,17 @@ const AppointmentCalendar = ({
   currentDate,
   setCurrentDate,
   weekStart,
-  setWeekStart
+  setWeekStart,
+  setReschedulePopup,
 }: AppointmentCalendarProps) => {
   const handleViewAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setViewPopup?.(true);
+  };
+
+  const handleRescheduleAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setReschedulePopup?.(true);
   };
 
   const dayEvents = useMemo(
@@ -48,6 +55,7 @@ const AppointmentCalendar = ({
           events={dayEvents}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
+          handleRescheduleAppointment={handleRescheduleAppointment}
           setCurrentDate={setCurrentDate}
         />
       )}
@@ -56,6 +64,7 @@ const AppointmentCalendar = ({
           events={filteredList}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
+          handleRescheduleAppointment={handleRescheduleAppointment}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
@@ -66,6 +75,7 @@ const AppointmentCalendar = ({
           events={dayEvents}
           date={currentDate}
           handleViewAppointment={handleViewAppointment}
+          handleRescheduleAppointment={handleRescheduleAppointment}
           setCurrentDate={setCurrentDate}
         />
       )}

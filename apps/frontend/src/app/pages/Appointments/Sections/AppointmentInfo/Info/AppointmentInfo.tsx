@@ -53,7 +53,13 @@ const getStaffFields = ({
   TeamOptions: { label: string; value: string }[];
 }) =>
   [
-    { label: "Lead", key: "lead", type: "select", options: TeamOptions },
+    {
+      label: "Lead",
+      key: "lead",
+      type: "select",
+      options: TeamOptions,
+      editable: false,
+    },
     {
       label: "Staff",
       key: "staff",
@@ -112,8 +118,8 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
 
   const StaffInfoData = useMemo(
     () => ({
-      lead: activeAppointment.lead?.name ?? "",
-      staff: activeAppointment.supportStaff?.map((s) => s.name) ?? "",
+      lead: activeAppointment.lead?.id ?? "",
+      staff: activeAppointment.supportStaff?.map((s) => s.id) ?? "",
     }),
     [activeAppointment]
   );
@@ -129,7 +135,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         ...activeAppointment,
         concern: values.concern,
         room,
-        status: values.status
+        status: values.status,
       };
       await updateAppointment(formData);
     } catch (error) {
@@ -140,8 +146,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const handleStaffUpdate = async (values: any) => {
     try {
       const teamIds = values.staff;
-      const leadId = values.lead
-      const lead = teams.find((t) => t._id === leadId)
       const team =
         teamIds?.length > 0
           ? teams
@@ -155,13 +159,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         ...activeAppointment,
         supportStaff: team,
       };
-      if (lead) {
-        formData.lead = {
-          id: lead._id,
-          name: lead.name || "",
-          profileUrl: lead.image
-        }
-      }
       await updateAppointment(formData);
     } catch (error) {
       console.log(error);

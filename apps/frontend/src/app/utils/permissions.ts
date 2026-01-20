@@ -45,8 +45,13 @@ export const ALL_PERMISSIONS = new Set<Permission>(
   Object.values(PERMISSIONS) as Permission[]
 );
 
-export function toPermissionArray(input: string[]): Permission[] {
-  return input.filter((p): p is Permission => ALL_PERMISSIONS.has(p as Permission));
+export function toPermissionArray(input: string[] | undefined): Permission[] {
+  if (!input) {
+    return [];
+  }
+  return input.filter((p): p is Permission =>
+    ALL_PERMISSIONS.has(p as Permission)
+  );
 }
 
 export type RoleCode =

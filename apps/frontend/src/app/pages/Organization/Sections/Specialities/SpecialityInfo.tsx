@@ -48,6 +48,12 @@ const getBasicFields = ({
   [
     { label: "Name", key: "name", type: "text", required: true },
     { label: "Head", key: "headName", type: "dropdown", options: TeamOptions },
+    {
+      label: "Staff",
+      key: "teamMemberIds",
+      type: "multiSelect",
+      options: TeamOptions,
+    },
   ] satisfies FieldConfig[];
 
 const SpecialityInfo = ({
@@ -75,6 +81,7 @@ const SpecialityInfo = ({
     () => ({
       name: activeSpeciality?.name ?? "",
       headName: activeSpeciality?.headUserId ?? "",
+      teamMemberIds: activeSpeciality?.teamMemberIds ?? []
     }),
     [activeSpeciality]
   );

@@ -14,6 +14,7 @@ import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 import Image from "next/image";
 import { getSafeImageUrl } from "@/app/utils/urls";
 import Search from "../../Inputs/Search";
+import { useSearchStore } from "@/app/stores/searchStore";
 
 type RouteItem = {
   name: string;
@@ -60,7 +61,9 @@ const UserHeader = () => {
   const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
-  const [search, setSearch] = useState("");
+  const query = useSearchStore((s) => s.query);
+  const setQuery = useSearchStore((s) => s.setQuery);
+  const clear = useSearchStore((s) => s.clear);
   const orgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +72,10 @@ const UserHeader = () => {
   const logoutRedirect = pathname.startsWith("/developers")
     ? "/developers/signin"
     : "/signin";
+
+  useEffect(() => {
+    clear();
+  }, [pathname, clear]);
 
   const handleLogout = async () => {
     try {
@@ -304,8 +311,8 @@ const UserHeader = () => {
 
       <div className="flex items-center justify-center gap-3">
         <Search
-          value={search}
-          setSearch={setSearch}
+          value={query}
+          setSearch={setQuery}
           className={"lg:flex hidden"}
         />
 
@@ -321,7 +328,10 @@ const UserHeader = () => {
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image
-              src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, "person")}
+              src={getSafeImageUrl(
+                profile?.personalDetails?.profilePictureUrl,
+                "person"
+              )}
               alt="Logo"
               height={32}
               width={32}

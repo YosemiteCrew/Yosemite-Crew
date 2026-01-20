@@ -1,25 +1,23 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import TasksTable from "../../components/DataTable/Tasks";
 import AddTask from "./Sections/AddTask";
 import TaskInfo from "./Sections/TaskInfo";
-import TaskFilters from "@/app/components/Filters/TasksFilters";
 import TitleCalendar from "@/app/components/TitleCalendar";
 import { getStartOfWeek } from "@/app/components/Calendar/weekHelpers";
 import TaskCalendar from "@/app/components/Calendar/TaskCalendar";
 import OrgGuard from "@/app/components/OrgGuard";
-import {
-  useLoadTasksForPrimaryOrg,
-  useTasksForPrimaryOrg,
-} from "@/app/hooks/useTask";
-import { Task } from "@/app/types/task";
+import { useTasksForPrimaryOrg } from "@/app/hooks/useTask";
+import { Task, TaskFilters, TaskStatusFilters } from "@/app/types/task";
+import { useSearchStore } from "@/app/stores/searchStore";
+import Filters from "@/app/components/Filters/Filters";
 
 const Tasks = () => {
-  useLoadTasksForPrimaryOrg();
   const tasks = useTasksForPrimaryOrg();
-
-  const [filteredList, setFilteredList] = useState<Task[]>(tasks);
+  const query = useSearchStore((s) => s.query);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [activeStatus, setActiveStatus] = useState("all");
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
@@ -43,6 +41,23 @@ const Tasks = () => {
     });
   }, [tasks]);
 
+  const filteredList = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filterWanted = activeFilter.toLowerCase();
+    const statusWanted = activeStatus.toLowerCase();
+
+    return tasks.filter((item) => {
+      const status = item.status?.toLowerCase();
+      const filter = item.audience?.toLowerCase();
+
+      const matchesStatus = statusWanted === "all" || status === statusWanted;
+      const matchesFilter = filterWanted === "all" || filter === filterWanted;
+      const matchesQuery = !q || item.name?.toLowerCase().includes(q);
+
+      return matchesStatus && matchesFilter && matchesQuery;
+    });
+  }, [tasks, activeStatus, activeFilter, query]);
+
   return (
     <div className="flex flex-col relative">
       <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
@@ -60,10 +75,17 @@ const Tasks = () => {
         />
 
         <div className="w-full flex flex-col gap-3">
-          <TaskFilters list={tasks} setFilteredList={setFilteredList} />
+          <Filters
+            filterOptions={TaskFilters}
+            statusOptions={TaskStatusFilters}
+            activeFilter={activeFilter}
+            activeStatus={activeStatus}
+            setActiveFilter={setActiveFilter}
+            setActiveStatus={setActiveStatus}
+          />
           {activeView === "calendar" ? (
             <TaskCalendar
-              filteredList={tasks}
+              filteredList={filteredList}
               setActiveTask={setActiveTask}
               setViewPopup={setViewPopup}
               activeCalendar={activeCalendar}

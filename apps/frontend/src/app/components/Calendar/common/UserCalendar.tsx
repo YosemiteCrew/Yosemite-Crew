@@ -12,12 +12,14 @@ type UserCalendarProps = {
   date: Date;
   handleViewAppointment: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  handleRescheduleAppointment: any;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
   events,
   date,
   handleViewAppointment,
+  handleRescheduleAppointment,
   setCurrentDate,
 }) => {
   const team = useTeamForPrimaryOrg();
@@ -56,6 +58,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     height={350}
                     dayIndex={index}
                     handleViewAppointment={handleViewAppointment}
+                    handleRescheduleAppointment={handleRescheduleAppointment}
                     length={team.length - 1}
                   />
                 ))}

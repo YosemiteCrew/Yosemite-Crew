@@ -71,7 +71,7 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
       <IoCopy
         color="#000"
         size={20}
-        className="cursor-pointer"
+        className="cursor-pointer mt-0.5"
         onClick={() => setOpen((e) => !e)}
         aria-label="dublicate-button"
       />
