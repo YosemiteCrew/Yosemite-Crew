@@ -11,6 +11,7 @@ import {
   type SpecialityResponseDTO,
 } from "@yosemite-crew/types";
 import { ServiceService } from "./service.service";
+import OrganisationRoomModel from "src/models/organisation-room";
 
 export type SpecialityFHIRPayload = SpecialityRequestDTO;
 
@@ -361,5 +362,12 @@ export const SpecialityService = {
     }
 
     await ServiceService.deleteAllBySpecialityId(document._id.toString());
+
+    await OrganisationRoomModel.updateMany(
+      { assignedSpecialiteis: query._id ?? query.fhirId },
+      { $pull: { assignedSpecialiteis: specialityId } },
+      { sanitizeFilter: true },
+    );
+
   },
 };

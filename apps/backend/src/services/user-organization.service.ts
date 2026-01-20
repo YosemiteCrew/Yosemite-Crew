@@ -641,7 +641,7 @@ export const UserOrganizationService = {
         userId: userRef,
       });
 
-      const speciality = await SpecialityModel.findOne({
+      const speciality = await SpecialityModel.find({
         organisationId,
         memberUserIds: userRef, // matches any element in the array
       });

@@ -123,7 +123,7 @@ export const UserOrganizationController = {
         return;
       }
 
-      if (!payload || payload.resourceType !== "PractitionerRole") {
+      if (payload?.resourceType !== "PractitionerRole") {
         res.status(400).json({
           message: "Invalid payload. Expected FHIR PractitionerRole resource.",
         });
