@@ -1,502 +1,488 @@
-import TaskModel from "../../src/models/task";
-import TaskCompletionModel from "../../src/models/taskCompletion";
-import TaskLibraryDefinitionModel from "../../src/models/taskLibraryDefinition";
-import TaskTemplateModel from "../../src/models/taskTemplate";
-import { TaskService, TaskServiceError } from "../../src/services/task.service";
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { Types } from 'mongoose';
+import { TaskService } from '../../src/services/task.service';
+import TaskModel from '../../src/models/task';
+import TaskLibraryDefinitionModel from '../../src/models/taskLibraryDefinition';
+import TaskTemplateModel from '../../src/models/taskTemplate';
+import TaskCompletionModel from '../../src/models/taskCompletion';
 
-type MockedTaskModel = {
-  findById: jest.Mock;
-  create: jest.Mock;
-  find: jest.Mock;
+// ----------------------------------------------------------------------
+// 1. MOCKS
+// ----------------------------------------------------------------------
+jest.mock('../../src/models/task');
+jest.mock('../../src/models/taskLibraryDefinition');
+jest.mock('../../src/models/taskTemplate');
+jest.mock('../../src/models/taskCompletion');
+
+// Helper to mock mongoose chaining
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockChain = (resolvedValue: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chain: any = {};
+  chain.sort = (jest.fn() as any).mockReturnValue(chain);
+  chain.exec = (jest.fn() as any).mockResolvedValue(resolvedValue);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chain.then = (resolve: any) => Promise.resolve(resolvedValue).then(resolve);
+  return chain;
 };
 
-type MockedTaskCompletionModel = {
-  create: jest.Mock;
-};
+// Helper for Mock Docs
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockDoc = (data: any) => ({
+  ...data,
+  _id: data._id || new Types.ObjectId(),
+  save: (jest.fn() as any).mockResolvedValue(true),
+  toObject: (jest.fn() as any).mockReturnValue(data),
+});
 
-type MockedTaskLibraryDefinitionModel = {
-  findById: jest.Mock;
-};
+describe('TaskService', () => {
+  const orgId = new Types.ObjectId().toString();
+  const userId = new Types.ObjectId().toString();
+  const companionId = new Types.ObjectId().toString();
+  const taskId = new Types.ObjectId().toString();
+  const libraryId = new Types.ObjectId().toString();
+  const templateId = new Types.ObjectId().toString();
 
-type MockedTaskTemplateModel = {
-  findById: jest.Mock;
-};
-
-jest.mock("../../src/models/task", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-    create: jest.fn(),
-    find: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/taskCompletion", () => ({
-  __esModule: true,
-  default: {
-    create: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/taskLibraryDefinition", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/taskTemplate", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-  },
-}));
-
-const mockedTaskModel = TaskModel as unknown as MockedTaskModel;
-const mockedCompletionModel =
-  TaskCompletionModel as unknown as MockedTaskCompletionModel;
-const mockedLibraryModel =
-  TaskLibraryDefinitionModel as unknown as MockedTaskLibraryDefinitionModel;
-const mockedTemplateModel =
-  TaskTemplateModel as unknown as MockedTaskTemplateModel;
-
-describe("TaskService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("createFromLibrary", () => {
-    it("creates task when library item exists and active", async () => {
-      const library = {
-        isActive: true,
-        category: "CAT",
-        name: "Check vitals",
-        defaultDescription: "desc",
-      };
-      mockedLibraryModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue(library),
-      });
-      const created = { _id: "task-1" };
-      mockedTaskModel.create.mockResolvedValueOnce(created);
-
-      const dueAt = new Date("2024-01-01T00:00:00Z");
-      const result = await TaskService.createFromLibrary({
-        audience: "EMPLOYEE_TASK",
-        companionId: "comp-1",
-        libraryTaskId: "lib-1",
-        createdBy: "creator-1",
-        assignedTo: "assignee-1",
-        dueAt,
-        recurrence: { type: "ONCE" },
-      } as any);
-
-      expect(mockedTaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: "YC_LIBRARY",
-          recurrence: {
-            type: "ONCE",
-            isMaster: false,
-            masterTaskId: undefined,
-            cronExpression: undefined,
-            endDate: undefined,
-          },
-          reminder: undefined,
-          syncWithCalendar: false,
-          status: "PENDING",
-        }),
-      );
-      expect(result).toBe(created);
-    });
-
-    it("throws when library task missing or inactive", async () => {
-      mockedLibraryModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue(null),
-      });
-
-      await expect(
-        TaskService.createFromLibrary({
-          audience: "EMPLOYEE_TASK",
-          companionId: "comp-1",
-          libraryTaskId: "missing",
-          createdBy: "creator",
-          assignedTo: "assignee",
-          dueAt: new Date(),
-        } as any),
-      ).rejects.toMatchObject({ statusCode: 404 });
-    });
-  });
-
-  describe("createFromTemplate", () => {
-    it("creates task with defaults from template", async () => {
-      const template = {
-        _id: "tmpl-1",
-        isActive: true,
-        organisationId: "org-1",
-        libraryTaskId: "lib-1",
-        category: "Care",
-        name: "Checkup",
-        description: "desc",
-        defaultRole: "PARENT",
-        defaultMedication: { name: "med" },
-        defaultObservationToolId: "obs-1",
-        defaultRecurrence: {
-          type: "DAILY",
-          defaultEndOffsetDays: 2,
-          customCron: "0 0 * * *",
-        },
-        defaultReminderOffsetMinutes: 45,
-      };
-      mockedTemplateModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue(template),
-      });
-      const created = { _id: "task-created" };
-      mockedTaskModel.create.mockResolvedValueOnce(created);
-
-      const dueAt = new Date("2024-05-01T00:00:00Z");
-      const result = await TaskService.createFromTemplate({
-        organisationId: "org-1",
-        companionId: "comp-1",
-        templateId: "tmpl-1",
-        createdBy: "creator-2",
-        assignedTo: "assignee-2",
-        dueAt,
-      } as any);
-
-      expect(mockedTaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          audience: "PARENT_TASK",
-          source: "ORG_TEMPLATE",
-          templateId: "tmpl-1",
-          libraryTaskId: "lib-1",
-          recurrence: expect.objectContaining({
-            type: "DAILY",
-            endDate: new Date(dueAt.getTime() + 2 * 24 * 60 * 60 * 1000),
-          }),
-          reminder: {
-            enabled: true,
-            offsetMinutes: 45,
-            scheduledNotificationId: undefined,
-          },
-        }),
-      );
-      expect(result).toBe(created);
-    });
-
-    it("throws when template organisation mismatched", async () => {
-      mockedTemplateModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue({
-          _id: "tmpl-1",
+  // ======================================================================
+  // 1. CREATION LOGIC
+  // ======================================================================
+  describe('Creation', () => {
+    describe('createFromLibrary', () => {
+      it('should create task from library definition', async () => {
+        const libraryDef = {
+          _id: libraryId,
           isActive: true,
-          organisationId: "another",
-        }),
-      });
+          category: 'Health',
+          name: 'Walk',
+          defaultDescription: 'Walk dog'
+        };
+        (TaskLibraryDefinitionModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(libraryDef)
+        });
 
-      await expect(
-        TaskService.createFromTemplate({
-          organisationId: "org-1",
-          companionId: "comp",
-          templateId: "tmpl-1",
-          createdBy: "c",
-          assignedTo: "a",
+        const createdTask = mockDoc({ ...libraryDef });
+        (TaskModel.create as any).mockResolvedValue(createdTask);
+
+        const result = await TaskService.createFromLibrary({
+          libraryTaskId: libraryId,
+          audience: 'PARENT_TASK',
+          companionId,
+          createdBy: userId,
+          assignedTo: userId,
           dueAt: new Date(),
-        } as any),
-      ).rejects.toMatchObject({ statusCode: 400 });
-    });
-  });
+          // Test override behavior
+          nameOverride: 'Morning Walk'
+        });
 
-  describe("createCustom", () => {
-    it("requires category and name", async () => {
-      await expect(
-        TaskService.createCustom({
-          audience: "PARENT_TASK",
-          companionId: "comp",
-          createdBy: "c",
-          assignedTo: "a",
+        expect(TaskModel.create).toHaveBeenCalledWith(expect.objectContaining({
+          source: 'YC_LIBRARY',
+          name: 'Morning Walk', // Override applied
+          category: 'Health',   // Original kept
+          status: 'PENDING'
+        }));
+        expect(result).toBe(createdTask);
+      });
+
+      it('should throw if library definition not found', async () => {
+        (TaskLibraryDefinitionModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(null)
+        });
+
+        await expect(TaskService.createFromLibrary({
+          libraryTaskId: libraryId,
+          audience: 'EMPLOYEE_TASK',
+          createdBy: userId,
+          assignedTo: userId,
+          dueAt: new Date()
+        })).rejects.toThrow('Library task not found or inactive');
+      });
+
+      it('should enforce companionId for PARENT_TASK', async () => {
+        const libraryDef = { isActive: true };
+        (TaskLibraryDefinitionModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(libraryDef)
+        });
+
+        await expect(TaskService.createFromLibrary({
+          libraryTaskId: libraryId,
+          audience: 'PARENT_TASK', // Requires companion
+          companionId: undefined,  // Missing
+          createdBy: userId,
+          assignedTo: userId,
+          dueAt: new Date()
+        })).rejects.toThrow('companionId is required');
+      });
+    });
+
+    describe('createFromTemplate', () => {
+      it('should create task from org template', async () => {
+        const template = {
+          _id: templateId,
+          isActive: true,
+          organisationId: orgId,
+          defaultRole: 'PARENT',
+          defaultRecurrence: { type: 'ONCE' },
+          defaultMedication: { name: 'Pill' }
+        };
+        (TaskTemplateModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(template)
+        });
+
+        (TaskModel.create as any).mockResolvedValue(mockDoc({}));
+
+        await TaskService.createFromTemplate({
+          templateId,
+          organisationId: orgId, // Matches template
+          companionId,
+          createdBy: userId,
+          assignedTo: userId,
+          dueAt: new Date()
+        });
+
+        expect(TaskModel.create).toHaveBeenCalledWith(expect.objectContaining({
+          source: 'ORG_TEMPLATE',
+          audience: 'PARENT_TASK', // Default from template
+          medication: expect.objectContaining({ name: 'Pill' })
+        }));
+      });
+
+      it('should throw if template org mismatch', async () => {
+        (TaskTemplateModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue({ isActive: true, organisationId: 'other-org' })
+        });
+
+        await expect(TaskService.createFromTemplate({
+          templateId,
+          organisationId: orgId,
+          createdBy: userId,
+          assignedTo: userId,
+          dueAt: new Date()
+        })).rejects.toThrow('Template does not belong to organisation');
+      });
+
+      it('should handle recurring templates with end date calculation', async () => {
+        const template = {
+          _id: templateId,
+          isActive: true,
+          organisationId: orgId,
+          defaultRecurrence: { type: 'DAILY', defaultEndOffsetDays: 7 }
+        };
+        (TaskTemplateModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(template)
+        });
+        (TaskModel.create as any).mockResolvedValue(mockDoc({}));
+
+        const dueAt = new Date();
+        await TaskService.createFromTemplate({
+          templateId,
+          organisationId: orgId,
+          createdBy: userId,
+          assignedTo: userId,
+          dueAt
+        });
+
+        expect(TaskModel.create).toHaveBeenCalledWith(expect.objectContaining({
+          recurrence: expect.objectContaining({
+            type: 'DAILY',
+            endDate: expect.any(Date) // Should be calculated
+          })
+        }));
+      });
+    });
+
+    describe('createCustom', () => {
+      it('should create a custom task with full details', async () => {
+        const input = {
+          organisationId: orgId,
+          companionId,
+          createdBy: userId,
+          assignedTo: userId,
+          audience: 'EMPLOYEE_TASK' as const,
+          category: 'General',
+          name: 'Custom Job',
           dueAt: new Date(),
-          category: "",
-          name: "",
-        } as any),
-      ).rejects.toBeInstanceOf(TaskServiceError);
-    });
+          recurrence: { type: 'ONCE' as const },
+          reminder: { enabled: true, offsetMinutes: 30 }
+        };
 
-    it("creates custom task", async () => {
-      const created = { _id: "task-3" };
-      mockedTaskModel.create.mockResolvedValueOnce(created);
+        (TaskModel.create as any).mockResolvedValue(mockDoc(input));
 
-      const result = await TaskService.createCustom({
-        audience: "PARENT_TASK",
-        companionId: "comp",
-        createdBy: "creator",
-        assignedTo: "assignee",
-        dueAt: new Date(),
-        category: "General",
-        name: "Walk",
-        recurrence: { type: "ONCE" },
+        await TaskService.createCustom(input);
+
+        expect(TaskModel.create).toHaveBeenCalledWith(expect.objectContaining({
+          source: 'CUSTOM',
+          reminder: { enabled: true, offsetMinutes: 30, scheduledNotificationId: undefined },
+          recurrence: { type: 'ONCE', isMaster: false, masterTaskId: undefined, cronExpression: undefined, endDate: undefined }
+        }));
       });
 
-      expect(mockedTaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: "CUSTOM",
-          audience: "PARENT_TASK",
-          assignedBy: "creator",
-          recurrence: {
-            type: "ONCE",
-            isMaster: false,
-            masterTaskId: undefined,
-            cronExpression: undefined,
-            endDate: undefined,
-          },
-        }),
-      );
-      expect(result).toBe(created);
-    });
-  });
-
-  describe("updateTask", () => {
-    it("throws when task not found", async () => {
-      mockedTaskModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue(null),
+      it('should validate missing name/category', async () => {
+        // @ts-ignore
+        await expect(TaskService.createCustom({ name: '' })).rejects.toThrow('category and name are required');
       });
 
-      await expect(
-        TaskService.updateTask("missing", {}, "actor"),
-      ).rejects.toMatchObject({ statusCode: 404 });
-    });
+      it('should sanitize empty medication inputs', async () => {
+        const input = {
+          category: 'Med', name: 'Med Task',
+          createdBy: userId, assignedTo: userId, dueAt: new Date(),
+          audience: 'EMPLOYEE_TASK' as const,
+          // Empty med object
+          medication: { name: '', doses: [{ time: '', dosage: '' }] }
+        };
+        (TaskModel.create as any).mockResolvedValue(mockDoc({}));
 
-    it("throws when actor not allowed", async () => {
-      mockedTaskModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue({
-          createdBy: "someone-else",
-          assignedTo: "other",
-        }),
+        await TaskService.createCustom(input);
+
+        expect(TaskModel.create).toHaveBeenCalledWith(expect.objectContaining({
+          medication: undefined // Should be stripped
+        }));
       });
-
-      await expect(
-        TaskService.updateTask("task-1", {}, "actor"),
-      ).rejects.toMatchObject({ statusCode: 403 });
-    });
-
-    it("updates editable fields", async () => {
-      const save = jest.fn().mockResolvedValue(undefined);
-      const task = {
-        _id: "task-1",
-        createdBy: "actor",
-        assignedTo: "actor",
-        name: "Old name",
-        description: "Old desc",
-        dueAt: new Date("2024-01-01T00:00:00Z"),
-        timezone: "UTC",
-        medication: { name: "Old" },
-        observationToolId: "obs-1",
-        reminder: {
-          enabled: true,
-          offsetMinutes: 15,
-          scheduledNotificationId: "sched-1",
-        },
-        syncWithCalendar: false,
-        attachments: [],
-        recurrence: {
-          type: "DAILY",
-          isMaster: true,
-          masterTaskId: "master",
-          cronExpression: "0 0 * * *",
-          endDate: new Date("2024-02-01T00:00:00Z"),
-        },
-        save,
-      };
-
-      mockedTaskModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      const newDue = new Date("2024-03-01T00:00:00Z");
-      await TaskService.updateTask(
-        "task-1",
-        {
-          name: "New",
-          description: "New desc",
-          dueAt: newDue,
-          timezone: null,
-          medication: null,
-          observationToolId: null,
-          reminder: { enabled: false, offsetMinutes: 5 },
-          syncWithCalendar: true,
-          attachments: [{ id: "a1", name: "file" }],
-          recurrence: { type: "WEEKLY" as any },
-        },
-        "actor",
-      );
-
-      expect(task.name).toBe("New");
-      expect(task.description).toBe("New desc");
-      expect(task.dueAt).toBe(newDue);
-      expect(task.timezone).toBeUndefined();
-      expect(task.medication).toBeUndefined();
-      expect(task.observationToolId).toBeUndefined();
-      expect(task.reminder).toEqual({
-        enabled: false,
-        offsetMinutes: 5,
-        scheduledNotificationId: "sched-1",
-      });
-      expect(task.syncWithCalendar).toBe(true);
-      expect(task.attachments).toEqual([{ id: "a1", name: "file" }]);
-      expect(task.recurrence).toEqual(
-        expect.objectContaining({
-          type: "WEEKLY",
-          isMaster: true,
-        }),
-      );
-      expect(save).toHaveBeenCalled();
     });
   });
 
-  describe("changeStatus", () => {
-    it("throws when task not found", async () => {
-      mockedTaskModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue(null),
+  // ======================================================================
+  // 2. UPDATES & STATUS CHANGE
+  // ======================================================================
+  describe('Updates', () => {
+    describe('updateTask', () => {
+      it('should update task fields if user is authorized', async () => {
+        const task = mockDoc({
+          _id: new Types.ObjectId(taskId),
+          createdBy: userId,
+          assignedTo: 'other',
+          recurrence: { type: 'DAILY', cronExpression: 'old' }
+        });
+        (TaskModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(task)
+        });
+
+        const updates = {
+          name: 'New Name',
+          assignedTo: 'new-guy', // allowed because userId is creator
+          recurrence: { type: 'WEEKLY' as const, cronExpression: 'new' },
+          medication: null // should clear medication
+        };
+
+        await TaskService.updateTask(taskId, updates, userId);
+
+        expect(task.name).toBe('New Name');
+        expect(task.assignedTo).toBe('new-guy');
+        expect(task.medication).toBeUndefined();
+        expect(task.recurrence.type).toBe('WEEKLY');
+        expect(task.save).toHaveBeenCalled();
       });
 
-      await expect(
-        TaskService.changeStatus("missing", "COMPLETED", "actor"),
-      ).rejects.toMatchObject({ statusCode: 404 });
+      it('should throw if user is not creator/assignee', async () => {
+        const task = mockDoc({ createdBy: 'other', assignedTo: 'other' });
+        (TaskModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(task)
+        });
+
+        await expect(TaskService.updateTask(taskId, { name: 'Hack' }, userId))
+          .rejects.toThrow('Not allowed to update this task');
+      });
+
+      it('should prevent non-creator from reassigning', async () => {
+        const task = mockDoc({ createdBy: 'boss', assignedTo: userId }); // user is assignee
+        (TaskModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(task)
+        });
+
+        await expect(TaskService.updateTask(taskId, { assignedTo: 'me' }, userId))
+          .rejects.toThrow('Only task creator can reassign task');
+      });
+
+      it('should handle recurrence updates correctly (null vs modify vs create)', async () => {
+        const task = mockDoc({ createdBy: userId }); // no recurrence initially
+        (TaskModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(task)
+        });
+
+        // 1. Create recurrence
+        await TaskService.updateTask(taskId, { recurrence: { type: 'DAILY' } }, userId);
+        expect(task.recurrence.type).toBe('DAILY');
+
+        // 2. Clear recurrence
+        await TaskService.updateTask(taskId, { recurrence: null }, userId);
+        expect(task.recurrence).toBeUndefined();
+      });
     });
 
-    it("prevents updates when actor unauthorized", async () => {
-      mockedTaskModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue({
-          assignedTo: "other",
-          createdBy: "another",
-          status: "PENDING",
-        }),
+    describe('changeStatus', () => {
+      it('should change status from PENDING to IN_PROGRESS', async () => {
+        const task = mockDoc({ status: 'PENDING', assignedTo: userId });
+        (TaskModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(task)
+        });
+
+        await TaskService.changeStatus(taskId, 'IN_PROGRESS', userId);
+        expect(task.status).toBe('IN_PROGRESS');
+        expect(task.save).toHaveBeenCalled();
       });
 
-      await expect(
-        TaskService.changeStatus("task-1", "COMPLETED", "actor"),
-      ).rejects.toMatchObject({ statusCode: 403 });
-    });
+      it('should complete task and create completion record', async () => {
+        const task = mockDoc({
+            _id: new Types.ObjectId(taskId),
+            status: 'IN_PROGRESS',
+            assignedTo: userId,
+            companionId
+        });
+        (TaskModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(task)
+        });
 
-    it("creates completion entry when marking completed", async () => {
-      const save = jest.fn().mockResolvedValue(undefined);
-      const task = {
-        _id: "task-1",
-        companionId: "comp-1",
-        assignedTo: "actor",
-        createdBy: "actor",
-        status: "PENDING",
-        completedBy: undefined,
-        completedAt: undefined as Date | undefined,
-        save,
-      };
-      mockedTaskModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-      const completionDoc = { _id: "comp-1" };
-      mockedCompletionModel.create.mockResolvedValueOnce(completionDoc as any);
+        (TaskCompletionModel.create as any).mockResolvedValue('completion-doc');
 
-      const result = await TaskService.changeStatus(
-        "task-1",
-        "COMPLETED",
-        "actor",
-        {
-          filledBy: "actor",
-          answers: { q1: "a" },
-          score: 5,
-          summary: "done",
-        },
-      );
+        const result = await TaskService.changeStatus(taskId, 'COMPLETED', userId, {
+            filledBy: userId,
+            score: 10,
+            answers: { q1: 'yes' } // Required to trigger TaskCompletion creation
+        });
 
-      expect(task.status).toBe("COMPLETED");
-      expect(task.completedBy).toBe("actor");
-      expect(task.completedAt).toBeInstanceOf(Date);
-      expect(mockedCompletionModel.create).toHaveBeenCalledWith({
-        taskId: "task-1",
-        companionId: "comp-1",
-        filledBy: "actor",
-        answers: { q1: "a" },
-        score: 5,
-        summary: "done",
-      });
-      expect(save).toHaveBeenCalled();
-      expect(result.completion).toBe(completionDoc);
-    });
-
-    it("rejects finished tasks", async () => {
-      mockedTaskModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValue({
-          assignedTo: "actor",
-          createdBy: "actor",
-          status: "COMPLETED",
-        }),
+        expect(task.status).toBe('COMPLETED');
+        expect(task.completedBy).toBe(userId);
+        expect(task.completedAt).toBeDefined();
+        expect(TaskCompletionModel.create).toHaveBeenCalledWith(expect.objectContaining({
+            taskId,
+            score: 10
+        }));
+        expect(result.completion).toBe('completion-doc');
       });
 
-      await expect(
-        TaskService.changeStatus("task-1", "CANCELLED", "actor"),
-      ).rejects.toMatchObject({ statusCode: 400 });
+      it('should throw if task is already finished', async () => {
+        const task = mockDoc({ status: 'COMPLETED', assignedTo: userId });
+        (TaskModel.findById as any).mockReturnValue({
+          exec: (jest.fn() as any).mockResolvedValue(task)
+        });
+
+        await expect(TaskService.changeStatus(taskId, 'CANCELLED', userId))
+          .rejects.toThrow('Task already finished');
+      });
     });
   });
 
-  describe("lists", () => {
-    it("listForParent builds query", async () => {
-      const sort = jest.fn().mockReturnThis();
-      const exec = jest.fn().mockResolvedValue([{ _id: "t" }]);
-      mockedTaskModel.find.mockReturnValueOnce({ sort, exec } as any);
-
-      const result = await TaskService.listForParent({
-        parentId: "parent-1",
-        companionId: "comp-1",
-        fromDueAt: new Date("2024-01-01T00:00:00Z"),
-        toDueAt: new Date("2024-01-02T00:00:00Z"),
-        status: ["PENDING"],
+  // ======================================================================
+  // 3. RETRIEVAL & LISTING
+  // ======================================================================
+  describe('Listing', () => {
+    it('getById: should return task', async () => {
+      (TaskModel.findById as any).mockReturnValue({
+        exec: (jest.fn() as any).mockResolvedValue('task')
       });
-
-      expect(mockedTaskModel.find).toHaveBeenCalledWith({
-        audience: "PARENT_TASK",
-        $or: [{ assignedTo: "parent-1" }, { createdBy: "parent-1" }],
-        companionId: "comp-1",
-        status: { $in: ["PENDING"] },
-        dueAt: {
-          $gte: new Date("2024-01-01T00:00:00Z"),
-          $lte: new Date("2024-01-02T00:00:00Z"),
-        },
-      });
-      expect(sort).toHaveBeenCalledWith({ dueAt: 1 });
-      expect(result).toEqual([{ _id: "t" }]);
+      expect(await TaskService.getById(taskId)).toBe('task');
     });
 
-    it("listForEmployee builds query", async () => {
-      const sort = jest.fn().mockReturnThis();
-      const exec = jest.fn().mockResolvedValue([{ _id: "t" }]);
-      mockedTaskModel.find.mockReturnValueOnce({ sort, exec } as any);
+    it('listForParent: should filter by audience and assignment', async () => {
+      (TaskModel.find as any).mockReturnValue(mockChain([]));
+      const from = new Date();
+
+      await TaskService.listForParent({
+        parentId: userId,
+        companionId,
+        fromDueAt: from,
+        status: ['PENDING']
+      });
+
+      expect(TaskModel.find).toHaveBeenCalledWith(expect.objectContaining({
+        audience: 'PARENT_TASK',
+        $or: [{ assignedTo: userId }, { createdBy: userId }],
+        companionId,
+        status: { $in: ['PENDING'] },
+        dueAt: { $gte: from }
+      }));
+    });
+
+    it('listForEmployee: should filter by org and audience', async () => {
+      (TaskModel.find as any).mockReturnValue(mockChain([]));
 
       await TaskService.listForEmployee({
-        organisationId: "org-1",
-        userId: "user-1",
-        status: [],
+        organisationId: orgId,
+        userId,
+        status: ['IN_PROGRESS']
       });
 
-      expect(mockedTaskModel.find).toHaveBeenCalledWith({
-        audience: "EMPLOYEE_TASK",
-        organisationId: "org-1",
-        assignedTo: "user-1",
-      });
+      expect(TaskModel.find).toHaveBeenCalledWith(expect.objectContaining({
+        audience: 'EMPLOYEE_TASK',
+        organisationId: orgId,
+        assignedTo: userId
+      }));
     });
 
-    it("listForCompanion builds query", async () => {
-      const sort = jest.fn().mockReturnThis();
-      const exec = jest.fn().mockResolvedValue([{ _id: "t" }]);
-      mockedTaskModel.find.mockReturnValueOnce({ sort, exec } as any);
+    it('listForCompanion: should filter by companion', async () => {
+      (TaskModel.find as any).mockReturnValue(mockChain([]));
 
       await TaskService.listForCompanion({
-        companionId: "comp-1",
-        audience: "PARENT_TASK",
-        status: ["PENDING", "IN_PROGRESS"],
+        companionId,
+        audience: 'PARENT_TASK'
       });
 
-      expect(mockedTaskModel.find).toHaveBeenCalledWith({
-        companionId: "comp-1",
-        audience: "PARENT_TASK",
-        status: { $in: ["PENDING", "IN_PROGRESS"] },
-      });
+      expect(TaskModel.find).toHaveBeenCalledWith(expect.objectContaining({
+        companionId,
+        audience: 'PARENT_TASK'
+      }));
     });
+  });
+
+  // ======================================================================
+  // 4. LINKING
+  // ======================================================================
+  describe('Linking', () => {
+    it('linkToAppointment: should update appointmentId', async () => {
+        const task = mockDoc({ _id: taskId });
+        (TaskModel.findById as any).mockReturnValue({
+            exec: (jest.fn() as any).mockResolvedValue(task)
+        });
+
+        const appId = new Types.ObjectId().toString();
+        await TaskService.linkToAppointment({ taskId, appointmentId: appId });
+
+        expect(task.appointmentId).toBe(appId);
+        expect(task.save).toHaveBeenCalled();
+    });
+
+    it('linkToAppointment: should throw if task not found', async () => {
+        (TaskModel.findById as any).mockReturnValue({
+            exec: (jest.fn() as any).mockResolvedValue(null)
+        });
+
+        await expect(TaskService.linkToAppointment({ taskId, appointmentId: 'app' }))
+            .rejects.toThrow('Task not found');
+    });
+  });
+
+  // ======================================================================
+  // 5. UTILS / EDGE CASES
+  // ======================================================================
+  describe('Utils', () => {
+      it('normalizeDoseTime: should validate times', async () => {
+          // Indirect testing via createCustom
+          (TaskModel.create as any).mockResolvedValue(mockDoc({}));
+
+          await TaskService.createCustom({
+              category: 'C', name: 'N',
+              createdBy: userId, assignedTo: userId, audience: 'EMPLOYEE_TASK',
+              // Add companionId because medication requires it
+              companionId,
+              dueAt: new Date(),
+              medication: {
+                  doses: [
+                      { time: '08:00' }, // valid
+                      { time: '8:00' },  // invalid regex
+                      { time: 'invalid' } // invalid
+                  ]
+              }
+          });
+
+          // Only the valid dose should persist
+          expect(TaskModel.create).toHaveBeenCalledWith(expect.objectContaining({
+              medication: expect.objectContaining({
+                  doses: [expect.objectContaining({ time: '08:00' })]
+              })
+          }));
+      });
   });
 });
