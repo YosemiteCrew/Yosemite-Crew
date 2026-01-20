@@ -178,12 +178,14 @@ const Details = ({
           </div>
         </Accordion>
       </div>
-      <Primary
-        href="#"
-        text="Next"
-        onClick={handleNext}
-        classname="max-h-12! text-lg! tracking-wide!"
-      />
+      <div className="px-3 pb-3 flex justify-center">
+        <Primary
+          href="#"
+          text="Next"
+          onClick={handleNext}
+          classname="w-fit"
+        />
+      </div>
     </div>
   );
 };

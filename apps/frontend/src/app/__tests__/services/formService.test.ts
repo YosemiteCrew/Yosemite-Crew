@@ -49,10 +49,15 @@ describe("formService", () => {
   const mockSetError = jest.fn();
   const mockUpsertForm = jest.fn();
   const mockUpdateFormStatus = jest.fn();
+  const mockSetLastFetched = jest.fn();
+  const mockLastFetchedByOrgId: Record<string, string | null> = {};
 
   beforeEach(() => {
     // Reset all mocks to default states
     jest.resetAllMocks();
+    for (const key of Object.keys(mockLastFetchedByOrgId)) {
+      delete mockLastFetchedByOrgId[key];
+    }
 
     // Default Store State Mocks
     (useFormsStore.getState as jest.Mock).mockReturnValue({
@@ -61,6 +66,10 @@ describe("formService", () => {
       setError: mockSetError,
       upsertForm: mockUpsertForm,
       updateFormStatus: mockUpdateFormStatus,
+      setLastFetched: mockSetLastFetched,
+      lastFetchedAt: null,
+      lastFetchedByOrgId: mockLastFetchedByOrgId,
+      loading: false,
     });
 
     (useOrgStore.getState as jest.Mock).mockReturnValue({
@@ -106,10 +115,15 @@ describe("formService", () => {
       );
       expect(formUtils.mapQuestionnaireToUI).toHaveBeenCalledTimes(2);
       expect(mockSetForms).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.objectContaining({ mapped: true })])
+        expect.arrayContaining([expect.objectContaining({ mapped: true })]),
+        "org-123"
       );
       expect(result).toHaveLength(2);
       expect(mockSetLoading).toHaveBeenCalledWith(false);
+      expect(mockSetLastFetched).toHaveBeenCalledWith(
+        "org-123",
+        expect.any(String)
+      );
     });
 
     it("throws error if no primary org is selected", async () => {
@@ -140,6 +154,29 @@ describe("formService", () => {
 
       await expect(loadForms()).rejects.toThrow("Generic Error");
       expect(mockSetError).toHaveBeenCalledWith("Failed to load forms");
+    });
+
+    it("refetches when org changes even if another org was cached", async () => {
+      mockLastFetchedByOrgId["org-abc"] = "2024-01-01T00:00:00.000Z";
+      (useOrgStore.getState as jest.Mock).mockReturnValue({
+        primaryOrgId: "org-123",
+      });
+
+      await loadForms();
+
+      expect(axiosService.getData).toHaveBeenCalledWith(
+        "/fhir/v1/form/admin/org-123/forms"
+      );
+    });
+
+    it("skips fetch when the same org is already cached and not forced", async () => {
+      mockLastFetchedByOrgId["org-123"] = "2024-01-01T00:00:00.000Z";
+
+      const result = await loadForms();
+
+      expect(result).toBeUndefined();
+      expect(mockSetLoading).not.toHaveBeenCalled();
+      expect(axiosService.getData).not.toHaveBeenCalled();
     });
   });
 
