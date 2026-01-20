@@ -218,12 +218,10 @@ const Inventory = () => {
   );
 
   return (
-    <div className="flex flex-col gap-5 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
+    <div className="flex flex-col gap-3 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="font-grotesk text-heading-1 text-text-primary text-[33px]">
-            Inventory
-          </div>
+          <div className="text-text-primary text-heading-1">Inventory</div>
           <p className="text-body-3 text-text-secondary max-w-3xl">
             Organize stock, track batches and expiry, and monitor turnover so you
             know what to reorder and which items need attention.
@@ -233,7 +231,6 @@ const Inventory = () => {
           href="#"
           text={savingItem ? "Saving..." : "Add"}
           onClick={() => setAddPopup(true)}
-          classname="w-[140px] sm:w-40"
           isDisabled={savingItem || !primaryOrgId}
         />
       </div>
@@ -264,9 +261,7 @@ const Inventory = () => {
       </div>
 
       <div className="w-full flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[33px]">
-          Turnover
-        </div>
+        <div className="text-text-primary text-heading-1">Turnover</div>
         <InventoryTurnoverFilters
           list={turnover}
           setFilteredList={setFilteredTurnoverList}

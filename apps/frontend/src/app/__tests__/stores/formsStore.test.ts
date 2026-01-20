@@ -45,6 +45,8 @@ describe("Forms Store", () => {
       activeFormId: null,
       loading: false,
       error: null,
+      lastFetchedAt: null,
+      lastFetchedByOrgId: {},
     });
     jest.clearAllMocks();
   });
@@ -58,6 +60,8 @@ describe("Forms Store", () => {
       expect(state.activeFormId).toBeNull();
       expect(state.loading).toBe(false);
       expect(state.error).toBeNull();
+      expect(state.lastFetchedAt).toBeNull();
+      expect(state.lastFetchedByOrgId).toEqual({});
     });
 
     it("sets active form ID manually", () => {
@@ -126,7 +130,7 @@ describe("Forms Store", () => {
       store.upsertForm(mockFormNoId);
 
       // Set new list
-      store.setForms([mockForm1, mockForm2]);
+      store.setForms([mockForm1, mockForm2], "org-1");
 
       const state = useFormsStore.getState();
       expect(Object.keys(state.formsById)).toHaveLength(2);
@@ -136,6 +140,7 @@ describe("Forms Store", () => {
 
       // Verify activeFormId is set to the first item
       expect(state.activeFormId).toBe("form-1");
+      expect(state.lastFetchedByOrgId["org-1"]).toEqual(state.lastFetchedAt);
     });
 
     it("handles empty list correctly", () => {
@@ -201,6 +206,15 @@ describe("Forms Store", () => {
 
       const finalSnapshot = JSON.stringify(useFormsStore.getState());
       expect(finalSnapshot).toEqual(initialSnapshot);
+    });
+
+    it("tracks last fetched timestamp per org", () => {
+      useFormsStore.getState().setForms([mockForm1], "org-1");
+      useFormsStore.getState().setLastFetched("org-2", "2024-01-01T00:00:00.000Z");
+
+      const state = useFormsStore.getState();
+      expect(state.lastFetchedByOrgId["org-1"]).toEqual(expect.any(String));
+      expect(state.lastFetchedByOrgId["org-2"]).toEqual("2024-01-01T00:00:00.000Z");
     });
   });
 });

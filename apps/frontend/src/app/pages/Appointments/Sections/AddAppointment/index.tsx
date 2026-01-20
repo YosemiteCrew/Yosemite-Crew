@@ -18,7 +18,6 @@ import {
   createAppointment,
   getSlotsForServiceAndDateForPrimaryOrg,
 } from "@/app/services/appointmentService";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import { Slot } from "@/app/types/appointments";
 import {
   buildUtcDateFromDateAndTime,
@@ -31,7 +30,6 @@ import Close from "@/app/components/Icons/Close";
 type AddAppointmentProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
-  showErrorTost: any;
 };
 
 export const EMPTY_APPOINTMENT: Appointment = {
@@ -79,7 +77,6 @@ const ServiceFields = [
 const AddAppointment = ({
   showModal,
   setShowModal,
-  showErrorTost,
 }: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
@@ -292,34 +289,8 @@ const AddAppointment = ({
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
       setFormDataErrors({});
-      showErrorTost({
-        message: "Appointment created",
-        errortext: "Success",
-        iconElement: (
-          <Icon
-            icon="solar:check-circle-bold"
-            width="20"
-            height="20"
-            color="#008F5D"
-          />
-        ),
-        className: "CongratsBg",
-      });
     } catch (error) {
       console.log(error);
-      showErrorTost({
-        message: "Error creating appointment",
-        errortext: "Error",
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
-        ),
-        className: "errofoundbg",
-      });
     }
   };
 
@@ -327,6 +298,9 @@ const AddAppointment = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Add appointment</div>
           </div>

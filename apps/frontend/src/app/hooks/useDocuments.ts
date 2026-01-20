@@ -9,7 +9,7 @@ export const useLoadDocumentsForPrimaryOrg = () => {
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    void loadDocumentsForOrgPrimaryOrg({ force: true });
+    void loadDocumentsForOrgPrimaryOrg();
   }, [primaryOrgId]);
 };
 

@@ -129,9 +129,7 @@ const FormInfo = ({
     } catch (err: any) {
       console.error("Failed to publish form", err);
       showActionError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to publish form"
+        err?.response?.data?.message || err?.message || "Unable to publish form"
       );
     } finally {
       setPublishLoading(false);
@@ -165,9 +163,7 @@ const FormInfo = ({
     } catch (err: any) {
       console.error("Failed to archive form", err);
       showActionError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to archive form"
+        err?.response?.data?.message || err?.message || "Unable to archive form"
       );
     } finally {
       setArchiveLoading(false);
@@ -244,8 +240,11 @@ const FormInfo = ({
     >
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add form</div>
+            <div className="text-body-1 text-text-primary">Edit form</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
@@ -290,7 +289,7 @@ const FormInfo = ({
               </Accordion>
             )}
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 px-3 pb-3">
             {renderActions()}
             <Secondary
               href="#"

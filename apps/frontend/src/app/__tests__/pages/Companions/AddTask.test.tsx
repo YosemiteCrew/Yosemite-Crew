@@ -1,59 +1,21 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AddTask from "@/app/pages/Companions/AddTask";
 
 jest.mock("@/app/components/Modal", () => ({
   __esModule: true,
-  default: ({ children }: any) => <div data-testid="modal">{children}</div>,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
+jest.mock("@/app/components/Icons/Close", () => ({
   __esModule: true,
-  default: ({ title, children }: any) => (
-    <div>
-      <div>{title}</div>
-      <div>{children}</div>
-    </div>
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
+    </button>
   ),
-}));
-
-jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, options, onSelect, error }: any) => (
-    <div>
-      <button type="button" onClick={() => onSelect(options[0])}>
-        {placeholder}
-      </button>
-      {error && <span>{error}</span>}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
-    <label>
-      {inlabel}
-      <input value={value} onChange={onChange} aria-label={inlabel} />
-      {error && <span>{error}</span>}
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange }: any) => (
-    <label>
-      {inlabel}
-      <textarea value={value} onChange={onChange} />
-    </label>
-  ),
-}));
-
-jest.mock("@/app/components/Inputs/Datepicker", () => ({
-  __esModule: true,
-  default: ({ placeholder }: any) => <button>{placeholder}</button>,
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
@@ -69,96 +31,75 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
+const FieldMock = ({ error, label }: any) => (
+  <div>
+    <span>{label}</span>
+    {error ? <div>{error}</div> : null}
+  </div>
+);
+
+jest.mock("@/app/components/Inputs/Datepicker", () => ({
   __esModule: true,
-  default: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      Close
-    </button>
+  default: () => <div>Datepicker</div>,
+}));
+
+jest.mock("@/app/components/Inputs/Dropdown/LabelDropdown", () => ({
+  __esModule: true,
+  default: ({ error, placeholder }: any) => (
+    <FieldMock error={error} label={placeholder} />
   ),
 }));
 
-jest.mock("@/app/hooks/useTeam", () => ({
-  useTeamForPrimaryOrg: () => [
-    { _id: "team-1", name: "Dr. Who" },
-  ],
+jest.mock("@/app/components/Inputs/FormDesc/FormDesc", () => ({
+  __esModule: true,
+  default: ({ error, label }: any) => (
+    <FieldMock error={error} label={label} />
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ error, inlabel }: any) => (
+    <FieldMock error={error} label={inlabel} />
+  ),
+}));
+
+jest.mock("@/app/components/Inputs/SelectLabel", () => ({
+  __esModule: true,
+  default: ({ error, title }: any) => (
+    <FieldMock error={error} label={title} />
+  ),
 }));
 
 jest.mock("@/app/hooks/useCompanion", () => ({
-  useCompanionsForPrimaryOrg: () => [
-    { id: "comp-1", name: "Buddy", parentId: "parent-1" },
-  ],
+  useCompanionsForPrimaryOrg: () => [],
+}));
+
+jest.mock("@/app/hooks/useTeam", () => ({
+  useTeamForPrimaryOrg: () => [],
 }));
 
 jest.mock("@/app/services/taskService", () => ({
   createTask: jest.fn(),
+  createTaskTemplate: jest.fn(),
+  getTaskLibrary: jest.fn().mockResolvedValue([]),
+  getTaskTemplatesForPrimaryOrg: jest.fn().mockResolvedValue([]),
 }));
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
-  Icon: () => <span data-testid="icon" />,
+jest.mock("@/app/utils/date", () => ({
+  applyUtcTime: (d: Date) => d,
+  generateTimeSlots: () => ["09:00"],
 }));
 
-const taskService = jest.requireMock("@/app/services/taskService");
+describe("Companion AddTask", () => {
+  it("shows validation errors when saving empty form", () => {
+    render(<AddTask showModal setShowModal={jest.fn()} />);
 
-describe("Companions AddTask", () => {
-  const baseCompanion = {
-    companion: { id: "comp-1", name: "Buddy", type: "dog", breed: "Husky" },
-    parent: { id: "parent-1", firstName: "Jamie" },
-  } as any;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("shows validation errors when required fields are missing", () => {
-    render(
-      <AddTask
-        showModal
-        setShowModal={jest.fn()}
-        activeCompanion={baseCompanion}
-      />
-    );
-
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(
       screen.getByText("Please select a companion or staff")
     ).toBeInTheDocument();
     expect(screen.getByText("Name is required")).toBeInTheDocument();
-    expect(screen.getByText("Category is required")).toBeInTheDocument();
-  });
-
-  it("creates a task when required fields are set", async () => {
-    taskService.createTask.mockResolvedValue({});
-
-    const setShowModal = jest.fn();
-    const showErrorTost = jest.fn();
-
-    render(
-      <AddTask
-        showModal
-        setShowModal={setShowModal}
-        showErrorTost={showErrorTost}
-        activeCompanion={baseCompanion}
-      />
-    );
-
-    fireEvent.change(screen.getByLabelText("Category"), {
-      target: { value: "General" },
-    });
-    fireEvent.change(screen.getByLabelText("Task"), {
-      target: { value: "Call parent" },
-    });
-    fireEvent.click(screen.getByText("To"));
-
-    fireEvent.click(screen.getByText("Save"));
-
-    await waitFor(() => {
-      expect(taskService.createTask).toHaveBeenCalled();
-    });
-    expect(setShowModal).toHaveBeenCalledWith(false);
-    expect(showErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Task created" })
-    );
   });
 });

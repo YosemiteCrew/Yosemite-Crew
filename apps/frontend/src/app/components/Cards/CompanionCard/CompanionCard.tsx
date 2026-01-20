@@ -3,7 +3,7 @@ import React from "react";
 import { getStatusStyle } from "../../DataTable/CompanionsTable";
 import { CompanionParent } from "@/app/pages/Companions/types";
 import { getAgeInYears } from "@/app/utils/date";
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 import { toTitleCase } from "@/app/utils/validators";
 import { Secondary } from "../../Buttons";
 
@@ -25,11 +25,10 @@ const CompanionCard = ({
       <div className="flex gap-2 items-center">
         <Image
           alt={""}
-          src={
-            isHttpsImageUrl(companion.companion.photoUrl)
-              ? companion.companion.photoUrl
-              : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-          }
+          src={getSafeImageUrl(
+            companion.companion.photoUrl,
+            companion.companion.type as ImageType
+          )}
           height={40}
           width={40}
           style={{ borderRadius: "50%" }}
@@ -76,7 +75,7 @@ const CompanionCard = ({
         style={getStatusStyle(companion.companion.status || "inactive")}
         className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
       >
-        {toTitleCase(companion.companion.status)}
+        {toTitleCase(companion.companion.status || "inactive")}
       </div>
       <div className="flex gap-2 w-full">
         <Secondary

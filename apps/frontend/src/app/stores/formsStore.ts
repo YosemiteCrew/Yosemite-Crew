@@ -8,12 +8,15 @@ type FormsState = {
   activeFormId: string | null;
   loading: boolean;
   error: string | null;
-  setForms: (forms: FormsProps[]) => void;
+  lastFetchedAt: string | null;
+  lastFetchedByOrgId: Record<string, string | null>;
+  setForms: (forms: FormsProps[], orgId?: string) => void;
   upsertForm: (form: FormsProps) => void;
   updateFormStatus: (formId: string, status: FormsStatus) => void;
   setActiveForm: (formId: string | null) => void;
   setLoading: (value: boolean) => void;
   setError: (message: string | null) => void;
+  setLastFetched: (orgId: string, timestamp: string | null) => void;
   clear: () => void;
 };
 
@@ -26,9 +29,11 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
   activeFormId: null,
   loading: false,
   error: null,
+  lastFetchedAt: null,
+  lastFetchedByOrgId: {},
 
-  setForms: (forms) =>
-    set(() => {
+  setForms: (forms, orgId) =>
+    set((state) => {
       const formsById: Record<string, FormsProps> = {};
       const formIds: string[] = [];
       for (const form of forms) {
@@ -37,7 +42,18 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
         formIds.push(id);
       }
       const activeFormId = formIds[0] ?? null;
-      return { formsById, formIds, activeFormId, loading: false, error: null };
+      const timestamp = new Date().toISOString();
+      return {
+        formsById,
+        formIds,
+        activeFormId,
+        loading: false,
+        error: null,
+        lastFetchedAt: timestamp,
+        lastFetchedByOrgId: orgId
+          ? { ...state.lastFetchedByOrgId, [orgId]: timestamp }
+          : state.lastFetchedByOrgId,
+      };
     }),
 
   upsertForm: (form) =>
@@ -75,6 +91,12 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
 
   setError: (message) => set(() => ({ error: message ?? null })),
 
+  setLastFetched: (orgId, timestamp) =>
+    set((state) => ({
+      lastFetchedAt: timestamp,
+      lastFetchedByOrgId: { ...state.lastFetchedByOrgId, [orgId]: timestamp },
+    })),
+
   clear: () =>
     set(() => ({
       formsById: {},
@@ -82,5 +104,7 @@ export const useFormsStore = create<FormsState>()((set, get) => ({
       activeFormId: null,
       loading: false,
       error: null,
+      lastFetchedAt: null,
+      lastFetchedByOrgId: {},
     })),
 }));

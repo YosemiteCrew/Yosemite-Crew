@@ -63,7 +63,7 @@ export const sendInvite = async (invite: TeamFormDataType) => {
   }
   try {
     const body = {
-      departmentId: invite.speciality.key,
+      departmentIds: invite.speciality,
       inviteeEmail: invite.email,
       role: invite.role,
       employmentType: invite.type,

@@ -9,7 +9,7 @@ import GenericTable from "../GenericTable/GenericTable";
 import { CompanionParent } from "../../pages/Companions/types";
 
 import { getAgeInYears } from "@/app/utils/date";
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 import { toTitleCase } from "@/app/utils/validators";
 
 import "./DataTable.css";
@@ -35,9 +35,9 @@ export const getStatusStyle = (status: string) => {
     case "active":
       return { color: "#fff", backgroundColor: "#D28F9A" };
     case "archived":
-      return { color: "#fff", backgroundColor: "#BF9FAA" };
-    case "inactive":
       return { color: "#fff", backgroundColor: "#747283" };
+    case "inactive":
+      return { color: "#fff", backgroundColor: "#BF9FAA" };
     default:
       return { color: "#fff", backgroundColor: "rgba(107,114,128,0.1)" };
   }
@@ -74,11 +74,10 @@ const CompanionsTable = ({
       render: (item: CompanionParent) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={
-              isHttpsImageUrl(item.companion.photoUrl)
-                ? item.companion.photoUrl
-                : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-            }
+            src={getSafeImageUrl(
+              item.companion.photoUrl,
+              item.companion.type as ImageType
+            )}
             alt=""
             height={40}
             width={40}
@@ -209,7 +208,7 @@ const CompanionsTable = ({
           columns={columns}
           bordered={false}
           pagination
-          pageSize={5}
+          pageSize={10}
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">

@@ -1,5 +1,7 @@
 import Accordion from "@/app/components/Accordion/Accordion";
-import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
+import EditableAccordion, {
+  FieldConfig,
+} from "@/app/components/Accordion/EditableAccordion";
 import Availability from "@/app/components/Availability/Availability";
 import {
   AvailabilityState,
@@ -14,6 +16,9 @@ import PermissionsEditor from "./PermissionsEditor";
 import { Permission, toPermissionArray } from "@/app/utils/permissions";
 import { getProfileForUserForPrimaryOrg } from "@/app/services/teamService";
 import Close from "@/app/components/Icons/Close";
+import { EmploymentTypes, RoleOptions } from "../../types";
+import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
+import { GenderOptions } from "@/app/types/companion";
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -21,16 +26,31 @@ type TeamInfoProps = {
   activeTeam: Team;
 };
 
-const Fields = [
-  { label: "Name", key: "name", type: "text" },
-  { label: "Role", key: "role", type: "text" },
-  { label: "Department", key: "speciality", type: "text" },
-  { label: "Gender", key: "gender", type: "text" },
-  { label: "Date of birth", key: "dateOfBirth", type: "text" },
-  { label: "Employment type", key: "employmentType", type: "text" },
-  { label: "Country", key: "country", type: "text" },
-  { label: "Phone number", key: "phoneNumber", type: "text" },
-];
+const getFields = ({
+  SpecialitiesOptions,
+}: {
+  SpecialitiesOptions: { label: string; value: string }[];
+}) =>
+  [
+    { label: "Name", key: "name", type: "text" },
+    { label: "Role", key: "role", type: "select", options: RoleOptions },
+    {
+      label: "Department",
+      key: "speciality",
+      type: "select",
+      options: SpecialitiesOptions,
+    },
+    { label: "Gender", key: "gender", type: "select", options: GenderOptions },
+    { label: "Date of birth", key: "dateOfBirth", type: "date" },
+    {
+      label: "Employment type",
+      key: "employmentType",
+      type: "select",
+      options: EmploymentTypes,
+    },
+    { label: "Country", key: "country", type: "country" },
+    { label: "Phone number", key: "phoneNumber", type: "text" },
+  ] satisfies FieldConfig[];
 
 const AddressFields = [
   { label: "Address", key: "addressLine", type: "text" },
@@ -53,6 +73,7 @@ const ProfessionalFields = [
 ];
 
 const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
+  const specialities = useSpecialitiesForPrimaryOrg();
   const [perms, setPerms] = React.useState<Permission[]>([]);
   const [availability, setAvailability] = useState<AvailabilityState>(
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
@@ -72,6 +93,16 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
   );
 
   const [profile, setProfile] = useState<any>(null);
+
+  const SpecialitiesOptions = useMemo(
+    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
+    [specialities]
+  );
+
+  const fields = useMemo(
+    () => getFields({ SpecialitiesOptions }),
+    [SpecialitiesOptions]
+  );
 
   useEffect(() => {
     const userId = activeTeam._id;
@@ -136,7 +167,6 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
     const permissions = profile?.mapping?.effectivePermissions ?? [];
     const availability = profile?.baseAvailability ?? [];
     const normalAvailabilty = convertFromGetApi(availability);
-    console.log(availability, normalAvailabilty);
     setAvailability(normalAvailabilty);
     setPerms(toPermissionArray(permissions));
     return {
@@ -148,6 +178,9 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">View team</div>
           </div>
@@ -156,7 +189,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
         <div className="flex flex-col gap-8 overflow-y-auto flex-1 w-full scrollbar-hidden">
           <EditableAccordion
             title="Personal details"
-            fields={Fields}
+            fields={fields}
             data={basicInfoData}
             defaultOpen={true}
             showEditIcon={false}
@@ -181,12 +214,10 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam }: TeamInfoProps) => {
             showEditIcon={false}
             isEditing={false}
           >
-            <div className="px-3! py-3!">
-              <Availability
-                availability={availability}
-                setAvailability={setAvailability}
-              />
-            </div>
+            <Availability
+              availability={availability}
+              setAvailability={setAvailability}
+            />
           </Accordion>
 
           {role && perms && (

@@ -21,7 +21,7 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }) => {
-  const { startLoading, setError, setCompanionsForOrg, status } =
+  const { startLoading, setError, setCompanionsForOrg, status, lastFetchedAt } =
     useCompanionStore.getState();
   const { addBulkParents } = useParentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
@@ -29,7 +29,7 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
     console.warn("No primary organization selected. Cannot load companions.");
     return;
   }
-  if (!shouldFetchCompanions(status, opts)) return;
+  if (!shouldFetchCompanions(status, lastFetchedAt, opts)) return;
   if (!opts?.silent) {
     startLoading();
   }
@@ -58,6 +58,7 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
         id: parentId,
       });
     }
+    console.log(companionById)
     setCompanionsForOrg(primaryOrgId, Array.from(companionById.values()));
     addBulkParents(Array.from(parentById.values()));
   } catch (err: any) {
@@ -86,9 +87,12 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
 
 const shouldFetchCompanions = (
   status: ReturnType<typeof useCompanionStore.getState>["status"],
+  lastFetchedAt: string | null,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
+  if (status === "loading") return false;
+  if (status === "loaded" && lastFetchedAt) return false;
   return status === "idle" || status === "error";
 };
 

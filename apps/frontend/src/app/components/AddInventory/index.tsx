@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import Modal from "../Modal";
-import SubLabels from "../Labels/SubLabels";
 import { InventoryItem, InventoryErrors } from "@/app/pages/Inventory/types";
 import { calculateBatchTotals } from "@/app/pages/Inventory/utils";
 import { BusinessType } from "@/app/types/org";
 import FormSection from "./FormSection";
 import { InventorySectionKey } from "./InventoryConfig";
 import Close from "../Icons/Close";
+import Labels from "../Labels/Labels";
 
 const labels: { key: InventorySectionKey; name: string }[] = [
   { key: "basicInfo", name: "Basic Information" },
@@ -372,13 +372,16 @@ const AddInventory = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Add Inventory</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <SubLabels
+        <Labels
           labels={labels}
           activeLabel={activeLabel}
           setActiveLabel={goToStep}

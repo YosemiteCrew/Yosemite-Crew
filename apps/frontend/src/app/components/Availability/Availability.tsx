@@ -65,10 +65,10 @@ const Availability: React.FC<AvailabilityProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full">
+    <div className="flex flex-col gap-2 sm:gap-4 w-full">
       {daysOfWeek.map((day: string, dayIndex: number) => (
-        <div key={day} className="flex items-start w-full gap-6 flex-wrap">
-          <div className="flex items-center gap-2 w-[150px]">
+        <div key={day} className="flex items-start w-full gap-3 sm:gap-6 flex-wrap">
+          <div className="flex items-center gap-2 w-[130px]">
             <input
               type="checkbox"
               checked={availability[day].enabled}
@@ -79,14 +79,14 @@ const Availability: React.FC<AvailabilityProps> = ({
           </div>
 
           {availability[day].enabled && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1 sm:gap-3">
               {availability[day].intervals.map(
                 (interval: Interval, i: number) => {
                   const endOptions = getEndOptions(interval.start);
                   return (
                     <div
                       key={i + interval.start}
-                      className="flex items-center gap-3"
+                      className="flex items-center gap-1 sm:gap-3"
                     >
                       <TimeSlot
                         interval={interval}

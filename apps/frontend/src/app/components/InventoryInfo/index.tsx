@@ -18,10 +18,10 @@ import { Primary, Secondary } from "../Buttons";
 import Datepicker from "../Inputs/Datepicker";
 import LabelDropdown from "../Inputs/Dropdown/LabelDropdown";
 import FormInput from "../Inputs/FormInput/FormInput";
-import SubLabels from "../Labels/SubLabels";
 import Modal from "../Modal";
 import InfoSection from "./InfoSection";
 import Close from "../Icons/Close";
+import Labels from "../Labels/Labels";
 
 const emptyBatch: BatchValues = {
   batch: "",
@@ -683,6 +683,9 @@ const InventoryInfo = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
+          <div className="opacity-0">
+            <Close onClick={() => {}} />
+          </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">
               {activeInventory?.basicInfo.name}
@@ -691,7 +694,7 @@ const InventoryInfo = ({
           <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <SubLabels
+        <Labels
           labels={modalSections}
           activeLabel={activeLabel}
           setActiveLabel={setActiveLabel}

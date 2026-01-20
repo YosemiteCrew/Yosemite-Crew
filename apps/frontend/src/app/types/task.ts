@@ -7,6 +7,27 @@ export type TaskKind =
   | "DIET"
   | "CUSTOM";
 
+export const TaskRecurrenceOptions = [
+  { label: "Once", value: "ONCE" },
+  { label: "Daily", value: "DAILY" },
+  { label: "Weekly", value: "WEEKLY" },
+];
+
+export const TaskKindOptions = [
+  { label: "Medication", value: "MEDICATION" },
+  { label: "Observation Tool", value: "OBSERVATION_TOOL" },
+  { label: "Hygiene", value: "HYGIENE" },
+  { label: "Diet", value: "DIET" },
+  { label: "Custom", value: "CUSTOM" },
+];
+
+export const TaskStatusOptions = [
+  { label: "Pending", value: "PENDING" },
+  { label: "In Progress", value: "IN_PROGRESS" },
+  { label: "Completed", value: "COMPLETED" },
+  { label: "Cancelled", value: "CANCELLED" },
+];
+
 export type Task = {
   _id: string;
   organisationId?: string;
@@ -62,7 +83,7 @@ export type Task = {
 };
 
 export type TaskTemplate = {
-  id: string;
+  _id: string;
   source: "ORG_TEMPLATE";
   organisationId: string;
   libraryTaskId?: string;
@@ -88,10 +109,10 @@ export type TaskTemplate = {
   createdBy: string;
   createdAt?: Date;
   updatedAt?: Date;
-}
+};
 
 export type TaskLibrary = {
-  id: string;
+  _id: string;
   source: "YC_LIBRARY";
   kind: TaskKind;
   category: string;
@@ -110,7 +131,7 @@ export type TaskLibrary = {
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
-}
+};
 
 export const EMPTY_TASK: Task = {
   _id: "",
@@ -119,7 +140,11 @@ export const EMPTY_TASK: Task = {
   source: "CUSTOM",
   libraryTaskId: undefined,
   templateId: undefined,
-  category: "",
+  category: "MEDICATION",
+  recurrence: {
+    type: "ONCE",
+    isMaster: false,
+  },
   name: "",
   description: "",
   dueAt: new Date(),

@@ -99,8 +99,8 @@ const Payment = () => {
           fields={BasicFields}
           org={{
             plan: "Free",
-            cycleDate: "2026-01-05",
-            joiningDate: "2025-12-15",
+            cycleDate: "-",
+            joiningDate: "-",
             appointments: "0",
             obervationalTools: "0",
             members: "0",
@@ -110,11 +110,11 @@ const Payment = () => {
           title="Billing details"
           fields={BillingFields}
           org={{
-            name: "Suryansh Sharma",
-            address: "1243a 1b landraft golflinks, ghaziabad, 201002",
-            email: "suryansh@yosemitecrew.com",
-            taxId: "1234hghyt456",
-            country: "India",
+            name: "-",
+            address: "-",
+            email: "-",
+            taxId: "-",
+            country: "-",
           }}
         />
         <SmallAccordionButton title="Invoices" showButton={false}>

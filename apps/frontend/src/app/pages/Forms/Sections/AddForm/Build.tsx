@@ -1120,12 +1120,14 @@ const Build = ({
           </div>
         </div>
       </div>
-      <Primary
-        href="#"
-        text="Next"
-        classname="max-h-12! text-lg! tracking-wide!"
-        onClick={onNext}
-      />
+      <div className="px-3 pb-3 flex justify-center">
+        <Primary
+          href="#"
+          text="Next"
+          onClick={onNext}
+          classname="w-fit"
+        />
+      </div>
     </div>
   );
 };

@@ -4,7 +4,6 @@ import { MdNotificationsActive } from "react-icons/md";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import { useSignOut } from "@/app/hooks/useAuth";
-import { HiBuildingOffice2 } from "react-icons/hi2";
 
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useOrgList, usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
@@ -13,7 +12,7 @@ import { FaCaretDown } from "react-icons/fa6";
 import { useAuthStore } from "@/app/stores/authStore";
 import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 import Image from "next/image";
-import { isHttpsImageUrl } from "@/app/utils/urls";
+import { getSafeImageUrl } from "@/app/utils/urls";
 import Search from "../../Inputs/Search";
 
 type RouteItem = {
@@ -87,6 +86,15 @@ const UserHeader = () => {
     router.push("/dashboard");
   };
 
+  const handleMobileOrgClick = (orgId: string) => {
+    setPrimaryOrg(orgId);
+    setSelectOrg(false);
+    setMenuOpen(false);
+    setTimeout(() => {
+      router.push("/dashboard");
+    }, 300);
+  };
+
   const handleClick = (item: any) => {
     setMenuOpen(false);
     setTimeout(() => {
@@ -153,13 +161,19 @@ const UserHeader = () => {
             className="px-3 sm:px-12! py-6 bg-white z-999 fixed top-full left-0 w-screen overflow-auto flex flex-col gap-3"
           >
             {primaryOrg && (
-              <div className="relative">
+              <div className="relative w-fit" ref={orgDropdownRef}>
                 <button
-                  className="flex items-center gap-2"
+                  className={`flex items-center gap-2 w-60 z-1000 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
                   onClick={() => setSelectOrg((e) => !e)}
                 >
-                  <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
-                    <HiBuildingOffice2 size={18} color="#302f2e" />
+                  <div className="flex justify-center h-8 w-8 shrink-0">
+                    <Image
+                      src={getSafeImageUrl(primaryOrg.imageURL, "business")}
+                      alt="Logo"
+                      height={32}
+                      width={32}
+                      className="rounded-full cursor-pointer h-8 w-8 object-cover"
+                    />
                   </div>
                   <div className="text-black-text text-body-4 truncate max-w-[200px]">
                     {primaryOrg?.name}
@@ -170,13 +184,13 @@ const UserHeader = () => {
                   />
                 </button>
                 {selectOrg && (
-                  <div className="absolute top-[100%] left-0 rounded-2xl border border-card-border bg-white flex flex-col items-center w-full max-w-[200px] px-2">
+                  <div className="absolute top-[100%] left-0 z-1000 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
                     {orgs.slice(0, 3).map((org, i) => (
                       <button
                         key={org.name + i}
-                        className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl text-text-secondary! hover:text-text-primary! max-w-[200px] w-full truncate border-b! border-b-card-border!"
+                        className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! transition-all duration-300 text-text-secondary! hover:text-text-primary! w-full truncate"
                         onClick={() =>
-                          handleOrgClick(org._id?.toString() || org.name)
+                          handleMobileOrgClick(org._id?.toString() || org.name)
                         }
                       >
                         {org.name}
@@ -185,7 +199,7 @@ const UserHeader = () => {
                     <Link
                       href={"/organizations"}
                       onClick={() => setSelectOrg(false)}
-                      className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full"
+                      className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
                     >
                       View all
                     </Link>
@@ -245,8 +259,14 @@ const UserHeader = () => {
               className={`flex items-center gap-2 w-60 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
               onClick={() => setSelectOrg((e) => !e)}
             >
-              <div className="h-8 w-8 rounded-default bg-neutral-100 flex items-center justify-center">
-                <HiBuildingOffice2 size={18} color="#302f2e" />
+              <div className="flex justify-center h-8 w-8 shrink-0">
+                <Image
+                  src={getSafeImageUrl(primaryOrg.imageURL, "business")}
+                  alt="Logo"
+                  height={32}
+                  width={32}
+                  className="rounded-full cursor-pointer h-8 w-8 object-cover"
+                />
               </div>
               <div className="text-black-text text-body-4 truncate flex-1">
                 {primaryOrg?.name}
@@ -283,7 +303,11 @@ const UserHeader = () => {
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        <Search value={search} setSearch={setSearch} className={"lg:flex hidden"} />
+        <Search
+          value={search}
+          setSearch={setSearch}
+          className={"lg:flex hidden"}
+        />
 
         <MdNotificationsActive
           color="#302f2e"
@@ -297,11 +321,7 @@ const UserHeader = () => {
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image
-              src={
-                isHttpsImageUrl(profile?.personalDetails?.profilePictureUrl)
-                  ? profile?.personalDetails?.profilePictureUrl
-                  : "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-              }
+              src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, "person")}
               alt="Logo"
               height={32}
               width={32}

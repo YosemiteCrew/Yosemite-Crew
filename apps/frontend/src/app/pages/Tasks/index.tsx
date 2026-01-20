@@ -14,18 +14,17 @@ import {
   useTasksForPrimaryOrg,
 } from "@/app/hooks/useTask";
 import { Task } from "@/app/types/task";
-import { useErrorTost } from "@/app/components/Toast/Toast";
 
 const Tasks = () => {
   useLoadTasksForPrimaryOrg();
   const tasks = useTasksForPrimaryOrg();
-  const { showErrorTost, ErrorTostPopup } = useErrorTost();
 
   const [filteredList, setFilteredList] = useState<Task[]>(tasks);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
   const [activeCalendar, setActiveCalendar] = useState("week");
+  const [activeView, setActiveView] = useState("calendar");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(getStartOfWeek(currentDate));
 
@@ -46,43 +45,43 @@ const Tasks = () => {
 
   return (
     <div className="flex flex-col relative">
-      {ErrorTostPopup}
       <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
         <TitleCalendar
           activeCalendar={activeCalendar}
           title="Tasks"
-          description="Track clinic to-dos with calendar views, assign owners and due dates, and open each task to review details and update status."
+          description="Track to-dos with calendar views, assign owners and due dates, and open each task to review details and update status."
           setActiveCalendar={setActiveCalendar}
           setAddPopup={setAddPopup}
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
           count={tasks.length}
+          activeView={activeView}
+          setActiveView={setActiveView}
         />
 
         <div className="w-full flex flex-col gap-3">
           <TaskFilters list={tasks} setFilteredList={setFilteredList} />
-          <TaskCalendar
-            filteredList={tasks}
-            setActiveTask={setActiveTask}
-            setViewPopup={setViewPopup}
-            activeCalendar={activeCalendar}
-            currentDate={currentDate}
-            setCurrentDate={setCurrentDate}
-            weekStart={weekStart}
-            setWeekStart={setWeekStart}
-          />
-          <TasksTable
-            filteredList={filteredList}
-            setActiveTask={setActiveTask}
-            setViewPopup={setViewPopup}
-          />
+          {activeView === "calendar" ? (
+            <TaskCalendar
+              filteredList={tasks}
+              setActiveTask={setActiveTask}
+              setViewPopup={setViewPopup}
+              activeCalendar={activeCalendar}
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              weekStart={weekStart}
+              setWeekStart={setWeekStart}
+            />
+          ) : (
+            <TasksTable
+              filteredList={filteredList}
+              setActiveTask={setActiveTask}
+              setViewPopup={setViewPopup}
+            />
+          )}
         </div>
 
-        <AddTask
-          showModal={addPopup}
-          setShowModal={setAddPopup}
-          showErrorTost={showErrorTost}
-        />
+        <AddTask showModal={addPopup} setShowModal={setAddPopup} />
         {activeTask && (
           <TaskInfo
             showModal={viewPopup}

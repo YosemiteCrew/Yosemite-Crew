@@ -7,7 +7,6 @@ import MultiSelectDropdown from "../Inputs/MultiSelectDropdown";
 import FormDesc from "../Inputs/FormDesc/FormDesc";
 import Datepicker from "../Inputs/Datepicker";
 import { BusinessType } from "@/app/types/org";
-import { IoIosWarning } from "react-icons/io";
 
 import { InventoryItem, InventoryErrors } from "@/app/pages/Inventory/types";
 import {
@@ -137,13 +136,8 @@ const FormSection: React.FC<FormSectionProps> = ({
             placeholder={placeholder || ""}
             type="input"
             className="min-h-12!"
+            error={error}
           />
-          {error && (
-            <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
-              <IoIosWarning className="text-text-error" size={14} />
-              <span>{error}</span>
-            </div>
-          )}
         </div>
       );
     }
@@ -277,7 +271,7 @@ const FormSection: React.FC<FormSectionProps> = ({
         </Accordion>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-3 pb-3">
         <Secondary
           href="#"
           text="Clear"

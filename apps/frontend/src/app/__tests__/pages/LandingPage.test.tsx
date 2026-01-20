@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import MainLandingPage from "../../pages/LandingPage/LandingPage";
+import { useAuthStore } from "@/app/stores/authStore";
 
 jest.mock("@/app/components/Footer/Footer", () => {
   return function DummyFooter() {
@@ -9,8 +9,12 @@ jest.mock("@/app/components/Footer/Footer", () => {
   };
 });
 
+beforeEach(() => {
+  useAuthStore.setState({ user: null, role: null });
+});
+
 describe("MainLandingPage Component", () => {
-  test("renders the main heading and call-to-action buttons", () => {
+  test("renders the new hero heading, description, and primary CTA", () => {
     render(<MainLandingPage />);
 
     const mainHeading = screen.getByText(
@@ -26,36 +30,25 @@ describe("MainLandingPage Component", () => {
 
     expect(heroSection).toBeInTheDocument();
 
-    const bookDemoButton = within(heroSection).getByRole("link", {
-      name: /book demo/i,
+    const heroDescription = within(heroSection).getByText(
+      /designed for pet businesses, pet parents, and developers/i
+    );
+    expect(heroDescription).toBeInTheDocument();
+
+    const primaryCta = within(heroSection).getByRole("link", {
+      name: /get started free/i,
     });
 
-    expect(bookDemoButton).toBeInTheDocument();
+    expect(primaryCta).toBeInTheDocument();
 
-    expect(bookDemoButton).toHaveAttribute("href", "/book-demo");
+    expect(primaryCta).toHaveAttribute("href", "/signup");
   });
 
-  test("renders the initial carousel slide content", () => {
+  test("displays hero imagery assets", () => {
     render(<MainLandingPage />);
 
-    const firstSlideText = screen.getByText(
-      /empowering veterinary clinics to grow sustainably/i
-    );
-    expect(firstSlideText).toBeInTheDocument();
-  });
-
-  test("carousel navigates to the next slide on user click", async () => {
-    const user = userEvent.setup();
-    render(<MainLandingPage />);
-
-    const nextButton = screen.getAllByRole("button", { hidden: true })[1];
-
-    await user.click(nextButton);
-
-    const secondSlideText = await screen.findByText(
-      /simplifying pet health management for parents/i
-    );
-    expect(secondSlideText).toBeInTheDocument();
+    expect(screen.getByAltText("Dog")).toBeInTheDocument();
+    expect(screen.getByAltText("Horse")).toBeInTheDocument();
   });
 
   test("renders all section headings and links", () => {

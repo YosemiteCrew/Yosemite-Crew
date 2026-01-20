@@ -13,7 +13,7 @@ import {
   acceptAppointment,
   cancelAppointment,
 } from "@/app/services/appointmentService";
-import { toTitleCase } from "@/app/utils/validators";
+import { toTitle } from "@/app/utils/validators";
 
 type Column<T> = {
   label: string;
@@ -26,7 +26,7 @@ type AppointmentTableProps = {
   filteredList: Appointment[];
   setActiveAppointment?: (appointment: Appointment) => void;
   setViewPopup?: (open: boolean) => void;
-  hideActions?: boolean;
+  small?: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -52,7 +52,7 @@ const Appointments = ({
   filteredList,
   setActiveAppointment,
   setViewPopup,
-  hideActions = false,
+  small = false,
 }: AppointmentTableProps) => {
   const handleViewAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -189,57 +189,55 @@ const Appointments = ({
       width: "15%",
       render: (item: Appointment) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
-          {toTitleCase(item.status)}
+          {toTitle(item.status)}
+        </div>
+      ),
+    },
+    {
+      label: "Actions",
+      key: "actions",
+      width: "10%",
+      render: (item: Appointment) => (
+        <div className="action-btn-col">
+          {item.status === "REQUESTED" ? (
+            <>
+              <button
+                className="action-btn"
+                style={{ background: "#E6F4EF" }}
+                onClick={() => handleAcceptAppointment(item)}
+              >
+                <FaCheckCircle size={22} color="#54B492" />
+              </button>
+              <button
+                onClick={() => handleCancelAppointment(item)}
+                className="action-btn"
+                style={{ background: "#FDEBEA" }}
+              >
+                <IoIosCloseCircle size={24} color="#EA3729" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => handleViewAppointment(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <IoEye size={20} color="#302F2E" />
+            </button>
+          )}
         </div>
       ),
     },
   ];
-  const actionColoumn = {
-    label: "Actions",
-    key: "actions",
-    width: "10%",
-    render: (item: Appointment) => (
-      <div className="action-btn-col">
-        {item.status === "REQUESTED" ? (
-          <>
-            <button
-              className="action-btn"
-              style={{ background: "#E6F4EF" }}
-              onClick={() => handleAcceptAppointment(item)}
-            >
-              <FaCheckCircle size={22} color="#54B492" />
-            </button>
-            <button
-              onClick={() => handleCancelAppointment(item)}
-              className="action-btn"
-              style={{ background: "#FDEBEA" }}
-            >
-              <IoIosCloseCircle size={24} color="#EA3729" />
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={() => handleViewAppointment(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <IoEye size={20} color="#302F2E" />
-          </button>
-        )}
-      </div>
-    ),
-  };
-
-  const finalColoumns = hideActions ? columns : [...columns, actionColoumn];
 
   return (
     <div className="table-wrapper">
       <div className="table-list">
         <GenericTable
           data={filteredList}
-          columns={finalColoumns}
+          columns={columns}
           bordered={false}
           pagination={true}
-          pageSize={5}
+          pageSize={small ? 5 : 10}
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">

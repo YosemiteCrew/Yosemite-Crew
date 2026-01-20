@@ -1,5 +1,7 @@
 import winston from "winston";
 import dotenv from "dotenv";
+import safeStringify from "safe-stable-stringify";
+
 dotenv.config();
 
 const { combine, timestamp, printf, colorize, json, errors } = winston.format;
@@ -8,38 +10,46 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
 const serializeLogMessage = (value: unknown): string => {
-  if (typeof value === "string") {
-    return value;
-  }
+  if (typeof value === "string") return value;
 
   if (value instanceof Error) {
     return value.stack ?? value.message;
   }
 
   try {
-    return JSON.stringify(value);
+    return safeStringify(value)!;
   } catch {
     return String(value);
   }
 };
 
-const logFormat = printf(
-  ({ level, message, timestamp: time, stack, ...meta }) => {
-    const safeTimestamp = isNonEmptyString(time)
-      ? time
-      : new Date().toISOString();
-    const metaRecord = meta as Record<string, unknown>;
-    const serializedMeta =
-      Object.keys(metaRecord).length > 0
-        ? ` ${JSON.stringify(metaRecord, null, 2)}`
-        : "";
-    const renderedMessage = isNonEmptyString(stack)
-      ? stack
-      : serializeLogMessage(message);
+const serializeMeta = (meta: Record<string, unknown>): string => {
+  if (Object.keys(meta).length === 0) return "";
 
-    return `${safeTimestamp} [${level}]: ${renderedMessage}${serializedMeta}`;
-  },
-);
+  // avoid exploding your logs with huge objects
+  const cleanedMeta = { ...meta };
+
+  // Common circular / noisy fields - remove or reduce them safely
+  if ("req" in cleanedMeta) cleanedMeta.req = "[Request]";
+  if ("res" in cleanedMeta) cleanedMeta.res = "[Response]";
+  if ("request" in cleanedMeta) cleanedMeta.request = "[Request]";
+  if ("response" in cleanedMeta) cleanedMeta.response = "[Response]";
+
+  return ` ${safeStringify(cleanedMeta, null, 2)}`;
+};
+
+const logFormat = printf(({ level, message, timestamp: time, stack, ...meta }) => {
+  const safeTimestamp = isNonEmptyString(time) ? time : new Date().toISOString();
+  const metaRecord = meta as Record<string, unknown>;
+
+  const renderedMessage = isNonEmptyString(stack)
+    ? stack
+    : serializeLogMessage(message);
+
+  const serializedMeta = serializeMeta(metaRecord);
+
+  return `${safeTimestamp} [${level}]: ${renderedMessage}${serializedMeta}`;
+});
 
 const levels = {
   error: 0,

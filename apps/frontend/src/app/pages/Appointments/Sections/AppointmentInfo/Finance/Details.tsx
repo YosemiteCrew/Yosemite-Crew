@@ -17,11 +17,8 @@ const Details = () => {
   const [payments] = useState<Payment[]>(DemoPayments);
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
       <div className="flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[23px]">
-          Payment details
-        </div>
         {payments.map((payment) => (
           <Accordion
             key={payment.appointmentId}
@@ -30,31 +27,51 @@ const Details = () => {
             showEditIcon={false}
             isEditing={true}
           >
-            <div className="flex flex-col px-4! py-2.5! rounded-2xl border border-grey-light">
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Appointent ID: </div>
-                <div>{payment.appointmentId}</div>
+            <div className="flex flex-col">
+              <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                <div className="text-body-4-emphasis text-text-tertiary">
+                  Appointent ID:{" "}
+                </div>
+                <div className="text-body-4 text-text-primary text-right">
+                  {payment.appointmentId}
+                </div>
               </div>
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Payment ID: </div>
-                <div>{payment.paymentId}</div>
+              <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                <div className="text-body-4-emphasis text-text-tertiary">
+                  Payment ID:{" "}
+                </div>
+                <div className="text-body-4 text-text-primary text-right">
+                  {payment.paymentId}
+                </div>
               </div>
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Payment method: </div>
-                <div>{payment.mode}</div>
+              <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                <div className="text-body-4-emphasis text-text-tertiary">
+                  Payment method:{" "}
+                </div>
+                <div className="text-body-4 text-text-primary text-right">
+                  {payment.mode}
+                </div>
               </div>
-              <div className="px-3! py-2! flex items-center gap-2 border-b border-grey-light justify-between">
-                <div>Date & Time: </div>
-                <div>{payment.date + payment.time}</div>
+              <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                <div className="text-body-4-emphasis text-text-tertiary">
+                  Date & Time:{" "}
+                </div>
+                <div className="text-body-4 text-text-primary text-right">
+                  {payment.date + payment.time}
+                </div>
               </div>
-              <div className="px-3! py-2! flex items-center gap-2 justify-between">
-                <div>Amount: </div>
-                <div>${payment.amount}</div>
+              <div className="py-2! flex items-center gap-2 justify-between">
+                <div className="text-body-4-emphasis text-text-tertiary">
+                  Amount:{" "}
+                </div>
+                <div className="text-body-4 text-text-primary text-right">
+                  ${payment.amount}
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 py-3">
-              <Secondary href="#" text="Print invoice" className="h-13!" />
-              <Secondary href="#" text="Email invoice" className="h-13!" />
+            <div className="grid grid-cols-2 gap-3 py-2">
+              <Secondary href="#" text="Print invoice" />
+              <Secondary href="#" text="Email invoice" />
             </div>
           </Accordion>
         ))}
