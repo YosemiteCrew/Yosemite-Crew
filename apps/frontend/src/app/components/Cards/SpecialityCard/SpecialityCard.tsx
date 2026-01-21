@@ -22,7 +22,7 @@ const SpecialityCard = ({
       <div className="speciality-title-container">
         <div className="speciality-title">{speciality.name}</div>
         <MdDeleteForever
-          size={24}
+          size={20}
           color="#EA3729"
           className="speciality-delete"
           onClick={handleDelete}

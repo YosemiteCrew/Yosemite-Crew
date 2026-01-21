@@ -1,29 +1,24 @@
-/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import AppointmentCard from "@/app/components/Cards/AppointmentCard";
-import { Appointment } from "@yosemite-crew/types";
+import "@testing-library/jest-dom";
 
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: any) => <img alt={props.alt} {...props} />,
-}));
+import AppointmentCard from "@/app/components/Cards/AppointmentCard";
 
 jest.mock("@/app/components/DataTable/Appointments", () => ({
-  getStatusStyle: () => ({}),
+  getStatusStyle: jest.fn(() => ({ backgroundColor: "pink", color: "white" })),
 }));
 
 jest.mock("@/app/utils/forms", () => ({
-  formatDateLabel: () => "Jan 2, 2025",
-  formatTimeLabel: () => "10:00 AM",
+  formatDateLabel: jest.fn(() => "Jan 06, 2025"),
+  formatTimeLabel: jest.fn(() => "09:00 AM"),
 }));
 
 jest.mock("@/app/utils/validators", () => ({
-  toTitle: (value: string) => value,
+  toTitle: (value: string) => value.toUpperCase(),
 }));
 
 jest.mock("@/app/utils/appointments", () => ({
-  allowReschedule: () => true,
+  allowReschedule: jest.fn(() => true),
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
@@ -35,67 +30,76 @@ jest.mock("@/app/components/Buttons", () => ({
 }));
 
 describe("AppointmentCard", () => {
-  const baseAppointment: Appointment = {
-    status: "CHECKED_IN",
-    appointmentDate: new Date(2025, 0, 2, 10),
-    startTime: new Date(2025, 0, 2, 10),
-    companion: {
-      name: "Buddy",
-      breed: "Lab",
-      species: "DOG",
-      parent: { name: "Alex" },
-    } as any,
-    appointmentType: { name: "Checkup" } as any,
-    room: { name: "Room 1" } as any,
-    lead: { name: "Dr. Lee" } as any,
-    supportStaff: [{ name: "Nurse A" } as any],
-    concern: "Vaccines",
-  } as Appointment;
+  const handleViewAppointment = jest.fn();
+  const handleRescheduleAppointment = jest.fn();
 
-  it("renders appointment details", () => {
+  const appointment: any = {
+    status: "COMPLETED",
+    appointmentDate: new Date("2025-01-06T00:00:00Z"),
+    startTime: new Date("2025-01-06T09:00:00Z"),
+    companion: { name: "Buddy", parent: { name: "Sam" }, species: "Dog" },
+    appointmentType: { name: "Checkup" },
+    room: { name: "Room A" },
+    lead: { name: "Dr. Lee" },
+    supportStaff: [{ name: "Taylor" }],
+    concern: "Vaccines",
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("renders appointment details and status", () => {
     render(
       <AppointmentCard
-        appointment={baseAppointment}
-        handleViewAppointment={jest.fn()}
-        handleRescheduleAppointment={jest.fn()}
+        appointment={appointment}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
       />
     );
 
     expect(screen.getByText("Buddy")).toBeInTheDocument();
-    expect(screen.getByText("Alex")).toBeInTheDocument();
+    expect(screen.getByText("Sam")).toBeInTheDocument();
+    expect(screen.getByText("Date / Time:")).toBeInTheDocument();
+    expect(screen.getByText("Jan 06, 2025 / 09:00 AM")).toBeInTheDocument();
+    expect(screen.getByText("Reason:")).toBeInTheDocument();
     expect(screen.getByText("Vaccines")).toBeInTheDocument();
+    expect(screen.getByText("Service:")).toBeInTheDocument();
     expect(screen.getByText("Checkup")).toBeInTheDocument();
-    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(screen.getByText("Room:")).toBeInTheDocument();
+    expect(screen.getByText("Room A")).toBeInTheDocument();
+    expect(screen.getByText("Lead:")).toBeInTheDocument();
     expect(screen.getByText("Dr. Lee")).toBeInTheDocument();
-    expect(screen.getByText("Nurse A")).toBeInTheDocument();
-    expect(screen.getByText("Jan 2, 2025 / 10:00 AM")).toBeInTheDocument();
+    expect(screen.getByText("Staff:")).toBeInTheDocument();
+    expect(screen.getByText("Taylor")).toBeInTheDocument();
+    expect(screen.getByText("COMPLETED")).toBeInTheDocument();
   });
 
-  it("calls view and reschedule handlers", () => {
-    const handleView = jest.fn();
-    const handleReschedule = jest.fn();
-
+  it("calls handlers on view/reschedule", () => {
     render(
       <AppointmentCard
-        appointment={baseAppointment}
-        handleViewAppointment={handleView}
-        handleRescheduleAppointment={handleReschedule}
+        appointment={appointment}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
       />
     );
 
     fireEvent.click(screen.getByText("View"));
     fireEvent.click(screen.getByText("Reschedule"));
 
-    expect(handleView).toHaveBeenCalledWith(baseAppointment);
-    expect(handleReschedule).toHaveBeenCalledWith(baseAppointment);
+    expect(handleViewAppointment).toHaveBeenCalledWith(appointment);
+    expect(handleRescheduleAppointment).toHaveBeenCalledWith(appointment);
   });
 
-  it("renders accept/cancel for requested status", () => {
+  it("renders accept/cancel actions for requested status", () => {
     render(
       <AppointmentCard
-        appointment={{ ...baseAppointment, status: "REQUESTED" } as Appointment}
-        handleViewAppointment={jest.fn()}
-        handleRescheduleAppointment={jest.fn()}
+        appointment={{ ...appointment, status: "REQUESTED" }}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
       />
     );
 

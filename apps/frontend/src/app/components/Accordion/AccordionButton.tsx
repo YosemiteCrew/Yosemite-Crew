@@ -7,6 +7,8 @@ import {
   getUpgradeLink,
 } from "@/app/services/billingService";
 import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
 
 interface AccordionButtonProps {
   title: string;
@@ -28,6 +30,8 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   finance = false,
 }) => {
   const subscription = useSubscriptionForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditSubscription = can(PERMISSIONS.SUBSCRIPTION_EDIT_ANY);
   const plan = subscription?.plan;
   const hasStripeAccount = Boolean(subscription?.connectAccountId);
   const stripeCompleted = Boolean(subscription?.connectChargesEnabled);
@@ -111,7 +115,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
               text={buttonTitle}
             />
           )}
-          {finance && (
+          {canEditSubscription && finance && (
             <div className="flex items-center gap-3">
               {plan === "business" && (
                 <Secondary
@@ -136,11 +140,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
                       : "#"
                   }
                   isDisabled={!subscriptionReady}
-                  text={
-                    hasStripeAccount
-                      ? "Continue setup"
-                      : "Connect stripe"
-                  }
+                  text={hasStripeAccount ? "Continue setup" : "Connect stripe"}
                 />
               )}
             </div>

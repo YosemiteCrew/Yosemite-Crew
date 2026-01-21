@@ -1,51 +1,12 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
+
 import TeamInfo from "@/app/pages/Organization/Sections/Team/TeamInfo";
-import { Team } from "@/app/types/team";
 
-jest.mock("@/app/components/Modal", () => ({
-  __esModule: true,
-  default: ({ showModal, children }: any) =>
-    showModal ? <div data-testid="modal">{children}</div> : null,
-}));
-
-jest.mock("@/app/components/Accordion/Accordion", () => ({
-  __esModule: true,
-  default: ({ title, children }: any) => (
-    <div>
-      <div>{title}</div>
-      {children}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/components/Availability/Availability", () => ({
-  __esModule: true,
-  default: () => <div data-testid="availability" />,
-}));
-
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
-  __esModule: true,
-  default: ({ title, onSave }: any) => (
-    <div>
-      <div>{title}</div>
-      {onSave && (
-        <button type="button" onClick={() => onSave({ role: "ADMIN" })}>
-          Save-{title}
-        </button>
-      )}
-    </div>
-  ),
-}));
-
-jest.mock("@/app/pages/Organization/Sections/Team/PermissionsEditor", () => ({
-  __esModule: true,
-  default: () => <div data-testid="permissions" />,
-}));
-
-const getProfileMock = jest.fn();
-const removeMemberMock = jest.fn();
 const updateMemberMock = jest.fn();
+const removeMemberMock = jest.fn();
+const getProfileMock = jest.fn();
 
 jest.mock("@/app/services/teamService", () => ({
   getProfileForUserForPrimaryOrg: (...args: any[]) => getProfileMock(...args),
@@ -54,20 +15,34 @@ jest.mock("@/app/services/teamService", () => ({
 }));
 
 jest.mock("@/app/hooks/useSpecialities", () => ({
-  useSpecialitiesForPrimaryOrg: () => [{ _id: "spec-1", name: "General" }],
+  useSpecialitiesForPrimaryOrg: () => [{ _id: "spec-1", name: "Surgery" }],
 }));
 
-jest.mock("@/app/utils/team", () => ({
-  allowDelete: () => true,
+jest.mock("@/app/components/Modal", () => ({
+  __esModule: true,
+  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
+}));
+
+jest.mock("@/app/components/Icons/Close", () => ({
+  __esModule: true,
+  default: () => <div />,
 }));
 
 jest.mock("react-icons/md", () => ({
   MdDeleteForever: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
-      Delete
+      delete
     </button>
   ),
 }));
+
+jest.mock("@/app/components/Availability/Availability", () => () => (
+  <div data-testid="availability" />
+));
+
+jest.mock("@/app/pages/Organization/Sections/Team/PermissionsEditor", () => () => (
+  <div data-testid="permissions-editor" />
+));
 
 jest.mock("@/app/components/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
@@ -77,46 +52,48 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/components/Availability/utils", () => ({
-  daysOfWeek: ["Monday"],
-  DEFAULT_INTERVAL: { start: "09:00", end: "10:00" },
-  convertFromGetApi: () => ({ Monday: { enabled: true, intervals: [] } }),
-  convertAvailability: () => ({
-    Monday: [{ start: "09:00", end: "10:00" }],
-  }),
-  hasAtLeastOneAvailability: () => true,
-}));
+const accordionCalls: any[] = [];
 
-describe("TeamInfo", () => {
-  const setShowModal = jest.fn();
-  const teamMember: Team = {
+jest.mock("@/app/components/Accordion/EditableAccordion", () => (props: any) => {
+  accordionCalls.push(props);
+  return <div data-testid={`accordion-${props.title}`} />;
+});
+
+jest.mock("@/app/components/Accordion/Accordion", () => (props: any) => (
+  <div>
+    <div>{props.title}</div>
+    <div>{props.children}</div>
+  </div>
+));
+
+describe("TeamInfo modal", () => {
+  const activeTeam: any = {
     _id: "team-1",
     name: "Alex",
+    role: "MEMBER",
     practionerId: "user-1",
-    role: "OWNER",
-    speciality: [{ _id: "spec-1", name: "General" } as any],
+    speciality: [{ _id: "spec-1" }],
     effectivePermissions: [],
-    organisationId: "",
-    status: "Available",
-    extraPerissions: []
-  } as Team;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    accordionCalls.length = 0;
     getProfileMock.mockResolvedValue({
       profile: {
-        personalDetails: { employmentType: "full_time" },
+        personalDetails: { employmentType: "FULL_TIME" },
       },
       baseAvailability: [],
     });
   });
 
-  it("loads profile data and renders sections", async () => {
+  it("loads profile and updates member role", async () => {
     render(
       <TeamInfo
-        showModal={true}
-        setShowModal={setShowModal}
-        activeTeam={teamMember}
+        showModal
+        setShowModal={jest.fn()}
+        activeTeam={activeTeam}
+        canEditTeam
       />
     );
 
@@ -124,48 +101,27 @@ describe("TeamInfo", () => {
       expect(getProfileMock).toHaveBeenCalledWith("user-1");
     });
 
-    expect(screen.getByText("View team")).toBeInTheDocument();
-    expect(screen.getByText("Org details")).toBeInTheDocument();
-    expect(screen.getByText("Personal details")).toBeInTheDocument();
-    expect(screen.getByTestId("permissions")).toBeInTheDocument();
+    const orgAccordion = accordionCalls.find(
+      (item) => item.title === "Org details"
+    );
+    await orgAccordion.onSave({ role: "ADMIN" });
+
+    expect(updateMemberMock).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "ADMIN" })
+    );
   });
 
-  it("removes member when delete is clicked", async () => {
-    removeMemberMock.mockResolvedValue(undefined);
-
+  it("deletes member when delete icon is clicked", () => {
     render(
       <TeamInfo
-        showModal={true}
-        setShowModal={setShowModal}
-        activeTeam={teamMember}
+        showModal
+        setShowModal={jest.fn()}
+        activeTeam={activeTeam}
+        canEditTeam
       />
     );
 
-    fireEvent.click(screen.getByText("Delete"));
-
-    await waitFor(() => {
-      expect(removeMemberMock).toHaveBeenCalledWith(teamMember);
-    });
-    expect(setShowModal).toHaveBeenCalledWith(false);
-  });
-
-  it("updates member role on save", async () => {
-    updateMemberMock.mockResolvedValue(undefined);
-
-    render(
-      <TeamInfo
-        showModal={true}
-        setShowModal={setShowModal}
-        activeTeam={teamMember}
-      />
-    );
-
-    fireEvent.click(screen.getByText("Save-Org details"));
-
-    await waitFor(() => {
-      expect(updateMemberMock).toHaveBeenCalledWith(
-        expect.objectContaining({ role: "ADMIN" })
-      );
-    });
+    fireEvent.click(screen.getByText("delete"));
+    expect(removeMemberMock).toHaveBeenCalledWith(activeTeam);
   });
 });

@@ -52,7 +52,7 @@ const Dropdown = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] ${error && "border-input-border-error!"} ${open ? "border border-input-border-active! rounded-t-2xl!" : "border border-input-border-default! rounded-2xl!"}`}
+        className={`w-full flex items-center justify-between gap-2 px-6 py-[10px] min-w-[120px] ${error && "border-input-border-error!"} ${open ? "border border-input-border-active! rounded-t-2xl!" : "border border-input-border-default! rounded-2xl!"}`}
         onClick={() => setOpen((e) => !e)}
       >
         {selected ? (

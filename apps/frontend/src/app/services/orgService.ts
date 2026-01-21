@@ -94,7 +94,6 @@ export const loadOrgs = async (opts?: { silent?: boolean }) => {
 
 export const createOrg = async (formData: Organisation) => {
   const {
-    startLoading,
     setError,
     upsertOrg,
     setPrimaryOrg,
@@ -102,7 +101,6 @@ export const createOrg = async (formData: Organisation) => {
   } = useOrgStore.getState();
   const { user, attributes } = useAuthStore.getState();
   const practitionerId = attributes?.sub || user?.getUsername() || "";
-  startLoading();
   try {
     const fhirPayload = toOrganizationResponseDTO(formData);
     const res = await postData<OrganizationRequestDTO>(
@@ -146,8 +144,7 @@ export const createOrg = async (formData: Organisation) => {
 };
 
 export const updateOrg = async (formData: Organisation) => {
-  const { startLoading, setError, updateOrg } = useOrgStore.getState();
-  startLoading();
+  const { setError, updateOrg } = useOrgStore.getState();
   try {
     const _id = formData._id?.toString();
     if (!_id) {
