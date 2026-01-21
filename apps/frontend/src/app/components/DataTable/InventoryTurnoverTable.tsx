@@ -152,9 +152,18 @@ const InventoryTurnoverTable = ({
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((item: any) => (
-          <InventoryTurnoverCard key={item.name} item={item} />
-        ))}
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item: any) => (
+            <InventoryTurnoverCard key={item.name} item={item} />
+          ));
+        })()}
       </div>
     </div>
   );

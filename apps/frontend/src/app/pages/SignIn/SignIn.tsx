@@ -78,14 +78,11 @@ const SignIn = ({
 
     try {
       await signIn(email, password);
-      router.push("/organizations");
-      if (typeof globalThis !== "undefined") {
-        // Temporary fallback until custom:role attribute is available in the pool
-        globalThis.sessionStorage?.setItem(
-          "devAuth",
-          isDeveloper ? "true" : "false"
-        );
+      // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
+      if (typeof window !== "undefined") {
+        window.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
       }
+      router.push(redirectPath);
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
         await handleCodeResendonError();
@@ -187,6 +184,8 @@ const SignIn = ({
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
+        redirectPath={redirectPath}
+        isDeveloper={isDeveloper}
       />
     </section>
   );

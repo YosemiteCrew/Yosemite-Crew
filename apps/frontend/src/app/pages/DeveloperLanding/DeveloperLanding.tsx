@@ -15,10 +15,13 @@ const DeveloperLanding = () => {
   const { status, user } = useAuthStore();
 
   const handleDeveloperCTA = () => {
-    const target =
-      status === "authenticated" && user
-        ? "/developers/home"
-        : "/developers/signin";
+    // Check if user is authenticated AND has devAuth flag set (is a developer)
+    const isAuthenticated = (status === "authenticated" || status === "signin-authenticated") && user;
+    const isDevAuth = typeof window !== "undefined" && window.sessionStorage?.getItem("devAuth") === "true";
+
+    const target = isAuthenticated && isDevAuth
+      ? "/developers/home"
+      : "/developers/signin";
     router.push(target);
   };
 
