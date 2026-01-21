@@ -310,11 +310,28 @@ const UserHeader = () => {
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        <Search
-          value={query}
-          setSearch={setQuery}
-          className={"lg:flex hidden"}
-        />
+        {!pathname.startsWith("/chat") && (
+          <Search
+            value={query}
+            setSearch={setQuery}
+            className={"lg:flex hidden"}
+            placeholder={
+              pathname.startsWith("/appointments")
+                ? "Search appointments"
+                : pathname.startsWith("/inventory")
+                  ? "Search inventory"
+                  : pathname.startsWith("/forms")
+                    ? "Search forms"
+                    : pathname.startsWith("/companions")
+                      ? "Search companions"
+                      : pathname.startsWith("/tasks")
+                        ? "Search tasks"
+                        : pathname.startsWith("/finance")
+                          ? "Search invoices"
+                          : "Search"
+            }
+          />
+        )}
 
         <MdNotificationsActive
           color="#302f2e"
