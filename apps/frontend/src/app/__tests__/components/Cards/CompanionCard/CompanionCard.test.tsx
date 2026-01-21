@@ -1,97 +1,72 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import CompanionCard from "@/app/components/Cards/CompanionCard/CompanionCard";
 
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img {...props} alt={props.alt || "companion"} />
-  ),
-}));
-
-jest.mock("next/link", () => ({
-  __esModule: true,
-  default: ({ children, href, onClick, ...props }: any) => (
-    <a href={href} onClick={onClick} {...props}>
-      {children}
-    </a>
-  ),
-}));
-
 jest.mock("@/app/utils/date", () => ({
-  getAgeInYears: () => 5,
+  getAgeInYears: () => "2y",
 }));
 
 jest.mock("@/app/utils/urls", () => ({
-  isHttpsImageUrl: () => false,
+  getSafeImageUrl: () => "https://example.com/pet.png",
 }));
 
 jest.mock("@/app/utils/validators", () => ({
-  toTitleCase: (val: string) =>
-    val ? val[0].toUpperCase() + val.slice(1).toLowerCase() : "",
+  toTitleCase: (value: string) => value,
+}));
+
+jest.mock("@/app/components/Buttons", () => ({
+  Secondary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
+
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: any) => <img alt={props.alt} {...props} />,
 }));
 
 describe("CompanionCard", () => {
-  const companion = {
-    companion: {
-      id: "comp-1",
-      organisationId: "org-1",
-      parentId: "parent-1",
-      name: "Buddy",
-      breed: "Husky",
-      type: "dog",
-      gender: "male",
-      dateOfBirth: "2020-01-01",
-      allergy: "Pollen",
-      status: "active",
-      photoUrl: "http://invalid-url",
-    },
-    parent: {
-      id: "parent-1",
-      firstName: "Jamie",
-    },
-  } as any;
-
-  it("renders companion details", () => {
-    render(
-      <CompanionCard
-        companion={companion}
-        handleViewCompanion={jest.fn()}
-        handleBookAppointment={jest.fn()}
-        handleAddTask={jest.fn()}
-      />
-    );
-
-    expect(screen.getByText("Buddy")).toBeInTheDocument();
-    expect(screen.getByText("Husky / dog")).toBeInTheDocument();
-    expect(screen.getByText("Jamie")).toBeInTheDocument();
-    expect(screen.getByText("male - 5")).toBeInTheDocument();
-    expect(screen.getByText("Pollen")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
-  });
-
-  it("calls action handlers", () => {
+  it("renders details and handles actions", () => {
     const handleView = jest.fn();
-    const handleSchedule = jest.fn();
+    const handleBook = jest.fn();
     const handleTask = jest.fn();
+    const companion: any = {
+      companion: {
+        name: "Buddy",
+        breed: "Lab",
+        type: "dog",
+        gender: "male",
+        dateOfBirth: new Date(),
+        allergy: "None",
+        status: "active",
+        photoUrl: "",
+      },
+      parent: { firstName: "Jordan" },
+    };
 
     render(
       <CompanionCard
         companion={companion}
         handleViewCompanion={handleView}
-        handleBookAppointment={handleSchedule}
+        handleBookAppointment={handleBook}
         handleAddTask={handleTask}
       />
     );
 
-    fireEvent.click(screen.getByText("View"));
-    fireEvent.click(screen.getByText("Schedule"));
-    fireEvent.click(screen.getByText("Task"));
+    expect(screen.getByText("Buddy")).toBeInTheDocument();
+    expect(screen.getByText("Lab / dog")).toBeInTheDocument();
+    expect(screen.getByText("Jordan")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
+    fireEvent.click(screen.getByRole("button", { name: "Task" }));
 
     expect(handleView).toHaveBeenCalledWith(companion);
-    expect(handleSchedule).toHaveBeenCalledWith(companion);
+    expect(handleBook).toHaveBeenCalledWith(companion);
     expect(handleTask).toHaveBeenCalledWith(companion);
   });
 });

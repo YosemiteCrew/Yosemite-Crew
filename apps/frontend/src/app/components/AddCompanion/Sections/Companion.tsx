@@ -24,7 +24,6 @@ import {
   linkCompanion,
 } from "@/app/services/companionService";
 import SearchDropdown from "../../Inputs/SearchDropdown";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
 import { CompanionType } from "@yosemite-crew/types";
 
@@ -226,22 +225,15 @@ const Companion = ({
                 error={formDataErrors.breed}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <Datepicker
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                type="input"
-                className="min-h-12!"
-                containerClassName="w-full"
-                placeholder="Date of birth"
-              />
-              {formDataErrors.dateOfBirth && (
-                <div className="Errors">
-                  <Icon icon="mdi:error" width="16" height="16" />
-                  {formDataErrors.dateOfBirth}
-                </div>
-              )}
-            </div>
+            <Datepicker
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              type="input"
+              className="min-h-12!"
+              containerClassName="w-full"
+              placeholder="Date of birth"
+              error={formDataErrors.dateOfBirth}
+            />
             <SelectLabel
               title="Gender"
               options={GenderOptions}

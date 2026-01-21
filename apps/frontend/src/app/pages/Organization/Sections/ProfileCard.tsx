@@ -12,6 +12,7 @@ import { updateOrg } from "@/app/services/orgService";
 import { upsertUserProfile } from "@/app/services/profileService";
 import { useAuthStore } from "@/app/stores/authStore";
 import { UserProfile } from "@/app/types/profile";
+import { getSafeImageUrl } from "@/app/utils/urls";
 import { Organisation } from "@yosemite-crew/types";
 import React, { useEffect, useMemo, useState } from "react";
 import { RiEdit2Fill } from "react-icons/ri";
@@ -86,6 +87,7 @@ const getRequiredError = (
   const label = `${field.label} is required`;
   if (Array.isArray(value)) return value.length ? undefined : label;
   if (field.type === "date") return value ? undefined : label;
+  if (field.type === "dateString") return value ? undefined : label;
   if (field.type === "number") return value ? undefined : label;
   return (value ?? "").toString().trim() ? undefined : label;
 };
@@ -121,47 +123,52 @@ const FieldComponents: Record<
       className="min-h-12!"
     />
   ),
-  select: ({ field, value, onChange }) => (
+  select: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={field.options || []}
+      error={error}
     />
   ),
-  dropdown: ({ field, value, onChange }) => (
+  dropdown: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={field.options || []}
+      error={error}
     />
   ),
-  multiSelect: ({ field, value, onChange }) => (
+  multiSelect: ({ field, value, onChange, error }) => (
     <MultiSelectDropdown
       placeholder={field.label}
       value={value || []}
       onChange={(e) => onChange(e)}
       options={field.options || []}
+      error={error}
     />
   ),
-  country: ({ field, value, onChange }) => (
+  country: ({ field, value, onChange, error }) => (
     <LabelDropdown
       placeholder={field.label}
       onSelect={(option) => onChange(option.value)}
       defaultOption={value}
       options={CountriesOptions}
+      error={error}
     />
   ),
-  date: ({ field, value, onChange }) => (
+  date: ({ field, value, onChange, error }) => (
     <Datepicker
       currentDate={value}
       setCurrentDate={onChange}
       type="input"
       placeholder={field.label}
+      error={error}
     />
   ),
-  dateString: ({ field, value, onChange }) => {
+  dateString: ({ field, value, onChange, error }) => {
     const fallback = new Date();
     const currentDate = toDateOrFallback(value, fallback);
     const setCurrentDate: React.Dispatch<React.SetStateAction<Date>> = (
@@ -176,6 +183,7 @@ const FieldComponents: Record<
         setCurrentDate={setCurrentDate}
         type="input"
         placeholder={field.label}
+        error={error}
       />
     );
   },
@@ -187,7 +195,7 @@ const FieldValueRow: React.FC<{
   showDivider: boolean;
 }> = ({ label, value, showDivider }) => (
   <div
-    className={`px-6! py-[10px]! flex items-center justify-between gap-2 ${showDivider ? "border-b border-b-card-border" : ""}`}
+    className={`px-3! sm:px-6! py-[10px]! flex items-center justify-between gap-2 ${showDivider ? "border-b border-b-card-border" : ""}`}
   >
     <div className="text-body-4 text-text-tertiary">{label}</div>
     <div className="text-body-4 text-text-primary text-right">
@@ -364,9 +372,12 @@ const ProfileCard = ({
       </div>
       <div className={`px-3! py-2! flex flex-col`}>
         {showProfileUser && (
-          <div className="px-6! py-2! flex gap-2 items-center">
+          <div className="px-3! sm:px-6! py-2! flex gap-2 items-center">
             <LogoUpdator
-              imageUrl={profile?.personalDetails?.profilePictureUrl}
+              imageUrl={getSafeImageUrl(
+                profile?.personalDetails?.profilePictureUrl,
+                "person"
+              )}
               title="Update Profile Picture"
               apiUrl={`/fhir/v1/user-profile/${orgId}/profile-picture`}
               onSave={updateProfilePicture}
@@ -380,11 +391,11 @@ const ProfileCard = ({
           </div>
         )}
         {showProfile && (
-          <div className="px-6! py-2! flex flex-col gap-2">
+          <div className="px-3! sm:px-6! py-2! flex flex-col gap-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <LogoUpdator
-                  imageUrl={primaryOrg?.imageURL}
+                  imageUrl={getSafeImageUrl(primaryOrg?.imageURL, "business")}
                   title="Update logo"
                   apiUrl={`/fhir/v1/organization/logo/presigned-url/${orgId}`}
                   onSave={updateOrgLogo}

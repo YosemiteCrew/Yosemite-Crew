@@ -74,7 +74,7 @@ const MultiSelectDropdown = ({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       <div className="relative w-full" ref={dropdownRef}>
         <button
           className={`w-full peer flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border border-input-border-default! focus:border-input-text-placeholder-active! ${selectedOptions.length === 0 && error && "border-input-border-error!"} ${open ? "rounded-t-2xl!" : "rounded-2xl!"}`}
@@ -118,7 +118,7 @@ const MultiSelectDropdown = ({
         )}
       </div>
       {selectedOptions && selectedOptions.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mt-2">
           {selectedOptions.map((item) => (
             <div
               key={item.value}

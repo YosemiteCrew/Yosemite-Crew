@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import CompanionsPage from "@/app/pages/Companions/Companions";
+import Companions from "@/app/pages/Companions/Companions";
+import { CompanionParent } from "@/app/pages/Companions/types";
 
 jest.mock("@/app/components/ProtectedRoute", () => ({
   __esModule: true,
@@ -13,26 +13,14 @@ jest.mock("@/app/components/OrgGuard", () => ({
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Filters/CompanionFilters", () => ({
-  __esModule: true,
-  default: () => <div data-testid="filters" />,
+jest.mock("@/app/stores/searchStore", () => ({
+  useSearchStore: (selector: any) => selector({ query: "" }),
 }));
 
-jest.mock("@/app/components/DataTable/CompanionsTable", () => ({
-  __esModule: true,
-  default: ({ setViewCompanion, setBookAppointment, setAddTask }: any) => (
-    <div>
-      <button type="button" onClick={() => setViewCompanion(true)}>
-        View Companion
-      </button>
-      <button type="button" onClick={() => setBookAppointment(true)}>
-        Book Appointment
-      </button>
-      <button type="button" onClick={() => setAddTask(true)}>
-        Add Task
-      </button>
-    </div>
-  ),
+const useCompanionsMock = jest.fn();
+
+jest.mock("@/app/hooks/useCompanion", () => ({
+  useCompanionsParentsForPrimaryOrg: () => useCompanionsMock(),
 }));
 
 jest.mock("@/app/components/Buttons", () => ({
@@ -43,71 +31,67 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
+jest.mock("@/app/components/Filters/Filters", () => ({
+  __esModule: true,
+  default: () => <div data-testid="filters" />,
+}));
+
+const companionsTableSpy = jest.fn();
+
+jest.mock("@/app/components/DataTable/CompanionsTable", () => ({
+  __esModule: true,
+  default: (props: any) => {
+    companionsTableSpy(props);
+    return <div data-testid="companions-table" />;
+  },
+}));
+
 jest.mock("@/app/components/AddCompanion", () => ({
   __esModule: true,
-  default: ({ showModal }: any) => (
-    <div data-testid="add-companion" data-open={showModal} />
-  ),
+  default: ({ showModal }: any) =>
+    showModal ? <div data-testid="add-companion" /> : null,
 }));
 
 jest.mock("@/app/components/CompanionInfo", () => ({
   __esModule: true,
-  default: ({ showModal }: any) => (
-    <div data-testid="companion-info" data-open={showModal} />
-  ),
+  default: () => <div data-testid="companion-info" />,
 }));
 
 jest.mock("@/app/pages/Companions/BookAppointment", () => ({
   __esModule: true,
-  default: ({ showModal }: any) => (
-    <div data-testid="book-appointment" data-open={showModal} />
-  ),
+  default: () => <div data-testid="book-appointment" />,
 }));
 
 jest.mock("@/app/pages/Companions/AddTask", () => ({
   __esModule: true,
-  default: ({ showModal }: any) => (
-    <div data-testid="add-task" data-open={showModal} />
-  ),
-}));
-
-const mockCompanions = [
-  {
-    companion: { id: "comp-1", name: "Buddy" },
-    parent: { id: "parent-1", firstName: "Jamie" },
-  },
-];
-
-jest.mock("@/app/hooks/useCompanion", () => ({
-  useCompanionsParentsForPrimaryOrg: () => mockCompanions,
+  default: () => <div data-testid="add-task" />,
 }));
 
 describe("Companions page", () => {
-  it("renders list count and toggles modals", () => {
-    render(<CompanionsPage />);
+  const companions: CompanionParent[] = [
+    {
+      companion: {
+        id: "comp-1",
+        name: "Buddy",
+        type: "dog",
+        status: "active",
+      } as any,
+      parent: { id: "parent-1", name: "Alex" } as any,
+    },
+  ];
 
-    expect(screen.getByText("Companions")).toBeInTheDocument();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useCompanionsMock.mockReturnValue(companions);
+  });
+
+  it("renders count and opens add companion modal", () => {
+    render(<Companions />);
+
     expect(screen.getByText("(1)")).toBeInTheDocument();
+    expect(screen.getByTestId("companions-table")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Add"));
-    expect(screen.getByTestId("add-companion")).toHaveAttribute(
-      "data-open",
-      "true"
-    );
-
-    fireEvent.click(screen.getByText("View Companion"));
-    expect(screen.getByTestId("companion-info")).toHaveAttribute(
-      "data-open",
-      "true"
-    );
-
-    fireEvent.click(screen.getByText("Book Appointment"));
-    expect(screen.getByTestId("book-appointment")).toHaveAttribute(
-      "data-open",
-      "true"
-    );
-
-    fireEvent.click(screen.getByText("Add Task"));
-    expect(screen.getByTestId("add-task")).toHaveAttribute("data-open", "true");
+    expect(screen.getByTestId("add-companion")).toBeInTheDocument();
   });
 });

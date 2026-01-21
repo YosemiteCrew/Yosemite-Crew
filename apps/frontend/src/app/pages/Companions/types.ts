@@ -5,39 +5,6 @@ import {
   ParentRequestDTO,
 } from "@yosemite-crew/types";
 
-export type CompanionProps = {
-  image: string;
-  name: string;
-  breed: string;
-  species: string;
-  parent: string;
-  gender: string;
-  age: string;
-  lastMedication: string;
-  vaccineDue: string;
-  upcomingAppointent: string;
-  upcomingAppointentTime: string;
-  status: string;
-
-  dateOfBirth?: string;
-  weight?: string;
-  color?: string;
-  neuteredStatus?: "yes" | "no";
-  ageWhenNeutered?: string;
-  bloodGroup?: string;
-  countryOfOrigin?: string;
-  petCameFrom?: string;
-  microchipNumber?: string;
-  passportNumber?: string;
-  insurancePolicy?: string;
-  insuranceNumber?: string;
-  parentNumber?: string;
-  parentEmail?: string;
-  coParentName?: string;
-  coParentEmail?: string;
-  coParentNumber?: string;
-};
-
 export type StoredParent = Parent & {
   id: string;
 };
@@ -59,3 +26,63 @@ export type RequestCompanion = {
 };
 
 export type GetCompanionResponse = RequestCompanion[];
+
+export type FilterOption = {
+  name: string;
+  key: string;
+};
+
+export type StatusOption = FilterOption & {
+  bg?: string;
+  text?: string;
+};
+
+export const CompanionsSpeciesFilters: FilterOption[] = [
+  {
+    name: "All",
+    key: "all",
+  },
+  {
+    name: "Dog",
+    key: "dog",
+  },
+  {
+    name: "Horse",
+    key: "horse",
+  },
+  {
+    name: "Cat",
+    key: "cat",
+  },
+  {
+    name: "Other",
+    key: "other",
+  },
+];
+
+export const CompanionsStatusFilters: StatusOption[] = [
+  {
+    name: "All",
+    key: "all",
+    bg: "#5C614B",
+    text: "#fff",
+  },
+  {
+    name: "Active",
+    key: "active",
+    bg: "#D28F9A",
+    text: "#fff",
+  },
+  {
+    name: "Inactive",
+    key: "inactive",
+    bg: "#BF9FAA",
+    text: "#fff",
+  },
+  {
+    name: "Archived",
+    key: "archived",
+    bg: "#747283",
+    text: "#fff",
+  },
+];

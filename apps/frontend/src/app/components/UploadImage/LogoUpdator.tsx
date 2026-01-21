@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import CenterModal from "../Modal/CenterModal";
 import Image from "next/image";
-import { isHttpsImageUrl } from "@/app/utils/urls";
 import { MdArrowRightAlt } from "react-icons/md";
 import { Primary, Secondary } from "../Buttons";
 import { postData } from "@/app/services/axios";
@@ -9,8 +8,7 @@ import axios from "axios";
 import { IoCamera } from "react-icons/io5";
 
 type LogoUpdatorProps = {
-  imageUrl?: string;
-  size?: number;
+  imageUrl: string;
   title: string;
   apiUrl: string;
   onSave: (s3Key: string) => Promise<void> | void;
@@ -25,7 +23,6 @@ const LogoUpdator = ({
   title,
   onSave,
   disabled,
-  size = 40,
 }: LogoUpdatorProps) => {
   const [updatePopup, setUpdatePopup] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -46,11 +43,6 @@ const LogoUpdator = ({
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
-
-  const normalizedImageUrl = useMemo(() => {
-    if (imageUrl && isHttpsImageUrl(imageUrl)) return imageUrl;
-    return "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png";
-  }, [imageUrl]);
 
   const resetSelection = () => {
     if (preview) URL.revokeObjectURL(preview);
@@ -116,12 +108,12 @@ const LogoUpdator = ({
 
   return (
     <>
-      <div className="flex justify-center">
+      <div className="flex justify-center h-10 w-10 shrink-0">
         <Image
-          src={normalizedImageUrl}
+          src={imageUrl}
           alt="Logo"
-          height={size}
-          width={size}
+          height={40}
+          width={40}
           onClick={() => !disabled && setUpdatePopup(true)}
           className="rounded-full cursor-pointer h-10 w-10 object-cover"
         />
@@ -137,7 +129,7 @@ const LogoUpdator = ({
           </div>
           <div className="flex gap-6 sm:gap-10 items-center justify-center w-full px-3">
             <Image
-              src={normalizedImageUrl}
+              src={imageUrl}
               alt="Logo"
               height={100}
               width={100}

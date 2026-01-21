@@ -19,6 +19,7 @@ import { useLoadDocumentsForPrimaryOrg } from "../hooks/useDocuments";
 import { useLoadFormsForPrimaryOrg } from "../hooks/useForms";
 import { useInventoryModule } from "../hooks/useInventory";
 import { BusinessType } from "../types/org";
+import { useLoadTasksForPrimaryOrg } from "../hooks/useTask";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -45,6 +46,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadRoomsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
   useLoadAppointmentsForPrimaryOrg();
+  useLoadTasksForPrimaryOrg()
   useLoadDocumentsForPrimaryOrg();
   useLoadFormsForPrimaryOrg();
 

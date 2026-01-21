@@ -4,6 +4,7 @@ import EditableAccordion, {
 import { useRoomsForPrimaryOrg } from "@/app/hooks/useRooms";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { updateAppointment } from "@/app/services/appointmentService";
+import { AppointmentStatusOptions } from "@/app/types/appointments";
 import { Appointment } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
 
@@ -19,7 +20,6 @@ const getAppointmentFields = ({
       key: "room",
       type: "dropdown",
       options: RoomOptions,
-      required: true,
     },
     {
       label: "Service",
@@ -42,8 +42,8 @@ const getAppointmentFields = ({
     {
       label: "Status",
       key: "status",
-      type: "status",
-      editable: false,
+      type: "select",
+      options: AppointmentStatusOptions,
     },
   ] satisfies FieldConfig[];
 
@@ -53,13 +53,18 @@ const getStaffFields = ({
   TeamOptions: { label: string; value: string }[];
 }) =>
   [
-    { label: "Lead", key: "lead", type: "text", editable: false },
+    {
+      label: "Lead",
+      key: "lead",
+      type: "select",
+      options: TeamOptions,
+      editable: false,
+    },
     {
       label: "Staff",
       key: "staff",
       type: "multiSelect",
       options: TeamOptions,
-      required: true,
     },
   ] satisfies FieldConfig[];
 
@@ -113,8 +118,8 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
 
   const StaffInfoData = useMemo(
     () => ({
-      lead: activeAppointment.lead?.name ?? "",
-      staff: activeAppointment.supportStaff?.map((s) => s.name) ?? "",
+      lead: activeAppointment.lead?.id ?? "",
+      staff: activeAppointment.supportStaff?.map((s) => s.id) ?? "",
     }),
     [activeAppointment]
   );
@@ -130,6 +135,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         ...activeAppointment,
         concern: values.concern,
         room,
+        status: values.status,
       };
       await updateAppointment(formData);
     } catch (error) {

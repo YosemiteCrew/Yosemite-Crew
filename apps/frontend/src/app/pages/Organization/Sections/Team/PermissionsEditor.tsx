@@ -218,21 +218,21 @@ const PermissionsEditor = ({
           <button
             type="button"
             onClick={resetToRoleDefaults}
-            className="font-satoshi text-[14px] px-2 py-1.5 text-blue-text"
+            className="text-caption-1 px-2 py-1.5 text-text-brand"
           >
             Reset to role defaults
           </button>
         </div>
         <div className="flex flex-col overflow-hidden">
           <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
-            <div className="font-satoshi text-[16px] text-[#747473] font-light">
+            <div className="text-body-4 text-[#747473]">
               Permission
             </div>
             <div className="flex gap-10 items-center">
-              <div className="font-satoshi text-[16px] text-[#747473] font-light w-[72px] text-center">
+              <div className="text-body-4 text-[#747473] w-[72px] text-center">
                 View
               </div>
-              <div className="font-satoshi text-[16px] text-[#747473] font-light w-[72px] text-center">
+              <div className="text-body-4 text-[#747473] w-[72px] text-center">
                 Edit
               </div>
             </div>
@@ -248,7 +248,7 @@ const PermissionsEditor = ({
                 className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white last:border-b-0"
               >
                 <div className="flex flex-col">
-                  <div className="font-satoshi text-[18px] text-[#747473] font-medium">
+                  <div className="text-body-3 text-text-primary">
                     {row.label}
                   </div>
                 </div>

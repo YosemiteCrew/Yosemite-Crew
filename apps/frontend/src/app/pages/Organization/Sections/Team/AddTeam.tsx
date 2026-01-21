@@ -11,6 +11,7 @@ import { isValidEmail } from "@/app/utils/validators";
 import { TeamFormDataType } from "@/app/types/team";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
+import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 
 type AddTeamProps = {
   showModal: boolean;
@@ -19,10 +20,7 @@ type AddTeamProps = {
 
 const initialData = {
   email: "",
-  speciality: {
-    name: "",
-    key: "",
-  },
+  speciality: [],
   role: "",
   type: EmploymentTypes[0].value,
 };
@@ -44,7 +42,8 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   const handleSave = async () => {
     const errors: { email?: string; speciality?: string; role?: string } = {};
     if (!formData.email) errors.email = "Email is required";
-    if (!formData.speciality.name) errors.speciality = "Speciality is required";
+    if (formData.speciality.length === 0)
+      errors.speciality = "Speciality is required";
     if (!formData.role) errors.role = "Role is required";
     if (!isValidEmail(formData.email)) errors.email = "Enter a valid email";
     setFormDataErrors(errors);
@@ -92,20 +91,12 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 error={formDataErrors.email}
                 className="min-h-12!"
               />
-              <LabelDropdown
+              <MultiSelectDropdown
                 placeholder="Speciality"
-                onSelect={(option) =>
-                  setFormData({
-                    ...formData,
-                    speciality: {
-                      name: option.label,
-                      key: option.value,
-                    },
-                  })
-                }
-                defaultOption={formData.speciality.key}
-                error={formDataErrors.speciality}
+                value={formData.speciality}
+                onChange={(e) => setFormData({ ...formData, speciality: e })}
                 options={SpecialitiesOptions}
+                error={formDataErrors.speciality}
               />
               <LabelDropdown
                 placeholder="Role"
@@ -129,8 +120,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
           </Accordion>
           <Primary
             href="#"
-            text="Save"
-            classname="max-h-12! text-lg! tracking-wide!"
+            text="Send invite"
             onClick={handleSave}
           />
         </div>

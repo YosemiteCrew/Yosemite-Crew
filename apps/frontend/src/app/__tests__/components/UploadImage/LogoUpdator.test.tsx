@@ -35,11 +35,6 @@ jest.mock("axios", () => ({
   put: jest.fn(),
 }));
 
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: any) => <img alt={props.alt} {...props} />,
-}));
-
 jest.mock("react-icons/md", () => ({
   MdArrowRightAlt: () => <span>arrow</span>,
 }));
@@ -48,20 +43,25 @@ jest.mock("react-icons/io5", () => ({
   IoCamera: () => <span>camera</span>,
 }));
 
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: any) => <img alt={props.alt} {...props} />,
+}));
+
 describe("LogoUpdator", () => {
-  it("shows error when updating without file", () => {
+  it("shows validation error when update without file", () => {
     render(
       <LogoUpdator
         title="Update Logo"
         apiUrl="/api/logo"
         onSave={jest.fn()}
+        imageUrl="https://d2il6osz49gpup.cloudfront.net/avatar/business1.png"
       />
     );
 
     fireEvent.click(screen.getAllByAltText("Logo")[0]);
-    expect(screen.getByTestId("modal")).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
     expect(
       screen.getByText("Please choose an image to upload.")
     ).toBeInTheDocument();

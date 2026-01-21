@@ -59,7 +59,7 @@ const Organizations = () => {
         <div className="text-body-2 text-text-primary">
           Invites<span className="text-text-tertiary">{" (" + invites.length + ")"}</span>
         </div>
-        <OrgInvites invites={invites} />
+        <OrgInvites invites={invites} setInvites={setInvites} />
       </div>
     </div>
   );

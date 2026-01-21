@@ -2,11 +2,15 @@ import React from "react";
 import { getStatusStyle } from "../../DataTable/Appointments";
 import Image from "next/image";
 import { Appointment } from "@yosemite-crew/types";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
+import { allowReschedule } from "@/app/utils/appointments";
+import { IoIosCalendar } from "react-icons/io";
 
 type SlotProps = {
   slotEvents: Appointment[];
   height: number;
   handleViewAppointment: (appt: Appointment) => void;
+  handleRescheduleAppointment: (appt: Appointment) => void;
   dayIndex: number;
   length: number;
 };
@@ -15,6 +19,7 @@ const Slot: React.FC<SlotProps> = ({
   slotEvents,
   height,
   handleViewAppointment,
+  handleRescheduleAppointment,
   dayIndex,
   length,
 }) => {
@@ -41,16 +46,28 @@ const Slot: React.FC<SlotProps> = ({
             style={getStatusStyle(ev.status)}
             onClick={() => handleViewAppointment(ev)}
           >
-            <div className="text-body-4 truncate">
-              {ev.companion.name}
+            <div className="text-body-4 truncate">{ev.companion.name}</div>
+            <div className="flex items-center gap-1">
+              {allowReschedule(ev.status) && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRescheduleAppointment(ev);
+                  }}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-[30px] w-[30px] rounded-full! border border-black-white! flex items-center justify-center cursor-pointer"
+                >
+                  <IoIosCalendar size={16} color="#fff" />
+                </button>
+              )}
+              <Image
+                src={getSafeImageUrl("", ev.companion.species as ImageType)}
+                height={30}
+                width={30}
+                className="rounded-full flex-none"
+                alt={""}
+              />
             </div>
-            <Image
-              src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
-              height={30}
-              width={30}
-              className="rounded-full flex-none"
-              alt={""}
-            />
           </button>
         ))}
       </div>

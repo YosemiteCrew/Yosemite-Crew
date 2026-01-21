@@ -1,5 +1,6 @@
 import { Speciality, UserOrganizationRequestDTO } from "@yosemite-crew/types";
 import { BusinessType } from "./org";
+import { Permission } from "../utils/permissions";
 
 export type EmploymentTypesProps = "FULL_TIME" | "PART_TIME" | "CONTRACTOR";
 
@@ -42,14 +43,17 @@ export type Invite = {
 
 export type Team = {
   _id: string;
+  practionerId: string;
   organisationId: string;
   name?: string;
   image?: string;
   role: string;
-  speciality: Speciality;
+  speciality: Speciality[];
   todayAppointment?: string;
   weeklyWorkingHours?: string;
   status: TeamStatusProps;
+  effectivePermissions: Permission[];
+  extraPerissions: Permission[];
 };
 
 export type TeamAdd = {
@@ -68,7 +72,7 @@ export type TeamResponse = {
   userOrganisation: UserOrganizationRequestDTO;
   name?: string;
   profileUrl?: string;
-  speciality: Speciality;
+  speciality: Speciality[];
   currentStatus: TeamStatusProps;
   weeklyHours?: string;
   count?: string;
@@ -76,10 +80,7 @@ export type TeamResponse = {
 
 export type TeamFormDataType = {
   email: string;
-  speciality: {
-    name: string;
-    key: string;
-  };
+  speciality: string[];
   role: string;
   type: string;
 };

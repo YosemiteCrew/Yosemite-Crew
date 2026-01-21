@@ -10,7 +10,6 @@ import { createUserProfile } from "@/app/services/profileService";
 import Datepicker from "../../Inputs/Datepicker";
 import { getCountryCode, validatePhone } from "@/app/utils/validators";
 import { formatDateLocal } from "@/app/utils/date";
-import { Icon } from "@iconify/react/dist/iconify.js";
 
 import "./Step.css";
 import LabelDropdown from "../../Inputs/Dropdown/LabelDropdown";
@@ -127,22 +126,14 @@ const PersonalStep = ({
       />
 
       <div className="team-personal-container">
-        <div className="flex flex-col gap-1 w-full">
-          <Datepicker
-            currentDate={currentDate}
-            setCurrentDate={setCurrentDate}
-            type="input"
-            className="h-12! xl:h-[60px]!"
-            containerClassName="w-full"
-            placeholder="Date of birth"
-          />
-          {formDataErrors.dateOfBirth && (
-            <div className="Errors">
-              <Icon icon="mdi:error" width="16" height="16" />
-              {formDataErrors.dateOfBirth}
-            </div>
-          )}
-        </div>
+        <Datepicker
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          type="input"
+          containerClassName="w-full"
+          placeholder="Date of birth"
+          error={formDataErrors.dateOfBirth}
+        />
 
         <div className="team-personal-two">
           <LabelDropdown

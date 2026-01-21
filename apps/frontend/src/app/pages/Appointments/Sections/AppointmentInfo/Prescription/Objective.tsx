@@ -83,7 +83,7 @@ const Objective = ({
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
       <Accordion
         title="Objective (clinical examination)"
         defaultOpen
