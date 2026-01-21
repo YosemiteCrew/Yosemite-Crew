@@ -533,7 +533,7 @@ export const StripeService = {
         stripePriceId: price.id,
         stripeProductId: productId ?? null,
         billingInterval: price.recurring?.interval,
-
+        joinedAt: new Date(),
         subscriptionStatus: subscription.status,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
 
