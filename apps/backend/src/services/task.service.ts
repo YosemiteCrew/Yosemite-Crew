@@ -8,6 +8,10 @@ import TaskCompletionModel, {
 } from "../models/taskCompletion";
 import TaskLibraryDefinitionModel from "../models/taskLibraryDefinition";
 import TaskTemplateModel from "../models/taskTemplate";
+import CompanionModel from "../models/companion";
+import UserModel from "../models/user";
+import { sendEmailTemplate } from "../utils/email";
+import logger from "../utils/logger";
 
 export class TaskServiceError extends Error {
   constructor(
@@ -33,6 +37,65 @@ export type MedicationInput = {
   type?: string;
   notes?: string;
   doses?: MedicationDoseInput[];
+};
+
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL ??
+  process.env.SUPPORT_EMAIL_ADDRESS ??
+  process.env.HELP_EMAIL ??
+  "support@yosemitecrew.com";
+
+const buildDisplayName = (
+  user?: { firstName?: string; lastName?: string } | null,
+) => {
+  if (!user) return undefined;
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+};
+
+const sendTaskAssignmentEmail = async (task: TaskDocument) => {
+  if (task.audience !== "EMPLOYEE_TASK") return;
+
+  try {
+    const [assignee, assigner, companion] =
+      await Promise.all([
+        UserModel.findOne(
+          { userId: task.assignedTo },
+          { email: 1, firstName: 1, lastName: 1 },
+        ).lean(),
+        UserModel.findOne(
+          { userId: task.assignedBy ?? task.createdBy },
+          { firstName: 1, lastName: 1 },
+        ).lean(),
+        task.companionId
+          ? CompanionModel.findById(task.companionId)
+              .select("name")
+              .lean()
+          : Promise.resolve(null),
+      ]);
+
+    if (!assignee?.email) return;
+
+    const dueTime = task.dueAt.toUTCString();
+    const employeeName = buildDisplayName(assignee);
+    const assignedByName = buildDisplayName(assigner);
+
+    await sendEmailTemplate({
+      to: assignee.email,
+      templateId: "taskAssigned",
+      templateData: {
+        employeeName,
+        taskName: task.name,
+        companionName: companion?.name,
+        dueTime,
+        assignedByName,
+        additionalNotes: task.additionalNotes,
+        supportEmail: SUPPORT_EMAIL_ADDRESS,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to send task assignment email.", error);
+  }
 };
 
 const normalizeDoseTime = (value: unknown): string | undefined => {
@@ -281,6 +344,8 @@ export const TaskService = {
       status: "PENDING",
     });
 
+    void sendTaskAssignmentEmail(doc);
+
     return doc;
   },
 
@@ -386,6 +451,8 @@ export const TaskService = {
       status: "PENDING",
     });
 
+    void sendTaskAssignmentEmail(doc);
+
     return doc;
   },
 
@@ -443,6 +510,8 @@ export const TaskService = {
 
       status: "PENDING",
     });
+
+    void sendTaskAssignmentEmail(doc);
 
     return doc;
   },

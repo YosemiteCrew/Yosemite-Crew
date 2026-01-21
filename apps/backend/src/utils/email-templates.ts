@@ -20,57 +20,248 @@ const renderBaseEmail = (
   </head>
   <body style="margin:0; padding:0; background-color:#f4f8ff;">
     <center style="width:100%; background-color:#f4f8ff;">
-      <table role="presentation" width="100%">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr>
           <td align="center">
-            <table role="presentation" width="600" style="background-color:#ffffff;">
-
-              <!-- Header -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px; max-width:100%; background-color:#ffffff;">
               <tr>
-                <td align="center" style="border-bottom:2px solid #7d7d7d;">
-                  <a href="https://www.yosemitecrew.com/">
-                    <img
-                      src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
-                      alt="Yosemite Crew Logo"
-                      width="110"
-                      height="100"
-                    />
-                  </a>
+                <td align="center" style="padding:0; border-bottom:2px solid #7d7d7d; background-color:#ffffff;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center" style="padding:16px 24px;">
+                        <a href="https://www.yosemitecrew.com/" style="text-decoration:none;">
+                          <img
+                            src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
+                            alt="Yosemite Crew Logo"
+                            width="110"
+                            height="100"
+                            style="display:block; border:0; outline:none; text-decoration:none;"
+                          />
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
 
-              <!-- Content -->
-              ${contentHtml}
-
-              <!-- Hero Image -->
               <tr>
-                <td align="center">
+                <td align="left" style="padding:32px 16px 32px 16px; font-family:Arial, sans-serif; font-size:18px; line-height:1.5; color:#595958;">
+                  ${contentHtml}
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" style="padding:0; margin:0;">
                   <img
                     src="https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg"
+                    alt=""
                     width="600"
-                    style="width:100%;"
+                    style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;"
                   />
                 </td>
               </tr>
 
-              <!-- Footer Decoration -->
               <tr>
                 <td align="center" style="background-color:#f4f8ff; padding-top:24px;">
                   <img
                     src="https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
+                    alt=""
                     width="60"
                     height="60"
+                    style="display:block; margin:0 auto; border:0; outline:none; text-decoration:none;"
                   />
                 </td>
               </tr>
 
-              <!-- Footer -->
               <tr>
-                <td align="center" style="background-color:#f4f8ff; padding:24px;">
-                  <!-- reuse OTP footer here -->
+                <td align="center" style="background-color:#f4f8ff; padding:24px 16px 30px 16px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;">
+                    <tr>
+                      <td valign="top" width="50%" style="padding:8px; font-family:Arial, sans-serif;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td style="padding-bottom:16px;">
+                              <a href="https://www.yosemitecrew.com/" style="text-decoration:none;">
+                                <img
+                                  src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
+                                  alt="Yosemite Crew Logo"
+                                  width="90"
+                                  height="83"
+                                  style="display:block; border:0; outline:none; text-decoration:none;"
+                                />
+                              </a>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                  <td style="padding-right:8px; padding-bottom:8px;">
+                                    <img
+                                      src="https://d2il6osz49gpup.cloudfront.net/footer/gdpr.png"
+                                      alt="GDPR"
+                                      width="55"
+                                      height="56"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
+                                    />
+                                  </td>
+                                  <td style="padding-right:8px; padding-bottom:8px;">
+                                    <img
+                                      src="https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png"
+                                      alt="SOC2"
+                                      width="56"
+                                      height="56"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
+                                    />
+                                  </td>
+                                  <td style="padding-right:8px; padding-bottom:8px;">
+                                    <img
+                                      src="https://d2il6osz49gpup.cloudfront.net/footer/iso.png"
+                                      alt="ISO"
+                                      width="54"
+                                      height="60"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
+                                    />
+                                  </td>
+                                  <td style="padding-bottom:8px;">
+                                    <img
+                                      src="https://d2il6osz49gpup.cloudfront.net/footer/fhir.png"
+                                      alt="FHIR"
+                                      width="117"
+                                      height="28"
+                                      style="display:block; border:0; outline:none; text-decoration:none;"
+                                    />
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+
+                      <td valign="top" width="50%" style="padding:8px; font-family:Arial, sans-serif;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                          <tr>
+                            <td valign="top" style="padding:4px 8px;">
+                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
+                                Developers
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://github.com/YosemiteCrew/Yosemite-Crew/"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Developer portal
+                                </a>
+                              </p>
+                              <p style="margin:0; font-size:14px;">
+                                <a
+                                  href="https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Contributing
+                                </a>
+                              </p>
+                            </td>
+
+                            <td valign="top" style="padding:4px 8px;">
+                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
+                                Community
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://discord.gg/4zDVekEz"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Discord
+                                </a>
+                              </p>
+                              <p style="margin:0; font-size:14px;">
+                                <a
+                                  href="https://github.com/YosemiteCrew/Yosemite-Crew"
+                                  target="_blank"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  GitHub
+                                </a>
+                              </p>
+                            </td>
+
+                            <td valign="top" style="padding:4px 8px;">
+                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
+                                Company
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/about"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  About us
+                                </a>
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/terms-and-conditions"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Terms and conditions
+                                </a>
+                              </p>
+                              <p style="margin:0 0 6px 0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/privacy-policy"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Privacy policy
+                                </a>
+                              </p>
+                              <p style="margin:0; font-size:14px;">
+                                <a
+                                  href="https://www.yosemitecrew.com/pricing"
+                                  style="color:#2b2b2b; text-decoration:none;"
+                                >
+                                  Pricing
+                                </a>
+                              </p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
 
+              <tr>
+                <td align="center" style="background-color:#f4f8ff; padding:8px 16px 24px 16px;">
+                  <p style="margin:0 0 4px 0; font-family:Arial, sans-serif; font-size:15px; font-weight:bold; line-height:1.2; color:#2b2b2b; text-align:center;">
+                    Copyright &copy; 2025 DuneXploration
+                  </p>
+                  <p style="margin:0 0 4px 0; font-family:Arial, sans-serif; font-size:15px; line-height:1.4; color:#2b2b2b; text-align:center;">
+                    DuneXploration UG (haftungsbeschraenkt), Am Finther Weg 7, 55127 Mainz<br />
+                    email:
+                    <a
+                      href="mailto:support@yosemitecrew.com"
+                      style="color:#007bff; font-weight:700; text-decoration:none;"
+                    >
+                      support@yosemitecrew.com
+                    </a>,
+                    phone:
+                    <a
+                      href="tel:+4915227763275"
+                      style="color:#007bff; font-weight:700; text-decoration:none;"
+                    >
+                      +49 152 277 63275
+                    </a>
+                  </p>
+                  <p style="margin:4px 0 0 0; font-family:Arial, sans-serif; font-size:15px; line-height:1.4; color:#2b2b2b; text-align:center;">
+                    Geschaeftsfuehrer: Ankit Upadhyay -- Amtsgericht Mainz unter HRB 52778, VAT: DE367920596
+                  </p>
+                </td>
+              </tr>
             </table>
           </td>
         </tr>
@@ -104,11 +295,12 @@ export interface OrganisationInviteTemplateData {
   inviteeName?: string;
   inviterName?: string;
   acceptUrl: string;
+  declineUrl?: string;
   expiresAt: DateLike;
   supportEmail?: string;
 }
 
-export const renderOrganisationInviteTemplate =
+const buildOrganisationInviteTemplate =
   createEmailTemplate<OrganisationInviteTemplateData>((data) => {
     const inviteeName = data.inviteeName?.trim() || "there";
     const organisationName = data.organisationName.trim();
@@ -116,38 +308,53 @@ export const renderOrganisationInviteTemplate =
     const expiry = formatDate(data.expiresAt);
     const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
 
-    return {
-      subject: `You’re invited to join ${organisationName} on Yosemite Crew`,
-      contentHtml: `
-      <tr>
-        <td style="padding:32px 16px; font-family:Arial; font-size:18px;">
-          <p>Hi ${inviteeName},</p>
-
-          <p>
-            <strong>${inviterName}</strong> invited you to join
-            <strong>${organisationName}</strong>.
-          </p>
-
-          <table align="center" style="margin:24px auto;">
+    const declineHtml = data.declineUrl
+      ? `
+          <table align="center" style="margin:8px auto 0;">
             <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${data.acceptUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  Accept Invitation
+              <td bgcolor="#e5e7eb" style="border-radius:6px;">
+                <a href="${data.declineUrl}" style="padding:12px 24px; color:#111827; font-weight:bold;">
+                  Decline Invitation
                 </a>
               </td>
             </tr>
           </table>
+        `
+      : "";
+    const declineText = data.declineUrl
+      ? `Decline: ${data.declineUrl}`
+      : "";
 
-          <p>Expires on <strong>${expiry}</strong></p>
-          <p>Need help? <a href="mailto:${supportEmail}">${supportEmail}</a></p>
-        </td>
-      </tr>
+    return {
+      subject: `You’re invited to join ${organisationName} on Yosemite Crew`,
+      contentHtml: `
+      <p>Hi ${inviteeName},</p>
+
+      <p>
+        <strong>${inviterName}</strong> invited you to join
+        <strong>${organisationName}</strong>.
+      </p>
+
+      <table align="center" style="margin:24px auto;">
+        <tr>
+          <td bgcolor="#2563eb" style="border-radius:6px;">
+            <a href="${data.acceptUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+              Accept Invitation
+            </a>
+          </td>
+        </tr>
+      </table>
+      ${declineHtml}
+
+      <p>Expires on <strong>${expiry}</strong></p>
+      <p>Need help? <a href="mailto:${supportEmail}">${supportEmail}</a></p>
     `,
       textBody: `
 Hi ${inviteeName},
 
 ${inviterName} invited you to join ${organisationName}.
 Accept: ${data.acceptUrl}
+${declineText}
 
 Expires on ${expiry}
 Support: ${supportEmail}
@@ -166,7 +373,7 @@ export interface PetParentOrganisationInviteData {
   supportEmail?: string;
 }
 
-export const renderPetParentOrganisationInviteEmail =
+const buildPetParentOrganisationInviteTemplate =
   createEmailTemplate<PetParentOrganisationInviteData>((data) => {
     const organisationName = data.organisationName.trim();
     const petParentName = data.petParentName.trim();
@@ -176,57 +383,53 @@ export const renderPetParentOrganisationInviteEmail =
     return {
       subject: `${petParentName} invited you to join Yosemite Crew PMS`,
       contentHtml: `
-        <tr>
-          <td style="padding:32px 16px; font-family:Arial; font-size:18px; line-height:1.5; color:#595958;">
-            <p>Hello,</p>
+        <p>Hello,</p>
 
-            <p>
-              <strong>${petParentName}</strong>
-              has invited <strong>${organisationName}</strong> to join
-              <strong>Yosemite Crew PMS</strong>.
-            </p>
+        <p>
+          <strong>${petParentName}</strong>
+          has invited <strong>${organisationName}</strong> to join
+          <strong>Yosemite Crew PMS</strong>.
+        </p>
 
-            <p>
-              By joining Yosemite Crew PMS, your organisation can:
-            </p>
+        <p>
+          By joining Yosemite Crew PMS, your organisation can:
+        </p>
 
-            <ul style="padding-left:20px;">
-              <li>Manage appointments seamlessly</li>
-              <li>Collaborate with pet parents digitally</li>
-              <li>Track care, tasks, and communication in one place</li>
-            </ul>
+        <ul style="padding-left:20px;">
+          <li>Manage appointments seamlessly</li>
+          <li>Collaborate with pet parents digitally</li>
+          <li>Track care, tasks, and communication in one place</li>
+        </ul>
 
-            <table align="center" style="margin:32px auto;">
-              <tr>
-                <td bgcolor="#2563eb" style="border-radius:6px;">
-                  <a
-                    href="${data.acceptUrl}"
-                    target="_blank"
-                    rel="noopener"
-                    style="padding:14px 32px; color:#ffffff; font-weight:bold; text-decoration:none; display:inline-block;"
-                  >
-                    Join PMS
-                  </a>
-                </td>
-              </tr>
-            </table>
+        <table align="center" style="margin:32px auto;">
+          <tr>
+            <td bgcolor="#2563eb" style="border-radius:6px;">
+              <a
+                href="${data.acceptUrl}"
+                target="_blank"
+                rel="noopener"
+                style="padding:14px 32px; color:#ffffff; font-weight:bold; text-decoration:none; display:inline-block;"
+              >
+                Join PMS
+              </a>
+            </td>
+          </tr>
+        </table>
 
-            <p style="margin-top:24px;">
-              This invitation expires on <strong>${expiry}</strong>.
-            </p>
+        <p style="margin-top:24px;">
+          This invitation expires on <strong>${expiry}</strong>.
+        </p>
 
-            <p style="font-size:16px;">
-              If you weren’t expecting this invitation, you can safely ignore this email.
-              For assistance, contact
-              <a href="mailto:${supportEmail}">${supportEmail}</a>.
-            </p>
+        <p style="font-size:16px;">
+          If you weren’t expecting this invitation, you can safely ignore this email.
+          For assistance, contact
+          <a href="mailto:${supportEmail}">${supportEmail}</a>.
+        </p>
 
-            <p style="margin-top:24px;">
-              Warm regards,<br />
-              Yosemite Crew Team
-            </p>
-          </td>
-        </tr>
+        <p style="margin-top:24px;">
+          Warm regards,<br />
+          Yosemite Crew Team
+        </p>
       `,
       textBody: `
 Hello,
@@ -245,3 +448,164 @@ ${supportEmail}
       `.trim(),
     };
   });
+
+/* ---------- Appointment Assignment ---------- */
+
+export interface AppointmentAssignedTemplateData {
+  employeeName?: string;
+  companionName: string;
+  appointmentType?: string;
+  appointmentTime: string;
+  organisationName?: string;
+  locationName?: string;
+  appointmentUrl?: string;
+  supportEmail?: string;
+}
+
+const buildAppointmentAssignedTemplate =
+  createEmailTemplate<AppointmentAssignedTemplateData>((data) => {
+    const employeeName = data.employeeName?.trim() || "there";
+    const appointmentType = data.appointmentType?.trim();
+    const organisationName = data.organisationName?.trim() || "Yosemite Crew";
+    const locationName = data.locationName?.trim();
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const appointmentDetails = appointmentType
+      ? `${appointmentType} for ${data.companionName}`
+      : `Appointment for ${data.companionName}`;
+    const actionHtml = data.appointmentUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${data.appointmentUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  View Appointment
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = data.appointmentUrl
+      ? `View appointment: ${data.appointmentUrl}`
+      : "";
+
+    return {
+      subject: `New appointment assigned at ${organisationName}`,
+      contentHtml: `
+      <p>Hi ${employeeName},</p>
+      <p>${appointmentDetails} has been assigned to you.</p>
+      <p><strong>When:</strong> ${data.appointmentTime}</p>
+      ${locationName ? `<p><strong>Where:</strong> ${locationName}</p>` : ""}
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${employeeName},
+
+${appointmentDetails} has been assigned to you.
+When: ${data.appointmentTime}
+${locationName ? `Where: ${locationName}` : ""}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
+/* ---------- Task Assignment ---------- */
+
+export interface TaskAssignedTemplateData {
+  employeeName?: string;
+  taskName: string;
+  companionName?: string;
+  dueTime: string;
+  assignedByName?: string;
+  taskUrl?: string;
+  additionalNotes?: string;
+  supportEmail?: string;
+}
+
+const buildTaskAssignedTemplate =
+  createEmailTemplate<TaskAssignedTemplateData>((data) => {
+    const employeeName = data.employeeName?.trim() || "there";
+    const assignedByName = data.assignedByName?.trim() || "a team member";
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const companionLine = data.companionName
+      ? `Companion: ${data.companionName}`
+      : "";
+    const actionHtml = data.taskUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${data.taskUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  View Task
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = data.taskUrl ? `View task: ${data.taskUrl}` : "";
+
+    return {
+      subject: `New task assigned: ${data.taskName}`,
+      contentHtml: `
+      <p>Hi ${employeeName},</p>
+      <p><strong>${assignedByName}</strong> assigned you a task.</p>
+      <p><strong>Task:</strong> ${data.taskName}</p>
+      ${data.companionName ? `<p><strong>Companion:</strong> ${data.companionName}</p>` : ""}
+      <p><strong>Due:</strong> ${data.dueTime}</p>
+      ${data.additionalNotes ? `<p><strong>Notes:</strong> ${data.additionalNotes}</p>` : ""}
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${employeeName},
+
+${assignedByName} assigned you a task.
+Task: ${data.taskName}
+${companionLine}
+Due: ${data.dueTime}
+${data.additionalNotes ? `Notes: ${data.additionalNotes}` : ""}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
+type EmailTemplateRegistry = {
+  organisationInvite: typeof buildOrganisationInviteTemplate;
+  petParentOrganisationInvite: typeof buildPetParentOrganisationInviteTemplate;
+  appointmentAssigned: typeof buildAppointmentAssignedTemplate;
+  taskAssigned: typeof buildTaskAssignedTemplate;
+};
+
+export const emailTemplates: EmailTemplateRegistry = {
+  organisationInvite: buildOrganisationInviteTemplate,
+  petParentOrganisationInvite: buildPetParentOrganisationInviteTemplate,
+  appointmentAssigned: buildAppointmentAssignedTemplate,
+  taskAssigned: buildTaskAssignedTemplate,
+};
+
+export type EmailTemplateId = keyof typeof emailTemplates;
+export type EmailTemplateDataMap = {
+  [K in EmailTemplateId]: Parameters<(typeof emailTemplates)[K]>[0];
+};
+
+export const renderEmailTemplate = <K extends EmailTemplateId>(
+  templateId: K,
+  data: EmailTemplateDataMap[K],
+): RenderedEmailTemplate => {
+  const template = emailTemplates[templateId] as (
+    input: EmailTemplateDataMap[K],
+  ) => RenderedEmailTemplate;
+  return template(data);
+};
+
+export const renderOrganisationInviteTemplate =
+  emailTemplates.organisationInvite;
+
+export const renderPetParentOrganisationInviteEmail =
+  emailTemplates.petParentOrganisationInvite;

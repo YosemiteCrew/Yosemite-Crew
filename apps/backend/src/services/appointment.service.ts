@@ -18,12 +18,15 @@ import { StripeService } from "./stripe.service";
 import { OccupancyModel } from "src/models/occupancy";
 import OrganizationModel from "src/models/organization";
 import UserProfileModel from "src/models/user-profile";
+import UserModel from "src/models/user";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { TaskService } from "./task.service";
 import { FormService, FormServiceError } from "./form.service";
 import { OrgBilling } from "src/models/organization.billing";
 import { OrgUsageCounters } from "src/models/organisation.usage.counter";
+import { sendEmailTemplate } from "src/utils/email";
+import logger from "src/utils/logger";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -72,6 +75,88 @@ const markFreeLimitReachedAt = async (
     { _id: usage._id, freeLimitReachedAt: null },
     { $set: { freeLimitReachedAt: new Date() } },
   );
+};
+
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL ??
+  process.env.SUPPORT_EMAIL_ADDRESS ??
+  process.env.HELP_EMAIL ??
+  "support@yosemitecrew.com";
+
+const buildDisplayName = (user?: { firstName?: string; lastName?: string }) => {
+  if (!user) return undefined;
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+};
+
+const getOrganisationName = async (organisationId?: string) => {
+  if (!organisationId) return undefined;
+  const organisation = await OrganizationModel.findById(organisationId)
+    .select("name")
+    .lean();
+  return organisation?.name;
+};
+
+const sendAppointmentAssignmentEmails = async (
+  appointment: AppointmentDocument,
+  organisationName?: string,
+) => {
+  try {
+    const staff = [
+      appointment.lead
+        ? { id: appointment.lead.id, name: appointment.lead.name }
+        : undefined,
+      ...(appointment.supportStaff ?? []).map((member) => ({
+        id: member.id,
+        name: member.name,
+      })),
+    ].filter(Boolean) as Array<{ id: string; name?: string }>;
+
+    if (!staff.length) return;
+
+    const staffIds = [...new Set(staff.map((member) => member.id))];
+    const users = await UserModel.find(
+      { userId: { $in: staffIds } },
+      { userId: 1, email: 1, firstName: 1, lastName: 1 },
+    ).lean();
+
+    const userById = new Map(users.map((user) => [user.userId, user]));
+    const nameById = new Map(staff.map((member) => [member.id, member.name]));
+    const appointmentTime = dayjs(appointment.startTime).format(
+      "MMM D, YYYY h:mm A",
+    );
+
+    await Promise.all(
+      staffIds.map(async (userId) => {
+        const user = userById.get(userId);
+        const email = user?.email;
+        if (!email) return;
+
+        const employeeName =
+          buildDisplayName(user) ?? nameById.get(userId) ?? undefined;
+
+        try {
+          await sendEmailTemplate({
+            to: email,
+            templateId: "appointmentAssigned",
+            templateData: {
+              employeeName,
+              companionName: appointment.companion.name,
+              appointmentType: appointment.appointmentType?.name,
+              appointmentTime,
+              organisationName,
+              locationName: appointment.room?.name,
+              supportEmail: SUPPORT_EMAIL_ADDRESS,
+            },
+          });
+        } catch (error) {
+          logger.error("Failed to send appointment assignment email.", error);
+        }
+      }),
+    );
+  } catch (error) {
+    logger.error("Failed to prepare appointment assignment emails.", error);
+  }
 };
 
 type AppointmentUsageIncrement = {
@@ -590,6 +675,11 @@ export const AppointmentService = {
       const parentId = appointment.companion.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
 
+      const organisationName = await getOrganisationName(
+        appointment.organisationId,
+      );
+      await sendAppointmentAssignmentEmails(doc, organisationName);
+
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),
         invoice,
@@ -704,6 +794,11 @@ export const AppointmentService = {
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
+
+      const organisationName = await getOrganisationName(
+        appointment.organisationId,
+      );
+      await sendAppointmentAssignmentEmails(appointment, organisationName);
 
       // Convert final domain → FHIR appointment
       return toAppointmentResponseDTO(toDomain(appointment));

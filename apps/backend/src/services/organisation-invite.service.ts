@@ -15,14 +15,20 @@ import {
   UserOrganizationService,
   UserOrganizationServiceError,
 } from "./user-organization.service";
-import { renderOrganisationInviteTemplate } from "../utils/email-templates";
-import { sendEmail } from "../utils/email";
+import { sendEmailTemplate } from "../utils/email";
+import UserModel from "src/models/user";
 
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9\-.]{1,64}$/;
 const DEFAULT_ACCEPT_URL = "https://app.yosemitecrew.com/invite";
 const ACCEPT_INVITE_BASE_URL =
   process.env.ORG_INVITE_ACCEPT_BASE_URL ??
   process.env.INVITE_ACCEPT_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  DEFAULT_ACCEPT_URL;
+const DECLINE_INVITE_BASE_URL =
+  process.env.ORG_INVITE_DECLINE_BASE_URL ??
+  process.env.INVITE_DECLINE_BASE_URL ??
   process.env.FRONTEND_BASE_URL ??
   process.env.APP_URL ??
   DEFAULT_ACCEPT_URL;
@@ -294,25 +300,49 @@ const buildAcceptInviteUrl = (token: string): string => {
   }
 };
 
+const buildDeclineInviteUrl = (token: string): string | undefined => {
+  const trimmedBase = DECLINE_INVITE_BASE_URL?.trim();
+
+  if (!trimmedBase) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(trimmedBase);
+    url.searchParams.set("token", token);
+    url.searchParams.set("action", "decline");
+    return url.toString();
+  } catch {
+    const base = trimmedBase.endsWith("/")
+      ? trimmedBase.slice(0, -1)
+      : trimmedBase;
+    const separator = base.includes("?") ? "&" : "?";
+    return `${base}${separator}token=${encodeURIComponent(token)}&action=decline`;
+  }
+};
+
 const sendInviteEmail = async (
   invite: OrganisationInviteDocument,
   organisation: OrganizationMongo,
 ) => {
   const acceptUrl = buildAcceptInviteUrl(invite.token);
-  const template = renderOrganisationInviteTemplate({
-    organisationName: organisation.name ?? "your organisation",
-    inviteeName: invite.inviteeName,
-    inviterName: undefined,
-    acceptUrl,
-    expiresAt: invite.expiresAt,
-    supportEmail: SUPPORT_EMAIL_ADDRESS,
-  });
+  const declineUrl = buildDeclineInviteUrl(invite.token);
 
-  await sendEmail({
+  const inviter = await UserModel.findOne({
+    userId : invite.invitedByUserId
+  })
+  await sendEmailTemplate({
     to: invite.inviteeEmail,
-    subject: template.subject,
-    htmlBody: template.htmlBody,
-    textBody: template.textBody,
+    templateId: "organisationInvite",
+    templateData: {
+      organisationName: organisation.name ?? "your organisation",
+      inviteeName: invite.inviteeName,
+      inviterName: inviter?.firstName + " " + inviter?.lastName ,
+      acceptUrl,
+      declineUrl,
+      expiresAt: invite.expiresAt,
+      supportEmail: SUPPORT_EMAIL_ADDRESS,
+    },
   });
 };
 
