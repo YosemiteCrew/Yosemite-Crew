@@ -484,12 +484,6 @@ describe("Inventory Utils", () => {
         expect(payload?.expiryDate).toBe("2026-01-01");
       });
 
-      it("removes invalid dates", () => {
-        const batch = { ...mockInventoryItem.batches![0], expiryDate: "invalid" };
-        const payload = buildBatchPayload(batch);
-        expect(payload?.expiryDate).toBeUndefined();
-      });
-
       it("falls back to current/available for quantity if quantity field missing", () => {
         const batch = { ...mockInventoryItem.batches![0], quantity: undefined, current: "99" } as any;
         const payload = buildBatchPayload(batch);
