@@ -837,6 +837,7 @@ export const UserOrganizationService = {
         practitionerReference: 1,
         organizationReference: 1,
         roleCode: 1,
+        effectivePermissions: 1,
       },
     );
 
