@@ -93,20 +93,16 @@ export const StripeService = {
   },
 
   async getAccountStatus(organisationId: string) {
-    const stripe = getStripeClient();
-
     const org = await OrganizationModel.findById(organisationId);
-    if (!org || !org.stripeAccountId)
-      throw new Error("Organisation does not have a Stripe account");
+    if(!org) {
+      throw new Error("Organistaion not found")
+    }
 
-    const account = await stripe.accounts.retrieve(org.stripeAccountId);
+    const orgBilling = OrgBilling.findOne({
+      orgId : org._id
+    })
 
-    return {
-      chargesEnabled: account.charges_enabled,
-      payoutsEnabled: account.payouts_enabled,
-      detailsSubmitted: account.details_submitted,
-      requirements: account.requirements,
-    };
+    return orgBilling;
   },
 
   async createOnboardingLink(organisationId: string) {

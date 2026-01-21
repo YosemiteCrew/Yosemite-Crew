@@ -71,7 +71,11 @@ jest.mock("../../src/models/organization");
 jest.mock("../../src/models/service");
 jest.mock("../../src/models/appointment");
 jest.mock("../../src/models/organization.billing", () => ({
-  OrgBilling: { findOneAndUpdate: jest.fn(), updateOne: jest.fn() },
+  OrgBilling: {
+    findOne: jest.fn(),
+    findOneAndUpdate: jest.fn(),
+    updateOne: jest.fn(),
+  },
 }));
 jest.mock("../../src/models/organisation.usage.counter", () => ({
   OrgUsageCounters: { findOneAndUpdate: jest.fn(), updateOne: jest.fn() },
@@ -105,6 +109,7 @@ import { NotificationService } from "../../src/services/notification.service";
 import logger from "../../src/utils/logger";
 import InvoiceModel from "../../src/models/invoice";
 import OrganizationModel from "../../src/models/organization";
+import { OrgBilling } from "../../src/models/organization.billing";
 import ServiceModel from "../../src/models/service";
 import AppointmentModel from "../../src/models/appointment";
 
@@ -116,6 +121,13 @@ const mockedNotificationService = jest.mocked(NotificationService);
 const mockedLogger = jest.mocked(logger);
 const mockedInvoiceModel = jest.mocked(InvoiceModel);
 const mockedOrgModel = jest.mocked(OrganizationModel);
+const mockedOrgBilling = OrgBilling as unknown as {
+  findOne: unknown;
+};
+const mockOrgBillingFindOne =
+  mockedOrgBilling.findOne as unknown as jest.MockedFunction<
+    (...args: unknown[]) => Promise<unknown>
+  >;
 const mockedServiceModel = jest.mocked(ServiceModel);
 const mockedAppointmentModel = jest.mocked(AppointmentModel);
 
@@ -193,24 +205,29 @@ describe("StripeService", () => {
   describe("getAccountStatus", () => {
     it("should throw if org has no stripe account", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: null,
-      });
+      (mockedOrgModel.findById as any).mockResolvedValue(null);
       await expect(StripeService.getAccountStatus("org1")).rejects.toThrow(
-        "Organisation does not have a Stripe account",
+        "Organistaion not found",
       );
     });
 
-    it("should return status from stripe", async () => {
+    it("should return billing status from org billing", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: "acct_123",
+        _id: "org1",
+      });
+      mockOrgBillingFindOne.mockResolvedValue({
+        connectAccountId: "acct_123",
+        canAcceptPayments: true,
       });
       const res = await StripeService.getAccountStatus("org1");
-      expect(mockStripeInstance.accounts.retrieve).toHaveBeenCalledWith(
-        "acct_123",
-      );
-      expect(res.chargesEnabled).toBe(true);
+      expect(mockedOrgBilling.findOne).toHaveBeenCalledWith({
+        orgId: "org1",
+      });
+      expect(res).toMatchObject({
+        connectAccountId: "acct_123",
+        canAcceptPayments: true,
+      });
     });
   });
 
@@ -218,8 +235,9 @@ describe("StripeService", () => {
     it("should throw if org has no stripe account", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: null,
+        _id: "org1",
       });
+      mockOrgBillingFindOne.mockResolvedValue(null);
       await expect(StripeService.createOnboardingLink("org1")).rejects.toThrow(
         "Organisation does not have a Stripe account",
       );
@@ -228,7 +246,10 @@ describe("StripeService", () => {
     it("should return client_secret", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedOrgModel.findById as any).mockResolvedValue({
-        stripeAccountId: "acct_123",
+        _id: "org1",
+      });
+      mockOrgBillingFindOne.mockResolvedValue({
+        connectAccountId: "acct_123",
       });
       const res = await StripeService.createOnboardingLink("org1");
       expect(mockStripeInstance.accountSessions.create).toHaveBeenCalledWith(

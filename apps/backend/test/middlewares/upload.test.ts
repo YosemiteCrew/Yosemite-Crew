@@ -223,8 +223,8 @@ describe("Upload Middleware", () => {
 
     describe("handleFileUpload", () => {
       it("should throw if no file provided", async () => {
-        // @ts-ignore
         await expect(
+          // @ts-expect-error Intentional null to test guardrail.
           UploadMiddleware.handleFileUpload(null, "folder"),
         ).rejects.toThrow("No file uploaded.");
       });
