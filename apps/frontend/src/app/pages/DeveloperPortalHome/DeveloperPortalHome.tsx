@@ -26,16 +26,16 @@ const DeveloperPortalHome = () => {
     <DevRouteGuard>
       <div className="OperationsWrapper">
         <div className="TitleContainer">
-          <h2>Developer Home</h2>
+          <h2 className="text-heading-1 text-text-primary">Developer Home</h2>
           <Primary text="View docs" href="/developers/documentation" style={{ maxWidth: 180 }} />
         </div>
 
         <section className="DevPortalHome">
           <div className="dev-portal-hero">
             <div className="dev-hero-copy">
-              <p className="dev-badge">Developer</p>
-              <h2>Welcome back, {displayName}</h2>
-              <p className="dev-hero-subtext">
+              <span className="dev-badge text-caption-2">Developer</span>
+              <h2 className="text-heading-1 text-text-primary">Welcome back, {displayName}</h2>
+              <p className="text-body-3 text-text-secondary dev-hero-subtext">
                 Build, customise, and launch apps with Yosemite Crew. Access APIs,
                 SDKs, and starter templates designed for the animal health
                 ecosystem.
@@ -45,19 +45,19 @@ const DeveloperPortalHome = () => {
               </div>
             </div>
             <div className="dev-hero-card">
-              <h4>Quick status</h4>
+              <h4 className="text-heading-3 text-neutral-0">Quick status</h4>
               <ul>
                 <li>
-                  <span>Portal access</span>
-                  <strong>Active</strong>
+                  <span className="text-body-4 text-neutral-200">Portal access</span>
+                  <strong className="text-body-4-emphasis text-neutral-0">Active</strong>
                 </li>
                 <li>
-                  <span>Environment</span>
-                  <strong>Dev</strong>
+                  <span className="text-body-4 text-neutral-200">Environment</span>
+                  <strong className="text-body-4-emphasis text-neutral-0">Dev</strong>
                 </li>
                 <li>
-                  <span>Next step</span>
-                  <strong>Browse Documentation</strong>
+                  <span className="text-body-4 text-neutral-200">Next step</span>
+                  <strong className="text-body-4-emphasis text-neutral-0">Browse Documentation</strong>
                 </li>
               </ul>
             </div>
@@ -66,20 +66,20 @@ const DeveloperPortalHome = () => {
           <div className="dev-portal-grid">
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h4>Quick links</h4>
-                <span className="dev-card-pill secondary">Resources</span>
+                <h4 className="text-heading-3 text-text-primary">Quick links</h4>
+                <span className="dev-card-pill secondary text-caption-2">Resources</span>
               </div>
               <div className="dev-links">
-                <Link href="/contact">Partner with Yosemite Crew</Link>
-                <Link href="/privacy-policy">Security & compliance</Link>
+                <Link href="/contact" className="text-body-4-emphasis text-text-primary">Partner with Yosemite Crew</Link>
+                <Link href="/privacy-policy" className="text-body-4-emphasis text-text-primary">Security & compliance</Link>
               </div>
             </div>
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h4>Recent activity</h4>
-                <span className="dev-card-pill muted">Coming soon</span>
+                <h4 className="text-heading-3 text-text-primary">Recent activity</h4>
+                <span className="dev-card-pill muted text-caption-2">Coming soon</span>
               </div>
-              <p className="dev-empty">You will see build and release activity here.</p>
+              <p className="text-body-4 text-text-tertiary dev-empty">You will see build and release activity here.</p>
             </div>
           </div>
         </section>

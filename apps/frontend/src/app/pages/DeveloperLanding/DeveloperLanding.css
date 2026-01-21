@@ -6,6 +6,7 @@
   align-items: center;
   justify-content: center;
   min-height: 85vh;
+  font-family: var(--font-satoshi);
 }
 @media screen and (max-width: 1280px) {
   .Container {
@@ -130,7 +131,7 @@
   transform: translate(-50%, -55%);
 }
 .DevCrewBox {
-  background: var(--lightgrey);
+  background: var(--color-card-bg);
   padding: 32px 16px;
   border-radius: 16px;
   overflow: hidden;
@@ -449,7 +450,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--lightblue);
+  background: var(--color-brand-100);
   min-height: 100vh;
 }
 .DevlpToolData {
@@ -676,12 +677,12 @@
   gap: 16px;
 }
 .DevPriceHead h2 {
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
   font-size: 2.5rem;
   font-weight: 500;
   line-height: 3rem;
   letter-spacing: -0.02em;
-  color: var(--black-text);
+  color: var(--color-text-primary);
   margin: 0;
 }
 .DevPriceCard {
@@ -694,7 +695,7 @@
   height: 352px;
   border-radius: 24px;
   padding: 180px 40px 64px 40px;
-  background: var(--lightgrey);
+  background: var(--color-card-bg);
   box-shadow: 0px 0px 28px 0px #00000014;
   position: relative;
   overflow: hidden;
@@ -718,19 +719,19 @@
   gap: 4px;
 }
 .DevPricBox .devpboxtext h4 {
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
   font-size: 2.5rem;
   font-weight: 500;
   line-height: 120%;
-  color: var(--black-text);
+  color: var(--color-text-primary);
   margin: 0;
 }
 .DevPricBox .devpboxtext p {
   font-size: 1.25rem;
   font-weight: 400;
   line-height: 120%;
-  font-family: var(--satoshi-font);
-  color: var(--black-text);
+  font-family: var(--font-satoshi);
+  color: var(--color-text-primary);
   margin: 0;
 }
 .DevPricBox:nth-of-type(2)::after {
@@ -760,9 +761,9 @@
 .ReadyBuildData {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: var(--whitebg);
+  background: var(--color-surface-card);
   box-shadow: 0px 0px 18px -5px #5541341f;
-  border: 1px solid var(--lightgrey);
+  border: 1px solid var(--color-card-border);
   border-radius: 38px;
   width: 100%;
   max-width: 1064px;
@@ -798,7 +799,7 @@
 }
 .leftBuild {
   border-radius: 38px 0px 0px 38px;
-  background: var(--whitebg);
+  background: var(--color-surface-card);
 }
 .leftBuilinner {
   display: flex;
@@ -815,15 +816,15 @@
   font-size: 3rem;
   font-weight: 500;
   line-height: 120%;
-  font-family: var(--satoshi-font);
-  color: var(--black-text);
+  font-family: var(--font-satoshi);
+  color: var(--color-text-primary);
 }
 .leftBuild p {
   font-size: 1.125rem;
   font-weight: 400;
   line-height: 120%;
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi);
   margin: 0;
   max-width: 422px;
 }
