@@ -63,7 +63,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
   }, []);
 
   return (
-    <div className="relative w-[120px]" ref={availabilityContainerRef}>
+    <div className="relative w-[100px] sm:w-[110px]" ref={availabilityContainerRef}>
       <button
         className="bg-white rounded-2xl! border border-text-primary justify-center w-full outline-none py-[11px]"
         onClick={() => setOpen((e: boolean) => !e)}
@@ -73,7 +73,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
         </span>
       </button>
       {open && (
-        <div className="max-h-[200px] z-10 w-[120px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[110%] py-2 px-2">
+        <div className="max-h-[200px] z-10 w-[110px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[110%] py-2 px-2">
           {timeOptions.map((opt: TimeOption) => (
             <button
               key={opt.value}

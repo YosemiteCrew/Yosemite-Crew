@@ -10,11 +10,13 @@ import RevenueLeadersStat from "@/app/components/Stats/RevenueLeadersStat";
 import AppointmentTask from "@/app/components/Summary/AppointmentTask";
 import Availability from "@/app/components/Summary/Availability";
 import OrgGuard from "@/app/components/OrgGuard";
+import DashboardSteps from "@/app/components/DashboardSteps";
 
 const Dashboard = () => {
   return (
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
       <DashboardProfile />
+      <DashboardSteps />
       <VideosCard />
       <Explorecard />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">

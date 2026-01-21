@@ -1,137 +1,210 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import OrgGuard from "@/app/components/OrgGuard";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useSpecialityStore } from "@/app/stores/specialityStore";
-import { useAvailabilityStore } from "@/app/stores/availabilityStore";
-import { useUserProfileStore } from "@/app/stores/profileStore";
-import { computeOrgOnboardingStep } from "@/app/utils/orgOnboarding";
+import { usePathname, useRouter } from "next/navigation";
 
-const mockRouter = { replace: jest.fn() };
-const mockUsePathname = jest.fn(() => "/dashboard");
+const replaceMock = jest.fn();
+let mockPathname = "/dashboard";
+
 jest.mock("next/navigation", () => ({
-  useRouter: () => mockRouter,
-  usePathname: () => mockUsePathname(),
+  useRouter: jest.fn(),
+  usePathname: jest.fn(),
 }));
 
-jest.mock("@/app/hooks/useTeam", () => ({ useLoadTeam: jest.fn() }));
-jest.mock("@/app/hooks/useRooms", () => ({ useLoadRoomsForPrimaryOrg: jest.fn() }));
+const useOrgStoreMock = jest.fn();
+const useSpecialityStoreMock = jest.fn();
+const useAvailabilityStoreMock = jest.fn();
+const useUserProfileStoreMock = jest.fn();
+
+jest.mock("@/app/stores/orgStore", () => ({
+  useOrgStore: (selector: any) => useOrgStoreMock(selector),
+}));
+
+jest.mock("@/app/stores/specialityStore", () => ({
+  useSpecialityStore: (selector: any) => useSpecialityStoreMock(selector),
+}));
+
+jest.mock("@/app/stores/availabilityStore", () => ({
+  useAvailabilityStore: (selector: any) => useAvailabilityStoreMock(selector),
+}));
+
+jest.mock("@/app/stores/profileStore", () => ({
+  useUserProfileStore: (selector: any) => useUserProfileStoreMock(selector),
+}));
+
+jest.mock("@/app/hooks/useTeam", () => ({
+  useLoadTeam: jest.fn(),
+}));
+
+jest.mock("@/app/hooks/useRooms", () => ({
+  useLoadRoomsForPrimaryOrg: jest.fn(),
+}));
+
 jest.mock("@/app/hooks/useAppointments", () => ({
   useLoadAppointmentsForPrimaryOrg: jest.fn(),
 }));
-jest.mock("@/app/hooks/useCompanion", () => ({ useLoadCompanionsForPrimaryOrg: jest.fn() }));
-jest.mock("@/app/hooks/useDocuments", () => ({ useLoadDocumentsForPrimaryOrg: jest.fn() }));
-jest.mock("@/app/hooks/useForms", () => ({ useLoadFormsForPrimaryOrg: jest.fn() }));
 
-jest.mock("@/app/stores/orgStore", () => ({ useOrgStore: jest.fn() }));
-jest.mock("@/app/stores/specialityStore", () => ({ useSpecialityStore: jest.fn() }));
-jest.mock("@/app/stores/availabilityStore", () => ({ useAvailabilityStore: jest.fn() }));
-jest.mock("@/app/stores/profileStore", () => ({ useUserProfileStore: jest.fn() }));
+jest.mock("@/app/hooks/useCompanion", () => ({
+  useLoadCompanionsForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock("@/app/hooks/useDocuments", () => ({
+  useLoadDocumentsForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock("@/app/hooks/useForms", () => ({
+  useLoadFormsForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock("@/app/hooks/useInventory", () => ({
+  useInventoryModule: jest.fn(),
+}));
+
+jest.mock("@/app/hooks/useTask", () => ({
+  useLoadTasksForPrimaryOrg: jest.fn(),
+}));
+
+const computeOrgOnboardingStepMock = jest.fn();
+const computeTeamOnboardingStepMock = jest.fn();
 
 jest.mock("@/app/utils/orgOnboarding", () => ({
-  computeOrgOnboardingStep: jest.fn(() => 3),
+  computeOrgOnboardingStep: (...args: any[]) =>
+    computeOrgOnboardingStepMock(...args),
 }));
+
 jest.mock("@/app/utils/teamOnboarding", () => ({
-  computeTeamOnboardingStep: jest.fn(() => 3),
+  computeTeamOnboardingStep: (...args: any[]) =>
+    computeTeamOnboardingStepMock(...args),
 }));
-
-const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
-const mockUseSpecialityStore = useSpecialityStore as unknown as jest.Mock;
-const mockUseAvailabilityStore = useAvailabilityStore as unknown as jest.Mock;
-const mockUseProfileStore = useUserProfileStore as unknown as jest.Mock;
-
-const buildOrgState = (overrides: any = {}) => ({
-  status: "loaded",
-  primaryOrgId: "org-1",
-  orgsById: {
-    "org-1": { _id: "org-1", isVerified: true },
-  },
-  membershipsByOrgId: {
-    "org-1": { roleDisplay: "owner" },
-  },
-  ...overrides,
-});
-
-const baseSpecialityState = {
-  status: "loaded",
-  getSpecialitiesByOrgId: () => [],
-};
-
-const baseAvailabilityState = {
-  status: "loaded",
-  getAvailabilitiesByOrgId: () => [],
-};
-
-const baseProfileState = {
-  profilesByOrgId: { "org-1": { id: "profile-1" } },
-};
 
 describe("OrgGuard", () => {
-  const originalAuthGuard = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+  const baseOrgState = {
+    status: "succeeded",
+    primaryOrgId: null,
+    orgsById: {},
+    membershipsByOrgId: {},
+  };
 
-  beforeAll(() => {
-    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = "false";
-  });
+  const baseSpecialityState = {
+    status: "succeeded",
+    getSpecialitiesByOrgId: jest.fn(() => []),
+  };
 
-  afterAll(() => {
-    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = originalAuthGuard;
-  });
+  const baseAvailabilityState = {
+    status: "succeeded",
+    getAvailabilitiesByOrgId: jest.fn(() => []),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseOrgStore.mockImplementation((selector: any) =>
-      selector(buildOrgState())
-    );
-    mockUseSpecialityStore.mockImplementation((selector: any) =>
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = "false";
+    mockPathname = "/dashboard";
+    (useRouter as jest.Mock).mockReturnValue({
+      replace: replaceMock,
+      push: jest.fn(),
+      prefetch: jest.fn(),
+    });
+    (usePathname as jest.Mock).mockReturnValue(mockPathname);
+    useOrgStoreMock.mockImplementation((selector: any) => selector(baseOrgState));
+    useSpecialityStoreMock.mockImplementation((selector: any) =>
       selector(baseSpecialityState)
     );
-    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+    useAvailabilityStoreMock.mockImplementation((selector: any) =>
       selector(baseAvailabilityState)
     );
-    mockUseProfileStore.mockImplementation((selector: any) =>
-      selector(baseProfileState)
-    );
+    useUserProfileStoreMock.mockImplementation((selector: any) => selector({
+      profilesByOrgId: {},
+    }));
+    computeOrgOnboardingStepMock.mockReturnValue(3);
+    computeTeamOnboardingStepMock.mockReturnValue(3);
   });
 
-  it("renders children when checks pass", () => {
-    const { getByText } = render(
-      <OrgGuard>
-        <div>allowed</div>
-      </OrgGuard>
-    );
-
-    expect(getByText("allowed")).toBeInTheDocument();
-    expect(mockRouter.replace).not.toHaveBeenCalled();
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
   });
 
-  it("redirects to organizations when no primary org", () => {
-    mockUseOrgStore.mockImplementation((selector: any) =>
-      selector(buildOrgState({ primaryOrgId: null }))
-    );
+  it("redirects to organizations when no primary org is set", async () => {
     render(
       <OrgGuard>
-        <div>child</div>
+        <div data-testid="child">Child</div>
       </OrgGuard>
     );
-    expect(mockRouter.replace).toHaveBeenCalledWith("/organizations");
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/organizations");
+    });
+    expect(screen.queryByTestId("child")).not.toBeInTheDocument();
   });
 
-  it("forces onboarding route when owner is unverified and onboarding incomplete", () => {
-    (computeOrgOnboardingStep as jest.Mock).mockReturnValue(1);
-    mockUseOrgStore.mockImplementation((selector: any) =>
-      selector(
-        buildOrgState({
-          orgsById: { "org-1": { _id: "org-1", isVerified: false } },
-        })
-      )
-    );
+  it("renders children when auth guard is disabled", () => {
+    const prev = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = "true";
 
     render(
       <OrgGuard>
-        <div>child</div>
+        <div data-testid="child">Child</div>
       </OrgGuard>
     );
 
-    expect(mockRouter.replace).toHaveBeenCalledWith("/create-org?orgId=org-1");
+    expect(screen.getByTestId("child")).toBeInTheDocument();
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = prev;
+  });
+
+  it("redirects owners to create org when onboarding is incomplete", async () => {
+    const orgId = "org-1";
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        primaryOrgId: orgId,
+        orgsById: {
+          [orgId]: { id: orgId, isVerified: false, type: "GROOMER" },
+        },
+        membershipsByOrgId: {
+          [orgId]: { roleDisplay: "Owner" },
+        },
+      })
+    );
+    computeOrgOnboardingStepMock.mockReturnValue(1);
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/create-org?orgId=org-1");
+    });
+  });
+
+  it("redirects non-owners to team onboarding when profile incomplete", async () => {
+    const orgId = "org-2";
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        primaryOrgId: orgId,
+        orgsById: {
+          [orgId]: { id: orgId, isVerified: true, type: "GROOMER" },
+        },
+        membershipsByOrgId: {
+          [orgId]: { roleDisplay: "Member" },
+        },
+      })
+    );
+    computeTeamOnboardingStepMock.mockReturnValue(1);
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith(
+        "/team-onboarding?orgId=org-2"
+      );
+    });
   });
 });

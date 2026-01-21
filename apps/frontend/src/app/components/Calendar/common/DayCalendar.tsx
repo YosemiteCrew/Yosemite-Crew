@@ -15,18 +15,23 @@ import Image from "next/image";
 import { Appointment } from "@yosemite-crew/types";
 import Next from "../../Icons/Next";
 import Back from "../../Icons/Back";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
+import { allowReschedule } from "@/app/utils/appointments";
+import { IoIosCalendar } from "react-icons/io";
 
 type DayCalendarProps = {
   events: Appointment[];
   date: Date;
   handleViewAppointment: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  handleRescheduleAppointment: any;
 };
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({
   events,
   date,
   handleViewAppointment,
+  handleRescheduleAppointment,
   setCurrentDate,
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -163,40 +168,64 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                   onClick={() => handleViewAppointment(ev)}
                 >
                   <div className="flex flex-col items-start">
-                    <div className="text-body-3-emphasis">
-                      {ev.concern + "Full body check up"}
+                    <div className={`flex items-center gap-2`}>
+                      <div className="text-body-4 opacity-70">Reason:</div>
+                      <div className="text-body-4">{ev.concern || "-"}</div>
                     </div>
-                    <div className="text-body-4">{ev.lead?.name}</div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <div className="flex items-center gap-1">
-                      <Image
-                        src={
-                          "https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-                        }
-                        height={30}
-                        width={30}
-                        className="rounded-full"
-                        alt=""
-                      />
-                      <div className="text-body-4-emphasis">
-                        {ev.companion.name}
+                    <div className={`flex items-center gap-2`}>
+                      <div className="text-body-4 opacity-70">Lead:</div>
+                      <div className="text-body-4">{ev.lead?.name}</div>
+                    </div>
+                    <div className={`flex items-center gap-2`}>
+                      <div className="text-body-4 opacity-70">Companion:</div>
+                      <div className="text-body-4 flex items-center gap-1">
+                        <Image
+                          src={getSafeImageUrl(
+                            "",
+                            ev.companion.species as ImageType
+                          )}
+                          height={30}
+                          width={30}
+                          className="rounded-full"
+                          alt=""
+                        />
+                        <div>{ev.companion.name}</div>
                       </div>
+                    </div>
+                    <div className={`flex items-center gap-2`}>
+                      <div className="text-body-4 opacity-70">Parent:</div>
                       <div className="text-body-4">
                         {ev.companion.parent.name}
                       </div>
                     </div>
-                    <div className="text-body-4">
-                      {ev.startTime.toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                      {" - "}
-                      {ev.endTime.toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
+                    <div className={`flex items-center gap-2`}>
+                      <div className="text-body-4 opacity-70">Time:</div>
+                      <div className="text-body-4">
+                        {ev.startTime.toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                        {" - "}
+                        {ev.endTime.toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    {allowReschedule(ev.status) && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleRescheduleAppointment(ev);
+                        }}
+                        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-white! flex items-center justify-center cursor-pointer"
+                      >
+                        <IoIosCalendar size={18} color="#fff" />
+                      </button>
+                    )}
                   </div>
                 </button>
               );

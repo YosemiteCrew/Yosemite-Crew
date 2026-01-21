@@ -1,7 +1,17 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import AppointmentsPage from "@/app/pages/Appointments";
+import Appointments from "@/app/pages/Appointments";
+import { Appointment } from "@yosemite-crew/types";
+
+jest.mock("@/app/components/ProtectedRoute", () => ({
+  __esModule: true,
+  default: ({ children }: any) => <div>{children}</div>,
+}));
+
+jest.mock("@/app/components/OrgGuard", () => ({
+  __esModule: true,
+  default: ({ children }: any) => <div>{children}</div>,
+}));
 
 const useAppointmentsMock = jest.fn();
 
@@ -9,63 +19,89 @@ jest.mock("@/app/hooks/useAppointments", () => ({
   useAppointmentsForPrimaryOrg: () => useAppointmentsMock(),
 }));
 
-jest.mock("@/app/components/ProtectedRoute", () => ({
-  __esModule: true,
-  default: ({ children }: any) => <div data-testid="protected">{children}</div>,
+jest.mock("@/app/stores/searchStore", () => ({
+  useSearchStore: (selector: any) => selector({ query: "" }),
 }));
 
-jest.mock("@/app/components/OrgGuard", () => ({
-  __esModule: true,
-  default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
-}));
+const titleCalendarSpy = jest.fn();
 
 jest.mock("@/app/components/TitleCalendar", () => ({
   __esModule: true,
-  default: ({ setActiveView }: any) => (
-    <button type="button" onClick={() => setActiveView("list")}
-    >
-      switch-list
-    </button>
-  ),
+  default: (props: any) => {
+    titleCalendarSpy(props);
+    return (
+      <button type="button" onClick={() => props.setActiveView("table")}
+        >
+        SwitchView
+      </button>
+    );
+  },
 }));
 
-jest.mock("@/app/components/Filters/AppointmentFilters", () => ({
+const filtersSpy = jest.fn();
+
+jest.mock("@/app/components/Filters/Filters", () => ({
   __esModule: true,
-  default: () => <div>filters</div>,
+  default: (props: any) => {
+    filtersSpy(props);
+    return <div data-testid="filters" />;
+  },
+}));
+
+const calendarSpy = jest.fn();
+
+jest.mock("@/app/components/Calendar/AppointmentCalendar", () => ({
+  __esModule: true,
+  default: (props: any) => {
+    calendarSpy(props);
+    return <div data-testid="calendar" />;
+  },
 }));
 
 jest.mock("@/app/components/DataTable/Appointments", () => ({
   __esModule: true,
-  default: () => <div>appointments-table</div>,
-}));
-
-jest.mock("@/app/components/Calendar/AppointmentCalendar", () => ({
-  __esModule: true,
-  default: () => <div>calendar</div>,
+  default: () => <div data-testid="table" />,
 }));
 
 jest.mock("@/app/pages/Appointments/Sections/AddAppointment", () => ({
   __esModule: true,
-  default: () => <div>add-appointment</div>,
+  default: () => <div data-testid="add-appointment" />,
 }));
 
 jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo", () => ({
   __esModule: true,
-  default: () => <div>appointment-info</div>,
+  default: () => <div data-testid="appointment-info" />,
+}));
+
+jest.mock("@/app/pages/Appointments/Sections/Reschedule", () => ({
+  __esModule: true,
+  default: () => <div data-testid="reschedule" />,
 }));
 
 describe("Appointments page", () => {
-  it("renders list view when toggled", () => {
-    useAppointmentsMock.mockReturnValue([
-      { id: "1", companion: { name: "Buddy" } },
-    ]);
+  const appointments: Appointment[] = [
+    {
+      id: "appt-1",
+      companion: { name: "Buddy" },
+      status: "CHECKED_IN",
+      isEmergency: false,
+    } as Appointment,
+  ];
 
-    render(<AppointmentsPage />);
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useAppointmentsMock.mockReturnValue(appointments);
+  });
 
-    expect(screen.getByTestId("protected")).toBeInTheDocument();
-    expect(screen.getByText("calendar")).toBeInTheDocument();
+  it("renders calendar view by default and switches to table", () => {
+    render(<Appointments />);
 
-    fireEvent.click(screen.getByText("switch-list"));
-    expect(screen.getByText("appointments-table")).toBeInTheDocument();
+    expect(screen.getByTestId("calendar")).toBeInTheDocument();
+    expect(calendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ filteredList: appointments })
+    );
+
+    fireEvent.click(screen.getByText("SwitchView"));
+    expect(screen.getByTestId("table")).toBeInTheDocument();
   });
 });

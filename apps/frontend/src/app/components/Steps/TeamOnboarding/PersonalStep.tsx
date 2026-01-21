@@ -130,7 +130,6 @@ const PersonalStep = ({
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
           type="input"
-          className="h-12! xl:h-[60px]!"
           containerClassName="w-full"
           placeholder="Date of birth"
           error={formDataErrors.dateOfBirth}

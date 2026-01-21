@@ -1,8 +1,8 @@
 "use client";
 import React, { useState } from "react";
-import { Button } from "react-bootstrap";
-import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
-import { ProcedurePackageJSON } from "@yosemite-crew/types";
+
+import Next from "../Icons/Next";
+import Back from "../Icons/Back";
 
 import "./Generictable.css";
 
@@ -14,7 +14,7 @@ interface Column<T> {
 }
 
 interface GenericTableProps<T extends object> {
-  data: ProcedurePackageJSON[] | T[];
+  data: T[];
   columns: Column<T>[];
   bordered?: boolean;
   pagination?: boolean;
@@ -81,29 +81,29 @@ const GenericTable = <T extends object>({
         </tbody>
       </table>
       {pagination && totalPages > 1 && (
-        <div className="custom-pagination">
-          <Button
+        <div className="flex items-center justify-center gap-3">
+          <Back
             onClick={handlePrev}
             disabled={currentPage === 1}
-            style={{ cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
-          >
-            <FiArrowLeft size={20} />
-          </Button>
-          <p>
+            className={
+              currentPage === 1 ? "hover:bg-white! cursor-not-allowed" : ""
+            }
+          />
+          <div className="text-body-4 text-text-primary">
             Showing{" "}
             <span>
               {Math.min(endIdx, total)} of {total}
             </span>
-          </p>
-          <Button
+          </div>
+          <Next
             onClick={handleNext}
             disabled={currentPage === totalPages}
-            style={{
-              cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-            }}
-          >
-            <FiArrowRight size={20} />
-          </Button>
+            className={
+              currentPage === totalPages
+                ? "hover:bg-white! cursor-not-allowed"
+                : ""
+            }
+          />
         </div>
       )}
     </div>

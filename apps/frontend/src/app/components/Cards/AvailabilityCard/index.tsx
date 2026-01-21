@@ -39,7 +39,15 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Speciality:</div>
         <div className="text-caption-1 text-text-primary">
-          {team?.speciality?.name}
+          {Array.isArray(team?.speciality) && team.speciality.length > 0
+            ? team.speciality
+                .map((spec: any) =>
+                  typeof spec === "string"
+                    ? spec
+                    : spec?.name || JSON.stringify(spec)
+                )
+                .join(", ")
+            : "-"}
         </div>
       </div>
       <div className="flex gap-1">
