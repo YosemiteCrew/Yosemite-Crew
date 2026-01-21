@@ -113,11 +113,18 @@ export const StripeService = {
     const stripe = getStripeClient();
 
     const org = await OrganizationModel.findById(organisationId);
-    if (!org || !org.stripeAccountId)
+    if(!org)
+      throw new Error("No Organisation Found");
+
+    const orgBilling = await OrgBilling.findOne({
+      orgId: org._id
+    })
+
+    if(!orgBilling?.connectAccountId)
       throw new Error("Organisation does not have a Stripe account");
 
     const accountSession = await stripe.accountSessions.create({
-      account: org.stripeAccountId,
+      account: orgBilling.connectAccountId,
       components: {
         account_onboarding: { enabled: true },
       },
