@@ -94,13 +94,13 @@ export const StripeService = {
 
   async getAccountStatus(organisationId: string) {
     const org = await OrganizationModel.findById(organisationId);
-    if(!org) {
-      throw new Error("Organistaion not found")
+    if (!org) {
+      throw new Error("Organistaion not found");
     }
 
     const orgBilling = OrgBilling.findOne({
-      orgId : org._id
-    })
+      orgId: org._id,
+    });
 
     return orgBilling;
   },
@@ -109,14 +109,13 @@ export const StripeService = {
     const stripe = getStripeClient();
 
     const org = await OrganizationModel.findById(organisationId);
-    if(!org)
-      throw new Error("No Organisation Found");
+    if (!org) throw new Error("No Organisation Found");
 
     const orgBilling = await OrgBilling.findOne({
-      orgId: org._id
-    })
+      orgId: org._id,
+    });
 
-    if(!orgBilling?.connectAccountId)
+    if (!orgBilling?.connectAccountId)
       throw new Error("Organisation does not have a Stripe account");
 
     const accountSession = await stripe.accountSessions.create({

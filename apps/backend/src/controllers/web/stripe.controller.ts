@@ -37,7 +37,7 @@ export const StripeController = {
   /**
    * Create Checkout Session for Business plan
    */
-  async createBusinessCheckout(req: Request, res: Response) {
+  createBusinessCheckout: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
       const body: unknown = req.body;
@@ -73,7 +73,7 @@ export const StripeController = {
   /**
    * Open Stripe Customer Portal
    */
-  async createBillingPortal(req: Request, res: Response) {
+  createBillingPortal: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
       const result =
@@ -90,7 +90,7 @@ export const StripeController = {
   /**
    * Force sync seats (admin/debug)
    */
-  async syncSeats(req: Request, res: Response) {
+  syncSeats: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
       const result = await StripeService.syncSubscriptionSeats(organisationId);
@@ -133,7 +133,7 @@ export const StripeController = {
     }
   },
 
-  async createPaymentIntent(req: Request, res: Response) {
+  createPaymentIntent: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
       const paymentIntent =
@@ -147,7 +147,7 @@ export const StripeController = {
     }
   },
 
-  async createPaymentIntentForInvoice(req: Request, res: Response) {
+  createPaymentIntentForInvoice: async (req: Request, res: Response) => {
     try {
       const { invoiceId } = req.params;
       const paymentIntent =
@@ -161,7 +161,7 @@ export const StripeController = {
     }
   },
 
-  async retrievePaymentIntent(req: Request, res: Response) {
+  retrievePaymentIntent: async (req: Request, res: Response) => {
     try {
       const { paymentIntentId } = req.params;
       const paymentIntent =
@@ -175,7 +175,7 @@ export const StripeController = {
     }
   },
 
-  async createOnboardingLink(req: Request, res: Response) {
+  createOnboardingLink: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
       const result = await StripeService.createOnboardingLink(organisationId);

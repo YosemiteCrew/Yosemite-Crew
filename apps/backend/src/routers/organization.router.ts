@@ -3,61 +3,104 @@ import { OrganizationController } from "../controllers/web/organization.controll
 import { SpecialityController } from "src/controllers/web/speciality.controller";
 import { OrganisationInviteController } from "../controllers/web/organisation-invite.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+
 const router = Router();
 
-// --- Static routes FIRST ---
-router.post("/check", (req, res) =>
-  OrganizationController.checkIsPMSOrganistaion(req, res),
+/* ======================================================
+   PUBLIC / MOBILE ROUTES (NO RBAC)
+   ====================================================== */
+
+router.post("/check", OrganizationController.checkIsPMSOrganistaion);
+
+router.get("/getNearby", OrganizationController.getNearbyPaginated);
+
+router.get(
+  "/mobile/getNearby",
+  authorizeCognitoMobile,
+  OrganizationController.getNearbyPaginated,
 );
 
-router.get("/getNearby", (req, res) =>
-  OrganizationController.getNearbyPaginated(req, res),
+router.post("/logo/presigned-url", OrganizationController.getLogoUploadUrl);
+
+router.post(
+  "/logo/presigned-url/:orgId",
+  OrganizationController.getLogoUploadUrl,
 );
 
-router.get("/mobile/getNearby", authorizeCognitoMobile, (req, res) =>
-  OrganizationController.getNearbyPaginated(req, res),
+/* ======================================================
+   PMS – ORG CREATION / GLOBAL LIST
+   ====================================================== */
+
+// Onboard new organisation
+router.post("/", authorizeCognito, OrganizationController.onboardBusiness);
+
+// List all businesses (admin-level)
+router.get("/", authorizeCognito, OrganizationController.getAllBusinesses);
+
+/* ======================================================
+   PMS – ORG SCOPED (RBAC ENABLED)
+   ====================================================== */
+
+// Get organisation details
+router.get(
+  "/:organizationId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("teams:view:any"),
+  OrganizationController.getBusinessById,
 );
 
-router.post("/logo/presigned-url", (req, res) =>
-  OrganizationController.getLogoUploadUrl(req, res),
+// Update organisation
+router.put(
+  "/:organizationId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("teams:edit:any"),
+  OrganizationController.updateBusinessById,
 );
 
-router.post("/logo/presigned-url/:orgId", (req, res) =>
-  OrganizationController.getLogoUploadUrl(req, res),
+// Delete organisation (OWNER only)
+router.delete(
+  "/:organizationId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("org:delete"),
+  OrganizationController.deleteBusinessById,
 );
 
-// --- Authorized static routes ---
-router.post("/", authorizeCognito, (req, res) =>
-  OrganizationController.onboardBusiness(req, res),
+/* ======================================================
+   SPECIALITIES
+   ====================================================== */
+
+router.get(
+  "/:organizationId/specality",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:view:any"),
+  SpecialityController.getAllByOrganizationId,
 );
 
-router.get("/", authorizeCognito, (req, res) =>
-  OrganizationController.getAllBusinesses(req, res),
+/* ======================================================
+   INVITES
+   ====================================================== */
+
+// Create invite
+router.post(
+  "/:organizationId/invites",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("teams:edit:any"),
+  OrganisationInviteController.createInvite,
 );
 
-// --- Dynamic routes LAST (VERY IMPORTANT) ---
-router.get("/:id", authorizeCognito, (req, res) =>
-  OrganizationController.getBusinessById(req, res),
-);
-
-router.delete("/:id", authorizeCognito, (req, res) =>
-  OrganizationController.deleteBusinessById(req, res),
-);
-
-router.put("/:id", authorizeCognito, (req, res) =>
-  OrganizationController.updateBusinessById(req, res),
-);
-
-router.get("/:organizationId/specality", authorizeCognito, (req, res) =>
-  SpecialityController.getAllByOrganizationId(req, res),
-);
-
-router.post("/:organisationId/invites", authorizeCognito, (req, res) =>
-  OrganisationInviteController.createInvite(req, res),
-);
-
-router.get("/:organisationId/invites", authorizeCognito, (req, res) =>
-  OrganisationInviteController.listOrganisationInvites(req, res),
+// List invites
+router.get(
+  "/:organizationId/invites",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("teams:view:any"),
+  OrganisationInviteController.listOrganisationInvites,
 );
 
 export default router;

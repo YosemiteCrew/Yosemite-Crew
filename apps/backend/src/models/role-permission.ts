@@ -110,6 +110,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "org:onboarding",
     "org:delete",
+    "org:view",
+    "org:edit",
 
     "specialities:view:any",
     "specialities:edit:any",
