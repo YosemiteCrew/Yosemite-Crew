@@ -180,6 +180,13 @@ jest.mock("@/app/stores/orgStore");
 jest.mock("@/app/hooks/useLoadOrg", () => ({ useLoadOrg: jest.fn() }));
 jest.mock("@/app/hooks/useInventory");
 
+// Mock search store - search now comes from header
+let mockSearchQuery = "";
+jest.mock("@/app/stores/searchStore", () => ({
+  useSearchStore: (selector: (state: { query: string }) => string) =>
+    selector({ query: mockSearchQuery }),
+}));
+
 // --- Test Data ---
 
 const mockInventory = [
@@ -209,6 +216,7 @@ describe("Inventory Page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockSearchQuery = ""; // Reset search query
 
     // Default Store Mock
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
@@ -293,13 +301,14 @@ describe("Inventory Page", () => {
   // --- Section 2: Filtering Logic ---
 
   it("filters inventory by search text (debounced)", async () => {
-    render(<ProtectedInventory />);
-    const searchInput = screen.getByTestId("search-input");
+    const { rerender } = render(<ProtectedInventory />);
 
     expect(screen.getByTestId("item-1")).toBeInTheDocument();
     expect(screen.getByTestId("item-2")).toBeInTheDocument();
 
-    fireEvent.change(searchInput, { target: { value: "Item A" } });
+    // Update mock search query (simulating header search)
+    mockSearchQuery = "Item A";
+    rerender(<ProtectedInventory />);
 
     act(() => {
       jest.advanceTimersByTime(300);
@@ -362,12 +371,13 @@ describe("Inventory Page", () => {
   });
 
   it("automatically selects the first item if current active item is filtered out", async () => {
-    render(<ProtectedInventory />);
+    const { rerender } = render(<ProtectedInventory />);
     fireEvent.click(screen.getByTestId("item-2"));
     expect(screen.getByText("Current: Item B")).toBeInTheDocument();
 
-    const searchInput = screen.getByTestId("search-input");
-    fireEvent.change(searchInput, { target: { value: "Item A" } });
+    // Update mock search query (simulating header search)
+    mockSearchQuery = "Item A";
+    rerender(<ProtectedInventory />);
 
     act(() => {
       jest.advanceTimersByTime(300);
@@ -379,12 +389,14 @@ describe("Inventory Page", () => {
   });
 
   it("closes info modal if list becomes empty", async () => {
-    render(<ProtectedInventory />);
+    const { rerender } = render(<ProtectedInventory />);
     fireEvent.click(screen.getByTestId("item-1"));
     expect(screen.getByTestId("info-modal")).toBeInTheDocument();
 
-    const searchInput = screen.getByTestId("search-input");
-    fireEvent.change(searchInput, { target: { value: "ZZZZZ" } });
+    // Update mock search query (simulating header search)
+    mockSearchQuery = "ZZZZZ";
+    rerender(<ProtectedInventory />);
+
     act(() => {
       jest.advanceTimersByTime(300);
     });
