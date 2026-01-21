@@ -368,6 +368,5 @@ export const SpecialityService = {
       { $pull: { assignedSpecialiteis: specialityId } },
       { sanitizeFilter: true },
     );
-
   },
 };

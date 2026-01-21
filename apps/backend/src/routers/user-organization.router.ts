@@ -12,7 +12,7 @@ router.get(
 );
 router.get(
   "/org/mapping/:organisationId",
-  //authorizeCognito,
+  authorizeCognito,
   UserOrganizationController.listByOrganisationId,
 );
 router.get("/:id", UserOrganizationController.getMappingById);

@@ -11,7 +11,10 @@ import OrganizationModel, {
 import SpecialityModel, { type SpecialityDocument } from "../models/speciality";
 import logger from "../utils/logger";
 import type { InviteStatus, OrganisationInvite } from "@yosemite-crew/types";
-import { UserOrganizationService } from "./user-organization.service";
+import {
+  UserOrganizationService,
+  UserOrganizationServiceError,
+} from "./user-organization.service";
 import { renderOrganisationInviteTemplate } from "../utils/email-templates";
 import { sendEmail } from "../utils/email";
 
@@ -233,6 +236,10 @@ const ensureUserOrganizationMembership = async (
       active: true,
     });
   } catch (error) {
+    if (error instanceof UserOrganizationServiceError) {
+      throw new OrganisationInviteServiceError(error.message, error.statusCode);
+    }
+
     const duplicateKey =
       typeof error === "object" &&
       error !== null &&
@@ -477,10 +484,6 @@ export const OrganisationInviteService = {
       ),
     );
 
-    invite.status = "ACCEPTED";
-    invite.acceptedAt = new Date();
-    await invite.save();
-
     try {
       await ensureUserOrganizationMembership(
         invite.organisationId,
@@ -500,6 +503,10 @@ export const OrganisationInviteService = {
         500,
       );
     }
+
+    invite.status = "ACCEPTED";
+    invite.acceptedAt = new Date();
+    await invite.save();
 
     await Promise.all(
       departments.map((department) =>

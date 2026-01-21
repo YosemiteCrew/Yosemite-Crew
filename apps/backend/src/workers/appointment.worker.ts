@@ -11,11 +11,10 @@ type AppointmentJobData = {
 export const AppointmentWorker = new Worker(
   "appointments",
   async (job: Job<AppointmentJobData>) => {
-    
     switch (job.name) {
       case AppointmentJobs.MARK_NO_SHOW: {
         logger.info("🔔 Running Appointment No-Show Marker Job");
-        
+
         const { graceMinutes } = job.data;
 
         await AppointmentService.markNoShowAppointments({
@@ -28,7 +27,6 @@ export const AppointmentWorker = new Worker(
       default:
         throw new Error(`Unknown job: ${job.name}`);
     }
-    
   },
   { connection: redisConnection },
 );

@@ -6,10 +6,8 @@ export const StripeController = {
   createOrGetConnectedAccount: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-
       const result =
         await StripeService.createOrGetConnectedAccount(organisationId);
-
       return res.status(200).json(result);
     } catch (err) {
       logger.error("Error createOrGetConnectedAccount:", err);
@@ -22,9 +20,7 @@ export const StripeController = {
   getAccountStatus: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-
       const result = await StripeService.getAccountStatus(organisationId);
-
       return res.status(200).json(result);
     } catch (err) {
       logger.error("Error getAccountStatus:", err);
@@ -34,12 +30,87 @@ export const StripeController = {
     }
   },
 
+  // -------------------------
+  // 🆕 SAAS BILLING
+  // -------------------------
+
+  /**
+   * Create Checkout Session for Business plan
+   */
+  async createBusinessCheckout(req: Request, res: Response) {
+    try {
+      const { organisationId } = req.params;
+      const body: unknown = req.body;
+      const intervalValue =
+        typeof body === "object" && body !== null && "interval" in body
+          ? (body as { interval?: unknown }).interval
+          : undefined;
+      const interval =
+        intervalValue === "month" || intervalValue === "year"
+          ? intervalValue
+          : undefined;
+
+      if (!interval) {
+        return res.status(400).json({
+          error: "interval must be 'month' or 'year'",
+        });
+      }
+
+      const result = await StripeService.createBusinessCheckoutSession(
+        organisationId,
+        interval,
+      );
+
+      return res.status(200).json(result);
+    } catch (err) {
+      logger.error("Error createBusinessCheckout:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
+  /**
+   * Open Stripe Customer Portal
+   */
+  async createBillingPortal(req: Request, res: Response) {
+    try {
+      const { organisationId } = req.params;
+      const result =
+        await StripeService.createCustomerPortalSession(organisationId);
+      return res.status(200).json(result);
+    } catch (err) {
+      logger.error("Error createBillingPortal:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
+  /**
+   * Force sync seats (admin/debug)
+   */
+  async syncSeats(req: Request, res: Response) {
+    try {
+      const { organisationId } = req.params;
+      const result = await StripeService.syncSubscriptionSeats(organisationId);
+      return res.status(200).json(result);
+    } catch (err) {
+      logger.error("Error syncSeats:", err);
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+
+  // -------------------------
+  // EXISTING PAYMENT FLOWS
+  // -------------------------
+
   refundPayment: async (req: Request, res: Response) => {
     try {
       const { paymentIntentId } = req.params;
-
       const result = await StripeService.refundPaymentIntent(paymentIntentId);
-
       return res.status(200).json(result);
     } catch (err) {
       logger.error("Error refundPayment:", err);
@@ -54,7 +125,6 @@ export const StripeController = {
     try {
       const event = StripeService.verifyWebhook(req.body, sig);
       await StripeService.handleWebhookEvent(event);
-
       return res.status(200).send("OK");
     } catch (err) {
       logger.error("Stripe Webhook Error:", err);
@@ -66,10 +136,8 @@ export const StripeController = {
   async createPaymentIntent(req: Request, res: Response) {
     try {
       const { appointmentId } = req.params;
-
       const paymentIntent =
         await StripeService.createPaymentIntentForAppointment(appointmentId);
-
       return res.status(200).json(paymentIntent);
     } catch (err) {
       logger.error("Error createPaymentIntent:", err);
@@ -82,10 +150,8 @@ export const StripeController = {
   async createPaymentIntentForInvoice(req: Request, res: Response) {
     try {
       const { invoiceId } = req.params;
-
       const paymentIntent =
         await StripeService.createPaymentIntentForInvoice(invoiceId);
-
       return res.status(200).json(paymentIntent);
     } catch (err) {
       logger.error("Error createPaymentIntentForInvoice:", err);
@@ -98,10 +164,8 @@ export const StripeController = {
   async retrievePaymentIntent(req: Request, res: Response) {
     try {
       const { paymentIntentId } = req.params;
-
       const paymentIntent =
         await StripeService.retrievePaymentIntent(paymentIntentId);
-
       return res.status(200).json(paymentIntent);
     } catch (err) {
       logger.error("Error retrievePaymentIntent:", err);
@@ -114,9 +178,7 @@ export const StripeController = {
   async createOnboardingLink(req: Request, res: Response) {
     try {
       const { organisationId } = req.params;
-
       const result = await StripeService.createOnboardingLink(organisationId);
-
       return res.status(200).json(result);
     } catch (err) {
       logger.error("Error createOnboardingLink:", err);

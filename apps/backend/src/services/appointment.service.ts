@@ -22,6 +22,8 @@ import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { TaskService } from "./task.service";
 import { FormService, FormServiceError } from "./form.service";
+import { OrgBilling } from "src/models/organization.billing";
+import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -39,6 +41,111 @@ const ensureObjectId = (id: string | Types.ObjectId, field: string) => {
     throw new AppointmentServiceError(`Invalid ${field}`, 400);
   }
   return new Types.ObjectId(id);
+};
+
+const ensureOrgUsageCounters = async (orgId: Types.ObjectId) =>
+  OrgUsageCounters.findOneAndUpdate(
+    { orgId },
+    { $setOnInsert: { orgId } },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  );
+
+const isFreePlan = async (orgId: Types.ObjectId) => {
+  const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
+  return !billing || billing.plan === "free";
+};
+
+const markFreeLimitReachedAt = async (
+  usage: Awaited<ReturnType<typeof ensureOrgUsageCounters>>,
+) => {
+  if (
+    !usage ||
+    usage.freeLimitReachedAt ||
+    ((usage.usersActiveCount ?? 0) < (usage.freeUsersLimit ?? 0) &&
+      (usage.appointmentsUsed ?? 0) < (usage.freeAppointmentsLimit ?? 0) &&
+      (usage.toolsUsed ?? 0) < (usage.freeToolsLimit ?? 0))
+  ) {
+    return;
+  }
+
+  await OrgUsageCounters.updateOne(
+    { _id: usage._id, freeLimitReachedAt: null },
+    { $set: { freeLimitReachedAt: new Date() } },
+  );
+};
+
+type AppointmentUsageIncrement = {
+  appointmentsUsed: number;
+  toolsUsed?: number;
+};
+
+const reserveAppointmentUsage = async (
+  orgId: Types.ObjectId,
+  isObservationTool: boolean,
+) => {
+  await ensureOrgUsageCounters(orgId);
+
+  const inc: AppointmentUsageIncrement = { appointmentsUsed: 1 };
+  if (isObservationTool) {
+    inc.toolsUsed = 1;
+  }
+
+  if (await isFreePlan(orgId)) {
+    const expr = isObservationTool
+      ? {
+          $and: [
+            { $lt: ["$appointmentsUsed", "$freeAppointmentsLimit"] },
+            { $lt: ["$toolsUsed", "$freeToolsLimit"] },
+          ],
+        }
+      : { $lt: ["$appointmentsUsed", "$freeAppointmentsLimit"] };
+
+    const updated = await OrgUsageCounters.findOneAndUpdate(
+      { orgId, $expr: expr },
+      { $inc: inc },
+      { new: true },
+    );
+
+    if (!updated) {
+      const usage = await OrgUsageCounters.findOne({ orgId });
+      const toolsLimitReached =
+        isObservationTool &&
+        (usage?.toolsUsed ?? 0) >= (usage?.freeToolsLimit ?? 0);
+      const appointmentsLimitReached =
+        (usage?.appointmentsUsed ?? 0) >= (usage?.freeAppointmentsLimit ?? 0);
+      const message = toolsLimitReached
+        ? "Free plan observation tool appointment limit reached."
+        : appointmentsLimitReached
+          ? "Free plan appointment limit reached."
+          : "Free plan usage limit reached.";
+
+      throw new AppointmentServiceError(message, 403);
+    }
+
+    await markFreeLimitReachedAt(updated);
+    return { orgId, inc };
+  }
+
+  await OrgUsageCounters.findOneAndUpdate(
+    { orgId },
+    { $inc: inc },
+    { new: true },
+  );
+
+  return { orgId, inc };
+};
+
+const releaseAppointmentUsage = async (reservation: {
+  orgId: Types.ObjectId;
+  inc: AppointmentUsageIncrement;
+}) => {
+  const dec = Object.fromEntries(
+    Object.entries(reservation.inc)
+      .filter(([, value]) => typeof value === "number")
+      .map(([key, value]) => [key, -value]),
+  );
+
+  await OrgUsageCounters.updateOne({ orgId: reservation.orgId }, { $inc: dec });
 };
 
 const toDomain = (doc: AppointmentDocument): Appointment => {
@@ -197,6 +304,11 @@ export const AppointmentService = {
       throw new AppointmentServiceError("Invalid service selected", 404);
     }
 
+    const usageReservation = await reserveAppointmentUsage(
+      organisationId,
+      service.serviceType === "OBSERVATION_TOOL",
+    );
+
     let consentForm = null;
 
     try {
@@ -240,7 +352,13 @@ export const AppointmentService = {
     };
 
     const persistable = toPersistable(appointment);
-    const savedAppointment = await AppointmentModel.create(persistable);
+    let savedAppointment: AppointmentDocument;
+    try {
+      savedAppointment = await AppointmentModel.create(persistable);
+    } catch (error) {
+      await releaseAppointmentUsage(usageReservation);
+      throw error;
+    }
 
     const paymentIntent = await StripeService.createPaymentIntentForAppointment(
       savedAppointment._id.toString(),
@@ -321,6 +439,11 @@ export const AppointmentService = {
         404,
       );
     }
+
+    const usageReservation = await reserveAppointmentUsage(
+      organisationId,
+      service.serviceType === "OBSERVATION_TOOL",
+    );
 
     let consentForm = null;
 
@@ -475,6 +598,7 @@ export const AppointmentService = {
     } catch (err) {
       await session.abortTransaction();
       await session.endSession();
+      await releaseAppointmentUsage(usageReservation);
       if (err instanceof AppointmentServiceError) throw err;
       throw new AppointmentServiceError("Unable to create appointment", 500);
     }
@@ -1210,9 +1334,7 @@ export const AppointmentService = {
     const graceMinutes = params?.graceMinutes ?? 15;
 
     const now = new Date();
-    const cutoffTime = new Date(
-      now.getTime() - graceMinutes * 60 * 1000,
-    );
+    const cutoffTime = new Date(now.getTime() - graceMinutes * 60 * 1000);
 
     /**
      * We ONLY mark:

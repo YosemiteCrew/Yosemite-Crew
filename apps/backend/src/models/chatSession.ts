@@ -6,10 +6,7 @@ export interface ChatParticipant {
 }
 
 export type ChatSessionStatus = "PENDING" | "ACTIVE" | "CLOSED";
-export type ChatSessionType =
-  | "APPOINTMENT"
-  | "ORG_DIRECT"
-  | "ORG_GROUP";
+export type ChatSessionType = "APPOINTMENT" | "ORG_DIRECT" | "ORG_GROUP";
 
 export interface ChatSessionMongo {
   type: ChatSessionType;
@@ -25,7 +22,7 @@ export interface ChatSessionMongo {
 
   createdBy?: string;
   title?: string;
-  isPrivate?: boolean; 
+  isPrivate?: boolean;
 
   /**
    * Flat list of all userIds in this chat.

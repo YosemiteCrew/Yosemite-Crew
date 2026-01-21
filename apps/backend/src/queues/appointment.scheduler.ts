@@ -13,4 +13,4 @@ export async function registerAppointmentSchedulers() {
   );
 
   logger.info("✅ Appointment schedulers registered");
-} 
+}

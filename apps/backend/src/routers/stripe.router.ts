@@ -11,7 +11,6 @@ router.post(
   (req, res) => StripeController.webhook(req, res),
 );
 
-// Mobile Payment Intent Router
 router.post(
   "/payment-intent/:appointmentId",
   authorizeCognitoMobile,
@@ -30,9 +29,8 @@ router.get(
   (req, res) => StripeController.createPaymentIntentForInvoice(req, res),
 );
 
-// PMS Payment Intent Router
 router.post("/pms/payment-intent/:invoiceId", authorizeCognito, (req, res) =>
-  StripeController.createPaymentIntent(req, res),
+  StripeController.createPaymentIntentForInvoice(req, res),
 );
 
 router.post(
@@ -51,6 +49,24 @@ router.post(
   "/organisation/:organisationId/onboarding",
   authorizeCognito,
   (req, res) => StripeController.createOnboardingLink(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/billing/checkout",
+  authorizeCognito,
+  (req, res) => StripeController.createBusinessCheckout(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/billing/portal",
+  authorizeCognito,
+  (req, res) => StripeController.createBillingPortal(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/billing/sync-seats",
+  authorizeCognito,
+  (req, res) => StripeController.syncSeats(req, res),
 );
 
 export default router;

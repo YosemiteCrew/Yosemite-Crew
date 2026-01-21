@@ -11,7 +11,6 @@ import AppointmentModel, { AppointmentDocument } from "../models/appointment";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
 
-
 const STREAM_KEY = process.env.STREAM_API_KEY!;
 const STREAM_SECRET = process.env.STREAM_API_SECRET!;
 const SYSTEM_USER_ID = "system-yosemite";
@@ -47,7 +46,7 @@ type YosemiteChannelData = ChannelData & {
 type YosemiteChannelResponse = ChannelData & {
   name?: string;
   isPrivate?: boolean;
-}
+};
 
 export class ChatServiceError extends Error {
   constructor(
@@ -60,11 +59,7 @@ export class ChatServiceError extends Error {
 }
 
 const shortHash = (input: string, length = 12) =>
-  crypto
-    .createHash("sha256")
-    .update(input)
-    .digest("hex")
-    .slice(0, length);
+  crypto.createHash("sha256").update(input).digest("hex").slice(0, length);
 
 const getStreamChannelType = (type: ChatSessionType) =>
   type === "APPOINTMENT" ? "messaging" : "team";
@@ -112,10 +107,7 @@ const canUseChatNow = (
   return { allowed: true };
 };
 
-const assertUserCanAccess = (
-  session: ChatSessionDocument,
-  userId: string,
-) => {
+const assertUserCanAccess = (session: ChatSessionDocument, userId: string) => {
   if (session.status === "CLOSED") {
     throw new ChatServiceError("Chat is closed", 403);
   }
@@ -125,10 +117,7 @@ const assertUserCanAccess = (
   }
 };
 
-const assertGroupAdmin = (
-  session: ChatSessionDocument,
-  userId: string,
-) => {
+const assertGroupAdmin = (session: ChatSessionDocument, userId: string) => {
   if (session.type !== "ORG_GROUP") {
     throw new ChatServiceError("Not a group chat", 400);
   }
@@ -164,7 +153,9 @@ export const ChatService = {
 
   /* -------------------------- APPOINTMENT CHAT --------------------------- */
 
-  async ensureAppointmentChat(appointmentId: string): Promise<ChatSessionDocument> {
+  async ensureAppointmentChat(
+    appointmentId: string,
+  ): Promise<ChatSessionDocument> {
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) throw new ChatServiceError("Appointment not found", 404);
 
@@ -250,7 +241,7 @@ export const ChatService = {
     if (userA === userB) {
       throw new ChatServiceError("Cannot chat with yourself");
     }
-    
+
     const members = [userA, userB].sort();
 
     const existing = await ChatSessionModel.findOne({
@@ -263,28 +254,31 @@ export const ChatService = {
 
     // Upsert users in Stream
     for (const userId of members) {
-
-      const userProfile = await UserProfileService.getByUserId(userId,organisationId);
+      const userProfile = await UserProfileService.getByUserId(
+        userId,
+        organisationId,
+      );
       const user = await UserService.getById(userId);
 
       await streamServer.upsertUser({
         name: user?.firstName + " " + user?.lastName || "User",
         id: userId,
-        image: userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
+        image:
+          userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
         role: "user",
       });
     }
 
-    const hash = shortHash(
-      `${organisationId}:${members.join(":")}`,
-    );
+    const hash = shortHash(`${organisationId}:${members.join(":")}`);
 
     const channelId = `od_${hash}`;
 
-    await streamServer.channel("team", channelId, {
-      members,
-      created_by_id: userA,
-    }).create();
+    await streamServer
+      .channel("team", channelId, {
+        members,
+        created_by_id: userA,
+      })
+      .create();
 
     return ChatSessionModel.create({
       type: "ORG_DIRECT",
@@ -312,25 +306,25 @@ export const ChatService = {
     memberIds: string[];
     isPrivate?: boolean;
   }): Promise<ChatSessionDocument> {
-    const members = Array.from(
-      new Set([...memberIds, createdBy]),
-    );
+    const members = Array.from(new Set([...memberIds, createdBy]));
 
     if (members.length < 2) {
       throw new ChatServiceError("Group chat needs at least 2 members");
     }
 
-
     // Upsert users in Stream
     for (const userId of members) {
-
-      const userProfile = await UserProfileService.getByUserId(userId,organisationId);
+      const userProfile = await UserProfileService.getByUserId(
+        userId,
+        organisationId,
+      );
       const user = await UserService.getById(userId);
 
       await streamServer.upsertUser({
         name: user?.firstName + " " + user?.lastName || "User",
         id: userId,
-        image: userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
+        image:
+          userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
         role: "user",
       });
     }
@@ -360,10 +354,7 @@ export const ChatService = {
 
   /* ------------------------------- OPEN CHAT ------------------------------ */
 
-  async openChatBySessionId(
-    sessionId: string,
-    userId: string,
-  ) {
+  async openChatBySessionId(sessionId: string, userId: string) {
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) {
       throw new ChatServiceError("Chat session not found", 404);
@@ -433,23 +424,23 @@ export const ChatService = {
 
     assertGroupAdmin(session, actorUserId);
 
-    const newMembers = memberIds.filter(
-      (id) => !session.members.includes(id),
-    );
+    const newMembers = memberIds.filter((id) => !session.members.includes(id));
 
     if (newMembers.length === 0) return session;
 
-
     // Upsert users in Stream
     for (const userId of newMembers) {
-
-      const userProfile = await UserProfileService.getByUserId(userId,session.organisationId);
+      const userProfile = await UserProfileService.getByUserId(
+        userId,
+        session.organisationId,
+      );
       const user = await UserService.getById(userId);
 
       await streamServer.upsertUser({
         name: user?.firstName + " " + user?.lastName || "User",
         id: userId,
-        image: userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
+        image:
+          userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
         role: "user",
       });
     }
@@ -480,15 +471,10 @@ export const ChatService = {
       throw new ChatServiceError("Cannot remove group owner", 400);
     }
 
-    session.members = session.members.filter(
-      (id) => !memberIds.includes(id),
-    );
+    session.members = session.members.filter((id) => !memberIds.includes(id));
 
     if (session.members.length < 2) {
-      throw new ChatServiceError(
-        "Group must have at least 2 members",
-        400,
-      );
+      throw new ChatServiceError("Group must have at least 2 members", 400);
     }
 
     await session.save();
@@ -531,16 +517,11 @@ export const ChatService = {
       isPrivate: updates.isPrivate,
     };
 
-    await channel.updatePartial(
-      { set: data }
-    );
+    await channel.updatePartial({ set: data });
     return session;
   },
 
-  async deleteGroup(
-    sessionId: string,
-    actorUserId: string,
-  ) {
+  async deleteGroup(sessionId: string, actorUserId: string) {
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) return;
 
@@ -555,5 +536,5 @@ export const ChatService = {
     }
 
     await ChatSessionModel.deleteOne({ _id: sessionId });
-  }
+  },
 };
