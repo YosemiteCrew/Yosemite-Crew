@@ -87,7 +87,7 @@ router.get(
 
 // Create invite
 router.post(
-  "/:organizationId/invites",
+  "/:organisationId/invites",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("teams:edit:any"),
@@ -96,7 +96,7 @@ router.post(
 
 // List invites
 router.get(
-  "/:organizationId/invites",
+  "/:organisationId/invites",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("teams:view:any"),
