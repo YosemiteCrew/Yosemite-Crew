@@ -1,13 +1,16 @@
 "use client";
 import OrgGuard from "@/app/components/OrgGuard";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
-import { useStripeOnboarding } from "@/app/hooks/useStripeOnboarding";
+import {
+  useStripeOnboarding,
+  useStripeAccountStatus,
+} from "@/app/hooks/useStripeOnboarding";
 import {
   createConnectedAccount,
   onBoardConnectedAccount,
 } from "@/app/services/stripeService";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   loadConnectAndInitialize,
   StripeConnectInstance,
@@ -16,6 +19,7 @@ import {
   ConnectAccountOnboarding,
   ConnectComponentsProvider,
 } from "@stripe/react-connect-js";
+import { useSubscriptionByOrgId } from "@/app/hooks/useBilling";
 
 const StripeOnboarding = () => {
   const searchParams = useSearchParams();
@@ -27,8 +31,17 @@ const StripeOnboarding = () => {
     useState<StripeConnectInstance>();
 
   const { onboard } = useStripeOnboarding(orgIdFromQuery);
+  const subscription = useSubscriptionByOrgId(orgIdFromQuery);
+  const { refetch: refetchStripeStatus } =
+    useStripeAccountStatus(orgIdFromQuery);
 
-  const createAccount = async () => {
+  const handleExit = useCallback(async () => {
+    await refetchStripeStatus();
+    router.push("/dashboard");
+  }, [refetchStripeStatus, router]);
+
+  const createAccountIfNeeded = async () => {
+    if (!orgIdFromQuery) return;
     try {
       const account_id = await createConnectedAccount(orgIdFromQuery);
       if (!account_id) {
@@ -42,48 +55,74 @@ const StripeOnboarding = () => {
   };
 
   useEffect(() => {
-    if (accountId && PUBLISHABE_KEY && orgIdFromQuery) {
-      const fetchClientSecret = async () => {
-        const res = await onBoardConnectedAccount(orgIdFromQuery);
-        return res;
-      };
-      setConnectInstance(
-        loadConnectAndInitialize({
-          publishableKey: PUBLISHABE_KEY,
-          fetchClientSecret,
-          appearance: {
-            overlays: "dialog",
-            variables: {
-              colorPrimary: "#635BFF",
-            },
-          },
-        })
-      );
+    if (!onboard) {
+      router.push("/dashboard");
+      return;
     }
-  }, [accountId, orgIdFromQuery]);
+    if (!orgIdFromQuery) {
+      router.push("/dashboard");
+      return;
+    }
+    if (!subscription) {
+      router.push("/dashboard");
+      return;
+    }
+    if (subscription.connectChargesEnabled) {
+      router.push("/dashboard");
+      return;
+    }
+    if (subscription.connectAccountId) {
+      setAccountId(subscription.connectAccountId);
+      return;
+    }
+    createAccountIfNeeded();
+  }, [onboard, orgIdFromQuery, subscription]);
 
   useEffect(() => {
-    if (onboard) {
-      createAccount();
-    } else {
-      router.push("/organizations");
+    if (!orgIdFromQuery || !accountId || !PUBLISHABE_KEY || !subscription)
+      return;
+    const fetchClientSecret = async () => {
+      const secret = await onBoardConnectedAccount(orgIdFromQuery);
+      return secret;
+    };
+    try {
+      const instance = loadConnectAndInitialize({
+        publishableKey: PUBLISHABE_KEY,
+        fetchClientSecret,
+        appearance: {
+          overlays: "dialog",
+          variables: { colorPrimary: "#635BFF" },
+        },
+      });
+      setConnectInstance(instance);
+    } catch (e: any) {
+      console.error(e);
     }
-  }, [onboard]);
+  }, [orgIdFromQuery, accountId, PUBLISHABE_KEY, subscription]);
+
+  const handleStepChange = useCallback(async ({ step }: { step: string }) => {
+    if (step === "stripe_user_authentication") {
+      await refetchStripeStatus();
+    }
+  }, []);
 
   if (!onboard) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-8 lg:gap-20 px-4! py-6! md:px-12! md:py-10! lg:px-10! lg:pb-20! lg:pr-20!">
+    <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
       <div className="flex justify-between items-center w-full">
-        <div className="font-grotesk font-medium text-black-text text-[33px]">
+        <div className="text-text-primary text-heading-1">
           Stripe Onboarding
         </div>
       </div>
       {connectInstance && (
         <ConnectComponentsProvider connectInstance={connectInstance}>
-          <ConnectAccountOnboarding onExit={() => router.push("/dashboard")} />
+          <ConnectAccountOnboarding
+            onExit={handleExit}
+            onStepChange={handleStepChange}
+          />
         </ConnectComponentsProvider>
       )}
     </div>

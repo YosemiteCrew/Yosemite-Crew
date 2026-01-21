@@ -4,6 +4,7 @@ import { Secondary } from "../Buttons";
 import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useServicesForPrimaryOrgSpecialities } from "@/app/hooks/useSpecialities";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
 
 type Step = {
   key: "services" | "team" | "stripe";
@@ -16,14 +17,24 @@ type Step = {
 
 const DashboardSteps = () => {
   const primaryOrg = usePrimaryOrg();
+  const subscription = useSubscriptionForPrimaryOrg();
   const services = useServicesForPrimaryOrgSpecialities();
   const teams = useTeamForPrimaryOrg();
 
   const steps: Step[] = useMemo(() => {
-    if (!primaryOrg) return [];
+    if (!primaryOrg || !subscription) return [];
     const hasServices = (services?.length ?? 0) > 0;
     const hasTeam = (teams?.length ?? 0) > 0;
-    const hasStripe = Boolean(primaryOrg.stripeAccountId);
+    const hasStripeAccount = Boolean(subscription.connectAccountId);
+    const stripeCompleted = Boolean(subscription.connectChargesEnabled);
+
+    let stripeButtonText = "Connect Stripe";
+    if (stripeCompleted) {
+      stripeButtonText = "Stripe connected";
+    } else if (hasStripeAccount) {
+      stripeButtonText = "Continue setup";
+    }
+
     return [
       {
         key: "services",
@@ -48,8 +59,8 @@ const DashboardSteps = () => {
         title: "Step 3 - Connect Stripe",
         description: "Configure Stripe to ensure a seamless booking experience",
         buttonSrc: `/stripe-onboarding?orgId=${primaryOrg._id}`,
-        buttonText: hasStripe ? "Stripe connected" : "Connect Stripe",
-        isCompleted: hasStripe,
+        buttonText: stripeButtonText,
+        isCompleted: stripeCompleted,
       },
     ];
   }, [primaryOrg, services, teams]);
@@ -59,7 +70,13 @@ const DashboardSteps = () => {
     [steps]
   );
 
-  if (!primaryOrg || completedCount === 3) return null;
+  if (
+    !primaryOrg ||
+    !subscription ||
+    !primaryOrg.isVerified ||
+    completedCount === 3
+  )
+    return null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -81,7 +98,11 @@ const DashboardSteps = () => {
                 {step.description}
               </div>
             </div>
-            <Secondary href={step.buttonSrc} text={step.buttonText} isDisabled={step.isCompleted} />
+            <Secondary
+              href={step.buttonSrc}
+              text={step.buttonText}
+              isDisabled={step.isCompleted}
+            />
           </div>
         ))}
       </div>
