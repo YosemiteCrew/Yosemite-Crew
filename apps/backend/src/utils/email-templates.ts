@@ -148,7 +148,7 @@ const renderBaseEmail = (
                               </p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
                                 <a
-                                  href="https://github.com/YosemiteCrew/Yosemite-Crew/"
+                                  href="https://www.yosemitecrew.com/developers/signup"
                                   target="_blank"
                                   style="color:#2b2b2b; text-decoration:none;"
                                 >
@@ -172,7 +172,7 @@ const renderBaseEmail = (
                               </p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
                                 <a
-                                  href="https://discord.gg/4zDVekEz"
+                                  href=""https://discord.gg/yosemitecrew"
                                   target="_blank"
                                   style="color:#2b2b2b; text-decoration:none;"
                                 >

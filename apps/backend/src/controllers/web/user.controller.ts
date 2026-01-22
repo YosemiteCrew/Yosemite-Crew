@@ -56,4 +56,32 @@ export const UserController = {
       res.status(500).json({ message: "Unable to retrieve user." });
     }
   },
+
+  deleteById: async (req: GetUserRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        res.status(400).json({ message: "User id is required." });
+        return;
+      }
+
+      const deleted = await UserService.deleteById(id);
+
+      if (!deleted) {
+        res.status(404).json({ message: "User not found." });
+        return;
+      }
+
+      res.status(200).json({ message: "User deleted successfully." });
+    } catch (error: unknown) {
+      if (error instanceof UserServiceError) {
+        res.status(error.statusCode).json({ message: error.message });
+        return;
+      }
+
+      logger.error("Failed to delete user", error);
+      res.status(500).json({ message: "Unable to delete user." });
+    }
+  },
 };

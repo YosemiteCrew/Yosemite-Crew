@@ -1,5 +1,11 @@
 import validator from "validator";
 import UserModel, { type UserDocument, type UserMongo } from "../models/user";
+import UserOrganizationModel from "../models/user-organization";
+import UserProfileModel from "../models/user-profile";
+import BaseAvailabilityModel from "../models/base-availability";
+import WeeklyAvailabilityOverrideModel from "../models/weekly-availablity-override";
+import { OccupancyModel } from "../models/occupancy";
+import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
 
 export class UserServiceError extends Error {
@@ -154,6 +160,65 @@ export const UserService = {
     }
 
     return toUserDomain(document);
+  },
+
+  async deleteById(id: unknown): Promise<boolean> {
+    const userId = requireSafeIdentifier(id, "User id");
+
+    const existing = await UserModel.findOne({ userId }, null, {
+      sanitizeFilter: true,
+    }).lean();
+
+    if (!existing) {
+      return false;
+    }
+
+    const mappings = await UserOrganizationModel.find(
+      {
+        $or: [
+          { practitionerReference: userId },
+          { practitionerReference: `Practitioner/${userId}` },
+        ],
+      },
+      { roleCode: 1 },
+      { sanitizeFilter: true },
+    ).lean();
+
+    const isOwner = mappings.some(
+      (mapping) => mapping.roleCode?.toUpperCase() === "OWNER",
+    );
+
+    if (isOwner) {
+      throw new UserServiceError(
+        "User is an owner of an organisation and cannot be deleted.",
+        409,
+      );
+    }
+
+    for (const mapping of mappings) {
+      await UserOrganizationService.deleteById(mapping._id.toString());
+    }
+
+    await Promise.all([
+      UserProfileModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+      BaseAvailabilityModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+      WeeklyAvailabilityOverrideModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+      OccupancyModel.deleteMany({ userId }).setOptions({
+        sanitizeFilter: true,
+      }),
+    ]);
+
+    const deleted = await UserModel.findOneAndDelete({ userId }, null, {
+      sanitizeFilter: true,
+    });
+
+    return Boolean(deleted);
   },
 };
 

@@ -102,7 +102,14 @@ export const StripeService = {
       orgId: org._id,
     });
 
-    return orgBilling;
+    const orgUsage = OrgUsageCounters.findOne({
+      orgId : org._id
+    })
+
+    return { 
+      orgBilling : orgBilling,
+      orgUsage : orgUsage
+    };
   },
 
   async createOnboardingLink(organisationId: string) {
@@ -187,8 +194,8 @@ export const StripeService = {
       await billing.save();
     }
 
-    const successUrl = `${process.env.APP_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${process.env.APP_URL}/billing/cancel`;
+    const successUrl = `${process.env.APP_URL}/organization`;
+    const cancelUrl = `${process.env.APP_URL}/organization`;
 
     const session = await stripe.checkout.sessions.create(
       {
@@ -210,7 +217,6 @@ export const StripeService = {
           seats: String(seats),
         },
       },
-      { idempotencyKey: `checkout_business_${orgId}_${interval}_${seats}` },
     );
 
     return { url: session.url };
@@ -226,7 +232,7 @@ export const StripeService = {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: billing.stripeCustomerId,
-      return_url: `${process.env.APP_URL}/settings/billing`,
+      return_url: `${process.env.APP_URL}/organization`,
     });
 
     return { url: session.url };

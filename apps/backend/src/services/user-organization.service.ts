@@ -838,6 +838,7 @@ export const UserOrganizationService = {
         persistable.organizationReference,
       );
       await reserveMemberSlot(orgObjectId);
+      await syncSeatsIfBusiness(orgObjectId);
       reservedMemberSlot = true;
     }
 
