@@ -1,171 +1,106 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import AppointmentCard from "@/app/components/Cards/AppointmentCard";
 import { Appointment } from "@yosemite-crew/types";
 
-// --- Mocks ---
-
-// Mock next/image
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} alt={props.alt} />,
+  default: (props: any) => <img alt={props.alt} {...props} />,
 }));
 
-// Mock Utils
 jest.mock("@/app/components/DataTable/Appointments", () => ({
-  getStatusStyle: jest.fn(() => ({ color: "green" })),
+  getStatusStyle: () => ({}),
 }));
 
 jest.mock("@/app/utils/forms", () => ({
-  formatDateLabel: jest.fn((date) => `Formatted ${date}`),
+  formatDateLabel: () => "Jan 2, 2025",
+  formatTimeLabel: () => "10:00 AM",
 }));
 
-import { formatDateLabel } from "@/app/utils/forms";
+jest.mock("@/app/utils/validators", () => ({
+  toTitle: (value: string) => value,
+}));
 
-// --- Test Data ---
+jest.mock("@/app/utils/appointments", () => ({
+  allowReschedule: () => true,
+}));
 
-const mockAppointment: Appointment = {
-  _id: "1",
-  status: "CONFIRMED",
-  appointmentDate: "2023-01-01",
-  startTime: "10:00 AM",
-  concern: "Vaccination",
-  companion: {
-    name: "Buddy",
-    species: "Dog",
-    breed: "Golden Retriever",
-    parent: { name: "John Doe" },
-  },
-  appointmentType: { name: "General Checkup" },
-  room: { name: "Room 1" },
-  lead: { name: "Dr. Smith" },
-  supportStaff: [{ name: "Nurse Joy" }, { name: "Assistant Bob" }],
-} as any;
+jest.mock("@/app/components/Buttons", () => ({
+  Secondary: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
 
-describe("AppointmentCard Component", () => {
-  const mockHandleView = jest.fn();
+describe("AppointmentCard", () => {
+  const baseAppointment: Appointment = {
+    status: "CHECKED_IN",
+    appointmentDate: new Date(2025, 0, 2, 10),
+    startTime: new Date(2025, 0, 2, 10),
+    companion: {
+      name: "Buddy",
+      breed: "Lab",
+      species: "DOG",
+      parent: { name: "Alex" },
+    } as any,
+    appointmentType: { name: "Checkup" } as any,
+    room: { name: "Room 1" } as any,
+    lead: { name: "Dr. Lee" } as any,
+    supportStaff: [{ name: "Nurse A" } as any],
+    concern: "Vaccines",
+  } as Appointment;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  // --- 1. Rendering Details ---
-
-  it("renders appointment details correctly", () => {
+  it("renders appointment details", () => {
     render(
       <AppointmentCard
-        appointment={mockAppointment}
-        handleViewAppointment={mockHandleView}
+        appointment={baseAppointment}
+        handleViewAppointment={jest.fn()}
+        handleRescheduleAppointment={jest.fn()}
       />
     );
 
-    // Header Info
     expect(screen.getByText("Buddy")).toBeInTheDocument();
-    expect(screen.getByText("John Doe")).toBeInTheDocument();
-
-    // Breed / Species
-    expect(screen.getByText("Golden Retriever")).toBeInTheDocument();
-
-    // Date / Time (using mock formatter)
-    expect(formatDateLabel).toHaveBeenCalledTimes(2);
-    expect(screen.getByText(/Formatted 2023-01-01/)).toBeInTheDocument();
-
-    // Other Details
-    expect(screen.getByText("Vaccination")).toBeInTheDocument(); // Reason
-    expect(screen.getByText("General Checkup")).toBeInTheDocument(); // Service
-    expect(screen.getByText("Room 1")).toBeInTheDocument(); // Room
-    expect(screen.getByText("Dr. Smith")).toBeInTheDocument(); // Lead
-
-    // Staff List
-    expect(screen.getByText("Nurse Joy, Assistant Bob")).toBeInTheDocument();
+    expect(screen.getByText("Alex")).toBeInTheDocument();
+    expect(screen.getByText("Vaccines")).toBeInTheDocument();
+    expect(screen.getByText("Checkup")).toBeInTheDocument();
+    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(screen.getByText("Dr. Lee")).toBeInTheDocument();
+    expect(screen.getByText("Nurse A")).toBeInTheDocument();
+    expect(screen.getByText("Jan 2, 2025 / 10:00 AM")).toBeInTheDocument();
   });
 
-  it("handles missing optional fields gracefully", () => {
-    const incompleteAppointment = {
-      ...mockAppointment,
-      companion: { name: "Stray", species: "Cat" }, // No breed, no parent
-      room: null,
-      lead: null,
-      supportStaff: [],
-    } as any;
+  it("calls view and reschedule handlers", () => {
+    const handleView = jest.fn();
+    const handleReschedule = jest.fn();
 
     render(
       <AppointmentCard
-        appointment={incompleteAppointment}
-        handleViewAppointment={mockHandleView}
+        appointment={baseAppointment}
+        handleViewAppointment={handleView}
+        handleRescheduleAppointment={handleReschedule}
       />
     );
 
-    // Fallback for Breed / Species logic: "{breed} || '-' + ' / ' + {species}"
-    // Breed is undefined -> "-" / "Cat"
-    expect(screen.getByText("- / Cat")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("View"));
+    fireEvent.click(screen.getByText("Reschedule"));
 
-    // Empty Staff
-    // It calls .map on empty array -> empty string
-    // The label "Staff:" is still there, but content is empty.
-    // We check that it doesn't crash.
+    expect(handleView).toHaveBeenCalledWith(baseAppointment);
+    expect(handleReschedule).toHaveBeenCalledWith(baseAppointment);
   });
 
-  // --- 2. Status Rendering ---
-
-  it("renders status badge correctly", () => {
+  it("renders accept/cancel for requested status", () => {
     render(
       <AppointmentCard
-        appointment={mockAppointment} // Status: CONFIRMED
-        handleViewAppointment={mockHandleView}
-      />
-    );
-  });
-
-  // --- 3. Action Buttons Logic ---
-
-  it("renders 'View' button for non-REQUESTED status", () => {
-    render(
-      <AppointmentCard
-        appointment={{ ...mockAppointment, status: "CONFIRMED" } as any}
-        handleViewAppointment={mockHandleView}
-      />
-    );
-
-    const viewBtn = screen.getByText("View");
-    expect(viewBtn).toBeInTheDocument();
-    expect(screen.queryByText("Accept")).not.toBeInTheDocument();
-
-    fireEvent.click(viewBtn);
-    expect(mockHandleView).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "CONFIRMED" })
-    );
-  });
-
-  it("renders 'Accept' and 'Cancel' buttons for REQUESTED status", () => {
-    render(
-      <AppointmentCard
-        appointment={{ ...mockAppointment, status: "REQUESTED" } as any}
-        handleViewAppointment={mockHandleView}
+        appointment={{ ...baseAppointment, status: "REQUESTED" } as Appointment}
+        handleViewAppointment={jest.fn()}
+        handleRescheduleAppointment={jest.fn()}
       />
     );
 
     expect(screen.getByText("Accept")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
     expect(screen.queryByText("View")).not.toBeInTheDocument();
-  });
-
-  // --- 4. Interactions ---
-
-  it("does not trigger view handler when clicking Accept/Cancel (if logic implemented)", () => {
-    // Note: The current component code doesn't assign onClick handlers to Accept/Cancel buttons yet.
-    // This test ensures that they exist and are clickable without crashing.
-    render(
-      <AppointmentCard
-        appointment={{ ...mockAppointment, status: "REQUESTED" } as any}
-        handleViewAppointment={mockHandleView}
-      />
-    );
-
-    const acceptBtn = screen.getByText("Accept");
-    fireEvent.click(acceptBtn);
-
-    // Should NOT call handleViewAppointment (which is for View button)
-    expect(mockHandleView).not.toHaveBeenCalled();
   });
 });

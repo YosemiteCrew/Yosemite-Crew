@@ -9,6 +9,7 @@ import AddForm from "./Sections/AddForm";
 import FormInfo from "./Sections/FormInfo";
 import { useFormsStore } from "@/app/stores/formsStore";
 import { loadForms } from "@/app/services/formService";
+import { useSearchStore } from "@/app/stores/searchStore";
 import {
   useLoadSpecialitiesForPrimaryOrg,
   useServicesForPrimaryOrgSpecialities,
@@ -18,6 +19,7 @@ import OrgGuard from "@/app/components/OrgGuard";
 const Forms = () => {
   const { formsById, formIds, activeFormId, setActiveForm, loading } =
     useFormsStore();
+  const headerSearchQuery = useSearchStore((s) => s.query);
   const [filteredList, setFilteredList] = useState<FormsProps[]>([]);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
@@ -124,7 +126,7 @@ const Forms = () => {
       </div>
 
       <div className="w-full flex flex-col gap-3">
-        <FormsFilters list={list} setFilteredList={setFilteredList} />
+        <FormsFilters list={list} setFilteredList={setFilteredList} searchQuery={headerSearchQuery} />
         <FormsTable
           filteredList={filteredList}
           activeForm={activeForm}

@@ -111,7 +111,7 @@ const Slotpicker = ({
           onClick={handlePrevMonth}
           className="cursor-pointer"
         />
-        <div className="text-[18px] font-satoshi font-semibold text-black-text">
+        <div className="text-body-3 text-text-primary">
           {monthNames[viewMonth]}
         </div>
         <GrNext
@@ -121,14 +121,14 @@ const Slotpicker = ({
           className="cursor-pointer"
         />
       </div>
-      <div className="flex items-center justify-between gap-2 mb-1">
+      <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1">
         <GrPrevious
           size={16}
           color="#302f2e"
           onClick={handlePrevWeek}
           className="cursor-pointer"
         />
-        <div className="grid grid-cols-7 gap-x-2">
+        <div className="grid grid-cols-7 gap-x-1 sm:gap-x-2">
           {days.map((day) => {
             const isCurrent = isSameDay(selectedDate, day);
             return (
@@ -137,8 +137,8 @@ const Slotpicker = ({
                 onClick={() => handleClickdate(day)}
                 className={`${isCurrent ? "text-[#247AED] bg-[#E9F2FD] border-[#247AED]!" : "border-[#747473]! bg-white"} flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl!`}
               >
-                <div>{getShortWeekday(day)}</div>
-                <div>{getDateNumberPadded(day)}</div>
+                <div className="text-sm sm:text-md font-satoshi text-text-primary">{getShortWeekday(day)}</div>
+                <div className="text-sm sm:text-md font-satoshi text-text-primary">{getDateNumberPadded(day)}</div>
               </button>
             );
           })}
@@ -150,7 +150,7 @@ const Slotpicker = ({
           className="cursor-pointer"
         />
       </div>
-      <div className="flex flex-wrap gap-2 px-2">
+      <div className="flex flex-wrap gap-1 px-2 sm:px-3 mb-2 max-h-[200px] overflow-y-auto scrollbar-hidden">
         {timeSlots?.length > 0 &&
           timeSlots.map((slot, i) => {
             const selected = isSameSlot(selectedSlot, slot);
@@ -158,7 +158,7 @@ const Slotpicker = ({
               <button
                 key={slot.startTime + i}
                 onClick={() => setSelectedSlot(slot)}
-                className={`${selected ? "text-[#247AED] bg-[#E9F2FD] border-[#247AED]!" : "border-[#747473]! bg-white"} px-3 py-2 flex items-center justify-center border rounded-xl! text-[13px]! font-grotesk font-medium`}
+                className={`${selected ? "text-[#247AED] bg-[#E9F2FD] border-[#247AED]!" : "border-[#747473]! bg-white"} px-[14px] py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
               >
                 {formatUtcTimeToLocalLabel(slot.startTime)}
               </button>

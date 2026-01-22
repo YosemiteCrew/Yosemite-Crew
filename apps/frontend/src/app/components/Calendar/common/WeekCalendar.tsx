@@ -27,6 +27,7 @@ type WeekCalendarProps = {
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  handleRescheduleAppointment: any;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -36,6 +37,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   weekStart,
   setWeekStart,
   setCurrentDate,
+  handleRescheduleAppointment
 }) => {
   const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -219,13 +221,14 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         style={{ height: `${height}px` }}
                       >
                         {hour !== 0 && (
-                          <div className="pointer-events-none absolute inset-x-0 top-2 -z-10 border-t border-grey-light" />
+                          <div className="pointer-events-none absolute inset-x-0 top-2 z-10 border-t border-grey-light" />
                         )}
                         <Slot
                           slotEvents={slotEvents}
                           height={height}
                           dayIndex={dayIndex}
                           handleViewAppointment={handleViewAppointment}
+                          handleRescheduleAppointment={handleRescheduleAppointment}
                           length={days.length - 1}
                         />
                       </div>

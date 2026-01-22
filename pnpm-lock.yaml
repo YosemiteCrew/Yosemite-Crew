@@ -371,6 +371,9 @@ importers:
       '@yosemite-crew/fhir':
         specifier: workspace:^
         version: link:../../packages/fhir
+      '@yosemite-crew/fhirtypes':
+        specifier: workspace:^
+        version: link:../../packages/fhirtypes
       '@yosemite-crew/types':
         specifier: workspace:^
         version: link:../../packages/types
@@ -8861,7 +8864,7 @@ packages:
       '@babel/helper-module-imports': 7.27.1
       '@babel/helper-plugin-utils': 7.27.1
       '@babel/plugin-syntax-jsx': 7.27.1(@babel/core@7.28.5)
-      '@babel/types': 7.28.4
+      '@babel/types': 7.28.5
     transitivePeerDependencies:
       - supports-color
 
@@ -25531,7 +25534,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@22.18.1)(typescript@5.0.4)
+      ts-node: 10.9.2(@types/node@20.19.13)(typescript@5.8.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color

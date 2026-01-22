@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { checkStatus } from "../services/stripeService";
+import { useSubscriptionStore } from "../stores/subscriptionStore";
+import { BillingSubscription } from "../types/billing";
 
 export const useStripeOnboarding = (
   orgId: string | null
@@ -39,34 +41,39 @@ export const useStripeOnboarding = (
   };
 };
 
-export const useStripeAccountStatus = (orgId: string | null) => {
-  const [status, setStatus] = useState(null);
+type UseStripeAccountStatusResult = {
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+};
+
+export const useStripeAccountStatus = (
+  orgId: string | null
+): UseStripeAccountStatusResult => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchStatus = useCallback(async () => {
-    if (!orgId) return;
+  const setSubscriptionForOrg = useSubscriptionStore(
+    (s) => s.setSubscriptionForOrg
+  );
 
+  const refetch = useCallback(async () => {
+    if (!orgId) return;
     setLoading(true);
     setError(null);
-
     try {
       const data = await checkStatus(orgId);
-      setStatus(data as any);
+      setSubscriptionForOrg(orgId, data as BillingSubscription);
     } catch (err) {
       setError(err as Error);
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
-
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
+  }, [orgId, setSubscriptionForOrg]);
 
   return {
-    status,
     loading,
-    error
+    error,
+    refetch,
   };
 };
