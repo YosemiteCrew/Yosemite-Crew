@@ -92,7 +92,7 @@ const PricingPage = () => {
                     Save up to 20% with yearly
                   </div>
                   <div className="text-[15px] font-satoshi text-grey-noti font-bold">
-                    Price in USD
+                    Price in EUR
                   </div>
                 </div>
               </div>
