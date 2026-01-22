@@ -4,6 +4,7 @@ import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
 import ServiceSearch from "@/app/components/Inputs/ServiceSearch/ServiceSearch";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import { Option } from "@/app/types/companion";
 import { SpecialityWeb } from "@/app/types/speciality";
 import { Service } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
@@ -24,8 +25,8 @@ const SpecialityCard = ({
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       })),
     [teams]
   );
@@ -53,14 +54,14 @@ const SpecialityCard = ({
     );
   };
 
-  const updateLead = (lead: any) => {
+  const updateLead = (lead: Option) => {
     setFormData((prev) =>
       prev.map((sp, spIndex) => {
         if (spIndex !== index) return sp;
         return {
           ...sp,
           headName: lead.label,
-          headUserId: lead.key,
+          headUserId: lead.value,
         };
       })
     );

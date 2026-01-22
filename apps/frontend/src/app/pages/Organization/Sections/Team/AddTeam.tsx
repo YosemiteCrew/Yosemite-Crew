@@ -12,6 +12,7 @@ import { TeamFormDataType } from "@/app/types/team";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 
 type AddTeamProps = {
   showModal: boolean;
@@ -27,6 +28,7 @@ const initialData = {
 
 const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [formData, setFormData] = useState<TeamFormDataType>(initialData);
   const [formDataErrors, setFormDataErrors] = useState<{
     email?: string;
@@ -36,7 +38,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
 
   const SpecialitiesOptions = useMemo(
     () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
-    [specialities]
+    [specialities],
   );
 
   const handleSave = async () => {
@@ -52,6 +54,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
     }
     try {
       await sendInvite(formData);
+      await refetchData();
       setShowModal(false);
       setFormData(initialData);
     } catch (error) {
@@ -105,7 +108,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 }
                 defaultOption={formData.role}
                 error={formDataErrors.role}
-                options={RoleOptions}
+                options={RoleOptions.slice(1)}
               />
               <SelectLabel
                 title="Employee type"
@@ -118,11 +121,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
               />
             </div>
           </Accordion>
-          <Primary
-            href="#"
-            text="Send invite"
-            onClick={handleSave}
-          />
+          <Primary href="#" text="Send invite" onClick={handleSave} />
         </div>
       </div>
     </Modal>

@@ -24,7 +24,13 @@ const TaskSlot = ({
   const memberMap = useMemo(() => {
     const map = new Map<string, string>();
     teams?.forEach((member: Team) => {
-      map.set(member._id, member.name || "-");
+      const name = member.name || "-";
+      if (member.practionerId) {
+        map.set(member.practionerId, name);
+      }
+      if (member._id) {
+        map.set(member._id, name);
+      }
     });
     return map;
   }, [teams]);

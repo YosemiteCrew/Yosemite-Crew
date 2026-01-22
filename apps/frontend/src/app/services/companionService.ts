@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useCompanionStore } from "../stores/companionStore";
 import { useOrgStore } from "../stores/orgStore";
-import { getData, postData } from "./axios";
+import { getData, postData, putData } from "./axios";
 import {
   CompanionRequestDTO,
   fromCompanionRequestDTO,
@@ -240,6 +240,35 @@ export const getCompanionForParent = async (
       normalCompanions.push(newCompanion);
     }
     return normalCompanions;
+  } catch (err) {
+    console.error("Failed to create service:", err);
+    throw err;
+  }
+};
+
+export const updateCompanion = async (
+  payload: StoredCompanion,
+) => {
+  const { upsertCompanion } = useCompanionStore.getState();
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) {
+    console.warn("No primary organization selected. Cannot update companions.");
+    return;
+  }
+  try {
+    const fhirCompanion = toCompanionResponseDTO(payload);
+    const res = await putData<CompanionRequestDTO>(
+      "/fhir/v1/companion/org/" + payload.id,
+      fhirCompanion
+    );
+    const normalCompanion = fromCompanionRequestDTO(res.data);
+    const newCompanion: StoredCompanion = {
+      ...normalCompanion,
+      id: payload.id,
+      parentId: payload.parentId,
+      organisationId: primaryOrgId,
+    };
+    upsertCompanion(newCompanion);
   } catch (err) {
     console.error("Failed to create service:", err);
     throw err;

@@ -49,6 +49,7 @@ export const loadTeam = async (opts?: {
         status: data.currentStatus,
         effectivePermissions: toPermissionArray(oM.effectivePermissions),
         extraPerissions: toPermissionArray(oM.extraPermissions),
+        revokedPermissions: toPermissionArray(oM.revokedPermissions)
       };
       temp.push(teamObject);
     }
@@ -175,18 +176,20 @@ export const updateMember = async (member: Team) => {
       roleDisplay: member.role,
       effectivePermissions: member.effectivePermissions,
       extraPermissions: member.extraPerissions,
+      revokedPermissions: member.revokedPermissions
     };
     const fhirMapping = toUserOrganizationResponseDTO(fhirPayload);
     const res = await putData<PractitionerRole>(
       "/fhir/v1/user-organization/" + member._id,
       fhirMapping
     );
-    const normalTeam = fromUserOrganizationRequestDTO(res.data);
+    const normalTeam: UserOrganization = fromUserOrganizationRequestDTO(res.data);
     const teamObject: Team = {
       ...member,
       role: normalTeam.roleCode,
       effectivePermissions: toPermissionArray(normalTeam.effectivePermissions),
       extraPerissions: toPermissionArray(normalTeam.extraPermissions),
+      revokedPermissions: toPermissionArray(normalTeam.revokedPermissions)
     };
     updateTeam(teamObject);
   } catch (err) {

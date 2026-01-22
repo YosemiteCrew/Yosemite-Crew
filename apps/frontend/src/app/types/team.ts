@@ -52,6 +52,7 @@ export type Team = {
   todayAppointment?: string;
   weeklyWorkingHours?: string;
   status: TeamStatusProps;
+  revokedPermissions: Permission[];
   effectivePermissions: Permission[];
   extraPerissions: Permission[];
 };

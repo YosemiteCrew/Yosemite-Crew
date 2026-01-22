@@ -26,6 +26,7 @@ import {
 import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -84,6 +85,7 @@ const AddAppointment = ({
   const getServicesBySpecialityId =
     useServiceStore.getState().getServicesBySpecialityId;
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [formDataErrors, setFormDataErrors] = useState<{
     companionId?: string;
     specialityId?: string;
@@ -160,18 +162,18 @@ const AddAppointment = ({
     if (!slot?.vetIds?.length) return [];
     const vetIdSet = new Set(slot.vetIds);
     return teams
-      .filter((team) => vetIdSet.has(team._id))
+      .filter((team) => vetIdSet.has(team.practionerId))
       .map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       }));
   }, [teams, timeSlots, selectedSlot]);
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       })),
     [teams]
   );
@@ -285,6 +287,7 @@ const AddAppointment = ({
     }
     try {
       await createAppointment(formData);
+      await refetchData()
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);

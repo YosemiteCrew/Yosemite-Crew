@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/app/stores/authStore";
+import { useOrgStore } from "../stores/orgStore";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -15,9 +16,17 @@ api.interceptors.request.use(
   async (config) => {
     try {
       const session = useAuthStore.getState().session;
-      if (session && config.headers) {
-        const token = session.getIdToken().getJwtToken();
-        config.headers.Authorization = `Bearer ${token}`;
+      const primaryOrgId = useOrgStore.getState().primaryOrgId;
+      if (config.headers) {
+        if (session) {
+          const token = session.getIdToken().getJwtToken();
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        if (primaryOrgId) {
+          config.headers["x-org-id"] = primaryOrgId;
+        } else {
+          delete config.headers["x-org-id"];
+        }
       }
     } catch (error) {
       console.warn("No valid Cognito session available from AuthStore", error);
@@ -25,7 +34,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) =>
-    Promise.reject(error instanceof Error ? error : new Error(String(error)))
+    Promise.reject(error instanceof Error ? error : new Error(String(error))),
 );
 
 api.interceptors.response.use(
@@ -71,13 +80,13 @@ api.interceptors.response.use(
       await useAuthStore.getState().signout();
       throw error;
     }
-  }
+  },
 );
 
 // GET Request
 export const getData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {}
+  params: Record<string, unknown> = {},
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.get<T>(endpoint, {
@@ -93,7 +102,7 @@ export const getData = async <T>(
 export const postData = async <T, D = unknown>(
   endpoint: string,
   data?: D,
-  config?: AxiosRequestConfig
+  config?: AxiosRequestConfig,
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.post<T>(endpoint, data, {
@@ -108,7 +117,7 @@ export const postData = async <T, D = unknown>(
 // PUT Request
 export const putData = async <T, D = unknown>(
   endpoint: string,
-  data?: D
+  data?: D,
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.put<T>(endpoint, data);
@@ -121,7 +130,7 @@ export const putData = async <T, D = unknown>(
 // DELETE Request
 export const deleteData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {}
+  params: Record<string, unknown> = {},
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.delete<T>(endpoint, {
@@ -136,7 +145,7 @@ export const deleteData = async <T>(
 export const patchData = async <T, D = unknown>(
   endpoint: string,
   data?: D,
-  config?: AxiosRequestConfig
+  config?: AxiosRequestConfig,
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.patch<T>(endpoint, data, {

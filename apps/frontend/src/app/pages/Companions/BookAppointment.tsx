@@ -26,6 +26,7 @@ import Slotpicker from "@/app/components/Inputs/Slotpicker";
 import { Primary } from "@/app/components/Buttons";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
 
 type BookAppointmentProps = {
   showModal: boolean;
@@ -57,6 +58,7 @@ const BookAppointment = ({
   const specialities = useSpecialitiesForPrimaryOrg();
   const getServicesBySpecialityId =
     useServiceStore.getState().getServicesBySpecialityId;
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
   const [formDataErrors, setFormDataErrors] = useState<{
     specialityId?: string;
@@ -123,18 +125,21 @@ const BookAppointment = ({
     if (!slot?.vetIds?.length) return [];
     const vetIdSet = new Set(slot.vetIds);
     return teams
-      .filter((team) => vetIdSet.has(team._id))
+      .filter((team) => {
+        const teamId = team.practionerId || team._id;
+        return teamId ? vetIdSet.has(teamId) : false;
+      })
       .map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       }));
   }, [teams, timeSlots, selectedSlot]);
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       })),
     [teams]
   );
@@ -245,6 +250,7 @@ const BookAppointment = ({
     }
     try {
       await createAppointment(formData);
+      await refetchData()
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);

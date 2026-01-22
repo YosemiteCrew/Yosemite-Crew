@@ -20,6 +20,7 @@ const DeleteOrg = () => {
     setConsent(false);
     setEmailError("");
   };
+  
   const handleDelete = async () => {
     if (!email) {
       setEmailError("Email is required");

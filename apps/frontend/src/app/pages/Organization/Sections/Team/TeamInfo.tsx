@@ -14,7 +14,9 @@ import {
 import Modal from "@/app/components/Modal";
 import { Team } from "@/app/types/team";
 import React, { useEffect, useMemo, useState } from "react";
-import PermissionsEditor from "./PermissionsEditor";
+import PermissionsEditor, {
+  computeEffectivePermissions,
+} from "./PermissionsEditor";
 import { Permission, RoleCode } from "@/app/utils/permissions";
 import {
   getProfileForUserForPrimaryOrg,
@@ -27,6 +29,8 @@ import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { GenderOptions } from "@/app/types/companion";
 import { MdDeleteForever } from "react-icons/md";
 import { Primary } from "@/app/components/Buttons";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
+import { upsertTeamAvailability } from "@/app/services/availability";
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -37,11 +41,19 @@ type TeamInfoProps = {
 
 const getFields = ({
   SpecialitiesOptions,
+  activeTeam,
 }: {
   SpecialitiesOptions: { label: string; value: string }[];
+  activeTeam: Team;
 }) =>
   [
-    { label: "Role", key: "role", type: "select", options: RoleOptions },
+    {
+      label: "Role",
+      key: "role",
+      type: "select",
+      options: activeTeam.role === "OWNER" ? RoleOptions : RoleOptions.slice(1),
+      editable: activeTeam.role !== "OWNER",
+    },
     {
       label: "Employment type",
       key: "employmentType",
@@ -93,6 +105,7 @@ const TeamInfo = ({
   canEditTeam,
 }: TeamInfoProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
   const [perms, setPerms] = React.useState<Permission[]>([]);
   const [role, setRole] = useState<RoleCode | null>(null);
   const [availability, setAvailability] = useState<AvailabilityState>(
@@ -135,8 +148,8 @@ const TeamInfo = ({
   );
 
   const fields = useMemo(
-    () => getFields({ SpecialitiesOptions }),
-    [SpecialitiesOptions],
+    () => getFields({ SpecialitiesOptions, activeTeam }),
+    [SpecialitiesOptions, activeTeam],
   );
 
   useEffect(() => {
@@ -148,7 +161,7 @@ const TeamInfo = ({
         const data = await getProfileForUserForPrimaryOrg(userId);
         if (!cancelled) setProfile(data);
       } catch {
-        // intentionally silent
+        setProfile(null);
       }
     })();
     return () => {
@@ -205,6 +218,7 @@ const TeamInfo = ({
   const handleDelete = async () => {
     try {
       await removeMember(activeTeam);
+      await refetchData();
       setShowModal(false);
     } catch (error) {
       console.log(error);
@@ -223,9 +237,30 @@ const TeamInfo = ({
     }
   };
 
-  const handlePermUpdate = async (perm: Permission[]) => {
+  const handlePermUpdate = async ({
+    extraPerissions,
+    revokedPermissions,
+  }: {
+    extraPerissions: Permission[];
+    revokedPermissions: Permission[];
+  }) => {
     try {
-      setPerms(perm);
+      if (!role) {
+        throw new Error("ROle undeifned");
+      }
+      const member: Team = {
+        ...activeTeam,
+        extraPerissions,
+        revokedPermissions,
+      };
+      await updateMember(member);
+      setPerms(
+        computeEffectivePermissions({
+          role,
+          extraPerissions,
+          revokedPermissions,
+        }),
+      );
     } catch (error) {
       console.log(error);
     }
@@ -238,6 +273,7 @@ const TeamInfo = ({
         console.log("No availability selected");
         return;
       }
+      await upsertTeamAvailability(activeTeam, converted, null);
     } catch (error) {
       console.log(error);
     }
@@ -326,7 +362,7 @@ const TeamInfo = ({
               {role && perms && (
                 <PermissionsEditor
                   role={role}
-                  onChange={handlePermUpdate}
+                  onSave={handlePermUpdate}
                   value={perms}
                 />
               )}
