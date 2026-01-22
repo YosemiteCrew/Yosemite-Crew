@@ -12,13 +12,17 @@ type UserCalendarProps = {
   date: Date;
   handleViewAppointment: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  handleRescheduleAppointment: any;
+  canEditAppointments: boolean;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
   events,
   date,
   handleViewAppointment,
+  handleRescheduleAppointment,
   setCurrentDate,
+  canEditAppointments,
 }) => {
   const team = useTeamForPrimaryOrg();
 
@@ -51,12 +55,14 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
               <div className="grid grid-flow-col auto-cols-[200px] min-w-max">
                 {team?.map((user, index) => (
                   <Slot
-                    key={user._id+index}
+                    key={user._id + index}
                     slotEvents={appointentsForUser(events, user)}
                     height={350}
                     dayIndex={index}
                     handleViewAppointment={handleViewAppointment}
+                    handleRescheduleAppointment={handleRescheduleAppointment}
                     length={team.length - 1}
+                    canEditAppointments={canEditAppointments}
                   />
                 ))}
               </div>

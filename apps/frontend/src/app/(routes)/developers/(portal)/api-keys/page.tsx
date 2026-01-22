@@ -8,12 +8,12 @@ function Page() {
     <DevRouteGuard>
       <div className="OperationsWrapper">
         <div className="TitleContainer">
-          <h2>API Keys</h2>
+          <h2 className="text-heading-1 text-text-primary">API Keys</h2>
         </div>
-        <p className="InviteTitle" style={{ marginBottom: 8 }}>
+        <p className="text-heading-2 text-text-primary" style={{ marginBottom: 8 }}>
           Coming soon
         </p>
-        <p>Manage and generate API keys for your integrations.</p>
+        <p className="text-body-3 text-text-secondary">Manage and generate API keys for your integrations.</p>
       </div>
     </DevRouteGuard>
   );

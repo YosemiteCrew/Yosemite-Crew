@@ -10,24 +10,29 @@ import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRend
 import { useAuthStore } from "@/app/stores/authStore";
 import { createSubmission } from "@/app/services/soapService";
 import DischargeSubmissions from "./Submissions/DischargeSubmissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
 
 type DischargeSummaryProps = {
   formData: FormDataProps;
   setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
   activeAppointment: Appointment;
+  canEdit: boolean;
 };
 
 const Discharge = ({
   activeAppointment,
   formData,
   setFormData,
+  canEdit
 }: DischargeSummaryProps) => {
   const attributes = useAuthStore.getState().attributes;
   const forms = useFormsForPrimaryOrgByCategory("Discharge");
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<FormsProps | null>(null);
   const [values, setValues] = React.useState<Record<string, any>>(() =>
-    buildInitialValues(active?.schema ?? [])
+    buildInitialValues(active?.schema ?? []),
   );
 
   const FormOptions = useMemo(
@@ -36,7 +41,7 @@ const Discharge = ({
         value: form._id || form.name,
         label: form.name,
       })),
-    [forms]
+    [forms],
   );
 
   const handleDischargeSelect = (id: string) => {
@@ -82,48 +87,55 @@ const Discharge = ({
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-      <div className="flex flex-col gap-6">
-        <div className="font-grotesk font-medium text-black-text text-[23px]">
-          Discharge summary
+    <PermissionGate
+      allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
+      fallback={<Fallback />}
+    >
+      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <div className="flex flex-col gap-6">
+          <div className="font-grotesk font-medium text-black-text text-[23px]">
+            Discharge summary
+          </div>
+          <div className="flex flex-col gap-3">
+            {canEdit && (
+              <SearchDropdown
+                placeholder="Search"
+                options={FormOptions}
+                onSelect={handleDischargeSelect}
+                query={query}
+                setQuery={setQuery}
+                minChars={0}
+              />
+            )}
+            {canEdit && active && (
+              <FormRenderer
+                fields={active.schema ?? []}
+                values={values}
+                onChange={handleValueChange}
+                readOnly
+              />
+            )}
+            <DischargeSubmissions formData={formData} />
+          </div>
         </div>
         <div className="flex flex-col gap-3">
-          <SearchDropdown
-            placeholder="Search"
-            options={FormOptions}
-            onSelect={handleDischargeSelect}
-            query={query}
-            setQuery={setQuery}
-            minChars={0}
-          />
-          {active && (
-            <FormRenderer
-              fields={active.schema ?? []}
-              values={values}
-              onChange={handleValueChange}
-              readOnly
+          {canEdit && active && (
+            <Secondary
+              href="#"
+              text="Save"
+              className="h-13!"
+              onClick={handleSave}
             />
           )}
-          <DischargeSubmissions formData={formData} />
+          <Primary
+            href="#"
+            text="Share with parents"
+            classname="h-13!"
+            onClick={() => {}}
+          />
         </div>
       </div>
-      <div className="flex flex-col gap-3">
-        {active && (
-          <Secondary
-            href="#"
-            text="Save"
-            className="h-13!"
-            onClick={handleSave}
-          />
-        )}
-        <Primary
-          href="#"
-          text="Share with parents"
-          classname="h-13!"
-          onClick={() => {}}
-        />
-      </div>
-    </div>
+    </PermissionGate>
   );
 };
 

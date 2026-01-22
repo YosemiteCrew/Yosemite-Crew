@@ -2,18 +2,20 @@ import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import Image from "next/image";
 import { FaCheckCircle } from "react-icons/fa";
-import { IoIosCloseCircle } from "react-icons/io";
+import { IoIosCloseCircle, IoIosCalendar } from "react-icons/io";
 import { IoEye } from "react-icons/io5";
 import AppointmentCard from "../Cards/AppointmentCard";
 import { Appointment } from "@yosemite-crew/types";
 import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 
-import "./DataTable.css";
 import {
   acceptAppointment,
   cancelAppointment,
 } from "@/app/services/appointmentService";
 import { toTitle } from "@/app/utils/validators";
+import { allowReschedule } from "@/app/utils/appointments";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -25,7 +27,9 @@ type Column<T> = {
 type AppointmentTableProps = {
   filteredList: Appointment[];
   setActiveAppointment?: (appointment: Appointment) => void;
-  setViewPopup?: (open: boolean) => void;
+  setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  canEditAppointments: boolean;
   small?: boolean;
 };
 
@@ -43,6 +47,8 @@ export const getStatusStyle = (status: string) => {
       return { color: "#fff", backgroundColor: "#747283" };
     case "cancelled":
       return { color: "#fff", backgroundColor: "#D9A488" };
+    case "no_show":
+      return { color: "#fff", backgroundColor: "#747283" };
     default:
       return { color: "#000", backgroundColor: "#F1D4B0" };
   }
@@ -52,11 +58,18 @@ const Appointments = ({
   filteredList,
   setActiveAppointment,
   setViewPopup,
+  setReschedulePopup,
+  canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
   const handleViewAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setViewPopup?.(true);
+  };
+
+  const handleRescheduleAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setReschedulePopup?.(true);
   };
 
   const handleAcceptAppointment = async (appointment: Appointment) => {
@@ -148,11 +161,11 @@ const Appointments = ({
       width: "10%",
       render: (item: Appointment) => (
         <div className="appointment-profile-two">
-          <div className="appointment-profile-title">
-            {formatTimeLabel(item.startTime)}
-          </div>
           <div className="appointment-profile-sub">
             {formatDateLabel(item.appointmentDate)}
+          </div>
+          <div className="appointment-profile-title">
+            {formatTimeLabel(item.startTime)}
           </div>
         </div>
       ),
@@ -217,12 +230,22 @@ const Appointments = ({
               </button>
             </>
           ) : (
-            <button
-              onClick={() => handleViewAppointment(item)}
-              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-            >
-              <IoEye size={20} color="#302F2E" />
-            </button>
+            <div className="action-btn-col">
+              <button
+                onClick={() => handleViewAppointment(item)}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+              >
+                <IoEye size={20} color="#302F2E" />
+              </button>
+              {canEditAppointments && allowReschedule(item.status) && (
+                <button
+                  onClick={() => handleRescheduleAppointment(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                >
+                  <IoIosCalendar size={18} color="#302F2E" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       ),
@@ -254,6 +277,8 @@ const Appointments = ({
               key={"key-appointment" + i}
               appointment={item}
               handleViewAppointment={handleViewAppointment}
+              handleRescheduleAppointment={handleRescheduleAppointment}
+              canEditAppointments={canEditAppointments}
             />
           ));
         })()}

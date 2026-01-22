@@ -1,21 +1,35 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Primary } from "@/app/components/Buttons";
-import CompanionFilters from "@/app/components/Filters/CompanionFilters";
+import Filters from "@/app/components/Filters/Filters";
 import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
 import AddCompanion from "@/app/components/AddCompanion";
 import CompanionInfo from "@/app/components/CompanionInfo";
 import OrgGuard from "@/app/components/OrgGuard";
 import { useCompanionsParentsForPrimaryOrg } from "@/app/hooks/useCompanion";
-import { CompanionParent } from "./types";
+import {
+  CompanionParent,
+  CompanionsSpeciesFilters,
+  CompanionsStatusFilters,
+} from "./types";
 import BookAppointment from "./BookAppointment";
 import AddTask from "./AddTask";
+import { useSearchStore } from "@/app/stores/searchStore";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
+import { usePermissions } from "@/app/hooks/usePermissions";
 
 const Companions = () => {
   const companions = useCompanionsParentsForPrimaryOrg();
-  const [filteredList, setFilteredList] =
-    useState<CompanionParent[]>(companions);
+  const { can } = usePermissions();
+  const canEditCompanions = can(PERMISSIONS.COMMUNICATION_EDIT_ANY);
+  const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
+  const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
+  const query = useSearchStore((s) => s.query);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [activeStatus, setActiveStatus] = useState("all");
   const [addPopup, setAddPopup] = useState(false);
   const [viewCompanion, setViewCompanion] = useState(false);
   const [activeCompanion, setActiveCompanion] =
@@ -28,13 +42,30 @@ const Companions = () => {
       if (companions.length === 0) return null;
       if (prev?.companion.id) {
         const updated = companions.find(
-          (s) => s.companion.id === prev.companion.id
+          (s) => s.companion.id === prev.companion.id,
         );
         if (updated) return updated;
       }
       return companions[0];
     });
   }, [companions]);
+
+  const filteredList = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filterWanted = activeFilter.toLowerCase();
+    const statusWanted = activeStatus.toLowerCase();
+
+    return companions.filter((item) => {
+      const status = item.companion.status?.toLowerCase() ?? "inactive";
+      const filter = item.companion.type?.toLowerCase() ?? "";
+
+      const matchesStatus = statusWanted === "all" || status === statusWanted;
+      const matchesFilter = filterWanted === "all" || filter === filterWanted;
+      const matchesQuery = !q || item.companion.name?.toLowerCase().includes(q);
+
+      return matchesStatus && matchesFilter && matchesQuery;
+    });
+  }, [companions, activeStatus, activeFilter, query]);
 
   return (
     <div className="flex flex-col gap-6 px-3! py-3! sm:px-12! lg:px-[60px]! sm:py-12!">
@@ -51,45 +82,54 @@ const Companions = () => {
             into related tasks or appointments without leaving the profile.
           </p>
         </div>
-        <Primary
-          href="#"
-          onClick={() => setAddPopup((e) => !e)}
-          text="Add"
-        />
+        {canEditCompanions && (
+          <Primary href="#" onClick={() => setAddPopup((e) => !e)} text="Add" />
+        )}
       </div>
-      <div className="w-full flex flex-col gap-3">
-        <CompanionFilters list={companions} setFilteredList={setFilteredList} />
-        <CompanionsTable
-          filteredList={filteredList}
-          activeCompanion={activeCompanion}
-          setActiveCompanion={setActiveCompanion}
-          setViewCompanion={setViewCompanion}
-          setBookAppointment={setBookAppointment}
-          setAddTask={setAddTask}
-        />
-      </div>
+      <PermissionGate
+        allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]}
+        fallback={<Fallback />}
+      >
+        <div className="w-full flex flex-col gap-3">
+          <Filters
+            filterOptions={CompanionsSpeciesFilters}
+            statusOptions={CompanionsStatusFilters}
+            activeFilter={activeFilter}
+            activeStatus={activeStatus}
+            setActiveFilter={setActiveFilter}
+            setActiveStatus={setActiveStatus}
+          />
+          <CompanionsTable
+            filteredList={filteredList}
+            activeCompanion={activeCompanion}
+            setActiveCompanion={setActiveCompanion}
+            setViewCompanion={setViewCompanion}
+            setBookAppointment={setBookAppointment}
+            setAddTask={setAddTask}
+            canEditAppointments={canEditAppointments}
+            canEditTasks={canEditTasks}
+          />
+        </div>
 
-      <AddCompanion showModal={addPopup} setShowModal={setAddPopup} />
-      {activeCompanion && (
-        <CompanionInfo
-          showModal={viewCompanion}
-          setShowModal={setViewCompanion}
-          activeCompanion={activeCompanion}
-        />
-      )}
-      {activeCompanion && (
-        <BookAppointment
-          showModal={bookAppointment}
-          setShowModal={setBookAppointment}
-          activeCompanion={activeCompanion}
-        />
-      )}
-      {activeCompanion && (
-        <AddTask
-          showModal={addTask}
-          setShowModal={setAddTask}
-        />
-      )}
+        <AddCompanion showModal={addPopup} setShowModal={setAddPopup} />
+        {activeCompanion && (
+          <CompanionInfo
+            showModal={viewCompanion}
+            setShowModal={setViewCompanion}
+            activeCompanion={activeCompanion}
+          />
+        )}
+        {canEditAppointments && activeCompanion && (
+          <BookAppointment
+            showModal={bookAppointment}
+            setShowModal={setBookAppointment}
+            activeCompanion={activeCompanion}
+          />
+        )}
+        {canEditTasks && activeCompanion && (
+          <AddTask showModal={addTask} setShowModal={setAddTask} />
+        )}
+      </PermissionGate>
     </div>
   );
 };

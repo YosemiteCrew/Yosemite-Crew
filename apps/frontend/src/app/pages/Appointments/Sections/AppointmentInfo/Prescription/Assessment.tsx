@@ -11,24 +11,29 @@ import { FormDataProps } from "..";
 import AssessmentSubmissions from "./Submissions/AssessmentSubmissions";
 import { createSubmission } from "@/app/services/soapService";
 import { useAuthStore } from "@/app/stores/authStore";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
 
 type AssessmentProps = {
   activeAppointment: Appointment;
   formData: FormDataProps;
   setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
+  canEdit: boolean;
 };
 
 const Assessment = ({
   activeAppointment,
   formData,
   setFormData,
+  canEdit,
 }: AssessmentProps) => {
   const attributes = useAuthStore.getState().attributes;
   const [query, setQuery] = useState("");
   const forms = useFormsForPrimaryOrgByCategory("SOAP-Assessment");
   const [active, setActive] = useState<FormsProps | null>(null);
   const [values, setValues] = React.useState<Record<string, any>>(() =>
-    buildInitialValues(active?.schema ?? [])
+    buildInitialValues(active?.schema ?? []),
   );
 
   const FormOptions = useMemo(
@@ -37,7 +42,7 @@ const Assessment = ({
         value: form._id || form.name,
         label: form.name,
       })),
-    [forms]
+    [forms],
   );
 
   const handleAssessmentSelect = (id: string) => {
@@ -83,37 +88,49 @@ const Assessment = ({
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-      <Accordion
-        title="Assessment (diagnosis)"
-        defaultOpen
-        showEditIcon={false}
-        isEditing={true}
-      >
-        <div className="flex flex-col gap-3">
-          <SearchDropdown
-            placeholder="Search"
-            options={FormOptions}
-            onSelect={handleAssessmentSelect}
-            query={query}
-            setQuery={setQuery}
-            minChars={0}
+    <PermissionGate
+      allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
+      fallback={<Fallback />}
+    >
+      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <Accordion
+          title="Assessment (diagnosis)"
+          defaultOpen
+          showEditIcon={false}
+          isEditing={true}
+        >
+          <div className="flex flex-col gap-3">
+            {canEdit && (
+              <SearchDropdown
+                placeholder="Search"
+                options={FormOptions}
+                onSelect={handleAssessmentSelect}
+                query={query}
+                setQuery={setQuery}
+                minChars={0}
+              />
+            )}
+            {canEdit && active && (
+              <FormRenderer
+                fields={active.schema ?? []}
+                values={values}
+                onChange={handleValueChange}
+                readOnly
+              />
+            )}
+            <AssessmentSubmissions formData={formData} />
+          </div>
+        </Accordion>
+        {canEdit && active && (
+          <Primary
+            href="#"
+            text="Save"
+            classname="h-13!"
+            onClick={handleSave}
           />
-          {active && (
-            <FormRenderer
-              fields={active.schema ?? []}
-              values={values}
-              onChange={handleValueChange}
-              readOnly
-            />
-          )}
-          <AssessmentSubmissions formData={formData} />
-        </div>
-      </Accordion>
-      {active && (
-        <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
-      )}
-    </div>
+        )}
+      </div>
+    </PermissionGate>
   );
 };
 

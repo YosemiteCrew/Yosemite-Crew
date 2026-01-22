@@ -8,12 +8,12 @@ function Page() {
     <DevRouteGuard>
       <div className="OperationsWrapper">
         <div className="TitleContainer">
-          <h2>Website Builder</h2>
+          <h2 className="text-heading-1 text-text-primary">Website Builder</h2>
         </div>
-        <p className="InviteTitle" style={{ marginBottom: 8 }}>
+        <p className="text-heading-2 text-text-primary" style={{ marginBottom: 8 }}>
           Coming soon
         </p>
-        <p>Configure hosted pages and embeddable widgets for your apps.</p>
+        <p className="text-body-3 text-text-secondary">Configure hosted pages and embeddable widgets for your apps.</p>
       </div>
     </DevRouteGuard>
   );

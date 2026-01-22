@@ -3,9 +3,13 @@ import Delete from "@/app/components/Buttons/Delete";
 import Close from "@/app/components/Icons/Close";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import CenterModal from "@/app/components/Modal/CenterModal";
+import { useSignOut } from "@/app/hooks/useAuth";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
 const DeleteProfile = () => {
+  const router = useRouter();
+  const { signOut } = useSignOut();
   const [deletePopup, setDeletePopup] = useState(false);
   const [consent, setConsent] = useState(false);
   const [email, setEmail] = useState("");
@@ -17,15 +21,21 @@ const DeleteProfile = () => {
     setConsent(false);
     setEmailError("");
   };
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!email) {
       setEmailError("Email is required");
       return;
     }
-    setDeletePopup(false);
-    setEmail("");
-    setConsent(false);
-    setEmailError("");
+    try {
+      await signOut();
+      router.replace("/signin");
+      setDeletePopup(false);
+      setEmail("");
+      setConsent(false);
+      setEmailError("");
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (

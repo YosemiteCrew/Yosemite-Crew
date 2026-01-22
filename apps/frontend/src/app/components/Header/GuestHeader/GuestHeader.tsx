@@ -39,15 +39,10 @@ const GuestHeader = () => {
     }, 400);
   };
 
-  const checkRoute = () => {
-    const routes = new Set([
-      "/signin",
-      "/signup",
-      "/organizations",
-      "/forgot-password",
-    ]);
-    return !routes.has(pathname);
-  };
+  const isSignInPage = pathname === "/signin";
+  const isSignUpPage = pathname === "/signup";
+  const isAuthPage = isSignInPage || isSignUpPage;
+  const hideButtons = pathname === "/organizations" || pathname === "/forgot-password";
 
   return (
     <div className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20">
@@ -87,7 +82,7 @@ const GuestHeader = () => {
             style={{
               top: "80px",
             }}
-            className="px-3 sm:px-12! py-6 bg-white z-999 fixed top-full left-0 w-screen overflow-auto flex flex-col gap-3"
+            className="px-3 sm:px-12! py-6 bg-white z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3"
           >
             {publicNavItems.map((item) => (
               <button
@@ -99,12 +94,26 @@ const GuestHeader = () => {
                 {item.label}
               </button>
             ))}
-            {checkRoute() &&
+            {!hideButtons &&
               (user ? (
                 <Primary
                   href="#"
                   onClick={() => handleClick("/organizations")}
                   text="Go to app"
+                  classname="mt-3"
+                />
+              ) : isSignInPage ? (
+                <Primary
+                  href="#"
+                  onClick={() => handleClick("/signup")}
+                  text="Sign up"
+                  classname="mt-3"
+                />
+              ) : isSignUpPage ? (
+                <Primary
+                  href="#"
+                  onClick={() => handleClick("/signin")}
+                  text="Sign in"
                   classname="mt-3"
                 />
               ) : (
@@ -155,7 +164,7 @@ const GuestHeader = () => {
         </motion.div>
       </button>
 
-      {checkRoute() &&
+      {!hideButtons &&
         (user ? (
           <div className="hidden lg:flex">
             <Primary
@@ -164,6 +173,14 @@ const GuestHeader = () => {
               }
               text="Go to app"
             />
+          </div>
+        ) : isSignInPage ? (
+          <div className="hidden lg:flex">
+            <Primary href="/signup" text="Sign up" />
+          </div>
+        ) : isSignUpPage ? (
+          <div className="hidden lg:flex">
+            <Primary href="/signin" text="Sign in" />
           </div>
         ) : (
           <div className="hidden lg:flex">

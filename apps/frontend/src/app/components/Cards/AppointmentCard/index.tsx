@@ -2,18 +2,23 @@ import Image from "next/image";
 import React from "react";
 import { getStatusStyle } from "../../DataTable/Appointments";
 import { Appointment } from "@yosemite-crew/types";
-import { formatDateLabel } from "@/app/utils/forms";
+import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 import { toTitle } from "@/app/utils/validators";
 import { Secondary } from "../../Buttons";
+import { allowReschedule } from "@/app/utils/appointments";
 
 type AppointmentCardProps = {
   appointment: Appointment;
   handleViewAppointment: any;
+  handleRescheduleAppointment: any;
+  canEditAppointments: boolean;
 };
 
 const AppointmentCard = ({
   appointment,
   handleViewAppointment,
+  handleRescheduleAppointment,
+  canEditAppointments,
 }: AppointmentCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
@@ -47,7 +52,7 @@ const AppointmentCard = ({
         <div className="text-caption-1 text-text-primary">
           {formatDateLabel(appointment.appointmentDate) +
             " / " +
-            formatDateLabel(appointment.startTime)}
+            formatTimeLabel(appointment.startTime)}
         </div>
       </div>
       <div className="flex gap-1">
@@ -97,12 +102,22 @@ const AppointmentCard = ({
             </button>
           </>
         ) : (
-          <Secondary
-            href="#"
-            onClick={() => handleViewAppointment(appointment)}
-            text="View"
-            className="w-full"
-          />
+          <div className="flex gap-2 w-full">
+            <Secondary
+              href="#"
+              onClick={() => handleViewAppointment(appointment)}
+              text="View"
+              className="w-full"
+            />
+            {canEditAppointments && allowReschedule(appointment.status) && (
+              <Secondary
+                href="#"
+                onClick={() => handleRescheduleAppointment(appointment)}
+                text="Reschedule"
+                className="w-full"
+              />
+            )}
+          </div>
         )}
       </div>
     </div>

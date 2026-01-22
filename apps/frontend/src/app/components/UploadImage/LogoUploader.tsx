@@ -73,8 +73,8 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               src={preview}
               alt="Logo Preview"
               style={{
-                width: 100,
-                height: 100,
+                width: 58,
+                height: 58,
                 objectFit: "cover",
                 borderRadius: "50%",
               }}

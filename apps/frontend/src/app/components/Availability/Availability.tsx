@@ -65,7 +65,7 @@ const Availability: React.FC<AvailabilityProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 sm:gap-4 w-full">
+    <div className="flex flex-col gap-2! sm:gap-4! w-full">
       {daysOfWeek.map((day: string, dayIndex: number) => (
         <div key={day} className="flex items-start w-full gap-3 sm:gap-6 flex-wrap">
           <div className="flex items-center gap-2 w-[130px]">

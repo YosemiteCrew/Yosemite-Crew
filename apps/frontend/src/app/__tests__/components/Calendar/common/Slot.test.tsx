@@ -1,110 +1,98 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+
 import Slot from "@/app/components/Calendar/common/Slot";
-import { Appointment } from "@yosemite-crew/types";
 
-// --- Mocks ---
-
-// Mock Styles
-jest.mock("@/app/components/DataTable/Appointments", () => ({
-  getStatusStyle: jest.fn(() => ({ backgroundColor: "green" })),
-}));
-
-// Mock Next/Image
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => (
-    <img {...props} alt={props.alt} data-testid="pet-image" />
-  ),
+  default: (props: any) => <img alt={props.alt || ""} {...props} />,
 }));
 
-// --- Test Data ---
+jest.mock("@/app/components/DataTable/Appointments", () => ({
+  getStatusStyle: jest.fn(() => ({ backgroundColor: "purple", color: "white" })),
+}));
 
-const mockDate = new Date("2023-01-01T12:00:00Z");
-const mockEvents: Appointment[] = [
-  {
-    _id: "1",
-    companion: { name: "Buddy" },
-    startTime: mockDate,
-    status: "Confirmed",
-  } as any,
-  {
-    _id: "2",
-    companion: { name: "Luna" },
-    startTime: mockDate,
-    status: "Pending",
-  } as any,
-];
+jest.mock("@/app/utils/appointments", () => ({
+  allowReschedule: jest.fn(() => true),
+}));
 
-describe("Slot Component", () => {
-  const mockHandleViewAppointment = jest.fn();
+jest.mock("@/app/utils/urls", () => ({
+  getSafeImageUrl: jest.fn(() => "image"),
+}));
+
+jest.mock("react-icons/io", () => ({
+  IoIosCalendar: () => <span>reschedule</span>,
+}));
+
+describe("Slot (Appointments)", () => {
+  const handleViewAppointment = jest.fn();
+  const handleRescheduleAppointment = jest.fn();
+  const originalConsoleError = console.error;
+
+  const event: any = {
+    status: "in_progress",
+    startTime: new Date("2025-01-06T09:00:00Z"),
+    companion: { name: "Rex", species: "dog" },
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // --- 1. Empty State Rendering ---
-
-  it("renders an empty slot with correct height and borders", () => {
-    const { container } = render(
+  it("shows empty state when no appointments exist", () => {
+    render(
       <Slot
         slotEvents={[]}
-        height={100}
-        handleViewAppointment={mockHandleViewAppointment}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
-        length={7}
+        length={0}
+        canEditAppointments
       />
     );
 
-    const slotDiv = container.firstChild as HTMLElement;
-    expect(slotDiv).toHaveStyle("height: 100px");
-    expect(slotDiv).toHaveClass("border-l");
-    expect(slotDiv).not.toHaveClass("border-r");
-    // Should be empty inside
-    expect(slotDiv.children).toHaveLength(0);
+    expect(screen.getByText("No appointments")).toBeInTheDocument();
   });
 
-  // --- 2. Populated State Rendering ---
+  it("renders appointments and handles view/reschedule clicks", () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation((message: any, ...args: any[]) => {
+        const text =
+          typeof message === "string" ? message : message?.message || "";
+        if (
+          text.includes("concurrent rendering") ||
+          text.includes("validateDOMNesting")
+        ) {
+          return;
+        }
+        originalConsoleError(message, ...args);
+      });
 
-  it("renders appointments when events are provided", () => {
     render(
       <Slot
-        slotEvents={mockEvents}
-        height={150}
-        handleViewAppointment={mockHandleViewAppointment}
-        dayIndex={1}
-        length={7}
+        slotEvents={[event]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
       />
     );
 
-    // Check Pet Names
-    expect(screen.getByText("Buddy")).toBeInTheDocument();
-    expect(screen.getByText("Luna")).toBeInTheDocument();
+    const viewButton = screen.getByText("Rex").closest("button");
+    fireEvent.click(viewButton!);
 
-    // Check Images
-    const images = screen.getAllByTestId("pet-image");
-    expect(images).toHaveLength(2);
+    expect(handleViewAppointment).toHaveBeenCalledWith(event);
 
-    // Check Styling
-  });
+    const rescheduleButton = screen.getByText("reschedule").closest("button");
+    fireEvent.click(rescheduleButton!);
 
-  // --- 3. Interaction ---
+    expect(handleRescheduleAppointment).toHaveBeenCalledWith(event);
 
-  it("calls handleViewAppointment when an event is clicked", () => {
-    render(
-      <Slot
-        slotEvents={mockEvents}
-        height={150}
-        handleViewAppointment={mockHandleViewAppointment}
-        dayIndex={1}
-        length={7}
-      />
-    );
-
-    const buddyBtn = screen.getByText("Buddy").closest("button");
-    fireEvent.click(buddyBtn!);
-
-    expect(mockHandleViewAppointment).toHaveBeenCalledTimes(1);
-    expect(mockHandleViewAppointment).toHaveBeenCalledWith(mockEvents[0]);
+    consoleSpy.mockRestore();
   });
 });

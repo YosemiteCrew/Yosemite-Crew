@@ -21,6 +21,7 @@ type SpecialityInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeSpeciality: SpecialityWeb;
+  canEditSpecialities: boolean;
 };
 
 const ServiceFields = [
@@ -48,12 +49,19 @@ const getBasicFields = ({
   [
     { label: "Name", key: "name", type: "text", required: true },
     { label: "Head", key: "headName", type: "dropdown", options: TeamOptions },
+    {
+      label: "Staff",
+      key: "teamMemberIds",
+      type: "multiSelect",
+      options: TeamOptions,
+    },
   ] satisfies FieldConfig[];
 
 const SpecialityInfo = ({
   showModal,
   setShowModal,
   activeSpeciality,
+  canEditSpecialities,
 }: SpecialityInfoProps) => {
   const teams = useTeamForPrimaryOrg();
 
@@ -75,6 +83,7 @@ const SpecialityInfo = ({
     () => ({
       name: activeSpeciality?.name ?? "",
       headName: activeSpeciality?.headUserId ?? "",
+      teamMemberIds: activeSpeciality?.teamMemberIds ?? [],
     }),
     [activeSpeciality]
   );
@@ -112,12 +121,14 @@ const SpecialityInfo = ({
               <div className="text-body-2 text-text-primary">
                 {activeSpeciality.name || "-"}
               </div>
-              <MdDeleteForever
-                className="cursor-pointer"
-                onClick={handleDelete}
-                size={26}
-                color="#EA3729"
-              />
+              {canEditSpecialities && (
+                <MdDeleteForever
+                  className="cursor-pointer"
+                  onClick={handleDelete}
+                  size={26}
+                  color="#EA3729"
+                />
+              )}
             </div>
           </div>
 
@@ -127,6 +138,7 @@ const SpecialityInfo = ({
             fields={BasicFields}
             data={basicInfoData}
             defaultOpen={true}
+            showEditIcon={canEditSpecialities}
             onSave={async (values) => {
               const team = TeamOptions.find((t) => t.value === values.headName);
               const payload: Speciality = {
@@ -156,7 +168,8 @@ const SpecialityInfo = ({
                   fields={ServiceFields}
                   data={service}
                   defaultOpen={false}
-                  showDeleteIcon={true}
+                  showDeleteIcon={canEditSpecialities}
+                  showEditIcon={canEditSpecialities}
                   onDelete={() => {
                     deleteService(service);
                   }}

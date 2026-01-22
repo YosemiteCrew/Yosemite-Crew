@@ -3,7 +3,9 @@ import Delete from "@/app/components/Buttons/Delete";
 import Close from "@/app/components/Icons/Close";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import CenterModal from "@/app/components/Modal/CenterModal";
+import { PermissionGate } from "@/app/components/PermissionGate";
 import { deleteOrg } from "@/app/services/orgService";
+import { PERMISSIONS } from "@/app/utils/permissions";
 import React, { useState } from "react";
 
 const DeleteOrg = () => {
@@ -35,7 +37,7 @@ const DeleteOrg = () => {
   };
 
   return (
-    <>
+    <PermissionGate allOf={[PERMISSIONS.ORG_DELETE]}>
       <div className="flex justify-center">
         <Delete
           href="#"
@@ -115,7 +117,7 @@ const DeleteOrg = () => {
           </div>
         </div>
       </CenterModal>
-    </>
+    </PermissionGate>
   );
 };
 

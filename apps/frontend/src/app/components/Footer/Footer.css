@@ -1,7 +1,8 @@
 .Footersec {
-  background-color: var(--lightblue);
+  background-color: var(--color-brand-100);
   padding: 0px 50px 30px 50px;
   position: relative;
+  font-family: var(--font-satoshi);
 }
 .Footersec::after {
   position: absolute;

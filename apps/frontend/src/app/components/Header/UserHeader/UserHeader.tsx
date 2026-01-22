@@ -14,6 +14,7 @@ import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
 import Image from "next/image";
 import { getSafeImageUrl } from "@/app/utils/urls";
 import Search from "../../Inputs/Search";
+import { useSearchStore } from "@/app/stores/searchStore";
 
 type RouteItem = {
   name: string;
@@ -60,7 +61,9 @@ const UserHeader = () => {
   const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
-  const [search, setSearch] = useState("");
+  const query = useSearchStore((s) => s.query);
+  const setQuery = useSearchStore((s) => s.setQuery);
+  const clear = useSearchStore((s) => s.clear);
   const orgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +72,10 @@ const UserHeader = () => {
   const logoutRedirect = pathname.startsWith("/developers")
     ? "/developers/signin"
     : "/signin";
+
+  useEffect(() => {
+    clear();
+  }, [pathname, clear]);
 
   const handleLogout = async () => {
     try {
@@ -158,9 +165,9 @@ const UserHeader = () => {
             style={{
               top: "80px",
             }}
-            className="px-3 sm:px-12! py-6 bg-white z-999 fixed top-full left-0 w-screen overflow-auto flex flex-col gap-3"
+            className="px-3 sm:px-12! py-6 bg-white z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3"
           >
-            {primaryOrg && (
+            {primaryOrg && !isDev && (
               <div className="relative w-fit" ref={orgDropdownRef}>
                 <button
                   className={`flex items-center gap-2 w-60 z-1000 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
@@ -210,10 +217,12 @@ const UserHeader = () => {
             <div className="flex flex-col gap-3">
               {routes.map((route, index) => {
                 const needsVerifiedOrg = route.verify;
-                const isDisabled =
-                  route.name !== "Sign out" &&
-                  route.name !== "Settings" &&
-                  (orgMissing || (needsVerifiedOrg && !orgVerified));
+                // Developer portal routes don't need org verification
+                const isDisabled = isDev
+                  ? false
+                  : route.name !== "Sign out" &&
+                    route.name !== "Settings" &&
+                    (orgMissing || (needsVerifiedOrg && !orgVerified));
 
                 const isActive = pathname === route.href;
 
@@ -253,7 +262,7 @@ const UserHeader = () => {
         </Link>
       </div>
       <div className="hidden lg:flex">
-        {primaryOrg && (
+        {primaryOrg && !isDev && (
           <div className="relative" ref={orgDropdownRef}>
             <button
               className={`flex items-center gap-2 w-60 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? "border border-card-border! rounded-t-2xl!" : "border-white! border"}`}
@@ -303,11 +312,28 @@ const UserHeader = () => {
       </div>
 
       <div className="flex items-center justify-center gap-3">
-        <Search
-          value={search}
-          setSearch={setSearch}
-          className={"lg:flex hidden"}
-        />
+        {!pathname.startsWith("/chat") && (
+          <Search
+            value={query}
+            setSearch={setQuery}
+            className={"lg:flex hidden"}
+            placeholder={
+              pathname.startsWith("/appointments")
+                ? "Search appointments"
+                : pathname.startsWith("/inventory")
+                  ? "Search inventory"
+                  : pathname.startsWith("/forms")
+                    ? "Search forms"
+                    : pathname.startsWith("/companions")
+                      ? "Search companions"
+                      : pathname.startsWith("/tasks")
+                        ? "Search tasks"
+                        : pathname.startsWith("/finance")
+                          ? "Search invoices"
+                          : "Search"
+            }
+          />
+        )}
 
         <MdNotificationsActive
           color="#302f2e"
@@ -321,7 +347,10 @@ const UserHeader = () => {
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image
-              src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, "person")}
+              src={getSafeImageUrl(
+                profile?.personalDetails?.profilePictureUrl,
+                "person"
+              )}
               alt="Logo"
               height={32}
               width={32}
@@ -338,7 +367,7 @@ const UserHeader = () => {
           {selectProfile && (
             <div className="absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
               <Link
-                href={"/settings"}
+                href={isDev ? "/developers/settings" : "/settings"}
                 onClick={() => setSelectProfile(false)}
                 className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
               >

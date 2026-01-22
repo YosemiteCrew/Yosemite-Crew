@@ -51,6 +51,7 @@
     "@types/react-datepicker": "^7.0.0",
     "@types/react-dom": "^19.1.1",
     "@yosemite-crew/fhir": "workspace:^",
+    "@yosemite-crew/fhirtypes": "workspace:^",
     "@yosemite-crew/types": "workspace:^",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",

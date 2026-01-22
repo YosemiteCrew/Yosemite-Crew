@@ -1,9 +1,13 @@
 import AccordionButton from "@/app/components/Accordion/AccordionButton";
-import SmallAccordionButton from "@/app/components/Accordion/SmallAccordionButton";
-import InvoiceDataTable from "@/app/components/DataTable/InvoiceTable";
-import React from "react";
+import React, { useMemo } from "react";
 import ProfileCard from "./ProfileCard";
-import { useInvoicesForPrimaryOrg } from "@/app/hooks/useInvoices";
+import {
+  useCounterForPrimaryOrg,
+  useSubscriptionForPrimaryOrg,
+} from "@/app/hooks/useBilling";
+import { toTitle } from "@/app/utils/validators";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
 
 const BasicFields = [
   {
@@ -15,17 +19,17 @@ const BasicFields = [
   },
   {
     label: "Next invoice date",
-    key: "cycleDate",
+    key: "nextInvoiceDate",
     required: true,
     editable: false,
-    type: "text",
+    type: "date",
   },
   {
     label: "Joining date",
     key: "joiningDate",
     required: true,
     editable: true,
-    type: "text",
+    type: "date",
   },
   {
     label: "Appointments",
@@ -50,78 +54,34 @@ const BasicFields = [
   },
 ];
 
-const BillingFields = [
-  {
-    label: "Name",
-    key: "name",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-  {
-    label: "Email",
-    key: "email",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-  {
-    label: "Address",
-    key: "address",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Tax Id",
-    key: "taxId",
-    required: true,
-    editable: true,
-    type: "country",
-  },
-  {
-    label: "Country",
-    key: "country",
-    required: false,
-    editable: true,
-    type: "text",
-  },
-];
-
 const Payment = () => {
-  const invoices = useInvoicesForPrimaryOrg();
+  const subscription = useSubscriptionForPrimaryOrg();
+  const counter = useCounterForPrimaryOrg();
+
+  const values = useMemo(
+    () => ({
+      plan: toTitle(subscription?.plan),
+      joiningDate: subscription?.joinedAt,
+      nextInvoiceDate: subscription?.nextInvoiceAt,
+      appointments: counter?.appointmentsUsed || "0",
+      obervationalTools: counter?.toolsUsed || "0",
+      members: counter?.usersBillableCount,
+    }),
+    [subscription, counter],
+  );
 
   return (
-    <AccordionButton title="Payment" showButton={false}>
-      <div className="flex flex-col gap-4">
-        <ProfileCard
-          title="Plan overview"
-          fields={BasicFields}
-          org={{
-            plan: "Free",
-            cycleDate: "-",
-            joiningDate: "-",
-            appointments: "0",
-            obervationalTools: "0",
-            members: "0",
-          }}
-        />
-        <ProfileCard
-          title="Billing details"
-          fields={BillingFields}
-          org={{
-            name: "-",
-            address: "-",
-            email: "-",
-            taxId: "-",
-            country: "-",
-          }}
-        />
-        <SmallAccordionButton title="Invoices" showButton={false}>
-          <InvoiceDataTable filteredList={invoices} />
-        </SmallAccordionButton>
-      </div>
-    </AccordionButton>
+    <PermissionGate allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}>
+      <AccordionButton title="Payment" showButton={false} finance>
+        <div className="flex flex-col gap-4">
+          <ProfileCard
+            title="Plan overview"
+            fields={BasicFields}
+            org={values}
+          />
+        </div>
+      </AccordionButton>
+    </PermissionGate>
   );
 };
 

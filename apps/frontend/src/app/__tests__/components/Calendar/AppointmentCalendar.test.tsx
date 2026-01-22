@@ -1,201 +1,133 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
+import "@testing-library/jest-dom";
+
 import AppointmentCalendar from "@/app/components/Calendar/AppointmentCalendar";
-import { Appointment } from "@yosemite-crew/types";
 
-// --- Mocks ---
+const dayCalendarSpy = jest.fn();
+const weekCalendarSpy = jest.fn();
+const userCalendarSpy = jest.fn();
 
-// Mock Helper: Simple true/false control for testing filter logic
+jest.mock("@/app/components/Calendar/common/DayCalendar", () => (props: any) => {
+  dayCalendarSpy(props);
+  return <div data-testid="day-calendar" />;
+});
+
+jest.mock(
+  "@/app/components/Calendar/common/WeekCalendar",
+  () => (props: any) => {
+    weekCalendarSpy(props);
+    return <div data-testid="week-calendar" />;
+  }
+);
+
+jest.mock(
+  "@/app/components/Calendar/common/UserCalendar",
+  () => (props: any) => {
+    userCalendarSpy(props);
+    return <div data-testid="user-calendar" />;
+  }
+);
+
+jest.mock("@/app/components/Calendar/common/Header", () => (props: any) => (
+  <div data-testid="calendar-header" />
+));
+
+const isSameDayMock = jest.fn();
+
 jest.mock("@/app/components/Calendar/helpers", () => ({
-  isSameDay: jest.fn(),
+  isSameDay: (...args: any[]) => isSameDayMock(...args),
 }));
-import { isSameDay } from "@/app/components/Calendar/helpers";
 
-// Mock Child Components
-jest.mock("@/app/components/Calendar/common/Header", () => {
-  return function MockHeader(props: any) {
-    return (
-      <div data-testid="header">
-        Header - Current: {props.currentDate.toISOString()}
-        <button onClick={() => props.setCurrentDate(new Date("2023-01-02"))}>
-          Change Date
-        </button>
-      </div>
-    );
-  };
-});
+describe("AppointmentCalendar", () => {
+  const setActiveAppointment = jest.fn();
+  const setViewPopup = jest.fn();
+  const setReschedulePopup = jest.fn();
+  const setCurrentDate = jest.fn();
+  const setWeekStart = jest.fn();
 
-jest.mock("@/app/components/Calendar/common/DayCalendar", () => {
-  return function MockDayCalendar(props: any) {
-    return (
-      <div data-testid="day-calendar">
-        Day View
-        <ul>
-          {props.events.map((e: any) => (
-            <li key={e._id}>
-              {/* FIX: Use a button for interactivity to satisfy accessibility rules */}
-              <button
-                data-testid={`day-event-${e._id}`}
-                onClick={() => props.handleViewAppointment(e)}
-              >
-                {e.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
-});
+  const currentDate = new Date("2025-01-06T10:00:00Z");
+  const weekStart = new Date("2025-01-06T00:00:00Z");
 
-jest.mock("@/app/components/Calendar/common/WeekCalendar", () => {
-  return function MockWeekCalendar(props: any) {
-    return (
-      <div data-testid="week-calendar">
-        Week View
-        <ul>
-          {props.events.map((e: any) => (
-            <li key={e._id}>
-              {/* FIX: Use a button for interactivity to satisfy accessibility rules */}
-              <button
-                data-testid={`week-event-${e._id}`}
-                onClick={() => props.handleViewAppointment(e)}
-              >
-                {e.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
-});
-
-// --- Test Data ---
-
-const mockDate = new Date("2023-01-01T00:00:00.000Z");
-const mockAppointments: Appointment[] = [
-  { _id: "1", title: "Appt 1", startTime: "2023-01-01T10:00:00Z" } as any,
-  { _id: "2", title: "Appt 2", startTime: "2023-01-02T10:00:00Z" } as any,
-];
-
-describe("AppointmentCalendar Component", () => {
-  const mockSetActiveAppointment = jest.fn();
-  const mockSetViewPopup = jest.fn();
-  const mockSetCurrentDate = jest.fn();
-  const mockSetWeekStart = jest.fn();
-
-  const defaultProps = {
-    filteredList: mockAppointments,
-    setActiveAppointment: mockSetActiveAppointment,
-    setViewPopup: mockSetViewPopup,
-    activeCalendar: "day",
-    currentDate: mockDate,
-    setCurrentDate: mockSetCurrentDate,
-    weekStart: mockDate,
-    setWeekStart: mockSetWeekStart,
-  };
+  const appointments: any[] = [
+    { id: "a1", startTime: new Date("2025-01-06T09:00:00Z") },
+    { id: "a2", startTime: new Date("2025-01-07T09:00:00Z") },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (isSameDay as jest.Mock).mockImplementation((d1, d2) => {
-      // Simple mock: strictly compare date strings for test stability
-      return d1.toISOString().split("T")[0] === d2.toISOString().split("T")[0];
-    });
+    isSameDayMock.mockImplementation((date: Date) =>
+      date.toISOString().includes("2025-01-06")
+    );
   });
 
-  // --- 1. Rendering & Logic ---
-
-  it("renders the container and Header", () => {
-    render(<AppointmentCalendar {...defaultProps} />);
-    expect(screen.getByTestId("header")).toBeInTheDocument();
-    expect(screen.getByText(/Header - Current:/)).toBeInTheDocument();
-  });
-
-  it("filters events correctly for Day View using useMemo", () => {
-    // isSameDay mock returns true only for "2023-01-01"
-    // So only Appt 1 should appear in Day View, Appt 2 should be filtered out
-    render(<AppointmentCalendar {...defaultProps} activeCalendar="day" />);
-
-    expect(screen.getByTestId("day-calendar")).toBeInTheDocument();
-    expect(screen.getByTestId("day-event-1")).toBeInTheDocument();
-    expect(screen.queryByTestId("day-event-2")).not.toBeInTheDocument();
-  });
-
-  // --- 2. View Switching ---
-
-  it("renders DayCalendar when activeCalendar is 'day'", () => {
-    render(<AppointmentCalendar {...defaultProps} activeCalendar="day" />);
-    expect(screen.getByTestId("day-calendar")).toBeInTheDocument();
-    expect(screen.queryByTestId("week-calendar")).not.toBeInTheDocument();
-  });
-
-  it("renders WeekCalendar when activeCalendar is 'week'", () => {
-    render(<AppointmentCalendar {...defaultProps} activeCalendar="week" />);
-    expect(screen.getByTestId("week-calendar")).toBeInTheDocument();
-    expect(screen.queryByTestId("day-calendar")).not.toBeInTheDocument();
-
-    // Week view receives FULL list (not filtered by day)
-    expect(screen.getByTestId("week-event-1")).toBeInTheDocument();
-    expect(screen.getByTestId("week-event-2")).toBeInTheDocument();
-  });
-
-  it("renders nothing (besides header) if activeCalendar is invalid", () => {
-    render(<AppointmentCalendar {...defaultProps} activeCalendar="month" />);
-    expect(screen.getByTestId("header")).toBeInTheDocument();
-    expect(screen.queryByTestId("day-calendar")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("week-calendar")).not.toBeInTheDocument();
-  });
-
-  // --- 3. Interactions ---
-
-  it("handles viewing an appointment from Day View", () => {
-    render(<AppointmentCalendar {...defaultProps} activeCalendar="day" />);
-
-    const event = screen.getByTestId("day-event-1");
-    fireEvent.click(event);
-
-    expect(mockSetActiveAppointment).toHaveBeenCalledWith(mockAppointments[0]);
-    expect(mockSetViewPopup).toHaveBeenCalledWith(true);
-  });
-
-  it("handles viewing an appointment from Week View", () => {
-    render(<AppointmentCalendar {...defaultProps} activeCalendar="week" />);
-
-    const event = screen.getByTestId("week-event-2");
-    fireEvent.click(event);
-
-    expect(mockSetActiveAppointment).toHaveBeenCalledWith(mockAppointments[1]);
-    expect(mockSetViewPopup).toHaveBeenCalledWith(true);
-  });
-
-  it("passes setCurrentDate prop down to Header correctly", () => {
-    render(<AppointmentCalendar {...defaultProps} />);
-
-    const changeBtn = screen.getByText("Change Date");
-    fireEvent.click(changeBtn);
-
-    // Header mock calls props.setCurrentDate
-    expect(mockSetCurrentDate).toHaveBeenCalled();
-  });
-
-  // --- 4. Optional Props ---
-
-  it("handles missing optional callbacks safely", () => {
-    // Render without setActiveAppointment/setViewPopup
+  it("renders day calendar with filtered events and forwards handlers", () => {
     render(
       <AppointmentCalendar
-        {...defaultProps}
-        setActiveAppointment={undefined}
-        setViewPopup={undefined}
+        filteredList={appointments as any}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        activeCalendar="day"
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setReschedulePopup={setReschedulePopup}
+        canEditAppointments
       />
     );
 
-    const event = screen.getByTestId("day-event-1");
-    fireEvent.click(event);
+    expect(dayCalendarSpy).toHaveBeenCalledTimes(1);
+    const props = dayCalendarSpy.mock.calls[0][0];
+    expect(props.events).toEqual([appointments[0]]);
 
-    // Should not crash
-    expect(mockSetActiveAppointment).not.toHaveBeenCalled();
-    expect(mockSetViewPopup).not.toHaveBeenCalled();
+    props.handleViewAppointment(appointments[0]);
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
+    expect(setViewPopup).toHaveBeenCalledWith(true);
+
+    props.handleRescheduleAppointment(appointments[0]);
+    expect(setReschedulePopup).toHaveBeenCalledWith(true);
+  });
+
+  it("renders week calendar with full list", () => {
+    render(
+      <AppointmentCalendar
+        filteredList={appointments as any}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        activeCalendar="week"
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setReschedulePopup={setReschedulePopup}
+        canEditAppointments
+      />
+    );
+
+    expect(weekCalendarSpy).toHaveBeenCalledTimes(1);
+    const props = weekCalendarSpy.mock.calls[0][0];
+    expect(props.events).toEqual(appointments);
+  });
+
+  it("renders team calendar with day events", () => {
+    render(
+      <AppointmentCalendar
+        filteredList={appointments as any}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        activeCalendar="team"
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setReschedulePopup={setReschedulePopup}
+        canEditAppointments
+      />
+    );
+
+    expect(userCalendarSpy).toHaveBeenCalledTimes(1);
+    const props = userCalendarSpy.mock.calls[0][0];
+    expect(props.events).toEqual([appointments[0]]);
   });
 });

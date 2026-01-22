@@ -13,31 +13,44 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
+    // Wait for auth status to be determined
     if (status === "idle" || status === "checking") return;
 
     const isDevPath = pathname?.startsWith("/developers");
+
+    // Check sessionStorage for devAuth flag (temporary fallback until custom:role is in Cognito)
     const devFlag =
-      typeof globalThis !== "undefined" &&
-      globalThis.sessionStorage?.getItem("devAuth") === "true"; // Temporary fallback until custom:role is present
-    const isDevRole = role === "developer" || (!role && devFlag);
+      typeof window !== "undefined" &&
+      window.sessionStorage?.getItem("devAuth") === "true";
+
+    // User is developer if they have the developer role OR the devAuth flag is set
+    const isDevRole = role === "developer" || devFlag;
 
     if (!isDevPath) {
       setAllowed(true);
       return;
     }
 
+    // Allow authenticated developers (both "authenticated" and "signin-authenticated" statuses)
+    const isAuthenticated = status === "authenticated" || status === "signin-authenticated";
+
+    if (isAuthenticated && isDevRole) {
+      setAllowed(true);
+      return;
+    }
+
+    // Not authenticated - redirect to signin
     if (status === "unauthenticated") {
       router.replace("/developers/signin");
       return;
     }
 
-    if (status === "authenticated" && !isDevRole) {
+    // Authenticated but not a developer - sign out and redirect
+    if (isAuthenticated && !isDevRole) {
       signout();
       router.replace("/developers/signin");
       return;
     }
-
-    setAllowed(true);
   }, [status, role, pathname, router, signout]);
 
   if (!allowed) return null;

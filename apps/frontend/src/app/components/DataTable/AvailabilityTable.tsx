@@ -94,7 +94,13 @@ const AvailabilityTable = ({
       width: "15%",
       render: (item: Team) => (
         <div className="appointment-profile-title">
-          {item?.speciality?.name || "-"}
+          {Array.isArray(item?.speciality) && item.speciality.length > 0
+            ? item.speciality.map((spec: any) =>
+                typeof spec === "string"
+                  ? spec
+                  : spec?.name || JSON.stringify(spec)
+              ).join(", ")
+            : "-"}
         </div>
       ),
     },

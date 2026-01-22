@@ -5,9 +5,14 @@ import AddTeam from "./AddTeam";
 import TeamInfo from "./TeamInfo";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { Team as TeamProp } from "@/app/types/team";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { usePermissions } from "@/app/hooks/usePermissions";
 
 const Team = () => {
   const teams = useTeamForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditTeam = can(PERMISSIONS.TEAMS_EDIT_ANY);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeTeam, setActiveTeam] = useState<TeamProp | null>(
@@ -26,8 +31,13 @@ const Team = () => {
   }, [teams]);
 
   return (
-    <>
-      <AccordionButton title="Team" buttonTitle="Add" buttonClick={setAddPopup}>
+    <PermissionGate allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}>
+      <AccordionButton
+        title="Team"
+        buttonTitle="Add"
+        buttonClick={setAddPopup}
+        showButton={canEditTeam}
+      >
         <AvailabilityTable
           filteredList={teams}
           setActive={setActiveTeam}
@@ -40,9 +50,10 @@ const Team = () => {
           showModal={viewPopup}
           setShowModal={setViewPopup}
           activeTeam={activeTeam}
+          canEditTeam={canEditTeam}
         />
       )}
-    </>
+    </PermissionGate>
   );
 };
 
