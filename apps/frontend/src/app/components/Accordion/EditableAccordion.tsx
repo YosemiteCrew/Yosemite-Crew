@@ -111,24 +111,34 @@ const FieldComponents: Record<
       />
     );
   },
-  select: ({ field, value, onChange, error }) => (
-    <LabelDropdown
-      placeholder={field.label}
-      onSelect={(option) => onChange(option.value)}
-      defaultOption={value}
-      options={field.options}
-      error={error}
-    />
-  ),
-  dropdown: ({ field, value, onChange, error }) => (
-    <LabelDropdown
-      placeholder={field.label}
-      onSelect={(option) => onChange(option.value)}
-      defaultOption={value}
-      options={field.options}
-      error={error}
-    />
-  ),
+  select: ({ field, value, onChange, error }) => {
+    const normalizedOptions = (field.options || []).map((opt: any) =>
+      typeof opt === "string" ? { label: opt, value: opt } : opt
+    );
+    return (
+      <LabelDropdown
+        placeholder={field.label}
+        onSelect={(option) => onChange(option.value)}
+        defaultOption={value}
+        options={normalizedOptions}
+        error={error}
+      />
+    );
+  },
+  dropdown: ({ field, value, onChange, error }) => {
+    const normalizedOptions = (field.options || []).map((opt: any) =>
+      typeof opt === "string" ? { label: opt, value: opt } : opt
+    );
+    return (
+      <LabelDropdown
+        placeholder={field.label}
+        onSelect={(option) => onChange(option.value)}
+        defaultOption={value}
+        options={normalizedOptions}
+        error={error}
+      />
+    );
+  },
   multiSelect: ({ field, value, onChange, error }) => (
     <MultiSelectDropdown
       placeholder={field.label}
