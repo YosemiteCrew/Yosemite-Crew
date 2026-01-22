@@ -103,12 +103,12 @@ export const StripeService = {
     });
 
     const orgUsage = OrgUsageCounters.findOne({
-      orgId : org._id
-    })
+      orgId: org._id,
+    });
 
-    return { 
-      orgBilling : orgBilling,
-      orgUsage : orgUsage
+    return {
+      orgBilling: orgBilling,
+      orgUsage: orgUsage,
     };
   },
 
@@ -197,27 +197,25 @@ export const StripeService = {
     const successUrl = `${process.env.APP_URL}/organization`;
     const cancelUrl = `${process.env.APP_URL}/organization`;
 
-    const session = await stripe.checkout.sessions.create(
-      {
-        mode: "subscription",
-        customer: billing.stripeCustomerId,
-        line_items: [{ price: priceId, quantity: seats }],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        allow_promotion_codes: true,
-        subscription_data: {
-          metadata: {
-            orgId: String(orgId),
-            connectAccountId: String(billing.connectAccountId ?? ""),
-          },
-        },
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: billing.stripeCustomerId,
+      line_items: [{ price: priceId, quantity: seats }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      allow_promotion_codes: true,
+      subscription_data: {
         metadata: {
           orgId: String(orgId),
-          interval,
-          seats: String(seats),
+          connectAccountId: String(billing.connectAccountId ?? ""),
         },
       },
-    );
+      metadata: {
+        orgId: String(orgId),
+        interval,
+        seats: String(seats),
+      },
+    });
 
     return { url: session.url };
   },

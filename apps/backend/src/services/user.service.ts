@@ -214,9 +214,10 @@ export const UserService = {
       }),
     ]);
 
-    const deleted = await UserModel.findOneAndDelete({ userId }, null, {
-      sanitizeFilter: true,
-    });
+    const deleted = await UserModel.findOneAndDelete(
+      { userId },
+      { sanitizeFilter: true },
+    );
 
     return Boolean(deleted);
   },

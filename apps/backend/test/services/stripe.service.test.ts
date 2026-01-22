@@ -78,7 +78,11 @@ jest.mock("../../src/models/organization.billing", () => ({
   },
 }));
 jest.mock("../../src/models/organisation.usage.counter", () => ({
-  OrgUsageCounters: { findOneAndUpdate: jest.fn(), updateOne: jest.fn() },
+  OrgUsageCounters: {
+    findOne: jest.fn(),
+    findOneAndUpdate: jest.fn(),
+    updateOne: jest.fn(),
+  },
 }));
 jest.mock("../../src/models/user-organization", () => ({
   __esModule: true,
@@ -110,6 +114,7 @@ import logger from "../../src/utils/logger";
 import InvoiceModel from "../../src/models/invoice";
 import OrganizationModel from "../../src/models/organization";
 import { OrgBilling } from "../../src/models/organization.billing";
+import { OrgUsageCounters } from "../../src/models/organisation.usage.counter";
 import ServiceModel from "../../src/models/service";
 import AppointmentModel from "../../src/models/appointment";
 
@@ -126,6 +131,13 @@ const mockedOrgBilling = OrgBilling as unknown as {
 };
 const mockOrgBillingFindOne =
   mockedOrgBilling.findOne as unknown as jest.MockedFunction<
+    (...args: unknown[]) => Promise<unknown>
+  >;
+const mockedOrgUsage = OrgUsageCounters as unknown as {
+  findOne: unknown;
+};
+const mockOrgUsageFindOne =
+  mockedOrgUsage.findOne as unknown as jest.MockedFunction<
     (...args: unknown[]) => Promise<unknown>
   >;
 const mockedServiceModel = jest.mocked(ServiceModel);
@@ -211,7 +223,7 @@ describe("StripeService", () => {
       );
     });
 
-    it("should return billing status from org billing", async () => {
+    it("should return billing and usage status", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedOrgModel.findById as any).mockResolvedValue({
         _id: "org1",
@@ -220,13 +232,26 @@ describe("StripeService", () => {
         connectAccountId: "acct_123",
         canAcceptPayments: true,
       });
+      mockOrgUsageFindOne.mockResolvedValue({
+        usersActiveCount: 2,
+        usersBillableCount: 2,
+      });
       const res = await StripeService.getAccountStatus("org1");
       expect(mockedOrgBilling.findOne).toHaveBeenCalledWith({
         orgId: "org1",
       });
-      expect(res).toMatchObject({
+      expect(mockedOrgUsage.findOne).toHaveBeenCalledWith({
+        orgId: "org1",
+      });
+      const billing = await res.orgBilling;
+      const usage = await res.orgUsage;
+      expect(billing).toMatchObject({
         connectAccountId: "acct_123",
         canAcceptPayments: true,
+      });
+      expect(usage).toMatchObject({
+        usersActiveCount: 2,
+        usersBillableCount: 2,
       });
     });
   });
