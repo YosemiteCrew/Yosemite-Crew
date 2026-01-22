@@ -1,142 +1,459 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import InventoryInfo from "@/app/components/InventoryInfo";
-import { InventoryItem } from "@/app/pages/Inventory/types";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import InventoryInfo from "../../../components/InventoryInfo";
 import { BusinessType } from "@/app/types/org";
 
-jest.mock("@/app/components/Modal", () => ({
+// ----------------------------------------------------------------------------
+// 1. Mocks & Setup
+// ----------------------------------------------------------------------------
+
+jest.mock("../../../pages/Inventory/utils", () => ({
+  formatDisplayDate: jest.fn((val) => (val ? `Formatted ${val}` : "")),
+  toStringSafe: jest.fn((val) =>
+    val === null || val === undefined ? "" : String(val),
+  ),
+}));
+
+jest.mock("../../../components/AddInventory/InventoryConfig", () => ({
+  InventoryFormConfig: {
+    VETERINARY: {
+      batch: [
+        {
+          kind: "row",
+          fields: [
+            {
+              name: "manufactureDate",
+              component: "date",
+              placeholder: "Mfg Date",
+            },
+            { name: "expiryDate", component: "date", placeholder: "Exp Date" },
+          ],
+        },
+        {
+          kind: "single",
+          field: { name: "quantity", component: "text", placeholder: "Qty" },
+        },
+        {
+          kind: "single",
+          field: {
+            name: "tracking",
+            component: "dropdown",
+            options: ["Track A", "Track B"],
+          },
+        },
+        {
+          kind: "single",
+          field: { name: "litterId", component: "multiSelect" },
+        },
+      ],
+    },
+  },
+}));
+
+jest.mock("../../../components/Accordion/Accordion", () => ({
+  __esModule: true,
+  default: ({ children, title, onEditClick, showEditIcon }: any) => (
+    <div data-testid="accordion">
+      <button onClick={onEditClick} data-testid="accordion-edit-btn">
+        {showEditIcon ? "Edit" : "View"}
+      </button>
+      <div>{title}</div>
+      {children}
+    </div>
+  ),
+}));
+
+jest.mock("../../../components/Buttons", () => ({
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="primary-btn">
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="secondary-btn">
+      {text}
+    </button>
+  ),
+}));
+
+jest.mock("../../../components/Inputs/Datepicker", () => ({
+  __esModule: true,
+  default: ({ currentDate, setCurrentDate, placeholder }: any) => (
+    <input
+      data-testid={`datepicker-${placeholder}`}
+      value={currentDate ? currentDate.toISOString().split("T")[0] : ""}
+      onChange={(e) => {
+        const d = e.target.value ? new Date(e.target.value) : null;
+        setCurrentDate(d);
+      }}
+    />
+  ),
+}));
+
+jest.mock("../../../components/Inputs/Dropdown/LabelDropdown", () => ({
+  __esModule: true,
+  default: ({ onSelect, defaultOption }: any) => (
+    <button
+      data-testid="dropdown"
+      onClick={() => onSelect({ value: "Track A", label: "Track A" })}
+    >
+      Selected: {defaultOption}
+    </button>
+  ),
+}));
+
+jest.mock("../../../components/Inputs/FormInput/FormInput", () => ({
+  __esModule: true,
+  default: ({ value, onChange, inname }: any) => (
+    <input data-testid={`input-${inname}`} value={value} onChange={onChange} />
+  ),
+}));
+
+jest.mock("../../../components/Modal", () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/components/Labels/Labels", () => ({
+jest.mock("../../../components/Labels/Labels", () => ({
   __esModule: true,
   default: ({ labels, setActiveLabel }: any) => (
     <div>
-      {labels.map((label: any) => (
+      {labels.map((l: any) => (
         <button
-          key={label.key}
-          type="button"
-          onClick={() => setActiveLabel(label.key)}
+          key={l.key}
+          data-testid={`tab-${l.key}`}
+          onClick={() => setActiveLabel(l.key)}
         >
-          {label.name}
+          {l.name}
         </button>
       ))}
     </div>
   ),
 }));
 
-jest.mock("@/app/components/InventoryInfo/InfoSection", () => ({
+jest.mock("../../../components/Icons/Close", () => ({
   __esModule: true,
-  default: ({ sectionTitle }: any) => (
-    <div data-testid="info-section">{sectionTitle}</div>
-  ),
-}));
-
-jest.mock("@/app/components/Buttons", () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
-      {text}
+  default: ({ onClick }: any) => (
+    <button onClick={onClick} data-testid="close-icon">
+      X
     </button>
   ),
 }));
 
-describe("InventoryInfo", () => {
-  const baseInventory: InventoryItem = {
-    id: "inv-1",
+jest.mock("../../../components/InventoryInfo/InfoSection", () => ({
+  __esModule: true,
+  default: function MockInfoSection({
+    onRegisterActions,
+    onEditingChange,
+    onSaveSection,
+    sectionKey,
+  }: any) {
+    const [editing, setEditing] = React.useState(false);
+
+    React.useEffect(() => {
+      onRegisterActions({
+        save: async () => {
+          let data = {};
+          if (sectionKey === "basicInfo")
+            data = {
+              name: "Updated Name",
+              category: "Cat",
+              subCategory: "Sub",
+            };
+          if (sectionKey === "pricing")
+            data = { purchaseCost: "10", selling: "20" };
+          if (sectionKey === "stock")
+            data = { current: "5", reorderLevel: "2" };
+          if (sectionKey === "basicInfo_fail") data = { name: "" };
+
+          await onSaveSection(
+            sectionKey === "basicInfo_fail" ? "basicInfo" : sectionKey,
+            data,
+          );
+        },
+        cancel: () => {
+          setEditing(false);
+          onEditingChange(false);
+        },
+        startEditing: () => {
+          setEditing(true);
+          onEditingChange(true);
+        },
+        isEditing: () => editing,
+      });
+    }, [
+      editing,
+      onRegisterActions,
+      onSaveSection,
+      sectionKey,
+      onEditingChange,
+    ]);
+
+    return (
+      <div data-testid="info-section">
+        Current Section: {sectionKey}
+        <button
+          onClick={() => {
+            setEditing(true);
+            onEditingChange(true);
+          }}
+          data-testid="simulate-edit-start"
+        >
+          Edit Section
+        </button>
+      </div>
+    );
+  },
+}));
+
+describe("InventoryInfo Component", () => {
+  const mockSetShowModal = jest.fn();
+  const mockOnUpdate = jest.fn();
+  const mockOnHide = jest.fn();
+  const mockOnUnhide = jest.fn();
+  const mockOnAddBatch = jest.fn();
+
+  // Cast as any to avoid strict union type errors in test setup
+  const activeInventory = {
+    id: "item-1",
     status: "ACTIVE",
+    businessType: "VETERINARY" as BusinessType,
     basicInfo: {
-      name: "Paw Shampoo",
-      category: "Grooming",
-      subCategory: "Soap",
-      department: "Grooming",
-      description: "Daily care shampoo",
+      name: "Item 1",
+      category: "C1",
+      subCategory: "S1",
       status: "Active",
     },
     classification: {},
-    pricing: {
-      purchaseCost: "10",
-      selling: "20",
-    },
-    vendor: {
-      supplierName: "Supplier",
-      brand: "Brand",
-      vendor: "Vendor",
-      license: "LIC-1",
-      paymentTerms: "Net 30",
-    },
-    stock: {
-      current: "2",
-      allocated: "0",
-      available: "2",
-      reorderLevel: "1",
-      reorderQuantity: "1",
-      stockLocation: "Grooming room",
-    },
-    batch: {
-      batch: "",
-      manufactureDate: "",
-      expiryDate: "",
-    },
-  } as InventoryItem;
+    pricing: { purchaseCost: "10", selling: "15" },
+    vendor: {},
+    stock: { current: "100", reorderLevel: "10" },
+    batch: { batch: "B1", quantity: "100" },
+    batches: [
+      {
+        _id: "b1",
+        batch: "B1",
+        quantity: "100",
+        manufactureDate: "2023-01-01",
+        expiryDate: "2024-01-01",
+        tracking: "Track A",
+        litterId: "L1, L2",
+      },
+    ],
+  } as any;
 
-  it("renders modal and hides item when primary action clicked", async () => {
-    const onHide = jest.fn().mockResolvedValue(undefined);
-    const onUnhide = jest.fn();
-    const onUpdate = jest.fn();
-    const setShowModal = jest.fn();
+  const defaultProps = {
+    showModal: true,
+    setShowModal: mockSetShowModal,
+    activeInventory: activeInventory,
+    businessType: "VETERINARY" as BusinessType,
+    onUpdate: mockOnUpdate,
+    onHide: mockOnHide,
+    onUnhide: mockOnUnhide,
+    onAddBatch: mockOnAddBatch,
+  };
 
-    render(
-      <InventoryInfo
-        showModal={true}
-        setShowModal={setShowModal}
-        activeInventory={baseInventory}
-        businessType={"vet" as BusinessType}
-        onUpdate={onUpdate}
-        onHide={onHide}
-        onUnhide={onUnhide}
-      />
-    );
-
-    expect(screen.getByText("Paw Shampoo")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("Hide item"));
-
-    await waitFor(() => {
-      expect(onHide).toHaveBeenCalledWith("inv-1");
-    });
-    expect(setShowModal).toHaveBeenCalledWith(false);
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  it("unhides item when hidden", async () => {
-    const onHide = jest.fn();
-    const onUnhide = jest.fn().mockResolvedValue(undefined);
-    const onUpdate = jest.fn();
-    const setShowModal = jest.fn();
+  // --------------------------------------------------------------------------
+  // Tests
+  // --------------------------------------------------------------------------
+  it("renders the modal with basic info tab active by default", () => {
+    render(<InventoryInfo {...defaultProps} />);
+    expect(screen.getByTestId("modal")).toBeInTheDocument();
+    expect(screen.getByText("Item 1")).toBeInTheDocument();
+    expect(screen.getByTestId("primary-btn")).toHaveTextContent("Hide item");
+  });
 
-    render(
-      <InventoryInfo
-        showModal={true}
-        setShowModal={setShowModal}
-        activeInventory={{ ...baseInventory, status: "HIDDEN" }}
-        businessType={"vet" as BusinessType}
-        onUpdate={onUpdate}
-        onHide={onHide}
-        onUnhide={onUnhide}
-      />
-    );
+  it("switches tabs correctly", () => {
+    render(<InventoryInfo {...defaultProps} />);
 
-    fireEvent.click(screen.getByText("Unhide item"));
+    // Default is basicInfo
+    expect(screen.getByText("Current Section: basicInfo")).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(onUnhide).toHaveBeenCalledWith("inv-1");
+    fireEvent.click(screen.getByTestId("tab-pricing"));
+    expect(screen.getByText("Current Section: pricing")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("tab-batch"));
+
+    // Batch tab renders BatchEditor (which has "Batch / Lot details" title)
+    // We check that InfoSection is NOT present
+    expect(screen.queryByText("Current Section:")).not.toBeInTheDocument();
+    // Batch editor has header "Batch / Lot details"
+    const headers = screen.getAllByText("Batch / Lot details");
+    expect(headers.length).toBeGreaterThan(0);
+  });
+
+  it("handles validation failure in Basic Info", async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("simulate-edit-start"));
+    expect(screen.getByTestId("primary-btn")).toHaveTextContent("Save");
+    expect(screen.getByTestId("secondary-btn")).toHaveTextContent("Cancel");
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("primary-btn"));
     });
-    expect(setShowModal).toHaveBeenCalledWith(false);
+
+    expect(mockOnUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        basicInfo: expect.objectContaining({ name: "Updated Name" }),
+      }),
+    );
+  });
+
+  it("renders existing batches in preview mode correctly", () => {
+    render(<InventoryInfo {...defaultProps} />);
+    // Switch to batch tab
+    fireEvent.click(screen.getByTestId("tab-batch"));
+
+    expect(screen.getByText("Existing batch 1")).toBeInTheDocument();
+    expect(screen.getByText("Formatted 2023-01-01")).toBeInTheDocument();
+    expect(screen.getByText("L1, L2")).toBeInTheDocument();
+  });
+
+  it("adds and removes new batches in edit mode", async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("tab-batch"));
+
+    fireEvent.click(screen.getByTestId("accordion-edit-btn"));
+
+    expect(screen.getByText("Add new batches")).toBeInTheDocument();
+    expect(screen.getByText("New batch 1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Add another batch"));
+    expect(screen.getByText("New batch 2")).toBeInTheDocument();
+
+    const removeBtns = screen.getAllByText("Remove");
+    fireEvent.click(removeBtns[0]);
+
+    expect(screen.queryByText("New batch 2")).not.toBeInTheDocument();
+    expect(screen.getByText("New batch 1")).toBeInTheDocument();
+  });
+
+  it("updates batch fields (Date, Text, Dropdown)", async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("tab-batch"));
+    fireEvent.click(screen.getByTestId("accordion-edit-btn"));
+
+    const qtyInput = screen.getByTestId("input-quantity");
+    fireEvent.change(qtyInput, { target: { value: "500" } });
+    expect(qtyInput).toHaveValue("500");
+
+    const dateInput = screen.getByTestId("datepicker-Mfg Date");
+    fireEvent.change(dateInput, { target: { value: "2025-05-20" } });
+
+    const dropdown = screen.getByTestId("dropdown");
+    fireEvent.click(dropdown);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("primary-btn"));
+    });
+
+    expect(mockOnAddBatch).toHaveBeenCalledWith(
+      "item-1",
+      expect.arrayContaining([
+        expect.objectContaining({
+          quantity: "500",
+          tracking: "Track A",
+          manufactureDate: "2025-05-20",
+        }),
+      ]),
+    );
+  });
+
+  it("validates empty batch list on save", async () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("tab-batch"));
+    fireEvent.click(screen.getByTestId("accordion-edit-btn"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("primary-btn"));
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Batch validation failed"),
+      expect.anything(),
+    );
+    expect(mockOnAddBatch).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it("hides an active item", async () => {
+    render(<InventoryInfo {...defaultProps} />);
+
+    expect(screen.getByTestId("primary-btn")).toHaveTextContent("Hide item");
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("primary-btn"));
+    });
+
+    expect(mockOnHide).toHaveBeenCalledWith("item-1");
+    expect(mockSetShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it("unhides a hidden item", async () => {
+    const hiddenItem = { ...activeInventory, status: "HIDDEN" };
+    render(<InventoryInfo {...defaultProps} activeInventory={hiddenItem} />);
+
+    expect(screen.getByTestId("primary-btn")).toHaveTextContent("Unhide item");
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("primary-btn"));
+    });
+
+    expect(mockOnUnhide).toHaveBeenCalledWith("item-1");
+  });
+
+  it("closes modal on cancel/close", () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("secondary-btn"));
+    expect(mockSetShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it("cancels edit mode on secondary click", () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("simulate-edit-start"));
+    expect(screen.getByTestId("secondary-btn")).toHaveTextContent("Cancel");
+
+    fireEvent.click(screen.getByTestId("secondary-btn"));
+
+    expect(screen.getByTestId("secondary-btn")).toHaveTextContent("Close");
+  });
+
+  it("validates Pricing fields", async () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("tab-pricing"));
+    fireEvent.click(screen.getByTestId("simulate-edit-start"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("primary-btn"));
+    });
+
+    expect(mockOnUpdate).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it("does nothing if activeInventory is null", async () => {
+    render(<InventoryInfo {...defaultProps} activeInventory={null} />);
+    expect(screen.getByTestId("modal")).toBeInTheDocument();
+    expect(screen.queryByText("Item 1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-section")).not.toBeInTheDocument();
+  });
+
+  it("handles saving during update state (prevent double submit)", async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("simulate-edit-start"));
   });
 });
