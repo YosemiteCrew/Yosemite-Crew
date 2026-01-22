@@ -7,6 +7,7 @@ import WeeklyAvailabilityOverrideModel from "../models/weekly-availablity-overri
 import { OccupancyModel } from "../models/occupancy";
 import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
+import { CognitoService } from "./cognito.service";
 
 export class UserServiceError extends Error {
   constructor(
@@ -220,6 +221,42 @@ export const UserService = {
     );
 
     return Boolean(deleted);
+  },
+
+  async updateName(payload: {
+    userId : string,
+    firstName : string,
+    lastName : string
+  }): Promise<UserDomain> {
+    const userId = requireSafeIdentifier(payload.userId, "User id");
+    const firstName = requireString(payload.firstName, "First name");
+    const lastName = requireString(payload.lastName, "Last name");
+
+    const user = await UserModel.findOne({ userId }, null, {
+      sanitizeFilter: true,
+    });
+
+    if (!user) {
+      throw new UserServiceError("User not found.", 404);
+    }
+
+    if (user.firstName === firstName && user.lastName === lastName) {
+      return toUserDomain(user);
+    }
+
+    await CognitoService.updateUserName({
+      userPoolId: process.env.COGNITO_USER_POOL_ID!,
+      cognitoUserId: userId,
+      firstName,
+      lastName,
+    });
+
+    user.firstName = firstName;
+    user.lastName = lastName;
+
+    await user.save();
+
+    return toUserDomain(user);
   },
 };
 
