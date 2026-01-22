@@ -127,10 +127,18 @@ function validateRoleCode(role: string): RoleCode {
 function computeEffectivePermissions(
   role: RoleCode,
   extra?: string[],
+  revoked?: string[],
 ): string[] {
   const base = ROLE_PERMISSIONS[role] ?? [];
   const extras = extra ?? [];
-  return [...new Set([...base, ...extras])];
+  const removed = new Set(revoked ?? []);
+  const combined = new Set([...base, ...extras]);
+
+  for (const permission of removed) {
+    combined.delete(permission);
+  }
+
+  return [...combined];
 }
 
 const pruneUndefined = <T>(value: T): T => {
@@ -429,10 +437,15 @@ const sanitizeUserOrganizationAttributes = (
     dto.extraPermissions,
     "Extra permissions",
   );
+  const revokedPermissions = sanitizePermissionList(
+    dto.revokedPermissions,
+    "Revoked permissions",
+  );
 
   const effectivePermissions = computeEffectivePermissions(
     roleCode as RoleCode,
     extraPermissions,
+    revokedPermissions,
   );
 
   return {
@@ -443,6 +456,7 @@ const sanitizeUserOrganizationAttributes = (
     roleDisplay,
     active: typeof dto.active === "boolean" ? dto.active : true,
     extraPermissions,
+    revokedPermissions,
     effectivePermissions,
   };
 };
@@ -465,9 +479,11 @@ const buildUserOrganizationDomain = (
     roleDisplay: rest.roleDisplay,
     active: rest.active,
     extraPermissions: rest.extraPermissions ?? [],
+    revokedPermissions: rest.revokedPermissions ?? [],
     effectivePermissions: computeEffectivePermissions(
       rest.roleCode as RoleCode,
       rest.extraPermissions,
+      rest.revokedPermissions,
     ),
   };
 };
