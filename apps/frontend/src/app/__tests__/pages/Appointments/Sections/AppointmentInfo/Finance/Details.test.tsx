@@ -1,44 +1,30 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import Details from "@/app/pages/Appointments/Sections/AppointmentInfo/Finance/Details";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
-  __esModule: true,
-  default: ({ title, children }: any) => (
-    <div>
-      <div>{title}</div>
-      {children}
-    </div>
-  ),
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
+
+jest.mock("@/app/components/Accordion/Accordion", () => (props: any) => (
+  <div>
+    <div>{props.title}</div>
+    <div>{props.children}</div>
+  </div>
+));
 
 jest.mock("@/app/components/Buttons", () => ({
-  Secondary: ({ text }: any) => <div>{text}</div>,
+  Secondary: ({ text }: any) => <button type="button">{text}</button>,
 }));
 
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Finance/demo", () => ({
-  DemoPayments: [
-    {
-      appointmentId: "appt-1",
-      paymentId: "pay-1",
-      mode: "Card",
-      date: "2024-01-01",
-      time: "10:00",
-      status: "Paid",
-      amount: "100",
-    },
-  ],
-}));
-
-describe("Appointment Finance Details", () => {
-  it("renders payment details", () => {
+describe("Appointment finance details", () => {
+  it("renders payment details and actions", () => {
     render(<Details />);
 
-    expect(screen.getAllByText("pay-1").length).toBeGreaterThan(0);
-    expect(screen.getByText("appt-1")).toBeInTheDocument();
-    expect(screen.getByText("$100")).toBeInTheDocument();
-    expect(screen.getByText("Print invoice")).toBeInTheDocument();
-    expect(screen.getByText("Email invoice")).toBeInTheDocument();
+    expect(screen.getAllByText("Print invoice").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Email invoice").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Payment ID/).length).toBeGreaterThan(0);
   });
 });

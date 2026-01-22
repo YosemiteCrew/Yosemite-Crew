@@ -1,50 +1,34 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import DocumentInfo from "@/app/pages/Organization/Sections/Documents/DocumentInfo";
 
 const updateDocumentMock = jest.fn();
+const deleteRoomMock = jest.fn();
 
 jest.mock("@/app/services/documentService", () => ({
   updateDocument: (...args: any[]) => updateDocumentMock(...args),
+  deleteRoom: (...args: any[]) => deleteRoomMock(...args),
 }));
 
 jest.mock("@/app/components/Modal", () => ({
   __esModule: true,
-  default: ({ showModal, children }: any) =>
-    showModal ? <div data-testid="modal">{children}</div> : null,
+  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
 
-jest.mock("@/app/components/Icons/Close", () => ({
-  __esModule: true,
-  default: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      close
-    </button>
-  ),
-}));
+const accordionCalls: any[] = [];
 
-jest.mock("@/app/components/Accordion/EditableAccordion", () => ({
-  __esModule: true,
-  default: ({ title, onSave }: any) => (
-    <div>
-      <div>{title}</div>
-      <button type="button" onClick={() => onSave?.({ title: "Doc" })}>
-        save
-      </button>
-    </div>
-  ),
-}));
+jest.mock("@/app/components/Accordion/EditableAccordion", () => (props: any) => {
+  accordionCalls.push(props);
+  return <div data-testid="document-accordion" />;
+});
 
-jest.mock("@/app/components/UploadImage/DocUploader", () => ({
-  __esModule: true,
-  default: ({ onChange }: any) => (
-    <button type="button" onClick={() => onChange("file-url")}
-    >
-      upload
-    </button>
-  ),
-}));
+jest.mock("@/app/components/UploadImage/DocUploader", () => (props: any) => (
+  <button type="button" onClick={() => props.onChange("updated.pdf")}>
+    Upload
+  </button>
+));
 
 jest.mock("@/app/components/Buttons", () => ({
   Primary: ({ text, onClick }: any) => (
@@ -59,37 +43,61 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-describe("DocumentInfo", () => {
-  it("shows download and save actions", async () => {
-    const setShowModal = jest.fn();
-    const openSpy = jest.spyOn(window, "open").mockImplementation(() => null);
-    const doc: any = {
-      _id: "d1",
-      organisationId: "org1",
-      fileUrl: "https://example.com/file.pdf",
-      title: "Doc",
-      description: "Desc",
-      category: "legal",
-    };
+jest.mock("@/app/components/Icons/Close", () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
+    </button>
+  ),
+}));
 
+describe("DocumentInfo modal", () => {
+  const activeDocument: any = {
+    _id: "doc-1",
+    organisationId: "org-1",
+    fileUrl: "https://example.com/doc.pdf",
+    title: "Doc",
+    description: "Desc",
+    category: "POLICY",
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    accordionCalls.length = 0;
+  });
+
+  it("updates document info and file", async () => {
+    const setShowModal = jest.fn();
     render(
       <DocumentInfo
         showModal
         setShowModal={setShowModal}
-        activeDocument={doc}
+        activeDocument={activeDocument}
+        canEditDocument
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Download document" }));
-    expect(openSpy).toHaveBeenCalledWith(doc.fileUrl, "_blank");
-
-    fireEvent.click(screen.getByRole("button", { name: "upload" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => {
-      expect(updateDocumentMock).toHaveBeenCalled();
+    await accordionCalls[0].onSave({
+      title: "Updated",
+      description: "New",
+      category: "OTHER",
     });
 
-    openSpy.mockRestore();
+    expect(updateDocumentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _id: "doc-1",
+        title: "Updated",
+        description: "New",
+        category: "OTHER",
+      })
+    );
+
+    fireEvent.click(screen.getByText("Upload"));
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(updateDocumentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ fileUrl: "updated.pdf" })
+    );
   });
 });

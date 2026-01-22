@@ -28,6 +28,8 @@ type CompanionsTableProps = {
   setViewCompanion: (open: boolean) => void;
   setBookAppointment: (open: boolean) => void;
   setAddTask: (open: boolean) => void;
+  canEditAppointments: boolean;
+  canEditTasks: boolean;
 };
 
 export const getStatusStyle = (status: string) => {
@@ -50,6 +52,8 @@ const CompanionsTable = ({
   setViewCompanion,
   setBookAppointment,
   setAddTask,
+  canEditAppointments,
+  canEditTasks,
 }: CompanionsTableProps) => {
   const handleViewCompanion = (companion: CompanionParent) => {
     setActiveCompanion(companion);
@@ -76,7 +80,7 @@ const CompanionsTable = ({
           <Image
             src={getSafeImageUrl(
               item.companion.photoUrl,
-              item.companion.type as ImageType
+              item.companion.type as ImageType,
             )}
             alt=""
             height={40}
@@ -183,18 +187,22 @@ const CompanionsTable = ({
           >
             <IoEye size={20} color="#302F2E" />
           </button>
-          <button
-            onClick={() => handleBookAppointment(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <FaCalendar size={14} color="#302F2E" />
-          </button>
-          <button
-            onClick={() => handleAddTask(item)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-          >
-            <FaTasks size={14} color="#302F2E" />
-          </button>
+          {canEditAppointments && (
+            <button
+              onClick={() => handleBookAppointment(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <FaCalendar size={14} color="#302F2E" />
+            </button>
+          )}
+          {canEditTasks && (
+            <button
+              onClick={() => handleAddTask(item)}
+              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+            >
+              <FaTasks size={14} color="#302F2E" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -227,6 +235,8 @@ const CompanionsTable = ({
               handleViewCompanion={handleViewCompanion}
               handleBookAppointment={handleBookAppointment}
               handleAddTask={handleAddTask}
+              canEditAppointments={canEditAppointments}
+              canEditTasks={canEditTasks}
             />
           ));
         })()}

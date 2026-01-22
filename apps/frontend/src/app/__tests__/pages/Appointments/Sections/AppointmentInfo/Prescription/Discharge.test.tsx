@@ -1,39 +1,37 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import Discharge from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Discharge";
+import { createEmptyFormData } from "@/app/pages/Appointments/Sections/AppointmentInfo";
 
-jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
-  __esModule: true,
-  default: ({ options, onSelect, placeholder }: any) => (
-    <button type="button" onClick={() => onSelect(options[0]?.value)}>
-      {placeholder}
-    </button>
-  ),
-}));
+const formsMock = jest.fn();
+const createSubmissionMock = jest.fn();
 
-jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
-  __esModule: true,
-  default: () => <div>Form Renderer</div>,
-}));
-
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/DischargeSubmissions", () => ({
-  __esModule: true,
-  default: () => <div>Submissions</div>,
-}));
+jest.mock("@yosemite-crew/types", () => ({}));
 
 jest.mock("@/app/hooks/useForms", () => ({
-  useFormsForPrimaryOrgByCategory: () => [
-    { _id: "form-1", name: "Discharge", schema: [] },
-  ],
+  useFormsForPrimaryOrgByCategory: () => formsMock(),
 }));
+
+jest.mock("@/app/types/forms", () => ({}));
 
 jest.mock("@/app/pages/Forms/Sections/AddForm/Review", () => ({
-  buildInitialValues: () => ({})
+  buildInitialValues: jest.fn(() => ({})),
 }));
 
+jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => () => (
+  <div data-testid="form-renderer" />
+));
+
+jest.mock("@/app/components/Inputs/SearchDropdown", () => (props: any) => (
+  <button type="button" onClick={() => props.onSelect(props.options[0].value)}>
+    {props.placeholder}
+  </button>
+));
+
 jest.mock("@/app/services/soapService", () => ({
-  createSubmission: jest.fn(),
+  createSubmission: (...args: any[]) => createSubmissionMock(...args),
 }));
 
 jest.mock("@/app/stores/authStore", () => ({
@@ -55,31 +53,69 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-const soapService = jest.requireMock("@/app/services/soapService");
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
+}));
 
-describe("Discharge", () => {
+jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/DischargeSubmissions", () => () => (
+  <div data-testid="discharge-submissions" />
+));
+
+describe("Discharge prescription", () => {
+  const activeAppointment: any = {
+    id: "appt-1",
+    companion: { id: "c1", parent: { id: "p1" } },
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    formsMock.mockReturnValue([
+      { _id: "form-1", name: "Discharge Form", schema: [] },
+    ]);
+    createSubmissionMock.mockResolvedValue({ _id: "sub-1" });
   });
 
-  it("renders and saves a submission", async () => {
+  it("saves discharge submission when form is selected", async () => {
     const setFormData = jest.fn();
-    soapService.createSubmission.mockResolvedValue({ _id: "sub-1" });
 
     render(
       <Discharge
-        activeAppointment={{ id: "appt-1", companion: { id: "c1", parent: { id: "p1" } } } as any}
-        formData={{ discharge: [] } as any}
+        activeAppointment={activeAppointment}
+        formData={createEmptyFormData()}
         setFormData={setFormData}
+        canEdit
       />
     );
 
     fireEvent.click(screen.getByText("Search"));
-    fireEvent.click(screen.getByText("Save"));
+    expect(screen.getByTestId("form-renderer")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Save"));
+    });
 
     await waitFor(() => {
-      expect(soapService.createSubmission).toHaveBeenCalled();
+      expect(createSubmissionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          formId: "form-1",
+          appointmentId: "appt-1",
+          submittedBy: "user-1",
+        })
+      );
     });
     expect(setFormData).toHaveBeenCalled();
+  });
+
+  it("renders share button", () => {
+    render(
+      <Discharge
+        activeAppointment={activeAppointment}
+        formData={createEmptyFormData()}
+        setFormData={jest.fn()}
+        canEdit={false}
+      />
+    );
+
+    expect(screen.getByText("Share with parents")).toBeInTheDocument();
   });
 });

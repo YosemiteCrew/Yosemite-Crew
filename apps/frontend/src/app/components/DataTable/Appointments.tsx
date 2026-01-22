@@ -29,6 +29,7 @@ type AppointmentTableProps = {
   setActiveAppointment?: (appointment: Appointment) => void;
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  canEditAppointments: boolean;
   small?: boolean;
 };
 
@@ -58,6 +59,7 @@ const Appointments = ({
   setActiveAppointment,
   setViewPopup,
   setReschedulePopup,
+  canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
   const handleViewAppointment = (appointment: Appointment) => {
@@ -235,7 +237,7 @@ const Appointments = ({
               >
                 <IoEye size={20} color="#302F2E" />
               </button>
-              {allowReschedule(item.status) && (
+              {canEditAppointments && allowReschedule(item.status) && (
                 <button
                   onClick={() => handleRescheduleAppointment(item)}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
@@ -276,6 +278,7 @@ const Appointments = ({
               appointment={item}
               handleViewAppointment={handleViewAppointment}
               handleRescheduleAppointment={handleRescheduleAppointment}
+              canEditAppointments={canEditAppointments}
             />
           ));
         })()}

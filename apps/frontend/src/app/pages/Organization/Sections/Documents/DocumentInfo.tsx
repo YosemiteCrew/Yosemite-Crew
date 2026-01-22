@@ -12,6 +12,7 @@ type DocumentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeDocument: OrganizationDocument;
+  canEditDocument: boolean;
 };
 
 const Fields = [
@@ -29,6 +30,7 @@ const DocumentInfo = ({
   showModal,
   setShowModal,
   activeDocument,
+  canEditDocument,
 }: DocumentInfoProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string>("");
@@ -89,16 +91,19 @@ const DocumentInfo = ({
               data={activeDocument}
               defaultOpen={true}
               onSave={handleUpdate}
-              showDeleteIcon
+              showEditIcon={canEditDocument}
+              showDeleteIcon={canEditDocument}
               onDelete={() => deleteRoom(activeDocument)}
             />
-            <DocUploader
-              placeholder="Upload document"
-              apiUrl={`/v1/organisation-document/pms/${activeDocument.organisationId}/documents/upload`}
-              onChange={(s) => setFileUrl(s)}
-              file={file}
-              setFile={setFile}
-            />
+            {canEditDocument && (
+              <DocUploader
+                placeholder="Upload document"
+                apiUrl={`/v1/organisation-document/pms/${activeDocument.organisationId}/documents/upload`}
+                onChange={(s) => setFileUrl(s)}
+                file={file}
+                setFile={setFile}
+              />
+            )}
           </div>
           <div className="flex flex-col gap-3">
             {activeDocument.fileUrl && (
@@ -108,7 +113,7 @@ const DocumentInfo = ({
                 onClick={handleDownload}
               />
             )}
-            {fileUrl && (
+            {canEditDocument && fileUrl && (
               <Primary href="#" text="Save" onClick={handleUpdateFile} />
             )}
           </div>

@@ -1,10 +1,12 @@
 import Accordion from "@/app/components/Accordion/Accordion";
 import { Primary, Secondary } from "@/app/components/Buttons";
+import Fallback from "@/app/components/Fallback";
 import Datepicker from "@/app/components/Inputs/Datepicker";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
+import { PermissionGate } from "@/app/components/PermissionGate";
 import { useCompanionsForPrimaryOrg } from "@/app/hooks/useCompanion";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import {
@@ -24,6 +26,7 @@ import {
   TaskTemplate,
 } from "@/app/types/task";
 import { applyUtcTime, generateTimeSlots } from "@/app/utils/date";
+import { PERMISSIONS } from "@/app/utils/permissions";
 import React, { useEffect, useMemo, useState } from "react";
 
 const TaskSourceOptions = [
@@ -95,7 +98,7 @@ const Task = () => {
         label: companion.name,
         value: companion.parentId,
       })),
-    [companions]
+    [companions],
   );
 
   const TeamOptions = useMemo(
@@ -104,7 +107,7 @@ const Task = () => {
         label: team.name || team._id,
         value: team._id,
       })),
-    [teams]
+    [teams],
   );
 
   const TemplateOptions: Option[] = useMemo(() => {
@@ -213,207 +216,219 @@ const Task = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-      <Accordion title="Task" defaultOpen showEditIcon={false} isEditing={true}>
-        <div className="flex flex-col gap-3">
-          <LabelDropdown
-            placeholder="Type"
-            onSelect={(option) =>
-              setFormData({
-                ...formData,
-                audience: option.value as any,
-                assignedTo: "",
-                companionId: undefined,
-              })
-            }
-            defaultOption={formData.audience}
-            options={TaskTypeOptions}
-          />
-          {formData.audience === "EMPLOYEE_TASK" ? (
+    <PermissionGate
+      allOf={[PERMISSIONS.TASKS_EDIT_ANY]}
+      fallback={<Fallback />}
+    >
+      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <Accordion
+          title="Task"
+          defaultOpen
+          showEditIcon={false}
+          isEditing={true}
+        >
+          <div className="flex flex-col gap-3">
             <LabelDropdown
-              placeholder="To"
+              placeholder="Type"
               onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  assignedTo: option.value,
+                  audience: option.value as any,
+                  assignedTo: "",
+                  companionId: undefined,
                 })
               }
-              defaultOption={formData.assignedTo}
-              error={formDataErrors.assignedTo}
-              options={TeamOptions}
+              defaultOption={formData.audience}
+              options={TaskTypeOptions}
             />
-          ) : (
-            <LabelDropdown
-              placeholder="To"
-              onSelect={(option) => {
-                const companion = companions?.find(
-                  (c) => c.parentId === option.value
-                );
-                if (companion) {
+            {formData.audience === "EMPLOYEE_TASK" ? (
+              <LabelDropdown
+                placeholder="To"
+                onSelect={(option) =>
                   setFormData({
                     ...formData,
-                    companionId: companion.id,
                     assignedTo: option.value,
-                  });
+                  })
                 }
-              }}
-              defaultOption={formData.assignedTo}
-              error={formDataErrors.assignedTo}
-              options={CompanionOptions}
-            />
-          )}
-          <LabelDropdown
-            placeholder="Source"
-            onSelect={(option) => {
-              setFormData({
-                ...formData,
-                source: option.value as any,
-                templateId: undefined,
-                libraryTaskId: undefined,
-                name: "",
-                description: "",
-                category: "CUSTOM",
-              });
-            }}
-            defaultOption={formData.source}
-            options={TaskSourceOptions}
-          />
-          {formData.source === "YC_LIBRARY" && (
+                defaultOption={formData.assignedTo}
+                error={formDataErrors.assignedTo}
+                options={TeamOptions}
+              />
+            ) : (
+              <LabelDropdown
+                placeholder="To"
+                onSelect={(option) => {
+                  const companion = companions?.find(
+                    (c) => c.parentId === option.value,
+                  );
+                  if (companion) {
+                    setFormData({
+                      ...formData,
+                      companionId: companion.id,
+                      assignedTo: option.value,
+                    });
+                  }
+                }}
+                defaultOption={formData.assignedTo}
+                error={formDataErrors.assignedTo}
+                options={CompanionOptions}
+              />
+            )}
             <LabelDropdown
-              placeholder={"Template"}
+              placeholder="Source"
               onSelect={(option) => {
                 setFormData({
                   ...formData,
-                  libraryTaskId: option.value,
+                  source: option.value as any,
+                  templateId: undefined,
+                  libraryTaskId: undefined,
+                  name: "",
+                  description: "",
+                  category: "CUSTOM",
                 });
-                selectTemplate(option.value);
               }}
-              defaultOption={formData.libraryTaskId}
-              options={TemplateOptions}
-              error={formDataErrors.libraryTaskId}
+              defaultOption={formData.source}
+              options={TaskSourceOptions}
             />
-          )}
-          {formData.source === "ORG_TEMPLATE" && (
+            {formData.source === "YC_LIBRARY" && (
+              <LabelDropdown
+                placeholder={"Template"}
+                onSelect={(option) => {
+                  setFormData({
+                    ...formData,
+                    libraryTaskId: option.value,
+                  });
+                  selectTemplate(option.value);
+                }}
+                defaultOption={formData.libraryTaskId}
+                options={TemplateOptions}
+                error={formDataErrors.libraryTaskId}
+              />
+            )}
+            {formData.source === "ORG_TEMPLATE" && (
+              <LabelDropdown
+                placeholder={"Template"}
+                onSelect={(option) => {
+                  setFormData({
+                    ...formData,
+                    templateId: option.value,
+                  });
+                  selectTemplate(option.value);
+                }}
+                defaultOption={formData.templateId}
+                options={TemplateOptions}
+                error={formDataErrors.templateId}
+              />
+            )}
             <LabelDropdown
-              placeholder={"Template"}
-              onSelect={(option) => {
+              placeholder={"Category"}
+              onSelect={(option) =>
                 setFormData({
                   ...formData,
-                  templateId: option.value,
-                });
-                selectTemplate(option.value);
-              }}
-              defaultOption={formData.templateId}
-              options={TemplateOptions}
-              error={formDataErrors.templateId}
-            />
-          )}
-          <LabelDropdown
-            placeholder={"Category"}
-            onSelect={(option) =>
-              setFormData({
-                ...formData,
-                category: option.value,
-              })
-            }
-            defaultOption={formData.category}
-            options={TaskKindOptions}
-            error={formDataErrors.category}
-          />
-          <FormInput
-            intype="text"
-            inname="task"
-            value={formData.name}
-            inlabel="Task"
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            error={formDataErrors.name}
-          />
-          <FormDesc
-            intype="text"
-            inname="description"
-            value={formData.description || ""}
-            inlabel="Description (optional)"
-            onChange={(e) =>
-              setFormData({ ...formData, description: e.target.value })
-            }
-            className="min-h-[120px]!"
-          />
-          <Datepicker
-            currentDate={due}
-            setCurrentDate={setDue}
-            placeholder="Due date"
-            type="input"
-          />
-          <LabelDropdown
-            placeholder="Due time"
-            onSelect={(option) => {
-              setDueTimeUtc(option.value);
-            }}
-            defaultOption={dueTimeUtc}
-            options={timeSlots}
-          />
-          <FormInput
-            intype="number"
-            inname="reminder"
-            value={String(formData.reminder?.offsetMinutes) || ""}
-            inlabel="Reminder (in minutes)"
-            onChange={(e) => {
-              const raw = e.target.value;
-              if (raw === "") {
-                setFormData({
-                  ...formData,
-                  reminder: undefined,
-                });
-                return;
+                  category: option.value,
+                })
               }
-              const value = Number.parseInt(raw, 10);
-              if (!Number.isFinite(value) || value === 0) return;
-              setFormData({
-                ...formData,
-                reminder: {
-                  enabled: true,
-                  offsetMinutes: value,
-                },
-              });
-            }}
-          />
-          <SelectLabel
-            title="Reoccurrence"
-            options={TaskRecurrenceOptions}
-            activeOption={formData.recurrence?.type || "ONCE"}
-            setOption={(value) =>
-              setFormData({
-                ...formData,
-                recurrence: {
-                  ...formData.recurrence,
-                  type: value,
-                  isMaster: false,
-                },
-              })
-            }
-          />
-        </div>
-      </Accordion>
-      <div className="flex justify-end items-end gap-3 w-full flex-col">
-        {error && (
-          <div className="text-red-600 text-sm text-center">{error}</div>
-        )}
-        <div className="flex gap-3 w-full">
-          <Secondary
-            href="#"
-            text="Save as template"
-            className="w-full hidden"
-            onClick={handleCreateTemplate}
-          />
-          <Primary
-            href="#"
-            text="Save"
-            classname="w-full"
-            onClick={handleCreate}
-          />
+              defaultOption={formData.category}
+              options={TaskKindOptions}
+              error={formDataErrors.category}
+            />
+            <FormInput
+              intype="text"
+              inname="task"
+              value={formData.name}
+              inlabel="Task"
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              error={formDataErrors.name}
+            />
+            <FormDesc
+              intype="text"
+              inname="description"
+              value={formData.description || ""}
+              inlabel="Description (optional)"
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              className="min-h-[120px]!"
+            />
+            <Datepicker
+              currentDate={due}
+              setCurrentDate={setDue}
+              placeholder="Due date"
+              type="input"
+            />
+            <LabelDropdown
+              placeholder="Due time"
+              onSelect={(option) => {
+                setDueTimeUtc(option.value);
+              }}
+              defaultOption={dueTimeUtc}
+              options={timeSlots}
+            />
+            <FormInput
+              intype="number"
+              inname="reminder"
+              value={String(formData.reminder?.offsetMinutes) || ""}
+              inlabel="Reminder (in minutes)"
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  setFormData({
+                    ...formData,
+                    reminder: undefined,
+                  });
+                  return;
+                }
+                const value = Number.parseInt(raw, 10);
+                if (!Number.isFinite(value) || value === 0) return;
+                setFormData({
+                  ...formData,
+                  reminder: {
+                    enabled: true,
+                    offsetMinutes: value,
+                  },
+                });
+              }}
+            />
+            <SelectLabel
+              title="Reoccurrence"
+              options={TaskRecurrenceOptions}
+              activeOption={formData.recurrence?.type || "ONCE"}
+              setOption={(value) =>
+                setFormData({
+                  ...formData,
+                  recurrence: {
+                    ...formData.recurrence,
+                    type: value,
+                    isMaster: false,
+                  },
+                })
+              }
+            />
+          </div>
+        </Accordion>
+        <div className="flex justify-end items-end gap-3 w-full flex-col">
+          {error && (
+            <div className="text-red-600 text-sm text-center">{error}</div>
+          )}
+          <div className="flex gap-3 w-full">
+            <Secondary
+              href="#"
+              text="Save as template"
+              className="w-full hidden"
+              onClick={handleCreateTemplate}
+            />
+            <Primary
+              href="#"
+              text="Save"
+              classname="w-full"
+              onClick={handleCreate}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </PermissionGate>
   );
 };
 

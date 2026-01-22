@@ -16,6 +16,7 @@ type AppointmentCalendarProps = {
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setReschedulePopup: React.Dispatch<React.SetStateAction<boolean>>;
+  canEditAppointments: boolean;
 };
 
 const AppointmentCalendar = ({
@@ -28,6 +29,7 @@ const AppointmentCalendar = ({
   weekStart,
   setWeekStart,
   setReschedulePopup,
+  canEditAppointments
 }: AppointmentCalendarProps) => {
   const handleViewAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -57,6 +59,7 @@ const AppointmentCalendar = ({
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           setCurrentDate={setCurrentDate}
+          canEditAppointments={canEditAppointments}
         />
       )}
       {activeCalendar === "week" && (
@@ -68,6 +71,7 @@ const AppointmentCalendar = ({
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
+          canEditAppointments={canEditAppointments}
         />
       )}
       {activeCalendar === "team" && (
@@ -77,6 +81,7 @@ const AppointmentCalendar = ({
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           setCurrentDate={setCurrentDate}
+          canEditAppointments={canEditAppointments}
         />
       )}
     </div>

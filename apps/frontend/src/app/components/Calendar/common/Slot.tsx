@@ -13,6 +13,7 @@ type SlotProps = {
   handleRescheduleAppointment: (appt: Appointment) => void;
   dayIndex: number;
   length: number;
+  canEditAppointments: boolean;
 };
 
 const Slot: React.FC<SlotProps> = ({
@@ -22,6 +23,7 @@ const Slot: React.FC<SlotProps> = ({
   handleRescheduleAppointment,
   dayIndex,
   length,
+  canEditAppointments,
 }) => {
   if (slotEvents.length === 0) {
     return (
@@ -48,7 +50,7 @@ const Slot: React.FC<SlotProps> = ({
           >
             <div className="text-body-4 truncate">{ev.companion.name}</div>
             <div className="flex items-center gap-1">
-              {allowReschedule(ev.status) && (
+              {canEditAppointments && allowReschedule(ev.status) && (
                 <button
                   onClick={(e) => {
                     e.preventDefault();
