@@ -45,6 +45,7 @@ const Inventory = () => {
     hideItem,
     unhideItem,
     addBatch,
+    updateBatch,
   } = useInventoryModule(resolvedBusinessType);
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
@@ -185,6 +186,20 @@ const Inventory = () => {
     [addBatch]
   );
 
+  const handleUpdateBatch = useCallback(
+    async (itemId: string, batches: any[]) => {
+      if (!itemId) return;
+      setActionError(null);
+      try {
+        await updateBatch(itemId, batches);
+      } catch (err) {
+        setActionError("Unable to update batch.");
+        throw err;
+      }
+    },
+    [updateBatch]
+  );
+
   const handleHideInventory = useCallback(
     async (itemId: string) => {
       if (!itemId) return;
@@ -286,6 +301,7 @@ const Inventory = () => {
           businessType={activeInventory.businessType ?? resolvedBusinessType}
           onUpdate={handleUpdateInventory}
           onAddBatch={handleAddBatch}
+          onUpdateBatch={handleUpdateBatch}
           onHide={handleHideInventory}
           onUnhide={handleUnhideInventory}
         />

@@ -177,13 +177,22 @@ const InventoryTable = ({
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
-        {filteredList.map((item: InventoryItem) => (
-          <InventoryCard
-            key={item.id ?? item.basicInfo.name}
-            item={item}
-            handleViewInventory={handleViewInventory}
-          />
-        ))}
+        {(() => {
+          if (filteredList.length === 0) {
+            return (
+              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
+                No data available
+              </div>
+            );
+          }
+          return filteredList.map((item: InventoryItem) => (
+            <InventoryCard
+              key={item.id ?? item.basicInfo.name}
+              item={item}
+              handleViewInventory={handleViewInventory}
+            />
+          ));
+        })()}
       </div>
     </div>
   );

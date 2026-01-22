@@ -6,6 +6,7 @@ import {
   fetchInventoryTurnover,
   hideInventoryItem,
   unhideInventoryItem,
+  updateInventoryBatch,
   updateInventoryItem,
 } from "@/app/services/inventoryService";
 import {
@@ -243,6 +244,32 @@ export const useInventoryModule = (businessType: BusinessType) => {
     [primaryOrgId, loadInventory]
   );
 
+  const updateBatch = useCallback(
+    async (itemId: string, batches: BatchValues[]) => {
+      if (!itemId) throw new Error("No inventory item to update.");
+      if (!primaryOrgId) throw new Error("No organisation selected.");
+      const updates = batches
+        .filter((b) => b._id)
+        .map((b) => ({
+          batchId: b._id as string,
+          payload: buildBatchPayload({
+            ...b,
+            itemId,
+            organisationId: primaryOrgId,
+          } as any),
+        }))
+        .filter((entry) => entry.payload);
+      if (!updates.length) return;
+      await Promise.all(
+        updates.map(({ batchId, payload }) =>
+          updateInventoryBatch(batchId, payload!)
+        )
+      );
+      await loadInventory(primaryOrgId);
+    },
+    [primaryOrgId, loadInventory]
+  );
+
   return {
     inventory,
     turnover,
@@ -254,6 +281,7 @@ export const useInventoryModule = (businessType: BusinessType) => {
     hideItem,
     unhideItem,
     addBatch,
+    updateBatch,
   } satisfies {
     inventory: InventoryItem[];
     turnover: InventoryTurnoverItem[];
@@ -271,5 +299,6 @@ export const useInventoryModule = (businessType: BusinessType) => {
     hideItem: (itemId: string) => Promise<InventoryItem | void>;
     unhideItem: (itemId: string) => Promise<InventoryItem | void>;
     addBatch: (itemId: string, batches: BatchValues[]) => Promise<void>;
+    updateBatch: (itemId: string, batches: BatchValues[]) => Promise<void>;
   };
 };
