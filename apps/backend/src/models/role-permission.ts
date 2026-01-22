@@ -9,13 +9,16 @@ export type Permission =
   // Companions / Medical Records
   | "companions:view:any"
   | "companions:edit:any"
-  | "companions:view:own"
-  | "companions:edit:own"
-  // Procedures / Diagnostics
-  | "procedures:view:any"
-  | "procedures:edit:any"
-  | "procedures:view:own"
-  | "procedures:edit:own"
+  // Task
+  | "tasks:view:any"
+  | "tasks:edit:any"
+  | "tasks:view:own"
+  | "tasks:edit:own"
+  //Prescription
+  | "prescription:view:any"
+  | "prescription:view:own"
+  | "prescription:edit:any"
+  | "prescription:edit:own"
   // Inventory
   | "inventory:view:any"
   | "inventory:edit:any"
@@ -38,7 +41,21 @@ export type Permission =
   | "analytics:view:clinical"
   // Compliance / Audit
   | "audit:view:any"
+  // Speciality
+  | "specialities:view:any"
+  | "specialities:edit:any"
+  // Room
+  | "room:view:any"
+  | "room:edit:any"
+  // Documents
+  | "document:view:any"
+  | "document:edit:any"
   // Org-level
+  | "subscription:view:any"
+  | "subscription:edit:any"
+  | "org:onboarding"
+  | "org:view"
+  | "org:edit"
   | "org:delete";
 
 export type RoleCode =
@@ -57,13 +74,22 @@ export type RoleCode =
 export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
   OWNER: [
     "appointments:view:any",
+    "appointments:view:own",
     "appointments:edit:any",
+    "appointments:edit:own",
+
+    "prescription:view:any",
+    "prescription:view:own",
+    "prescription:edit:any",
+    "prescription:edit:own",
 
     "companions:view:any",
     "companions:edit:any",
 
-    "procedures:view:any",
-    "procedures:edit:any",
+    "tasks:view:any",
+    "tasks:view:own",
+    "tasks:edit:any",
+    "tasks:edit:own",
 
     "inventory:view:any",
     "inventory:edit:any",
@@ -79,24 +105,50 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "billing:view:any",
     "billing:edit:any",
+    "billing:edit:limited",
+
+    "subscription:view:any",
+    "subscription:edit:any",
 
     "analytics:view:any",
     "analytics:edit:any",
+    "analytics:view:clinical",
 
     "audit:view:any",
 
     "org:delete",
+    "org:onboarding",
+    "org:view",
+    "org:edit",
+
+    "specialities:view:any",
+    "specialities:edit:any",
+
+    "room:view:any",
+    "room:edit:any",
+
+    "document:view:any",
+    "document:edit:any",
   ],
 
   ADMIN: [
     "appointments:view:any",
+    "appointments:view:own",
     "appointments:edit:any",
+    "appointments:edit:own",
+
+    "prescription:view:any",
+    "prescription:view:own",
+    "prescription:edit:any",
+    "prescription:edit:own",
 
     "companions:view:any",
     "companions:edit:any",
 
-    "procedures:view:any",
-    "procedures:edit:any",
+    "tasks:view:any",
+    "tasks:view:own",
+    "tasks:edit:any",
+    "tasks:edit:own",
 
     "inventory:view:any",
     "inventory:edit:any",
@@ -112,23 +164,99 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "billing:view:any",
     "billing:edit:any",
+    "billing:edit:limited",
+
+    "subscription:view:any",
 
     "analytics:view:any",
     "analytics:edit:any",
+    "analytics:view:clinical",
 
     "audit:view:any",
-    // no org:delete
+
+    "org:view",
+    "org:edit",
+
+    "specialities:view:any",
+    "specialities:edit:any",
+
+    "room:view:any",
+    "room:edit:any",
+
+    "document:view:any",
+    "document:edit:any",
   ],
 
   SUPERVISOR: [
     "appointments:view:any",
+    "appointments:view:own",
     "appointments:edit:any",
+    "appointments:edit:own",
+
+    "prescription:view:any",
+    "prescription:view:own",
+    "prescription:edit:any",
+    "prescription:edit:own",
 
     "companions:view:any",
     "companions:edit:any",
 
-    "procedures:view:any",
-    "procedures:edit:any",
+    "tasks:view:any",
+    "tasks:view:own",
+    "tasks:edit:any",
+    "tasks:edit:own",
+
+    "inventory:view:any",
+    "inventory:edit:any",
+
+    "forms:view:any",
+    "forms:edit:any",
+
+    "communication:view:any",
+    "communication:edit:any",
+
+    "teams:view:any",
+    "teams:edit:any",
+
+    "billing:view:any",
+    "billing:edit:any",
+    "billing:edit:limited",
+
+    "analytics:view:any",
+    "analytics:edit:any",
+    "analytics:view:clinical",
+
+    "audit:view:any",
+
+    "org:view",
+
+    "specialities:view:any",
+    "specialities:edit:any",
+
+    "room:view:any",
+    "room:edit:any",
+
+    "document:view:any",
+    "document:edit:any",
+  ],
+
+  VETERINARIAN: [
+    "appointments:view:any",
+    "appointments:view:own",
+    "appointments:edit:own",
+    "appointments:edit:any",
+
+    "prescription:view:any",
+    "prescription:view:own",
+    "prescription:edit:own",
+
+    "companions:view:any",
+    "companions:edit:any",
+
+    "tasks:view:any",
+    "tasks:view:own",
+    "tasks:edit:any",
+    "tasks:edit:own",
 
     "inventory:view:any",
     "inventory:edit:any",
@@ -143,49 +271,37 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "billing:view:any",
     "billing:edit:any",
-
-    "analytics:view:any",
-    "analytics:edit:any",
-
-    "audit:view:any",
-  ],
-
-  VETERINARIAN: [
-    // own appointments
-    "appointments:view:own",
-    "appointments:edit:own",
-
-    "companions:view:any",
-    "companions:edit:any",
-
-    "procedures:view:any",
-    "procedures:edit:any",
-
-    "inventory:view:any",
-    "inventory:edit:any",
-
-    "forms:view:any",
-    "forms:edit:any",
-
-    "communication:view:any",
-    "communication:edit:any",
-
-    "billing:view:any",
     "billing:edit:limited",
 
+    "analytics:view:any",
     "analytics:view:clinical",
-    "audit:view:any",
+
+    "specialities:view:any",
+    "specialities:edit:any",
+
+    "room:view:any",
+    "room:edit:any",
+
+    "document:view:any",
   ],
 
   TECHNICIAN: [
     "appointments:view:any",
+    "appointments:view:own",
+    "appointments:edit:own",
     "appointments:edit:any",
+
+    "prescription:view:any",
+    "prescription:view:own",
+    "prescription:edit:own",
 
     "companions:view:any",
     "companions:edit:any",
 
-    "procedures:view:any",
-    "procedures:edit:any",
+    "tasks:view:any",
+    "tasks:view:own",
+    "tasks:edit:any",
+    "tasks:edit:own",
 
     "inventory:view:any",
     "inventory:edit:any",
@@ -196,23 +312,41 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "communication:view:any",
     "communication:edit:any",
 
+    "teams:view:any",
+
     "billing:view:any",
     "billing:edit:any",
+    "billing:edit:limited",
 
-    "analytics:view:any",
-    // no audit
+    "specialities:view:any",
+    "specialities:edit:any",
+
+    "room:view:any",
+    "room:edit:any",
+
+    "document:view:any",
   ],
 
   ASSISTANT: [
     "appointments:view:any",
+    "appointments:view:own",
+    "appointments:edit:own",
     "appointments:edit:any",
+
+    "prescription:view:any",
+    "prescription:view:own",
+    "prescription:edit:own",
 
     "companions:view:any",
     "companions:edit:any",
 
-    "procedures:view:any",
+    "tasks:view:any",
+    "tasks:view:own",
+    "tasks:edit:any",
+    "tasks:edit:own",
 
     "inventory:view:any",
+    "inventory:edit:any",
 
     "forms:view:any",
     "forms:edit:any",
@@ -220,21 +354,40 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "communication:view:any",
     "communication:edit:any",
 
-    "billing:view:any",
+    "teams:view:any",
 
-    "analytics:view:any",
-    // no audit, no teams
+    "billing:view:any",
+    "billing:edit:any",
+    "billing:edit:limited",
+
+    "specialities:view:any",
+    "specialities:edit:any",
+
+    "room:view:any",
+    "room:edit:any",
+
+    "document:view:any",
   ],
 
   RECEPTIONIST: [
     "appointments:view:any",
+    "appointments:view:own",
     "appointments:edit:any",
+    "appointments:edit:own",
+
+    "prescription:view:any",
+    "prescription:view:own",
 
     "companions:view:any",
+    "companions:edit:any",
 
-    "procedures:view:any",
+    "tasks:view:any",
+    "tasks:view:own",
+    "tasks:edit:any",
+    "tasks:edit:own",
 
     "inventory:view:any",
+    "inventory:edit:any",
 
     "forms:view:any",
     "forms:edit:any",
@@ -242,10 +395,21 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "communication:view:any",
     "communication:edit:any",
 
+    "teams:view:any",
+
     "billing:view:any",
     "billing:edit:any",
+    "billing:edit:limited",
 
     "analytics:view:any",
-    // no audit, no teams
+    "analytics:view:clinical",
+
+    "specialities:view:any",
+    "specialities:edit:any",
+
+    "room:view:any",
+    "room:edit:any",
+
+    "document:view:any",
   ],
 };

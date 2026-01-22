@@ -29,6 +29,12 @@ jest.mock("../../src/models/organization", () => ({
     findOneAndDelete: jest.fn(),
   },
 }));
+jest.mock("../../src/models/organization.billing", () => ({
+  OrgBilling: { create: jest.fn() },
+}));
+jest.mock("../../src/models/organisation.usage.counter", () => ({
+  OrgUsageCounters: { create: jest.fn() },
+}));
 
 const mockedOrganizationModel = OrganizationModel as unknown as {
   findOne: jest.Mock;

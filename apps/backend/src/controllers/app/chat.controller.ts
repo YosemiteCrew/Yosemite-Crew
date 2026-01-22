@@ -18,7 +18,9 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
 };
 
 const getObjectBody = (req: Request): Record<string, unknown> =>
-  typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
+  typeof req.body === "object" && req.body
+    ? (req.body as Record<string, unknown>)
+    : {};
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string");
@@ -27,7 +29,6 @@ const getStringArray = (value: unknown): string[] | undefined =>
   isStringArray(value) ? value : undefined;
 
 export const ChatController = {
-
   async generateToken(req: Request, res: Response) {
     try {
       const providerUserId = resolveUserIdFromRequest(req);
@@ -74,8 +75,7 @@ export const ChatController = {
         return res.status(400).json({ message: "appointmentId required" });
       }
 
-      const session =
-        await ChatService.ensureAppointmentChat(appointmentId);
+      const session = await ChatService.ensureAppointmentChat(appointmentId);
 
       return res.status(200).json(session);
     } catch (err) {
@@ -92,7 +92,9 @@ export const ChatController = {
       const userId = resolveUserIdFromRequest(req);
       const body = getObjectBody(req);
       const organisationId =
-        typeof body.organisationId === "string" ? body.organisationId : undefined;
+        typeof body.organisationId === "string"
+          ? body.organisationId
+          : undefined;
       const otherUserId =
         typeof body.otherUserId === "string" ? body.otherUserId : undefined;
 
@@ -121,7 +123,9 @@ export const ChatController = {
       const userId = resolveUserIdFromRequest(req);
       const body = getObjectBody(req);
       const organisationId =
-        typeof body.organisationId === "string" ? body.organisationId : undefined;
+        typeof body.organisationId === "string"
+          ? body.organisationId
+          : undefined;
       const title = typeof body.title === "string" ? body.title : undefined;
       const memberIds = getStringArray(body.memberIds as string[]);
       const isPrivate =
@@ -158,10 +162,7 @@ export const ChatController = {
         return res.status(400).json({ message: "Invalid request" });
       }
 
-      const data = await ChatService.openChatBySessionId(
-        sessionId,
-        userId,
-      );
+      const data = await ChatService.openChatBySessionId(sessionId, userId);
 
       return res.status(200).json(data);
     } catch (err) {
@@ -284,11 +285,10 @@ export const ChatController = {
       const isPrivate =
         typeof body.isPrivate === "boolean" ? body.isPrivate : undefined;
 
-      const session = await ChatService.updateGroup(
-        sessionId,
-        userId,
-        { title, isPrivate },
-      );
+      const session = await ChatService.updateGroup(sessionId, userId, {
+        title,
+        isPrivate,
+      });
 
       return res.status(200).json(session);
     } catch (err) {
@@ -307,9 +307,7 @@ export const ChatController = {
 
       await ChatService.deleteGroup(sessionId, userId!);
 
-      return res
-        .status(200)
-        .json({ message: "Group deleted successfully" });
+      return res.status(200).json({ message: "Group deleted successfully" });
     } catch (err) {
       logger.error("Delete group failed", err);
       if (err instanceof ChatServiceError) {

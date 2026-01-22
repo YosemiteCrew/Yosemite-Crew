@@ -72,25 +72,25 @@ export function withOrgPermissions() {
 
 export function requirePermission(required: Permission | Permission[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    // const typedReq = req as OrgRequest;
-    // const perms = typedReq.userPermissions;
+    const typedReq = req as OrgRequest;
+    const perms = typedReq.userPermissions;
 
-    // if (!perms) {
-    //   return res.status(500).json({
-    //     message:
-    //       "Permissions not loaded. Include withOrgPermissions before requirePermission.",
-    //   });
-    // }
+    if (!perms) {
+      return res.status(500).json({
+        message:
+          "Permissions not loaded. Include withOrgPermissions before requirePermission.",
+      });
+    }
 
-    // const ok = Array.isArray(required)
-    //   ? required.every((r) => perms.includes(r))
-    //   : perms.includes(required);
+    const ok = Array.isArray(required)
+      ? required.every((r) => perms.includes(r))
+      : perms.includes(required);
 
-    // if (!ok) {
-    //   return res
-    //     .status(403)
-    //     .json({ message: "Forbidden – insufficient permissions" });
-    // }
+    if (!ok) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden – insufficient permissions" });
+    }
 
     return next();
   };

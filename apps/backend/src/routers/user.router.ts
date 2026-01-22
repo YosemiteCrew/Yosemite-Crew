@@ -5,6 +5,6 @@ import { authorizeCognito } from "src/middlewares/auth";
 const router = Router();
 
 router.post("/", authorizeCognito, UserController.create);
-//router.get("/:id", UserController.getById);
+router.get("/:id", UserController.getById);
 
 export default router;

@@ -38,18 +38,22 @@ const serializeMeta = (meta: Record<string, unknown>): string => {
   return ` ${safeStringify(cleanedMeta, null, 2)}`;
 };
 
-const logFormat = printf(({ level, message, timestamp: time, stack, ...meta }) => {
-  const safeTimestamp = isNonEmptyString(time) ? time : new Date().toISOString();
-  const metaRecord = meta as Record<string, unknown>;
+const logFormat = printf(
+  ({ level, message, timestamp: time, stack, ...meta }) => {
+    const safeTimestamp = isNonEmptyString(time)
+      ? time
+      : new Date().toISOString();
+    const metaRecord = meta as Record<string, unknown>;
 
-  const renderedMessage = isNonEmptyString(stack)
-    ? stack
-    : serializeLogMessage(message);
+    const renderedMessage = isNonEmptyString(stack)
+      ? stack
+      : serializeLogMessage(message);
 
-  const serializedMeta = serializeMeta(metaRecord);
+    const serializedMeta = serializeMeta(metaRecord);
 
-  return `${safeTimestamp} [${level}]: ${renderedMessage}${serializedMeta}`;
-});
+    return `${safeTimestamp} [${level}]: ${renderedMessage}${serializedMeta}`;
+  },
+);
 
 const levels = {
   error: 0,

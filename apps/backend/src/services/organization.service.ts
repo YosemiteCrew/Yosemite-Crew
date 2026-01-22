@@ -22,6 +22,8 @@ import SpecialityModel from "src/models/speciality";
 import ServiceModel from "src/models/service";
 import logger from "src/utils/logger";
 import UserProfileModel from "src/models/user-profile";
+import { OrgBilling } from "src/models/organization.billing";
+import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -526,6 +528,11 @@ export const OrganizationService = {
     if (!document) {
       document = await OrganizationModel.create(persistable);
       created = true;
+
+      await Promise.all([
+        OrgBilling.create({ orgId: document._id }),
+        OrgUsageCounters.create({ orgId: document._id }),
+      ]);
 
       // Link organization to user if userId is provided
       if (userId) {

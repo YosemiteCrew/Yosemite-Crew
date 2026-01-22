@@ -56,7 +56,7 @@ export const NotificationTemplates = {
       currency: string,
     ): NotificationPayload => ({
       title: "Payment Pending 💳",
-      body: `A quick reminder! You have a pending payment of ₹${amount}. Tap to complete it.`,
+      body: `A quick reminder! You have a pending payment of ${amount} ${currency}. Tap to complete it.`,
       type: "PAYMENTS",
     }),
 
@@ -65,7 +65,7 @@ export const NotificationTemplates = {
       currency: string,
     ): NotificationPayload => ({
       title: "Payment Successful! 🥳",
-      body: `Woohoo! Your payment of ₹${amount} went through. Thanks for taking great care of your companion!`,
+      body: `Woohoo! Your payment of ${amount} ${currency} went through. Thanks for taking great care of your companion!`,
       type: "PAYMENTS",
     }),
 
@@ -77,7 +77,7 @@ export const NotificationTemplates = {
 
     REFUND_ISSUED: (amount: number, currency: string): NotificationPayload => ({
       title: "Refund Processed 💸",
-      body: `A refund of ${amount} has been processed. Check your bank for updates.`,
+      body: `A refund of ${amount} ${currency} has been processed. Check your bank for updates.`,
       type: "PAYMENTS",
     }),
   },

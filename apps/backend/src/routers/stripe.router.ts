@@ -2,55 +2,107 @@ import { Router } from "express";
 import { StripeController } from "../controllers/web/stripe.controller";
 import bodyParser from "body-parser";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
+
+/* ======================================================
+   STRIPE WEBHOOK (PUBLIC)
+   ====================================================== */
 
 router.post(
   "/webhook",
   bodyParser.raw({ type: "application/json" }),
-  (req, res) => StripeController.webhook(req, res),
+  StripeController.webhook,
 );
 
-// Mobile Payment Intent Router
+/* ======================================================
+   MOBILE ROUTES (PARENT / OWN CONTEXT)
+   ====================================================== */
+
 router.post(
   "/payment-intent/:appointmentId",
   authorizeCognitoMobile,
-  (req, res) => StripeController.createPaymentIntent(req, res),
+  StripeController.createPaymentIntent,
 );
 
 router.get(
   "/payment-intent/:paymentIntentId",
   authorizeCognitoMobile,
-  (req, res) => StripeController.retrievePaymentIntent(req, res),
+  StripeController.retrievePaymentIntent,
 );
 
 router.get(
   "/invoice/:invoiceId/payment-intent",
   authorizeCognitoMobile,
-  (req, res) => StripeController.createPaymentIntentForInvoice(req, res),
+  StripeController.createPaymentIntentForInvoice,
 );
 
-// PMS Payment Intent Router
-router.post("/pms/payment-intent/:invoiceId", authorizeCognito, (req, res) =>
-  StripeController.createPaymentIntent(req, res),
+/* ======================================================
+   PMS ROUTES (RBAC ENABLED)
+   ====================================================== */
+
+// Create payment intent for invoice (PMS)
+router.post(
+  "/pms/payment-intent/:invoiceId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  StripeController.createPaymentIntentForInvoice,
 );
 
+// Create or fetch connected Stripe account
 router.post(
   "/organisation/:organisationId/account",
   authorizeCognito,
-  (req, res) => StripeController.createOrGetConnectedAccount(req, res),
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  StripeController.createOrGetConnectedAccount,
 );
 
+// Get Stripe account status
 router.get(
   "/organisation/:organisationId/account/status",
   authorizeCognito,
-  (req, res) => StripeController.getAccountStatus(req, res),
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  StripeController.getAccountStatus,
 );
 
+// Create Stripe onboarding link
 router.post(
   "/organisation/:organisationId/onboarding",
   authorizeCognito,
-  (req, res) => StripeController.createOnboardingLink(req, res),
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  StripeController.createOnboardingLink,
+);
+
+// Create business checkout (subscription)
+router.post(
+  "/organisation/:organisationId/billing/checkout",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("subscription:edit:any"),
+  StripeController.createBusinessCheckout,
+);
+
+// Open billing portal
+router.post(
+  "/organisation/:organisationId/billing/portal",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  StripeController.createBillingPortal,
+);
+
+// Sync seats (subscription management)
+router.post(
+  "/organisation/:organisationId/billing/sync-seats",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("subscription:edit:any"),
+  StripeController.syncSeats,
 );
 
 export default router;
