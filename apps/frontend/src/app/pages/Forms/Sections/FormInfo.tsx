@@ -59,6 +59,7 @@ type FormInfoProps = {
   activeForm: FormsProps;
   onEdit: (form: FormsProps) => void;
   serviceOptions: { label: string; value: string }[];
+  canEdit?: boolean;
 };
 
 const DetailsFields = [
@@ -98,6 +99,7 @@ const FormInfo = ({
   activeForm,
   onEdit,
   serviceOptions,
+  canEdit = true,
 }: FormInfoProps) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
@@ -244,7 +246,9 @@ const FormInfo = ({
             <Close onClick={() => {}} />
           </div>
           <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Edit form</div>
+            <div className="text-body-1 text-text-primary">
+              {canEdit ? "Edit form" : "View form"}
+            </div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
@@ -290,17 +294,26 @@ const FormInfo = ({
             )}
           </div>
           <div className="flex flex-col gap-3 px-3 pb-3">
-            {renderActions()}
-            <Secondary
-              href="#"
-              text="Edit form"
-              onClick={() => {
-                setShowModal(false);
-                onEdit(activeForm);
-              }}
-              className="h-12! text-[16px]!"
-              isDisabled={actionLoading}
-            />
+            {canEdit && renderActions()}
+            {canEdit ? (
+              <Secondary
+                href="#"
+                text="Edit form"
+                onClick={() => {
+                  setShowModal(false);
+                  onEdit(activeForm);
+                }}
+                className="h-12! text-[16px]!"
+                isDisabled={actionLoading}
+              />
+            ) : (
+              <Secondary
+                href="#"
+                text="Close"
+                onClick={() => setShowModal(false)}
+                className="h-12! text-[16px]!"
+              />
+            )}
           </div>
         </div>
         {ErrorTostPopup}
