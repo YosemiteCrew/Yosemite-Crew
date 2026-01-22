@@ -329,15 +329,15 @@ const sendInviteEmail = async (
   const declineUrl = buildDeclineInviteUrl(invite.token);
 
   const inviter = await UserModel.findOne({
-    userId : invite.invitedByUserId
-  })
+    userId: invite.invitedByUserId,
+  });
   await sendEmailTemplate({
     to: invite.inviteeEmail,
     templateId: "organisationInvite",
     templateData: {
       organisationName: organisation.name ?? "your organisation",
       inviteeName: invite.inviteeName,
-      inviterName: inviter?.firstName + " " + inviter?.lastName ,
+      inviterName: inviter?.firstName + " " + inviter?.lastName,
       acceptUrl,
       declineUrl,
       expiresAt: invite.expiresAt,

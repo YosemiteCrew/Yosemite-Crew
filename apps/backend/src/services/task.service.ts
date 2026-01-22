@@ -44,6 +44,11 @@ const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ??
   process.env.HELP_EMAIL ??
   "support@yosemitecrew.com";
+const DEFAULT_PMS_URL =
+  process.env.PMS_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  "https://app.yosemitecrew.com";
 
 const buildDisplayName = (
   user?: { firstName?: string; lastName?: string } | null,
@@ -55,24 +60,21 @@ const buildDisplayName = (
 
 const sendTaskAssignmentEmail = async (task: TaskDocument) => {
   if (task.audience !== "EMPLOYEE_TASK") return;
-
+  logger.info("Sending task assigned email");
   try {
-    const [assignee, assigner, companion] =
-      await Promise.all([
-        UserModel.findOne(
-          { userId: task.assignedTo },
-          { email: 1, firstName: 1, lastName: 1 },
-        ).lean(),
-        UserModel.findOne(
-          { userId: task.assignedBy ?? task.createdBy },
-          { firstName: 1, lastName: 1 },
-        ).lean(),
-        task.companionId
-          ? CompanionModel.findById(task.companionId)
-              .select("name")
-              .lean()
-          : Promise.resolve(null),
-      ]);
+    const [assignee, assigner, companion] = await Promise.all([
+      UserModel.findOne(
+        { userId: task.assignedTo },
+        { email: 1, firstName: 1, lastName: 1 },
+      ).lean(),
+      UserModel.findOne(
+        { userId: task.assignedBy ?? task.createdBy },
+        { firstName: 1, lastName: 1 },
+      ).lean(),
+      task.companionId
+        ? CompanionModel.findById(task.companionId).select("name").lean()
+        : Promise.resolve(null),
+    ]);
 
     if (!assignee?.email) return;
 
@@ -90,6 +92,8 @@ const sendTaskAssignmentEmail = async (task: TaskDocument) => {
         dueTime,
         assignedByName,
         additionalNotes: task.additionalNotes,
+        ctaUrl: DEFAULT_PMS_URL,
+        ctaLabel: "Open PMS",
         supportEmail: SUPPORT_EMAIL_ADDRESS,
       },
     });
@@ -510,7 +514,7 @@ export const TaskService = {
 
       status: "PENDING",
     });
-
+    logger.info("Taske created -> ");
     void sendTaskAssignmentEmail(doc);
 
     return doc;

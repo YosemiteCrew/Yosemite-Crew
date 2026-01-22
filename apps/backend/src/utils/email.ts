@@ -157,7 +157,10 @@ export const sendEmail = async (options: SendEmailOptions) => {
 export const sendEmailTemplate = async <K extends EmailTemplateId>(
   options: SendEmailTemplateOptions<K>,
 ) => {
-  const template = renderEmailTemplate(options.templateId, options.templateData);
+  const template = renderEmailTemplate(
+    options.templateId,
+    options.templateData,
+  );
 
   return sendEmail({
     to: options.to,

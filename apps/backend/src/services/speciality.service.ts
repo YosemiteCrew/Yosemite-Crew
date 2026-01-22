@@ -12,6 +12,10 @@ import {
 } from "@yosemite-crew/types";
 import { ServiceService } from "./service.service";
 import OrganisationRoomModel from "src/models/organisation-room";
+import UserModel from "src/models/user";
+import OrganizationModel from "src/models/organization";
+import { sendEmailTemplate } from "src/utils/email";
+import logger from "src/utils/logger";
 
 export type SpecialityFHIRPayload = SpecialityRequestDTO;
 
@@ -24,6 +28,68 @@ export class SpecialityServiceError extends Error {
     this.name = "SpecialityServiceError";
   }
 }
+
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL ??
+  process.env.SUPPORT_EMAIL_ADDRESS ??
+  process.env.HELP_EMAIL ??
+  "support@yosemitecrew.com";
+const DEFAULT_PMS_URL =
+  process.env.PMS_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  "https://app.yosemitecrew.com";
+
+const buildDisplayName = (
+  user?: { firstName?: string; lastName?: string } | null,
+) => {
+  if (!user) return undefined;
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+};
+
+const getOrganisationName = async (organisationId?: string) => {
+  if (!organisationId) return undefined;
+  const organisation = await OrganizationModel.findById(organisationId)
+    .select("name")
+    .lean();
+  return organisation?.name;
+};
+
+const sendSpecialityHeadAssignmentEmail = async (params: {
+  headUserId?: string;
+  specialityName: string;
+  organisationId?: string;
+}) => {
+  if (!params.headUserId) return;
+
+  try {
+    const [user, organisationName] = await Promise.all([
+      UserModel.findOne(
+        { userId: params.headUserId },
+        { email: 1, firstName: 1, lastName: 1 },
+      ).lean(),
+      getOrganisationName(params.organisationId),
+    ]);
+
+    if (!user?.email) return;
+
+    await sendEmailTemplate({
+      to: user.email,
+      templateId: "specialityHeadAssigned",
+      templateData: {
+        employeeName: buildDisplayName(user),
+        specialityName: params.specialityName,
+        organisationName,
+        ctaUrl: DEFAULT_PMS_URL,
+        ctaLabel: "Open PMS",
+        supportEmail: SUPPORT_EMAIL_ADDRESS,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to send speciality head assignment email.", error);
+  }
+};
 
 const pruneUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) {
@@ -252,7 +318,15 @@ export const SpecialityService = {
     let document: SpecialityDocument | null = null;
     let created = false;
 
+    let previousHeadUserId: string | undefined;
+
     if (identifier) {
+      const existing = await SpecialityModel.findOne(
+        { fhirId: identifier },
+        { headUserId: 1 },
+      ).lean();
+      previousHeadUserId = existing?.headUserId;
+
       document = await SpecialityModel.findOneAndUpdate(
         { fhirId: identifier },
         { $set: persistable },
@@ -263,6 +337,14 @@ export const SpecialityService = {
     if (!document) {
       document = await SpecialityModel.create(persistable);
       created = true;
+    }
+
+    if (document?.headUserId && document.headUserId !== previousHeadUserId) {
+      void sendSpecialityHeadAssignmentEmail({
+        headUserId: document.headUserId,
+        specialityName: document.name,
+        organisationId: document.organisationId,
+      });
     }
 
     const response = buildFHIRResponse(document);
@@ -288,6 +370,10 @@ export const SpecialityService = {
     const query = resolveIdQuery(id);
     const { persistable } = createPersistableFromFHIR(payload);
 
+    const existing = await SpecialityModel.findOne(query, {
+      headUserId: 1,
+    }).lean();
+
     const document = await SpecialityModel.findOneAndUpdate(
       query,
       { $set: persistable },
@@ -296,6 +382,14 @@ export const SpecialityService = {
 
     if (!document) {
       return null;
+    }
+
+    if (document.headUserId && document.headUserId !== existing?.headUserId) {
+      void sendSpecialityHeadAssignmentEmail({
+        headUserId: document.headUserId,
+        specialityName: document.name,
+        organisationId: document.organisationId,
+      });
     }
 
     return buildFHIRResponse(document);

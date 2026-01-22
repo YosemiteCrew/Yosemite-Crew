@@ -20,6 +20,9 @@ import { OccupancyModel } from "src/models/occupancy";
 import { OrgBilling } from "src/models/organization.billing";
 import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import { StripeService } from "./stripe.service";
+import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
+import { sendEmailTemplate } from "src/utils/email";
+import logger from "src/utils/logger";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -32,6 +35,73 @@ export class UserOrganizationServiceError extends Error {
     this.name = "UserOrganizationServiceError";
   }
 }
+
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL ??
+  process.env.SUPPORT_EMAIL_ADDRESS ??
+  process.env.HELP_EMAIL ??
+  "support@yosemitecrew.com";
+const DEFAULT_PMS_URL =
+  process.env.PMS_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  "https://app.yosemitecrew.com";
+
+const extractReferenceId = (value: string) => value.split("/").pop()?.trim();
+
+const buildDisplayName = (
+  user?: { firstName?: string; lastName?: string } | null,
+) => {
+  if (!user) return undefined;
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+};
+
+const resolveOrganisationName = async (reference: string) => {
+  const orgId = extractOrganizationIdentifier(reference);
+  const orgQuery = buildOrganizationLookupQuery(orgId);
+  const organisation = await OrganizationModel.findOne(orgQuery)
+    .select("name")
+    .lean();
+  return organisation?.name;
+};
+
+const sendPermissionsUpdatedEmail = async (params: {
+  practitionerReference: string;
+  organizationReference: string;
+  roleCode: string;
+  roleDisplay?: string;
+}) => {
+  try {
+    const userId =
+      extractReferenceId(params.practitionerReference) ??
+      params.practitionerReference;
+    const [user, organisationName] = await Promise.all([
+      UserModel.findOne(
+        { userId },
+        { email: 1, firstName: 1, lastName: 1 },
+      ).lean(),
+      resolveOrganisationName(params.organizationReference),
+    ]);
+
+    if (!user?.email || !organisationName) return;
+
+    await sendEmailTemplate({
+      to: user.email,
+      templateId: "permissionsUpdated",
+      templateData: {
+        employeeName: buildDisplayName(user),
+        organisationName,
+        roleName: params.roleDisplay ?? params.roleCode,
+        ctaUrl: DEFAULT_PMS_URL,
+        ctaLabel: "Review Access",
+        supportEmail: SUPPORT_EMAIL_ADDRESS,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to send permissions updated email.", error);
+  }
+};
 
 const VALID_ROLE_CODES: Set<RoleCode> = new Set([
   "OWNER",
@@ -253,13 +323,14 @@ const markFreeLimitReachedAt = async (
       (usage.appointmentsUsed ?? 0) < (usage.freeAppointmentsLimit ?? 0) &&
       (usage.toolsUsed ?? 0) < (usage.freeToolsLimit ?? 0))
   ) {
-    return;
+    return false;
   }
 
-  await OrgUsageCounters.updateOne(
+  const updated = await OrgUsageCounters.updateOne(
     { _id: usage._id, freeLimitReachedAt: null },
     { $set: { freeLimitReachedAt: new Date() } },
   );
+  return updated.modifiedCount > 0;
 };
 
 const resolveOrganisationObjectId = async (
@@ -297,7 +368,10 @@ const reserveMemberSlot = async (orgId: Types.ObjectId) => {
       );
     }
 
-    await markFreeLimitReachedAt(updated);
+    const didReachLimit = await markFreeLimitReachedAt(updated);
+    if (didReachLimit) {
+      void sendFreePlanLimitReachedEmail({ orgId, usage: updated });
+    }
     return true;
   }
 
@@ -703,6 +777,10 @@ export const UserOrganizationService = {
 
     if (!existing) return null;
 
+    const priorRoleCode = existing.roleCode;
+    const priorRoleDisplay = existing.roleDisplay;
+    const priorPermissions = [...(existing.effectivePermissions ?? [])].sort();
+
     const wasActive = existing.active;
     const willBeActive = persistable.active !== false;
 
@@ -728,6 +806,21 @@ export const UserOrganizationService = {
 
     if (wasActive !== willBeActive) {
       await syncSeatsIfBusiness(orgObjectId);
+    }
+
+    const nextPermissions = [...(document.effectivePermissions ?? [])].sort();
+    const permissionsChanged =
+      priorRoleCode !== document.roleCode ||
+      priorRoleDisplay !== document.roleDisplay ||
+      priorPermissions.join("|") !== nextPermissions.join("|");
+
+    if (permissionsChanged) {
+      void sendPermissionsUpdatedEmail({
+        practitionerReference: document.practitionerReference,
+        organizationReference: document.organizationReference,
+        roleCode: document.roleCode,
+        roleDisplay: document.roleDisplay,
+      });
     }
 
     return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));

@@ -321,9 +321,7 @@ const buildOrganisationInviteTemplate =
           </table>
         `
       : "";
-    const declineText = data.declineUrl
-      ? `Decline: ${data.declineUrl}`
-      : "";
+    const declineText = data.declineUrl ? `Decline: ${data.declineUrl}` : "";
 
     return {
       subject: `You’re invited to join ${organisationName} on Yosemite Crew`,
@@ -459,6 +457,8 @@ export interface AppointmentAssignedTemplateData {
   organisationName?: string;
   locationName?: string;
   appointmentUrl?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
   supportEmail?: string;
 }
 
@@ -472,22 +472,22 @@ const buildAppointmentAssignedTemplate =
     const appointmentDetails = appointmentType
       ? `${appointmentType} for ${data.companionName}`
       : `Appointment for ${data.companionName}`;
-    const actionHtml = data.appointmentUrl
+    const actionUrl = data.appointmentUrl ?? data.ctaUrl;
+    const actionLabel = data.ctaLabel?.trim() || "View Appointment";
+    const actionHtml = actionUrl
       ? `
           <table align="center" style="margin:24px auto;">
             <tr>
               <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${data.appointmentUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  View Appointment
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
                 </a>
               </td>
             </tr>
           </table>
         `
       : "";
-    const actionText = data.appointmentUrl
-      ? `View appointment: ${data.appointmentUrl}`
-      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
 
     return {
       subject: `New appointment assigned at ${organisationName}`,
@@ -521,32 +521,36 @@ export interface TaskAssignedTemplateData {
   dueTime: string;
   assignedByName?: string;
   taskUrl?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
   additionalNotes?: string;
   supportEmail?: string;
 }
 
-const buildTaskAssignedTemplate =
-  createEmailTemplate<TaskAssignedTemplateData>((data) => {
+const buildTaskAssignedTemplate = createEmailTemplate<TaskAssignedTemplateData>(
+  (data) => {
     const employeeName = data.employeeName?.trim() || "there";
     const assignedByName = data.assignedByName?.trim() || "a team member";
     const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
     const companionLine = data.companionName
       ? `Companion: ${data.companionName}`
       : "";
-    const actionHtml = data.taskUrl
+    const actionUrl = data.taskUrl ?? data.ctaUrl;
+    const actionLabel = data.ctaLabel?.trim() || "View Task";
+    const actionHtml = actionUrl
       ? `
           <table align="center" style="margin:24px auto;">
             <tr>
               <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${data.taskUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  View Task
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
                 </a>
               </td>
             </tr>
           </table>
         `
       : "";
-    const actionText = data.taskUrl ? `View task: ${data.taskUrl}` : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
 
     return {
       subject: `New task assigned: ${data.taskName}`,
@@ -573,6 +577,245 @@ ${actionText}
 Support: ${supportEmail}
       `.trim(),
     };
+  },
+);
+
+/* ---------- Task Reminder ---------- */
+
+export interface TaskReminderTemplateData {
+  employeeName?: string;
+  taskName: string;
+  companionName?: string;
+  dueTime: string;
+  taskUrl?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildTaskReminderTemplate = createEmailTemplate<TaskReminderTemplateData>(
+  (data) => {
+    const employeeName = data.employeeName?.trim() || "there";
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const companionLine = data.companionName
+      ? `Companion: ${data.companionName}`
+      : "";
+    const actionUrl = data.taskUrl ?? data.ctaUrl;
+    const actionLabel = data.ctaLabel?.trim() || "View Task";
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+
+    return {
+      subject: `Task reminder: ${data.taskName}`,
+      contentHtml: `
+      <p>Hi ${employeeName},</p>
+      <p>This is a reminder for your task.</p>
+      <p><strong>Task:</strong> ${data.taskName}</p>
+      ${data.companionName ? `<p><strong>Companion:</strong> ${data.companionName}</p>` : ""}
+      <p><strong>Due:</strong> ${data.dueTime}</p>
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${employeeName},
+
+This is a reminder for your task.
+Task: ${data.taskName}
+${companionLine}
+Due: ${data.dueTime}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  },
+);
+
+/* ---------- Speciality Head Assignment ---------- */
+
+export interface SpecialityHeadAssignedTemplateData {
+  employeeName?: string;
+  specialityName: string;
+  organisationName?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildSpecialityHeadAssignedTemplate =
+  createEmailTemplate<SpecialityHeadAssignedTemplateData>((data) => {
+    const employeeName = data.employeeName?.trim() || "there";
+    const organisationName = data.organisationName?.trim();
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const orgLine = organisationName ? ` at ${organisationName}` : "";
+    const actionUrl = data.ctaUrl;
+    const actionLabel = data.ctaLabel?.trim() || "Open PMS";
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+
+    return {
+      subject: `You’re the ${data.specialityName} head${orgLine}`,
+      contentHtml: `
+      <p>Hi ${employeeName},</p>
+      <p>
+        You’ve been assigned as the <strong>${data.specialityName}</strong> head${orgLine}.
+      </p>
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${employeeName},
+
+You’ve been assigned as the ${data.specialityName} head${orgLine}.
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
+/* ---------- Free Plan Limit Reached ---------- */
+
+export interface FreePlanLimitReachedTemplateData {
+  ownerName?: string;
+  organisationName: string;
+  limitItems: Array<{ label: string; used: number; limit: number }>;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildFreePlanLimitReachedTemplate =
+  createEmailTemplate<FreePlanLimitReachedTemplateData>((data) => {
+    const ownerName = data.ownerName?.trim() || "there";
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const actionUrl = data.ctaUrl;
+    const actionLabel = data.ctaLabel?.trim() || "Upgrade Plan";
+    const limitsHtml = data.limitItems
+      .map((item) => `<li>${item.label}: ${item.used} of ${item.limit}</li>`)
+      .join("");
+    const limitsText = data.limitItems
+      .map((item) => `${item.label}: ${item.used} of ${item.limit}`)
+      .join("\n");
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+
+    return {
+      subject: `You've reached your free plan limits`,
+      contentHtml: `
+      <p>Hi ${ownerName},</p>
+      <p>
+        Your organisation <strong>${data.organisationName}</strong> has reached its free plan usage limits:
+      </p>
+      <ul style="padding-left:20px;">
+        ${limitsHtml}
+      </ul>
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${ownerName},
+
+Your organisation ${data.organisationName} has reached its free plan usage limits:
+${limitsText}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
+/* ---------- Permissions Updated ---------- */
+
+export interface PermissionsUpdatedTemplateData {
+  employeeName?: string;
+  organisationName: string;
+  roleName?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildPermissionsUpdatedTemplate =
+  createEmailTemplate<PermissionsUpdatedTemplateData>((data) => {
+    const employeeName = data.employeeName?.trim() || "there";
+    const roleName = data.roleName?.trim();
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const actionUrl = data.ctaUrl;
+    const actionLabel = data.ctaLabel?.trim() || "Review Access";
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+    const roleLine = roleName ? `Your role is now ${roleName}.` : "";
+
+    return {
+      subject: "Your PMS permissions were updated",
+      contentHtml: `
+      <p>Hi ${employeeName},</p>
+      <p>
+        Your access permissions for <strong>${data.organisationName}</strong> have been updated.
+      </p>
+      ${roleLine ? `<p>${roleLine}</p>` : ""}
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${employeeName},
+
+Your access permissions for ${data.organisationName} have been updated.
+${roleLine}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
   });
 
 type EmailTemplateRegistry = {
@@ -580,6 +823,10 @@ type EmailTemplateRegistry = {
   petParentOrganisationInvite: typeof buildPetParentOrganisationInviteTemplate;
   appointmentAssigned: typeof buildAppointmentAssignedTemplate;
   taskAssigned: typeof buildTaskAssignedTemplate;
+  taskReminder: typeof buildTaskReminderTemplate;
+  specialityHeadAssigned: typeof buildSpecialityHeadAssignedTemplate;
+  freePlanLimitReached: typeof buildFreePlanLimitReachedTemplate;
+  permissionsUpdated: typeof buildPermissionsUpdatedTemplate;
 };
 
 export const emailTemplates: EmailTemplateRegistry = {
@@ -587,6 +834,10 @@ export const emailTemplates: EmailTemplateRegistry = {
   petParentOrganisationInvite: buildPetParentOrganisationInviteTemplate,
   appointmentAssigned: buildAppointmentAssignedTemplate,
   taskAssigned: buildTaskAssignedTemplate,
+  taskReminder: buildTaskReminderTemplate,
+  specialityHeadAssigned: buildSpecialityHeadAssignedTemplate,
+  freePlanLimitReached: buildFreePlanLimitReachedTemplate,
+  permissionsUpdated: buildPermissionsUpdatedTemplate,
 };
 
 export type EmailTemplateId = keyof typeof emailTemplates;

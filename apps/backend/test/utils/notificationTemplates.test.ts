@@ -67,7 +67,7 @@ describe("NotificationTemplates", () => {
       const result = NotificationTemplates.Payment.PAYMENT_PENDING(500, "INR");
       expect(result).toEqual({
         title: "Payment Pending 💳",
-        body: "A quick reminder! You have a pending payment of ₹500. Tap to complete it.",
+        body: "A quick reminder! You have a pending payment of 500 INR. Tap to complete it.",
         type: "PAYMENTS",
       });
     });
@@ -76,7 +76,7 @@ describe("NotificationTemplates", () => {
       const result = NotificationTemplates.Payment.PAYMENT_SUCCESS(500, "INR");
       expect(result).toEqual({
         title: "Payment Successful! 🥳",
-        body: "Woohoo! Your payment of ₹500 went through. Thanks for taking great care of your companion!",
+        body: "Woohoo! Your payment of 500 INR went through. Thanks for taking great care of your companion!",
         type: "PAYMENTS",
       });
     });
@@ -94,7 +94,7 @@ describe("NotificationTemplates", () => {
       const result = NotificationTemplates.Payment.REFUND_ISSUED(200, "INR");
       expect(result).toEqual({
         title: "Refund Processed 💸",
-        body: "A refund of 200 has been processed. Check your bank for updates.",
+        body: "A refund of 200 INR has been processed. Check your bank for updates.",
         type: "PAYMENTS",
       });
     });

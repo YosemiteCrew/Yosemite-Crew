@@ -27,6 +27,7 @@ import { OrgBilling } from "src/models/organization.billing";
 import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -68,13 +69,14 @@ const markFreeLimitReachedAt = async (
       (usage.appointmentsUsed ?? 0) < (usage.freeAppointmentsLimit ?? 0) &&
       (usage.toolsUsed ?? 0) < (usage.freeToolsLimit ?? 0))
   ) {
-    return;
+    return false;
   }
 
-  await OrgUsageCounters.updateOne(
+  const updated = await OrgUsageCounters.updateOne(
     { _id: usage._id, freeLimitReachedAt: null },
     { $set: { freeLimitReachedAt: new Date() } },
   );
+  return updated.modifiedCount > 0;
 };
 
 const SUPPORT_EMAIL_ADDRESS =
@@ -82,6 +84,11 @@ const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ??
   process.env.HELP_EMAIL ??
   "support@yosemitecrew.com";
+const DEFAULT_PMS_URL =
+  process.env.PMS_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  "https://app.yosemitecrew.com";
 
 const buildDisplayName = (user?: { firstName?: string; lastName?: string }) => {
   if (!user) return undefined;
@@ -89,11 +96,27 @@ const buildDisplayName = (user?: { firstName?: string; lastName?: string }) => {
   return parts.length ? parts.join(" ") : undefined;
 };
 
-const getOrganisationName = async (organisationId?: string) => {
+type OrganisationNameQuery = {
+  select: (fields: string) => { lean: () => Promise<{ name?: string }> };
+};
+
+const isOrganisationNameQuery = (
+  value: unknown,
+): value is OrganisationNameQuery =>
+  !!value && typeof (value as { select?: unknown }).select === "function";
+
+const getOrganisationName = async (
+  organisationId?: string,
+): Promise<string | undefined> => {
   if (!organisationId) return undefined;
-  const organisation = await OrganizationModel.findById(organisationId)
-    .select("name")
-    .lean();
+  if (typeof OrganizationModel.findById !== "function") {
+    return undefined;
+  }
+  const query = OrganizationModel.findById(organisationId) as unknown;
+  if (!isOrganisationNameQuery(query)) {
+    return undefined;
+  }
+  const organisation = await query.select("name").lean();
   return organisation?.name;
 };
 
@@ -146,6 +169,8 @@ const sendAppointmentAssignmentEmails = async (
               appointmentTime,
               organisationName,
               locationName: appointment.room?.name,
+              ctaUrl: DEFAULT_PMS_URL,
+              ctaLabel: "Open PMS",
               supportEmail: SUPPORT_EMAIL_ADDRESS,
             },
           });
@@ -207,7 +232,10 @@ const reserveAppointmentUsage = async (
       throw new AppointmentServiceError(message, 403);
     }
 
-    await markFreeLimitReachedAt(updated);
+    const didReachLimit = await markFreeLimitReachedAt(updated);
+    if (didReachLimit) {
+      void sendFreePlanLimitReachedEmail({ orgId, usage: updated });
+    }
     return { orgId, inc };
   }
 
