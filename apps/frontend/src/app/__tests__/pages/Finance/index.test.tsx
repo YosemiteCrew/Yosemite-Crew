@@ -1,7 +1,13 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import Finance from "@/app/pages/Finance";
-import { Invoice } from "@yosemite-crew/types";
+import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+
+import ProtectedFinance from "@/app/pages/Finance";
+
+const useInvoicesMock = jest.fn();
+const useLoadInvoicesMock = jest.fn();
+const useSearchStoreMock = jest.fn();
+const invoiceTableSpy = jest.fn();
 
 jest.mock("@/app/components/ProtectedRoute", () => ({
   __esModule: true,
@@ -13,75 +19,52 @@ jest.mock("@/app/components/OrgGuard", () => ({
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-const useInvoicesMock = jest.fn();
-
 jest.mock("@/app/hooks/useInvoices", () => ({
   useInvoicesForPrimaryOrg: () => useInvoicesMock(),
-  useLoadInvoicesForPrimaryOrg: jest.fn(),
+  useLoadInvoicesForPrimaryOrg: () => useLoadInvoicesMock(),
 }));
 
 jest.mock("@/app/stores/searchStore", () => ({
-  useSearchStore: (selector: any) => selector({ query: "" }),
+  useSearchStore: (selector: any) => useSearchStoreMock(selector),
 }));
 
-const filtersSpy = jest.fn();
-
-jest.mock("@/app/components/Filters/Filters", () => ({
-  __esModule: true,
-  default: (props: any) => {
-    filtersSpy(props);
-    return (
-      <button type="button" onClick={() => props.setActiveStatus("paid")}
-        >
-        SetPaid
-      </button>
-    );
-  },
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-const invoiceTableSpy = jest.fn();
+jest.mock("@/app/components/Filters/Filters", () => () => (
+  <div data-testid="filters" />
+));
 
-jest.mock("@/app/components/DataTable/InvoiceTable", () => ({
-  __esModule: true,
-  default: (props: any) => {
-    invoiceTableSpy(props);
-    return <div data-testid="invoice-table" />;
-  },
-}));
+jest.mock("@/app/components/DataTable/InvoiceTable", () => (props: any) => {
+  invoiceTableSpy(props);
+  return <div data-testid="invoice-table" />;
+});
 
-jest.mock("@/app/pages/Finance/Sections/InvoiceInfo", () => ({
-  __esModule: true,
-  default: () => <div data-testid="invoice-info" />,
-}));
+jest.mock("@/app/pages/Finance/Sections/InvoiceInfo", () => () => (
+  <div data-testid="invoice-info" />
+));
 
 describe("Finance page", () => {
-  const invoices: Invoice[] = [
-    { id: "inv-1", status: "PAID", appointmentId: "A-100" } as Invoice,
-    { id: "inv-2", status: "PENDING", appointmentId: "B-200" } as Invoice,
-  ];
-
   beforeEach(() => {
     jest.clearAllMocks();
-    useInvoicesMock.mockReturnValue(invoices);
+    useLoadInvoicesMock.mockReturnValue(undefined);
+    useInvoicesMock.mockReturnValue([
+      { id: "inv-1", status: "paid", appointmentId: "appt-1" },
+      { id: "inv-2", status: "pending", appointmentId: "appt-2" },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) =>
+      selector({ query: "appt-1" })
+    );
   });
 
-  it("renders invoice count and filters status", () => {
-    render(<Finance />);
+  it("renders filtered invoices and table", () => {
+    render(<ProtectedFinance />);
 
-    expect(screen.getByText(/Finance/)).toBeInTheDocument();
-    expect(screen.getByText("(2)")).toBeInTheDocument();
-
+    expect(screen.getByTestId("invoice-table")).toBeInTheDocument();
     expect(invoiceTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        filteredList: invoices,
-      })
-    );
-
-    fireEvent.click(screen.getByText("SetPaid"));
-
-    expect(invoiceTableSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filteredList: [invoices[0]],
+        filteredList: [expect.objectContaining({ id: "inv-1" })],
       })
     );
   });

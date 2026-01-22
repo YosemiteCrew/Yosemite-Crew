@@ -1,7 +1,14 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import Tasks from "@/app/pages/Tasks";
-import { Task } from "@/app/types/task";
+import "@testing-library/jest-dom";
+
+import ProtectedTasks from "@/app/pages/Tasks";
+
+const useTasksMock = jest.fn();
+const usePermissionsMock = jest.fn();
+const useSearchStoreMock = jest.fn();
+const taskCalendarSpy = jest.fn();
+const taskTableSpy = jest.fn();
 
 jest.mock("@/app/components/ProtectedRoute", () => ({
   __esModule: true,
@@ -13,85 +20,86 @@ jest.mock("@/app/components/OrgGuard", () => ({
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
-const useTasksMock = jest.fn();
-
 jest.mock("@/app/hooks/useTask", () => ({
   useTasksForPrimaryOrg: () => useTasksMock(),
 }));
 
+jest.mock("@/app/hooks/usePermissions", () => ({
+  usePermissions: () => usePermissionsMock(),
+}));
+
 jest.mock("@/app/stores/searchStore", () => ({
-  useSearchStore: (selector: any) => selector({ query: "" }),
+  useSearchStore: (selector: any) => useSearchStoreMock(selector),
 }));
 
-const titleCalendarSpy = jest.fn();
-
-jest.mock("@/app/components/TitleCalendar", () => ({
-  __esModule: true,
-  default: (props: any) => {
-    titleCalendarSpy(props);
-    return (
-      <button type="button" onClick={() => props.setActiveView("table")}
-        >
-        SwitchView
-      </button>
-    );
-  },
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock("@/app/components/Filters/Filters", () => ({
-  __esModule: true,
-  default: () => <div data-testid="filters" />,
-}));
+jest.mock("@/app/components/TitleCalendar", () => (props: any) => (
+  <div>
+    <button type="button" onClick={() => props.setActiveView("calendar")}
+    >
+      Calendar
+    </button>
+    <button type="button" onClick={() => props.setActiveView("list")}
+    >
+      List
+    </button>
+  </div>
+));
 
-const taskCalendarSpy = jest.fn();
+jest.mock("@/app/components/Filters/Filters", () => () => (
+  <div data-testid="filters" />
+));
 
-jest.mock("@/app/components/Calendar/TaskCalendar", () => ({
-  __esModule: true,
-  default: (props: any) => {
-    taskCalendarSpy(props);
-    return <div data-testid="calendar" />;
-  },
-}));
+jest.mock("@/app/components/Calendar/TaskCalendar", () => (props: any) => {
+  taskCalendarSpy(props);
+  return <div data-testid="task-calendar" />;
+});
 
-jest.mock("@/app/components/DataTable/Tasks", () => ({
-  __esModule: true,
-  default: () => <div data-testid="table" />,
-}));
+jest.mock("@/app/components/DataTable/Tasks", () => (props: any) => {
+  taskTableSpy(props);
+  return <div data-testid="tasks-table" />;
+});
 
-jest.mock("@/app/pages/Tasks/Sections/AddTask", () => ({
-  __esModule: true,
-  default: () => <div data-testid="add-task" />,
-}));
+jest.mock("@/app/pages/Tasks/Sections/AddTask", () => () => (
+  <div data-testid="add-task" />
+));
 
-jest.mock("@/app/pages/Tasks/Sections/TaskInfo", () => ({
-  __esModule: true,
-  default: () => <div data-testid="task-info" />,
-}));
+jest.mock("@/app/pages/Tasks/Sections/TaskInfo", () => () => (
+  <div data-testid="task-info" />
+));
 
 describe("Tasks page", () => {
-  const tasks: Task[] = [
-    {
-      _id: "task-1",
-      name: "Follow up",
-      status: "PENDING",
-      audience: "EMPLOYEE_TASK",
-    } as Task,
-  ];
-
   beforeEach(() => {
     jest.clearAllMocks();
-    useTasksMock.mockReturnValue(tasks);
+    useTasksMock.mockReturnValue([
+      { _id: "t1", status: "pending", audience: "EMPLOYEE_TASK", name: "Follow up" },
+      { _id: "t2", status: "completed", audience: "EMPLOYEE_TASK", name: "Close" },
+    ]);
+    usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
+    useSearchStoreMock.mockImplementation((selector: any) =>
+      selector({ query: "follow" })
+    );
   });
 
-  it("renders calendar view by default and switches to table", () => {
-    render(<Tasks />);
+  it("renders calendar view and switches to table", () => {
+    render(<ProtectedTasks />);
 
-    expect(screen.getByTestId("calendar")).toBeInTheDocument();
+    expect(screen.getByTestId("task-calendar")).toBeInTheDocument();
     expect(taskCalendarSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ filteredList: tasks })
+      expect.objectContaining({
+        filteredList: [expect.objectContaining({ _id: "t1" })],
+      })
     );
 
-    fireEvent.click(screen.getByText("SwitchView"));
-    expect(screen.getByTestId("table")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("List"));
+    expect(screen.getByTestId("tasks-table")).toBeInTheDocument();
+    expect(taskTableSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filteredList: [expect.objectContaining({ _id: "t1" })],
+      })
+    );
   });
 });

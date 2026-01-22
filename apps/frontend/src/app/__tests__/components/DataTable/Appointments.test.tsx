@@ -1,7 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import Appointments from "@/app/components/DataTable/Appointments";
 
 const acceptAppointmentMock = jest.fn();
@@ -12,14 +12,27 @@ jest.mock("@/app/services/appointmentService", () => ({
   cancelAppointment: (...args: any[]) => cancelAppointmentMock(...args),
 }));
 
+jest.mock("@/app/utils/appointments", () => ({
+  allowReschedule: jest.fn(() => true),
+}));
+
+jest.mock("@/app/utils/forms", () => ({
+  formatDateLabel: jest.fn(() => "Jan 06, 2025"),
+  formatTimeLabel: jest.fn(() => "09:00 AM"),
+}));
+
+jest.mock("@/app/utils/validators", () => ({
+  toTitle: (value: string) => value.toUpperCase(),
+}));
+
 jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   __esModule: true,
-  default: ({ data, columns, pageSize }: any) => (
-    <div data-testid="table" data-pagesize={pageSize}>
-      {data.map((item: any, rowIndex: number) => (
-        <div key={item.id || rowIndex}>
-          {columns.map((col: any, colIndex: number) => (
-            <div key={col.key || colIndex}>
+  default: ({ data, columns }: any) => (
+    <div data-testid="table">
+      {data.map((item: any) => (
+        <div key={item.id}>
+          {columns.map((col: any) => (
+            <div key={col.key || col.label}>
               {col.render ? col.render(item) : item[col.key]}
             </div>
           ))}
@@ -32,68 +45,71 @@ jest.mock("@/app/components/GenericTable/GenericTable", () => ({
 jest.mock("@/app/components/Cards/AppointmentCard", () => ({
   __esModule: true,
   default: ({ appointment }: any) => (
-    <div data-testid="appointment-card">{appointment?.companion?.name}</div>
+    <div data-testid="appointment-card">{appointment.id}</div>
   ),
 }));
 
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: any) => <img alt={props.alt} {...props} />,
-}));
-
 jest.mock("react-icons/fa", () => ({
-  FaCheckCircle: () => <span>check</span>,
+  FaCheckCircle: () => <span>accept-icon</span>,
 }));
 
 jest.mock("react-icons/io", () => ({
-  IoIosCloseCircle: () => <span>close</span>,
+  IoIosCloseCircle: () => <span>cancel-icon</span>,
+  IoIosCalendar: () => <span>reschedule-icon</span>,
 }));
 
 jest.mock("react-icons/io5", () => ({
-  IoEye: () => <span>eye</span>,
-}));
-
-jest.mock("@/app/utils/forms", () => ({
-  formatDateLabel: () => "Jan 1",
-  formatTimeLabel: () => "9:00 AM",
-}));
-
-jest.mock("@/app/utils/validators", () => ({
-  toTitle: (value: string) => value,
+  IoEye: () => <span>view-icon</span>,
 }));
 
 describe("Appointments table", () => {
-  const appointment: any = {
-    id: "1",
-    companion: { name: "Buddy", parent: { name: "Jordan" } },
-    concern: "Checkup",
-    isEmergency: false,
-    appointmentType: { name: "Exam" },
-    room: { name: "Room A" },
-    startTime: new Date(),
-    appointmentDate: new Date(),
-    lead: { name: "Dr. Lee" },
-    supportStaff: [{ name: "Sam" }],
-    status: "REQUESTED",
-  };
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-  it("renders table rows and handles accept/cancel", () => {
-    render(<Appointments filteredList={[appointment]} />);
+  it("handles accept/cancel actions for requested appointments", async () => {
+    const appointment: any = { id: "a1", status: "REQUESTED" };
 
-    expect(screen.getByTestId("table")).toHaveAttribute("data-pagesize", "10");
-    expect(
-      within(screen.getByTestId("table")).getByText("Buddy")
-    ).toBeInTheDocument();
+    render(
+      <Appointments
+        filteredList={[appointment]}
+        canEditAppointments
+      />
+    );
 
-    fireEvent.click(screen.getByText("check"));
-    fireEvent.click(screen.getByText("close"));
+    fireEvent.click(screen.getByText("accept-icon").closest("button")!);
+    fireEvent.click(screen.getByText("cancel-icon").closest("button")!);
 
     expect(acceptAppointmentMock).toHaveBeenCalledWith(appointment);
     expect(cancelAppointmentMock).toHaveBeenCalledWith(appointment);
   });
 
-  it("shows no data message on mobile list", () => {
-    render(<Appointments filteredList={[]} />);
+  it("handles view/reschedule actions", () => {
+    const appointment: any = { id: "a2", status: "COMPLETED" };
+    const setActiveAppointment = jest.fn();
+    const setViewPopup = jest.fn();
+    const setReschedulePopup = jest.fn();
+
+    render(
+      <Appointments
+        filteredList={[appointment]}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        setReschedulePopup={setReschedulePopup}
+        canEditAppointments
+      />
+    );
+
+    fireEvent.click(screen.getByText("view-icon").closest("button")!);
+    fireEvent.click(screen.getByText("reschedule-icon").closest("button")!);
+
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointment);
+    expect(setViewPopup).toHaveBeenCalledWith(true);
+    expect(setReschedulePopup).toHaveBeenCalledWith(true);
+  });
+
+  it("shows empty state for mobile list", () => {
+    render(<Appointments filteredList={[]} canEditAppointments={false} />);
     expect(screen.getByText("No data available")).toBeInTheDocument();
   });
 });

@@ -41,9 +41,31 @@ describe("GuestHeader", () => {
     expect(ctas[0]).toHaveAttribute("href", "/organizations");
   });
 
-  test("hides CTA on auth routes", () => {
+  test("shows Sign up CTA on signin page for unauthenticated users", () => {
     mockPathname.mockReturnValue("/signin");
     mockUseAuthStore.mockReturnValue({ user: null });
+
+    render(<GuestHeader />);
+    const cta = screen.queryByTestId("primary-btn");
+    expect(cta).toBeInTheDocument();
+    expect(cta).toHaveTextContent("Sign up");
+    expect(cta).toHaveAttribute("href", "/signup");
+  });
+
+  test("shows Sign in CTA on signup page for unauthenticated users", () => {
+    mockPathname.mockReturnValue("/signup");
+    mockUseAuthStore.mockReturnValue({ user: null });
+
+    render(<GuestHeader />);
+    const cta = screen.queryByTestId("primary-btn");
+    expect(cta).toBeInTheDocument();
+    expect(cta).toHaveTextContent("Sign in");
+    expect(cta).toHaveAttribute("href", "/signin");
+  });
+
+  test("hides CTA on organizations page", () => {
+    mockPathname.mockReturnValue("/organizations");
+    mockUseAuthStore.mockReturnValue({ user: { id: "123" } });
 
     render(<GuestHeader />);
     expect(screen.queryByTestId("primary-btn")).not.toBeInTheDocument();

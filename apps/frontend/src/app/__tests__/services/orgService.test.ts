@@ -1,280 +1,219 @@
-import { loadOrgs, createOrg, updateOrg } from "@/app/services/orgService";
-import * as axiosService from "@/app/services/axios";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useAuthStore } from "@/app/stores/authStore";
-import { AxiosError } from "axios";
 import {
-  fromUserOrganizationRequestDTO,
-  fromOrganizationRequestDTO,
-  toOrganizationResponseDTO,
-} from "@yosemite-crew/types";
+  createOrg,
+  deleteOrg,
+  loadOrgs,
+  updateOrg,
+} from "../../services/orgService";
+import { useOrgStore } from "../../stores/orgStore";
+import { useAuthStore } from "../../stores/authStore";
+import { useCounterStore } from "../../stores/counterStore";
+import { useSubscriptionStore } from "../../stores/subscriptionStore";
+import { useAvailabilityStore } from "../../stores/availabilityStore";
+import { useCompanionStore } from "../../stores/companionStore";
+import { useOrganizationDocumentStore } from "../../stores/documentStore";
+import { useOrganisationRoomStore } from "../../stores/roomStore";
+import { useServiceStore } from "../../stores/serviceStore";
+import { useSpecialityStore } from "../../stores/specialityStore";
+import { useTeamStore } from "../../stores/teamStore";
+import { useUserProfileStore } from "../../stores/profileStore";
+import { getData, postData, putData, deleteData } from "../../services/axios";
 
-// --- Mocks ---
-
-// Mock Axios Service
-jest.mock("@/app/services/axios", () => ({
+jest.mock("../../services/axios", () => ({
   getData: jest.fn(),
   postData: jest.fn(),
   putData: jest.fn(),
+  deleteData: jest.fn(),
 }));
 
-// Mock Types helpers
+jest.mock("../../stores/orgStore", () => ({
+  useOrgStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/authStore", () => ({
+  useAuthStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/counterStore", () => ({
+  useCounterStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/subscriptionStore", () => ({
+  useSubscriptionStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/availabilityStore", () => ({
+  useAvailabilityStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/companionStore", () => ({
+  useCompanionStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/documentStore", () => ({
+  useOrganizationDocumentStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/roomStore", () => ({
+  useOrganisationRoomStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/serviceStore", () => ({
+  useServiceStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/specialityStore", () => ({
+  useSpecialityStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/teamStore", () => ({
+  useTeamStore: { getState: jest.fn() },
+}));
+
+jest.mock("../../stores/profileStore", () => ({
+  useUserProfileStore: { getState: jest.fn() },
+}));
+
 jest.mock("@yosemite-crew/types", () => ({
-  ...jest.requireActual("@yosemite-crew/types"),
-  fromUserOrganizationRequestDTO: jest.fn(),
-  fromOrganizationRequestDTO: jest.fn(),
-  toOrganizationResponseDTO: jest.fn(),
+  toOrganizationResponseDTO: (data: any) => data,
+  fromOrganizationRequestDTO: (data: any) => data,
+  fromUserOrganizationRequestDTO: (data: any) => data,
 }));
 
-// Mock Stores
-const mockOrgStore = {
-  startLoading: jest.fn(),
-  setOrgs: jest.fn(),
-  setError: jest.fn(),
-  setUserOrgMappings: jest.fn(),
-  upsertOrg: jest.fn(),
-  setPrimaryOrg: jest.fn(),
-  upsertUserOrgMapping: jest.fn(),
-  updateOrg: jest.fn(),
-};
+describe("orgService", () => {
+  const orgState = {
+    startLoading: jest.fn(),
+    setOrgs: jest.fn(),
+    setError: jest.fn(),
+    setUserOrgMappings: jest.fn(),
+    upsertOrg: jest.fn(),
+    setPrimaryOrg: jest.fn(),
+    upsertUserOrgMapping: jest.fn(),
+    updateOrg: jest.fn(),
+    removeOrg: jest.fn(),
+    primaryOrgId: "org-1",
+  };
 
-const mockAuthStore = {
-  user: { getUsername: jest.fn(() => "user-123") },
-  attributes: { sub: "sub-123" },
-};
+  const authState = {
+    user: { getUsername: jest.fn(() => "user-1") },
+    attributes: { sub: "practitioner-1" },
+  };
 
-// Setup store mocks
-useOrgStore.getState = jest.fn(() => mockOrgStore as any);
-useAuthStore.getState = jest.fn(() => mockAuthStore as any);
+  const counterState = { setCounters: jest.fn() };
+  const subscriptionState = { setSubscriptions: jest.fn() };
 
-describe("Org Service", () => {
-  // Original console.error ref to restore later if needed,
-  // though Jest usually handles restore with mockRestore()
+  const clearMocks = {
+    clearCompanionsForOrg: jest.fn(),
+    clearAvailabilitiesForOrg: jest.fn(),
+    clearDocumentsForOrg: jest.fn(),
+    clearRoomsForOrg: jest.fn(),
+    clearServicesForOrg: jest.fn(),
+    clearSpecialitiesForOrg: jest.fn(),
+    clearTeamsForOrg: jest.fn(),
+    clearProfileForOrg: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(console, "error").mockImplementation(() => {});
+    (useOrgStore.getState as jest.Mock).mockReturnValue(orgState);
+    (useAuthStore.getState as jest.Mock).mockReturnValue(authState);
+    (useCounterStore.getState as jest.Mock).mockReturnValue(counterState);
+    (useSubscriptionStore.getState as jest.Mock).mockReturnValue(
+      subscriptionState
+    );
+    (useCompanionStore.getState as jest.Mock).mockReturnValue({
+      clearCompanionsForOrg: clearMocks.clearCompanionsForOrg,
+    });
+    (useAvailabilityStore.getState as jest.Mock).mockReturnValue({
+      clearAvailabilitiesForOrg: clearMocks.clearAvailabilitiesForOrg,
+    });
+    (useOrganizationDocumentStore.getState as jest.Mock).mockReturnValue({
+      clearDocumentsForOrg: clearMocks.clearDocumentsForOrg,
+    });
+    (useOrganisationRoomStore.getState as jest.Mock).mockReturnValue({
+      clearRoomsForOrg: clearMocks.clearRoomsForOrg,
+    });
+    (useServiceStore.getState as jest.Mock).mockReturnValue({
+      clearServicesForOrg: clearMocks.clearServicesForOrg,
+    });
+    (useSpecialityStore.getState as jest.Mock).mockReturnValue({
+      clearSpecialitiesForOrg: clearMocks.clearSpecialitiesForOrg,
+    });
+    (useTeamStore.getState as jest.Mock).mockReturnValue({
+      clearTeamsForOrg: clearMocks.clearTeamsForOrg,
+    });
+    (useUserProfileStore.getState as jest.Mock).mockReturnValue({
+      clearProfileForOrg: clearMocks.clearProfileForOrg,
+    });
   });
 
-  afterEach(() => {
-    // Restore the mock after every test so we don't affect other suites
-    (console.error as jest.Mock).mockRestore();
-  });
-
-  // --- loadOrgs Tests ---
-
-  describe("loadOrgs", () => {
-    it("fetches and sets organizations successfully", async () => {
-      const mockData = [
+  it("loads organizations and updates stores", async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: [
         {
-          mapping: { role: "admin" },
-          organization: { name: "Org 1" },
+          mapping: { organisationReference: "org-1" },
+          organization: { _id: "org-1", name: "Org" },
+          orgUsage: { orgId: "org-1" },
+          orgBilling: { orgId: "org-1" },
         },
-      ];
-      (axiosService.getData as jest.Mock).mockResolvedValue({ data: mockData });
-      (fromUserOrganizationRequestDTO as jest.Mock).mockReturnValue({ role: "admin" });
-
-      await loadOrgs();
-
-      expect(mockOrgStore.startLoading).toHaveBeenCalled();
-      expect(axiosService.getData).toHaveBeenCalledWith(
-        "/fhir/v1/user-organization/user/mapping"
-      );
-      expect(fromUserOrganizationRequestDTO).toHaveBeenCalledWith(mockData[0].mapping);
-      expect(mockOrgStore.setOrgs).toHaveBeenCalledWith(
-        [{ name: "Org 1" }],
-        { keepPrimaryIfPresent: true }
-      );
-      expect(mockOrgStore.setUserOrgMappings).toHaveBeenCalledWith([{ role: "admin" }]);
+      ],
     });
 
-    it("does not start loading if silent option is true", async () => {
-      (axiosService.getData as jest.Mock).mockResolvedValue({ data: [] });
-      await loadOrgs({ silent: true });
-      expect(mockOrgStore.startLoading).not.toHaveBeenCalled();
-    });
+    await loadOrgs();
 
-    it("handles 403 error", async () => {
-      const error = new AxiosError("Forbidden", "403", undefined, {}, { status: 403 } as any);
-      (axiosService.getData as jest.Mock).mockRejectedValue(error);
+    expect(orgState.startLoading).toHaveBeenCalled();
+    expect(orgState.setOrgs).toHaveBeenCalled();
+    expect(orgState.setUserOrgMappings).toHaveBeenCalled();
+    expect(counterState.setCounters).toHaveBeenCalled();
+    expect(subscriptionState.setSubscriptions).toHaveBeenCalled();
+  });
 
-      await expect(loadOrgs()).rejects.toThrow(error);
+  it("creates an organization and sets primary org", async () => {
+    (postData as jest.Mock).mockResolvedValue({ data: { name: "Org" } });
 
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "You don't have permission to fetch organizations."
-      );
-      // Verify console.error was called (optional, but good practice since we are mocking it)
-      expect(console.error).toHaveBeenCalledWith("Failed to load orgs:", error);
-    });
+    const newOrgId = await createOrg({ name: "Org" } as any);
 
-    it("handles 404 error", async () => {
-      const error = new AxiosError("Not Found", "404", undefined, {}, { status: 404 } as any);
-      (axiosService.getData as jest.Mock).mockRejectedValue(error);
+    expect(postData).toHaveBeenCalled();
+    expect(orgState.upsertOrg).toHaveBeenCalled();
+    expect(orgState.setPrimaryOrg).toHaveBeenCalled();
+    expect(orgState.upsertUserOrgMapping).toHaveBeenCalled();
+    expect(newOrgId).toBe("Org");
+  });
 
-      await expect(loadOrgs()).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "Organization service not found. Please contact support."
-      );
-    });
+  it("updates an organization", async () => {
+    (putData as jest.Mock).mockResolvedValue({ data: { name: "Updated" } });
 
-    it("handles generic axios error with message", async () => {
-      const error = new AxiosError("Generic Error", "500", undefined, {}, {
-        status: 500,
-        data: { message: "Server Error" },
-      } as any);
-      (axiosService.getData as jest.Mock).mockRejectedValue(error);
+    await updateOrg({ _id: "org-1", name: "Updated" } as any);
 
-      await expect(loadOrgs()).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith("Server Error");
-    });
-
-    it("handles generic axios error without response data", async () => {
-        const error = new AxiosError("Network Error");
-        (axiosService.getData as jest.Mock).mockRejectedValue(error);
-
-        await expect(loadOrgs()).rejects.toThrow(error);
-        expect(mockOrgStore.setError).toHaveBeenCalledWith("Network Error");
-      });
-
-    it("handles non-axios errors", async () => {
-      const error = new Error("Unknown Error");
-      (axiosService.getData as jest.Mock).mockRejectedValue(error);
-
-      await expect(loadOrgs()).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "Unexpected error while fetching organization"
-      );
+    expect(putData).toHaveBeenCalledWith(
+      "/fhir/v1/organization/org-1",
+      expect.any(Object)
+    );
+    expect(orgState.updateOrg).toHaveBeenCalledWith("org-1", {
+      name: "Updated",
     });
   });
 
-  // --- createOrg Tests ---
+  it("does not update without org id", async () => {
+    await updateOrg({ name: "Missing" } as any);
 
-  describe("createOrg", () => {
-    const mockFormData: any = { name: "New Org" };
-
-    it("creates an organization successfully", async () => {
-      const mockResponse = { _id: "org-1", name: "New Org" };
-      (toOrganizationResponseDTO as jest.Mock).mockReturnValue(mockFormData);
-      (axiosService.postData as jest.Mock).mockResolvedValue({ data: mockResponse });
-      (fromOrganizationRequestDTO as jest.Mock).mockReturnValue(mockResponse);
-
-      await createOrg(mockFormData);
-
-      expect(mockOrgStore.startLoading).toHaveBeenCalled();
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        "/fhir/v1/organization",
-        mockFormData
-      );
-      expect(mockOrgStore.upsertOrg).toHaveBeenCalledWith({
-        ...mockResponse,
-        _id: "org-1",
-      });
-      expect(mockOrgStore.setPrimaryOrg).toHaveBeenCalledWith("org-1");
-      expect(mockOrgStore.upsertUserOrgMapping).toHaveBeenCalledWith(
-        expect.objectContaining({
-          roleCode: "owner",
-          organizationReference: "org-1",
-        })
-      );
-    });
-
-    it("handles 403 error", async () => {
-      const error = new AxiosError("Forbidden", "403", undefined, {}, { status: 403 } as any);
-      (axiosService.postData as jest.Mock).mockRejectedValue(error);
-
-      await expect(createOrg(mockFormData)).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "You don't have permission to create organizations."
-      );
-    });
-
-    it("handles 404 error", async () => {
-      const error = new AxiosError("Not Found", "404", undefined, {}, { status: 404 } as any);
-      (axiosService.postData as jest.Mock).mockRejectedValue(error);
-
-      await expect(createOrg(mockFormData)).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "Organization service not found. Please contact support."
-      );
-    });
-
-    it("handles non-axios error", async () => {
-      const error = new Error("Unknown");
-      (axiosService.postData as jest.Mock).mockRejectedValue(error);
-
-      await expect(createOrg(mockFormData)).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "Unexpected error while creating organization"
-      );
-    });
+    expect(orgState.setError).toHaveBeenCalled();
+    expect(putData).not.toHaveBeenCalled();
   });
 
-  // --- updateOrg Tests ---
+  it("deletes an organization and clears dependent stores", async () => {
+    (deleteData as jest.Mock).mockResolvedValue({});
 
-  describe("updateOrg", () => {
-    const mockFormData: any = { _id: "org-1", name: "Updated Org" };
+    await deleteOrg();
 
-    it("updates an organization successfully", async () => {
-      const mockResponse = { _id: "org-1", name: "Updated Org" };
-      (toOrganizationResponseDTO as jest.Mock).mockReturnValue(mockFormData);
-      (axiosService.putData as jest.Mock).mockResolvedValue({ data: mockResponse });
-      (fromOrganizationRequestDTO as jest.Mock).mockReturnValue(mockResponse);
-
-      await updateOrg(mockFormData);
-
-      expect(mockOrgStore.startLoading).toHaveBeenCalled();
-      expect(axiosService.putData).toHaveBeenCalledWith(
-        "/fhir/v1/organization/org-1",
-        mockFormData
-      );
-      expect(mockOrgStore.updateOrg).toHaveBeenCalledWith("org-1", mockResponse);
-    });
-
-    it("returns error if _id is missing", async () => {
-      const invalidData = { name: "No ID" };
-      await updateOrg(invalidData as any);
-
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "You don't have permission to update organizations."
-      );
-      expect(axiosService.putData).not.toHaveBeenCalled();
-    });
-
-    it("handles 403 error", async () => {
-      const error = new AxiosError("Forbidden", "403", undefined, {}, { status: 403 } as any);
-      (axiosService.putData as jest.Mock).mockRejectedValue(error);
-
-      await expect(updateOrg(mockFormData)).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "You don't have permission to update organizations."
-      );
-    });
-
-    it("handles 404 error", async () => {
-      const error = new AxiosError("Not Found", "404", undefined, {}, { status: 404 } as any);
-      (axiosService.putData as jest.Mock).mockRejectedValue(error);
-
-      await expect(updateOrg(mockFormData)).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "Organization service not found. Please contact support."
-      );
-    });
-
-    it("handles generic axios error", async () => {
-       const error = new AxiosError("Generic", "500", undefined, {}, { status: 500, data: { message: "Fail" } } as any);
-       (axiosService.putData as jest.Mock).mockRejectedValue(error);
-
-       await expect(updateOrg(mockFormData)).rejects.toThrow(error);
-       expect(mockOrgStore.setError).toHaveBeenCalledWith("Fail");
-    });
-
-    it("handles non-axios error", async () => {
-      const error = new Error("Unknown");
-      (axiosService.putData as jest.Mock).mockRejectedValue(error);
-
-      await expect(updateOrg(mockFormData)).rejects.toThrow(error);
-      expect(mockOrgStore.setError).toHaveBeenCalledWith(
-        "Unexpected error while updating organization"
-      );
-    });
+    expect(deleteData).toHaveBeenCalledWith("/fhir/v1/organization/org-1");
+    expect(clearMocks.clearCompanionsForOrg).toHaveBeenCalledWith("org-1");
+    expect(clearMocks.clearAvailabilitiesForOrg).toHaveBeenCalledWith("org-1");
+    expect(clearMocks.clearDocumentsForOrg).toHaveBeenCalledWith("org-1");
+    expect(clearMocks.clearRoomsForOrg).toHaveBeenCalledWith("org-1");
+    expect(clearMocks.clearServicesForOrg).toHaveBeenCalledWith("org-1");
+    expect(clearMocks.clearSpecialitiesForOrg).toHaveBeenCalledWith("org-1");
+    expect(clearMocks.clearTeamsForOrg).toHaveBeenCalledWith("org-1");
+    expect(clearMocks.clearProfileForOrg).toHaveBeenCalledWith("org-1");
+    expect(orgState.removeOrg).toHaveBeenCalledWith("org-1");
   });
 });

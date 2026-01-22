@@ -17,9 +17,15 @@ import {
   AppointmentFilters,
   AppointmentStatusFilters,
 } from "@/app/types/appointments";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import Fallback from "@/app/components/Fallback";
 
 const Appointments = () => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
@@ -79,54 +85,62 @@ const Appointments = () => {
           count={appointments.length}
           activeView={activeView}
           setActiveView={setActiveView}
+          showAdd={canEditAppointments}
         />
 
-        <div className="w-full flex flex-col gap-3">
-          <Filters
-            filterOptions={AppointmentFilters}
-            statusOptions={AppointmentStatusFilters}
-            activeFilter={activeFilter}
-            activeStatus={activeStatus}
-            setActiveFilter={setActiveFilter}
-            setActiveStatus={setActiveStatus}
-          />
-          {activeView === "calendar" ? (
-            <AppointmentCalendar
-              filteredList={filteredList}
-              setActiveAppointment={setActiveAppointment}
-              setViewPopup={setViewPopup}
-              activeCalendar={activeCalendar}
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              weekStart={weekStart}
-              setWeekStart={setWeekStart}
-              setReschedulePopup={setReschedulePopup}
+        <PermissionGate
+          allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}
+          fallback={<Fallback />}
+        >
+          <div className="w-full flex flex-col gap-3">
+            <Filters
+              filterOptions={AppointmentFilters}
+              statusOptions={AppointmentStatusFilters}
+              activeFilter={activeFilter}
+              activeStatus={activeStatus}
+              setActiveFilter={setActiveFilter}
+              setActiveStatus={setActiveStatus}
             />
-          ) : (
-            <AppointmentsTable
-              filteredList={filteredList}
-              setActiveAppointment={setActiveAppointment}
-              setViewPopup={setViewPopup}
-              setReschedulePopup={setReschedulePopup}
+            {activeView === "calendar" ? (
+              <AppointmentCalendar
+                filteredList={filteredList}
+                setActiveAppointment={setActiveAppointment}
+                setViewPopup={setViewPopup}
+                activeCalendar={activeCalendar}
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                weekStart={weekStart}
+                setWeekStart={setWeekStart}
+                setReschedulePopup={setReschedulePopup}
+                canEditAppointments={canEditAppointments}
+              />
+            ) : (
+              <AppointmentsTable
+                filteredList={filteredList}
+                setActiveAppointment={setActiveAppointment}
+                setViewPopup={setViewPopup}
+                setReschedulePopup={setReschedulePopup}
+                canEditAppointments={canEditAppointments}
+              />
+            )}
+          </div>
+
+          <AddAppointment showModal={addPopup} setShowModal={setAddPopup} />
+          {activeAppointment && (
+            <AppoitmentInfo
+              showModal={viewPopup}
+              setShowModal={setViewPopup}
+              activeAppointment={activeAppointment}
             />
           )}
-        </div>
-
-        <AddAppointment showModal={addPopup} setShowModal={setAddPopup} />
-        {activeAppointment && (
-          <AppoitmentInfo
-            showModal={viewPopup}
-            setShowModal={setViewPopup}
-            activeAppointment={activeAppointment}
-          />
-        )}
-        {activeAppointment && (
-          <Reschedule
-            showModal={reschedulePopup}
-            setShowModal={setReschedulePopup}
-            activeAppointment={activeAppointment}
-          />
-        )}
+          {canEditAppointments && activeAppointment && (
+            <Reschedule
+              showModal={reschedulePopup}
+              setShowModal={setReschedulePopup}
+              activeAppointment={activeAppointment}
+            />
+          )}
+        </PermissionGate>
       </div>
     </div>
   );

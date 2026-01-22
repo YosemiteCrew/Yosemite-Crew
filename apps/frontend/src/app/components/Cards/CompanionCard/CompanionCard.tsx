@@ -12,6 +12,8 @@ type CompanionCardProps = {
   handleViewCompanion: (companion: CompanionParent) => void;
   handleBookAppointment: (companion: CompanionParent) => void;
   handleAddTask: (companion: CompanionParent) => void;
+  canEditAppointments: boolean;
+  canEditTasks: boolean;
 };
 
 const CompanionCard = ({
@@ -19,6 +21,8 @@ const CompanionCard = ({
   handleViewCompanion,
   handleBookAppointment,
   handleAddTask,
+  canEditAppointments,
+  canEditTasks,
 }: CompanionCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
@@ -27,7 +31,7 @@ const CompanionCard = ({
           alt={""}
           src={getSafeImageUrl(
             companion.companion.photoUrl,
-            companion.companion.type as ImageType
+            companion.companion.type as ImageType,
           )}
           height={40}
           width={40}
@@ -84,18 +88,22 @@ const CompanionCard = ({
           text="View"
           className="w-full"
         />
-        <Secondary
-          href="#"
-          onClick={() => handleBookAppointment(companion)}
-          text="Schedule"
-          className="w-full"
-        />
-        <Secondary
-          href="#"
-          onClick={() => handleAddTask(companion)}
-          text="Task"
-          className="w-full"
-        />
+        {canEditAppointments && (
+          <Secondary
+            href="#"
+            onClick={() => handleBookAppointment(companion)}
+            text="Schedule"
+            className="w-full"
+          />
+        )}
+        {canEditTasks && (
+          <Secondary
+            href="#"
+            onClick={() => handleAddTask(companion)}
+            text="Task"
+            className="w-full"
+          />
+        )}
       </div>
     </div>
   );

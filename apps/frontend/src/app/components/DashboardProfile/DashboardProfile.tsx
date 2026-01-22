@@ -8,6 +8,8 @@ import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
 import { useAuthStore } from "@/app/stores/authStore";
 import { getSafeImageUrl } from "@/app/utils/urls";
 import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
+import { PermissionGate } from "../PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
 
 const DashboardProfile = () => {
   const profile = usePrimaryOrgProfile();
@@ -21,7 +23,10 @@ const DashboardProfile = () => {
       <div className="text-bpdy-4 text-text-tertiary">Welcome</div>
       <div className="flex items-center gap-2">
         <Image
-          src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, "person")}
+          src={getSafeImageUrl(
+            profile?.personalDetails?.profilePictureUrl,
+            "person"
+          )}
           alt="logo"
           height={40}
           width={40}
@@ -37,27 +42,29 @@ const DashboardProfile = () => {
         Your central hub for insights, performance tracking and quick access to
         essential tools
       </div>
-      <div className="flex items-center justify-between gap-2 w-full flex-wrap">
-        {!primaryOrg.isVerified && (
-          <>
-            <div className="px-6 py-[12px] bg-card-warning rounded-2xl flex items-center justify-center gap-2">
-              <FaClock color="#F68523" size={16} />
-              <span className="text-body-4-emphasis text-pending-text">
-                Verification in progress — Limited access enabled
-              </span>
-            </div>
-            <Primary text="Book onboarding call" href="/book-onboarding" />
-          </>
-        )}
-      </div>
-      {!primaryOrg.isVerified && (
-        <div className="text-caption-1 text-text-primary w-full sm:max-w-[500px]">
-          <span className="text-text-brand">Note : </span>This short chat helps
-          us confirm your business and add you to our trusted network of
-          verified pet professionals - so you can start connecting with clients
-          faster.
+      <PermissionGate allOf={[PERMISSIONS.ORG_ONBOARDING]}>
+        <div className="flex items-center justify-between gap-2 w-full flex-wrap">
+          {!primaryOrg.isVerified && (
+            <>
+              <div className="px-6 py-[12px] bg-card-warning rounded-2xl flex items-center justify-center gap-2">
+                <FaClock color="#F68523" size={16} />
+                <span className="text-body-4-emphasis text-pending-text">
+                  Verification in progress — Limited access enabled
+                </span>
+              </div>
+              <Primary text="Book onboarding call" href="/book-onboarding" />
+            </>
+          )}
         </div>
-      )}
+        {!primaryOrg.isVerified && (
+          <div className="text-caption-1 text-text-primary w-full sm:max-w-[500px]">
+            <span className="text-text-brand">Note : </span>This short chat
+            helps us confirm your business and add you to our trusted network of
+            verified pet professionals - so you can start connecting with
+            clients faster.
+          </div>
+        )}
+      </PermissionGate>
     </div>
   );
 };

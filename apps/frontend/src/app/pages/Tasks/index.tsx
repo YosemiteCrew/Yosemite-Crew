@@ -12,9 +12,15 @@ import { useTasksForPrimaryOrg } from "@/app/hooks/useTask";
 import { Task, TaskFilters, TaskStatusFilters } from "@/app/types/task";
 import { useSearchStore } from "@/app/stores/searchStore";
 import Filters from "@/app/components/Filters/Filters";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import Fallback from "@/app/components/Fallback";
 
 const Tasks = () => {
   const tasks = useTasksForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
@@ -72,45 +78,51 @@ const Tasks = () => {
           count={tasks.length}
           activeView={activeView}
           setActiveView={setActiveView}
+          showAdd={canEditTasks}
         />
 
-        <div className="w-full flex flex-col gap-3">
-          <Filters
-            filterOptions={TaskFilters}
-            statusOptions={TaskStatusFilters}
-            activeFilter={activeFilter}
-            activeStatus={activeStatus}
-            setActiveFilter={setActiveFilter}
-            setActiveStatus={setActiveStatus}
-          />
-          {activeView === "calendar" ? (
-            <TaskCalendar
-              filteredList={filteredList}
-              setActiveTask={setActiveTask}
-              setViewPopup={setViewPopup}
-              activeCalendar={activeCalendar}
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              weekStart={weekStart}
-              setWeekStart={setWeekStart}
+        <PermissionGate
+          allOf={[PERMISSIONS.TASKS_VIEW_ANY]}
+          fallback={<Fallback />}
+        >
+          <div className="w-full flex flex-col gap-3">
+            <Filters
+              filterOptions={TaskFilters}
+              statusOptions={TaskStatusFilters}
+              activeFilter={activeFilter}
+              activeStatus={activeStatus}
+              setActiveFilter={setActiveFilter}
+              setActiveStatus={setActiveStatus}
             />
-          ) : (
-            <TasksTable
-              filteredList={filteredList}
-              setActiveTask={setActiveTask}
-              setViewPopup={setViewPopup}
+            {activeView === "calendar" ? (
+              <TaskCalendar
+                filteredList={filteredList}
+                setActiveTask={setActiveTask}
+                setViewPopup={setViewPopup}
+                activeCalendar={activeCalendar}
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                weekStart={weekStart}
+                setWeekStart={setWeekStart}
+              />
+            ) : (
+              <TasksTable
+                filteredList={filteredList}
+                setActiveTask={setActiveTask}
+                setViewPopup={setViewPopup}
+              />
+            )}
+          </div>
+
+          <AddTask showModal={addPopup} setShowModal={setAddPopup} />
+          {activeTask && (
+            <TaskInfo
+              showModal={viewPopup}
+              setShowModal={setViewPopup}
+              activeTask={activeTask}
             />
           )}
-        </div>
-
-        <AddTask showModal={addPopup} setShowModal={setAddPopup} />
-        {activeTask && (
-          <TaskInfo
-            showModal={viewPopup}
-            setShowModal={setViewPopup}
-            activeTask={activeTask}
-          />
-        )}
+        </PermissionGate>
       </div>
     </div>
   );

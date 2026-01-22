@@ -15,7 +15,7 @@
   border: none;
   color: var(--black-text);
   font-family: var(--satoshi-font);
-  font-size: 18px;
+  font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 120%;
@@ -31,12 +31,13 @@
   top: 110%;
   left: 0px;
   width: 100%;
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: scroll;
   z-index: 10;
   background: #fff;
   border: 1px solid #eaeaea;
   border-radius: 16px;
+  padding: 10px 12px;
 }
 .step-search-speciality {
   display: flex;
@@ -46,22 +47,33 @@
   align-items: center;
   gap: 12px;
   align-self: stretch;
-  border-bottom: 1px solid #eaeaea;
+  border-radius: 16px;
   cursor: pointer;
+  transition: all 0.3s ease-in-out;
+}
+.step-search-speciality:hover {
+  background-color: #f7f7f7;
 }
 .step-search-add {
   border: none;
   outline: none;
-  height: 60px;
+  height: 48px;
   padding: 10px 24px;
   cursor: pointer;
   width: 100%;
   background: var(--whitebg);
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 120%;
+  letter-spacing: -0.36px;
 }
 .step-search-speciality-title {
   color: var(--black-text);
   font-family: var(--satoshi-font);
-  font-size: 18px;
+  font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 120%;
@@ -76,12 +88,12 @@
   border-width: 0px 2px 2px 0px !important;
 }
 @media screen and (max-width: 768px) {
-  .step-search{
+  .step-search {
     height: 48px;
   }
 }
 @media screen and (max-width: 350px) {
-  .step-search{
+  .step-search {
     width: 100%;
   }
 }
