@@ -19,6 +19,8 @@ import Plan from "./Prescription/Plan";
 import { Appointment, FormSubmission, Service } from "@yosemite-crew/types";
 import { fetchSubmissions } from "@/app/services/soapService";
 import Close from "@/app/components/Icons/Close";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
 
 type AppoitmentInfoProps = {
   showModal: boolean;
@@ -126,15 +128,17 @@ const AppoitmentInfo = ({
   setShowModal,
   activeAppointment,
 }: AppoitmentInfoProps) => {
+  const { can } = usePermissions();
+  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
   const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key);
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
-    labels[0].labels[0].key
+    labels[0].labels[0].key,
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
   const [formData, setFormData] = useState<FormDataProps>(
-    createEmptyFormData()
+    createEmptyFormData(),
   );
 
   useEffect(() => {
@@ -224,6 +228,7 @@ const AppoitmentInfo = ({
               activeAppointment={activeAppointment}
               formData={formData}
               setFormData={setFormData}
+              canEdit={canEdit}
             />
           ) : null}
         </div>

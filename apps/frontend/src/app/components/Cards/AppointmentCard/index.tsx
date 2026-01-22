@@ -11,12 +11,14 @@ type AppointmentCardProps = {
   appointment: Appointment;
   handleViewAppointment: any;
   handleRescheduleAppointment: any;
+  canEditAppointments: boolean;
 };
 
 const AppointmentCard = ({
   appointment,
   handleViewAppointment,
   handleRescheduleAppointment,
+  canEditAppointments,
 }: AppointmentCardProps) => {
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white px-3 py-3 flex flex-col justify-between gap-2 cursor-pointer">
@@ -107,7 +109,7 @@ const AppointmentCard = ({
               text="View"
               className="w-full"
             />
-            {allowReschedule(appointment.status) && (
+            {canEditAppointments && allowReschedule(appointment.status) && (
               <Secondary
                 href="#"
                 onClick={() => handleRescheduleAppointment(appointment)}

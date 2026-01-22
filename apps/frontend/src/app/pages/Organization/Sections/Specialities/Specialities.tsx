@@ -5,9 +5,14 @@ import AddSpeciality from "./AddSpeciality";
 import SpecialityInfo from "./SpecialityInfo";
 import { useSpecialitiesWithServiceNamesForPrimaryOrg } from "@/app/hooks/useSpecialities";
 import { SpecialityWeb } from "@/app/types/speciality";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import { usePermissions } from "@/app/hooks/usePermissions";
 
 const Specialities = () => {
   const specialities = useSpecialitiesWithServiceNamesForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditSpecialities = can(PERMISSIONS.SPECIALITIES_EDIT_ANY);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeSpeciality, setActiveSpeciality] =
@@ -25,11 +30,12 @@ const Specialities = () => {
   }, [specialities]);
 
   return (
-    <>
+    <PermissionGate allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}>
       <AccordionButton
         title="Specialties & Services"
         buttonTitle="Add"
         buttonClick={setAddPopup}
+        showButton={canEditSpecialities}
       >
         <SpecialitiesTable
           filteredList={specialities}
@@ -47,9 +53,10 @@ const Specialities = () => {
           showModal={viewPopup}
           setShowModal={setViewPopup}
           activeSpeciality={activeSpeciality}
+          canEditSpecialities={canEditSpecialities}
         />
       )}
-    </>
+    </PermissionGate>
   );
 };
 

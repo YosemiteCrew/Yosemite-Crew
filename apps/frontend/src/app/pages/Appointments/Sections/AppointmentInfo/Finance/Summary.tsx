@@ -5,6 +5,10 @@ import Image from "next/image";
 import { Primary } from "@/app/components/Buttons";
 import { Appointment } from "@yosemite-crew/types";
 import { AppointmentStatusOptions } from "@/app/types/appointments";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
+import { usePermissions } from "@/app/hooks/usePermissions";
 
 const AppointmentFields = [
   { label: "Service", key: "service", type: "text" },
@@ -31,6 +35,9 @@ const Summary = ({
   formData,
   setFormData,
 }: SummaryProps) => {
+  const { can } = usePermissions();
+  const canEdit = can(PERMISSIONS.BILLING_EDIT_ANY);
+
   const AppointmentInfoData = useMemo(
     () => ({
       concern: activeAppointment.concern ?? "",
@@ -40,61 +47,68 @@ const Summary = ({
       lead: activeAppointment.lead?.name ?? "",
       status: activeAppointment.status ?? "",
     }),
-    [activeAppointment]
+    [activeAppointment],
   );
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-      <div className="flex flex-col gap-6">
-        <EditableAccordion
-          key={"Appointments-key"}
-          title={"Appointments details"}
-          fields={AppointmentFields}
-          data={AppointmentInfoData}
-          defaultOpen={true}
-          showEditIcon={false}
-        />
-        <div className="flex flex-col px-3! py-3! rounded-2xl border border-card-border">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-body-1 text-text-primary">Pay</div>
-            <Image
-              alt={"Powered by stripe"}
-              src={"https://d2il6osz49gpup.cloudfront.net/payment/stripe.png"}
-              height={30}
-              width={120}
-            />
-          </div>
-          <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-            <div className="text-body-4-emphasis text-text-tertiary">
-              SubTotal:{" "}
+    <PermissionGate
+      allOf={[PERMISSIONS.BILLING_VIEW_ANY]}
+      fallback={<Fallback />}
+    >
+      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <div className="flex flex-col gap-6">
+          <EditableAccordion
+            key={"Appointments-key"}
+            title={"Appointments details"}
+            fields={AppointmentFields}
+            data={AppointmentInfoData}
+            defaultOpen={true}
+            showEditIcon={false}
+          />
+          <div className="flex flex-col px-3! py-3! rounded-2xl border border-card-border">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-body-1 text-text-primary">Pay</div>
+              <Image
+                alt={"Powered by stripe"}
+                src={"https://d2il6osz49gpup.cloudfront.net/payment/stripe.png"}
+                height={30}
+                width={120}
+              />
             </div>
-            <div className="text-body-4 text-text-primary text-right">
-              ${formData.subTotal}
+            <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+              <div className="text-body-4-emphasis text-text-tertiary">
+                SubTotal:{" "}
+              </div>
+              <div className="text-body-4 text-text-primary text-right">
+                ${formData.subTotal}
+              </div>
             </div>
-          </div>
-          <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-            <div className="text-body-4-emphasis text-text-tertiary">Tax: </div>
-            <div className="text-body-4 text-text-primary text-right">
-              ${formData.tax || "0.00"}
+            <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+              <div className="text-body-4-emphasis text-text-tertiary">
+                Tax:{" "}
+              </div>
+              <div className="text-body-4 text-text-primary text-right">
+                ${formData.tax || "0.00"}
+              </div>
             </div>
-          </div>
-          <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-            <div className="text-body-4-emphasis text-text-tertiary">
-              Estimatted total:{" "}
+            <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+              <div className="text-body-4-emphasis text-text-tertiary">
+                Estimatted total:{" "}
+              </div>
+              <div className="text-body-4 text-text-primary text-right">
+                ${formData.total || "0.00"}
+              </div>
             </div>
-            <div className="text-body-4 text-text-primary text-right">
-              ${formData.total || "0.00"}
+            <div className="text-caption-1 text-text-secondary py-2">
+              <span className="text-[#247AED]">Note : </span>Yosemite Crew uses
+              Stripe for secure payments. Your payment details are encrypted and
+              never stored on our servers.
             </div>
-          </div>
-          <div className="text-caption-1 text-text-secondary py-2">
-            <span className="text-[#247AED]">Note : </span>Yosemite Crew uses
-            Stripe for secure payments. Your payment details are encrypted and
-            never stored on our servers.
           </div>
         </div>
+        {canEdit && <Primary href="#" text="Pay" classname="h-13!" />}
       </div>
-      <Primary href="#" text="Pay" classname="h-13!" />
-    </div>
+    </PermissionGate>
   );
 };
 

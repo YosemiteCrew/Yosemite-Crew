@@ -10,20 +10,29 @@ import FormRenderer from "@/app/pages/Forms/Sections/AddForm/components/FormRend
 import { useAuthStore } from "@/app/stores/authStore";
 import { createSubmission } from "@/app/services/soapService";
 import PlanSubmissions from "./Submissions/PlanSubmissions";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
 
 type PlanProps = {
   formData: FormDataProps;
   setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
   activeAppointment: Appointment;
+  canEdit: boolean;
 };
 
-const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
+const Plan = ({
+  formData,
+  setFormData,
+  activeAppointment,
+  canEdit,
+}: PlanProps) => {
   const attributes = useAuthStore.getState().attributes;
   const [planQuery, setPlanQuery] = useState("");
   const forms = useFormsForPrimaryOrgByCategory("SOAP-Plan");
   const [active, setActive] = useState<FormsProps | null>(null);
   const [values, setValues] = React.useState<Record<string, any>>(() =>
-    buildInitialValues(active?.schema ?? [])
+    buildInitialValues(active?.schema ?? []),
   );
 
   const FormOptions = useMemo(
@@ -32,7 +41,7 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
         value: form._id || form.name,
         label: form.name,
       })),
-    [forms]
+    [forms],
   );
 
   const handlePlanSelect = (id: string) => {
@@ -78,35 +87,47 @@ const Plan = ({ formData, setFormData, activeAppointment }: PlanProps) => {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          <div className="font-grotesk font-medium text-black-text text-[23px]">
-            Treatment/Plan
+    <PermissionGate
+      allOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY]}
+      fallback={<Fallback />}
+    >
+      <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <div className="font-grotesk font-medium text-black-text text-[23px]">
+              Treatment/Plan
+            </div>
+            {canEdit && (
+              <SearchDropdown
+                placeholder="Search plan"
+                options={FormOptions}
+                onSelect={handlePlanSelect}
+                query={planQuery}
+                setQuery={setPlanQuery}
+                minChars={0}
+              />
+            )}
+            {canEdit && active && (
+              <FormRenderer
+                fields={active.schema ?? []}
+                values={values}
+                onChange={handleValueChange}
+                readOnly
+              />
+            )}
+            <PlanSubmissions formData={formData} />
           </div>
-          <SearchDropdown
-            placeholder="Search plan"
-            options={FormOptions}
-            onSelect={handlePlanSelect}
-            query={planQuery}
-            setQuery={setPlanQuery}
-            minChars={0}
-          />
-          {active && (
-            <FormRenderer
-              fields={active.schema ?? []}
-              values={values}
-              onChange={handleValueChange}
-              readOnly
-            />
-          )}
-          <PlanSubmissions formData={formData} />
         </div>
+        {canEdit && active && (
+          <Primary
+            href="#"
+            text="Save"
+            classname="h-13!"
+            onClick={handleSave}
+          />
+        )}
       </div>
-      {active && (
-        <Primary href="#" text="Save" classname="h-13!" onClick={handleSave} />
-      )}
-    </div>
+    </PermissionGate>
   );
 };
 

@@ -116,10 +116,16 @@ const TeamOnboarding = () => {
       setFormData(profile);
     }
     if (storeSlots.length > 0) {
-      const temp = convertFromGetApi(storeSlots)
+      const temp = convertFromGetApi(storeSlots);
       setAvailability(temp);
     }
-  }, [profile, computedStep, shouldRedirectToOrganizations, router, storeSlots]);
+  }, [
+    profile,
+    computedStep,
+    shouldRedirectToOrganizations,
+    router,
+    storeSlots,
+  ]);
 
   const nextStep = () =>
     setActiveStep((s) => Math.min(s + 1, TeamSteps.length - 1));
@@ -127,33 +133,35 @@ const TeamOnboarding = () => {
 
   return (
     <div className="create-profile-wrapper">
-      <div className="create-profile-title">Create profile</div>
       <Progress activeStep={activeStep} steps={TeamSteps} />
-      {activeStep === 0 && (
-        <PersonalStep
-          nextStep={nextStep}
-          formData={formData}
-          setFormData={setFormData}
-          orgIdFromQuery={orgIdFromQuery}
-        />
-      )}
-      {activeStep === 1 && (
-        <ProfessionalStep
-          nextStep={nextStep}
-          prevStep={prevStep}
-          formData={formData}
-          setFormData={setFormData}
-          orgIdFromQuery={orgIdFromQuery}
-        />
-      )}
-      {activeStep === 2 && (
-        <AvailabilityStep
-          prevStep={prevStep}
-          orgIdFromQuery={orgIdFromQuery}
-          availability={availability}
-          setAvailability={setAvailability}
-        />
-      )}
+      <div className="flex flex-col gap-6">
+        <div className="create-profile-title">Create profile</div>
+        {activeStep === 0 && (
+          <PersonalStep
+            nextStep={nextStep}
+            formData={formData}
+            setFormData={setFormData}
+            orgIdFromQuery={orgIdFromQuery}
+          />
+        )}
+        {activeStep === 1 && (
+          <ProfessionalStep
+            nextStep={nextStep}
+            prevStep={prevStep}
+            formData={formData}
+            setFormData={setFormData}
+            orgIdFromQuery={orgIdFromQuery}
+          />
+        )}
+        {activeStep === 2 && (
+          <AvailabilityStep
+            prevStep={prevStep}
+            orgIdFromQuery={orgIdFromQuery}
+            availability={availability}
+            setAvailability={setAvailability}
+          />
+        )}
+      </div>
     </div>
   );
 };

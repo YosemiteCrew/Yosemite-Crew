@@ -1,17 +1,34 @@
-/* eslint-disable @next/next/no-img-element */
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import CompanionsTable from "@/app/components/DataTable/CompanionsTable";
+
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: any) => <img alt={props.alt || ""} {...props} />,
+}));
+
+jest.mock("@/app/utils/date", () => ({
+  getAgeInYears: jest.fn(() => "2y"),
+}));
+
+jest.mock("@/app/utils/urls", () => ({
+  getSafeImageUrl: jest.fn(() => "image"),
+}));
+
+jest.mock("@/app/utils/validators", () => ({
+  toTitleCase: (value: string) => value.toUpperCase(),
+}));
 
 jest.mock("@/app/components/GenericTable/GenericTable", () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
     <div data-testid="table">
-      {data.map((item: any, idx: number) => (
-        <div key={item.id+idx}>
-          {columns.map((col: any, cIdx: number) => (
-            <div key={col.key || cIdx}>
+      {data.map((item: any) => (
+        <div key={item.companion.name}>
+          {columns.map((col: any) => (
+            <div key={col.key || col.label}>
               {col.render ? col.render(item) : item[col.key]}
             </div>
           ))}
@@ -28,66 +45,52 @@ jest.mock("@/app/components/Cards/CompanionCard/CompanionCard", () => ({
   ),
 }));
 
-jest.mock("@/app/utils/date", () => ({
-  getAgeInYears: () => "2",
-}));
-
-jest.mock("@/app/utils/urls", () => ({
-  getSafeImageUrl: () => "https://example.com/pet.png",
-}));
-
-jest.mock("@/app/utils/validators", () => ({
-  toTitleCase: (value: string) => value,
+jest.mock("react-icons/fa", () => ({
+  FaCalendar: () => <span>calendar-icon</span>,
+  FaTasks: () => <span>task-icon</span>,
 }));
 
 jest.mock("react-icons/io5", () => ({
-  IoEye: () => <span>eye</span>,
-}));
-
-jest.mock("react-icons/fa", () => ({
-  FaCalendar: () => <span>calendar</span>,
-  FaTasks: () => <span>task</span>,
-}));
-
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: any) => <img alt={props.alt} {...props} />,
+  IoEye: () => <span>view-icon</span>,
 }));
 
 describe("CompanionsTable", () => {
-  it("handles actions from table", () => {
+  const companion: any = {
+    companion: {
+      name: "Buddy",
+      breed: "Labrador",
+      type: "Dog",
+      gender: "Male",
+      dateOfBirth: "2023-01-01",
+      allergy: "None",
+      status: "active",
+      photoUrl: "photo",
+    },
+    parent: { firstName: "Sam" },
+  };
+
+  it("handles view, schedule, and task actions", () => {
     const setActiveCompanion = jest.fn();
     const setViewCompanion = jest.fn();
     const setBookAppointment = jest.fn();
     const setAddTask = jest.fn();
-    const companion: any = {
-      companion: {
-        name: "Buddy",
-        breed: "Lab",
-        type: "dog",
-        gender: "male",
-        dateOfBirth: new Date(),
-        status: "active",
-        photoUrl: "",
-      },
-      parent: { firstName: "Jordan" },
-    };
 
     render(
       <CompanionsTable
         filteredList={[companion]}
-        activeCompanion={companion}
+        activeCompanion={null}
         setActiveCompanion={setActiveCompanion}
         setViewCompanion={setViewCompanion}
         setBookAppointment={setBookAppointment}
         setAddTask={setAddTask}
+        canEditAppointments
+        canEditTasks
       />
     );
 
-    const table = screen.getByTestId("table");
-    fireEvent.click(within(table).getByText("eye"));
-    fireEvent.click(within(table).getByText("calendar"));
-    fireEvent.click(within(table).getByText("task"));
+    fireEvent.click(screen.getByText("view-icon").closest("button")!);
+    fireEvent.click(screen.getByText("calendar-icon").closest("button")!);
+    fireEvent.click(screen.getByText("task-icon").closest("button")!);
 
     expect(setActiveCompanion).toHaveBeenCalledWith(companion);
     expect(setViewCompanion).toHaveBeenCalledWith(true);
@@ -95,7 +98,7 @@ describe("CompanionsTable", () => {
     expect(setAddTask).toHaveBeenCalledWith(true);
   });
 
-  it("shows empty state on mobile list", () => {
+  it("shows empty state for mobile list", () => {
     render(
       <CompanionsTable
         filteredList={[]}
@@ -104,6 +107,8 @@ describe("CompanionsTable", () => {
         setViewCompanion={jest.fn()}
         setBookAppointment={jest.fn()}
         setAddTask={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
       />
     );
 

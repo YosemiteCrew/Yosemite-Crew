@@ -40,31 +40,45 @@ const PERMISSION_ROWS: PermissionRow[] = [
     ],
   },
   {
-    key: "companions",
-    label: "Companions",
-    view: [PERMISSIONS.COMPANIONS_VIEW_ANY, PERMISSIONS.COMPANIONS_VIEW_OWN],
-    edit: [PERMISSIONS.COMPANIONS_EDIT_ANY, PERMISSIONS.COMPANIONS_EDIT_OWN],
+    key: "prescriptions",
+    label: "Prescriptions",
+    view: [
+      PERMISSIONS.PRESCRIPTION_VIEW_ANY,
+      PERMISSIONS.PRESCRIPTION_VIEW_OWN,
+    ],
+    edit: [
+      PERMISSIONS.PRESCRIPTION_EDIT_ANY,
+      PERMISSIONS.PRESCRIPTION_EDIT_OWN,
+    ],
     viewEnablePriority: [
-      PERMISSIONS.COMPANIONS_VIEW_ANY,
-      PERMISSIONS.COMPANIONS_VIEW_OWN,
+      PERMISSIONS.PRESCRIPTION_VIEW_ANY,
+      PERMISSIONS.PRESCRIPTION_VIEW_OWN,
     ],
     editEnablePriority: [
-      PERMISSIONS.COMPANIONS_EDIT_ANY,
-      PERMISSIONS.COMPANIONS_EDIT_OWN,
+      PERMISSIONS.PRESCRIPTION_EDIT_ANY,
+      PERMISSIONS.PRESCRIPTION_EDIT_OWN,
     ],
   },
   {
-    key: "procedures",
-    label: "Procedures",
-    view: [PERMISSIONS.PROCEDURES_VIEW_ANY, PERMISSIONS.PROCEDURES_VIEW_OWN],
-    edit: [PERMISSIONS.PROCEDURES_EDIT_ANY, PERMISSIONS.PROCEDURES_EDIT_OWN],
+    key: "companions",
+    label: "Companions",
+    view: [PERMISSIONS.COMPANIONS_VIEW_ANY],
+    edit: [PERMISSIONS.COMPANIONS_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.COMPANIONS_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.COMPANIONS_EDIT_ANY],
+  },
+  {
+    key: "tasks",
+    label: "Tasks",
+    view: [PERMISSIONS.TASKS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_OWN],
+    edit: [PERMISSIONS.TASKS_EDIT_ANY, PERMISSIONS.TASKS_EDIT_OWN],
     viewEnablePriority: [
-      PERMISSIONS.PROCEDURES_VIEW_ANY,
-      PERMISSIONS.PROCEDURES_VIEW_OWN,
+      PERMISSIONS.TASKS_VIEW_ANY,
+      PERMISSIONS.TASKS_VIEW_OWN,
     ],
     editEnablePriority: [
-      PERMISSIONS.PROCEDURES_EDIT_ANY,
-      PERMISSIONS.PROCEDURES_EDIT_OWN,
+      PERMISSIONS.TASKS_EDIT_ANY,
+      PERMISSIONS.TASKS_EDIT_OWN,
     ],
   },
   {
@@ -112,6 +126,14 @@ const PERMISSION_ROWS: PermissionRow[] = [
     editLabel: "Edit (Any/Limited)",
   },
   {
+    key: "subscription",
+    label: "Subscriptions",
+    view: [PERMISSIONS.SUBSCRIPTION_VIEW_ANY],
+    edit: [PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.SUBSCRIPTION_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
+  },
+  {
     key: "analytics",
     label: "Analytics",
     view: [PERMISSIONS.ANALYTICS_VIEW_ANY, PERMISSIONS.ANALYTICS_VIEW_CLINICAL],
@@ -132,9 +154,34 @@ const PERMISSION_ROWS: PermissionRow[] = [
   {
     key: "org",
     label: "Organization",
-    edit: [PERMISSIONS.ORG_DELETE],
-    editEnablePriority: [PERMISSIONS.ORG_DELETE],
-    editLabel: "Delete org",
+    view: [PERMISSIONS.ORG_VIEW],
+    edit: [PERMISSIONS.ORG_EDIT],
+    viewEnablePriority: [PERMISSIONS.ORG_VIEW],
+    editEnablePriority: [PERMISSIONS.ORG_EDIT],
+  },
+  {
+    key: "specialities",
+    label: "Specialities",
+    view: [PERMISSIONS.SPECIALITIES_VIEW_ANY],
+    edit: [PERMISSIONS.SPECIALITIES_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.SPECIALITIES_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.SPECIALITIES_EDIT_ANY],
+  },
+  {
+    key: "rooms",
+    label: "Rooms",
+    view: [PERMISSIONS.ROOM_VIEW_ANY],
+    edit: [PERMISSIONS.ROOM_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.ROOM_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.ROOM_EDIT_ANY],
+  },
+  {
+    key: "documents",
+    label: "Documents",
+    view: [PERMISSIONS.DOCUMENT_VIEW_ANY],
+    edit: [PERMISSIONS.DOCUMENT_EDIT_ANY],
+    viewEnablePriority: [PERMISSIONS.DOCUMENT_VIEW_ANY],
+    editEnablePriority: [PERMISSIONS.DOCUMENT_EDIT_ANY],
   },
 ];
 
@@ -156,7 +203,7 @@ function removeAll(perms: Permission[], candidates?: Permission[]) {
 
 function pickEnablePermission(
   roleDefaults: Permission[],
-  enablePriority?: Permission[]
+  enablePriority?: Permission[],
 ): Permission | null {
   if (!enablePriority?.length) return null;
   const defaultsSet = new Set(roleDefaults);
@@ -178,7 +225,7 @@ const PermissionsEditor = ({
 }: PermissionsEditorProps) => {
   const roleDefaults = React.useMemo(
     () => ROLE_PERMISSIONS[role] ?? [],
-    [role]
+    [role],
   );
 
   const toggle = React.useCallback(
@@ -196,7 +243,7 @@ const PermissionsEditor = ({
       const cleaned = removeAll(value, candidates);
       onChange(uniq([...cleaned, toAdd]));
     },
-    [onChange, roleDefaults, value]
+    [onChange, roleDefaults, value],
   );
 
   const resetToRoleDefaults = React.useCallback(() => {
@@ -225,9 +272,7 @@ const PermissionsEditor = ({
         </div>
         <div className="flex flex-col overflow-hidden">
           <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
-            <div className="text-body-4 text-[#747473]">
-              Permission
-            </div>
+            <div className="text-body-4 text-[#747473]">Permission</div>
             <div className="flex gap-10 items-center">
               <div className="text-body-4 text-[#747473] w-[72px] text-center">
                 View

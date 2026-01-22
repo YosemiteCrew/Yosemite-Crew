@@ -12,6 +12,9 @@ import { Invoice } from "@yosemite-crew/types";
 import Filters from "@/app/components/Filters/Filters";
 import { InvoiceStatusFilters } from "@/app/types/invoice";
 import { useSearchStore } from "@/app/stores/searchStore";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Fallback from "@/app/components/Fallback";
 
 const Finance = () => {
   useLoadInvoicesForPrimaryOrg();
@@ -21,7 +24,7 @@ const Finance = () => {
   const [activeStatus, setActiveStatus] = useState("all");
   const [viewInvoice, setViewInvoice] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(
-    invoices[0] || null
+    invoices[0] || null,
   );
 
   useEffect(() => {
@@ -64,25 +67,27 @@ const Finance = () => {
         </div>
       </div>
 
-      <div className="w-full flex flex-col gap-3">
-        <Filters
-          statusOptions={InvoiceStatusFilters}
-          activeStatus={activeStatus}
-          setActiveStatus={setActiveStatus}
-        />
-        <InvoiceDataTable
-          setActiveInvoice={setActiveInvoice}
-          setViewInvoice={setViewInvoice}
-          filteredList={filteredList}
-        />
-      </div>
-      {activeInvoice && (
-        <InvoiceInfo
-          showModal={viewInvoice}
-          setShowModal={setViewInvoice}
-          activeInvoice={activeInvoice}
-        />
-      )}
+      <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
+        <div className="w-full flex flex-col gap-3">
+          <Filters
+            statusOptions={InvoiceStatusFilters}
+            activeStatus={activeStatus}
+            setActiveStatus={setActiveStatus}
+          />
+          <InvoiceDataTable
+            setActiveInvoice={setActiveInvoice}
+            setViewInvoice={setViewInvoice}
+            filteredList={filteredList}
+          />
+        </div>
+        {activeInvoice && (
+          <InvoiceInfo
+            showModal={viewInvoice}
+            setShowModal={setViewInvoice}
+            activeInvoice={activeInvoice}
+          />
+        )}
+      </PermissionGate>
     </div>
   );
 };
