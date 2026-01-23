@@ -27,6 +27,8 @@ import { formatUtcTimeToLocalLabel } from "@/app/components/Availability/utils";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
+import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
+import { IoIosWarning } from "react-icons/io";
 
 type AddAppointmentProps = {
   showModal: boolean;
@@ -75,13 +77,11 @@ const ServiceFields = [
   { label: "Max discount", key: "maxDiscount", type: "text" },
 ];
 
-const AddAppointment = ({
-  showModal,
-  setShowModal,
-}: AddAppointmentProps) => {
+const AddAppointment = ({ showModal, setShowModal }: AddAppointmentProps) => {
   const companions = useCompanionsParentsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
   const getServicesBySpecialityId =
     useServiceStore.getState().getServicesBySpecialityId;
   const [formData, setFormData] = useState<Appointment>(EMPTY_APPOINTMENT);
@@ -93,6 +93,7 @@ const AddAppointment = ({
     leadId?: string;
     duration?: string;
     slot?: string;
+    booking?: string;
   }>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
@@ -110,7 +111,7 @@ const AddAppointment = ({
       try {
         const slots = await getSlotsForServiceAndDateForPrimaryOrg(
           appointmentTypeId,
-          selectedDate
+          selectedDate,
         );
         if (cancelled) return;
         setTimeSlots(slots);
@@ -133,16 +134,16 @@ const AddAppointment = ({
       ...prev,
       startTime: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
       appointmentDate: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       durationMinutes: getDurationMinutes(
         selectedSlot.startTime,
-        selectedSlot.endTime
+        selectedSlot.endTime,
       ),
     }));
   }, [selectedSlot, selectedDate]);
@@ -153,7 +154,7 @@ const AddAppointment = ({
         label: companion.companion.name,
         value: companion.companion.id,
       })),
-    [companions]
+    [companions],
   );
 
   const LeadOptions = useMemo(() => {
@@ -175,7 +176,7 @@ const AddAppointment = ({
         label: team.name || team.practionerId,
         value: team.practionerId,
       })),
-    [teams]
+    [teams],
   );
 
   const SpecialitiesOptions = useMemo(
@@ -184,7 +185,7 @@ const AddAppointment = ({
         label: speciality.name,
         value: speciality._id || speciality.name,
       })),
-    [specialities]
+    [specialities],
   );
 
   const services = useMemo(() => {
@@ -201,7 +202,7 @@ const AddAppointment = ({
         label: service.name,
         value: service.id,
       })),
-    [services]
+    [services],
   );
 
   const CompanionInfoData = useMemo(
@@ -211,7 +212,7 @@ const AddAppointment = ({
       breed: formData.companion.breed ?? "",
       parentName: formData.companion.parent.name ?? "",
     }),
-    [formData.companion]
+    [formData.companion],
   );
 
   const ServiceInfoData = useMemo(() => {
@@ -271,7 +272,14 @@ const AddAppointment = ({
       leadId?: string;
       duration?: string;
       slot?: string;
+      booking?: string;
     } = {};
+    if (!canMore) {
+      errors.booking =
+        reason === "limit_reached"
+          ? "You’ve reached your free appointment limit. Please upgrade to book more."
+          : "We couldn’t verify your booking limit right now. Please try again.";
+    }
     if (!formData.companion.id)
       errors.companionId = "Please select a companion";
     if (!formData.appointmentType?.speciality.id)
@@ -287,7 +295,7 @@ const AddAppointment = ({
     }
     try {
       await createAppointment(formData);
-      await refetchData()
+      await refetchData();
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
@@ -453,8 +461,8 @@ const AddAppointment = ({
                     onChange={(ids) => {
                       const map = new Map(
                         TeamOptions.map((o) =>
-                          typeof o === "string" ? [o, o] : [o.value, o.label]
-                        )
+                          typeof o === "string" ? [o, o] : [o.value, o.label],
+                        ),
                       );
                       setFormData({
                         ...formData,
@@ -500,12 +508,20 @@ const AddAppointment = ({
               </div>
             </div>
           </div>
-          <Primary
-            href="#"
-            text="Book appointment"
-            classname="h-13!"
-            onClick={handleCreate}
-          />
+          <div className="flex flex-col items-end gap-2 w-full">
+            {formDataErrors.booking && (
+              <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
+                <IoIosWarning className="text-text-error" size={14} />
+                <span>{formDataErrors.booking}</span>
+              </div>
+            )}
+            <Primary
+              href="#"
+              text="Book appointment"
+              onClick={handleCreate}
+              classname="w-full"
+            />
+          </div>
         </div>
       </div>
     </Modal>

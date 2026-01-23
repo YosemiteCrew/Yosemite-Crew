@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { checkStatus } from "../services/stripeService";
-import { useSubscriptionStore } from "../stores/subscriptionStore";
-import { useCounterStore } from "../stores/counterStore";
 
 export const useStripeOnboarding = (
   orgId: string | null,
@@ -56,26 +54,18 @@ export const useSubscriptionCounterUpdate = (
 
   const finalOrgId = orgId || primaryOrgId || "";
 
-  const setSubscriptionForOrg = useSubscriptionStore(
-    (s) => s.setSubscriptionForOrg,
-  );
-
-  const setCounterForOrg = useCounterStore((s) => s.setCounterForOrg);
-
   const refetch = useCallback(async () => {
     if (!finalOrgId) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await checkStatus(finalOrgId);
-      setSubscriptionForOrg(finalOrgId, data.orgBilling);
-      setCounterForOrg(finalOrgId, data.orgUsage);
+      await checkStatus(finalOrgId);
     } catch (err) {
       setError(err as Error);
     } finally {
       setLoading(false);
     }
-  }, [finalOrgId, setSubscriptionForOrg]);
+  }, [finalOrgId]);
 
   return {
     loading,

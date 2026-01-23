@@ -40,7 +40,7 @@ export const upsertTeamAvailability = async (
     const id = orgIdFromQuery || primaryOrgId;
     if (!id) return;
     const res = await postData<GetAvailabilityResponse>(
-      "/fhir/v1/availablity/" + id + "/" + team.practionerId + "/base",
+      "/fhir/v1/availability/" + id + "/" + team.practionerId + "/base",
       formData,
     );
     const availability = res.data?.data ?? [];

@@ -27,6 +27,8 @@ import { Primary } from "@/app/components/Buttons";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
 import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
+import { IoIosWarning } from "react-icons/io";
+import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
 
 type BookAppointmentProps = {
   showModal: boolean;
@@ -56,6 +58,7 @@ const BookAppointment = ({
 }: BookAppointmentProps) => {
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { canMore, reason } = useCanMoreForPrimaryOrg("appointments");
   const getServicesBySpecialityId =
     useServiceStore.getState().getServicesBySpecialityId;
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
@@ -66,6 +69,7 @@ const BookAppointment = ({
     leadId?: string;
     duration?: string;
     slot?: string;
+    booking?: string;
   }>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
@@ -82,7 +86,7 @@ const BookAppointment = ({
       try {
         const slots = await getSlotsForServiceAndDateForPrimaryOrg(
           appointmentTypeId,
-          selectedDate
+          selectedDate,
         );
         if (cancelled) return;
         setTimeSlots(slots);
@@ -105,16 +109,16 @@ const BookAppointment = ({
       ...prev,
       startTime: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
       appointmentDate: buildUtcDateFromDateAndTime(
         selectedDate,
-        selectedSlot.startTime
+        selectedSlot.startTime,
       ),
       durationMinutes: getDurationMinutes(
         selectedSlot.startTime,
-        selectedSlot.endTime
+        selectedSlot.endTime,
       ),
     }));
   }, [selectedSlot, selectedDate]);
@@ -141,7 +145,7 @@ const BookAppointment = ({
         label: team.name || team.practionerId || team._id,
         value: team.practionerId || team._id,
       })),
-    [teams]
+    [teams],
   );
 
   const SpecialitiesOptions = useMemo(
@@ -150,7 +154,7 @@ const BookAppointment = ({
         label: speciality.name,
         value: speciality._id || speciality.name,
       })),
-    [specialities]
+    [specialities],
   );
 
   const services = useMemo(() => {
@@ -167,7 +171,7 @@ const BookAppointment = ({
         label: service.name,
         value: service.id,
       })),
-    [services]
+    [services],
   );
 
   useEffect(() => {
@@ -236,7 +240,14 @@ const BookAppointment = ({
       leadId?: string;
       slot?: string;
       duration?: string;
+      booking?: string;
     } = {};
+    if (!canMore) {
+      errors.booking =
+        reason === "limit_reached"
+          ? "You’ve reached your free appointment limit. Please upgrade to book more."
+          : "We couldn’t verify your booking limit right now. Please try again.";
+    }
     if (!formData.appointmentType?.speciality.id)
       errors.specialityId = "Please select a speciality";
     if (!formData.appointmentType?.id)
@@ -250,7 +261,7 @@ const BookAppointment = ({
     }
     try {
       await createAppointment(formData);
-      await refetchData()
+      await refetchData();
       setShowModal(false);
       setFormData(EMPTY_APPOINTMENT);
       setSelectedSlot(null);
@@ -398,8 +409,8 @@ const BookAppointment = ({
                     onChange={(ids) => {
                       const map = new Map(
                         TeamOptions.map((o) =>
-                          typeof o === "string" ? [o, o] : [o.value, o.label]
-                        )
+                          typeof o === "string" ? [o, o] : [o.value, o.label],
+                        ),
                       );
                       setFormData({
                         ...formData,
@@ -445,12 +456,20 @@ const BookAppointment = ({
               </div>
             </div>
           </div>
-          <Primary
-            href="#"
-            text="Book appointment"
-            classname="h-13!"
-            onClick={handleCreate}
-          />
+          <div className="flex flex-col items-end gap-2 w-full">
+            {formDataErrors.booking && (
+              <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
+                <IoIosWarning className="text-text-error" size={14} />
+                <span>{formDataErrors.booking}</span>
+              </div>
+            )}
+            <Primary
+              href="#"
+              text="Book appointment"
+              onClick={handleCreate}
+              classname="w-full"
+            />
+          </div>
         </div>
       </div>
     </Modal>

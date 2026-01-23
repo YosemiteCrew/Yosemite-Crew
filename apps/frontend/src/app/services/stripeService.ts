@@ -1,3 +1,5 @@
+import { useCounterStore } from "../stores/counterStore";
+import { useSubscriptionStore } from "../stores/subscriptionStore";
 import { BillingCounter, BillingSubscription } from "../types/billing";
 import { getData, postData } from "./axios";
 
@@ -7,6 +9,8 @@ export type CheckStatusResponse = {
 };
 
 export const checkStatus = async (orgId: string | null) => {
+  const { setSubscriptionForOrg } = useSubscriptionStore.getState();
+  const { setCounterForOrg } = useCounterStore.getState();
   if (!orgId) {
     throw new Error("OrgId does not exist");
   }
@@ -14,7 +18,10 @@ export const checkStatus = async (orgId: string | null) => {
     const res = await getData<CheckStatusResponse>(
       "/v1/stripe/organisation/" + orgId + "/account/status",
     );
-    return res.data;
+    const data = res.data;
+    setSubscriptionForOrg(orgId, data.orgBilling);
+    setCounterForOrg(orgId, data.orgUsage);
+    return data;
   } catch (err: any) {
     console.error("Failed to load orgs:", err);
     throw err;

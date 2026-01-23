@@ -1,5 +1,3 @@
-import { useCallback } from "react";
-
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { useTeamStore } from "@/app/stores/teamStore";
@@ -17,62 +15,31 @@ import { useServiceStore } from "@/app/stores/serviceStore";
 import { useSpecialityStore } from "@/app/stores/specialityStore";
 
 export function useSignOut() {
-  const signout = useAuthStore((s) => s.signout);
-  const clearOrgs = useOrgStore((s) => s.clearOrgs);
-  const clearTeams = useTeamStore((s) => s.clearTeams);
-  const clearAppointments = useAppointmentStore((s) => s.clearAppointments);
-  const clearAvailabilities = useAvailabilityStore((s) => s.clearAvailabilities);
-  const clearCompanions = useCompanionStore((s) => s.clearCompanions);
-  const clearDocuments = useOrganizationDocumentStore((s) => s.clearDocuments);
-  const clearForms = useFormsStore((s) => s.clear);
-  const clearInventory = useInventoryStore((s) => s.clearAll);
-  const clearParents = useParentStore((s) => s.clearParents);
-  const clearProfiles = useUserProfileStore((s) => s.clearProfiles);
-  const clearRooms = useOrganisationRoomStore((s) => s.clearRooms);
-  const clearServices = useServiceStore((s) => s.clearServices);
-  const clearSpecialities = useSpecialityStore((s) => s.clearSpecialities);
+  return { signOut: hardSignOut };
+}
 
-  const signOut = useCallback(async () => {
+export async function hardSignOut() {
+  try {
+    await useAuthStore.getState().signout();
+  } finally {
+    useOrgStore.getState().clearOrgs();
+    useTeamStore.getState().clearTeams();
+    useAppointmentStore.getState().clearAppointments();
+    useAvailabilityStore.getState().clearAvailabilities();
+    useCompanionStore.getState().clearCompanions();
+    useOrganizationDocumentStore.getState().clearDocuments();
+    useFormsStore.getState().clear();
+    useInventoryStore.getState().clearAll();
+    useParentStore.getState().clearParents();
+    useUserProfileStore.getState().clearProfiles();
+    useOrganisationRoomStore.getState().clearRooms();
+    useServiceStore.getState().clearServices();
+    useSpecialityStore.getState().clearSpecialities();
+
     try {
-      await signout();
-    } finally {
-      clearOrgs();
-      clearTeams();
-      clearAppointments();
-      clearAvailabilities();
-      clearCompanions();
-      clearDocuments();
-      clearForms();
-      clearInventory();
-      clearParents();
-      clearProfiles();
-      clearRooms();
-      clearServices();
-      clearSpecialities();
-      if (typeof globalThis !== "undefined") {
-        try {
-          localStorage.removeItem("org-store");
-        } catch {
-          // ignore
-        }
-      }
+      localStorage.removeItem("org-store");
+    } catch {
+      // ignore
     }
-  }, [
-    signout,
-    clearOrgs,
-    clearTeams,
-    clearAppointments,
-    clearAvailabilities,
-    clearCompanions,
-    clearDocuments,
-    clearForms,
-    clearInventory,
-    clearParents,
-    clearProfiles,
-    clearRooms,
-    clearServices,
-    clearSpecialities,
-  ]);
-
-  return { signOut };
+  }
 }

@@ -212,7 +212,6 @@ const Reschedule = ({
         <Primary
           href="#"
           text="Send request"
-          classname="h-13!"
           onClick={handleAppointmentUpdate}
         />
       </div>

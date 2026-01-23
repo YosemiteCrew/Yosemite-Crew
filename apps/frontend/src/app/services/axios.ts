@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useOrgStore } from "../stores/orgStore";
+import { hardSignOut } from "../hooks/useAuth";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -62,7 +63,7 @@ api.interceptors.response.use(
 
       const session = useAuthStore.getState().session;
       if (!session) {
-        await useAuthStore.getState().signout();
+        await hardSignOut();
         throw error;
       }
 
@@ -77,7 +78,7 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       console.error("Session refresh failed after 401:", refreshError);
-      await useAuthStore.getState().signout();
+      await hardSignOut();
       throw error;
     }
   },
