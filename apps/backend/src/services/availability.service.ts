@@ -6,6 +6,7 @@ import BaseAvailabilityModel, {
 } from "src/models/base-availability";
 import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
 import { OccupancyModel } from "src/models/occupancy";
+import logger from "src/utils/logger";
 
 dayjs.extend(utc);
 
@@ -351,10 +352,10 @@ export const AvailabilityService = {
     organisationId: string,
     userId: string,
   ): Promise<"Consulting" | "Available" | "Off-Duty" | "Requested"> {
-    const now = dayjs();
-    const today = now.toDate();
+    const nowUtc = dayjs.utc();
+    const today = nowUtc.toDate();
 
-    const { slots } = await this.getFinalAvailabilityForDate(
+    const { slots, date } = await this.getFinalAvailabilityForDate(
       organisationId,
       userId,
       today,
@@ -363,17 +364,21 @@ export const AvailabilityService = {
     const occupied = await OccupancyModel.exists({
       organisationId,
       userId,
-      startTime: { $lte: now.toDate() },
-      endTime: { $gte: now.toDate() },
+      startTime: { $lte: nowUtc.toDate() },
+      endTime: { $gte: nowUtc.toDate() },
     });
 
     if (occupied) return "Consulting";
 
-    const activeSlot = slots.find(
-      (s) =>
-        now.isAfter(dayjs(s.startTime, "HH:mm")) &&
-        now.isBefore(dayjs(s.endTime, "HH:mm")),
-    );
+    const activeSlot = slots.find((s) => {
+      const slotStart = dayjs.utc(`${date}T${s.startTime}:00`);
+      const slotEnd = dayjs.utc(`${date}T${s.endTime}:00`);
+      const startsNowOrEarlier =
+        nowUtc.isSame(slotStart) || nowUtc.isAfter(slotStart);
+      return startsNowOrEarlier && nowUtc.isBefore(slotEnd);
+    });
+
+
 
     if (activeSlot) return "Available";
     if (slots.length === 0) return "Off-Duty";
