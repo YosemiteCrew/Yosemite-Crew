@@ -64,6 +64,10 @@ jest.mock("@/app/hooks/useTask", () => ({
   useLoadTasksForPrimaryOrg: jest.fn(),
 }));
 
+jest.mock("@/app/hooks/useBilling", () => ({
+  useLoadSubscriptionCounterForPrimaryOrg: jest.fn(),
+}));
+
 const computeOrgOnboardingStepMock = jest.fn();
 const computeTeamOnboardingStepMock = jest.fn();
 

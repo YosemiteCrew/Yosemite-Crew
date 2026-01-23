@@ -1,11 +1,12 @@
 import Accordion from "@/app/components/Accordion/Accordion";
+import { Primary, Secondary } from "@/app/components/Buttons";
 import {
   Permission,
   PERMISSIONS,
   ROLE_PERMISSIONS,
   RoleCode,
 } from "@/app/utils/permissions";
-import React from "react";
+import React, { useEffect } from "react";
 
 type PermissionRow = {
   key: string;
@@ -185,7 +186,7 @@ const PERMISSION_ROWS: PermissionRow[] = [
   },
 ];
 
-function uniq<T>(arr: T[]) {
+export function uniq<T>(arr: T[]) {
   return Array.from(new Set(arr));
 }
 
@@ -201,6 +202,19 @@ function removeAll(perms: Permission[], candidates?: Permission[]) {
   return perms.filter((p) => !remove.has(p));
 }
 
+export function computeEffectivePermissions(args: {
+  role: RoleCode;
+  extraPerissions?: Permission[]; // keep your backend spelling
+  revokedPermissions?: Permission[];
+}): Permission[] {
+  const roleDefaults = ROLE_PERMISSIONS[args.role] ?? [];
+  const extra = args.extraPerissions ?? [];
+  const revoked = args.revokedPermissions ?? [];
+
+  const revokedSet = new Set(revoked);
+  return uniq([...roleDefaults, ...extra]).filter((p) => !revokedSet.has(p));
+}
+
 function pickEnablePermission(
   roleDefaults: Permission[],
   enablePriority?: Permission[],
@@ -212,43 +226,121 @@ function pickEnablePermission(
   return enablePriority[0] ?? null;
 }
 
+function samePermissionSet(a: Permission[], b: Permission[]) {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a);
+  for (const p of b) if (!aSet.has(p)) return false;
+  return true;
+}
+
+function computeSavePayload(draft: Permission[], roleDefaults: Permission[]) {
+  const draftSet = new Set(draft);
+  const defaultsSet = new Set(roleDefaults);
+
+  const extraPerissions = draft.filter((p) => !defaultsSet.has(p));
+  const revokedPermissions = roleDefaults.filter((p) => !draftSet.has(p));
+
+  return {
+    extraPerissions: uniq(extraPerissions),
+    revokedPermissions: uniq(revokedPermissions),
+  };
+}
+
 type PermissionsEditorProps = {
   role: RoleCode;
   value: Permission[];
-  onChange: (next: Permission[]) => void;
+  onSave: (payload: {
+    extraPerissions: Permission[];
+    revokedPermissions: Permission[];
+  }) => Promise<void> | void;
 };
 
-const PermissionsEditor = ({
-  value,
-  onChange,
-  role,
-}: PermissionsEditorProps) => {
+const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
   const roleDefaults = React.useMemo(
     () => ROLE_PERMISSIONS[role] ?? [],
     [role],
   );
 
+  const [draft, setDraft] = React.useState<Permission[]>(value);
+  const [saving, setSaving] = React.useState(false);
+
+  // reset draft when member/value changes (or role changes)
+  useEffect(() => {
+    setDraft(value);
+  }, [value, role]);
+
+  const isDirty = React.useMemo(
+    () => !samePermissionSet(draft, value),
+    [draft, value],
+  );
+
   const toggle = React.useCallback(
     (kind: "view" | "edit", row: PermissionRow, nextChecked: boolean) => {
-      const candidates = kind === "view" ? row.view : row.edit;
-      const priority =
-        kind === "view" ? row.viewEnablePriority : row.editEnablePriority;
-      if (!candidates?.length) return;
-      if (!nextChecked) {
-        onChange(removeAll(value, candidates));
-        return;
-      }
-      const toAdd = pickEnablePermission(roleDefaults, priority);
-      if (!toAdd) return;
-      const cleaned = removeAll(value, candidates);
-      onChange(uniq([...cleaned, toAdd]));
+      setDraft((prev) => {
+        const viewCandidates = row.view ?? [];
+        const editCandidates = row.edit ?? [];
+
+        // ✅ Rule: turning VIEW off also turns EDIT off
+        if (!nextChecked && kind === "view") {
+          return removeAll(prev, uniq([...viewCandidates, ...editCandidates]));
+        }
+
+        const candidates = kind === "view" ? viewCandidates : editCandidates;
+        const priority =
+          kind === "view" ? row.viewEnablePriority : row.editEnablePriority;
+
+        if (!candidates.length) return prev;
+
+        // Uncheck => remove all in that group
+        if (!nextChecked) {
+          return removeAll(prev, candidates);
+        }
+
+        // Check => remove conflicts in that group, add the chosen permission
+        const toAdd = pickEnablePermission(roleDefaults, priority);
+        if (!toAdd) return prev;
+
+        let next = uniq([...removeAll(prev, candidates), toAdd]);
+
+        // ✅ Rule: turning EDIT on also turns VIEW on
+        if (
+          kind === "edit" &&
+          viewCandidates.length &&
+          !hasAny(next, viewCandidates)
+        ) {
+          const viewToAdd = pickEnablePermission(
+            roleDefaults,
+            row.viewEnablePriority ?? viewCandidates,
+          );
+          if (viewToAdd) next = uniq([...next, viewToAdd]);
+        }
+
+        return next;
+      });
     },
-    [onChange, roleDefaults, value],
+    [roleDefaults],
   );
 
   const resetToRoleDefaults = React.useCallback(() => {
-    onChange(uniq(roleDefaults));
-  }, [onChange, roleDefaults]);
+    setDraft(uniq(roleDefaults));
+  }, [roleDefaults]);
+
+  const cancelChanges = React.useCallback(() => {
+    setDraft(value);
+  }, [value]);
+
+  const saveChanges = React.useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const payload = computeSavePayload(draft, roleDefaults);
+      await onSave(payload);
+      // parent should update `value` after save (refetch or optimistic),
+      // but we also keep draft as-is; effect will sync when value changes
+    } finally {
+      setSaving(false);
+    }
+  }, [draft, onSave, roleDefaults, saving]);
 
   return (
     <Accordion
@@ -283,8 +375,8 @@ const PermissionsEditor = ({
             </div>
           </div>
           {PERMISSION_ROWS.map((row) => {
-            const viewChecked = hasAny(value, row.view);
-            const editChecked = hasAny(value, row.edit);
+            const viewChecked = hasAny(draft, row.view);
+            const editChecked = hasAny(draft, row.edit);
             const viewDisabled = !row.view?.length;
             const editDisabled = !row.edit?.length;
             return (
@@ -329,6 +421,24 @@ const PermissionsEditor = ({
             );
           })}
         </div>
+        {isDirty && (
+          <div className="flex w-full gap-3 mt-6">
+            <Secondary
+              text="Cancel"
+              onClick={cancelChanges}
+              href="#"
+              isDisabled={saving}
+              className="w-full"
+            />
+            <Primary
+              onClick={saveChanges}
+              isDisabled={saving}
+              href="#"
+              classname="w-full"
+              text={saving ? "Saving..." : "Save"}
+            />
+          </div>
+        )}
       </div>
     </Accordion>
   );

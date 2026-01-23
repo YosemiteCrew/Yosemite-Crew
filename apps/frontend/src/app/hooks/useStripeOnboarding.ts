@@ -1,17 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { checkStatus } from "../services/stripeService";
-import { useSubscriptionStore } from "../stores/subscriptionStore";
-import { BillingSubscription } from "../types/billing";
 
 export const useStripeOnboarding = (
-  orgId: string | null
+  orgId: string | null,
 ): {
   onboard: boolean;
 } => {
   const org = useOrgStore((s) => (orgId ? (s.orgsById[orgId] ?? null) : null));
   const membership = useOrgStore((s) =>
-    orgId ? (s.membershipsByOrgId[orgId] ?? null) : null
+    orgId ? (s.membershipsByOrgId[orgId] ?? null) : null,
   );
 
   const { onboard } = useMemo(() => {
@@ -47,29 +45,27 @@ type UseStripeAccountStatusResult = {
   refetch: () => Promise<void>;
 };
 
-export const useStripeAccountStatus = (
-  orgId: string | null
+export const useSubscriptionCounterUpdate = (
+  orgId?: string | null,
 ): UseStripeAccountStatusResult => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
-  const setSubscriptionForOrg = useSubscriptionStore(
-    (s) => s.setSubscriptionForOrg
-  );
+  const finalOrgId = orgId || primaryOrgId || "";
 
   const refetch = useCallback(async () => {
-    if (!orgId) return;
+    if (!finalOrgId) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await checkStatus(orgId);
-      setSubscriptionForOrg(orgId, data as BillingSubscription);
+      await checkStatus(finalOrgId);
     } catch (err) {
       setError(err as Error);
     } finally {
       setLoading(false);
     }
-  }, [orgId, setSubscriptionForOrg]);
+  }, [finalOrgId]);
 
   return {
     loading,

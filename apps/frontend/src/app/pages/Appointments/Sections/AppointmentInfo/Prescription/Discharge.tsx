@@ -123,14 +123,12 @@ const Discharge = ({
             <Secondary
               href="#"
               text="Save"
-              className="h-13!"
               onClick={handleSave}
             />
           )}
           <Primary
             href="#"
             text="Share with parents"
-            classname="h-13!"
             onClick={() => {}}
           />
         </div>

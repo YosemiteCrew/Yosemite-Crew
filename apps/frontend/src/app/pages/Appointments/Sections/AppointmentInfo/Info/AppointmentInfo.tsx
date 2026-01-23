@@ -92,8 +92,8 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       })),
     [teams],
   );
@@ -153,10 +153,13 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       const team =
         teamIds?.length > 0
           ? teams
-              .filter((member) => teamIds.includes(member._id))
+              .filter((member) => {
+                const memberId = member.practionerId || member._id;
+                return memberId ? teamIds.includes(memberId) : false;
+              })
               .map((member) => ({
-                id: member._id,
-                name: member.name || member._id,
+                id: member.practionerId || member._id,
+                name: member.name || member.practionerId || member._id,
               }))
           : [];
       const formData: Appointment = {

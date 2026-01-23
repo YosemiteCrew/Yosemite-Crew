@@ -125,7 +125,6 @@ const Subjective = ({
           <Primary
             href="#"
             text="Save"
-            classname="h-13!"
             onClick={handleSave}
           />
         )}

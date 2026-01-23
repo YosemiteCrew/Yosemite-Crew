@@ -94,6 +94,7 @@ describe("DayCalendar (Appointments)", () => {
     status: "in_progress",
     startTime: new Date("2025-01-06T09:00:00Z"),
     endTime: new Date("2025-01-06T10:00:00Z"),
+    appointmentType: { id: "service-1", name: "Grooming" },
     companion: {
       name: "Rex",
       species: "dog",
@@ -163,7 +164,7 @@ describe("DayCalendar (Appointments)", () => {
       />
     );
 
-    expect(screen.getByText("Reason:")).toBeInTheDocument();
+    expect(screen.getByText("Service:")).toBeInTheDocument();
     expect(screen.getByText("Grooming")).toBeInTheDocument();
     expect(screen.getByText("Lead:")).toBeInTheDocument();
     expect(screen.getByText("Dr. Lee")).toBeInTheDocument();

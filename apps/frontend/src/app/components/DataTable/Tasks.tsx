@@ -48,7 +48,7 @@ const Tasks = ({
   const memberMap = React.useMemo(() => {
     const map = new Map<string, string>();
     teams?.forEach((member: Team) => {
-      map.set(member._id, member.name || "-");
+      map.set(member.practionerId, member.name || "-");
     });
     return map;
   }, [teams]);

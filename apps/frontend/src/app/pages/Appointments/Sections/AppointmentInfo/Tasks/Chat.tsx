@@ -191,7 +191,6 @@ const Chat = ({ activeAppointment }: ChatProps) => {
             text="View Chat History"
             onClick={handleOpenChat}
             isDisabled={!activeAppointment?.id}
-            classname="h-13!"
           />
         </div>
       );
@@ -216,7 +215,6 @@ const Chat = ({ activeAppointment }: ChatProps) => {
             text={loading ? "Opening..." : "Open Chat"}
             onClick={handleOpenChat}
             isDisabled={loading || !activeAppointment?.id}
-            classname="h-13!"
           />
 
           <Secondary
@@ -224,7 +222,6 @@ const Chat = ({ activeAppointment }: ChatProps) => {
             text={closingSession ? "Closing..." : "Close Chat Session"}
             onClick={handleCloseChat}
             isDisabled={closingSession || !activeAppointment?.id}
-            className="h-13!"
           />
         </div>
 
