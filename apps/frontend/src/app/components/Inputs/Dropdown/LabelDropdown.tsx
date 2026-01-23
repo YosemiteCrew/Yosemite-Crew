@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaCaretDown } from "react-icons/fa6";
 import { IoIosWarning } from "react-icons/io";
 
@@ -13,6 +13,7 @@ type DropdownProps = {
   defaultOption?: string;
   onSelect: (option: Option) => void;
   error?: string;
+  searchable?: boolean;
 };
 
 const LabelDropdown = ({
@@ -21,11 +22,13 @@ const LabelDropdown = ({
   defaultOption,
   onSelect,
   error,
+  searchable = true,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Option | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!defaultOption) {
@@ -45,7 +48,7 @@ const LabelDropdown = ({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setOpen(false);
-        buttonRef.current?.blur();
+        setSearchQuery("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -54,17 +57,40 @@ const LabelDropdown = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (open && searchable && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [open, searchable]);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery.trim()) return options;
+    const query = searchQuery.toLowerCase();
+    return options.filter((option) =>
+      option.label.toLowerCase().includes(query)
+    );
+  }, [options, searchQuery]);
+
   return (
     <div className="w-full relative" ref={dropdownRef}>
-      <button
-        className={`w-full peer flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border border-input-border-default! focus:border-input-text-placeholder-active! ${!selected && error && "border-input-border-error!"} ${open ? "rounded-t-2xl!" : "rounded-2xl!"}`}
+      <div
+        className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer ${open ? "border-input-text-placeholder-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"} ${!selected && error && "border-input-border-error!"}`}
         onClick={() => {
-          setOpen((e) => !e);
-          requestAnimationFrame(() => buttonRef.current?.focus());
+          if (!open) {
+            setOpen(true);
+          }
         }}
-        ref={buttonRef}
       >
-        {selected ? (
+        {open && searchable ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={selected ? selected.label : placeholder}
+            className="w-full bg-transparent text-body-4 text-black-text outline-none placeholder:text-input-text-placeholder"
+          />
+        ) : selected ? (
           <div className="text-black-text text-body-4 max-w-[200px] truncate">
             {selected.label}
           </div>
@@ -75,31 +101,28 @@ const LabelDropdown = ({
         )}
         <FaCaretDown
           size={20}
-          className={`text-black-text transition-transform cursor-pointer`}
+          className={`text-black-text transition-transform cursor-pointer shrink-0 ${open ? "rotate-180" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((prev) => !prev);
+            if (open) setSearchQuery("");
+          }}
         />
-      </button>
-      {selected && (
+      </div>
+      {selected && !open && (
         <div
           className={`pointer-events-none absolute left-6
-          top-1/2 -translate-y-1/2
-          text-body-4 text-input-text-placeholder
-          transition-all duration-200
-          peer-focus:-top-[11px] peer-focus:translate-y-0
-          peer-focus:text-sm!
-          peer-focus:text-input-text-placeholder-active
-          peer-focus:bg-(--whitebg)
-            peer-focus:px-1 peer-not-placeholder-shown:px-1
-            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-sm!
-            peer-not-placeholder-shown:bg-(--whitebg)`}
+          -top-[11px] translate-y-0
+          text-sm! text-input-text-placeholder
+          bg-(--whitebg) px-1`}
         >
           {placeholder}
         </div>
       )}
       {open && (
         <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
-          {options.length > 0 &&
-            options.map((option, i) => (
+          {filteredOptions.length > 0 &&
+            filteredOptions.map((option, i) => (
               <button
                 key={option.value + i}
                 className="px-[1.25rem] py-[0.75rem] text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
@@ -107,15 +130,15 @@ const LabelDropdown = ({
                   setSelected(option);
                   onSelect(option);
                   setOpen(false);
-                  buttonRef.current?.blur();
+                  setSearchQuery("");
                 }}
               >
                 {option.label}
               </button>
             ))}
-          {options.length === 0 && (
-            <div className="text-caption-1 py-1 text-text-primary">
-              No options
+          {filteredOptions.length === 0 && (
+            <div className="text-caption-1 py-3 text-text-primary text-center">
+              {searchQuery ? "No matches found" : "No options"}
             </div>
           )}
         </div>
