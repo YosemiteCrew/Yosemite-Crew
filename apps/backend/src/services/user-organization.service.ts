@@ -17,6 +17,12 @@ import SpecialityModel from "src/models/speciality";
 import { AvailabilityService } from "./availability.service";
 import UserModel from "src/models/user";
 import { OccupancyModel } from "src/models/occupancy";
+import { OrgBilling } from "src/models/organization.billing";
+import { OrgUsageCounters } from "src/models/organisation.usage.counter";
+import { StripeService } from "./stripe.service";
+import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
+import { sendEmailTemplate } from "src/utils/email";
+import logger from "src/utils/logger";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
 
@@ -29,6 +35,73 @@ export class UserOrganizationServiceError extends Error {
     this.name = "UserOrganizationServiceError";
   }
 }
+
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL ??
+  process.env.SUPPORT_EMAIL_ADDRESS ??
+  process.env.HELP_EMAIL ??
+  "support@yosemitecrew.com";
+const DEFAULT_PMS_URL =
+  process.env.PMS_BASE_URL ??
+  process.env.FRONTEND_BASE_URL ??
+  process.env.APP_URL ??
+  "https://app.yosemitecrew.com";
+
+const extractReferenceId = (value: string) => value.split("/").pop()?.trim();
+
+const buildDisplayName = (
+  user?: { firstName?: string; lastName?: string } | null,
+) => {
+  if (!user) return undefined;
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+};
+
+const resolveOrganisationName = async (reference: string) => {
+  const orgId = extractOrganizationIdentifier(reference);
+  const orgQuery = buildOrganizationLookupQuery(orgId);
+  const organisation = await OrganizationModel.findOne(orgQuery)
+    .select("name")
+    .lean();
+  return organisation?.name;
+};
+
+const sendPermissionsUpdatedEmail = async (params: {
+  practitionerReference: string;
+  organizationReference: string;
+  roleCode: string;
+  roleDisplay?: string;
+}) => {
+  try {
+    const userId =
+      extractReferenceId(params.practitionerReference) ??
+      params.practitionerReference;
+    const [user, organisationName] = await Promise.all([
+      UserModel.findOne(
+        { userId },
+        { email: 1, firstName: 1, lastName: 1 },
+      ).lean(),
+      resolveOrganisationName(params.organizationReference),
+    ]);
+
+    if (!user?.email || !organisationName) return;
+
+    await sendEmailTemplate({
+      to: user.email,
+      templateId: "permissionsUpdated",
+      templateData: {
+        employeeName: buildDisplayName(user),
+        organisationName,
+        roleName: params.roleDisplay ?? params.roleCode,
+        ctaUrl: DEFAULT_PMS_URL,
+        ctaLabel: "Review Access",
+        supportEmail: SUPPORT_EMAIL_ADDRESS,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to send permissions updated email.", error);
+  }
+};
 
 const VALID_ROLE_CODES: Set<RoleCode> = new Set([
   "OWNER",
@@ -228,6 +301,95 @@ const extractOrganizationIdentifier = (reference: string): string => {
   return lastSegment;
 };
 
+const ensureOrgUsageCounters = async (orgId: Types.ObjectId) =>
+  OrgUsageCounters.findOneAndUpdate(
+    { orgId },
+    { $setOnInsert: { orgId } },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  );
+
+const isFreePlan = async (orgId: Types.ObjectId) => {
+  const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
+  return !billing || billing.plan === "free";
+};
+
+const markFreeLimitReachedAt = async (
+  usage: Awaited<ReturnType<typeof ensureOrgUsageCounters>>,
+) => {
+  if (
+    !usage ||
+    usage.freeLimitReachedAt ||
+    ((usage.usersActiveCount ?? 0) < (usage.freeUsersLimit ?? 0) &&
+      (usage.appointmentsUsed ?? 0) < (usage.freeAppointmentsLimit ?? 0) &&
+      (usage.toolsUsed ?? 0) < (usage.freeToolsLimit ?? 0))
+  ) {
+    return false;
+  }
+
+  const updated = await OrgUsageCounters.updateOne(
+    { _id: usage._id, freeLimitReachedAt: null },
+    { $set: { freeLimitReachedAt: new Date() } },
+  );
+  return updated.modifiedCount > 0;
+};
+
+const resolveOrganisationObjectId = async (
+  reference: string,
+): Promise<Types.ObjectId> => {
+  const orgQuery = buildOrganizationLookupQuery(reference);
+  const organisation = await OrganizationModel.findOne(orgQuery)
+    .select("_id")
+    .setOptions({ sanitizeFilter: true });
+
+  if (!organisation) {
+    throw new UserOrganizationServiceError("Organization not found.", 404);
+  }
+
+  return organisation._id;
+};
+
+const reserveMemberSlot = async (orgId: Types.ObjectId) => {
+  await ensureOrgUsageCounters(orgId);
+
+  if (await isFreePlan(orgId)) {
+    const updated = await OrgUsageCounters.findOneAndUpdate(
+      {
+        orgId,
+        $expr: { $lt: ["$usersActiveCount", "$freeUsersLimit"] },
+      },
+      { $inc: { usersActiveCount: 1 } },
+      { new: true },
+    );
+
+    if (!updated) {
+      throw new UserOrganizationServiceError(
+        "Free plan member limit reached.",
+        403,
+      );
+    }
+
+    const didReachLimit = await markFreeLimitReachedAt(updated);
+    if (didReachLimit) {
+      void sendFreePlanLimitReachedEmail({ orgId, usage: updated });
+    }
+    return true;
+  }
+
+  await OrgUsageCounters.findOneAndUpdate(
+    { orgId },
+    { $inc: { usersActiveCount: 1 } },
+    { new: true },
+  );
+  return true;
+};
+
+const releaseMemberSlot = async (orgId: Types.ObjectId) => {
+  await OrgUsageCounters.updateOne(
+    { orgId },
+    { $inc: { usersActiveCount: -1 } },
+  );
+};
+
 const buildOrganizationLookupQuery = (reference: string) => {
   const identifier = extractOrganizationIdentifier(reference);
   const queries: Array<Record<string, string>> = [];
@@ -412,6 +574,14 @@ const buildReferenceLookups = (id: unknown): ReferenceLookup[] => {
   return lookups;
 };
 
+const syncSeatsIfBusiness = async (orgId: Types.ObjectId) => {
+  const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
+
+  if (billing?.plan === "business") {
+    await StripeService.syncSubscriptionSeats(orgId.toString());
+  }
+};
+
 export const UserOrganizationService = {
   async upsert(payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
@@ -421,31 +591,57 @@ export const UserOrganizationService = {
     let document: UserOrganizationDocument | null = null;
     let created = false;
 
+    let orgObjectId: Types.ObjectId | null = null;
+    let seatDelta: -1 | 0 | 1 = 0;
+
     if (id) {
-      document = await UserOrganizationModel.findOneAndUpdate(
+      document = await UserOrganizationModel.findOne(
         resolveStrictIdQuery(id, "identifier"),
-        { $set: persistable },
-        { new: true, sanitizeFilter: true },
       );
     }
 
-    if (!document) {
-      const existing = await UserOrganizationModel.findOne({
-        practitionerReference: persistable.practitionerReference,
-        organizationReference: persistable.organizationReference,
-        roleCode: persistable.roleCode,
-      }).setOptions({ sanitizeFilter: true });
+    const wasActive = document?.active ?? false;
+    const willBeActive = persistable.active !== false;
 
-      if (existing) {
-        document = await UserOrganizationModel.findOneAndUpdate(
-          { _id: existing._id },
-          { $set: persistable },
-          { new: true, sanitizeFilter: true },
+    if (!document) {
+      if (willBeActive) {
+        orgObjectId = await resolveOrganisationObjectId(
+          persistable.organizationReference,
         );
-      } else {
+        await reserveMemberSlot(orgObjectId);
+        seatDelta = 1;
+      }
+
+      try {
         document = await UserOrganizationModel.create(persistable);
         created = true;
+      } catch (err) {
+        if (seatDelta === 1 && orgObjectId) {
+          await releaseMemberSlot(orgObjectId);
+        }
+        throw err;
       }
+    } else {
+      // Existing document — detect state transitions
+      orgObjectId = await resolveOrganisationObjectId(
+        document.organizationReference,
+      );
+
+      if (!wasActive && willBeActive) {
+        await reserveMemberSlot(orgObjectId);
+        seatDelta = 1;
+      }
+
+      if (wasActive && !willBeActive) {
+        await releaseMemberSlot(orgObjectId);
+        seatDelta = -1;
+      }
+
+      document = await UserOrganizationModel.findOneAndUpdate(
+        { _id: document._id },
+        { $set: persistable },
+        { new: true, sanitizeFilter: true },
+      );
     }
 
     if (!document) {
@@ -455,9 +651,14 @@ export const UserOrganizationService = {
       );
     }
 
-    const mapping = buildUserOrganizationDomain(document);
+    if (seatDelta !== 0 && orgObjectId) {
+      await syncSeatsIfBusiness(orgObjectId);
+    }
+
     return {
-      response: toUserOrganizationResponseDTO(mapping),
+      response: toUserOrganizationResponseDTO(
+        buildUserOrganizationDomain(document),
+      ),
       created,
     };
   },
@@ -466,10 +667,28 @@ export const UserOrganizationService = {
     const { persistable } = createPersistableFromFHIR(payload);
     validateRoleCode(persistable.roleCode);
 
-    const document = await UserOrganizationModel.create(persistable);
-    const mapping = buildUserOrganizationDomain(document);
+    let orgObjectId: Types.ObjectId | null = null;
 
-    return toUserOrganizationResponseDTO(mapping);
+    if (persistable.active !== false) {
+      orgObjectId = await resolveOrganisationObjectId(
+        persistable.organizationReference,
+      );
+      await reserveMemberSlot(orgObjectId);
+    }
+
+    let document: UserOrganizationDocument;
+    try {
+      document = await UserOrganizationModel.create(persistable);
+    } catch (err) {
+      if (orgObjectId) await releaseMemberSlot(orgObjectId);
+      throw err;
+    }
+
+    if (orgObjectId) {
+      await syncSeatsIfBusiness(orgObjectId);
+    }
+
+    return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
   },
 
   async getById(
@@ -532,38 +751,105 @@ export const UserOrganizationService = {
   },
 
   async deleteById(id: string) {
-    const result = await UserOrganizationModel.findOneAndDelete(
+    const doc = await UserOrganizationModel.findOneAndDelete(
       resolveStrictIdQuery(id, "identifier"),
-      {
-        sanitizeFilter: true,
-      },
+      { sanitizeFilter: true },
     );
-    return Boolean(result);
+
+    if (doc?.active !== false) {
+      const orgObjectId = await resolveOrganisationObjectId(
+        doc!.organizationReference,
+      );
+      await releaseMemberSlot(orgObjectId);
+      await syncSeatsIfBusiness(orgObjectId);
+    }
+
+    return Boolean(doc);
   },
 
   async update(id: string, payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
     validateRoleCode(persistable.roleCode);
 
-    const document = await UserOrganizationModel.findOneAndUpdate(
+    const existing = await UserOrganizationModel.findOne(
       resolveStrictIdQuery(id, "identifier"),
+    );
+
+    if (!existing) return null;
+
+    const priorRoleCode = existing.roleCode;
+    const priorRoleDisplay = existing.roleDisplay;
+    const priorPermissions = [...(existing.effectivePermissions ?? [])].sort();
+
+    const wasActive = existing.active;
+    const willBeActive = persistable.active !== false;
+
+    const orgObjectId = await resolveOrganisationObjectId(
+      existing.organizationReference,
+    );
+
+    if (!wasActive && willBeActive) {
+      await reserveMemberSlot(orgObjectId);
+    }
+
+    if (wasActive && !willBeActive) {
+      await releaseMemberSlot(orgObjectId);
+    }
+
+    const document = await UserOrganizationModel.findOneAndUpdate(
+      { _id: existing._id },
       { $set: persistable },
       { new: true, sanitizeFilter: true },
     );
 
-    if (!document) {
-      return null;
+    if (!document) return null;
+
+    if (wasActive !== willBeActive) {
+      await syncSeatsIfBusiness(orgObjectId);
     }
 
-    const mapping = buildUserOrganizationDomain(document);
-    return toUserOrganizationResponseDTO(mapping);
+    const nextPermissions = [...(document.effectivePermissions ?? [])].sort();
+    const permissionsChanged =
+      priorRoleCode !== document.roleCode ||
+      priorRoleDisplay !== document.roleDisplay ||
+      priorPermissions.join("|") !== nextPermissions.join("|");
+
+    if (permissionsChanged) {
+      void sendPermissionsUpdatedEmail({
+        practitionerReference: document.practitionerReference,
+        organizationReference: document.organizationReference,
+        roleCode: document.roleCode,
+        roleDisplay: document.roleDisplay,
+      });
+    }
+
+    return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
   },
 
   async createUserOrganizationMapping(userOrganisation: UserOrganization) {
     const persistable = pruneUndefined(
       sanitizeUserOrganizationAttributes(userOrganisation),
     );
-    const document = await UserOrganizationModel.create(persistable);
+    let orgObjectId: Types.ObjectId | null = null;
+    let reservedMemberSlot = false;
+
+    if (persistable.active !== false) {
+      orgObjectId = await resolveOrganisationObjectId(
+        persistable.organizationReference,
+      );
+      await reserveMemberSlot(orgObjectId);
+      reservedMemberSlot = true;
+    }
+
+    let document: UserOrganizationDocument;
+    try {
+      document = await UserOrganizationModel.create(persistable);
+    } catch (error) {
+      if (reservedMemberSlot && orgObjectId) {
+        await releaseMemberSlot(orgObjectId);
+      }
+      throw error;
+    }
     if (!document) {
       throw new UserOrganizationServiceError(
         "Unable to create user-organization mapping.",
@@ -607,10 +893,28 @@ export const UserOrganizationService = {
       const organization = organizationDoc?.toObject?.() ?? null; // convert mongoose doc to object
 
       const mappingDomain = buildUserOrganizationDomain(mapping);
+      const effectivePermissions = mappingDomain.effectivePermissions ?? [];
+      const canViewBilling =
+        effectivePermissions.includes("billing:view:any") ||
+        effectivePermissions.includes("billing:edit:any") ||
+        effectivePermissions.includes("billing:edit:limited");
 
+      const orgBilling = canViewBilling
+        ? await OrgBilling.findOne({
+            orgId: organization?._id,
+          })
+        : null;
+
+      const orgUsage = canViewBilling
+        ? await OrgUsageCounters.findOne({
+            orgId: organization?._id,
+          })
+        : null;
       results.push({
         mapping: toUserOrganizationResponseDTO(mappingDomain),
         organization: organization,
+        orgBilling: orgBilling,
+        orgUsage: orgUsage,
       });
     }
     return results;
@@ -626,6 +930,7 @@ export const UserOrganizationService = {
         practitionerReference: 1,
         organizationReference: 1,
         roleCode: 1,
+        effectivePermissions: 1,
       },
     );
 
@@ -641,7 +946,7 @@ export const UserOrganizationService = {
         userId: userRef,
       });
 
-      const speciality = await SpecialityModel.findOne({
+      const speciality = await SpecialityModel.find({
         organisationId,
         memberUserIds: userRef, // matches any element in the array
       });

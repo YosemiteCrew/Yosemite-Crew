@@ -20,6 +20,7 @@ import { useOrgStore } from "@/app/stores/orgStore";
 import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useInventoryModule } from "@/app/hooks/useInventory";
 import OrgGuard from "@/app/components/OrgGuard";
+import { useSearchStore } from "@/app/stores/searchStore";
 
 const Inventory = () => {
   useLoadOrg();
@@ -27,6 +28,7 @@ const Inventory = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
   const primaryOrg = primaryOrgId ? orgsById[primaryOrgId] : null;
+  const headerSearchQuery = useSearchStore((s) => s.query);
 
   const [businessType, setBusinessType] = useState<BusinessType | null>(
     primaryOrg?.type as BusinessType
@@ -43,10 +45,11 @@ const Inventory = () => {
     hideItem,
     unhideItem,
     addBatch,
+    updateBatch,
   } = useInventoryModule(resolvedBusinessType);
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
-  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(headerSearchQuery);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>(
     []
   );
@@ -74,9 +77,9 @@ const Inventory = () => {
   }, [primaryOrgId, orgsById, businessType]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(filters.search), 300);
+    const timer = setTimeout(() => setDebouncedSearch(headerSearchQuery), 300);
     return () => clearTimeout(timer);
-  }, [filters.search]);
+  }, [headerSearchQuery]);
 
   const categoryOptions = useMemo(
     () => CategoryOptionsByBusiness[resolvedBusinessType] ?? [],
@@ -183,6 +186,20 @@ const Inventory = () => {
     [addBatch]
   );
 
+  const handleUpdateBatch = useCallback(
+    async (itemId: string, batches: any[]) => {
+      if (!itemId) return;
+      setActionError(null);
+      try {
+        await updateBatch(itemId, batches);
+      } catch (err) {
+        setActionError("Unable to update batch.");
+        throw err;
+      }
+    },
+    [updateBatch]
+  );
+
   const handleHideInventory = useCallback(
     async (itemId: string) => {
       if (!itemId) return;
@@ -284,6 +301,7 @@ const Inventory = () => {
           businessType={activeInventory.businessType ?? resolvedBusinessType}
           onUpdate={handleUpdateInventory}
           onAddBatch={handleAddBatch}
+          onUpdateBatch={handleUpdateBatch}
           onHide={handleHideInventory}
           onUnhide={handleUnhideInventory}
         />

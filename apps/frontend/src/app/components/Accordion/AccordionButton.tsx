@@ -7,6 +7,9 @@ import {
   getUpgradeLink,
 } from "@/app/services/billingService";
 import { useSubscriptionForPrimaryOrg } from "@/app/hooks/useBilling";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/app/utils/permissions";
+import Upgrade from "../Upgrade";
 
 interface AccordionButtonProps {
   title: string;
@@ -18,6 +21,33 @@ interface AccordionButtonProps {
   finance?: boolean;
 }
 
+type PaddingArgs = {
+  finance: boolean;
+  hasCustomerId: boolean;
+  plan?: string;
+  showButton: boolean;
+};
+
+const getAccordionPaddingYClass = ({
+  finance,
+  hasCustomerId,
+  plan,
+  showButton,
+}: PaddingArgs): string => {
+  if (finance) {
+    if (plan === "free") {
+      return "py-2";
+    }
+    if (plan === "business" && hasCustomerId) {
+      return "py-2";
+    }
+  }
+  if (showButton) {
+    return "py-2";
+  }
+  return "py-[20px]";
+};
+
 const AccordionButton: React.FC<AccordionButtonProps> = ({
   title,
   children,
@@ -28,16 +58,21 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   finance = false,
 }) => {
   const subscription = useSubscriptionForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditSubscription = can(PERMISSIONS.SUBSCRIPTION_EDIT_ANY);
   const plan = subscription?.plan;
-  const hasStripeAccount = Boolean(subscription?.connectAccountId);
-  const stripeCompleted = Boolean(subscription?.connectChargesEnabled);
-  const orgId = subscription?.orgId;
-  const subscriptionReady = Boolean(orgId);
+  const hasCustomerId = Boolean(subscription?.stripeCustomerId);
   const [open, setOpen] = useState(defaultOpen);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingUpgrade, setLoadingUpgrade] =
     useState<null | BillingSubscriptionInterval>(null);
   const [error, setError] = useState<string | null>(null);
+  const paddingYClass = getAccordionPaddingYClass({
+    finance,
+    hasCustomerId,
+    plan,
+    showButton,
+  });
 
   const handleBillingPortal = async () => {
     setError(null);
@@ -76,7 +111,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${showButton || finance ? "py-2" : "py-[20px]"}`}
+      className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass}`}
     >
       <div className="flex items-center justify-between">
         <button
@@ -111,9 +146,9 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
               text={buttonTitle}
             />
           )}
-          {finance && (
+          {canEditSubscription && finance && (
             <div className="flex items-center gap-3">
-              {plan === "business" && (
+              {hasCustomerId && (
                 <Secondary
                   href="#"
                   onClick={handleBillingPortal}
@@ -121,28 +156,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
                   isDisabled={loadingPortal || loadingUpgrade !== null}
                 />
               )}
-              {stripeCompleted ? (
-                <Primary
-                  href="#"
-                  onClick={handleUpgrade}
-                  text={loadingUpgrade ? "Redirecting..." : "Upgrade"}
-                  isDisabled={loadingPortal || loadingUpgrade !== null}
-                />
-              ) : (
-                <Secondary
-                  href={
-                    subscriptionReady
-                      ? `/stripe-onboarding?orgId=${orgId}`
-                      : "#"
-                  }
-                  isDisabled={!subscriptionReady}
-                  text={
-                    hasStripeAccount
-                      ? "Continue setup"
-                      : "Connect stripe"
-                  }
-                />
-              )}
+              {plan === "free" && <Upgrade />}
             </div>
           )}
         </div>

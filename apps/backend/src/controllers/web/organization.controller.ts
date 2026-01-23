@@ -208,7 +208,7 @@ export const OrganizationController = {
     }
   },
 
-  async getNearbyPaginated(req: Request, res: Response) {
+  getNearbyPaginated: async (req: Request, res: Response) => {
     try {
       const latString = req.query.lat as string | undefined;
       const lngString = req.query.lng as string | undefined;

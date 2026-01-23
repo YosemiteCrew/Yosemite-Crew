@@ -39,7 +39,13 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
 
   const staffNameById = useMemo(() => {
     return teams?.reduce((acc: Record<string, string>, s: Team) => {
-      acc[s._id] = s.name ?? "";
+      const name = s.name ?? "";
+      if (s.practionerId) {
+        acc[s.practionerId] = name;
+      }
+      if (s._id) {
+        acc[s._id] = name;
+      }
       return acc;
     }, {});
   }, [teams]);

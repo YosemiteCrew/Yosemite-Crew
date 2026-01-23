@@ -58,7 +58,7 @@ describe("Footer Component", () => {
     it("should render all navigation links with correct href attributes", () => {
         const gettingStartedLink = screen.getByRole("link", { name: "Developer portal" });
         expect(gettingStartedLink).toBeInTheDocument();
-        expect(gettingStartedLink).toHaveAttribute("href","https://github.com/YosemiteCrew/Yosemite-Crew/");
+        expect(gettingStartedLink).toHaveAttribute("href", "/developers/signup");
 
         const discordLink = screen.getByRole("link", { name: "Discord" });
         expect(discordLink).toBeInTheDocument();

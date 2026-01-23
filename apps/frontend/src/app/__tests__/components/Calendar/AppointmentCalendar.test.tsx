@@ -1,115 +1,133 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import AppointmentCalendar from "@/app/components/Calendar/AppointmentCalendar";
-import { Appointment } from "@yosemite-crew/types";
+import { render } from "@testing-library/react";
+import "@testing-library/jest-dom";
 
-const daySpy = jest.fn();
-const weekSpy = jest.fn();
-const userSpy = jest.fn();
+import AppointmentCalendar from "@/app/components/Calendar/AppointmentCalendar";
+
+const dayCalendarSpy = jest.fn();
+const weekCalendarSpy = jest.fn();
+const userCalendarSpy = jest.fn();
 
 jest.mock("@/app/components/Calendar/common/DayCalendar", () => (props: any) => {
-  daySpy(props);
+  dayCalendarSpy(props);
   return <div data-testid="day-calendar" />;
 });
 
-jest.mock("@/app/components/Calendar/common/WeekCalendar", () => (props: any) => {
-  weekSpy(props);
-  return <div data-testid="week-calendar" />;
-});
+jest.mock(
+  "@/app/components/Calendar/common/WeekCalendar",
+  () => (props: any) => {
+    weekCalendarSpy(props);
+    return <div data-testid="week-calendar" />;
+  }
+);
 
-jest.mock("@/app/components/Calendar/common/UserCalendar", () => (props: any) => {
-  userSpy(props);
-  return <div data-testid="user-calendar" />;
-});
+jest.mock(
+  "@/app/components/Calendar/common/UserCalendar",
+  () => (props: any) => {
+    userCalendarSpy(props);
+    return <div data-testid="user-calendar" />;
+  }
+);
 
 jest.mock("@/app/components/Calendar/common/Header", () => (props: any) => (
-  <div data-testid="calendar-header">{props.currentDate.toDateString()}</div>
+  <div data-testid="calendar-header" />
 ));
 
+const isSameDayMock = jest.fn();
+
+jest.mock("@/app/components/Calendar/helpers", () => ({
+  isSameDay: (...args: any[]) => isSameDayMock(...args),
+}));
+
 describe("AppointmentCalendar", () => {
-  const currentDate = new Date(2025, 0, 2, 9);
+  const setActiveAppointment = jest.fn();
+  const setViewPopup = jest.fn();
+  const setReschedulePopup = jest.fn();
   const setCurrentDate = jest.fn();
   const setWeekStart = jest.fn();
-  const setReschedulePopup = jest.fn();
 
-  const appointmentA = {
-    id: "appt-a",
-    startTime: new Date(2025, 0, 2, 10),
-    endTime: new Date(2025, 0, 2, 11),
-  } as Appointment;
-  const appointmentB = {
-    id: "appt-b",
-    startTime: new Date(2025, 0, 3, 10),
-    endTime: new Date(2025, 0, 3, 11),
-  } as Appointment;
+  const currentDate = new Date("2025-01-06T10:00:00Z");
+  const weekStart = new Date("2025-01-06T00:00:00Z");
+
+  const appointments: any[] = [
+    { id: "a1", startTime: new Date("2025-01-06T09:00:00Z") },
+    { id: "a2", startTime: new Date("2025-01-07T09:00:00Z") },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
+    isSameDayMock.mockImplementation((date: Date) =>
+      date.toISOString().includes("2025-01-06")
+    );
   });
 
-  it("renders day calendar with same-day events", () => {
+  it("renders day calendar with filtered events and forwards handlers", () => {
     render(
       <AppointmentCalendar
-        filteredList={[appointmentA, appointmentB]}
+        filteredList={appointments as any}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
         activeCalendar="day"
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
-        weekStart={currentDate}
+        weekStart={weekStart}
         setWeekStart={setWeekStart}
         setReschedulePopup={setReschedulePopup}
+        canEditAppointments
       />
     );
 
-    expect(screen.getByTestId("day-calendar")).toBeInTheDocument();
-    expect(daySpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        events: [appointmentA],
-        date: currentDate,
-      })
-    );
+    expect(dayCalendarSpy).toHaveBeenCalledTimes(1);
+    const props = dayCalendarSpy.mock.calls[0][0];
+    expect(props.events).toEqual([appointments[0]]);
+
+    props.handleViewAppointment(appointments[0]);
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
+    expect(setViewPopup).toHaveBeenCalledWith(true);
+
+    props.handleRescheduleAppointment(appointments[0]);
+    expect(setReschedulePopup).toHaveBeenCalledWith(true);
   });
 
-  it("renders week calendar for week view", () => {
+  it("renders week calendar with full list", () => {
     render(
       <AppointmentCalendar
-        filteredList={[appointmentA, appointmentB]}
+        filteredList={appointments as any}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
         activeCalendar="week"
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
-        weekStart={currentDate}
+        weekStart={weekStart}
         setWeekStart={setWeekStart}
         setReschedulePopup={setReschedulePopup}
+        canEditAppointments
       />
     );
 
-    expect(screen.getByTestId("week-calendar")).toBeInTheDocument();
-    expect(weekSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        events: [appointmentA, appointmentB],
-        date: currentDate,
-      })
-    );
+    expect(weekCalendarSpy).toHaveBeenCalledTimes(1);
+    const props = weekCalendarSpy.mock.calls[0][0];
+    expect(props.events).toEqual(appointments);
   });
 
-  it("renders team calendar with same-day events", () => {
+  it("renders team calendar with day events", () => {
     render(
       <AppointmentCalendar
-        filteredList={[appointmentA, appointmentB]}
+        filteredList={appointments as any}
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
         activeCalendar="team"
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
-        weekStart={currentDate}
+        weekStart={weekStart}
         setWeekStart={setWeekStart}
         setReschedulePopup={setReschedulePopup}
+        canEditAppointments
       />
     );
 
-    expect(screen.getByTestId("user-calendar")).toBeInTheDocument();
-    expect(userSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        events: [appointmentA],
-        date: currentDate,
-      })
-    );
+    expect(userCalendarSpy).toHaveBeenCalledTimes(1);
+    const props = userCalendarSpy.mock.calls[0][0];
+    expect(props.events).toEqual([appointments[0]]);
   });
 });

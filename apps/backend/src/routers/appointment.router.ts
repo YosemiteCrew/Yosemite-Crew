@@ -5,16 +5,16 @@ import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
 
-// MOBILE ROUTES
+/* ======================================================
+   MOBILE ROUTES (OWN SCOPE – no RBAC)
+   ====================================================== */
 
-// Create appointment (mobile)
 router.post(
   "/mobile",
   authorizeCognitoMobile,
   AppointmentController.createRequestedFromMobile,
 );
 
-// List appointments for a parent (static route)
 router.get(
   "/mobile/parent",
   authorizeCognitoMobile,
@@ -27,21 +27,18 @@ router.post(
   AppointmentController.getDocumentUplaodURL,
 );
 
-// List appointments for a companion (semi-static)
 router.get(
   "/mobile/companion/:companionId",
   authorizeCognitoMobile,
   AppointmentController.listByCompanion,
 );
 
-// Reschedule appointment (mobile)
 router.patch(
   "/mobile/:appointmentId/reschedule",
   authorizeCognitoMobile,
   AppointmentController.rescheduleFromMobile,
 );
 
-// Cancel appointment (mobile) — FIXED PATH
 router.patch(
   "/mobile/:appointmentId/cancel",
   authorizeCognitoMobile,
@@ -54,16 +51,15 @@ router.patch(
   AppointmentController.checkInAppointment,
 );
 
-// Get appointment detail (mobile) — dynamic LAST
 router.get(
   "/mobile/:appointmentId",
   authorizeCognitoMobile,
   AppointmentController.getById,
 );
 
-// PMS ROUTES
-
-router.post("/pms", authorizeCognito, AppointmentController.createFromPms);
+/* ======================================================
+   PMS ROUTES (RBAC ENABLED)
+   ====================================================== */
 
 // Create appointment (PMS)
 router.post(
@@ -74,7 +70,7 @@ router.post(
   AppointmentController.createFromPms,
 );
 
-// List PMS appointments
+// List appointments for organisation
 router.get(
   "/pms/organisation/:organisationId",
   authorizeCognito,
@@ -92,7 +88,7 @@ router.patch(
   AppointmentController.acceptRequested,
 );
 
-// Reject appointment
+// Reject requested appointment
 router.patch(
   "/pms/:organisationId/:appointmentId/reject",
   authorizeCognito,
@@ -101,7 +97,7 @@ router.patch(
   AppointmentController.rejectRequested,
 );
 
-// Hard cancel (PMS)
+// Cancel appointment (hard cancel)
 router.patch(
   "/pms/:organisationId/:appointmentId/cancel",
   authorizeCognito,
@@ -110,6 +106,7 @@ router.patch(
   AppointmentController.cancelFromPMS,
 );
 
+// Check-in appointment
 router.patch(
   "/pms/:organisationId/:appointmentId/checkin",
   authorizeCognito,
@@ -118,7 +115,7 @@ router.patch(
   AppointmentController.checkInAppointmentForPMS,
 );
 
-// Update appointment details
+// Update appointment
 router.patch(
   "/pms/:organisationId/:appointmentId",
   authorizeCognito,
@@ -127,14 +124,14 @@ router.patch(
   AppointmentController.updateFromPms,
 );
 
-// Get appointment detail (PMS)
+// Get appointment detail
 router.get(
   "/pms/:organisationId/:appointmentId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission([
     "appointments:view:any",
-    "appointments:view:own", // Vet with OWN-only can still access if assigned
+    "appointments:view:own", // vets can see if assigned
   ]),
   AppointmentController.getById,
 );

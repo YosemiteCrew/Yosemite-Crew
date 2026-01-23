@@ -14,6 +14,7 @@ type RoomInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeRoom: OrganisationRoom;
+  canEditRoom: boolean;
 };
 
 const getFields = ({
@@ -40,15 +41,20 @@ const getFields = ({
     },
   ] satisfies FieldConfig[];
 
-const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
+const RoomInfo = ({
+  showModal,
+  setShowModal,
+  activeRoom,
+  canEditRoom,
+}: RoomInfoProps) => {
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       })),
     [teams]
   );
@@ -112,8 +118,9 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom }: RoomInfoProps) => {
           fields={fields}
           data={roomInfoData}
           defaultOpen={true}
+          showEditIcon={canEditRoom}
           onSave={handleUpdate}
-          showDeleteIcon
+          showDeleteIcon={canEditRoom}
           onDelete={() => deleteRoom(activeRoom)}
         />
       </div>

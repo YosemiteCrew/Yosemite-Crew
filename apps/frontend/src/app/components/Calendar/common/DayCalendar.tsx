@@ -25,6 +25,7 @@ type DayCalendarProps = {
   handleViewAppointment: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
+  canEditAppointments: boolean;
 };
 
 export const DayCalendar: React.FC<DayCalendarProps> = ({
@@ -32,6 +33,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   date,
   handleViewAppointment,
   handleRescheduleAppointment,
+  canEditAppointments,
   setCurrentDate,
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -169,8 +171,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 >
                   <div className="flex flex-col items-start">
                     <div className={`flex items-center gap-2`}>
-                      <div className="text-body-4 opacity-70">Reason:</div>
-                      <div className="text-body-4">{ev.concern || "-"}</div>
+                      <div className="text-body-4 opacity-70">Service:</div>
+                      <div className="text-body-4">{ev.appointmentType?.name || "-"}</div>
                     </div>
                     <div className={`flex items-center gap-2`}>
                       <div className="text-body-4 opacity-70">Lead:</div>
@@ -214,7 +216,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
-                    {allowReschedule(ev.status) && (
+                    {canEditAppointments && allowReschedule(ev.status) && (
                       <button
                         onClick={(e) => {
                           e.preventDefault();

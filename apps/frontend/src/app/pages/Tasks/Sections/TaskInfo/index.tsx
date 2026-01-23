@@ -1,10 +1,12 @@
 import EditableAccordion from "@/app/components/Accordion/EditableAccordion";
 import Close from "@/app/components/Icons/Close";
 import Modal from "@/app/components/Modal";
+import { usePermissions } from "@/app/hooks/usePermissions";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { updateTask } from "@/app/services/taskService";
 import { Task, TaskKindOptions, TaskStatusOptions } from "@/app/types/task";
 import { Team } from "@/app/types/team";
+import { PERMISSIONS } from "@/app/utils/permissions";
 import React, { useMemo } from "react";
 
 type TaskInfoProps = {
@@ -36,11 +38,19 @@ const TaskFields = [
 
 const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
   const teams = useTeamForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditTasks = can(PERMISSIONS.TASKS_EDIT_ANY);
 
   const memberMap = useMemo(() => {
     const map = new Map<string, string>();
     teams?.forEach((member: Team) => {
-      map.set(member._id, member.name || "-");
+      const name = member.name || "-";
+      if (member.practionerId) {
+        map.set(member.practionerId, name);
+      }
+      if (member._id) {
+        map.set(member._id, name);
+      }
     });
     return map;
   }, [teams]);
@@ -54,7 +64,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
       assignedBy: resolveMemberName(activeTask.assignedBy),
       assignedTo: resolveMemberName(activeTask.assignedTo),
     }),
-    [activeTask, teams]
+    [activeTask, teams],
   );
 
   const handleUpdate = async (values: any) => {
@@ -68,7 +78,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
         status: values.status,
       };
       await updateTask(payload);
-      setShowModal(false)
+      setShowModal(false);
     } catch (error) {
       console.log(error);
     }
@@ -94,6 +104,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask }: TaskInfoProps) => {
             data={taskData}
             defaultOpen={true}
             onSave={(values) => handleUpdate(values)}
+            showEditIcon={canEditTasks}
           />
         </div>
       </div>

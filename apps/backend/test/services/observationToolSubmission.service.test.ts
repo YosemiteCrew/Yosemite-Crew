@@ -1,22 +1,22 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { Types } from 'mongoose';
+import { jest, describe, it, expect, beforeEach } from "@jest/globals";
+import { Types } from "mongoose";
 import {
   ObservationToolSubmissionService,
   ObservationToolSubmissionServiceError,
-} from '../../src/services/observationToolSubmission.service';
+} from "../../src/services/observationToolSubmission.service";
 import {
   ObservationToolDefinitionModel,
   ObservationToolSubmissionModel,
-} from '../../src/models/observationToolDefinition';
-import TaskModel from '../../src/models/task';
-import { TaskService } from '../../src/services/task.service';
+} from "../../src/models/observationToolDefinition";
+import TaskModel from "../../src/models/task";
+import { TaskService } from "../../src/services/task.service";
 
 // ----------------------------------------------------------------------
 // Mocks
 // ----------------------------------------------------------------------
-jest.mock('../../src/models/observationToolDefinition');
-jest.mock('../../src/models/task');
-jest.mock('../../src/services/task.service');
+jest.mock("../../src/models/observationToolDefinition");
+jest.mock("../../src/models/task");
+jest.mock("../../src/services/task.service");
 
 // Helper to mock Mongoose query chains
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,7 +35,8 @@ const mockChain = (resolvedValue: any) => {
 
   // Allow awaiting the chain directly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  chain.then = (resolve: any, reject: any) => Promise.resolve(resolvedValue).then(resolve, reject);
+  chain.then = (resolve: any, reject: any) =>
+    Promise.resolve(resolvedValue).then(resolve, reject);
 
   return chain;
 };
@@ -43,7 +44,7 @@ const mockChain = (resolvedValue: any) => {
 // Helper for ObjectIds
 const newId = () => new Types.ObjectId().toString();
 
-describe('ObservationToolSubmissionService', () => {
+describe("ObservationToolSubmissionService", () => {
   const toolId = newId();
   const taskId = newId();
   const companionId = newId();
@@ -58,24 +59,24 @@ describe('ObservationToolSubmissionService', () => {
   // ======================================================================
   // 1. Creation Logic
   // ======================================================================
-  describe('createSubmission', () => {
+  describe("createSubmission", () => {
     const validBaseInput = {
       toolId,
       companionId,
       filledBy: userId,
-      answers: { q1: 'yes' },
+      answers: { q1: "yes" },
     };
 
-    it('should throw if required fields are missing', async () => {
+    it("should throw if required fields are missing", async () => {
       await expect(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ObservationToolSubmissionService.createSubmission({} as any),
-      ).rejects.toThrow('toolId is required');
+      ).rejects.toThrow("toolId is required");
 
       await expect(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ObservationToolSubmissionService.createSubmission({ toolId } as any),
-      ).rejects.toThrow('companionId is required');
+      ).rejects.toThrow("companionId is required");
 
       await expect(
         ObservationToolSubmissionService.createSubmission({
@@ -83,7 +84,7 @@ describe('ObservationToolSubmissionService', () => {
           companionId,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
-      ).rejects.toThrow('filledBy is required');
+      ).rejects.toThrow("filledBy is required");
 
       await expect(
         ObservationToolSubmissionService.createSubmission({
@@ -92,17 +93,17 @@ describe('ObservationToolSubmissionService', () => {
           filledBy: userId,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
-      ).rejects.toThrow('answers are required');
+      ).rejects.toThrow("answers are required");
     });
 
-    it('should throw if tool not found or inactive', async () => {
+    it("should throw if tool not found or inactive", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolDefinitionModel.findById as any).mockReturnValue(
         mockChain(null),
       );
       await expect(
         ObservationToolSubmissionService.createSubmission(validBaseInput),
-      ).rejects.toThrow('Observation tool not found or inactive');
+      ).rejects.toThrow("Observation tool not found or inactive");
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolDefinitionModel.findById as any).mockReturnValue(
@@ -110,10 +111,10 @@ describe('ObservationToolSubmissionService', () => {
       );
       await expect(
         ObservationToolSubmissionService.createSubmission(validBaseInput),
-      ).rejects.toThrow('Observation tool not found or inactive');
+      ).rejects.toThrow("Observation tool not found or inactive");
     });
 
-    it('should validate Task constraints if taskId is provided', async () => {
+    it("should validate Task constraints if taskId is provided", async () => {
       // Setup valid tool
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolDefinitionModel.findById as any).mockReturnValue(
@@ -125,11 +126,11 @@ describe('ObservationToolSubmissionService', () => {
       // Case 1: Duplicate submission
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.findOne as any).mockReturnValue(
-        mockChain({ _id: 'exists' }),
+        mockChain({ _id: "exists" }),
       );
       await expect(
         ObservationToolSubmissionService.createSubmission(inputWithTask),
-      ).rejects.toThrow('Observation already submitted for this task');
+      ).rejects.toThrow("Observation already submitted for this task");
 
       // Case 2: Task not found
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,25 +141,25 @@ describe('ObservationToolSubmissionService', () => {
       (TaskModel.findById as any).mockReturnValue(mockChain(null));
       await expect(
         ObservationToolSubmissionService.createSubmission(inputWithTask),
-      ).rejects.toThrow('Task not found');
+      ).rejects.toThrow("Task not found");
 
       // Case 3: Forbidden user
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (TaskModel.findById as any).mockReturnValue(
-        mockChain({ assignedTo: 'other-user' }),
+        mockChain({ assignedTo: "other-user" }),
       );
       await expect(
         ObservationToolSubmissionService.createSubmission(inputWithTask),
-      ).rejects.toThrow('Not allowed to submit this task');
+      ).rejects.toThrow("Not allowed to submit this task");
 
       // Case 4: Mismatched companion
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (TaskModel.findById as any).mockReturnValue(
-        mockChain({ assignedTo: userId, companionId: 'other-companion' }),
+        mockChain({ assignedTo: userId, companionId: "other-companion" }),
       );
       await expect(
         ObservationToolSubmissionService.createSubmission(inputWithTask),
-      ).rejects.toThrow('companionId does not match task');
+      ).rejects.toThrow("companionId does not match task");
 
       // Case 5: Mismatched toolId
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,21 +167,21 @@ describe('ObservationToolSubmissionService', () => {
         mockChain({
           assignedTo: userId,
           companionId: companionId,
-          observationToolId: 'other-tool',
+          observationToolId: "other-tool",
         }),
       );
       await expect(
         ObservationToolSubmissionService.createSubmission(inputWithTask),
-      ).rejects.toThrow('toolId does not match task observationToolId');
+      ).rejects.toThrow("toolId does not match task observationToolId");
     });
 
-    it('should create submission and complete task (if linked)', async () => {
+    it("should create submission and complete task (if linked)", async () => {
       // Mock valid tool with scoring logic
       const toolMock = {
         isActive: true,
         fields: [
-          { key: 'q1', scoring: { points: 10 } }, // simple points
-          { key: 'q2', scoring: { map: { yes: 5, no: 0 } } }, // map scoring
+          { key: "q1", scoring: { points: 10 } }, // simple points
+          { key: "q2", scoring: { map: { yes: 5, no: 0 } } }, // map scoring
         ],
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -213,13 +214,12 @@ describe('ObservationToolSubmissionService', () => {
       const input = {
         ...validBaseInput,
         taskId,
-        answers: { q1: 'val', q2: 'yes' }, // q1 (10) + q2 (5) = 15
-        summary: 'Done',
+        answers: { q1: "val", q2: "yes" }, // q1 (10) + q2 (5) = 15
+        summary: "Done",
       };
 
-      const result = await ObservationToolSubmissionService.createSubmission(
-        input,
-      );
+      const result =
+        await ObservationToolSubmissionService.createSubmission(input);
 
       expect(result._id).toBe(submissionId);
       // Verify scoring logic passed correct score (15) to create
@@ -230,17 +230,17 @@ describe('ObservationToolSubmissionService', () => {
       // Verify task completion called
       expect(TaskService.changeStatus).toHaveBeenCalledWith(
         taskId,
-        'COMPLETED',
+        "COMPLETED",
         userId,
         expect.objectContaining({ score: 15 }),
       );
     });
 
-    it('should handle undefined score when no scoring fields match', async () => {
+    it("should handle undefined score when no scoring fields match", async () => {
       // Tool with scoring definition but answers don't match criteria
       const toolMock = {
         isActive: true,
-        fields: [{ key: 'q1', scoring: { points: 10 } }],
+        fields: [{ key: "q1", scoring: { points: 10 } }],
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolDefinitionModel.findById as any).mockReturnValue(
@@ -248,11 +248,13 @@ describe('ObservationToolSubmissionService', () => {
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (ObservationToolSubmissionModel.create as any).mockResolvedValue({} as any);
+      (ObservationToolSubmissionModel.create as any).mockResolvedValue(
+        {} as any,
+      );
 
       const input = {
         ...validBaseInput,
-        answers: { q1: '' }, // empty string => no points
+        answers: { q1: "" }, // empty string => no points
       };
 
       await ObservationToolSubmissionService.createSubmission(input);
@@ -266,10 +268,13 @@ describe('ObservationToolSubmissionService', () => {
   // ======================================================================
   // 2. Linking Logic
   // ======================================================================
-  describe('linkToAppointment', () => {
-    it('should link submission if found', async () => {
+  describe("linkToAppointment", () => {
+    it("should link submission if found", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mockDoc: any = { _id: submissionId, save: (jest.fn() as any).mockResolvedValue(true) };
+      const mockDoc: any = {
+        _id: submissionId,
+        save: (jest.fn() as any).mockResolvedValue(true),
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.findById as any).mockReturnValue(
         mockChain(mockDoc),
@@ -284,7 +289,7 @@ describe('ObservationToolSubmissionService', () => {
       expect(mockDoc.save).toHaveBeenCalled();
     });
 
-    it('should throw if submission not found', async () => {
+    it("should throw if submission not found", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.findById as any).mockReturnValue(
         mockChain(null),
@@ -294,10 +299,10 @@ describe('ObservationToolSubmissionService', () => {
           submissionId,
           appointmentId,
         }),
-      ).rejects.toThrow('Submission not found');
+      ).rejects.toThrow("Submission not found");
     });
 
-    it('should enforce single submission constraint', async () => {
+    it("should enforce single submission constraint", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockDoc: any = { _id: submissionId, save: jest.fn() };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -306,7 +311,7 @@ describe('ObservationToolSubmissionService', () => {
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.findOne as any).mockReturnValue(
-        mockChain({ _id: 'other' }),
+        mockChain({ _id: "other" }),
       );
 
       await expect(
@@ -315,15 +320,15 @@ describe('ObservationToolSubmissionService', () => {
           appointmentId,
           enforceSingleSubmissionPerAppointment: true,
         }),
-      ).rejects.toThrow('already linked');
+      ).rejects.toThrow("already linked");
     });
   });
 
   // ======================================================================
   // 3. Retrieval & Listing
   // ======================================================================
-  describe('Retrieval Methods', () => {
-    it('getById: should return doc', async () => {
+  describe("Retrieval Methods", () => {
+    it("getById: should return doc", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.findById as any).mockReturnValue(
         mockChain({ _id: submissionId }),
@@ -332,7 +337,7 @@ describe('ObservationToolSubmissionService', () => {
       expect(res).toEqual({ _id: submissionId });
     });
 
-    it('listSubmissions: should apply filters', async () => {
+    it("listSubmissions: should apply filters", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.find as any).mockReturnValue(
         mockChain([]),
@@ -353,7 +358,7 @@ describe('ObservationToolSubmissionService', () => {
       );
     });
 
-    it('listForAppointment: should query by evaluationAppointmentId', async () => {
+    it("listForAppointment: should query by evaluationAppointmentId", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.find as any).mockReturnValue(
         mockChain([]),
@@ -364,7 +369,7 @@ describe('ObservationToolSubmissionService', () => {
       });
     });
 
-    it('getByTaskId: should query by taskId', async () => {
+    it("getByTaskId: should query by taskId", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.findOne as any).mockReturnValue(
         mockChain({}),
@@ -379,22 +384,22 @@ describe('ObservationToolSubmissionService', () => {
   // ======================================================================
   // 4. Previews & Complex Aggregation
   // ======================================================================
-  describe('Previews', () => {
-    describe('getPreviewByTaskId', () => {
-      it('should throw if task or tool missing', async () => {
+  describe("Previews", () => {
+    describe("getPreviewByTaskId", () => {
+      it("should throw if task or tool missing", async () => {
         // Task missing
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (TaskModel.findById as any).mockReturnValue(mockChain(null));
         await expect(
           ObservationToolSubmissionService.getPreviewByTaskId(taskId),
-        ).rejects.toThrow('Task not found');
+        ).rejects.toThrow("Task not found");
 
         // Task has no toolId
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (TaskModel.findById as any).mockReturnValue(mockChain({}));
         await expect(
           ObservationToolSubmissionService.getPreviewByTaskId(taskId),
-        ).rejects.toThrow('Task has no observationToolId');
+        ).rejects.toThrow("Task has no observationToolId");
 
         // Tool missing
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -407,10 +412,10 @@ describe('ObservationToolSubmissionService', () => {
         );
         await expect(
           ObservationToolSubmissionService.getPreviewByTaskId(taskId),
-        ).rejects.toThrow('Observation tool not found or inactive');
+        ).rejects.toThrow("Observation tool not found or inactive");
       });
 
-      it('should return preview data with answers subset', async () => {
+      it("should return preview data with answers subset", async () => {
         // Mock Task
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (TaskModel.findById as any).mockReturnValue(
@@ -421,10 +426,10 @@ describe('ObservationToolSubmissionService', () => {
         (ObservationToolDefinitionModel.findById as any).mockReturnValue(
           mockChain({
             _id: toolId,
-            name: 'Tool',
-            category: 'Cat',
+            name: "Tool",
+            category: "Cat",
             isActive: true,
-            fields: [{ key: 'q1' }, { key: 'q2' }],
+            fields: [{ key: "q1" }, { key: "q2" }],
           }),
         );
         // Mock Submission
@@ -432,22 +437,21 @@ describe('ObservationToolSubmissionService', () => {
         (ObservationToolSubmissionModel.findOne as any).mockReturnValue(
           mockChain({
             _id: submissionId,
-            answers: { q1: 'ans1', q2: 'ans2' },
+            answers: { q1: "ans1", q2: "ans2" },
           }),
         );
 
-        const res = await ObservationToolSubmissionService.getPreviewByTaskId(
-          taskId,
-        );
+        const res =
+          await ObservationToolSubmissionService.getPreviewByTaskId(taskId);
 
         expect(res.taskId).toBe(taskId);
-        expect(res.toolName).toBe('Tool');
-        expect(res.answersPreview).toEqual({ q1: 'ans1', q2: 'ans2' });
+        expect(res.toolName).toBe("Tool");
+        expect(res.answersPreview).toEqual({ q1: "ans1", q2: "ans2" });
       });
     });
 
-    describe('listTaskPreviewsForAppointment', () => {
-      it('should aggregate tasks, tools, and submissions', async () => {
+    describe("listTaskPreviewsForAppointment", () => {
+      it("should aggregate tasks, tools, and submissions", async () => {
         const tId = newId();
         // 1. Mock Tasks
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -456,7 +460,7 @@ describe('ObservationToolSubmissionService', () => {
             {
               _id: new Types.ObjectId(tId),
               observationToolId: new Types.ObjectId(toolId),
-              status: 'PENDING',
+              status: "PENDING",
               dueAt: new Date(),
             },
           ]),
@@ -468,8 +472,8 @@ describe('ObservationToolSubmissionService', () => {
           mockChain([
             {
               _id: new Types.ObjectId(toolId),
-              name: 'ToolName',
-              category: 'Cat',
+              name: "ToolName",
+              category: "Cat",
             },
           ]),
         );
@@ -487,7 +491,7 @@ describe('ObservationToolSubmissionService', () => {
         );
       });
 
-      it('should return empty if no tasks found', async () => {
+      it("should return empty if no tasks found", async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (TaskModel.find as any).mockReturnValue(mockChain([]));
         const res =
@@ -502,16 +506,16 @@ describe('ObservationToolSubmissionService', () => {
   // ======================================================================
   // 5. Utils Coverage (assertObjectId)
   // ======================================================================
-  describe('Utils', () => {
-    it('assertObjectId should throw on invalid input', async () => {
+  describe("Utils", () => {
+    it("assertObjectId should throw on invalid input", async () => {
       await expect(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ObservationToolSubmissionService.getById(123 as any),
-      ).rejects.toThrow('must be a string');
+      ).rejects.toThrow("must be a string");
 
       await expect(
-        ObservationToolSubmissionService.getById('invalid-id$'),
-      ).rejects.toThrow('Invalid id');
+        ObservationToolSubmissionService.getById("invalid-id$"),
+      ).rejects.toThrow("Invalid id");
     });
   });
 });

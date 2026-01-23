@@ -1,9 +1,5 @@
 import axios from "axios";
-import {
-  getData,
-  patchData,
-  postData,
-} from "@/app/services/axios";
+import { getData, patchData, postData } from "@/app/services/axios";
 import {
   InventoryApiItem,
   InventoryRequestPayload,
@@ -199,5 +195,28 @@ export const fetchInventoryTurnover = async (
       console.error("Failed to load inventory turnover:", err);
     }
     return [];
+  }
+};
+
+export const updateInventoryBatch = async (
+  batchId: string,
+  payload: InventoryBatchPayload
+) => {
+  try {
+    const res = await patchData<InventoryBatchApi>(
+      `/v1/inventory/batches/${batchId}`,
+      payload
+    );
+    return res.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      console.error(
+        "Failed to update inventory batch:",
+        err.response?.data?.message ?? err.message
+      );
+    } else {
+      console.error("Failed to update inventory batch:", err);
+    }
+    throw err;
   }
 };

@@ -56,10 +56,10 @@ const Reschedule = ({
     if (!slot?.vetIds?.length) return [];
     const vetIdSet = new Set(slot.vetIds);
     return teams
-      .filter((team) => vetIdSet.has(team._id))
+      .filter((team) => vetIdSet.has(team.practionerId))
       .map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId,
+        value: team.practionerId,
       }));
   }, [teams, timeSlots, selectedSlot]);
 
@@ -212,7 +212,6 @@ const Reschedule = ({
         <Primary
           href="#"
           text="Send request"
-          classname="h-13!"
           onClick={handleAppointmentUpdate}
         />
       </div>

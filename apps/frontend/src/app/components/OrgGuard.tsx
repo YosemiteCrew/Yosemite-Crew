@@ -20,6 +20,7 @@ import { useLoadFormsForPrimaryOrg } from "../hooks/useForms";
 import { useInventoryModule } from "../hooks/useInventory";
 import { BusinessType } from "../types/org";
 import { useLoadTasksForPrimaryOrg } from "../hooks/useTask";
+import { useLoadSubscriptionCounterForPrimaryOrg } from "../hooks/useBilling";
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -42,6 +43,7 @@ type OrgGuardProps = {
  *        - if on /complete-profile → /dashboard
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
+  useLoadSubscriptionCounterForPrimaryOrg()
   useLoadTeam();
   useLoadRoomsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();

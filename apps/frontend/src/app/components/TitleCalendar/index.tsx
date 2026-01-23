@@ -16,6 +16,7 @@ type TitleCalendarProps = {
   count: number;
   activeView: string;
   setActiveView: React.Dispatch<React.SetStateAction<string>>;
+  showAdd: boolean;
 };
 
 const TitleCalendar = ({
@@ -29,6 +30,7 @@ const TitleCalendar = ({
   count,
   activeView,
   setActiveView,
+  showAdd,
 }: TitleCalendarProps) => {
   return (
     <div className="flex justify-between items-center w-full flex-wrap gap-3">
@@ -44,7 +46,9 @@ const TitleCalendar = ({
         ) : null}
       </div>
       <div className="flex gap-2 items-center flex-wrap">
-        <Primary href="#" text="Add" onClick={() => setAddPopup(true)} />
+        {showAdd && (
+          <Primary href="#" text="Add" onClick={() => setAddPopup(true)} />
+        )}
         {activeView === "calendar" && (
           <>
             <Datepicker

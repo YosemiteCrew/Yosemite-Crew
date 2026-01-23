@@ -124,13 +124,9 @@ const SignUp = ({
   };
 
   const handleSignupSuccess = () => {
-    if (typeof globalThis !== "undefined") {
-      globalThis.window?.scrollTo({ top: 0, behavior: "smooth" });
-      // Temporary fallback until custom:role is available in the pool
-      globalThis.sessionStorage?.setItem(
-        "devAuth",
-        isDeveloper ? "true" : "false"
-      );
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.sessionStorage?.setItem("devAuth", isDeveloper ? "true" : "false");
     }
     setShowVerifyModal(true);
   };
@@ -402,6 +398,8 @@ const SignUp = ({
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
+        redirectPath={postAuthRedirect}
+        isDeveloper={isDeveloper}
       />
       {ErrorTostPopup}
     </section>

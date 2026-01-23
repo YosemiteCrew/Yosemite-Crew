@@ -20,10 +20,16 @@ export const GenderOptions: Option[] = [
   { value: "OTHERS", label: "Others" },
 ];
 
+export const GenderOptionsSmall: Option[] = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "others", label: "Others" },
+];
+
 export const PetSourceOptions: Option[] = [
-  { value: "Breeder", label: "Breeder" },
-  { value: "Foster/Shelter", label: "Foster/Shelter" },
-  { value: "Shop", label: "Shop" },
-  { value: "Friends/Family", label: "Friends/Family" },
-  { value: "Other", label: "Other" },
+  { value: "breeder", label: "Breeder" },
+  { value: "foster/shelter", label: "Foster/Shelter" },
+  { value: "shop", label: "Shop" },
+  { value: "friends/family", label: "Friends/Family" },
+  { value: "other", label: "Other" },
 ];

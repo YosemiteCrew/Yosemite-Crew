@@ -28,13 +28,13 @@ const Primary = ({
   size = "default",
 }: Readonly<ButtonProps>) => {
   const baseClasses =
-    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 font-satoshi text-[18px] font-medium leading-[26px] text-center";
+    "px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center";
 
   return (
     <Link
       href={href}
       aria-disabled={isDisabled}
-      className={`${sizeClasses[size]} ${baseClasses} bg-text-primary text-white ${isDisabled ? "pointer-events-none opacity-60" : ""} ${classname ?? ""}`}
+      className={`${sizeClasses[size]} ${baseClasses} bg-text-primary text-neutral-0! ${isDisabled ? "pointer-events-none opacity-60" : ""} ${classname ?? ""}`}
       onClick={(e) => {
         if (isDisabled) {
           e.preventDefault();

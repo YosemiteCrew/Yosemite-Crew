@@ -68,7 +68,6 @@ describe("Build Script", () => {
   });
 
   it("should build successfully with no dependencies (Branch Coverage)", async () => {
-
     esbuild.build.mockResolvedValue({});
     mockRequire.mockReturnValue({});
 

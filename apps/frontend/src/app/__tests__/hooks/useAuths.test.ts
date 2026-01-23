@@ -21,57 +21,99 @@ const mockClearSpecialities = jest.fn();
 // We assume the hook uses selectors: useStore((state) => state.action)
 // So we mock the hooks to execute the selector against a mocked state object.
 
-jest.mock("@/app/stores/authStore", () => ({
-  useAuthStore: (selector: any) => selector({ signout: mockSignOutAction }),
-}));
-jest.mock("@/app/stores/orgStore", () => ({
-  useOrgStore: (selector: any) => selector({ clearOrgs: mockClearOrgs }),
-}));
-jest.mock("@/app/stores/teamStore", () => ({
-  useTeamStore: (selector: any) => selector({ clearTeams: mockClearTeams }),
-}));
-jest.mock("@/app/stores/appointmentStore", () => ({
-  useAppointmentStore: (selector: any) =>
-    selector({ clearAppointments: mockClearAppointments }),
-}));
-jest.mock("@/app/stores/availabilityStore", () => ({
-  useAvailabilityStore: (selector: any) =>
-    selector({ clearAvailabilities: mockClearAvailabilities }),
-}));
-jest.mock("@/app/stores/companionStore", () => ({
-  useCompanionStore: (selector: any) =>
-    selector({ clearCompanions: mockClearCompanions }),
-}));
-jest.mock("@/app/stores/documentStore", () => ({
-  useOrganizationDocumentStore: (selector: any) =>
-    selector({ clearDocuments: mockClearDocuments }),
-}));
-jest.mock("@/app/stores/formsStore", () => ({
-  useFormsStore: (selector: any) => selector({ clear: mockClearForms }),
-}));
-jest.mock("@/app/stores/inventoryStore", () => ({
-  useInventoryStore: (selector: any) =>
-    selector({ clearAll: mockClearInventory }),
-}));
-jest.mock("@/app/stores/parentStore", () => ({
-  useParentStore: (selector: any) => selector({ clearParents: mockClearParents }),
-}));
-jest.mock("@/app/stores/profileStore", () => ({
-  useUserProfileStore: (selector: any) =>
-    selector({ clearProfiles: mockClearProfiles }),
-}));
-jest.mock("@/app/stores/roomStore", () => ({
-  useOrganisationRoomStore: (selector: any) =>
-    selector({ clearRooms: mockClearRooms }),
-}));
-jest.mock("@/app/stores/serviceStore", () => ({
-  useServiceStore: (selector: any) =>
-    selector({ clearServices: mockClearServices }),
-}));
-jest.mock("@/app/stores/specialityStore", () => ({
-  useSpecialityStore: (selector: any) =>
-    selector({ clearSpecialities: mockClearSpecialities }),
-}));
+jest.mock("@/app/stores/authStore", () => {
+  const useAuthStore = (selector: any) =>
+    selector({ signout: mockSignOutAction });
+  useAuthStore.getState = () => ({ signout: mockSignOutAction });
+  return { useAuthStore };
+});
+jest.mock("@/app/stores/orgStore", () => {
+  const useOrgStore = (selector: any) => selector({ clearOrgs: mockClearOrgs });
+  useOrgStore.getState = () => ({ clearOrgs: mockClearOrgs });
+  return { useOrgStore };
+});
+jest.mock("@/app/stores/teamStore", () => {
+  const useTeamStore = (selector: any) => selector({ clearTeams: mockClearTeams });
+  useTeamStore.getState = () => ({ clearTeams: mockClearTeams });
+  return { useTeamStore };
+});
+jest.mock("@/app/stores/appointmentStore", () => {
+  const useAppointmentStore = (selector: any) =>
+    selector({ clearAppointments: mockClearAppointments });
+  useAppointmentStore.getState = () => ({
+    clearAppointments: mockClearAppointments,
+  });
+  return { useAppointmentStore };
+});
+jest.mock("@/app/stores/availabilityStore", () => {
+  const useAvailabilityStore = (selector: any) =>
+    selector({ clearAvailabilities: mockClearAvailabilities });
+  useAvailabilityStore.getState = () => ({
+    clearAvailabilities: mockClearAvailabilities,
+  });
+  return { useAvailabilityStore };
+});
+jest.mock("@/app/stores/companionStore", () => {
+  const useCompanionStore = (selector: any) =>
+    selector({ clearCompanions: mockClearCompanions });
+  useCompanionStore.getState = () => ({
+    clearCompanions: mockClearCompanions,
+  });
+  return { useCompanionStore };
+});
+jest.mock("@/app/stores/documentStore", () => {
+  const useOrganizationDocumentStore = (selector: any) =>
+    selector({ clearDocuments: mockClearDocuments });
+  useOrganizationDocumentStore.getState = () => ({
+    clearDocuments: mockClearDocuments,
+  });
+  return { useOrganizationDocumentStore };
+});
+jest.mock("@/app/stores/formsStore", () => {
+  const useFormsStore = (selector: any) => selector({ clear: mockClearForms });
+  useFormsStore.getState = () => ({ clear: mockClearForms });
+  return { useFormsStore };
+});
+jest.mock("@/app/stores/inventoryStore", () => {
+  const useInventoryStore = (selector: any) =>
+    selector({ clearAll: mockClearInventory });
+  useInventoryStore.getState = () => ({ clearAll: mockClearInventory });
+  return { useInventoryStore };
+});
+jest.mock("@/app/stores/parentStore", () => {
+  const useParentStore = (selector: any) =>
+    selector({ clearParents: mockClearParents });
+  useParentStore.getState = () => ({ clearParents: mockClearParents });
+  return { useParentStore };
+});
+jest.mock("@/app/stores/profileStore", () => {
+  const useUserProfileStore = (selector: any) =>
+    selector({ clearProfiles: mockClearProfiles });
+  useUserProfileStore.getState = () => ({
+    clearProfiles: mockClearProfiles,
+  });
+  return { useUserProfileStore };
+});
+jest.mock("@/app/stores/roomStore", () => {
+  const useOrganisationRoomStore = (selector: any) =>
+    selector({ clearRooms: mockClearRooms });
+  useOrganisationRoomStore.getState = () => ({ clearRooms: mockClearRooms });
+  return { useOrganisationRoomStore };
+});
+jest.mock("@/app/stores/serviceStore", () => {
+  const useServiceStore = (selector: any) =>
+    selector({ clearServices: mockClearServices });
+  useServiceStore.getState = () => ({ clearServices: mockClearServices });
+  return { useServiceStore };
+});
+jest.mock("@/app/stores/specialityStore", () => {
+  const useSpecialityStore = (selector: any) =>
+    selector({ clearSpecialities: mockClearSpecialities });
+  useSpecialityStore.getState = () => ({
+    clearSpecialities: mockClearSpecialities,
+  });
+  return { useSpecialityStore };
+});
 
 describe("useSignOut Hook", () => {
   // Setup LocalStorage Mock

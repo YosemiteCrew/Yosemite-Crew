@@ -1,20 +1,21 @@
 import React from "react";
 import ProfileCard from "../../Organization/Sections/ProfileCard";
 import { useAuthStore } from "@/app/stores/authStore";
+import { updateUser } from "@/app/services/userService";
 
 const BasicFields = [
   {
     label: "First name",
     key: "given_name",
     required: true,
-    editable: false,
+    editable: true,
     type: "text",
   },
   {
     label: "Last name",
     key: "family_name",
     required: true,
-    editable: false,
+    editable: true,
     type: "text",
   },
   {
@@ -31,6 +32,16 @@ const Personal = () => {
 
   if (!attributes) return null;
 
+  const handleSave = async (values: any) => {
+    try {
+      const firstName = values.given_name;
+      const lastName = values.family_name;
+      await updateUser(firstName, lastName);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <ProfileCard
@@ -38,7 +49,7 @@ const Personal = () => {
         fields={BasicFields}
         org={attributes}
         showProfileUser
-        editable={false}
+        onSave={handleSave}
       />
     </div>
   );

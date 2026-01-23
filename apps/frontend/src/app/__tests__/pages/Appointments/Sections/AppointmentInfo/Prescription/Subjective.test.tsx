@@ -1,49 +1,37 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
 import Subjective from "@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Subjective";
+import { createEmptyFormData } from "@/app/pages/Appointments/Sections/AppointmentInfo";
 
-jest.mock("@/app/components/Accordion/Accordion", () => ({
-  __esModule: true,
-  default: ({ title, children }: any) => (
-    <div>
-      <div>{title}</div>
-      <div>{children}</div>
-    </div>
-  ),
-}));
+const formsMock = jest.fn();
+const createSubmissionMock = jest.fn();
 
-jest.mock("@/app/components/Inputs/SearchDropdown", () => ({
-  __esModule: true,
-  default: ({ options, onSelect, placeholder }: any) => (
-    <button type="button" onClick={() => onSelect(options[0]?.value)}>
-      {placeholder}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
-  __esModule: true,
-  default: () => <div>Form Renderer</div>,
-}));
-
-jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SubjectiveSubmissions", () => ({
-  __esModule: true,
-  default: () => <div>Submissions</div>,
-}));
+jest.mock("@yosemite-crew/types", () => ({}));
 
 jest.mock("@/app/hooks/useForms", () => ({
-  useFormsForPrimaryOrgByCategory: () => [
-    { _id: "form-1", name: "Subjective", schema: [] },
-  ],
+  useFormsForPrimaryOrgByCategory: () => formsMock(),
 }));
+
+jest.mock("@/app/types/forms", () => ({}));
 
 jest.mock("@/app/pages/Forms/Sections/AddForm/Review", () => ({
-  buildInitialValues: () => ({})
+  buildInitialValues: jest.fn(() => ({})),
 }));
 
+jest.mock("@/app/pages/Forms/Sections/AddForm/components/FormRenderer", () => () => (
+  <div data-testid="form-renderer" />
+));
+
+jest.mock("@/app/components/Inputs/SearchDropdown", () => (props: any) => (
+  <button type="button" onClick={() => props.onSelect(props.options[0].value)}>
+    {props.placeholder}
+  </button>
+));
+
 jest.mock("@/app/services/soapService", () => ({
-  createSubmission: jest.fn(),
+  createSubmission: (...args: any[]) => createSubmissionMock(...args),
 }));
 
 jest.mock("@/app/stores/authStore", () => ({
@@ -60,30 +48,55 @@ jest.mock("@/app/components/Buttons", () => ({
   ),
 }));
 
-const soapService = jest.requireMock("@/app/services/soapService");
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
+}));
 
-describe("Subjective", () => {
+jest.mock("@/app/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SubjectiveSubmissions", () => () => (
+  <div data-testid="subjective-submissions" />
+));
+
+describe("Subjective prescription", () => {
+  const activeAppointment: any = {
+    id: "appt-1",
+    companion: { id: "c1", parent: { id: "p1" } },
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    formsMock.mockReturnValue([
+      { _id: "form-1", name: "Subjective Form", schema: [] },
+    ]);
+    createSubmissionMock.mockResolvedValue({ _id: "sub-1" });
   });
 
-  it("renders and saves a submission", async () => {
+  it("renders submissions and saves when form is selected", async () => {
     const setFormData = jest.fn();
-    soapService.createSubmission.mockResolvedValue({ _id: "sub-1" });
 
     render(
       <Subjective
-        activeAppointment={{ id: "appt-1", companion: { id: "c1", parent: { id: "p1" } } } as any}
-        formData={{ subjective: [] } as any}
+        activeAppointment={activeAppointment}
+        formData={createEmptyFormData()}
         setFormData={setFormData}
+        canEdit
       />
     );
 
     fireEvent.click(screen.getByText("Search"));
-    fireEvent.click(screen.getByText("Save"));
+    expect(screen.getByTestId("form-renderer")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Save"));
+    });
 
     await waitFor(() => {
-      expect(soapService.createSubmission).toHaveBeenCalled();
+      expect(createSubmissionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          formId: "form-1",
+          appointmentId: "appt-1",
+          submittedBy: "user-1",
+        })
+      );
     });
     expect(setFormData).toHaveBeenCalled();
   });

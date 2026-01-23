@@ -1,10 +1,12 @@
 import EditableAccordion, {
   FieldConfig,
 } from "@/app/components/Accordion/EditableAccordion";
+import { usePermissions } from "@/app/hooks/usePermissions";
 import { useRoomsForPrimaryOrg } from "@/app/hooks/useRooms";
 import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import { updateAppointment } from "@/app/services/appointmentService";
 import { AppointmentStatusOptions } from "@/app/types/appointments";
+import { PERMISSIONS } from "@/app/utils/permissions";
 import { Appointment } from "@yosemite-crew/types";
 import React, { useMemo } from "react";
 
@@ -75,6 +77,8 @@ type AppointmentInfoProps = {
 const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const rooms = useRoomsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
+  const { can } = usePermissions();
+  const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
 
   const RoomOptions = useMemo(
     () =>
@@ -82,26 +86,26 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         label: room.name,
         value: room.id,
       })),
-    [rooms]
+    [rooms],
   );
 
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       })),
-    [teams]
+    [teams],
   );
 
   const staffFields = useMemo(
     () => getStaffFields({ TeamOptions }),
-    [TeamOptions]
+    [TeamOptions],
   );
 
   const appointmentFields = useMemo(
     () => getAppointmentFields({ RoomOptions }),
-    [RoomOptions]
+    [RoomOptions],
   );
 
   const AppointmentInfoData = useMemo(
@@ -113,7 +117,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       time: activeAppointment.startTime ?? "",
       status: activeAppointment.status ?? "",
     }),
-    [activeAppointment]
+    [activeAppointment],
   );
 
   const StaffInfoData = useMemo(
@@ -121,7 +125,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       lead: activeAppointment.lead?.id ?? "",
       staff: activeAppointment.supportStaff?.map((s) => s.id) ?? "",
     }),
-    [activeAppointment]
+    [activeAppointment],
   );
 
   const handleAppointmentUpdate = async (values: any) => {
@@ -149,10 +153,13 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
       const team =
         teamIds?.length > 0
           ? teams
-              .filter((member) => teamIds.includes(member._id))
+              .filter((member) => {
+                const memberId = member.practionerId || member._id;
+                return memberId ? teamIds.includes(memberId) : false;
+              })
               .map((member) => ({
-                id: member._id,
-                name: member.name || member._id,
+                id: member.practionerId || member._id,
+                name: member.name || member.practionerId || member._id,
               }))
           : [];
       const formData: Appointment = {
@@ -174,6 +181,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         data={AppointmentInfoData}
         defaultOpen={true}
         onSave={handleAppointmentUpdate}
+        showEditIcon={canEditAppointments}
       />
       <EditableAccordion
         key={"staff-key"}
@@ -182,6 +190,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         data={StaffInfoData}
         defaultOpen={true}
         onSave={handleStaffUpdate}
+        showEditIcon={canEditAppointments}
       />
     </div>
   );

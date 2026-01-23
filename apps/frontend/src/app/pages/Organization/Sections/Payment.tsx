@@ -6,6 +6,8 @@ import {
   useSubscriptionForPrimaryOrg,
 } from "@/app/hooks/useBilling";
 import { toTitle } from "@/app/utils/validators";
+import { PermissionGate } from "@/app/components/PermissionGate";
+import { PERMISSIONS } from "@/app/utils/permissions";
 
 const BasicFields = [
   {
@@ -65,15 +67,21 @@ const Payment = () => {
       obervationalTools: counter?.toolsUsed || "0",
       members: counter?.usersBillableCount,
     }),
-    [subscription, counter]
+    [subscription, counter],
   );
 
   return (
-    <AccordionButton title="Payment" showButton={false} finance>
-      <div className="flex flex-col gap-4">
-        <ProfileCard title="Plan overview" fields={BasicFields} org={values} />
-      </div>
-    </AccordionButton>
+    <PermissionGate allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}>
+      <AccordionButton title="Payment" showButton={false} finance>
+        <div className="flex flex-col gap-4">
+          <ProfileCard
+            title="Plan overview"
+            fields={BasicFields}
+            org={values}
+          />
+        </div>
+      </AccordionButton>
+    </PermissionGate>
   );
 };
 

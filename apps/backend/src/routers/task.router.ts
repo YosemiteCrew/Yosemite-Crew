@@ -5,6 +5,7 @@ import {
   TaskTemplateController,
 } from "src/controllers/web/task.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -129,13 +130,27 @@ router.delete(
 );
 
 // Single task detail
-router.get("/pms/:taskId", authorizeCognito, TaskController.getById);
+router.get(
+  "/pms/:taskId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:view:any", "tasks:view:own"]),
+  TaskController.getById,
+);
 
-router.patch("/pms/:taskId", authorizeCognito, TaskController.updateTaskPMS);
+router.patch(
+  "/pms/:taskId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:edit:any", "tasks:edit:own"]),
+  TaskController.updateTaskPMS,
+);
 
 router.post(
   "/pms/:taskId/status",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   TaskController.changeStatus,
 );
 

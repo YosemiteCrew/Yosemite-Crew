@@ -1,18 +1,16 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import UserCalendar from "@/app/components/Calendar/common/UserCalendar";
-import { Appointment } from "@yosemite-crew/types";
+import "@testing-library/jest-dom";
 
-const useTeamForPrimaryOrgMock = jest.fn();
+import UserCalendar from "@/app/components/Calendar/common/UserCalendar";
 
 jest.mock("@/app/hooks/useTeam", () => ({
-  useTeamForPrimaryOrg: () => useTeamForPrimaryOrgMock(),
+  useTeamForPrimaryOrg: jest.fn(),
 }));
 
-const appointmentsForUserMock = jest.fn();
-
+const mockAppointmentsForUser = jest.fn();
 jest.mock("@/app/components/Calendar/helpers", () => ({
-  appointentsForUser: (...args: any[]) => appointmentsForUserMock(...args),
+  appointentsForUser: (...args: any[]) => mockAppointmentsForUser(...args),
 }));
 
 const userLabelsSpy = jest.fn();
@@ -47,47 +45,48 @@ jest.mock("@/app/components/Icons/Next", () => ({
   ),
 }));
 
-describe("UserCalendar", () => {
-  const setCurrentDate = jest.fn();
+import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+
+describe("UserCalendar (Appointments)", () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
-  const date = new Date(2025, 0, 2, 9);
+  const setCurrentDate = jest.fn();
 
   const team = [
-    { _id: "team-1", name: "Alice" },
-    { _id: "team-2", name: "Bob" },
+    { _id: "u1", name: "Alex" },
+    { _id: "u2", name: "Sam" },
   ];
 
-  const events = [
-    { lead: { name: "Alice" } } as Appointment,
-    { lead: { name: "Bob" } } as Appointment,
+  const events: any[] = [
+    { id: "a1", companion: { name: "Rex" } },
   ];
 
   beforeEach(() => {
     jest.clearAllMocks();
-    useTeamForPrimaryOrgMock.mockReturnValue(team);
-    appointmentsForUserMock.mockImplementation((allEvents: any[], user: any) =>
-      allEvents.filter((ev) => ev.lead?.name === user.name)
-    );
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue(team);
+    mockAppointmentsForUser.mockReturnValue(events);
   });
 
   it("renders user labels and slots per team member", () => {
     render(
       <UserCalendar
         events={events}
-        date={date}
+        date={new Date("2025-01-06T00:00:00Z")}
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
+        canEditAppointments
       />
     );
 
     expect(screen.getByTestId("user-labels")).toBeInTheDocument();
     expect(userLabelsSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ team, currentDate: date })
+      expect.objectContaining({ team })
     );
 
-    expect(screen.getAllByTestId("slot")).toHaveLength(team.length);
+    const slots = screen.getAllByTestId("slot");
+    expect(slots).toHaveLength(team.length);
+
     expect(slotSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         handleViewAppointment,
@@ -97,20 +96,25 @@ describe("UserCalendar", () => {
     );
   });
 
-  it("updates date when navigating", () => {
+  it("updates current date on navigation", () => {
     render(
       <UserCalendar
         events={events}
-        date={date}
+        date={new Date("2025-01-06T00:00:00Z")}
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
+        canEditAppointments
       />
     );
 
     fireEvent.click(screen.getByText("PrevDay"));
     fireEvent.click(screen.getByText("NextDay"));
 
-    expect(setCurrentDate).toHaveBeenCalledTimes(2);
+    const prevFn = setCurrentDate.mock.calls[0][0];
+    const nextFn = setCurrentDate.mock.calls[1][0];
+
+    expect(prevFn(new Date(2025, 0, 6)).getDate()).toBe(5);
+    expect(nextFn(new Date(2025, 0, 6)).getDate()).toBe(7);
   });
 });

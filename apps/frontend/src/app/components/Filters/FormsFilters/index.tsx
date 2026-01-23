@@ -12,9 +12,10 @@ import { getStatusStyle as getFormsStatusStyle } from "@/app/components/DataTabl
 type FormsFiltersProps = {
   list: FormsProps[];
   setFilteredList: any;
+  searchQuery?: string;
 };
 
-const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
+const FormsFilters = ({ list, setFilteredList, searchQuery = "" }: FormsFiltersProps) => {
   const [activeStatus, setActiveStatus] = useState<FormsStatus | "All">("All");
   const [activeCategory, setActiveCategory] = useState<FormsCategory | "All">(
     "All"
@@ -30,14 +31,19 @@ const FormsFilters = ({ list, setFilteredList }: FormsFiltersProps) => {
   );
 
   const filteredList = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return list.filter((item) => {
       const matchesStatus =
         activeStatus === "All" || item.status === activeStatus;
       const matchesCategory =
         activeCategory === "All" || item.category === activeCategory;
-      return matchesStatus && matchesCategory;
+      const matchesQuery =
+        !q ||
+        item.name?.toLowerCase().includes(q) ||
+        item.category?.toLowerCase().includes(q);
+      return matchesStatus && matchesCategory && matchesQuery;
     });
-  }, [list, activeCategory, activeStatus]);
+  }, [list, activeCategory, activeStatus, searchQuery]);
 
   useEffect(() => {
     setFilteredList(filteredList);

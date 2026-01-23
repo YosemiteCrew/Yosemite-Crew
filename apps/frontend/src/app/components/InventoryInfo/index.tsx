@@ -39,7 +39,10 @@ type BatchEditorProps = {
   businessType: BusinessType;
   inventory: InventoryItem;
   disableEditing?: boolean;
-  onSave: (values: { newBatches: BatchValues[] }) => Promise<void>;
+  onSave: (values: {
+    newBatches: BatchValues[];
+    updatedBatches: BatchValues[];
+  }) => Promise<void>;
   onEditingChange?: (editing: boolean) => void;
   onRegisterActions?: (
     actions: {
@@ -68,10 +71,12 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   );
   const [newBatches, setNewBatches] = useState<BatchValues[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [editableExistingBatches, setEditableExistingBatches] = useState<BatchValues[]>([]);
 
   useEffect(() => {
     setNewBatches([]);
     setIsEditing(false);
+    setEditableExistingBatches([]);
     onEditingChange?.(false);
   }, [inventory, onEditingChange]);
 
@@ -85,22 +90,38 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     if (!value) return null;
     if (value.includes("/")) {
       const [dd, mm, yyyy] = value.split("/");
-      const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
+
+    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, yyyy, mm, dd] = isoMatch;
+      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
   };
 
-  const formatDate = (date: Date) => date.toISOString().split("T")[0];
+  const formatDate = (date: Date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const beginEditing = useCallback(() => {
     if (disableEditing) return;
     setIsEditing(true);
+    setEditableExistingBatches((prev) =>
+      prev.length ? prev : existingBatches.map((b) => ({ ...b }))
+    );
     if (newBatches.length === 0) {
       setNewBatches([{ ...emptyBatch }]);
     }
-  }, [disableEditing, newBatches.length]);
+  }, [disableEditing, newBatches.length, existingBatches]);
 
   useEffect(() => {
     onEditingChange?.(isEditing);
@@ -118,6 +139,20 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     [isEditing]
   );
 
+  const handleExistingChange = useCallback(
+    (index: number, name: keyof BatchValues, value: string) => {
+      setEditableExistingBatches((prev) => {
+        const source =
+          prev.length > 0 ? prev : existingBatches.map((b) => ({ ...b }));
+        const next = [...source];
+        next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
+        return next;
+      });
+      if (!isEditing) setIsEditing(true);
+    },
+    [existingBatches, isEditing]
+  );
+
   const addBatch = useCallback(() => {
     setNewBatches((prev) => [...prev, { ...emptyBatch }]);
     if (!isEditing) setIsEditing(true);
@@ -131,19 +166,67 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     setIsEditing(true);
   }, []);
 
+  const hasBatchChanged = useCallback(
+    (original?: BatchValues, updated?: BatchValues) => {
+      if (!original || !updated) return false;
+      const keys: (keyof BatchValues)[] = [
+        "batch",
+        "manufactureDate",
+        "expiryDate",
+        "serial",
+        "tracking",
+        "litterId",
+        "nextRefillDate",
+        "quantity",
+        "allocated",
+        "minShelfLifeAlertDate",
+      ];
+      return keys.some(
+        (key) => toStringSafe(original[key]) !== toStringSafe(updated[key])
+      );
+    },
+    []
+  );
+
   const handleSave = useCallback(async () => {
     const meaningfulNew = newBatches.filter((b) =>
       Object.values(b || {}).some((v) => toStringSafe(v) !== "")
     );
+    const workingExisting =
+      editableExistingBatches.length > 0
+        ? editableExistingBatches
+        : existingBatches;
+    const originalById = new Map<string, BatchValues>();
+    existingBatches.forEach((b) => {
+      if (b?._id) {
+        originalById.set(String(b._id), b);
+      }
+    });
+    const updatedBatches = workingExisting.filter((b, idx) => {
+      const original = b._id
+        ? originalById.get(String(b._id))
+        : existingBatches[idx];
+      return hasBatchChanged(original, b);
+    });
+
     await onSave({
       newBatches: meaningfulNew,
+      updatedBatches,
     });
     setIsEditing(false);
     setNewBatches([]);
-  }, [newBatches, onSave]);
+    setEditableExistingBatches([]);
+  }, [
+    newBatches,
+    editableExistingBatches,
+    existingBatches,
+    hasBatchChanged,
+    onSave,
+  ]);
 
   const handleCancel = useCallback(() => {
     setNewBatches([]);
+    setEditableExistingBatches([]);
     setIsEditing(false);
   }, []);
 
@@ -186,10 +269,20 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     return formatDisplayDate(value) || "—";
   };
 
-  const renderField = (field: any, batchIndex: number, key?: React.Key) => {
+  const renderField = (
+    field: any,
+    batchIndex: number,
+    key?: React.Key,
+    source?: BatchValues[],
+    changeHandler?: (index: number, name: keyof BatchValues, value: string) => void
+  ) => {
     const { placeholder, component, options, name } = field;
     const typedName = name as keyof BatchValues;
-    const value = newBatches[batchIndex]?.[typedName] ?? "";
+    const value =
+      (source && source[batchIndex]?.[typedName]) ??
+      newBatches[batchIndex]?.[typedName] ??
+      "";
+    const onChangeHandler = changeHandler ?? handleChange;
 
     if (component === "date") {
       const currentDate = parseDate(value);
@@ -205,10 +298,10 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
                 ? (next as (prev: Date | null) => Date | null)(currentDate)
                 : next;
             if (!resolved) {
-              handleChange(batchIndex, typedName, "");
+              onChangeHandler(batchIndex, typedName, "");
               return;
             }
-            handleChange(batchIndex, typedName, formatDate(resolved));
+            onChangeHandler(batchIndex, typedName, formatDate(resolved));
           }}
           placeholder={placeholder || ""}
           type="input"
@@ -226,7 +319,9 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
           key={key ?? name}
           placeholder={placeholder || ""}
           defaultOption={value}
-          onSelect={(opt) => handleChange(batchIndex, typedName, opt.value)}
+          onSelect={(opt) =>
+            onChangeHandler(batchIndex, typedName, opt.value)
+          }
           options={dropdownOptions}
         />
       );
@@ -239,7 +334,9 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
         inname={name}
         value={value}
         inlabel={placeholder || ""}
-        onChange={(e) => handleChange(batchIndex, typedName, e.target.value)}
+        onChange={(e) =>
+          onChangeHandler(batchIndex, typedName, e.target.value)
+        }
         className="min-h-12!"
       />
     );
@@ -310,13 +407,15 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   const renderItem = (
     item: ConfigItem<any>,
     index: number,
-    batchIndex: number
+    batchIndex: number,
+    source?: BatchValues[],
+    changeHandler?: (index: number, name: keyof BatchValues, value: string) => void
   ) => {
     if ("fields" in item && item.kind === "row") {
       return (
         <div key={index} className="grid grid-cols-2 gap-3">
           {item.fields.map((field, i) =>
-            renderField(field, batchIndex, `${index}-${i}`)
+            renderField(field, batchIndex, `${index}-${i}`, source, changeHandler)
           )}
         </div>
       );
@@ -324,7 +423,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
 
     return (
       <div key={index} className="w-full">
-        {renderField(item.field, batchIndex, index)}
+        {renderField(item.field, batchIndex, index, source, changeHandler)}
       </div>
     );
   };
@@ -365,17 +464,32 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       >
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
-            {existingBatches.map((batch, batchIdx) => (
+            {(editableExistingBatches.length > 0
+              ? editableExistingBatches
+              : existingBatches
+            ).map((batch, batchIdx) => (
               <div
                 key={batch._id ?? batchIdx}
                 className={`flex flex-col gap-3 ${isEditing ? "border border-grey-light rounded-xl p-3" : ""}`}
               >
-                <div className="font-satoshi font-semibold text-black-text">
-                  Existing batch {batchIdx + 1}
+                <div className="flex items-center justify-between">
+                  <div className="font-satoshi font-semibold text-black-text">
+                    Existing batch {batchIdx + 1}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-3">
                   {sectionConfig.map((item, index) =>
-                    renderPreviewItem(item, index, batch)
+                    isEditing
+                      ? renderItem(
+                          item,
+                          index,
+                          batchIdx,
+                          editableExistingBatches.length > 0
+                            ? editableExistingBatches
+                            : existingBatches,
+                          handleExistingChange
+                        )
+                      : renderPreviewItem(item, index, batch)
                   )}
                 </div>
               </div>
@@ -414,13 +528,12 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
                 </div>
               ))}
               {!disableEditing && (
-                <button
-                  type="button"
+                <Secondary
+                  href="#"
+                  text="Add another batch"
                   onClick={addBatch}
-                  className="w-full h-12 rounded-xl border border-dashed border-grey-light text-black-text font-satoshi font-semibold hover:bg-grey-bg"
-                >
-                  Add another batch
-                </button>
+                  className="w-full! h-12! text-body-3-emphasis! font-satoshi font-semibold!"
+                />
               )}
             </div>
           )}
@@ -437,6 +550,7 @@ type InventoryInfoProps = {
   businessType: BusinessType;
   onUpdate: (item: InventoryItem) => Promise<void>;
   onAddBatch?: (itemId: string, batches: BatchValues[]) => Promise<void>;
+  onUpdateBatch?: (itemId: string, batches: BatchValues[]) => Promise<void>;
   onHide: (itemId: string) => Promise<void>;
   onUnhide: (itemId: string) => Promise<void>;
 };
@@ -474,6 +588,7 @@ const InventoryInfo = ({
   onHide,
   onUnhide,
   onAddBatch,
+  onUpdateBatch,
 }: InventoryInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     modalSections[0].key
@@ -567,20 +682,23 @@ const InventoryInfo = ({
     try {
       let updated: InventoryItem;
       if (section === "batch") {
-        const newBatches: BatchValues[] =
-          (values as any).newBatches &&
-          Array.isArray((values as any).newBatches)
-            ? (values as any).newBatches
-            : [];
-        if (newBatches.length === 0) {
-          logValidation(
-            "Batch validation failed: at least one batch required when saving batch section"
-          );
-          setIsUpdating(false);
-          return;
-        }
-        if (activeInventory.id && onAddBatch) {
-          await onAddBatch(activeInventory.id, newBatches);
+        const newBatches: BatchValues[] = Array.isArray(
+          (values as any).newBatches
+        )
+          ? (values as any).newBatches
+          : [];
+        const updatedBatches: BatchValues[] = Array.isArray(
+          (values as any).updatedBatches
+        )
+          ? (values as any).updatedBatches
+          : [];
+        if (activeInventory.id) {
+          if (updatedBatches.length && onUpdateBatch) {
+            await onUpdateBatch(activeInventory.id, updatedBatches);
+          }
+          if (newBatches.length && onAddBatch) {
+            await onAddBatch(activeInventory.id, newBatches);
+          }
         }
         setIsUpdating(false);
         return;
