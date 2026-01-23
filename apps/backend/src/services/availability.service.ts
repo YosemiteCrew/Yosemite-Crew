@@ -351,7 +351,7 @@ export const AvailabilityService = {
   async getCurrentStatus(
     organisationId: string,
     userId: string,
-  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Requested"> {
+  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Unavailable"> {
     const nowUtc = dayjs.utc();
     const today = nowUtc.toDate();
 
@@ -383,7 +383,7 @@ export const AvailabilityService = {
     if (activeSlot) return "Available";
     if (slots.length === 0) return "Off-Duty";
 
-    return "Requested";
+    return "Unavailable";
   },
 
   // Get Bookable slots
