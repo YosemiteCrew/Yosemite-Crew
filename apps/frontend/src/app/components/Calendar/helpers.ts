@@ -90,7 +90,7 @@ export function getDayWindow(events: Appointment[]) {
 export function computeVerticalPositionPx(
   event: Appointment,
   windowStart: number,
-  windowEnd: number
+  windowEnd: number,
 ) {
   const DAY_END = 24 * 60;
   let start = minutesSinceStartOfDay(event.startTime);
@@ -116,12 +116,12 @@ export function computeVerticalPositionPx(
 export function layoutDayEvents(
   events: Appointment[],
   windowStart: number,
-  windowEnd: number
+  windowEnd: number,
 ): LaidOutEvent[] {
   if (events.length === 0) return [];
 
   const sorted = [...events].sort(
-    (a, b) => a.startTime.getTime() - b.startTime.getTime()
+    (a, b) => a.startTime.getTime() - b.startTime.getTime(),
   );
 
   type TmpEvent = LaidOutEvent & { clusterId: number };
@@ -133,7 +133,7 @@ export function layoutDayEvents(
     const { topPx, heightPx } = computeVerticalPositionPx(
       ev,
       windowStart,
-      windowEnd
+      windowEnd,
     );
 
     active = active.filter((a) => a.endTime > ev.startTime);
@@ -160,7 +160,7 @@ export function layoutDayEvents(
   for (const ev of result) {
     clusterMax[ev.clusterId] = Math.max(
       clusterMax[ev.clusterId] ?? 0,
-      ev.columnIndex
+      ev.columnIndex,
     );
   }
 
@@ -177,7 +177,7 @@ export function getTotalWindowHeightPx(windowStart: number, windowEnd: number) {
 export function getNowTopPxForWindow(
   date: Date,
   windowStart: number,
-  windowEnd: number
+  windowEnd: number,
 ) {
   const now = new Date();
 
@@ -216,7 +216,7 @@ export function eventsForDay(events: Task[], day: Date): Task[] {
 }
 
 export function eventsForUser(events: Task[], user: Team): Task[] {
-  const id = user._id;
+  const id = user.practionerId;
   return events.filter((event) => {
     const assignedTo = event.assignedTo?.toLowerCase() || "";
     return assignedTo === id;
@@ -225,11 +225,13 @@ export function eventsForUser(events: Task[], user: Team): Task[] {
 
 export function appointentsForUser(
   events: Appointment[],
-  user: Team
+  user: Team,
 ): Appointment[] {
-  const name = user.name?.toLowerCase() || "";
+  const id = user.practionerId;
   return events.filter((event) => {
-    const assignedTo = event.lead?.name?.toLowerCase() || "";
-    return assignedTo === name;
+    const leadId = event.lead?.id;
+    const staffIds = event.supportStaff?.map((staff) => staff.id) ?? [];
+
+    return leadId === id || staffIds.includes(id);
   });
 }

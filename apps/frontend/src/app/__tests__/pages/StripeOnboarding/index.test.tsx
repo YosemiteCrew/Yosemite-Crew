@@ -6,7 +6,7 @@ import ProtectedStripeOnboarding from "@/app/pages/StripeOnboarding";
 
 const pushMock = jest.fn();
 const useStripeOnboardingMock = jest.fn();
-const useStripeStatusMock = jest.fn();
+const useSubscriptionCounterUpdateMock = jest.fn();
 const useSubscriptionMock = jest.fn();
 const createAccountMock = jest.fn();
 const onboardAccountMock = jest.fn();
@@ -19,7 +19,9 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@/app/hooks/useStripeOnboarding", () => ({
   useStripeOnboarding: (...args: any[]) => useStripeOnboardingMock(...args),
-  useStripeAccountStatus: () => ({ refetch: useStripeStatusMock }),
+  useSubscriptionCounterUpdate: () => ({
+    refetch: useSubscriptionCounterUpdateMock,
+  }),
 }));
 
 jest.mock("@/app/hooks/useBilling", () => ({
@@ -56,7 +58,7 @@ describe("Stripe onboarding page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NEXT_PUBLIC_SANDBOX_PUBLISH = "pk_test";
-    useStripeStatusMock.mockResolvedValue(undefined);
+    useSubscriptionCounterUpdateMock.mockResolvedValue(undefined);
   });
 
   it("returns null when onboarding is disabled", () => {

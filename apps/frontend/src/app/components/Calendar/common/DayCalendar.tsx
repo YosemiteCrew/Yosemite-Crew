@@ -171,8 +171,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 >
                   <div className="flex flex-col items-start">
                     <div className={`flex items-center gap-2`}>
-                      <div className="text-body-4 opacity-70">Reason:</div>
-                      <div className="text-body-4">{ev.concern || "-"}</div>
+                      <div className="text-body-4 opacity-70">Service:</div>
+                      <div className="text-body-4">{ev.appointmentType?.name || "-"}</div>
                     </div>
                     <div className={`flex items-center gap-2`}>
                       <div className="text-body-4 opacity-70">Lead:</div>

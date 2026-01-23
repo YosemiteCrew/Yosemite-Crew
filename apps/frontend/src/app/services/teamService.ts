@@ -28,7 +28,7 @@ export const loadTeam = async (opts?: {
   }
   try {
     const res = await getData<TeamResponse[]>(
-      "/fhir/v1/user-organization/org/mapping/" + primaryOrgId
+      "/fhir/v1/user-organization/org/mapping/" + primaryOrgId,
     );
     const temp: Team[] = [];
     for (const data of res.data) {
@@ -49,6 +49,7 @@ export const loadTeam = async (opts?: {
         status: data.currentStatus,
         effectivePermissions: toPermissionArray(oM.effectivePermissions),
         extraPerissions: toPermissionArray(oM.extraPermissions),
+        revokedPermissions: toPermissionArray(oM.revokedPermissions),
       };
       temp.push(teamObject);
     }
@@ -61,7 +62,7 @@ export const loadTeam = async (opts?: {
 
 const shouldFetchTeam = (
   status: ReturnType<typeof useTeamStore.getState>["status"],
-  opts?: { force?: boolean }
+  opts?: { force?: boolean },
 ) => {
   if (opts?.force) return true;
   return status === "idle" || status === "error";
@@ -105,7 +106,7 @@ export const acceptInvite = async (invite: Invite) => {
   const { setPrimaryOrg } = useOrgStore.getState();
   try {
     await postData<Invite[]>(
-      "/fhir/v1/organisation-invites/" + invite.token + "/accept"
+      "/fhir/v1/organisation-invites/" + invite.token + "/accept",
     );
     await loadOrgs({ silent: true });
     await loadProfiles({ silent: true });
@@ -118,7 +119,9 @@ export const acceptInvite = async (invite: Invite) => {
 
 export const rejectInvite = async (invite: Invite) => {
   try {
-    console.log(invite._id);
+    await postData<Invite[]>(
+      "/fhir/v1/organisation-invites/" + invite.token + "/decline",
+    );
   } catch (error) {
     console.log(error);
   }
@@ -135,7 +138,7 @@ export const getProfileForUserForPrimaryOrg = async (userId: string) => {
       return [];
     }
     const res = await getData(
-      "/fhir/v1/user-profile/" + userId + "/" + primaryOrgId + "/profile"
+      "/fhir/v1/user-profile/" + userId + "/" + primaryOrgId + "/profile",
     );
     const data = res.data;
     return data;
@@ -175,18 +178,22 @@ export const updateMember = async (member: Team) => {
       roleDisplay: member.role,
       effectivePermissions: member.effectivePermissions,
       extraPermissions: member.extraPerissions,
+      revokedPermissions: member.revokedPermissions,
     };
     const fhirMapping = toUserOrganizationResponseDTO(fhirPayload);
     const res = await putData<PractitionerRole>(
       "/fhir/v1/user-organization/" + member._id,
-      fhirMapping
+      fhirMapping,
     );
-    const normalTeam = fromUserOrganizationRequestDTO(res.data);
+    const normalTeam: UserOrganization = fromUserOrganizationRequestDTO(
+      res.data,
+    );
     const teamObject: Team = {
       ...member,
       role: normalTeam.roleCode,
       effectivePermissions: toPermissionArray(normalTeam.effectivePermissions),
       extraPerissions: toPermissionArray(normalTeam.extraPermissions),
+      revokedPermissions: toPermissionArray(normalTeam.revokedPermissions),
     };
     updateTeam(teamObject);
   } catch (err) {

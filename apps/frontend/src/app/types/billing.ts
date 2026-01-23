@@ -71,3 +71,20 @@ export type BillingSubscription = {
   version?: number;
   lastStripeEventId?: string | null;
 };
+
+export type FreeMetric = "appointments" | "users";
+
+export type CanResult = {
+  canMore: boolean;
+  remainingFree: number | null;
+  freeLimit: number | null;
+  used: number | null;
+  reason:
+    | "no_subscription"
+    | "no_counter"
+    | "not_free_plan"
+    | "unknown_limit"
+    | "unknown_usage"
+    | "limit_reached"
+    | "ok";
+};

@@ -12,6 +12,9 @@ import { TeamFormDataType } from "@/app/types/team";
 import LabelDropdown from "@/app/components/Inputs/Dropdown/LabelDropdown";
 import Close from "@/app/components/Icons/Close";
 import MultiSelectDropdown from "@/app/components/Inputs/MultiSelectDropdown";
+import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
+import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
+import { IoIosWarning } from "react-icons/io";
 
 type AddTeamProps = {
   showModal: boolean;
@@ -27,20 +30,34 @@ const initialData = {
 
 const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
+  const { canMore, reason } = useCanMoreForPrimaryOrg("users");
   const [formData, setFormData] = useState<TeamFormDataType>(initialData);
   const [formDataErrors, setFormDataErrors] = useState<{
     email?: string;
     speciality?: string;
     role?: string;
+    booking?: string;
   }>({});
 
   const SpecialitiesOptions = useMemo(
     () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
-    [specialities]
+    [specialities],
   );
 
   const handleSave = async () => {
-    const errors: { email?: string; speciality?: string; role?: string } = {};
+    const errors: {
+      email?: string;
+      speciality?: string;
+      role?: string;
+      booking?: string;
+    } = {};
+    if (!canMore) {
+      errors.booking =
+        reason === "limit_reached"
+          ? "You’ve reached your free user limit. Please upgrade to book more."
+          : "We couldn’t verify your users limit right now. Please try again.";
+    }
     if (!formData.email) errors.email = "Email is required";
     if (formData.speciality.length === 0)
       errors.speciality = "Speciality is required";
@@ -52,6 +69,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
     }
     try {
       await sendInvite(formData);
+      await refetchData();
       setShowModal(false);
       setFormData(initialData);
     } catch (error) {
@@ -105,7 +123,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 }
                 defaultOption={formData.role}
                 error={formDataErrors.role}
-                options={RoleOptions}
+                options={RoleOptions.slice(1)}
               />
               <SelectLabel
                 title="Employee type"
@@ -118,11 +136,20 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
               />
             </div>
           </Accordion>
-          <Primary
-            href="#"
-            text="Send invite"
-            onClick={handleSave}
-          />
+          <div className="flex flex-col items-end gap-2 w-full">
+            {formDataErrors.booking && (
+              <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
+                <IoIosWarning className="text-text-error" size={14} />
+                <span>{formDataErrors.booking}</span>
+              </div>
+            )}
+            <Primary
+              href="#"
+              text="Send invite"
+              onClick={handleSave}
+              classname="w-full"
+            />
+          </div>
         </div>
       </div>
     </Modal>

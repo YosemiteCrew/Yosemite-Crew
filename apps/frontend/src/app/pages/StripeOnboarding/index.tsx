@@ -3,7 +3,7 @@ import OrgGuard from "@/app/components/OrgGuard";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import {
   useStripeOnboarding,
-  useStripeAccountStatus,
+  useSubscriptionCounterUpdate,
 } from "@/app/hooks/useStripeOnboarding";
 import {
   createConnectedAccount,
@@ -32,13 +32,12 @@ const StripeOnboarding = () => {
 
   const { onboard } = useStripeOnboarding(orgIdFromQuery);
   const subscription = useSubscriptionByOrgId(orgIdFromQuery);
-  const { refetch: refetchStripeStatus } =
-    useStripeAccountStatus(orgIdFromQuery);
+  const { refetch: refetchData } = useSubscriptionCounterUpdate(orgIdFromQuery);
 
   const handleExit = useCallback(async () => {
-    await refetchStripeStatus();
+    await refetchData();
     router.push("/dashboard");
-  }, [refetchStripeStatus, router]);
+  }, [refetchData, router]);
 
   const createAccountIfNeeded = async () => {
     if (!orgIdFromQuery) return;
@@ -102,7 +101,7 @@ const StripeOnboarding = () => {
 
   const handleStepChange = useCallback(async ({ step }: { step: string }) => {
     if (step === "stripe_user_authentication") {
-      await refetchStripeStatus();
+      await refetchData();
     }
   }, []);
 

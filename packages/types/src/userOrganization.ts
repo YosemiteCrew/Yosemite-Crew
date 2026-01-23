@@ -12,6 +12,7 @@ export interface UserOrganization {
     roleDisplay?: string
     active?: boolean
     extraPermissions?: string[];
+    revokedPermissions?: string[];
     effectivePermissions?: string[];
 }
 
@@ -25,6 +26,9 @@ const EXT_EXTRA_PERMISSIONS =
 
 const EXT_EFFECTIVE_PERMISSIONS =
   "https://yosemitecrew.com/fhir/StructureDefinition/effective-permissions";
+
+const EXT_REVOKED_PERMISSIONS =
+  "https://yosemitecrew.com/fhir/StructureDefinition/revoked-permissions";
 
 export function toFHIRUserOrganization(
   mapping: UserOrganization & { effectivePermissions?: string[] },
@@ -87,6 +91,17 @@ export function toFHIRUserOrganization(
     });
   }
 
+  // Add revoked permissions extension
+  if (mapping.revokedPermissions?.length) {
+    extensions.push({
+      url: EXT_REVOKED_PERMISSIONS,
+      extension: mapping.revokedPermissions.map((perm) => ({
+        url: "permission",
+        valueString: perm,
+      })),
+    });
+  }
+
   const resource: PractitionerRole = {
     resourceType: "PractitionerRole",
     practitioner,
@@ -114,6 +129,7 @@ export function fromFHIRUserOrganization(dto: PractitionerRole): UserOrganizatio
   // Parse permissions from extensions
   let extraPermissions: string[] | undefined;
   let effectivePermissions: string[] | undefined;
+  let revokedPermissions: string[] | undefined;
 
   dto.extension?.forEach((ext) => {
     if (ext.url === EXT_EXTRA_PERMISSIONS) {
@@ -123,6 +139,11 @@ export function fromFHIRUserOrganization(dto: PractitionerRole): UserOrganizatio
 
     if (ext.url === EXT_EFFECTIVE_PERMISSIONS) {
       effectivePermissions =
+        ext.extension?.map((e) => e.valueString!) ?? [];
+    }
+
+    if (ext.url === EXT_REVOKED_PERMISSIONS) {
+      revokedPermissions =
         ext.extension?.map((e) => e.valueString!) ?? [];
     }
   });
@@ -135,6 +156,7 @@ export function fromFHIRUserOrganization(dto: PractitionerRole): UserOrganizatio
     roleDisplay: coding?.display ?? text,
     active: dto.active,
     extraPermissions,
+    revokedPermissions,
     effectivePermissions, // optional but useful for debugging and syncing back
   };
 }

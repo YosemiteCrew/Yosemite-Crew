@@ -84,10 +84,10 @@ describe("Parent Section Component", () => {
 
     expect(fields).toHaveLength(4);
     expect(fields).toEqual([
-      { label: "First name", key: "firstName", type: "text" },
-      { label: "Last name", key: "lastName", type: "text" },
-      { label: "Email", key: "email", type: "email" },
-      { label: "Phone number", key: "phoneNumber", type: "tel" },
+      { label: "First name", key: "firstName", type: "text", required: true },
+      { label: "Last name", key: "lastName", type: "text", required: true },
+      { label: "Email", key: "email", type: "email", editable: false },
+      { label: "Phone number", key: "phoneNumber", type: "tel", editable: false },
     ]);
   });
 
