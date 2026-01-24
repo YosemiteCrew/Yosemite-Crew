@@ -6,7 +6,6 @@ import BaseAvailabilityModel, {
 } from "src/models/base-availability";
 import WeeklyAvailabilityOverrideModel from "src/models/weekly-availablity-override";
 import { OccupancyModel } from "src/models/occupancy";
-import logger from "src/utils/logger";
 
 dayjs.extend(utc);
 

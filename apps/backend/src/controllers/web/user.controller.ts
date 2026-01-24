@@ -5,8 +5,8 @@ import { AuthenticatedRequest } from "src/middlewares/auth";
 
 type GetUserRequest = Request<{ id: string }>;
 type UpdateUserNameRequest = Request<
-  {},
-  {},
+  Record<string, never>,
+  Record<string, never>,
   {
     firstName: string;
     lastName: string;

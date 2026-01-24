@@ -464,8 +464,8 @@ export const StripeService = {
         },
         transfer_data: { destination: organisation.stripeAccountId },
       },
-      success_url: `${process.env.APP_URL}/payment-success?invoice=${invoice._id}`,
-      cancel_url: `${process.env.APP_URL}/payment-cancelled?invoice=${invoice._id}`,
+      success_url: `${process.env.APP_URL}/payment-success?invoice=${invoice._id.toString()}`,
+      cancel_url: `${process.env.APP_URL}/payment-cancelled?invoice=${invoice._id.toString()}`,
       expires_at: expiresAt,
     });
 

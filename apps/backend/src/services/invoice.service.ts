@@ -12,6 +12,7 @@ import { StripeService } from "./stripe.service";
 import OrganizationModel from "src/models/organization";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
+import { AuditTrailService } from "./audit-trail.service";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -31,6 +32,34 @@ const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
   }
 
   throw new InvoiceServiceError(`Invalid ${field}`, 400);
+};
+
+const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
+  if (invoice.organisationId && invoice.companionId) {
+    return {
+      organisationId: invoice.organisationId,
+      companionId: invoice.companionId,
+    };
+  }
+
+  if (invoice.appointmentId) {
+    const appointment = await AppointmentModel.findById(
+      invoice.appointmentId,
+      { organisationId: 1, "companion.id": 1 },
+    ).lean();
+
+    if (appointment?.organisationId && appointment?.companion?.id) {
+      return {
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+      };
+    }
+  }
+
+  return {
+    organisationId: invoice.organisationId,
+    companionId: invoice.companionId,
+  };
 };
 
 const toDomain = (doc: InvoiceDocument): Invoice => {
@@ -194,6 +223,23 @@ export const InvoiceService = {
       { session },
     );
 
+    const createdInvoice = Array.isArray(invoice) ? invoice[0] : invoice;
+
+    await AuditTrailService.recordSafely({
+      organisationId: input.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "INVOICE_CREATED",
+      actorType: "SYSTEM",
+      entityType: "INVOICE",
+      entityId: createdInvoice._id.toString(),
+      metadata: {
+        appointmentId: input.appointmentId,
+        status: createdInvoice.status,
+        totalAmount: createdInvoice.totalAmount,
+        currency: createdInvoice.currency,
+      },
+    });
+
     const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
       totalPayable,
       input.currency,
@@ -237,6 +283,21 @@ export const InvoiceService = {
 
     recalculateTotals(invoice);
     await invoice.save();
+
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "INVOICE_CREATED",
+      actorType: "SYSTEM",
+      entityType: "INVOICE",
+      entityId: invoice._id.toString(),
+      metadata: {
+        appointmentId: appointment._id.toString(),
+        status: invoice.status,
+        totalAmount: invoice.totalAmount,
+        currency: invoice.currency,
+      },
+    });
 
     await NotificationService.sendToUser(
       appointment.companion.parent.id,
@@ -284,6 +345,25 @@ export const InvoiceService = {
       { new: true },
     );
 
+    if (invoice) {
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_PAID",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            totalAmount: invoice.totalAmount,
+            currency: invoice.currency,
+          },
+        });
+      }
+    }
+
     return invoice;
   },
 
@@ -297,6 +377,23 @@ export const InvoiceService = {
     );
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
+
+    const targets = await resolveAuditTargetsForInvoice(doc);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_FAILED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: doc._id.toString(),
+        metadata: {
+          status: doc.status,
+          totalAmount: doc.totalAmount,
+          currency: doc.currency,
+        },
+      });
+    }
 
     return doc;
   },
@@ -312,6 +409,23 @@ export const InvoiceService = {
 
     if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
 
+    const targets = await resolveAuditTargetsForInvoice(doc);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_REFUNDED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: doc._id.toString(),
+        metadata: {
+          status: doc.status,
+          totalAmount: doc.totalAmount,
+          currency: doc.currency,
+        },
+      });
+    }
+
     return toDomain(doc);
   },
 
@@ -321,6 +435,21 @@ export const InvoiceService = {
 
     invoice.status = status;
     await invoice.save();
+
+    const targets = await resolveAuditTargetsForInvoice(invoice);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_UPDATED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: invoice._id.toString(),
+        metadata: {
+          status: invoice.status,
+        },
+      });
+    }
     return invoice;
   },
 
@@ -398,6 +527,24 @@ export const InvoiceService = {
     invoice.updatedAt = new Date();
     await invoice.save();
 
+    const targets = await resolveAuditTargetsForInvoice(invoice);
+    if (targets.organisationId && targets.companionId) {
+      await AuditTrailService.recordSafely({
+        organisationId: targets.organisationId,
+        companionId: targets.companionId,
+        eventType: "INVOICE_UPDATED",
+        actorType: "SYSTEM",
+        entityType: "INVOICE",
+        entityId: invoice._id.toString(),
+        metadata: {
+          status: invoice.status,
+          totalAmount: invoice.totalAmount,
+          currency: invoice.currency,
+          itemsAdded: items.length,
+        },
+      });
+    }
+
     return toDomain(invoice);
   },
 
@@ -450,6 +597,22 @@ export const InvoiceService = {
         cancellationReason: reason,
       };
       await invoice.save();
+
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_CANCELLED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            reason,
+          },
+        });
+      }
       return { action: "CANCELLED_UNPAID" };
     }
 
@@ -479,6 +642,24 @@ export const InvoiceService = {
       };
 
       await invoice.save();
+
+      const targets = await resolveAuditTargetsForInvoice(invoice);
+      if (targets.organisationId && targets.companionId) {
+        await AuditTrailService.recordSafely({
+          organisationId: targets.organisationId,
+          companionId: targets.companionId,
+          eventType: "INVOICE_REFUNDED",
+          actorType: "SYSTEM",
+          entityType: "INVOICE",
+          entityId: invoice._id.toString(),
+          metadata: {
+            status: invoice.status,
+            reason,
+            refundId: refund.refundId,
+            amount: refund.amountRefunded,
+          },
+        });
+      }
 
       return { action: "REFUNDED", refundId: refund.refundId };
     }

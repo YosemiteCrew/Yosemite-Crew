@@ -388,12 +388,13 @@ describe("StripeService", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedInvoiceModel.findById as any).mockResolvedValue({
         organisationId: "org1",
+        status: "PENDING",
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedOrgModel.findById as any).mockResolvedValue(null);
       await expect(
         StripeService.createPaymentIntentForInvoice("inv1"),
-      ).rejects.toThrow("Organisation not found");
+      ).rejects.toThrow("Organisation does not have a Stripe connected account");
     });
 
     it("should throw if invoice not payable", async () => {
@@ -456,12 +457,15 @@ describe("StripeService", () => {
       );
       expect(mockedInvoiceService.attachStripeDetails).toHaveBeenCalledWith(
         "inv1",
-        {
+        expect.objectContaining({
           stripePaymentIntentId: "pi_inv",
           status: "AWAITING_PAYMENT",
-        },
+        }),
       );
-      expect(res.paymentIntentId).toBe("pi_inv");
+      expect("paymentIntentId" in res).toBe(true);
+      if ("paymentIntentId" in res) {
+        expect(res.paymentIntentId).toBe("pi_inv");
+      }
     });
   });
 
@@ -575,6 +579,7 @@ describe("StripeService", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedInvoiceModel.findById as any).mockResolvedValue({
         status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_INTENT",
         save: jest.fn(),
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

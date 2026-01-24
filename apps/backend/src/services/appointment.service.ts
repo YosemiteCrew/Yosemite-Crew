@@ -29,6 +29,7 @@ import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
+import { AuditTrailService } from "./audit-trail.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -474,6 +475,36 @@ export const AppointmentService = {
       throw error;
     }
 
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "APPOINTMENT_REQUESTED",
+      actorType: "PARENT",
+      actorId: appointment.companion.parent.id,
+      entityType: "APPOINTMENT",
+      entityId: savedAppointment._id.toString(),
+      metadata: {
+        status: savedAppointment.status,
+        formIds: appointment.formIds ?? [],
+      },
+    });
+
+    if (appointment.formIds?.length) {
+      for (const formId of appointment.formIds) {
+        await AuditTrailService.recordSafely({
+          organisationId: appointment.organisationId,
+          companionId: appointment.companion.id,
+          eventType: "FORM_ATTACHED",
+          actorType: "SYSTEM",
+          entityType: "FORM",
+          entityId: formId,
+          metadata: {
+            appointmentId: savedAppointment._id.toString(),
+          },
+        });
+      }
+    }
+
     const paymentIntent = await StripeService.createPaymentIntentForAppointment(
       savedAppointment._id.toString(),
     );
@@ -675,6 +706,35 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      await AuditTrailService.recordSafely({
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+        eventType: "APPOINTMENT_CREATED",
+        actorType: "SYSTEM",
+        entityType: "APPOINTMENT",
+        entityId: doc._id.toString(),
+        metadata: {
+          status: doc.status,
+          formIds: appointment.formIds ?? [],
+        },
+      });
+
+      if (appointment.formIds?.length) {
+        for (const formId of appointment.formIds) {
+          await AuditTrailService.recordSafely({
+            organisationId: appointment.organisationId,
+            companionId: appointment.companion.id,
+            eventType: "FORM_ATTACHED",
+            actorType: "SYSTEM",
+            entityType: "FORM",
+            entityId: formId,
+            metadata: {
+              appointmentId: doc._id.toString(),
+            },
+          });
+        }
+      }
+
       // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
       if (createPayment === true) {
         checkout = await StripeService.createCheckoutSessionForInvoice(
@@ -850,6 +910,18 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      await AuditTrailService.recordSafely({
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+        eventType: "APPOINTMENT_APPROVED",
+        actorType: "SYSTEM",
+        entityType: "APPOINTMENT",
+        entityId: appointment._id.toString(),
+        metadata: {
+          status: appointment.status,
+        },
+      });
+
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
         appointment.companion.name,
         appointment.startTime.toDateString(),
@@ -916,6 +988,19 @@ export const AppointmentService = {
       await session.commitTransaction();
       await session.endSession();
 
+      await AuditTrailService.recordSafely({
+        organisationId: appointment.organisationId,
+        companionId: appointment.companion.id,
+        eventType: "APPOINTMENT_CANCELLED",
+        actorType: "SYSTEM",
+        entityType: "APPOINTMENT",
+        entityId: appointment._id.toString(),
+        metadata: {
+          status: appointment.status,
+          reason: appointment.concern ?? reason,
+        },
+      });
+
       const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
         appointment.companion.name,
       );
@@ -965,6 +1050,20 @@ export const AppointmentService = {
     appointment.status = "CANCELLED";
     await appointment.save();
 
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "APPOINTMENT_CANCELLED",
+      actorType: "PARENT",
+      actorId: parentId,
+      entityType: "APPOINTMENT",
+      entityId: appointment._id.toString(),
+      metadata: {
+        status: appointment.status,
+        reason,
+      },
+    });
+
     // Remove occupancy (only if vet was assigned)
     if (appointment.lead?.id) {
       await OccupancyModel.deleteMany({
@@ -1003,6 +1102,19 @@ export const AppointmentService = {
     appointment.updatedAt = new Date();
 
     await appointment.save();
+
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "APPOINTMENT_CANCELLED",
+      actorType: "SYSTEM",
+      entityType: "APPOINTMENT",
+      entityId: appointment._id.toString(),
+      metadata: {
+        status: appointment.status,
+        reason: rejectReason,
+      },
+    });
 
     const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
       appointment.companion.name,
@@ -1151,6 +1263,19 @@ export const AppointmentService = {
     appointment.updatedAt = new Date();
     await appointment.save();
 
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "APPOINTMENT_CHECKED_IN",
+      actorType: "PARENT",
+      actorId: parentId,
+      entityType: "APPOINTMENT",
+      entityId: appointment._id.toString(),
+      metadata: {
+        status: appointment.status,
+      },
+    });
+
     return toAppointmentResponseDTO(toDomain(appointment));
   },
 
@@ -1171,6 +1296,18 @@ export const AppointmentService = {
     appointment.status = "CHECKED_IN";
     appointment.updatedAt = new Date();
     await appointment.save();
+
+    await AuditTrailService.recordSafely({
+      organisationId: appointment.organisationId,
+      companionId: appointment.companion.id,
+      eventType: "APPOINTMENT_CHECKED_IN",
+      actorType: "SYSTEM",
+      entityType: "APPOINTMENT",
+      entityId: appointment._id.toString(),
+      metadata: {
+        status: appointment.status,
+      },
+    });
 
     return toAppointmentResponseDTO(toDomain(appointment));
   },
@@ -1279,6 +1416,21 @@ export const AppointmentService = {
 
       await session.commitTransaction();
       await session.endSession();
+
+      await AuditTrailService.recordSafely({
+        organisationId: existing.organisationId,
+        companionId: existing.companion.id,
+        eventType: "APPOINTMENT_RESCHEDULED",
+        actorType: "PARENT",
+        actorId: parentId,
+        entityType: "APPOINTMENT",
+        entityId: existing._id.toString(),
+        metadata: {
+          status: existing.status,
+          startTime: existing.startTime,
+          endTime: existing.endTime,
+        },
+      });
 
       return toAppointmentResponseDTO(toDomain(existing));
     } catch (err) {

@@ -23,6 +23,7 @@ import {
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import AppointmentModel from "src/models/appointment";
 import { DocumensoService, SignedDocument } from "./documenso.service";
+import { AuditTrailService } from "./audit-trail.service";
 
 export class FormServiceError extends Error {
   constructor(
@@ -273,6 +274,29 @@ export const FormService = {
       answers: submission.answers,
       submittedAt: submission.submittedAt,
     });
+
+    if (submission.companionId) {
+      const form = await FormModel.findById(submission.formId)
+        .select("orgId name")
+        .lean();
+
+      if (form?.orgId) {
+        await AuditTrailService.recordSafely({
+          organisationId: form.orgId.toString(),
+          companionId: submission.companionId,
+          eventType: "FORM_SUBMITTED",
+          actorType: submission.parentId ? "PARENT" : "SYSTEM",
+          actorId: submission.parentId ?? null,
+          entityType: "FORM",
+          entityId: submission.formId.toString(),
+          metadata: {
+            submissionId: created._id.toString(),
+            appointmentId: submission.appointmentId,
+            formName: form.name,
+          },
+        });
+      }
+    }
 
     return created.toObject();
   },
