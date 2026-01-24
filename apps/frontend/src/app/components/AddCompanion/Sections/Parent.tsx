@@ -28,10 +28,6 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
     phoneNumber?: string;
     dateOfBirth?: string;
     country?: string;
-    addressLine?: string;
-    city?: string;
-    postalCode?: string;
-    state?: string;
   }>({});
   const [currentDate, setCurrentDate] = useState<Date | null>(
     formData.birthDate ? new Date(formData.birthDate) : null
@@ -83,22 +79,12 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
       phoneNumber?: string;
       dateOfBirth?: string;
       country?: string;
-      addressLine?: string;
-      city?: string;
-      postalCode?: string;
-      state?: string;
     } = {};
     if (!formData.firstName) errors.firstName = "First name is required";
     if (!formData.email) errors.email = "Email is required";
     if (!formData.phoneNumber) errors.phoneNumber = "Number is required";
     if (!formData.birthDate) errors.dateOfBirth = "Date of birth is required";
     if (!formData.address.country) errors.country = "Country is required";
-    if (!formData.address.addressLine)
-      errors.addressLine = "Address is required";
-    if (!formData.address.city) errors.city = "City is required";
-    if (!formData.address.postalCode)
-      errors.postalCode = "Postal code is required";
-    if (!formData.address.state) errors.state = "State is required";
     const selectedCountry = getCountryCode(formData.address.country);
     if (!validatePhone(formData.phoneNumber || "")) {
       if (selectedCountry) {
@@ -211,6 +197,7 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
               }
               defaultOption={formData.address.country}
               options={CountriesOptions}
+              error={formDataErrors.country}
             />
             <FormInput
               intype="text"
@@ -223,7 +210,6 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                   address: { ...formData.address, addressLine: e.target.value },
                 })
               }
-              error={formDataErrors.addressLine}
               className="min-h-12!"
             />
             <div className="grid grid-cols-2 gap-3">
@@ -238,7 +224,6 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                     address: { ...formData.address, city: e.target.value },
                   })
                 }
-                error={formDataErrors.city}
                 className="min-h-12!"
               />
               <FormInput
@@ -252,7 +237,6 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                     address: { ...formData.address, state: e.target.value },
                   })
                 }
-                error={formDataErrors.state}
                 className="min-h-12!"
               />
             </div>
@@ -267,7 +251,6 @@ const Parent = ({ setActiveLabel, formData, setFormData }: ParentProps) => {
                   address: { ...formData.address, postalCode: e.target.value },
                 })
               }
-              error={formDataErrors.postalCode}
               className="min-h-12!"
             />
           </div>

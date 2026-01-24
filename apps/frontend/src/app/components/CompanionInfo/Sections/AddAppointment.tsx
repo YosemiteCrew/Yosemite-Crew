@@ -119,7 +119,7 @@ const AddAppointment = () => {
       >
         <div className="flex flex-col gap-3"></div>
       </Accordion>
-      <Primary href="#" text="Book appointment" classname="h-13!" />
+      <Primary href="#" text="Book appointment" />
     </div>
   );
 };

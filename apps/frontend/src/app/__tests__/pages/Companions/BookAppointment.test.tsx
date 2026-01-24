@@ -87,6 +87,14 @@ jest.mock("@/app/components/Icons/Close", () => ({
   ),
 }));
 
+jest.mock("@/app/hooks/useBilling", () => ({
+  useCanMoreForPrimaryOrg: () => ({ canMore: true, reason: "ok" }),
+}));
+
+jest.mock("@/app/hooks/useStripeOnboarding", () => ({
+  useSubscriptionCounterUpdate: () => ({ refetch: jest.fn() }),
+}));
+
 jest.mock("@/app/hooks/useTeam", () => ({
   useTeamForPrimaryOrg: () => [
     { _id: "team-1", name: "Dr. Who" },

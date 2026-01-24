@@ -106,7 +106,7 @@ const Documents = () => {
                 error={formDataErrors.name}
                 className="min-h-12!"
               />
-              <Primary href="#" text="Save" classname="h-13!" />
+              <Primary href="#" text="Save" />
             </div>
           </Accordion>
         </PermissionGate>

@@ -104,8 +104,8 @@ const Task = () => {
   const TeamOptions = useMemo(
     () =>
       teams?.map((team) => ({
-        label: team.name || team._id,
-        value: team._id,
+        label: team.name || team.practionerId || team._id,
+        value: team.practionerId || team._id,
       })),
     [teams],
   );

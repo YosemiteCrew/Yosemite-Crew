@@ -61,11 +61,10 @@ const InvoiceInfo = ({
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Secondary href="#" text="Print" className="h-13!" />
+            <Secondary href="#" text="Print" />
             <Primary
               href="#"
               text="Mail Payment link"
-              classname="h-13! text-[18px]!"
             />
           </div>
         </div>

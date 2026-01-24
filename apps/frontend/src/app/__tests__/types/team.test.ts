@@ -50,6 +50,7 @@ describe("team types", () => {
       status: "Available",
       effectivePermissions: [],
       extraPerissions: [],
+      revokedPermissions: []
     };
 
     const teamAdd: TeamAdd = {

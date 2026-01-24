@@ -106,7 +106,7 @@ const Summary = ({
             </div>
           </div>
         </div>
-        {canEdit && <Primary href="#" text="Pay" classname="h-13!" />}
+        {canEdit && <Primary href="#" text="Pay" />}
       </div>
     </PermissionGate>
   );
