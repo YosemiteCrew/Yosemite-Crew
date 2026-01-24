@@ -834,6 +834,73 @@ Support: ${supportEmail}
     };
   });
 
+/* ---------- Invoice Payment Checkout ---------- */
+
+export interface InvoicePaymentCheckoutTemplateData {
+  parentName?: string;
+  organisationName?: string;
+  invoiceId?: string;
+  amountText?: string;
+  checkoutUrl: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildInvoicePaymentCheckoutTemplate =
+  createEmailTemplate<InvoicePaymentCheckoutTemplateData>((data) => {
+    const parentName = data.parentName?.trim() || "there";
+    const organisationName = data.organisationName?.trim() || "Yosemite Crew";
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const actionUrl = data.ctaUrl ?? data.checkoutUrl;
+    const actionLabel = data.ctaLabel?.trim() || "Pay Invoice";
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+    const invoiceLine = data.invoiceId
+      ? `<p><strong>Invoice:</strong> ${data.invoiceId}</p>`
+      : "";
+    const amountLine = data.amountText
+      ? `<p><strong>Total:</strong> ${data.amountText}</p>`
+      : "";
+
+    return {
+      subject: `Invoice payment for ${organisationName}`,
+      contentHtml: `
+      <p>Hi ${parentName},</p>
+      <p>
+        A new invoice is ready from <strong>${organisationName}</strong>.
+        Please complete payment using the link below.
+      </p>
+      ${invoiceLine}
+      ${amountLine}
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${parentName},
+
+A new invoice is ready from ${organisationName}. Please complete payment using the link below.
+${data.invoiceId ? `Invoice: ${data.invoiceId}` : ""}
+${data.amountText ? `Total: ${data.amountText}` : ""}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
 /* ---------- Permissions Updated ---------- */
 
 export interface PermissionsUpdatedTemplateData {
@@ -901,6 +968,7 @@ type EmailTemplateRegistry = {
   freePlanLimitReached: typeof buildFreePlanLimitReachedTemplate;
   permissionsUpdated: typeof buildPermissionsUpdatedTemplate;
   appointmentPaymentCheckout: typeof buildAppointmentPaymentCheckoutTemplate;
+  invoicePaymentCheckout: typeof buildInvoicePaymentCheckoutTemplate;
 };
 
 export const emailTemplates: EmailTemplateRegistry = {
@@ -913,6 +981,7 @@ export const emailTemplates: EmailTemplateRegistry = {
   freePlanLimitReached: buildFreePlanLimitReachedTemplate,
   permissionsUpdated: buildPermissionsUpdatedTemplate,
   appointmentPaymentCheckout: buildAppointmentPaymentCheckoutTemplate,
+  invoicePaymentCheckout: buildInvoicePaymentCheckoutTemplate,
 };
 
 export type EmailTemplateId = keyof typeof emailTemplates;

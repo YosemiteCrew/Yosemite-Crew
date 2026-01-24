@@ -10,9 +10,12 @@ import {
 import { Currency } from "@yosemite-crew/fhirtypes";
 import { StripeService } from "./stripe.service";
 import OrganizationModel from "src/models/organization";
+import { ParentModel } from "src/models/parent";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
+import { sendEmailTemplate } from "src/utils/email";
+import logger from "src/utils/logger";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -23,6 +26,9 @@ export class InvoiceServiceError extends Error {
     this.name = "InvoiceServiceError";
   }
 }
+
+const SUPPORT_EMAIL_ADDRESS =
+  process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
 
 const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
   if (val instanceof Types.ObjectId) return val;
@@ -678,5 +684,59 @@ export const InvoiceService = {
     }
 
     return toInvoiceResponseDTO(toDomain(doc));
+  },
+
+  async createCheckoutSessionAndEmailParent(invoiceId: string) {
+    const checkout = await StripeService.createCheckoutSessionForInvoice(
+      invoiceId,
+    );
+
+    const invoice = await InvoiceModel.findById(invoiceId).lean();
+    if (!invoice) {
+      throw new InvoiceServiceError("Invoice not found.", 404);
+    }
+
+    let emailSent = false;
+    if (checkout?.url && invoice.parentId) {
+      const parent = await ParentModel.findById(invoice.parentId)
+        .select("email firstName lastName")
+        .lean();
+      const organisation = invoice.organisationId
+        ? await OrganizationModel.findById(invoice.organisationId)
+            .select("name")
+            .lean()
+        : null;
+      const parentName = parent
+        ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
+        : undefined;
+      const amountText =
+        typeof invoice.totalAmount === "number" && invoice.currency
+          ? `${invoice.currency.toUpperCase()} ${invoice.totalAmount.toFixed(2)}`
+          : undefined;
+
+      if (parent?.email) {
+        try {
+          await sendEmailTemplate({
+            to: parent.email,
+            templateId: "invoicePaymentCheckout",
+            templateData: {
+              parentName,
+              organisationName: organisation?.name ?? undefined,
+              invoiceId: invoice._id.toString(),
+              amountText,
+              checkoutUrl: checkout.url,
+              ctaUrl: checkout.url,
+              ctaLabel: "Pay Invoice",
+              supportEmail: SUPPORT_EMAIL_ADDRESS,
+            },
+          });
+          emailSent = true;
+        } catch (error) {
+          logger.error("Failed to send invoice checkout email.", error);
+        }
+      }
+    }
+
+    return { checkout, emailSent };
   },
 };

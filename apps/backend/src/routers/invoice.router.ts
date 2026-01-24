@@ -51,6 +51,13 @@ router.get(
   InvoiceController.listInvoicesForOrganisation,
 );
 
+// Create checkout session for invoice and email parent
+router.post(
+  "/:invoiceId/checkout-session",
+  authorizeCognito,
+  InvoiceController.createCheckoutSessionForInvoice,
+);
+
 // Get invoice by ID
 router.get("/:invoiceId", authorizeCognito, InvoiceController.getInvoiceById);
 

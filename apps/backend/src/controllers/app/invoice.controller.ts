@@ -75,6 +75,29 @@ export const InvoiceController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
+  async createCheckoutSessionForInvoice(this: void, req: Request, res: Response) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const result =
+        await InvoiceService.createCheckoutSessionAndEmailParent(invoiceId);
+      return res.status(200).json(result);
+    } catch (err) {
+      logger.error("Error creating invoice checkout session", err);
+
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
+      return res.status(statusCode).json({ message });
+    }
+  },
 
   async addChargesToAppointment(
     this: void,
