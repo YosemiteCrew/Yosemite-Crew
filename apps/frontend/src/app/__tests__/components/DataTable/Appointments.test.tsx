@@ -68,7 +68,15 @@ describe("Appointments table", () => {
   });
 
   it("handles accept/cancel actions for requested appointments", async () => {
-    const appointment: any = { id: "a1", status: "REQUESTED" };
+    const appointment: any = {
+      id: "a1",
+      status: "REQUESTED",
+      companion: {
+        name: "Buddy",
+        species: "dog",
+        parent: { name: "Jamie" },
+      },
+    };
 
     render(
       <Appointments
@@ -85,7 +93,15 @@ describe("Appointments table", () => {
   });
 
   it("handles view/reschedule actions", () => {
-    const appointment: any = { id: "a2", status: "COMPLETED" };
+    const appointment: any = {
+      id: "a2",
+      status: "COMPLETED",
+      companion: {
+        name: "Buddy",
+        species: "dog",
+        parent: { name: "Jamie" },
+      },
+    };
     const setActiveAppointment = jest.fn();
     const setViewPopup = jest.fn();
     const setReschedulePopup = jest.fn();

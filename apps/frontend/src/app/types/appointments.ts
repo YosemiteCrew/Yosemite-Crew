@@ -125,3 +125,17 @@ export const AppointmentFilters = [
     key: "emergencies",
   },
 ];
+
+type ReasonOptions =
+  | "APPOINTMENT_USAGE"
+  | "MANUAL_ADJUSTMENT"
+  | "GROOMING_USAGE"
+  | "BOARDING_USAGE"
+  | "OTHER";
+
+export type InventoryConsumeRequest = {
+  itemId: string;
+  quantity: number;
+  reason: ReasonOptions;
+  referenceId?: string;
+};

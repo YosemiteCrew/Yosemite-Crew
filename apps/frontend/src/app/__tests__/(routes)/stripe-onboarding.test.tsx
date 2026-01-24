@@ -6,7 +6,7 @@ jest.mock("@/app/pages/StripeOnboarding", () => ({
   default: () => <div data-testid="route-stripe-onboarding" />,
 }));
 
-import StripeOnboardingRoute from "@/app/(routes)/stripe-onboarding/page";
+import StripeOnboardingRoute from "@/app/(routes)/(app)/stripe-onboarding/page";
 
 describe("stripe onboarding route", () => {
   it("renders StripeOnboarding wrapper", () => {

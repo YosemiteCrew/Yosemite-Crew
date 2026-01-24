@@ -205,7 +205,10 @@ const UserHeader = () => {
                     ))}
                     <Link
                       href={"/organizations"}
-                      onClick={() => setSelectOrg(false)}
+                      onClick={() => {
+                        setSelectOrg(false)
+                        setMenuOpen(false)
+                      }}
                       className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
                     >
                       View all

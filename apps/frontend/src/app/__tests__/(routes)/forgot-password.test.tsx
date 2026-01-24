@@ -21,7 +21,7 @@ jest.mock("@/app/pages/ForgotPassword/ForgotPassword", () => ({
 }));
 
 import { useAuthStore } from "@/app/stores/authStore";
-import Page, * as PageModule from "@/app/(routes)/forgot-password/page";
+import Page, * as PageModule from "@/app/(routes)/(public)/forgot-password/page";
 
 const useAuthStoreMock = useAuthStore as unknown as jest.MockedFunction<
   typeof useAuthStore

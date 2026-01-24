@@ -2,7 +2,7 @@ import SearchDropdown from "@/app/components/Inputs/SearchDropdown";
 import React, { useMemo, useState } from "react";
 import { Primary } from "@/app/components/Buttons";
 import { FormDataProps } from "..";
-import { Appointment, FormSubmission } from "@yosemite-crew/types";
+import { Appointment, FormSubmission, InvoiceItem } from "@yosemite-crew/types";
 import { buildInitialValues } from "@/app/pages/Forms/Sections/AddForm/Review";
 import { useFormsForPrimaryOrgByCategory } from "@/app/hooks/useForms";
 import { FormsProps } from "@/app/types/forms";
@@ -13,12 +13,62 @@ import PlanSubmissions from "./Submissions/PlanSubmissions";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Fallback from "@/app/components/Fallback";
+import {
+  addLineItemsToAppointments,
+  loadInvoicesForOrgPrimaryOrg,
+} from "@/app/services/invoiceService";
 
 type PlanProps = {
   formData: FormDataProps;
   setFormData: React.Dispatch<React.SetStateAction<FormDataProps>>;
   activeAppointment: Appointment;
   canEdit: boolean;
+};
+
+const toNumber = (v: unknown): number => {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (v == null) return 0;
+  return 0;
+};
+
+const mergeAnswers = (subs: FormSubmission[]): Record<string, any> =>
+  subs.reduce<Record<string, any>>(
+    (acc, s) => Object.assign(acc, s.answers ?? {}),
+    {},
+  );
+
+const buildMedicationLineItemsFromPlan = (
+  planSubs: FormSubmission[],
+): InvoiceItem[] => {
+  const answers = mergeAnswers(planSubs);
+  const indices = new Set<number>();
+  const medNameRegex = /^medications_med_(\d+)_name$/;
+  for (const key of Object.keys(answers)) {
+    const m = medNameRegex.exec(key);
+    if (m) indices.add(Number(m[1]));
+  }
+  const items: InvoiceItem[] = [];
+  [...indices]
+    .sort((a, b) => a - b)
+    .forEach((i) => {
+      const name = String(answers[`medications_med_${i}_name`] ?? "").trim();
+      if (!name) return;
+      const unitPrice = toNumber(answers[`medications_med_${i}_price`]);
+      const quantity = 1;
+      const total = unitPrice * quantity;
+      items.push({
+        name,
+        quantity,
+        unitPrice,
+        total,
+      });
+    });
+
+  return items;
 };
 
 const Plan = ({
@@ -74,15 +124,20 @@ const Plan = ({
         submittedBy: attributes.sub,
       };
       const created = await createSubmission(submission);
+      const medicationItems = buildMedicationLineItemsFromPlan([created]);
+      if (medicationItems.length <= 0) return;
+      await addLineItemsToAppointments(medicationItems, activeAppointment.id);
+      await loadInvoicesForOrgPrimaryOrg({ force: true });
       setFormData((prev) => ({
         ...prev,
         plan: [created, ...(prev.plan ?? [])],
+        lineItems: [...medicationItems, ...(prev.lineItems ?? [])],
       }));
       setActive(null);
       setPlanQuery("");
       setValues(buildInitialValues([]));
     } catch (e) {
-      console.error("Failed to save subjective submission:", e);
+      console.error("Failed to save plan submission:", e);
     }
   };
 
@@ -119,11 +174,7 @@ const Plan = ({
           </div>
         </div>
         {canEdit && active && (
-          <Primary
-            href="#"
-            text="Save"
-            onClick={handleSave}
-          />
+          <Primary href="#" text="Save" onClick={handleSave} />
         )}
       </div>
     </PermissionGate>

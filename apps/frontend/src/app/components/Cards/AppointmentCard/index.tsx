@@ -6,6 +6,7 @@ import { formatDateLabel, formatTimeLabel } from "@/app/utils/forms";
 import { toTitle } from "@/app/utils/validators";
 import { Secondary } from "../../Buttons";
 import { allowReschedule } from "@/app/utils/appointments";
+import { getSafeImageUrl, ImageType } from "@/app/utils/urls";
 
 type AppointmentCardProps = {
   appointment: Appointment;
@@ -25,7 +26,7 @@ const AppointmentCard = ({
       <div className="flex gap-2 items-center">
         <Image
           alt={""}
-          src={"https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"}
+          src={getSafeImageUrl("", appointment.companion.species as ImageType)}
           height={40}
           width={40}
           style={{ borderRadius: "50%" }}

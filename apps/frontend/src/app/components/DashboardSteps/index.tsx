@@ -85,7 +85,7 @@ const DashboardSteps = () => {
       allOf={[
         PERMISSIONS.SPECIALITIES_EDIT_ANY,
         PERMISSIONS.TEAMS_EDIT_ANY,
-        PERMISSIONS.BILLING_EDIT_ANY,
+        PERMISSIONS.ORG_EDIT,
       ]}
     >
       <div className="flex flex-col gap-3">
