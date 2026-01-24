@@ -491,9 +491,14 @@ export const StripeService = {
 
   async retrieveCheckoutSession(sessionId: string) {
     const stripe = getStripeClient();
-    return stripe.checkout.sessions.retrieve(sessionId, {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ["payment_intent"],
     });
+
+    return {
+      status : session.payment_status,
+      total : session.amount_total ? session.amount_total/100 : 0
+    }
   },
 
   async refundPaymentIntent(paymentIntentId: string) {
