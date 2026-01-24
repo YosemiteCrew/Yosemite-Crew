@@ -2,7 +2,12 @@ import { Request, Response } from "express";
 import crypto from "node:crypto";
 import { HydratedDocument } from "mongoose";
 import { FormSubmissionDocument, FormSubmissionModel } from "src/models/form";
-import { DocumensoService } from "src/services/documenso.service";
+import UserModel from "src/models/user";
+import UserOrganizationModel from "src/models/user-organization";
+import { DocumensoExternalRole, DocumensoService } from "src/services/documenso.service";
+import { OrganizationService } from "src/services/organization.service";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
+import logger from "src/utils/logger";
 
 interface DocumensoWebhookBody {
   event?: string;
@@ -100,6 +105,89 @@ export const DocumensoWebhookController = {
     } catch (err) {
       console.error("[DocumensoWebhook] Error", err);
       return res.status(500).json({ message: "Webhook failed" });
+    }
+  },
+};
+
+const buildDisplayName = (user: {
+  firstName?: string;
+  lastName?: string;
+  email: string;
+}) => {
+  const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  return name || user.email;
+};
+
+const mapRoleToDocumenso = (roleCode?: string): DocumensoExternalRole => {
+  switch (roleCode?.toUpperCase()) {
+    case "OWNER":
+    case "ADMIN":
+      return "ADMIN";
+    case "SUPERVISOR":
+    case "VETERINARIAN":
+      return "MANAGER";
+    default:
+      return "MEMBER";
+  }
+};
+
+export const DocumensoAuthController = {
+  async createRedirectUrl(req: Request<{ orgId: string }>, res: Response) {
+    try {
+      const authRequest = req as AuthenticatedRequest;
+      const { orgId } = req.params;
+      const userId = authRequest.userId;
+
+      if (!userId || !orgId) {
+        return res.status(400).json({
+          message: "Missing userId or orgId.",
+        });
+      }
+
+      const user = await UserModel.findOne(
+        { userId },
+        { email: 1, firstName: 1, lastName: 1 },
+        { sanitizeFilter: true },
+      ).lean();
+
+      if (!user?.email) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      const organisation = await OrganizationService.getById(orgId);
+
+      if (!organisation?.name) {
+        return res.status(404).json({ message: "Organisation not found." });
+      }
+
+      const mapping = await UserOrganizationModel.findOne(
+        {
+          practitionerReference: userId,
+          $or: [
+            { organizationReference: orgId },
+            { organizationReference: `Organization/${orgId}` },
+          ],
+        },
+        { roleCode: 1 },
+        { sanitizeFilter: true },
+      ).lean();
+
+      const role = mapRoleToDocumenso(mapping?.roleCode);
+
+      const redirectUrl = await DocumensoService.generateExternalRedirectUrl({
+        email: user.email,
+        name: buildDisplayName(user),
+        businessId: organisation.id ?? orgId,
+        businessName: organisation.name,
+        role,
+      });
+
+      return res.status(200).json({ redirectUrl });
+    } catch (error) {
+      logger.error("Documenso redirect error:", error);
+      return res.status(500).json({
+        message: "Failed to generate Documenso redirect.",
+      });
     }
   },
 };

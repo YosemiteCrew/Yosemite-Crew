@@ -6,6 +6,8 @@ import logger from "src/utils/logger";
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
 const BASE_URL = process.env["DOCUMENSO_BASE_URL"] ?? "";
 const API_KEY = process.env["DOCUMENSO_API_KEY"] ?? "";
+const PUBLIC_BASE_URL = process.env["DOCUMENSO_HOST_URL"] ?? "";
+const EXTERNAL_AUTH_SECRET = process.env["DOCUMENSO_EXTERNAL_AUTH_SECRET"] ?? "";
 
 let documensoClient: Documenso | undefined;
 
@@ -21,13 +23,34 @@ const getBaseUrl = () => {
   }
 };
 
+const getPublicBaseUrl = () => {
+  if (!PUBLIC_BASE_URL) {
+    throw new Error("DOCUMENSO_URL or DOCUMENSO_BASE_URL is not set");
+  }
+
+  try {
+    new URL(PUBLIC_BASE_URL);
+    return PUBLIC_BASE_URL;
+  } catch {
+    throw new Error("DOCUMENSO_URL is invalid");
+  }
+};
+
+const getExternalAuthSecret = () => {
+  if (!EXTERNAL_AUTH_SECRET) {
+    throw new Error(
+      "DOCUMENSO_EXTERNAL_AUTH_SECRET or EXTERNAL_AUTH_SECRET is not set",
+    );
+  }
+
+  return EXTERNAL_AUTH_SECRET;
+};
+
 const getDocumensoClient = () => {
-  if (!documensoClient) {
-    documensoClient = new Documenso({
+  documensoClient ??= new Documenso({
       apiKey: API_KEY, // Ensure API key is set in environment variables
       serverURL: getBaseUrl(),
     });
-  }
 
   return documensoClient;
 };
@@ -52,6 +75,8 @@ export type SignedDocument = {
   filename?: string;
   contentType?: string;
 };
+
+export type DocumensoExternalRole = "ADMIN" | "MANAGER" | "MEMBER";
 
 export class DocumensoService {
   static async createDocument({
@@ -142,6 +167,53 @@ export class DocumensoService {
       return signeDocument;
     } catch (error) {
       logger.error("An unexpected error occurred:", error);
+    }
+  }
+
+  static async generateExternalRedirectUrl({
+    email,
+    name,
+    businessId,
+    businessName,
+    role,
+  }: {
+    email: string;
+    name: string;
+    businessId: string;
+    businessName: string;
+    role: DocumensoExternalRole;
+  }): Promise<string> {
+    try {
+      const baseUrl = getPublicBaseUrl();
+      const externalSecret = getExternalAuthSecret();
+
+      const response = await axios.post(
+        `${baseUrl}/api/auth/external/generate-token`,
+        {
+          email,
+          name,
+          businessId,
+          businessName,
+          role,
+          externalSecret,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      const data = response.data as { redirectUrl?: string };
+
+      if (!data?.redirectUrl) {
+        throw new Error("Documenso redirect url missing");
+      }
+
+      return `${baseUrl}${data.redirectUrl}`;
+    } catch (error) {
+      logger.error("Documenso external auth error:", error);
+      throw error;
     }
   }
 }

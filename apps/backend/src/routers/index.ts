@@ -17,6 +17,7 @@ import docuemntRouter from "./document.router";
 import serviceRouter from "./service.router";
 import appointmentRouter from "./appointment.router";
 import stripeRouter from "./stripe.router";
+import documensoRouter from "./documenso.router";
 import ratingRouter from "./organisationRating.router";
 import invoiceRouter from "./invoice.router";
 import formRouter from "./form.router";
@@ -54,6 +55,7 @@ export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/service`, serviceRouter);
   app.use(`/fhir/v1/appointment`, appointmentRouter);
   app.use(`/v1/stripe`, stripeRouter);
+  app.use(`/v1/documenso`, documensoRouter);
   app.use(`/v1/organisation-rating`, ratingRouter);
   app.use(`/fhir/v1/invoice`, invoiceRouter);
   app.use(`/fhir/v1/form`, formRouter);
