@@ -22,6 +22,7 @@ import {
 } from "@yosemite-crew/types";
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import AppointmentModel from "src/models/appointment";
+import OrganizationModel from "src/models/organization";
 import { DocumensoService, SignedDocument } from "./documenso.service";
 import { AuditTrailService } from "./audit-trail.service";
 import UserModel from "src/models/user";
@@ -97,6 +98,38 @@ const applyUserNamesToForm = <T extends { createdBy: string; updatedBy: string }
   updatedBy: nameMap.get(form.updatedBy) ?? form.updatedBy,
 });
 
+type OrganizationType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+
+const ORG_TYPE_CACHE_TTL_MS = 5 * 60 * 1000;
+const orgTypeCache = new Map<
+  string,
+  { type: OrganizationType; expiresAt: number }
+>();
+
+const resolveOrganizationType = async (
+  organisationId: string,
+): Promise<OrganizationType | null> => {
+  const cached = orgTypeCache.get(organisationId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.type;
+  }
+
+  const organisation = await OrganizationModel.findById(organisationId)
+    .select({ type: 1 })
+    .lean();
+
+  if (!organisation?.type) {
+    return null;
+  }
+
+  orgTypeCache.set(organisationId, {
+    type: organisation.type,
+    expiresAt: Date.now() + ORG_TYPE_CACHE_TTL_MS,
+  });
+
+  return organisation.type;
+};
+
 // Helpers
 
 const flattenFields = (schema: FormField[]): FormField[] => {
@@ -145,6 +178,7 @@ export const FormService = {
 
     const doc = await FormModel.create({
       orgId: oid,
+      businessType: internal.businessType,
       name: internal.name,
       category: internal.category,
       description: internal.description,
@@ -193,6 +227,7 @@ export const FormService = {
     const fhirForm = {
       _id: fid.toString(),
       orgId: "", // admin-only field; not needed for client rendering
+      businessType: form.businessType,
       name: "",
       category: "",
       description: "",
@@ -232,6 +267,7 @@ export const FormService = {
     existing.visibilityType = internal.visibilityType;
     existing.serviceId = internal.serviceId;
     existing.speciesFilter = internal.speciesFilter;
+    existing.businessType = internal.businessType;
     (existing.schema as unknown as FormField[]) = internal.schema;
     existing.updatedBy = userId;
     existing.status = "draft"; // IMPORTANT
@@ -317,6 +353,17 @@ export const FormService = {
       answers: submission.answers,
       submittedAt: submission.submittedAt,
     });
+
+    if (submission.appointmentId) {
+      const appointmentObjectId = ensureObjectId(
+        submission.appointmentId,
+        "appointmentId",
+      );
+      await AppointmentModel.updateOne(
+        { _id: appointmentObjectId },
+        { $addToSet: { formIds: submission.formId.toString() } },
+      );
+    }
 
     if (submission.companionId) {
       const form = await FormModel.findById(submission.formId)
@@ -435,13 +482,34 @@ export const FormService = {
 
     type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
 
-    const submissions = (await FormSubmissionModel.find({ appointmentId })
+    const appointmentObjectId = ensureObjectId(
+      appointmentId,
+      "appointmentId",
+    ).toString();
+    const appointment = await AppointmentModel.findById(appointmentObjectId)
+      .select({ organisationId: 1 })
+      .lean();
+    if (!appointment) {
+      throw new FormServiceError("Appointment not found", 404);
+    }
+
+    const orgType = await resolveOrganizationType(appointment.organisationId);
+    if (orgType && orgType !== "HOSPITAL") {
+      return {
+        appointmentId: appointmentObjectId,
+        soapNotes: {},
+      };
+    }
+
+    const submissions = (await FormSubmissionModel.find({
+      appointmentId: appointmentObjectId,
+    })
       .sort({ submittedAt: -1 })
       .lean()) as unknown as SubmissionLean[];
 
     if (!submissions.length) {
       return {
-        appointmentId,
+        appointmentId: appointmentObjectId,
         soapNotes: {
           Subjective: [],
           Objective: [],
@@ -518,7 +586,7 @@ export const FormService = {
     }
 
     return {
-      appointmentId,
+      appointmentId: appointmentObjectId,
       soapNotes: grouped,
     };
   },
@@ -564,6 +632,7 @@ export const FormService = {
     const clientForm: Form = {
       _id: form._id.toString(),
       orgId: "",
+      businessType: form.businessType,
       name: form.name,
       category: form.category,
       description: form.description,
@@ -636,16 +705,72 @@ export const FormService = {
       throw new FormServiceError("Appointment not found", 404);
     }
 
-    const formIds = (appointment.formIds ?? []).map(String);
-    if (!formIds.length) {
-      return { appointmentId, items: [] };
+    const orgType = await resolveOrganizationType(appointment.organisationId);
+
+    const attachedFormIds = (appointment.formIds ?? []).map(String);
+    const submissionFormIds = (await FormSubmissionModel.distinct("formId", {
+      appointmentId,
+    })) as NormalizableObjectId[];
+    const submissionFormIdStrings = submissionFormIds.map((id) =>
+      normalizeObjectId(id),
+    );
+
+    const formIdsFromAppointment = new Set<string>([
+      ...attachedFormIds,
+      ...submissionFormIdStrings,
+    ]);
+
+    const formsById = formIdsFromAppointment.size
+      ? await FormModel.find({
+          _id: { $in: [...formIdsFromAppointment] },
+          status: "published",
+        }).lean<LeanForm[]>()
+      : [];
+
+    const soapCategories = [
+      "SOAP-Subjective",
+      "SOAP-Objective",
+      "SOAP-Assessment",
+      "SOAP-Plan",
+      "Discharge",
+    ];
+
+    const templateForms: LeanForm[] = [];
+    if (orgType) {
+      const templateFilter: Record<string, unknown> = {
+        orgId: appointment.organisationId,
+        status: "published",
+      };
+
+      if (orgType === "HOSPITAL") {
+        templateFilter.category = { $in: soapCategories };
+      } else {
+        templateFilter.businessType = orgType;
+        templateFilter.category = { $nin: soapCategories };
+      }
+
+      if (params.serviceId) {
+        templateFilter.serviceId = { $in: [params.serviceId] };
+      }
+
+      if (params.species) {
+        templateFilter.speciesFilter = { $in: [params.species] };
+      }
+
+      templateForms.push(
+        ...(await FormModel.find(templateFilter).lean<LeanForm[]>()),
+      );
     }
 
-    // 1️⃣ Load forms
-    const forms = await FormModel.find({
-      _id: { $in: formIds },
-      status: "published",
-    }).lean<LeanForm[]>();
+    const formMap = new Map<string, LeanForm>();
+    for (const form of [...formsById, ...templateForms]) {
+      formMap.set(form._id.toString(), form);
+    }
+
+    const forms = [...formMap.values()];
+    if (!forms.length) {
+      return { appointmentId, items: [] };
+    }
 
     // 2️⃣ Load latest form versions
     const versions = await FormVersionModel.aggregate<VersionAgg>([

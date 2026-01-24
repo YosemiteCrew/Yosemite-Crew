@@ -80,6 +80,8 @@ export interface Form {
   _id: string;
   orgId: string;
 
+  businessType?: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+
   name: string;
   category: string;
   description?: string;
@@ -154,6 +156,8 @@ const FORM_CATEGORY_EXTENSION_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-category";
 const FORM_SPECIES_FILTER_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-species-filter";
+const FORM_BUSINESS_TYPE_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-business-type";
 const FORM_CREATED_BY_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-created-by";
 const FORM_UPDATED_BY_URL =
@@ -340,6 +344,10 @@ const buildFormExtensions = (form: Form): Extension[] | undefined => {
       ex.push({ url: FORM_SPECIES_FILTER_URL, valueString: sf })
     );
 
+  if (form.businessType) {
+    ex.push({ url: FORM_BUSINESS_TYPE_URL, valueString: form.businessType });
+  }
+
   if (form.createdBy)
     ex.push({ url: FORM_CREATED_BY_URL, valueString: form.createdBy });
 
@@ -507,6 +515,9 @@ export const fromFHIRQuestionnaire = (q: Questionnaire): Form => {
       getFormExtensionValue(ex, FORM_CATEGORY_EXTENSION_URL) ||
       q.code?.[0]?.code ||
       "",
+    businessType: getFormExtensionValue(ex, FORM_BUSINESS_TYPE_URL) as
+      | Form["businessType"]
+      | undefined,
     description: q.description,
     visibilityType:
       (getFormExtensionValue(ex, FORM_VISIBILITY_URL) as Form["visibilityType"]) ||
