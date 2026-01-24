@@ -228,13 +228,17 @@ describe("StripeService", () => {
       (mockedOrgModel.findById as any).mockResolvedValue({
         _id: "org1",
       });
-      mockOrgBillingFindOne.mockResolvedValue({
-        connectAccountId: "acct_123",
-        canAcceptPayments: true,
+      (mockOrgBillingFindOne as jest.Mock).mockReturnValueOnce({
+        lean: (jest.fn() as any).mockResolvedValue({
+          connectAccountId: "acct_123",
+          canAcceptPayments: true,
+        }),
       });
-      mockOrgUsageFindOne.mockResolvedValue({
-        usersActiveCount: 2,
-        usersBillableCount: 2,
+      (mockOrgUsageFindOne as jest.Mock).mockReturnValueOnce({
+        lean: (jest.fn() as any).mockResolvedValue({
+          usersActiveCount: 2,
+          usersBillableCount: 2,
+        }),
       });
       const res = await StripeService.getAccountStatus("org1");
       expect(mockedOrgBilling.findOne).toHaveBeenCalledWith({

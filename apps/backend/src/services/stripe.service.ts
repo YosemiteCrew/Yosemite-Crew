@@ -98,13 +98,13 @@ export const StripeService = {
       throw new Error("Organistaion not found");
     }
 
-    const orgBilling = OrgBilling.findOne({
+    const orgBilling = await OrgBilling.findOne({
       orgId: org._id,
-    });
+    }).lean();
 
-    const orgUsage = OrgUsageCounters.findOne({
+    const orgUsage = await OrgUsageCounters.findOne({
       orgId: org._id,
-    });
+    }).lean();
 
     return {
       orgBilling: orgBilling,
