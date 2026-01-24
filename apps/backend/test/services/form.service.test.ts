@@ -5,6 +5,7 @@ import {
   FormVersionModel,
   FormSubmissionModel,
 } from "src/models/form";
+import UserModel from "src/models/user";
 import { FormService } from "src/services/form.service";
 import {
   fromFormRequestDTO,
@@ -33,6 +34,13 @@ jest.mock("src/models/form", () => ({
   FormSubmissionModel: {
     create: jest.fn(),
     findById: jest.fn(),
+    find: jest.fn(),
+  },
+}));
+
+jest.mock("src/models/user", () => ({
+  __esModule: true,
+  default: {
     find: jest.fn(),
   },
 }));
@@ -73,6 +81,10 @@ const mockedSubmissionModel = FormSubmissionModel as unknown as {
   find: jest.Mock;
 };
 
+const mockedUserModel = UserModel as unknown as {
+  find: jest.Mock;
+};
+
 const mockedMapper = toFormResponseDTO as jest.Mock;
 const mockedFromFormRequest = fromFormRequestDTO as jest.Mock;
 const mockedFromSubmission = fromFormSubmissionRequestDTO as jest.Mock;
@@ -107,6 +119,9 @@ describe("FormService", () => {
     mockedFromFormRequest.mockImplementation((val: unknown) => val);
     mockedFromSubmission.mockImplementation((resp: any) => resp);
     mockedToFHIR.mockImplementation((val: unknown) => val);
+    mockedUserModel.find.mockReturnValue({
+      lean: jest.fn().mockResolvedValue([]),
+    });
   });
 
   describe("create", () => {
@@ -167,7 +182,9 @@ describe("FormService", () => {
 
   describe("getFormForAdmin", () => {
     it("throws when not found", async () => {
-      mockedFormModel.findOne.mockResolvedValueOnce(null);
+      mockedFormModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue(null),
+      });
 
       await expect(
         FormService.getFormForAdmin(validId, validId),
@@ -176,7 +193,9 @@ describe("FormService", () => {
 
     it("returns mapped form", async () => {
       const doc = makeFormDoc();
-      mockedFormModel.findOne.mockResolvedValueOnce(doc);
+      mockedFormModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue(doc.toObject()),
+      });
 
       const result = await FormService.getFormForAdmin(validId, validId);
 

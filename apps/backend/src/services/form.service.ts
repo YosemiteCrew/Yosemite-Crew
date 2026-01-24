@@ -24,6 +24,7 @@ import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import AppointmentModel from "src/models/appointment";
 import { DocumensoService, SignedDocument } from "./documenso.service";
 import { AuditTrailService } from "./audit-trail.service";
+import UserModel from "src/models/user";
 
 export class FormServiceError extends Error {
   constructor(
@@ -58,6 +59,43 @@ const normalizeObjectId = (id: NormalizableObjectId): string => {
 
   throw new FormServiceError("Invalid ObjectId", 400);
 };
+
+const buildDisplayName = (
+  profile?: { firstName?: string; lastName?: string } | null,
+): string | null => {
+  if (!profile) return null;
+  const parts = [profile.firstName, profile.lastName].filter(Boolean);
+  return parts.length ? parts.join(" ") : null;
+};
+
+const resolveUserNameMap = async (userIds: string[]) => {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  if (!uniqueIds.length) return new Map<string, string>();
+
+  const users = await UserModel.find(
+    { userId: { $in: uniqueIds } },
+    { userId: 1, firstName: 1, lastName: 1 },
+  ).lean();
+
+  const map = new Map<string, string>();
+  for (const user of users) {
+    const displayName = buildDisplayName(user);
+    if (displayName) {
+      map.set(user.userId, displayName);
+    }
+  }
+
+  return map;
+};
+
+const applyUserNamesToForm = <T extends { createdBy: string; updatedBy: string }>(
+  form: T,
+  nameMap: Map<string, string>,
+) => ({
+  ...form,
+  createdBy: nameMap.get(form.createdBy) ?? form.createdBy,
+  updatedBy: nameMap.get(form.updatedBy) ?? form.updatedBy,
+});
 
 // Helpers
 
@@ -121,19 +159,22 @@ export const FormService = {
 
     await syncFormFields(doc._id.toString(), internal.schema);
 
-    return toFormResponseDTO(doc.toObject());
+    const form = doc.toObject();
+    const nameMap = await resolveUserNameMap([form.createdBy, form.updatedBy]);
+    return toFormResponseDTO(applyUserNamesToForm(form, nameMap));
   },
 
   async getFormForAdmin(orgId: string, formId: string) {
     const oid = ensureObjectId(orgId, "orgId");
     const fid = ensureObjectId(formId, "formId");
 
-    const doc = await FormModel.findOne({ _id: fid, orgId: oid });
+    const doc = await FormModel.findOne({ _id: fid, orgId: oid }).lean();
     if (!doc) {
       throw new FormServiceError("Form not found", 404);
     }
 
-    return toFormResponseDTO(doc.toObject());
+    const nameMap = await resolveUserNameMap([doc.createdBy, doc.updatedBy]);
+    return toFormResponseDTO(applyUserNamesToForm(doc, nameMap));
   },
 
   async getFormForUser(formId: string) {
@@ -199,7 +240,9 @@ export const FormService = {
 
     await syncFormFields(formId, internal.schema);
 
-    return existing.toObject();
+    const form = existing.toObject();
+    const nameMap = await resolveUserNameMap([form.createdBy, form.updatedBy]);
+    return applyUserNamesToForm(form, nameMap);
   },
 
   async publish(formId: string, userId: string) {
@@ -354,9 +397,15 @@ export const FormService = {
 
   async listFormsForOrganisation(orgId: string) {
     const oid = ensureObjectId(orgId, "orgId");
-    const docs = await FormModel.find({ orgId: oid });
+    const docs = await FormModel.find({ orgId: oid }).lean();
 
-    return docs.map((doc) => toFormResponseDTO(doc));
+    const nameMap = await resolveUserNameMap(
+      docs.flatMap((doc) => [doc.createdBy, doc.updatedBy]),
+    );
+
+    return docs.map((doc) =>
+      toFormResponseDTO(applyUserNamesToForm(doc, nameMap)),
+    );
   },
 
   async getSOAPNotesByAppointment(
