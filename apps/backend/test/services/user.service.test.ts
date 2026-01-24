@@ -2,17 +2,70 @@ import type { UserDocument } from "../../src/models/user";
 import UserModel from "../../src/models/user";
 import { UserService } from "../../src/services/user.service";
 
+jest.mock("../../src/services/user-organization.service", () => ({
+  UserOrganizationService: { deleteById: jest.fn() },
+}));
+jest.mock("../../src/services/organization.service", () => ({
+  OrganizationService: { deleteById: jest.fn() },
+}));
+jest.mock("../../src/models/user-organization", () => ({
+  __esModule: true,
+  default: { find: jest.fn() },
+}));
+jest.mock("../../src/models/user-profile", () => ({
+  __esModule: true,
+  default: { deleteMany: jest.fn() },
+}));
+jest.mock("../../src/models/base-availability", () => ({
+  __esModule: true,
+  default: { deleteMany: jest.fn() },
+}));
+jest.mock("../../src/models/weekly-availablity-override", () => ({
+  __esModule: true,
+  default: { deleteMany: jest.fn() },
+}));
+jest.mock("../../src/models/occupancy", () => ({
+  __esModule: true,
+  OccupancyModel: { deleteMany: jest.fn() },
+}));
+
 jest.mock("../../src/models/user", () => ({
   __esModule: true,
   default: {
     findOne: jest.fn(),
     create: jest.fn(),
+    findOneAndUpdate: jest.fn(),
   },
 }));
+
+import UserOrganizationModel from "../../src/models/user-organization";
+import UserProfileModel from "../../src/models/user-profile";
+import BaseAvailabilityModel from "../../src/models/base-availability";
+import WeeklyAvailabilityOverrideModel from "../../src/models/weekly-availablity-override";
+import { OccupancyModel } from "../../src/models/occupancy";
+import { UserOrganizationService } from "../../src/services/user-organization.service";
+import { OrganizationService } from "../../src/services/organization.service";
 
 const mockedUserModel = UserModel as unknown as {
   findOne: jest.Mock;
   create: jest.Mock;
+  findOneAndUpdate: jest.Mock;
+};
+const mockedUserOrganizationModel = UserOrganizationModel as unknown as {
+  find: jest.Mock;
+};
+const mockedUserProfileModel = UserProfileModel as unknown as {
+  deleteMany: jest.Mock;
+};
+const mockedBaseAvailabilityModel = BaseAvailabilityModel as unknown as {
+  deleteMany: jest.Mock;
+};
+const mockedWeeklyAvailabilityOverrideModel =
+  WeeklyAvailabilityOverrideModel as unknown as {
+    deleteMany: jest.Mock;
+  };
+const mockedOccupancyModel = OccupancyModel as unknown as {
+  deleteMany: jest.Mock;
 };
 
 describe("UserService", () => {
@@ -174,6 +227,84 @@ describe("UserService", () => {
         message: "User id cannot be empty.",
         statusCode: 400,
       });
+    });
+  });
+
+  describe("deleteById", () => {
+    const mockDeleteMany = (model: { deleteMany: jest.Mock }) => {
+      model.deleteMany.mockReturnValueOnce({
+        setOptions: jest.fn().mockResolvedValue(true),
+      });
+    };
+
+    it("soft deletes user and deletes owner organizations", async () => {
+      mockedUserModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValueOnce({ userId: "user-1" }),
+      });
+      mockedUserOrganizationModel.find.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValueOnce([
+          {
+            _id: "mapping-1",
+            roleCode: "OWNER",
+            organizationReference: "Organization/org-1",
+          },
+          {
+            _id: "mapping-2",
+            roleCode: "MEMBER",
+            organizationReference: "Organization/org-2",
+          },
+        ]),
+      });
+      mockDeleteMany(mockedUserProfileModel);
+      mockDeleteMany(mockedBaseAvailabilityModel);
+      mockDeleteMany(mockedWeeklyAvailabilityOverrideModel);
+      mockDeleteMany(mockedOccupancyModel);
+      mockedUserModel.findOneAndUpdate.mockResolvedValueOnce({
+        userId: "user-1",
+      } as UserDocument);
+
+      const result = await UserService.deleteById("user-1");
+
+      expect(result).toBe(true);
+      expect(UserOrganizationService.deleteById).toHaveBeenCalledTimes(2);
+      expect(OrganizationService.deleteById).toHaveBeenCalledWith("org-1");
+    });
+
+    it("soft deletes user without deleting organizations when not owner", async () => {
+      mockedUserModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValueOnce({ userId: "user-2" }),
+      });
+      mockedUserOrganizationModel.find.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValueOnce([
+          {
+            _id: "mapping-1",
+            roleCode: "MEMBER",
+            organizationReference: "Organization/org-2",
+          },
+        ]),
+      });
+      mockDeleteMany(mockedUserProfileModel);
+      mockDeleteMany(mockedBaseAvailabilityModel);
+      mockDeleteMany(mockedWeeklyAvailabilityOverrideModel);
+      mockDeleteMany(mockedOccupancyModel);
+      mockedUserModel.findOneAndUpdate.mockResolvedValueOnce({
+        userId: "user-2",
+      } as UserDocument);
+
+      const result = await UserService.deleteById("user-2");
+
+      expect(result).toBe(true);
+      expect(OrganizationService.deleteById).not.toHaveBeenCalled();
+    });
+
+    it("returns false when no document found", async () => {
+      mockedUserModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValueOnce(null),
+      });
+
+      const result = await UserService.deleteById("missing");
+
+      expect(result).toBe(false);
     });
   });
 });

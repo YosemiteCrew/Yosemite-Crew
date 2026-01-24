@@ -8,6 +8,7 @@ import { OccupancyModel } from "../models/occupancy";
 import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
 import { CognitoService } from "./cognito.service";
+import { OrganizationService } from "./organization.service";
 
 export class UserServiceError extends Error {
   constructor(
@@ -53,6 +54,21 @@ const requireSafeIdentifier = (value: unknown, field: string): string => {
   }
 
   return identifier;
+};
+
+const extractOrganizationIdentifier = (reference: unknown): string => {
+  const trimmed = requireString(reference, "Organization reference");
+  const segments = trimmed.split("/").filter(Boolean);
+  const lastSegment = segments.at(-1);
+
+  if (!lastSegment || lastSegment.toLowerCase() === "organization") {
+    throw new UserServiceError(
+      "Invalid organization reference format.",
+      400,
+    );
+  }
+
+  return lastSegment;
 };
 
 const toBoolean = (value: unknown, field: string): boolean => {
@@ -181,19 +197,18 @@ export const UserService = {
           { practitionerReference: `Practitioner/${userId}` },
         ],
       },
-      { roleCode: 1 },
+      { roleCode: 1, organizationReference: 1 },
       { sanitizeFilter: true },
     ).lean();
 
-    const isOwner = mappings.some(
-      (mapping) => mapping.roleCode?.toUpperCase() === "OWNER",
-    );
+    const ownerOrganizationIds = new Set<string>();
 
-    if (isOwner) {
-      throw new UserServiceError(
-        "User is an owner of an organisation and cannot be deleted.",
-        409,
-      );
+    for (const mapping of mappings) {
+      if (mapping.roleCode?.toUpperCase() === "OWNER") {
+        ownerOrganizationIds.add(
+          extractOrganizationIdentifier(mapping.organizationReference),
+        );
+      }
     }
 
     for (const mapping of mappings) {
@@ -215,12 +230,17 @@ export const UserService = {
       }),
     ]);
 
-    const deleted = await UserModel.findOneAndDelete(
+    const updated = await UserModel.findOneAndUpdate(
       { userId },
+      { $set: { isActive: false } },
       { sanitizeFilter: true },
     );
 
-    return Boolean(deleted);
+    for (const organizationId of ownerOrganizationIds) {
+      await OrganizationService.deleteById(organizationId);
+    }
+
+    return Boolean(updated);
   },
 
   async updateName(payload: {
