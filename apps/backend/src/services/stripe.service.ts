@@ -331,20 +331,50 @@ export const StripeService = {
   async createPaymentIntentForInvoice(invoiceId: string) {
     const stripe = getStripeClient();
 
-    const invoice = await InvoiceModel.findById(invoiceId);
+    let invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice) throw new Error("Invoice not found");
+
+    if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+      throw new Error("Invoice is not payable");
+    }
+
+    // 🔒 Switch payment path if coming from PAYMENT_LINK
+    if (
+      invoice.stripeCheckoutSessionId &&
+      invoice.paymentCollectionMethod === "PAYMENT_LINK"
+    ) {
+      await InvoiceModel.updateOne(
+        {
+          _id: invoiceId,
+          status: { $in: ["AWAITING_PAYMENT", "PENDING"] },
+          paymentCollectionMethod: "PAYMENT_LINK",
+          stripePaymentIntentId: { $in: [null, undefined] },
+        },
+        {
+          $set: {
+            paymentCollectionMethod: "PAYMENT_INTENT",
+            stripeCheckoutSessionId: null,
+            stripeCheckoutUrl: null,
+          },
+        },
+      );
+
+      // 🔁 re-fetch to avoid stale state
+      invoice = await InvoiceModel.findById(invoiceId);
+      if (!invoice) throw new Error("Invoice not found after switch");
+    }
+
+    // Prevent duplicate PI
+    if (invoice.stripePaymentIntentId) {
+      return this.retrievePaymentIntent(invoice.stripePaymentIntentId);
+    }
 
     const organisation = await OrganizationModel.findById(
       invoice.organisationId,
     );
-    if (!organisation) throw new Error("Organisation not found");
-
-    if (invoice.status !== "AWAITING_PAYMENT" && invoice.status !== "PENDING") {
-      throw new Error("Invoice is not payable");
-    }
-
-    if (!organisation?.stripeAccountId)
+    if (!organisation?.stripeAccountId) {
       throw new Error("Organisation does not have a Stripe connected account");
+    }
 
     const amountToPay = invoice.totalAmount;
     const stripeAmount = toStripeAmount(amountToPay);
@@ -354,8 +384,8 @@ export const StripeService = {
       currency: invoice.currency || "usd",
       metadata: {
         type: "INVOICE_PAYMENT",
-        appointmentId: invoice.appointmentId || "",
         invoiceId,
+        appointmentId: invoice.appointmentId || "",
         organisationId: invoice.organisationId ?? "",
         parentId: invoice.parentId ?? "",
         companionId: invoice.companionId ?? "",
@@ -367,6 +397,7 @@ export const StripeService = {
     await InvoiceService.attachStripeDetails(invoiceId, {
       stripePaymentIntentId: paymentIntent.id,
       status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
     });
 
     return {
@@ -375,6 +406,82 @@ export const StripeService = {
       amount: amountToPay,
       currency: invoice.currency || "usd",
     };
+  },
+
+  async createCheckoutSessionForInvoice(invoiceId: string) {
+    const stripe = getStripeClient();
+
+    const invoice = await InvoiceModel.findById(invoiceId);
+    if (!invoice) throw new Error("Invoice not found");
+
+    // Guard: payable only
+    if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+      throw new Error("Invoice is not payable");
+    }
+
+    // Guard: don’t start two payment paths
+    if (invoice.stripePaymentIntentId) {
+      throw new Error("Invoice already has a PaymentIntent");
+    }
+    if (invoice.stripeCheckoutSessionId) {
+      // optionally return existing url to re-send
+      return { sessionId: invoice.stripeCheckoutSessionId, url: invoice.stripeCheckoutUrl };
+    }
+
+    const organisation = await OrganizationModel.findById(invoice.organisationId);
+    if (!organisation?.stripeAccountId) throw new Error("Organisation not connected to Stripe");
+
+    // Optional expiry (recommended): e.g. 24 hours
+    const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: invoice.items.map((item) => ({
+        price_data: {
+          currency: invoice.currency || "usd",
+          product_data: {
+            name: item.name,
+            description: item.description ?? undefined,
+          },
+          unit_amount: Math.round(item.unitPrice * 100),
+        },
+        quantity: item.quantity,
+      })),
+      metadata: {
+        type: "INVOICE_PAYMENT",
+        invoiceId: invoice._id.toString(),
+        appointmentId: invoice.appointmentId ?? "",
+        organisationId: invoice.organisationId ?? "",
+        parentId: invoice.parentId ?? "",
+      },
+      payment_intent_data: {
+        metadata: {
+          type: "INVOICE_PAYMENT",
+          invoiceId: invoice._id.toString(),
+          appointmentId: invoice.appointmentId ?? "",
+          organisationId: invoice.organisationId ?? "",
+          parentId: invoice.parentId ?? "",
+        },
+        transfer_data: { destination: organisation.stripeAccountId },
+      },
+      success_url: `${process.env.APP_URL}/payment-success?invoice=${invoice._id}`,
+      cancel_url: `${process.env.APP_URL}/payment-cancelled?invoice=${invoice._id}`,
+      expires_at: expiresAt,
+    });
+
+    await InvoiceModel.updateOne(
+      { _id: invoiceId },
+      {
+        $set: {
+          paymentCollectionMethod: "PAYMENT_LINK",
+          stripeCheckoutSessionId: session.id,
+          stripeCheckoutUrl: session.url,
+          paymentDueAt: new Date(expiresAt * 1000),
+        },
+      },
+    );
+
+    return { sessionId: session.id, url: session.url };
   },
 
   async retrievePaymentIntent(paymentIntentId: string) {
@@ -506,50 +613,12 @@ export const StripeService = {
   // WEBHOOK: SUBSCRIPTIONS
   // ----------------------------
   async _handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-    if (session.mode !== "subscription") return;
+    if (session.mode === "subscription") {
+      return this._handleSubscriptionCheckout(session);
+    } else if (session.mode === "payment") {
+      return this._handleInvoiceCheckout(session);
+    }
 
-    const stripe = getStripeClient();
-
-    const customerId = session.customer as string;
-    const subscriptionId = session.subscription as string;
-    if (!customerId || !subscriptionId) return;
-
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-      expand: ["items.data.price"],
-    });
-
-    const item = subscription.items.data[0];
-    const price = item.price;
-
-    const productId =
-      typeof price.product === "string" ? price.product : price.product?.id;
-
-    await OrgBilling.updateOne(
-      { stripeCustomerId: customerId },
-      {
-        plan: "business",
-        accessState: "active",
-        upgradedAt: new Date(),
-
-        stripeSubscriptionId: subscription.id,
-        stripeSubscriptionItemId: item.id,
-        stripePriceId: price.id,
-        stripeProductId: productId ?? null,
-        billingInterval: price.recurring?.interval,
-        joinedAt: new Date(),
-        subscriptionStatus: subscription.status,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end,
-
-        seatQuantity: item.quantity ?? 0,
-        seatQuantityUpdatedAt: new Date(),
-
-        currentPeriodStart: new Date(item.current_period_start * 1000),
-        currentPeriodEnd: new Date(item.current_period_end * 1000),
-
-        stripeLivemode: session.livemode ?? false,
-        gracePeriodEndsAt: null,
-      },
-    );
   },
 
   async _handleSubscriptionUpdated(subscription: Stripe.Subscription) {
@@ -717,6 +786,12 @@ export const StripeService = {
 
     if (invoice.status === "PAID") return;
 
+    // 🔒 Accept PI ONLY if invoice expects IN_APP
+    if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
+      await this._refundByPaymentIntentId(pi.id);
+      return;
+    }
+
     const chargeId = pi.latest_charge as string;
     const charge = await getStripeClient().charges.retrieve(chargeId);
 
@@ -758,5 +833,139 @@ export const StripeService = {
     await NotificationService.sendToUser(parentId!, notificationPayload);
 
     logger.warn(`Invoice ${invoice.id} marked REFUNDED`);
+  },
+
+  async _handleSubscriptionCheckout(session: Stripe.Checkout.Session) {
+    const stripe = getStripeClient();
+
+    const customerId = session.customer as string;
+    const subscriptionId = session.subscription as string;
+    if (!customerId || !subscriptionId) return;
+
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ["items.data.price"],
+    });
+
+    const item = subscription.items.data[0];
+    const price = item.price;
+
+    const productId =
+      typeof price.product === "string" ? price.product : price.product?.id;
+
+    await OrgBilling.updateOne(
+      { stripeCustomerId: customerId },
+      {
+        plan: "business",
+        accessState: "active",
+        upgradedAt: new Date(),
+
+        stripeSubscriptionId: subscription.id,
+        stripeSubscriptionItemId: item.id,
+        stripePriceId: price.id,
+        stripeProductId: productId ?? null,
+        billingInterval: price.recurring?.interval,
+        joinedAt: new Date(),
+        subscriptionStatus: subscription.status,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+
+        seatQuantity: item.quantity ?? 0,
+        seatQuantityUpdatedAt: new Date(),
+
+        currentPeriodStart: new Date(item.current_period_start * 1000),
+        currentPeriodEnd: new Date(item.current_period_end * 1000),
+
+        stripeLivemode: session.livemode ?? false,
+        gracePeriodEndsAt: null,
+      },
+    );
+  },
+
+  async _handleInvoiceCheckout(session: Stripe.Checkout.Session) {
+    const invoiceId = session.metadata?.invoiceId;
+    if (!invoiceId) return;
+
+    const invoice = await InvoiceModel.findById(invoiceId);
+    if (!invoice) return;
+
+    // Idempotency
+    if (invoice.status === "PAID") return;
+
+    // ✅ Accept ONLY if invoice expects PAYMENT_LINK
+    if (invoice.paymentCollectionMethod !== "PAYMENT_LINK") {
+      // Late or invalid payment → refund
+      const piId =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : null;
+
+      if (piId) {
+        await this._refundByPaymentIntentId(piId);
+      }
+      return;
+    }
+
+    // Ensure session matches what we issued
+    if (
+      invoice.stripeCheckoutSessionId &&
+      invoice.stripeCheckoutSessionId !== session.id
+    ) {
+      const piId =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : null;
+
+      if (piId) {
+        await this._refundByPaymentIntentId(piId);
+      }
+      return;
+    }
+
+    // ✅ Mark invoice PAID
+    await InvoiceModel.updateOne(
+      { _id: invoiceId, status: { $ne: "PAID" } },
+      {
+        $set: {
+          status: "PAID",
+          paidAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    // Optional: update appointment state
+    if (invoice.appointmentId) {
+      await AppointmentModel.updateOne(
+        { _id: invoice.appointmentId },
+        { $set: { updatedAt: new Date() } },
+      );
+    }
+
+    // Optional: notify parent
+    if (invoice.parentId) {
+      await NotificationService.sendToUser(
+        invoice.parentId,
+        NotificationTemplates.Payment.PAYMENT_SUCCESS(
+          invoice.totalAmount,
+          invoice.currency,
+        ),
+      );
+    }
+  },
+
+  async _refundByPaymentIntentId(paymentIntentId: string) {
+    const stripe = getStripeClient();
+
+    try {
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ["latest_charge"],
+      });
+
+      const charge = pi.latest_charge as Stripe.Charge | null;
+      if (!charge?.id) return;
+
+      await stripe.refunds.create({ charge: charge.id });
+    } catch (err) {
+      logger.error("Failed to auto-refund payment intent", paymentIntentId, err);
+    }
   },
 };

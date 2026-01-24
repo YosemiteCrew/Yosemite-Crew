@@ -85,8 +85,12 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
     stripeCustomerId: o.stripeCustomerId ?? undefined,
     stripeChargeId: o.stripeChargeId ?? undefined,
     stripeReceiptUrl: o.stripeReceiptUrl ?? undefined,
+    stripeCheckoutSessionId: o.stripeCheckoutSessionId ?? undefined,
+    stripeCheckoutUrl: o.stripeCheckoutUrl ?? undefined,
+    paymentCollectionMethod: o.paymentCollectionMethod,
     status: o.status as InvoiceStatus,
     metadata,
+    paidAt: o.paidAt ?? undefined,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   };
@@ -130,6 +134,7 @@ export const InvoiceService = {
         discountPercent?: number;
       }[];
       notes?: string;
+      paymentCollectionMethod: "PAYMENT_INTENT" | "PAYMENT_LINK"
     },
     session?: mongoose.ClientSession,
   ) {
@@ -176,7 +181,7 @@ export const InvoiceService = {
           currency: input.currency,
 
           status: "AWAITING_PAYMENT",
-
+          paymentCollectionMethod: input.paymentCollectionMethod,
           items: itemsDetailed,
           subtotal,
           discountTotal,
@@ -258,18 +263,28 @@ export const InvoiceService = {
     return toDomain(doc);
   },
 
-  async markPaid(invoiceId: string) {
-    const _id = ensureObjectId(invoiceId, "invoiceId");
-
-    const doc = await InvoiceModel.findByIdAndUpdate(
-      _id,
-      { $set: { status: "PAID" } },
+  async markInvoicePaid(params: {
+    invoiceId: string;
+    stripePaymentIntentId?: string;
+    stripeChargeId?: string;
+    stripeReceiptUrl?: string;
+  }) {
+    const invoice = await InvoiceModel.findOneAndUpdate(
+      { _id: params.invoiceId, status: { $ne: "PAID" } },
+      {
+        $set: {
+          status: "PAID",
+          paidAt: new Date(),
+          stripePaymentIntentId: params.stripePaymentIntentId,
+          stripeChargeId: params.stripeChargeId,
+          stripeReceiptUrl: params.stripeReceiptUrl,
+          updatedAt: new Date(),
+        },
+      },
       { new: true },
     );
 
-    if (!doc) throw new InvoiceServiceError("Invoice not found.", 404);
-
-    return doc;
+    return invoice;
   },
 
   async markFailed(invoiceId: string) {

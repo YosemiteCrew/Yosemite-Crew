@@ -761,6 +761,79 @@ Support: ${supportEmail}
     };
   });
 
+/* ---------- Appointment Payment Checkout ---------- */
+
+export interface AppointmentPaymentCheckoutTemplateData {
+  parentName?: string;
+  companionName?: string;
+  organisationName?: string;
+  appointmentTime?: string;
+  amountText?: string;
+  checkoutUrl: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  supportEmail?: string;
+}
+
+const buildAppointmentPaymentCheckoutTemplate =
+  createEmailTemplate<AppointmentPaymentCheckoutTemplateData>((data) => {
+    const parentName = data.parentName?.trim() || "there";
+    const organisationName = data.organisationName?.trim() || "Yosemite Crew";
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const actionUrl = data.ctaUrl ?? data.checkoutUrl;
+    const actionLabel = data.ctaLabel?.trim() || "Complete Payment";
+    const actionHtml = actionUrl
+      ? `
+          <table align="center" style="margin:24px auto;">
+            <tr>
+              <td bgcolor="#2563eb" style="border-radius:6px;">
+                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
+                  ${actionLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        `
+      : "";
+    const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
+    const companionLine = data.companionName
+      ? `<p><strong>Companion:</strong> ${data.companionName}</p>`
+      : "";
+    const appointmentLine = data.appointmentTime
+      ? `<p><strong>Appointment:</strong> ${data.appointmentTime}</p>`
+      : "";
+    const amountLine = data.amountText
+      ? `<p><strong>Total:</strong> ${data.amountText}</p>`
+      : "";
+
+    return {
+      subject: `Complete your payment for ${organisationName}`,
+      contentHtml: `
+      <p>Hi ${parentName},</p>
+      <p>
+        Your appointment has been booked with <strong>${organisationName}</strong>.
+        Please complete payment to confirm the booking.
+      </p>
+      ${companionLine}
+      ${appointmentLine}
+      ${amountLine}
+      ${actionHtml}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${parentName},
+
+Your appointment has been booked with ${organisationName}. Please complete payment to confirm the booking.
+${data.companionName ? `Companion: ${data.companionName}` : ""}
+${data.appointmentTime ? `Appointment: ${data.appointmentTime}` : ""}
+${data.amountText ? `Total: ${data.amountText}` : ""}
+${actionText}
+
+Support: ${supportEmail}
+      `.trim(),
+    };
+  });
+
 /* ---------- Permissions Updated ---------- */
 
 export interface PermissionsUpdatedTemplateData {
@@ -827,6 +900,7 @@ type EmailTemplateRegistry = {
   specialityHeadAssigned: typeof buildSpecialityHeadAssignedTemplate;
   freePlanLimitReached: typeof buildFreePlanLimitReachedTemplate;
   permissionsUpdated: typeof buildPermissionsUpdatedTemplate;
+  appointmentPaymentCheckout: typeof buildAppointmentPaymentCheckoutTemplate;
 };
 
 export const emailTemplates: EmailTemplateRegistry = {
@@ -838,6 +912,7 @@ export const emailTemplates: EmailTemplateRegistry = {
   specialityHeadAssigned: buildSpecialityHeadAssignedTemplate,
   freePlanLimitReached: buildFreePlanLimitReachedTemplate,
   permissionsUpdated: buildPermissionsUpdatedTemplate,
+  appointmentPaymentCheckout: buildAppointmentPaymentCheckoutTemplate,
 };
 
 export type EmailTemplateId = keyof typeof emailTemplates;

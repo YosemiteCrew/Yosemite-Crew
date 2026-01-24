@@ -19,6 +19,7 @@ import { OccupancyModel } from "src/models/occupancy";
 import OrganizationModel from "src/models/organization";
 import UserProfileModel from "src/models/user-profile";
 import UserModel from "src/models/user";
+import { ParentModel } from "src/models/parent";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 import { TaskService } from "./task.service";
@@ -664,18 +665,19 @@ export const AppointmentService = {
             },
           ],
           notes: appointment.concern,
+          paymentCollectionMethod: "PAYMENT_LINK"
         },
         session,
       );
 
-      let paymentIntentData = null;
+      let checkout
 
       await session.commitTransaction();
       await session.endSession();
 
       // 4.5 Optional — create PaymentIntent (ONLY if PMS wants immediate payment)
       if (createPayment === true) {
-        paymentIntentData = await StripeService.createPaymentIntentForInvoice(
+        checkout = await StripeService.createCheckoutSessionForInvoice(
           invoice._id.toString(),
         );
       }
@@ -708,10 +710,44 @@ export const AppointmentService = {
       );
       await sendAppointmentAssignmentEmails(doc, organisationName);
 
+      if (checkout?.url) {
+        const parent = await ParentModel.findById(parentId)
+          .select("email firstName lastName")
+          .lean();
+        const parentName = parent
+          ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
+          : undefined;
+        const amountText =
+          typeof invoice.totalAmount === "number"
+            ? `${invoice.currency.toUpperCase()} ${invoice.totalAmount.toFixed(2)}`
+            : undefined;
+        const appointmentTime = dayjs(appointment.startTime).format(
+          "MMM D, YYYY h:mm A",
+        );
+
+        if (parent?.email) {
+          await sendEmailTemplate({
+            to: parent.email,
+            templateId: "appointmentPaymentCheckout",
+            templateData: {
+              parentName,
+              companionName: appointment.companion.name,
+              organisationName: organisationName ?? undefined,
+              appointmentTime,
+              amountText,
+              checkoutUrl: checkout.url,
+              ctaUrl: checkout.url,
+              ctaLabel: "Pay Now",
+              supportEmail: SUPPORT_EMAIL_ADDRESS,
+            },
+          });
+        }
+      }
+
       return {
         appointment: toAppointmentResponseDTO(toDomain(doc)),
         invoice,
-        payment: paymentIntentData,
+        checkout
       };
     } catch (err) {
       await session.abortTransaction();
