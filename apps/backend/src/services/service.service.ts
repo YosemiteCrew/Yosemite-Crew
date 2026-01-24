@@ -305,7 +305,11 @@ export const ServiceService = {
       const now = dayjs().utc();
 
       finalWindows = finalWindows.filter((slot) => {
-        const slotTime = dayjs(`${refStr} ${slot.startTime}`).utc();
+        const slotTime = dayjs.utc(
+          `${refStr} ${slot.startTime}`,
+          "YYYY-MM-DD HH:mm",
+          true,
+        );
         return slotTime.isAfter(now);
       });
     }

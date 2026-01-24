@@ -194,8 +194,8 @@ export const StripeService = {
       await billing.save();
     }
 
-    const successUrl = `${process.env.APP_URL}/organization`;
-    const cancelUrl = `${process.env.APP_URL}/organization`;
+    const successUrl = `${process.env.APP_URL}success?session_id={CHECKOUT_SESSION_ID}"`;
+    const cancelUrl = `${process.env.APP_URL}success?session_id={CHECKOUT_SESSION_ID}"`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -464,8 +464,8 @@ export const StripeService = {
         },
         transfer_data: { destination: organisation.stripeAccountId },
       },
-      success_url: `${process.env.APP_URL}/payment-success?invoice=${invoice._id.toString()}`,
-      cancel_url: `${process.env.APP_URL}/payment-cancelled?invoice=${invoice._id.toString()}`,
+      success_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
+      cancel_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
       expires_at: expiresAt,
     });
 
@@ -487,6 +487,13 @@ export const StripeService = {
   async retrievePaymentIntent(paymentIntentId: string) {
     const stripe = getStripeClient();
     return stripe.paymentIntents.retrieve(paymentIntentId);
+  },
+
+  async retrieveCheckoutSession(sessionId: string) {
+    const stripe = getStripeClient();
+    return stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["payment_intent"],
+    });
   },
 
   async refundPaymentIntent(paymentIntentId: string) {

@@ -1487,6 +1487,27 @@ export const AppointmentService = {
     });
   },
 
+  async getAppointmentsForCompanionByOrganisation(
+    companionId: string,
+    organisationId: string,
+  ) {
+    if (!companionId) {
+      throw new AppointmentServiceError("companionId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentServiceError("organisationId is required", 400);
+    }
+
+    const docs: AppointmentMongo[] = await AppointmentModel.find({
+      "companion.id": companionId,
+      organisationId,
+    })
+      .sort({ startTime: -1 })
+      .lean<AppointmentMongo[]>();
+
+    return docs.map((doc) => toAppointmentResponseDTO(toDomainLean(doc)));
+  },
+
   async getById(appointmentId: string): Promise<AppointmentResponseDTO> {
     if (!appointmentId)
       throw new AppointmentServiceError("Appointment ID is required", 400);

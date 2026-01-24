@@ -399,6 +399,30 @@ export const AppointmentController = {
     }
   },
 
+  listByCompanionForOrganisation: async (
+    req: Request<{ organisationId: string; companionId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const { organisationId, companionId } = req.params;
+
+      const data =
+        await AppointmentService.getAppointmentsForCompanionByOrganisation(
+          companionId,
+          organisationId,
+        );
+
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      logger.error("Appiontement search error: ", err);
+      const { status, message } = parseError(
+        err,
+        "Failed to fetch companion appointments for organisation",
+      );
+      return res.status(status).json({ message });
+    }
+  },
+
   listByParent: async (req: Request<{ parentId: string }>, res: Response) => {
     try {
       const { parentId } = req.params;
