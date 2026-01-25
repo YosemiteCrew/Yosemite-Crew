@@ -297,6 +297,31 @@ describe("Build Component", () => {
     expect(newState.schema[0].type).toBe("input");
   });
 
+  it("adds a medication template wrapped in a group", () => {
+    render(
+      <Build
+        formData={{ schema: [] } as any}
+        setFormData={mockSetFormData}
+        onNext={mockOnNext}
+        serviceOptions={mockServiceOptions}
+      />
+    );
+
+    fireEvent.click(screen.getAllByTestId("add-icon")[0]);
+    fireEvent.click(screen.getByText("Medications"));
+
+    const lastCall = mockSetFormData.mock.calls.at(-1)!;
+    const updater = lastCall[0];
+    const newState =
+      typeof updater === "function" ? updater({ schema: [] }) : updater;
+
+    const medGroup = newState.schema[0];
+    expect(medGroup.type).toBe("group");
+    expect(medGroup.meta.medicationGroup).toBe(true);
+    expect(medGroup.fields[0].type).toBe("group");
+    expect(medGroup.fields[0].fields.length).toBeGreaterThan(0);
+  });
+
   it("adds a service group correctly", () => {
     render(
       <Build
@@ -318,7 +343,9 @@ describe("Build Component", () => {
 
     expect(group.type).toBe("group");
     expect(group.meta.serviceGroup).toBe(true);
+    expect(group.meta.serviceIds).toEqual([]);
     expect(group.fields[0].type).toBe("checkbox");
+    expect((group.fields[0] as any).meta.serviceIds).toEqual([]);
   });
 
   // --- Section 3: Nested Field Management ---
@@ -439,6 +466,44 @@ describe("Build Component", () => {
     // Therefore, the length should indeed be 1 (just "old").
 
     expect(options).toHaveLength(1);
+    expect(newState.schema[0].meta?.serviceIds).toEqual(["old"]);
+    expect((newState.schema[0].fields[0] as any).meta?.serviceIds).toEqual(["old"]);
+  });
+
+  it("stores selected service ids in meta when updating options", () => {
+    const serviceGroup: FormsProps = {
+      schema: [
+        {
+          id: "sg1",
+          type: "group",
+          meta: { serviceGroup: true },
+          fields: [
+            {
+              id: "cb1",
+              type: "checkbox",
+              options: [{ label: "Srv 1", value: "srv-1" }],
+            },
+          ],
+        },
+      ],
+    } as any;
+
+    render(
+      <Build
+        formData={serviceGroup}
+        setFormData={mockSetFormData}
+        onNext={mockOnNext}
+        serviceOptions={mockServiceOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("multiselect-change"));
+    const updater = mockSetFormData.mock.calls.at(-1)![0];
+    const newState =
+      typeof updater === "function" ? updater(serviceGroup) : updater;
+
+    expect(newState.schema[0].meta?.serviceIds).toEqual(["srv-1"]);
+    expect((newState.schema[0].fields[0] as any).meta?.serviceIds).toEqual(["srv-1"]);
   });
 
   // --- Section 5: Medication Logic ---
@@ -480,6 +545,12 @@ describe("Build Component", () => {
 
     expect(newState.schema[0].fields).toHaveLength(1);
     expect(newState.schema[0].fields[0].label).toBe("Paracetamol");
+    expect((newState.schema[0].fields[0] as any).meta).toEqual(
+      expect.objectContaining({
+        medicineId: "med-1",
+        inventoryItemId: "med-1",
+      })
+    );
   });
 
   // --- Section 6: Treatment Plan ---

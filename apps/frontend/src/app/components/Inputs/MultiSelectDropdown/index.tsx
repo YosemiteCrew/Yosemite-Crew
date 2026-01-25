@@ -126,11 +126,11 @@ const MultiSelectDropdown = ({
           />
         </div>
         {open && (
-          <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-full left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-3 py-2.5">
+          <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-full left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-stretch w-full px-3 py-2.5">
             {filteredAvailableOptions.length > 0 ? (
               filteredAvailableOptions.map((option, index: number) => (
                 <button
-                  className="px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
+                  className="px-3 py-2 text-left text-body-4 hover:bg-card-hover rounded-lg text-text-secondary hover:text-text-primary w-full"
                   key={option.value + index}
                   onClick={() => toggleOption(option)}
                 >

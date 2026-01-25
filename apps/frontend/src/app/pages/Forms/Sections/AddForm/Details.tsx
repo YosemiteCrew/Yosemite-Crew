@@ -12,6 +12,9 @@ import {
 } from "@/app/types/forms";
 import { getCategoryTemplate } from "@/app/utils/forms";
 import React, { useState } from "react";
+import { Organisation } from "@yosemite-crew/types";
+import { useOrgStore } from "@/app/stores/orgStore";
+import { useMemo } from "react";
 
 type DetailsProps = {
   formData: FormsProps;
@@ -35,6 +38,35 @@ const Details = ({
     description?: string;
     services?: string;
   }>({});
+  const orgType = useOrgStore((s) =>
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined,
+  );
+  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as Organisation["type"] | undefined;
+  const effectiveOrgType = orgTypeOverride || orgType;
+  const categoryOptions = useMemo(() => {
+    const base = ["Consent form", "Discharge", "Custom"];
+    if (effectiveOrgType === "HOSPITAL") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("SOAP")
+      );
+    }
+    if (effectiveOrgType === "BOARDER") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("Boarder")
+      );
+    }
+    if (effectiveOrgType === "BREEDER") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("Breeder")
+      );
+    }
+    if (effectiveOrgType === "GROOMER") {
+      return FormsCategoryOptions.filter(
+        (c) => base.includes(c) || c.startsWith("Groomer")
+      );
+    }
+    return FormsCategoryOptions;
+  }, [effectiveOrgType]);
 
   const handleCategoryChange = (category: FormsCategory) => {
     const shouldApplyTemplate =
@@ -135,7 +167,7 @@ const Details = ({
               placeholder="Category"
               defaultOption={formData.category || ""}
               onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
-              options={FormsCategoryOptions.map((cat) => ({ label: cat, value: cat }))}
+              options={categoryOptions.map((cat) => ({ label: cat, value: cat }))}
               error={formDataErrors.category}
             />
           </div>

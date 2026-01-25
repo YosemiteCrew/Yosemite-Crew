@@ -26,13 +26,13 @@ describe("SignatureRenderer Component", () => {
     render(<SignatureRenderer field={mockField} />);
 
     // Verify placeholder text
-    expect(screen.getByText("Draw your signature here")).toBeInTheDocument();
+    expect(screen.getByText("Please Save and Sign")).toBeInTheDocument();
   });
 
   it("applies correct styling classes (dashed border)", () => {
     render(<SignatureRenderer field={mockField} />);
 
-    const drawingArea = screen.getByText("Draw your signature here");
+    const drawingArea = screen.getByText("Please Save and Sign");
 
     // Verify key styling classes that define the component's look
     expect(drawingArea).toHaveClass("border-dashed");
@@ -48,6 +48,6 @@ describe("SignatureRenderer Component", () => {
     render(<SignatureRenderer field={fieldEmptyLabel} />);
 
     // Should still see the drawing area
-    expect(screen.getByText("Draw your signature here")).toBeInTheDocument();
+    expect(screen.getByText("Please Save and Sign")).toBeInTheDocument();
   });
 });

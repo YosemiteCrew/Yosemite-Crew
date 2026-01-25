@@ -59,7 +59,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
           return (
             <div
               key={field.id}
-              className="border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3"
+              className="border border-grey-light rounded-md px-3 py-3 flex flex-col gap-3"
             >
               <div className="font-grotesk text-black-text text-[18px] font-medium">
                 {field.label || "Group"}

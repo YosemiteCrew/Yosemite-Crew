@@ -65,7 +65,8 @@ const flattenFields = (schema: FormField[]): FormField[] => {
   const walk = (fields: FormField[]) => {
     fields.forEach((f) => {
       out.push(f);
-      if (f.type === "group") walk(f.fields);
+      if (f.type === "group" && Array.isArray(f.fields))
+        walk(f.fields as FormField[]);
     });
   };
   walk(schema);
@@ -342,6 +343,7 @@ export const FormService = {
     type SubmissionLean = Omit<FormSubmissionDocument, "formId"> & {
       _id: Types.ObjectId | string;
       formId: Types.ObjectId | string;
+      signing?: FormSubmissionDocument["signing"];
     };
 
     type SoapNoteType =
@@ -351,13 +353,11 @@ export const FormService = {
       | "Plan"
       | "Discharge";
 
-    type SoapNoteEntry = {
-      submissionId: string;
-      formId: string;
-      formVersion: number;
-      submittedBy?: string;
-      submittedAt: Date;
-      answers: Record<string, unknown>;
+    type SoapNoteEntry = FormSubmission & {
+      signatureRequired?: boolean;
+      submissionId?: string;
+      formName?: string;
+      formCategory?: Form["category"];
     };
 
     type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
@@ -374,6 +374,7 @@ export const FormService = {
           Objective: [],
           Assessment: [],
           Plan: [],
+          Discharge: [],
         },
       };
     }
@@ -388,6 +389,7 @@ export const FormService = {
     type FormLean = {
       _id: Types.ObjectId | string;
       category: Form["category"];
+      name: Form["name"];
       schema: Form["schema"];
     };
 
@@ -426,13 +428,50 @@ export const FormService = {
 
       if (!soapType) continue;
 
+      const signatureRequired = !!flattenFields(
+        (form.schema ?? []) as FormField[],
+      ).find((field) => field.type === "signature");
+
+      const signing = sub.signing
+        ? {
+            ...sub.signing,
+          }
+        : signatureRequired
+          ? {
+              required: true,
+              status: "NOT_STARTED",
+              provider: "DOCUMENSO",
+            }
+          : undefined;
+
+      if (signing?.documentId && signing.status === "SIGNED") {
+        const signedPdfUrl = await DocumensoService.downloadSignedDocument(
+          Number.parseInt(signing.documentId, 10),
+        );
+
+        if (signedPdfUrl?.downloadUrl) {
+          signing.pdf = {
+            ...signing.pdf,
+            url: signedPdfUrl.downloadUrl,
+          };
+        }
+      }
+
       grouped[soapType].push({
+        _id: sub._id.toString(),
         submissionId: sub._id.toString(),
         formId: normalizeObjectId(sub.formId),
         formVersion: sub.formVersion,
+        appointmentId: appointmentId,
+        companionId: sub.companionId,
+        parentId: sub.parentId,
         submittedBy: sub.submittedBy,
         submittedAt: sub.submittedAt,
         answers: sub.answers,
+        signing,
+        signatureRequired,
+        formName: form.name,
+        formCategory: form.category,
       });
     }
 

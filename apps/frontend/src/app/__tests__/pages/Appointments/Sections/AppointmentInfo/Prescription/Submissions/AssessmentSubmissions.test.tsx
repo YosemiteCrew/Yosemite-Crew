@@ -14,8 +14,14 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
 }));
 
 describe("AssessmentSubmissions", () => {
+  const setFormData = jest.fn();
   it("renders empty state", () => {
-    render(<AssessmentSubmissions formData={{ assessment: [] } as any} />);
+    render(
+      <AssessmentSubmissions
+        formData={{ assessment: [] } as any}
+        setFormData={setFormData as any}
+      />,
+    );
 
     expect(
       screen.getByText("Previous assessment submissions")
@@ -34,6 +40,7 @@ describe("AssessmentSubmissions", () => {
             },
           ],
         } as any}
+        setFormData={setFormData as any}
       />
     );
 

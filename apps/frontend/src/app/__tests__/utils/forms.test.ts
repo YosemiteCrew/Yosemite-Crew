@@ -354,5 +354,78 @@ describe("Forms Utils", () => {
       const normalized = (toFormResponseDTO as jest.Mock).mock.calls[0][0];
       expect(normalized.createdBy).toBe("new-user");
     });
+
+    it("carries inventory medicine ids through to the payload schema", () => {
+      const medForm = {
+        ...mockUIForm,
+        schema: [
+          {
+            id: "med-group",
+            type: "group",
+            meta: { medicationGroup: true },
+            fields: [
+              {
+                id: "med-group_med_1_group",
+                type: "group",
+                label: "Inventory med",
+                meta: { medicineId: "med-123", inventoryItemId: "med-123" },
+                fields: [],
+              },
+            ],
+          },
+        ],
+      };
+
+      buildFHIRPayload({
+        form: medForm as any,
+        orgId: "org-1",
+        userId: "user-1",
+      });
+
+      const normalized = (toFormResponseDTO as jest.Mock).mock.calls.at(-1)![0];
+      const medMeta = (normalized.schema[0] as any).fields[0].meta;
+      expect(medMeta).toEqual(
+        expect.objectContaining({
+          medicineId: "med-123",
+          inventoryItemId: "med-123",
+        })
+      );
+    });
+
+    it("carries selected service ids through to the payload schema", () => {
+      const serviceForm = {
+        ...mockUIForm,
+        schema: [
+          {
+            id: "services_group",
+            type: "group",
+            meta: { serviceGroup: true, serviceIds: ["srv-1", "srv-2"] },
+            fields: [
+              {
+                id: "services_group_services",
+                type: "checkbox",
+                meta: { serviceIds: ["srv-1", "srv-2"] },
+                options: [
+                  { label: "Service 1", value: "srv-1" },
+                  { label: "Service 2", value: "srv-2" },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      buildFHIRPayload({
+        form: serviceForm as any,
+        orgId: "org-1",
+        userId: "user-1",
+      });
+
+      const normalized = (toFormResponseDTO as jest.Mock).mock.calls.at(-1)![0];
+      expect(normalized.schema[0].meta.serviceIds).toEqual(["srv-1", "srv-2"]);
+      expect(
+        (normalized.schema[0] as any).fields[0].meta.serviceIds
+      ).toEqual(["srv-1", "srv-2"]);
+    });
   });
 });

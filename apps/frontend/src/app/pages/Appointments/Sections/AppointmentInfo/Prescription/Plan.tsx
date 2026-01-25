@@ -13,6 +13,7 @@ import PlanSubmissions from "./Submissions/PlanSubmissions";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import Fallback from "@/app/components/Fallback";
+import { hasSignatureField } from "./signatureUtils";
 
 type PlanProps = {
   formData: FormDataProps;
@@ -62,6 +63,7 @@ const Plan = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
+      const signatureRequired = hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -74,9 +76,21 @@ const Plan = ({
         submittedBy: attributes.sub,
       };
       const created = await createSubmission(submission);
+      const nextSubmission = signatureRequired
+        ? {
+            ...created,
+            signatureRequired: true,
+            signing:
+              created.signing ?? {
+                required: true,
+                status: "NOT_STARTED",
+                provider: "DOCUMENSO",
+              },
+          }
+        : created;
       setFormData((prev) => ({
         ...prev,
-        plan: [created, ...(prev.plan ?? [])],
+        plan: [nextSubmission, ...(prev.plan ?? [])],
       }));
       setActive(null);
       setPlanQuery("");
@@ -115,7 +129,7 @@ const Plan = ({
                 readOnly
               />
             )}
-            <PlanSubmissions formData={formData} />
+            <PlanSubmissions formData={formData} setFormData={setFormData} />
           </div>
         </div>
         {canEdit && active && (

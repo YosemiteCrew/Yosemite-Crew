@@ -111,13 +111,24 @@ const defaultRadioOptions = [
   { label: "Option B", value: "option_b" },
 ];
 
+const buildMedicationTemplateGroup = (id: string): FormField => {
+  const templateId = `${id}_template`;
+  return {
+    id: templateId,
+    type: "group",
+    label: "Medication template",
+    meta: { template: true, medicineName: "Medication template" } as any,
+    fields: buildMedicationFields(templateId, "-"),
+  };
+};
+
 const fieldFactory: Record<OptionKey, (id: string, serviceOptions?: { label: string; value: string }[]) => FormField> = {
   medication: (id) => ({
     id,
     type: "group",
     label: "Medication",
     meta: { medicationGroup: true } as any,
-    fields: buildMedicationFields(`${id}-med`, "-"),
+    fields: [buildMedicationTemplateGroup(id)],
   }),
   textarea: (id) => ({ id, type: "textarea", label: "Text area", placeholder: "" }),
   input: (id) => ({ id, type: "input", label: "Input", placeholder: "" }),
@@ -218,6 +229,12 @@ const ensureServiceCheckbox = (
   const existingCheckbox = getServiceCheckbox(field);
   const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
 
+  const nextMeta = {
+    ...(field.meta as any),
+    serviceGroup: true,
+    serviceIds: selected,
+  } as any;
+
   const checkbox: FormField = {
     id: existingCheckbox?.id || `${field.id}_services`,
     type: "checkbox",
@@ -227,6 +244,10 @@ const ensureServiceCheckbox = (
       return match ?? { label: val, value: val };
     }),
     multiple: true,
+    meta: {
+      ...(existingCheckbox as any)?.meta,
+      serviceIds: selected,
+    } as any,
   };
 
   const otherFields = (field.fields ?? []).filter((f) => f.id !== checkbox.id);
@@ -234,6 +255,7 @@ const ensureServiceCheckbox = (
   return {
     group: {
       ...field,
+      meta: nextMeta,
       fields: [...otherFields, checkbox],
     },
     selected,
@@ -395,9 +417,11 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           const match = serviceOptions.find((o) => o.value === val);
           return match ?? { label: val, value: val };
         }),
+        meta: { ...(checkbox as any)?.meta, serviceIds: values } as any,
       };
       onChange({
         ...group,
+        meta: { ...(group.meta as any), serviceIds: values } as any,
         fields: (group.fields ?? []).map((f) =>
           f.id === checkbox?.id ? (nextCheckbox as FormField) : f
         ),
@@ -625,6 +649,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
 
     const medicine = medicines.find((m) => m._id === medicineId);
     if (!medicine) return;
+    const inventoryItemId = medicine._id;
 
     // Create individual medication fields directly (not a nested group)
     const medicineCount = (field.fields ?? []).length + 1;
@@ -637,7 +662,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Name",
         placeholder: medicine.name,
         defaultValue: medicine.name,
-        meta: { readonly: true } as any,
+        meta: { readonly: true, inventoryItemId } as any,
       },
       {
         id: `${fieldPrefix}_dosage`,
@@ -645,7 +670,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Dosage",
         placeholder: medicine.attributes?.strength || "Enter dosage",
         defaultValue: medicine.attributes?.strength || "",
-        meta: { readonly: true } as any,
+        meta: { readonly: true, inventoryItemId } as any,
       },
       {
         id: `${fieldPrefix}_route`,
@@ -653,19 +678,21 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Route / Administration",
         placeholder: medicine.attributes?.administration || "N/A",
         defaultValue: medicine.attributes?.administration || "",
-        meta: { readonly: true } as any,
+        meta: { readonly: true, inventoryItemId } as any,
       },
       {
         id: `${fieldPrefix}_frequency`,
         type: "input",
         label: "Frequency",
         placeholder: "Enter frequency",
+        meta: { inventoryItemId } as any,
       },
       {
         id: `${fieldPrefix}_duration`,
         type: "input",
         label: "Duration",
         placeholder: "Enter duration",
+        meta: { inventoryItemId } as any,
       },
       {
         id: `${fieldPrefix}_price`,
@@ -673,13 +700,14 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
         label: "Price",
         placeholder: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
         defaultValue: medicine.sellingPrice === null ? "" : String(medicine.sellingPrice),
-        meta: { readonly: true } as any,
+        meta: { readonly: true, inventoryItemId } as any,
       },
       {
         id: `${fieldPrefix}_remark`,
         type: "textarea",
         label: "Remark",
         placeholder: "Add remark",
+        meta: { inventoryItemId } as any,
       },
     ];
 
@@ -690,7 +718,8 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({
       label: medicine.name,
       fields: medicationFields,
       meta: {
-        medicineId: medicineId,
+        medicineId,
+        inventoryItemId,
         medicineName: medicine.name,
       } as any,
     };
