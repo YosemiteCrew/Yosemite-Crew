@@ -34,11 +34,21 @@ export const fetchSignedDocument = async (
 export const downloadSubmissionPdf = async (
   submissionId: string,
 ): Promise<Blob> => {
-  const res = await api.get<Blob>(
-    `/fhir/v1/form/form-submissions/${submissionId}/pdf`,
-    {
-      responseType: "blob",
+  const signed = await fetchSignedDocument(submissionId);
+  const downloadUrl = signed?.pdf?.downloadUrl;
+  if (!downloadUrl) {
+    throw new Error("Signed PDF not available");
+  }
+  const res = await fetch(downloadUrl, {
+    method: "GET",
+    credentials: "omit",
+    headers: {
+      // Do not attach auth/org headers to S3 presigned URLs
+      Accept: "*/*",
     },
-  );
-  return res.data;
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to download signed PDF (${res.status})`);
+  }
+  return await res.blob();
 };

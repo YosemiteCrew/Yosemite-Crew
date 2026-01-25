@@ -54,7 +54,6 @@ export const formApi = {
     const {data} = await apiClient.get<AppointmentFormsApiResponse>(
       `/fhir/v1/form/mobile/appointments/${appointmentId}/forms`,
       {
-        params: {isPMS: true},
         headers: withAuthHeaders(accessToken),
       },
     );
