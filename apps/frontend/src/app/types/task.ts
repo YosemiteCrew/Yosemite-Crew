@@ -153,6 +153,24 @@ export const EMPTY_TASK: Task = {
   status: "PENDING",
 };
 
+export const EMPTY_COMPANION_TASK: Task = {
+  _id: "",
+  assignedTo: "",
+  audience: "PARENT_TASK",
+  source: "CUSTOM",
+  libraryTaskId: undefined,
+  templateId: undefined,
+  category: "MEDICATION",
+  recurrence: {
+    type: "ONCE",
+    isMaster: false,
+  },
+  name: "",
+  description: "",
+  dueAt: new Date(),
+  status: "PENDING",
+};
+
 export const TaskStatusFilters: StatusOption[] = [
   {
     name: "All",

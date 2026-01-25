@@ -6,8 +6,6 @@ import FormDesc from "@/app/components/Inputs/FormDesc/FormDesc";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import SelectLabel from "@/app/components/Inputs/SelectLabel";
 import Modal from "@/app/components/Modal";
-import { useCompanionsForPrimaryOrg } from "@/app/hooks/useCompanion";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
 import {
   createTask,
   createTaskTemplate,
@@ -16,7 +14,7 @@ import {
 } from "@/app/services/taskService";
 import { Option } from "@/app/types/companion";
 import {
-  EMPTY_TASK,
+  EMPTY_COMPANION_TASK,
   Task,
   TaskKind,
   TaskKindOptions,
@@ -26,6 +24,7 @@ import {
 } from "@/app/types/task";
 import { applyUtcTime, generateTimeSlots } from "@/app/utils/date";
 import React, { useEffect, useMemo, useState } from "react";
+import { CompanionParent } from "./types";
 
 const TaskSourceOptions = [
   { value: "YC_LIBRARY", label: "YC Library" },
@@ -33,20 +32,14 @@ const TaskSourceOptions = [
   { value: "CUSTOM", label: "Custom" },
 ];
 
-const TaskTypeOptions = [
-  { value: "EMPLOYEE_TASK", label: "Employee Task" },
-  { value: "PARENT_TASK", label: "Parent Task" },
-];
-
 type AddTaskProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  activeCompanion: CompanionParent;
 };
 
-const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
-  const teams = useTeamForPrimaryOrg();
-  const companions = useCompanionsForPrimaryOrg();
-  const [formData, setFormData] = useState<Task>(EMPTY_TASK);
+const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => {
+  const [formData, setFormData] = useState<Task>(EMPTY_COMPANION_TASK);
   const [due, setDue] = useState<Date | null>(new Date());
   const [dueTimeUtc, setDueTimeUtc] = useState("05:30");
   const [formDataErrors, setFormDataErrors] = useState<{
@@ -63,6 +56,16 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
   const timeSlots = useMemo(() => {
     return generateTimeSlots(15);
   }, []);
+
+  useEffect(() => {
+    if (!showModal) return;
+    setFormData({
+      ...EMPTY_COMPANION_TASK,
+      companionId: activeCompanion.companion.id,
+      assignedTo: activeCompanion.parent.id
+    });
+    setFormDataErrors({});
+  }, [showModal, activeCompanion]);
 
   useEffect(() => {
     if (!due) return;
@@ -95,24 +98,6 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
     };
     load();
   }, [showModal, formData.source]);
-
-  const CompanionOptions = useMemo(
-    () =>
-      companions?.map((companion) => ({
-        label: companion.name,
-        value: companion.parentId,
-      })),
-    [companions]
-  );
-
-  const TeamOptions = useMemo(
-    () =>
-      teams?.map((team) => ({
-        label: team.name || team.practionerId,
-        value: team.practionerId,
-      })),
-    [teams]
-  );
 
   const TemplateOptions: Option[] = useMemo(() => {
     const list =
@@ -148,7 +133,7 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
     try {
       await createTask(formData);
       setShowModal(false);
-      setFormData(EMPTY_TASK);
+      setFormData(EMPTY_COMPANION_TASK);
       setFormDataErrors({});
       setError(null);
     } catch (error) {
@@ -192,7 +177,7 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
       await createTaskTemplate(template);
       await createTask(formData);
       setShowModal(false);
-      setFormData(EMPTY_TASK);
+      setFormData(EMPTY_COMPANION_TASK);
       setFormDataErrors({});
       setError(null);
     } catch (error) {
@@ -229,59 +214,13 @@ const AddTask = ({ showModal, setShowModal }: AddTaskProps) => {
             <Close onClick={() => {}} />
           </div>
           <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add task</div>
+            <div className="text-body-1 text-text-primary">Add task for {activeCompanion.companion.name}</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
+        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden pt-1.5">
           <div className="flex flex-col gap-3">
-            <LabelDropdown
-              placeholder="Type"
-              onSelect={(option) =>
-                setFormData({
-                  ...formData,
-                  audience: option.value as any,
-                  assignedTo: "",
-                  companionId: undefined,
-                })
-              }
-              defaultOption={formData.audience}
-              options={TaskTypeOptions}
-            />
-            {formData.audience === "EMPLOYEE_TASK" ? (
-              <LabelDropdown
-                placeholder="To"
-                onSelect={(option) =>
-                  setFormData({
-                    ...formData,
-                    assignedTo: option.value,
-                  })
-                }
-                defaultOption={formData.assignedTo}
-                error={formDataErrors.assignedTo}
-                options={TeamOptions}
-              />
-            ) : (
-              <LabelDropdown
-                placeholder="To"
-                onSelect={(option) => {
-                  const companion = companions?.find(
-                    (c) => c.parentId === option.value
-                  );
-                  if (companion) {
-                    setFormData({
-                      ...formData,
-                      companionId: companion.id,
-                      assignedTo: option.value,
-                    });
-                  }
-                }}
-                defaultOption={formData.assignedTo}
-                error={formDataErrors.assignedTo}
-                options={CompanionOptions}
-              />
-            )}
             <LabelDropdown
               placeholder="Source"
               onSelect={(option) => {

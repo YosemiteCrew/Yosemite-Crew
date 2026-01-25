@@ -37,7 +37,7 @@ describe("AppointmentCard", () => {
     status: "COMPLETED",
     appointmentDate: new Date("2025-01-06T00:00:00Z"),
     startTime: new Date("2025-01-06T09:00:00Z"),
-    companion: { name: "Buddy", parent: { name: "Sam" }, species: "Dog" },
+    companion: { name: "Buddy", parent: { name: "Sam" }, species: "dog" },
     appointmentType: { name: "Checkup" },
     room: { name: "Room A" },
     lead: { name: "Dr. Lee" },

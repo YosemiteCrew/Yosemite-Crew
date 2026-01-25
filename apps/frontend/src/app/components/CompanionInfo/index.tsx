@@ -92,7 +92,7 @@ const CompanionInfo = ({
                 alt="pet image"
                 src={getSafeImageUrl(
                   activeCompanion?.companion.photoUrl,
-                  activeCompanion?.companion.type as ImageType
+                  activeCompanion?.companion.type.toLowerCase() as ImageType
                 )}
                 className="rounded-full h-10 w-10 object-cover"
                 height={40}

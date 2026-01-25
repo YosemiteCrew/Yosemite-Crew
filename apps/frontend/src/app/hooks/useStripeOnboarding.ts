@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { checkStatus } from "../services/stripeService";
+import { PERMISSIONS } from "../utils/permissions";
 
 export const useStripeOnboarding = (
   orgId: string | null,
@@ -16,16 +17,12 @@ export const useStripeOnboarding = (
     if (!orgId || !org || !membership) {
       return { onboard: false };
     }
-    const role = (
-      membership.roleDisplay ??
-      membership.roleCode ??
-      ""
-    ).toLowerCase();
-    const isOwner = role === "owner";
-
+    const hasPerm = membership.effectivePermissions?.includes(
+      PERMISSIONS.ORG_EDIT,
+    );
     const isOrgVerified = org.isVerified;
 
-    if (!isOwner || !isOrgVerified) {
+    if (!hasPerm || !isOrgVerified) {
       return { onboard: false };
     }
 

@@ -122,6 +122,10 @@ jest.mock("@/app/services/appointmentService", () => ({
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
 }));
 
+jest.mock("@/app/services/invoiceService", () => ({
+  loadInvoicesForOrgPrimaryOrg: jest.fn(),
+}));
+
 jest.mock("@/app/components/Calendar/weekHelpers", () => ({
   getFormattedDate: () => "2024-01-01",
 }));

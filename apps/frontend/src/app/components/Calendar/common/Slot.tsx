@@ -63,7 +63,7 @@ const Slot: React.FC<SlotProps> = ({
                 </button>
               )}
               <Image
-                src={getSafeImageUrl("", ev.companion.species as ImageType)}
+                src={getSafeImageUrl("", ev.companion.species.toLowerCase() as ImageType)}
                 height={30}
                 width={30}
                 className="rounded-full flex-none"
