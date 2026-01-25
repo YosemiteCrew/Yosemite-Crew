@@ -8,6 +8,7 @@ import {
 import { Primary, Secondary } from "@/app/components/Buttons";
 import Close from "@/app/components/Icons/Close";
 import { useSigningOverlayStore } from "@/app/stores/signingOverlayStore";
+import { useEffect, useRef } from "react";
 
 type SubmissionWithSigning = FormSubmission & {
   signatureRequired?: boolean;
@@ -28,7 +29,14 @@ const SignatureActions = ({
 }: SignatureActionsProps) => {
   const [loading, setLoading] = useState<"sign" | "view" | "pdf" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { openOverlay, setUrl } = useSigningOverlayStore();
+  const {
+    openOverlay,
+    setUrl,
+    open: overlayOpen,
+    submissionId: overlaySubmissionId,
+  } = useSigningOverlayStore();
+  const wasOverlayOpen = useRef(false);
+  const lastOverlaySubmissionId = useRef<string | null>(null);
 
   const submissionId = useMemo(
     () => {
@@ -45,7 +53,7 @@ const SignatureActions = ({
   const shouldShowActions =
     submission.signatureRequired || Boolean(submission.signing);
 
-  if (!submissionId) return null;
+  if (!submissionId || !shouldShowActions) return null;
 
   const handleSign = async () => {
     setError(null);
@@ -136,6 +144,53 @@ const SignatureActions = ({
       setLoading(null);
     }
   };
+
+  const pollForSignedUrl = async (attempts = 3): Promise<string | undefined> => {
+    for (let i = 0; i < attempts; i += 1) {
+      const url = await resolveSignedUrl();
+      if (url) return url;
+      // small delay before next retry
+      await new Promise((r) => setTimeout(r, 750 * (i + 1)));
+    }
+    return undefined;
+  };
+
+  useEffect(() => {
+    if (overlayOpen && overlaySubmissionId) {
+      lastOverlaySubmissionId.current = overlaySubmissionId;
+    }
+
+    // When the signing overlay closes for this submission, refresh signed status once.
+    if (
+      wasOverlayOpen.current &&
+      !overlayOpen &&
+      lastOverlaySubmissionId.current === submissionId
+    ) {
+      void (async () => {
+        try {
+          const url = await pollForSignedUrl();
+          if (!url && submission.signing?.status === "IN_PROGRESS") {
+            onStatusChange?.(submissionId, {
+              signing: {
+                ...(submission.signing ?? { required: true, provider: "DOCUMENSO" }),
+                status: "IN_PROGRESS",
+              },
+            });
+          }
+        } catch (err) {
+          console.error("Failed to refresh signed status after closing overlay", err);
+        }
+      })();
+    }
+    wasOverlayOpen.current = overlayOpen;
+  }, [
+    overlayOpen,
+    overlaySubmissionId,
+    submissionId,
+    onStatusChange,
+    resolveSignedUrl,
+    submission.signing,
+  ]);
 
   return (
     <div className="flex flex-col gap-2 mt-3">

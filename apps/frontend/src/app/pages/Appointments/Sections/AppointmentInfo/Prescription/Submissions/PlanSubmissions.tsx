@@ -1,9 +1,10 @@
 import React from "react";
 import Accordion from "@/app/components/Accordion/Accordion";
 import { FormDataProps } from "../../index";
-import SignatureActions from "./SignatureActions";
 import { useFormsStore } from "@/app/stores/formsStore";
 import { findFieldLabel, humanizeKey } from "../labelUtils";
+import SignatureActions from "./SignatureActions";
+import { hasSignatureField } from "../signatureUtils";
 
 type PlanSubmissionsProps = {
   formData: FormDataProps;
@@ -60,7 +61,16 @@ const PlanSubmissions = ({ formData, setFormData }: PlanSubmissionsProps) => {
         {submissions.map((sub) => {
           const pairs = toStringPairs(sub.answers);
           const hasContent = pairs.length > 0;
-          if (!hasContent && !sub.signatureRequired && !sub.signing) return null;
+          const schema = sub.formId ? formsById[sub.formId]?.schema : undefined;
+          const requiresSignature =
+            hasSignatureField(schema as any) || sub.signing?.required === true;
+          const signingActive =
+            sub.signing?.required ||
+            sub.signing?.status === "IN_PROGRESS" ||
+            sub.signing?.status === "SIGNED" ||
+            Boolean(sub.signing?.documentId || sub.signing?.pdf?.url);
+          const showActions = requiresSignature || signingActive;
+          if (!hasContent && !showActions) return null;
 
           return (
             <div
@@ -79,10 +89,12 @@ const PlanSubmissions = ({ formData, setFormData }: PlanSubmissionsProps) => {
                   ))}
                 </div>
               ) : null}
-              <SignatureActions
-                submission={sub}
-                onStatusChange={updateSubmission}
-              />
+              {showActions ? (
+                <SignatureActions
+                  submission={{ ...sub, signatureRequired: requiresSignature }}
+                  onStatusChange={updateSubmission}
+                />
+              ) : null}
             </div>
           );
         })}

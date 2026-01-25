@@ -1,7 +1,7 @@
 import Labels from "@/app/components/Labels/Labels";
 import Modal from "@/app/components/Modal";
 import Image from "next/image";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Summary from "./Finance/Summary";
 import Task from "./Tasks/Task";
 import AppointmentInfo from "./Info/AppointmentInfo";
@@ -47,6 +47,7 @@ import { humanizeKey } from "./Prescription/labelUtils";
 import SigningOverlay from "@/app/components/SigningOverlay";
 import ParentTask from "./Tasks/ParentTask";
 import { useServicesForPrimaryOrgSpecialities } from "@/app/hooks/useSpecialities";
+import { useSigningOverlayStore } from "@/app/stores/signingOverlayStore";
 
 const formatValue = (
   field: FormField,
@@ -532,6 +533,7 @@ const AppoitmentInfo = ({
   useLoadFormsForPrimaryOrg();
   const formIds = useFormsStore((s) => s.formIds);
   const allForms = formIds.map((id) => formsById[id]).filter(Boolean);
+  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
   const templatesForOrg = useMemo(() => {
     const trimPrefix = (text?: string | null) => (text ?? "").replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, "");
     const matchesAllowed = (category: string, allowed: string[]) => {
@@ -660,27 +662,45 @@ const AppoitmentInfo = ({
     createEmptyFormData(),
   );
 
+  const loadAppointmentForms = useCallback(async () => {
+    if (!activeAppointment?.id) {
+      setCustomForms([]);
+      setCustomFormsError(null);
+      setCustomFormsLoading(false);
+      return;
+    }
+    setCustomFormsLoading(true);
+    setCustomFormsError(null);
+    try {
+      const res = await fetchAppointmentForms(activeAppointment.id);
+      setCustomForms(res.forms);
+    } catch (e) {
+      setCustomFormsError("Unable to load forms");
+      setCustomForms([]);
+    } finally {
+      setCustomFormsLoading(false);
+    }
+  }, [activeAppointment?.id, orgType]);
+
   const withSignatureMeta = (
     submissions: SoapNoteSubmission[] | FormSubmission[] | undefined,
   ): SoapNoteSubmission[] => {
     if (!submissions?.length) return [];
     return submissions.map((sub) => {
       const form = formsById[sub.formId];
-      const answerHintsSignature = Object.keys(sub.answers ?? {}).some((key) =>
-        key.toLowerCase().includes("signature"),
-      );
-      const requiresSignature = (sub as SoapNoteSubmission).signatureRequired
-        ? true
-        : hasSignatureField((form?.schema as FormField[]) ?? []) || answerHintsSignature;
+      const schemaHasSignature = hasSignatureField((form?.schema as FormField[]) ?? []);
+      const requiresSignature =
+        (sub as SoapNoteSubmission).signatureRequired ??
+        sub.signing?.required ??
+        schemaHasSignature;
       const signing =
-        sub.signing ||
-        (requiresSignature
-          ? {
+        requiresSignature || sub.signing?.status || sub.signing?.pdf?.url || sub.signing?.documentId
+          ? sub.signing || {
               required: true,
               status: "NOT_STARTED",
               provider: "DOCUMENSO",
             }
-          : undefined);
+          : undefined;
       return {
         ...(sub as SoapNoteSubmission),
         signatureRequired: requiresSignature,
@@ -777,33 +797,14 @@ const AppoitmentInfo = ({
   }, [activeAppointment?.id, orgType]);
 
   useEffect(() => {
-    let cancelled = false;
-    const loadForms = async () => {
-      if (!activeAppointment?.id) {
-        setCustomForms([]);
-        setCustomFormsError(null);
-        setCustomFormsLoading(false);
-        return;
-      }
-      setCustomFormsLoading(true);
-      setCustomFormsError(null);
-      try {
-        const res = await fetchAppointmentForms(activeAppointment.id);
-        if (cancelled) return;
-        setCustomForms(res.forms);
-      } catch (e) {
-        if (cancelled) return;
-        setCustomFormsError("Unable to load forms");
-        setCustomForms([]);
-      } finally {
-        if (!cancelled) setCustomFormsLoading(false);
-      }
-    };
-    void loadForms();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeAppointment?.id, orgType]);
+    void loadAppointmentForms();
+  }, [loadAppointmentForms]);
+
+  useEffect(() => {
+    // When signing overlay closes, refresh forms so signature status updates without a full page reload.
+    if (signingOverlayOpen) return;
+    void loadAppointmentForms();
+  }, [signingOverlayOpen, loadAppointmentForms]);
 
   useEffect(() => {
     setFormData((prev) => ({

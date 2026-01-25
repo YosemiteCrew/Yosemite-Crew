@@ -11,6 +11,7 @@ const SigningOverlay = () => {
   return createPortal(
     <div
       className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      data-signing-overlay="true"
       style={{ pointerEvents: "auto" }}
     >
       <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">

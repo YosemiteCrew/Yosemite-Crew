@@ -20,12 +20,35 @@ type AppointmentFormsApiResponse = {
 };
 
 const inferFieldType = (item: any): FormField["type"] => {
+  const looksLikeSignature =
+    typeof item?.text === "string" && /signature/i.test(item.text ?? "") ||
+    typeof item?.linkId === "string" && /signature/i.test(item.linkId ?? "");
   const ans = (item.answer ?? [])[0];
   if (ans?.valueBoolean !== undefined) return "boolean";
   if (ans?.valueDate !== undefined || ans?.valueDateTime !== undefined) return "date";
-  if (ans?.valueAttachment !== undefined) return "signature";
+  if (ans?.valueAttachment !== undefined || looksLikeSignature) return "signature";
   return "input";
 };
+
+const buildFieldsFromResponseItems = (items: any[]): FormField[] =>
+  items.map((it: any, idx: number) => {
+    const hasChildren = Array.isArray(it.item) && it.item.length > 0;
+    const base = {
+      id: it.linkId || `field_${idx}`,
+      label: it.text || it.linkId || `Field ${idx + 1}`,
+    };
+    if (hasChildren) {
+      return {
+        ...base,
+        type: "group",
+        fields: buildFieldsFromResponseItems(it.item),
+      } as FormField;
+    }
+    return {
+      ...base,
+      type: inferFieldType(it),
+    } as FormField;
+  });
 
 const buildFallbackForm = (qr: any): { form: Form; submission: FormSubmission } => {
   const firstItemText =
@@ -33,11 +56,7 @@ const buildFallbackForm = (qr: any): { form: Form; submission: FormSubmission } 
       ? qr.item.find((it: any) => typeof it?.text === "string")?.text
       : undefined;
 
-  const schema: FormField[] = (qr.item ?? []).map((it: any, idx: number) => ({
-    id: it.linkId || `field_${idx}`,
-    label: it.text || it.linkId || `Field ${idx + 1}`,
-    type: inferFieldType(it),
-  }));
+  const schema: FormField[] = buildFieldsFromResponseItems(qr.item ?? []);
 
   const formId =
     (qr.questionnaire && String(qr.questionnaire).split("/").pop()) ||
