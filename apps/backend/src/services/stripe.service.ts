@@ -129,6 +129,12 @@ export const StripeService = {
       account: orgBilling.connectAccountId,
       components: {
         account_onboarding: { enabled: true },
+        tax_settings: {
+          enabled: true,
+        },
+        tax_registrations: {
+          enabled: true,
+        },
       },
     });
 
@@ -200,7 +206,12 @@ export const StripeService = {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: billing.stripeCustomerId,
-      line_items: [{ price: priceId, quantity: seats }],
+      line_items: [
+        { 
+          price: priceId,
+          quantity: seats,
+        }
+      ],
       success_url: successUrl,
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
@@ -210,6 +221,10 @@ export const StripeService = {
           connectAccountId: String(billing.connectAccountId ?? ""),
         },
       },
+      automatic_tax: {
+        enabled: true,
+      },
+      billing_address_collection: 'auto',
       metadata: {
         orgId: String(orgId),
         interval,
