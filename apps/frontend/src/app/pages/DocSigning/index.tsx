@@ -6,6 +6,7 @@ import { useLoadOrg } from "@/app/hooks/useLoadOrg";
 import { useOrgStore } from "@/app/stores/orgStore";
 import { fetchDocumensoRedirectUrl } from "@/app/services/documensoService";
 import { Primary } from "@/app/components/Buttons";
+import { YosemiteLoader } from "@/app/components/Loader";
 
 const DocSigning = () => {
   useLoadOrg();
@@ -57,7 +58,9 @@ const DocSigning = () => {
       <OrgGuard>
         <div className="flex flex-col gap-6 w-full h-full">
           {loading ? (
-            <div className="text-body-3 text-text-secondary">Loading...</div>
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <YosemiteLoader label="Loading Doc Signing" />
+            </div>
           ) : error ? (
             <div className="text-body-3 text-error-main">{error}</div>
           ) : (

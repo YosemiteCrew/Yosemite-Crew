@@ -264,13 +264,25 @@ const CustomFormsView = ({
             showEditIcon={false}
             isEditing
             rightElement={
-              <span
-                className={`text-label-xsmall px-2 py-1 rounded ${
-                  entry.status === "completed" ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-700"
-                }`}
-              >
-                {entry.status === "completed" ? "Completed" : "Pending"}
-              </span>
+              (() => {
+                const signingStatus = submissionWithMeta?.signing?.status;
+                const needsSignature = submissionWithMeta?.signatureRequired;
+                const isSigned = signingStatus === "SIGNED";
+                const isCompleted = entry.status === "completed" && (!needsSignature || isSigned);
+                const label = isCompleted
+                  ? "Completed"
+                  : needsSignature && !isSigned
+                    ? "Signature Pending"
+                    : "Pending";
+                const badgeClass = isCompleted
+                  ? "bg-green-50 text-green-800"
+                  : "bg-amber-50 text-amber-700";
+                return (
+                  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>
+                    {label}
+                  </span>
+                );
+              })()
             }
           >
             {entry.submission ? (
