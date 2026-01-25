@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FormSubmission } from "@yosemite-crew/types";
 import {
   downloadSubmissionPdf,
@@ -53,8 +53,6 @@ const SignatureActions = ({
   const shouldShowActions =
     submission.signatureRequired || Boolean(submission.signing);
 
-  if (!submissionId || !shouldShowActions) return null;
-
   const handleSign = async () => {
     setError(null);
     openOverlay(submissionId);
@@ -86,7 +84,7 @@ const SignatureActions = ({
     }
   };
 
-  const resolveSignedUrl = async (): Promise<string | undefined> => {
+  const resolveSignedUrl = useCallback(async (): Promise<string | undefined> => {
     if (submission.signing?.pdf?.url) {
       return submission.signing.pdf.url;
     }
@@ -105,7 +103,7 @@ const SignatureActions = ({
       });
     }
     return downloadUrl;
-  };
+  }, [onStatusChange, submission.signing, submissionId]);
 
 
   const handleViewSigned = async () => {
@@ -145,17 +143,22 @@ const SignatureActions = ({
     }
   };
 
-  const pollForSignedUrl = async (attempts = 3): Promise<string | undefined> => {
-    for (let i = 0; i < attempts; i += 1) {
-      const url = await resolveSignedUrl();
-      if (url) return url;
-      // small delay before next retry
-      await new Promise((r) => setTimeout(r, 750 * (i + 1)));
-    }
-    return undefined;
-  };
+  const pollForSignedUrl = useCallback(
+    async (attempts = 3): Promise<string | undefined> => {
+      for (let i = 0; i < attempts; i += 1) {
+        const url = await resolveSignedUrl();
+        if (url) return url;
+        // small delay before next retry
+        await new Promise((r) => setTimeout(r, 750 * (i + 1)));
+      }
+      return undefined;
+    },
+    [resolveSignedUrl],
+  );
 
   useEffect(() => {
+    if (!submissionId || !shouldShowActions) return;
+
     if (overlayOpen && overlaySubmissionId) {
       lastOverlaySubmissionId.current = overlaySubmissionId;
     }
@@ -187,10 +190,14 @@ const SignatureActions = ({
     overlayOpen,
     overlaySubmissionId,
     submissionId,
-    onStatusChange,
+      onStatusChange,
+    pollForSignedUrl,
     resolveSignedUrl,
+    shouldShowActions,
     submission.signing,
   ]);
+
+  if (!submissionId || !shouldShowActions) return null;
 
   return (
     <div className="flex flex-col gap-2 mt-3">
