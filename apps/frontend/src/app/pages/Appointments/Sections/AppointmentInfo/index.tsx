@@ -59,10 +59,10 @@ const formatValue = (
       Boolean(submission?.signing?.pdf?.url);
     return isSigned ? "Signed" : "Not signed";
   }
-  if (field.type === "date" || field.type === "time") {
+  if (field.type === "date" || (field.type as string) === "time") {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return `${value}`;
-    return field.type === "time" ? d.toLocaleTimeString() : d.toLocaleDateString();
+    return (field.type as string) === "time" ? d.toLocaleTimeString() : d.toLocaleDateString();
   }
   if (field.type === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) {
@@ -408,22 +408,7 @@ export const createEmptyFormData = (): FormDataProps => ({
 });
 
 type LabelKey = "info" | "prescription" | "care" | "tasks" | "finance";
-type SubLabelKey =
-  | "appointment"
-  | "companion"
-  | "history"
-  | "subjective"
-  | "objective"
-  | "assessment"
-  | "plan"
-  | "audit-trail"
-  | "discharge-summary"
-  | "documents"
-  | "forms"
-  | "parent-chat"
-  | "task"
-  | "summary"
-  | "payment-details";
+type SubLabelKey = string;
 
 const hospitalLabels = [
   {
@@ -474,7 +459,7 @@ const AppoitmentInfo = ({
 }: AppoitmentInfoProps) => {
   const { can } = usePermissions();
   const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN);
-  const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key);
+  const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
     hospitalLabels[0].labels[0].key,
   );
@@ -491,7 +476,7 @@ const AppoitmentInfo = ({
       prev.map((entry) =>
         entry.submission?._id === submissionId ||
         (entry.submission as any)?.submissionId === submissionId
-          ? { ...entry, submission: { ...entry.submission, ...updates } }
+          ? { ...entry, submission: { ...entry.submission!, ...updates } as FormSubmission }
           : entry,
       ),
     );
@@ -550,7 +535,7 @@ const AppoitmentInfo = ({
         hospitalLabels[3],
       ];
 
-  const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
+  const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
     info: {
       appointment: AppointmentInfo,
       companion: Companion,
@@ -644,7 +629,7 @@ const AppoitmentInfo = ({
       const answerHintsSignature = Object.keys(sub.answers ?? {}).some((key) =>
         key.toLowerCase().includes("signature"),
       );
-      const requiresSignature = sub.signatureRequired
+      const requiresSignature = (sub as SoapNoteSubmission).signatureRequired
         ? true
         : hasSignatureField((form?.schema as FormField[]) ?? []) || answerHintsSignature;
       const signing =

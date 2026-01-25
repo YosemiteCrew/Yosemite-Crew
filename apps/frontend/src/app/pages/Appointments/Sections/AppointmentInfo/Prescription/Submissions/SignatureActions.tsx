@@ -99,26 +99,6 @@ const SignatureActions = ({
     return downloadUrl;
   };
 
-  const closeSigner = async () => {
-    setShowSigner(false);
-    setSignUrl(null);
-    try {
-      const url = await resolveSignedUrl();
-      if (!url && submission.signing?.status === "IN_PROGRESS") {
-        onStatusChange?.(submissionId, {
-          signing: {
-            ...(submission.signing ?? {
-              required: true,
-              provider: "DOCUMENSO",
-            }),
-            status: "IN_PROGRESS",
-          },
-        });
-      }
-    } catch (err) {
-      console.error("Failed to refresh signing status", err);
-    }
-  };
 
   const handleViewSigned = async () => {
     setError(null);

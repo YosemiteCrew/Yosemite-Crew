@@ -16,6 +16,17 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
   ),
 }));
 
+// Mock the formsStore
+jest.mock("@/app/stores/formsStore", () => ({
+  useFormsStore: () => ({}),
+}));
+
+// Mock SignatureActions to simplify testing
+jest.mock("../../../../../../../pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions", () => ({
+  __esModule: true,
+  default: () => <div data-testid="signature-actions" />,
+}));
+
 describe("DischargeSubmissions Component", () => {
   const setFormData = jest.fn();
   // --- Section 1: Empty States ---
@@ -56,9 +67,9 @@ describe("DischargeSubmissions Component", () => {
 
     render(<DischargeSubmissions formData={mockData as any} setFormData={setFormData as any} />);
 
-    // Check Question Labels
+    // Check Question Labels - humanizeKey converts "Follow-up" to "Follow Up"
     expect(screen.getByText("Instructions")).toBeInTheDocument();
-    expect(screen.getByText("Follow-up")).toBeInTheDocument();
+    expect(screen.getByText("Follow Up")).toBeInTheDocument();
 
     // Check Answers
     expect(screen.getByText("Rest well")).toBeInTheDocument();

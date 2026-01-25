@@ -6,6 +6,7 @@ import {
   fromFormSubmissionRequestDTO,
 } from "@yosemite-crew/types";
 import { AppointmentFormsResponse } from "@/app/types/appointmentForms";
+import { FormField } from "@/app/types/forms";
 
 type AppointmentFormsApiItem = {
   questionnaire: any;

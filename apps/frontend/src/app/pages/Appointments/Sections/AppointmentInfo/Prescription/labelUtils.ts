@@ -14,7 +14,7 @@ export const findFieldLabel = (
   if (!schema?.length) return undefined;
   const flat = flattenFields(schema);
   const match = flat.find((f) => f.id === id);
-  return match?.label || match?.name;
+  return match?.label || (match as any)?.name;
 };
 
 export const humanizeKey = (key: string): string => {
