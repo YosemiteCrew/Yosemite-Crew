@@ -132,7 +132,7 @@ const mapRoleToDocumenso = (roleCode?: string): DocumensoExternalRole => {
 };
 
 export const DocumensoAuthController = {
-  async createRedirectUrl(req: Request<{ orgId: string }>, res: Response) {
+  createRedirectUrl : async (req: Request<{ orgId: string }>, res: Response) => {
     try {
       const authRequest = req as AuthenticatedRequest;
       const { orgId } = req.params;

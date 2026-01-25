@@ -142,6 +142,10 @@ export interface ConsumeStockInput {
   referenceId?: string;
 }
 
+export interface BulkConsumeStockInput {
+  items: ConsumeStockInput[];
+}
+
 export interface StockMovementInput {
   itemId: string;
   batchId?: string;
@@ -679,6 +683,24 @@ export const InventoryService = {
 
     // Later you can log StockMovement here
     return item;
+  },
+
+  // ─────────────────────────────────────────────
+  // STOCK CONSUMPTION (BULK, FIFO by expiry)
+  // ─────────────────────────────────────────────
+  async bulkConsumeStock(
+    input: BulkConsumeStockInput,
+  ): Promise<InventoryItemDocument[]> {
+    if (!Array.isArray(input.items) || input.items.length === 0) {
+      throw new InventoryServiceError("items must be a non-empty array", 400);
+    }
+
+    const results: InventoryItemDocument[] = [];
+    for (const itemInput of input.items) {
+      results.push(await this.consumeStock(itemInput));
+    }
+
+    return results;
   },
 
   async getInventoryTurnoverByItem(params: {

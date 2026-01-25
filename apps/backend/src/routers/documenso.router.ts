@@ -9,7 +9,7 @@ router.post(
   "/pms/redirect/:orgId",
   authorizeCognito,
   withOrgPermissions(),
-  // requirePermission("document:view:any"),
+  requirePermission("document:view:any"),
   DocumensoAuthController.createRedirectUrl,
 );
 
