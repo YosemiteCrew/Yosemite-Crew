@@ -305,7 +305,7 @@ describe('TaskLibraryService', () => {
 
       // Update to specific species
       await TaskLibraryService.update('123', {
-        applicableSpecies: ['DOG'] as Species[],
+        applicableSpecies: ['DOG'] as unknown as Species[],
       });
       expect(doc.applicableSpecies).toEqual(['DOG']);
 
