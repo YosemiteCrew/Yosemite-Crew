@@ -167,6 +167,17 @@ const syncFormFields = async (formId: string, schema: FormField[]) => {
 };
 
 export const FormService = {
+  hasSignatureField(fields?: FormField[]): boolean {
+    if (!fields?.length) return false;
+    return fields.some((field) => {
+      if (field.type === "signature") return true;
+      if (field.type === "group") {
+        return FormService.hasSignatureField(field.fields);
+      }
+      return false;
+    });
+  },
+
   async create(orgId: string, fhir: FormRequestDTO, userId: string) {
     const oid = ensureObjectId(orgId, "orgId");
 
@@ -338,10 +349,36 @@ export const FormService = {
   },
 
   async submitFHIR(response: FormSubmissionRequestDTO, schema?: FormField[]) {
-    const submission: FormSubmission = fromFormSubmissionRequestDTO(
+    const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
       schema,
     );
+
+    let resolvedSchema = schema;
+    if (!resolvedSchema && initialSubmission.formId) {
+      const versionQuery = FormVersionModel.findOne({
+        formId: ensureObjectId(initialSubmission.formId, "formId"),
+        version: initialSubmission.formVersion,
+      });
+      const version = versionQuery
+        ? await versionQuery.select("schemaSnapshot").lean()
+        : null;
+      resolvedSchema = version?.schemaSnapshot;
+    }
+
+    const submission: FormSubmission = resolvedSchema
+      ? fromFormSubmissionRequestDTO(response, resolvedSchema)
+      : initialSubmission;
+
+    const signingRequired = FormService.hasSignatureField(resolvedSchema);
+    const signing =
+      signingRequired && !submission.signing
+        ? {
+            required: true,
+            status: "NOT_STARTED",
+            provider: "DOCUMENSO",
+          }
+        : submission.signing;
 
     const created = await FormSubmissionModel.create({
       formId: submission.formId,
@@ -352,6 +389,7 @@ export const FormService = {
       submittedBy: submission.submittedBy,
       answers: submission.answers,
       submittedAt: submission.submittedAt,
+      signing,
     });
 
     if (submission.appointmentId) {
@@ -684,6 +722,7 @@ export const FormService = {
     appointmentId: string;
     serviceId?: string;
     species?: string;
+    isPMS?: boolean
   }) {
     type LeanForm = Omit<Form, "_id"> & { _id: Types.ObjectId };
     type VersionAgg = Pick<
@@ -812,8 +851,9 @@ export const FormService = {
     );
 
     // 4️⃣ Build FHIR response
+    const includeQuestionnaire = !params.isPMS;
     const items: {
-      questionnaire: ReturnType<typeof toFHIRQuestionnaire>;
+      questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
       questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
       status: "completed" | "pending";
     }[] = [];
@@ -824,10 +864,12 @@ export const FormService = {
       if (!version) continue;
 
       // FHIR Questionnaire
-      const questionnaire = toFHIRQuestionnaire({
-        ...form,
-        _id: form._id.toString(),
-      });
+      const questionnaire = includeQuestionnaire
+        ? toFHIRQuestionnaire({
+            ...form,
+            _id: form._id.toString(),
+          })
+        : undefined;
 
       // Optional FHIR QuestionnaireResponse
       const submission = submissionMap.get(formId);
@@ -868,7 +910,7 @@ export const FormService = {
       }
 
       items.push({
-        questionnaire,
+        ...(includeQuestionnaire ? { questionnaire } : {}),
         questionnaireResponse,
         status: questionnaireResponse ? "completed" : "pending",
       });
