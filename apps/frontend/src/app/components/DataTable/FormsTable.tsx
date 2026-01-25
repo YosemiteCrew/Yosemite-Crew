@@ -1,8 +1,9 @@
 import { FormsProps } from "@/app/types/forms";
-import React from "react";
+import React, { useMemo } from "react";
 import { IoEye } from "react-icons/io5";
 import GenericTable from "../GenericTable/GenericTable";
 import FormCard from "../Cards/FormCard";
+import { useTeamStore } from "@/app/stores/teamStore";
 
 import "./DataTable.css";
 
@@ -42,6 +43,23 @@ const FormsTable = ({
   setViewPopup,
   loading = false,
 }: FormsTableProps) => {
+  const { teamsById } = useTeamStore();
+
+  // Create a lookup map from practitioner ID to team member name
+  const userIdToName = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const team of Object.values(teamsById)) {
+      if (team.practionerId && team.name) {
+        map[team.practionerId] = team.name;
+      }
+    }
+    return map;
+  }, [teamsById]);
+
+  const getUserName = (userId: string) => {
+    return userIdToName[userId] || userId;
+  };
+
   const handleViewForm = (companion: FormsProps) => {
     setActiveForm(companion);
     setViewPopup(true);
@@ -77,7 +95,7 @@ const FormsTable = ({
       key: "updatedBy",
       width: "15%",
       render: (item: FormsProps) => (
-        <div className="appointment-profile-title">{item.updatedBy}</div>
+        <div className="appointment-profile-title">{getUserName(item.updatedBy)}</div>
       ),
     },
     {
@@ -150,6 +168,7 @@ const FormsTable = ({
               key={index + form.name}
               form={form}
               handleViewForm={handleViewForm}
+              getUserName={getUserName}
             />
           ));
         })()}

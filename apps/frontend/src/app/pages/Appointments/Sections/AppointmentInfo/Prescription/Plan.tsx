@@ -17,6 +17,7 @@ import {
   addLineItemsToAppointments,
   loadInvoicesForOrgPrimaryOrg,
 } from "@/app/services/invoiceService";
+import { hasSignatureField } from "./signatureUtils";
 
 type PlanProps = {
   formData: FormDataProps;
@@ -112,6 +113,7 @@ const Plan = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
+      const signatureRequired = hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -121,18 +123,34 @@ const Plan = ({
         companionId: activeAppointment?.companion?.id ?? "",
         parentId: activeAppointment?.companion?.parent?.id ?? "",
         answers: values,
-        submittedBy: attributes.sub,
-      };
-      const created = await createSubmission(submission);
-      const medicationItems = buildMedicationLineItemsFromPlan([created]);
-      if (medicationItems.length <= 0) return;
-      await addLineItemsToAppointments(medicationItems, activeAppointment.id);
-      await loadInvoicesForOrgPrimaryOrg({ force: true });
-      setFormData((prev) => ({
-        ...prev,
-        plan: [created, ...(prev.plan ?? [])],
-        lineItems: [...medicationItems, ...(prev.lineItems ?? [])],
-      }));
+    submittedBy: attributes.sub,
+  };
+  const created = await createSubmission(submission);
+  const medicationItems = buildMedicationLineItemsFromPlan([created]);
+  if (medicationItems.length > 0) {
+    await addLineItemsToAppointments(medicationItems, activeAppointment.id);
+    await loadInvoicesForOrgPrimaryOrg({ force: true });
+  }
+  const nextSubmission = signatureRequired
+    ? {
+        ...created,
+        signatureRequired: true,
+        signing:
+          created.signing ?? {
+            required: true,
+            status: "NOT_STARTED",
+            provider: "DOCUMENSO",
+          },
+      }
+    : created;
+  setFormData((prev) => ({
+    ...prev,
+    plan: [nextSubmission, ...(prev.plan ?? [])],
+    lineItems:
+      medicationItems.length > 0
+        ? [...medicationItems, ...(prev.lineItems ?? [])]
+        : prev.lineItems ?? [],
+  }));
       setActive(null);
       setPlanQuery("");
       setValues(buildInitialValues([]));
@@ -170,7 +188,7 @@ const Plan = ({
                 readOnly
               />
             )}
-            <PlanSubmissions formData={formData} />
+            <PlanSubmissions formData={formData} setFormData={setFormData} />
           </div>
         </div>
         {canEdit && active && (

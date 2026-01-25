@@ -17,11 +17,12 @@ jest.mock("@/app/components/Accordion/Accordion", () => ({
 }));
 
 describe("PlanSubmissions Component", () => {
+  const setFormData = jest.fn();
   // --- Section 1: Empty States ---
 
   it("renders 'No submissions yet' when plan list is empty", () => {
     const mockData = { plan: [] };
-    render(<PlanSubmissions formData={mockData as any} />);
+    render(<PlanSubmissions formData={mockData as any} setFormData={setFormData as any} />);
 
     expect(screen.getByText("Previous plan submissions")).toBeInTheDocument();
     expect(screen.getByText("No submissions yet.")).toBeInTheDocument();
@@ -30,7 +31,7 @@ describe("PlanSubmissions Component", () => {
   it("renders 'No submissions yet' when plan property is undefined", () => {
     // formData.plan is undefined
     const mockData = {};
-    render(<PlanSubmissions formData={mockData as any} />);
+    render(<PlanSubmissions formData={mockData as any} setFormData={setFormData as any} />);
 
     expect(screen.getByText("No submissions yet.")).toBeInTheDocument();
   });
@@ -51,7 +52,7 @@ describe("PlanSubmissions Component", () => {
       ],
     };
 
-    render(<PlanSubmissions formData={mockData as any} />);
+    render(<PlanSubmissions formData={mockData as any} setFormData={setFormData as any} />);
 
     // Check Question Labels
     expect(screen.getByText("Procedure")).toBeInTheDocument();
@@ -78,7 +79,7 @@ describe("PlanSubmissions Component", () => {
       ],
     };
 
-    render(<PlanSubmissions formData={mockData as any} />);
+    render(<PlanSubmissions formData={mockData as any} setFormData={setFormData as any} />);
 
     // Should be visible
     expect(screen.getByText("Valid Plan")).toBeInTheDocument();
@@ -101,7 +102,7 @@ describe("PlanSubmissions Component", () => {
       ],
     };
 
-    render(<PlanSubmissions formData={mockData as any} />);
+    render(<PlanSubmissions formData={mockData as any} setFormData={setFormData as any} />);
 
     // The component maps the submission but returns null because pairs.length === 0.
     const accordion = screen.getByTestId("accordion");
@@ -129,7 +130,7 @@ describe("PlanSubmissions Component", () => {
       ],
     };
 
-    render(<PlanSubmissions formData={mockData as any} />);
+    render(<PlanSubmissions formData={mockData as any} setFormData={setFormData as any} />);
 
     // Effectively rendering an empty list inside the accordion.
     expect(screen.getByTestId("accordion")).toBeInTheDocument();
@@ -149,7 +150,7 @@ describe("PlanSubmissions Component", () => {
       ],
     };
 
-    render(<PlanSubmissions formData={mockData as any} />);
+    render(<PlanSubmissions formData={mockData as any} setFormData={setFormData as any} />);
     expect(screen.getByText("Value")).toBeInTheDocument();
   });
 });

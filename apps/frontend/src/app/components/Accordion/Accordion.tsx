@@ -3,7 +3,7 @@ import { RiEdit2Fill } from "react-icons/ri";
 import { IoIosArrowDown } from "react-icons/io";
 import { MdDeleteForever } from "react-icons/md";
 
-interface AccordionProps {
+export interface AccordionProps {
   title: string;
   children?: React.ReactNode;
   defaultOpen?: boolean;
@@ -12,6 +12,7 @@ interface AccordionProps {
   isEditing?: boolean;
   showDeleteIcon?: boolean;
   onDeleteClick?: () => void;
+  rightElement?: React.ReactNode;
 }
 
 const Accordion: React.FC<AccordionProps> = ({
@@ -23,6 +24,7 @@ const Accordion: React.FC<AccordionProps> = ({
   isEditing,
   showDeleteIcon = false,
   onDeleteClick,
+  rightElement,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -47,6 +49,7 @@ const Accordion: React.FC<AccordionProps> = ({
           </div>
         </button>
         <div className="flex items-center gap-2">
+          {rightElement}
           {showEditIcon && !isEditing && (
             <RiEdit2Fill
               size={20}

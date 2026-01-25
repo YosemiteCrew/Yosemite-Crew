@@ -43,16 +43,21 @@ const DropdownRenderer: React.FC<{
         <div className="font-grotesk text-black-text text-[16px] font-medium">
           {field.label}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2">
           {options.map((opt) => (
-            <button
+            <label
               key={opt.value}
-              onClick={() => toggle(opt.value)}
-              disabled={isReadOnly}
-              className={`px-3 py-2 rounded-2xl border ${selected.includes(opt.value) ? "border-blue-text bg-blue-light text-blue-text" : "border-grey-light"} ${isReadOnly ? "opacity-70 cursor-not-allowed" : ""}`}
+              className="inline-flex items-center space-x-2 text-body-3 text-text-primary"
             >
-              {opt.label}
-            </button>
+              <input
+                type="checkbox"
+                className="h-4 w-4 shrink-0 align-middle"
+                disabled={isReadOnly}
+                checked={selected.includes(opt.value)}
+                onChange={() => toggle(opt.value)}
+              />
+              <span className="leading-none pl-2 translate-y-[1px] inline-block">{opt.label}</span>
+            </label>
           ))}
         </div>
       </div>
@@ -66,16 +71,22 @@ const DropdownRenderer: React.FC<{
         <div className="font-grotesk text-black-text text-[16px] font-medium">
           {field.label}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2">
           {options.map((opt) => (
-            <button
+            <label
               key={opt.value}
-              onClick={() => !isReadOnly && onChange(opt.value)}
-              disabled={isReadOnly}
-              className={`px-3 py-2 rounded-2xl border ${selected === opt.value ? "border-blue-text bg-blue-light text-blue-text" : "border-grey-light"} ${isReadOnly ? "opacity-70 cursor-not-allowed" : ""}`}
+              className="inline-flex items-center space-x-2 text-body-3 text-text-primary"
             >
-              {opt.label}
-            </button>
+              <input
+                type="radio"
+                className="h-4 w-4 shrink-0 align-middle"
+                name={field.id}
+                disabled={isReadOnly}
+                checked={selected === opt.value}
+                onChange={() => !isReadOnly && onChange(opt.value)}
+              />
+              <span className="leading-none pl-2 translate-y-[1px] inline-block">{opt.label}</span>
+            </label>
           ))}
         </div>
       </div>

@@ -6,6 +6,18 @@ import TextRenderer from "./Text/TextRenderer";
 import BooleanRenderer from "./Boolean/BooleanRenderer";
 import DateRenderer from "./Date/DateRenderer";
 
+const humanizeKey = (key: string): string => {
+  const withSpaces = key
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .trim();
+  return withSpaces
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
 const getFallbackValue = (field: FormField) => {
   if (field.type === "checkbox") return [];
   if (field.type === "boolean") return false;
@@ -52,17 +64,26 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
   onChange,
   readOnly = false,
 }) => {
+  const labelForField = (field: FormField): string => {
+    const label = (field.label ?? "").trim();
+    const id = field.id ?? "";
+    if (label && label !== id) return label;
+    if (/_services$/i.test(id)) return "Services";
+    return humanizeKey(id || "Field");
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {fields.map((field) => {
+        const fieldWithLabel = { ...field, label: labelForField(field) } as FormField;
         if (field.type === "group") {
           return (
             <div
               key={field.id}
-              className="border border-grey-light rounded-2xl px-3 py-3 flex flex-col gap-3"
+              className="border border-grey-light rounded-md px-3 py-3 flex flex-col gap-3"
             >
               <div className="font-grotesk text-black-text text-[18px] font-medium">
-                {field.label || "Group"}
+                {fieldWithLabel.label || "Group"}
               </div>
               <FormRenderer
                 fields={field.fields ?? []}
@@ -81,7 +102,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
         return (
           <Component
             key={field.id}
-            field={field}
+            field={fieldWithLabel}
             value={value}
             onChange={(v: any) => onChange(field.id, v)}
             readOnly={readOnly}

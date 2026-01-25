@@ -7,6 +7,7 @@ import { FormsCategory, FormsProps } from "@/app/types/forms";
 import { publishForm, saveFormDraft } from "@/app/services/formService";
 import Close from "@/app/components/Icons/Close";
 import Labels from "@/app/components/Labels/Labels";
+import { useOrgStore } from "@/app/stores/orgStore";
 
 const LabelOptions = [
   {
@@ -33,15 +34,19 @@ type AddFormProps = {
   onDraftChange?: (draft: FormsProps | null) => void;
 };
 
-const defaultForm = (): FormsProps => ({
-  name: "",
-  category: "" as FormsCategory,
-  usage: "Internal",
-  updatedBy: "",
-  lastUpdated: "",
-  status: "Draft",
-  schema: [],
-});
+const defaultForm = (): FormsProps => {
+  const primaryOrg = useOrgStore.getState().getPrimaryOrg?.();
+  return {
+    name: "",
+    category: "" as FormsCategory,
+    usage: "Internal",
+    updatedBy: "",
+    lastUpdated: "",
+    status: "Draft",
+    schema: [],
+    businessType: primaryOrg?.type,
+  };
+};
 
 const AddForm = ({
   showModal,
@@ -67,7 +72,10 @@ const AddForm = ({
   useEffect(() => {
     if (showModal && !wasOpenRef.current) {
       setActiveLabel("form-details");
-      const next = initialForm ?? draft ?? defaultForm();
+      const next = {
+        ...(initialForm ?? draft ?? defaultForm()),
+        businessType: initialForm?.businessType ?? draft?.businessType ?? useOrgStore.getState().getPrimaryOrg?.()?.type,
+      };
       setFormData(next);
       wasOpenRef.current = true;
     }

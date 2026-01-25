@@ -14,6 +14,26 @@ import {
 jest.mock("@/app/stores/formsStore");
 jest.mock("@/app/services/formService");
 jest.mock("@/app/hooks/useSpecialities");
+jest.mock("@/app/hooks/usePermissions", () => ({
+  usePermissions: () => ({
+    can: () => true,
+    canAll: () => true,
+    canAny: () => true,
+    permissions: [],
+    isLoading: false,
+    activeOrgId: "org-1",
+  }),
+}));
+jest.mock("@/app/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: any) => <div>{children}</div>,
+}));
+jest.mock("@/app/components/Fallback", () => ({
+  __esModule: true,
+  default: () => <div data-testid="fallback">No permission</div>,
+}));
+jest.mock("@/app/stores/searchStore", () => ({
+  useSearchStore: () => "",
+}));
 
 // 2. Mock Guards
 jest.mock("@/app/components/ProtectedRoute", () => ({

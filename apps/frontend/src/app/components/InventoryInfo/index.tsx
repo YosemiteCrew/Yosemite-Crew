@@ -553,6 +553,7 @@ type InventoryInfoProps = {
   onUpdateBatch?: (itemId: string, batches: BatchValues[]) => Promise<void>;
   onHide: (itemId: string) => Promise<void>;
   onUnhide: (itemId: string) => Promise<void>;
+  canEdit?: boolean;
 };
 
 const modalSections: { key: InventorySectionKey; name: string }[] = [
@@ -589,6 +590,7 @@ const InventoryInfo = ({
   onUnhide,
   onAddBatch,
   onUpdateBatch,
+  canEdit = true,
 }: InventoryInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     modalSections[0].key
@@ -826,7 +828,7 @@ const InventoryInfo = ({
                   businessType={businessType}
                   inventory={activeInventory}
                   onSave={(vals) => handleSectionSave("batch", vals)}
-                  disableEditing={isUpdating || isHiding}
+                  disableEditing={!canEdit || isUpdating || isHiding}
                   onEditingChange={setIsSectionEditing}
                   onRegisterActions={(actions) => {
                     batchActions.current = actions;
@@ -839,7 +841,7 @@ const InventoryInfo = ({
                   sectionTitle={currentLabelConfig.name}
                   inventory={activeInventory}
                   onSaveSection={handleSectionSave}
-                  disableEditing={isUpdating || isHiding}
+                  disableEditing={!canEdit || isUpdating || isHiding}
                   onEditingChange={setIsSectionEditing}
                   onRegisterActions={(actions) => {
                     sectionActions.current = actions;
@@ -850,7 +852,7 @@ const InventoryInfo = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${canEdit || inEditMode ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
           <Secondary
             href="#"
             text={inEditMode ? "Cancel" : "Close"}
@@ -858,21 +860,23 @@ const InventoryInfo = ({
             isDisabled={isUpdating || isHiding}
             className="h-12! text-lg! tracking-wide!"
           />
-          <Primary
-            href="#"
-            text={getPrimaryButtonText(
-              inEditMode,
-              isUpdating,
-              isHiding,
-              isHidden
-            )}
-            onClick={handlePrimaryAction}
-            isDisabled={
-              (inEditMode && isUpdating) ||
-              (!inEditMode && (isHiding || !activeInventory?.id))
-            }
-            classname="h-12! text-lg! tracking-wide!"
-          />
+          {(canEdit || inEditMode) && (
+            <Primary
+              href="#"
+              text={getPrimaryButtonText(
+                inEditMode,
+                isUpdating,
+                isHiding,
+                isHidden
+              )}
+              onClick={handlePrimaryAction}
+              isDisabled={
+                (inEditMode && isUpdating) ||
+                (!inEditMode && (isHiding || !activeInventory?.id))
+              }
+              classname="h-12! text-lg! tracking-wide!"
+            />
+          )}
         </div>
       </div>
     </Modal>

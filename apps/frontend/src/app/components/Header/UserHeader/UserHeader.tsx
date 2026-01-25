@@ -33,6 +33,7 @@ const appRoutes: RouteItem[] = [
   { name: "Companions", href: "/companions", verify: true },
   { name: "Inventory", href: "/inventory", verify: true },
   { name: "Forms", href: "/forms", verify: true },
+  { name: "Doc Signing", href: "/doc-signing", verify: true },
   { name: "Settings", href: "/settings", verify: false },
   { name: "Sign out", href: "#", verify: false },
 ];

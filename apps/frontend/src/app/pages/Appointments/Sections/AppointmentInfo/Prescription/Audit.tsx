@@ -50,9 +50,9 @@ const Audit = ({ activeAppointment }: AuditProps) => {
           </div>
         ) : (
           <div className="w-full max-w-3xl mx-auto flex flex-col gap-2">
-            {entries.map((e) => (
+            {entries.map((e, idx) => (
               <div
-                key={e.id}
+                key={e.id ?? `${e.eventType}-${e.occurredAt}-${idx}`}
                 className="w-full rounded-2xl border border-card-border bg-white px-3 py-3"
               >
                 <div className="flex items-start justify-between gap-4">

@@ -125,9 +125,11 @@ describe('DynamicSelect Component', () => {
       />
     );
 
+    // Click on the current selection to open dropdown
     await user.click(screen.getByText('Apple'));
 
-    const placeholderOption = await screen.findByRole('button', { name: 'Select a fruit' });
+    // Find and click the placeholder option (which is a div with class dropdown-item, not a button)
+    const placeholderOption = await screen.findByText('Select a fruit');
     await user.click(placeholderOption);
 
     expect(mockOnChange).toHaveBeenCalledTimes(1);

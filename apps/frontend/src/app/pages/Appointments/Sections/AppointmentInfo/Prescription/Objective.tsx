@@ -14,6 +14,7 @@ import ObjectiveSubmissions from "./Submissions/ObjectiveSubmissions";
 import { PERMISSIONS } from "@/app/utils/permissions";
 import { PermissionGate } from "@/app/components/PermissionGate";
 import Fallback from "@/app/components/Fallback";
+import { hasSignatureField } from "./signatureUtils";
 
 type ObjectiveProps = {
   formData: FormDataProps;
@@ -63,6 +64,7 @@ const Objective = ({
   const handleSave = async () => {
     if (!active?._id || !activeAppointment.id || !attributes) return;
     try {
+      const signatureRequired = hasSignatureField(active.schema as any);
       const submission: FormSubmission = {
         _id: "",
         formVersion: 1,
@@ -75,9 +77,21 @@ const Objective = ({
         submittedBy: attributes.sub,
       };
       const created = await createSubmission(submission);
+      const nextSubmission = signatureRequired
+        ? {
+            ...created,
+            signatureRequired: true,
+            signing:
+              created.signing ?? {
+                required: true,
+                status: "NOT_STARTED",
+                provider: "DOCUMENSO",
+              },
+          }
+        : created;
       setFormData((prev) => ({
         ...prev,
-        objective: [created, ...(prev.objective ?? [])],
+        objective: [nextSubmission, ...(prev.objective ?? [])],
       }));
       setActive(null);
       setQuery("");
@@ -118,7 +132,10 @@ const Objective = ({
                 readOnly
               />
             )}
-            <ObjectiveSubmissions formData={formData} />
+            <ObjectiveSubmissions
+              formData={formData}
+              setFormData={setFormData}
+            />
           </div>
         </Accordion>
         {canEdit && active && (

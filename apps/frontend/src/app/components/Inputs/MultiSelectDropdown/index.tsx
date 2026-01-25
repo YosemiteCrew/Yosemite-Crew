@@ -9,6 +9,7 @@ type DropdownProps = {
   onChange: (e: string[]) => void;
   error?: string;
   options?: Array<string | { label: string; value: string }>;
+  searchable?: boolean;
 };
 
 const MultiSelectDropdown = ({
@@ -17,10 +18,12 @@ const MultiSelectDropdown = ({
   value,
   error,
   options,
+  searchable = true,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const list: Option[] = useMemo(() => {
     return (
@@ -42,6 +45,14 @@ const MultiSelectDropdown = ({
     [list, valueSet]
   );
 
+  const filteredAvailableOptions = useMemo(() => {
+    if (!searchQuery.trim()) return availableOptions;
+    const query = searchQuery.toLowerCase();
+    return availableOptions.filter((option) =>
+      option.label.toLowerCase().includes(query)
+    );
+  }, [availableOptions, searchQuery]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -49,7 +60,7 @@ const MultiSelectDropdown = ({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setOpen(false);
-        buttonRef.current?.blur();
+        setSearchQuery("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -58,6 +69,12 @@ const MultiSelectDropdown = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (open && searchable && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [open, searchable]);
+
   const toggleOption = (option: Option) => {
     const isSelected = valueSet.has(option.value);
     const next = isSelected
@@ -65,8 +82,8 @@ const MultiSelectDropdown = ({
       : [...value, option.value];
 
     onChange(next);
+    setSearchQuery("");
     setOpen(false);
-    buttonRef.current?.blur();
   };
 
   const removeOption = (val: string) => {
@@ -76,33 +93,55 @@ const MultiSelectDropdown = ({
   return (
     <div className="flex flex-col">
       <div className="relative w-full" ref={dropdownRef}>
-        <button
-          className={`w-full peer flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border border-input-border-default! focus:border-input-text-placeholder-active! ${selectedOptions.length === 0 && error && "border-input-border-error!"} ${open ? "rounded-t-2xl!" : "rounded-2xl!"}`}
+        <div
+          className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer ${open ? "border-input-text-placeholder-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"} ${selectedOptions.length === 0 && error && "border-input-border-error!"}`}
           onClick={() => {
-            setOpen((e) => !e);
-            requestAnimationFrame(() => buttonRef.current?.focus());
+            if (!open) {
+              setOpen(true);
+            }
           }}
-          ref={buttonRef}
         >
-          <div className="text-input-text-placeholder text-body-4">
-            {placeholder}
-          </div>
+          {open && searchable ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={placeholder}
+              className="w-full bg-transparent text-body-4 text-black-text outline-none placeholder:text-input-text-placeholder"
+            />
+          ) : (
+            <div className="text-input-text-placeholder text-body-4">
+              {placeholder}
+            </div>
+          )}
           <FaCaretDown
             size={20}
-            className={`text-black-text transition-transform cursor-pointer`}
+            className={`text-black-text transition-transform cursor-pointer shrink-0 ${open ? "rotate-180" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen((prev) => !prev);
+              if (open) setSearchQuery("");
+            }}
           />
-        </button>
-        {open && availableOptions.length > 0 && (
-          <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
-            {availableOptions.map((option, index: number) => (
-              <button
-                className="px-[1.25rem] py-[0.75rem] text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
-                key={option.value + index}
-                onClick={() => toggleOption(option)}
-              >
-                {option.label}
-              </button>
-            ))}
+        </div>
+        {open && (
+          <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-full left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-stretch w-full px-3 py-2.5">
+            {filteredAvailableOptions.length > 0 ? (
+              filteredAvailableOptions.map((option, index: number) => (
+                <button
+                  className="px-3 py-2 text-left text-body-4 hover:bg-card-hover rounded-lg text-text-secondary hover:text-text-primary w-full"
+                  key={option.value + index}
+                  onClick={() => toggleOption(option)}
+                >
+                  {option.label}
+                </button>
+              ))
+            ) : (
+              <div className="text-caption-1 py-3 text-text-primary text-center">
+                {searchQuery ? "No matches found" : "No options available"}
+              </div>
+            )}
           </div>
         )}
         {!open && !selectedOptions && error && (

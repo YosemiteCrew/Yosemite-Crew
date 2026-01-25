@@ -82,6 +82,7 @@ export const mapFormToUI = (form: Form): FormsProps => ({
   orgId: form.orgId,
   name: form.name,
   description: form.description,
+  businessType: (form as any).businessType,
   services: toList(form.serviceId),
   species: form.speciesFilter ?? [],
   category: form.category as FormsCategory,
@@ -135,7 +136,7 @@ export const buildFHIRPayload = ({
     usage === "Internal & External" ? "Internal_External" : usage
   ) as Form["visibilityType"]; // backend supports Internal_External; local types lag
 
-  const normalized: Form = {
+  const normalized: Form & { businessType?: any } = {
     _id: form._id ?? "",
     orgId: orgId,
     name: form.name,
@@ -150,6 +151,7 @@ export const buildFHIRPayload = ({
     updatedBy: userId,
     createdAt: (form as any).createdAt || now,
     updatedAt: now,
+    businessType: form.businessType,
   };
 
   return toFormResponseDTO(normalized);
