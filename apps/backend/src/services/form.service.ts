@@ -356,13 +356,12 @@ export const FormService = {
 
     let resolvedSchema = schema;
     if (!resolvedSchema && initialSubmission.formId) {
-      const versionQuery = FormVersionModel.findOne({
+      const version = await FormVersionModel.findOne({
         formId: ensureObjectId(initialSubmission.formId, "formId"),
         version: initialSubmission.formVersion,
-      });
-      const version = versionQuery
-        ? await versionQuery.select("schemaSnapshot").lean()
-        : null;
+      })
+        .select("schemaSnapshot")
+        .lean();
       resolvedSchema = version?.schemaSnapshot;
     }
 

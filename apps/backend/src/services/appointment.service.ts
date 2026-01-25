@@ -686,7 +686,6 @@ export const AppointmentService = {
           parentId: appointment.companion.parent.id,
           companionId: appointment.companion.id,
           organisationId: appointment.organisationId,
-          currency: "usd",
           items: [
             {
               description: appointment.appointmentType?.name ?? "Consultation",

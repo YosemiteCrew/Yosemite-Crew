@@ -16,6 +16,7 @@ import { NotificationService } from "./notification.service";
 import { AuditTrailService } from "./audit-trail.service";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { OrgBilling } from "src/models/organization.billing";
 
 export class InvoiceServiceError extends Error {
   constructor(
@@ -38,6 +39,12 @@ const ensureObjectId = (val: unknown, field: string): Types.ObjectId => {
   }
 
   throw new InvoiceServiceError(`Invalid ${field}`, 400);
+};
+
+const getOrgBillingCurrency = async (organisationId?: string | Types.ObjectId) => {
+  if (!organisationId) return "usd";
+  const billing = await OrgBilling.findOne({ orgId: organisationId });
+  return billing?.currency ?? "usd";
 };
 
 const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
@@ -161,7 +168,6 @@ export const InvoiceService = {
       parentId: string;
       organisationId: string;
       companionId: string;
-      currency: string;
       items: {
         description: string;
         quantity: number;
@@ -199,6 +205,7 @@ export const InvoiceService = {
 
     const taxTotal = 0; // add GST/VAT logic later
     const totalPayable = subtotal - discountTotal + taxTotal;
+    const currency = await getOrgBillingCurrency(input.organisationId);
 
     const itemsDetailed = input.items.map((item) => ({
       ...item,
@@ -213,7 +220,7 @@ export const InvoiceService = {
           appointmentId: input.appointmentId,
           parentId: input.parentId,
           organisationId: input.organisationId,
-          currency: input.currency,
+          currency,
 
           status: "AWAITING_PAYMENT",
           paymentCollectionMethod: input.paymentCollectionMethod,
@@ -248,7 +255,7 @@ export const InvoiceService = {
 
     const notificationPayload = NotificationTemplates.Payment.PAYMENT_PENDING(
       totalPayable,
-      input.currency,
+      currency,
     );
     await NotificationService.sendToUser(input.parentId, notificationPayload);
 
@@ -259,19 +266,19 @@ export const InvoiceService = {
     appointmentId: string;
     items: InvoiceItem[];
     metadata?: Record<string, string | number | boolean | undefined>;
-    currency: string;
   }) {
     const appointment = await AppointmentModel.findById(input.appointmentId);
     if (!appointment) {
       throw new InvoiceServiceError("Appointment not found", 404);
     }
 
+    const currency = await getOrgBillingCurrency(appointment.organisationId);
     const invoice = new InvoiceModel({
       appointmentId: appointment._id,
       parentId: appointment.companion.parent.id,
       companionId: appointment.companion.id,
       organisationId: appointment.organisationId,
-      currency: input.currency,
+      currency,
 
       purpose: "APPOINTMENT_EXTRA",
       status: "AWAITING_PAYMENT",
@@ -557,7 +564,6 @@ export const InvoiceService = {
   async addChargesToAppointment(
     appointmentId: string,
     items: InvoiceItem[],
-    currency: string,
   ) {
     const invoice = await this.findOpenInvoiceForAppointment(appointmentId);
 
@@ -566,7 +572,6 @@ export const InvoiceService = {
       return this.createExtraInvoiceForAppointment({
         appointmentId,
         items,
-        currency,
       });
     }
 

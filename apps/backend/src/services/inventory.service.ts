@@ -8,6 +8,7 @@ import {
   InventoryMetaFieldModel,
   StockMovementModel,
 } from "src/models/inventory";
+import { OrgBilling } from "src/models/organization.billing";
 import type {
   InventoryItemDocument,
   InventoryBatchDocument,
@@ -48,6 +49,11 @@ export class InventoryServiceError extends Error {
     this.name = "InventoryServiceError";
   }
 }
+
+const getOrgBillingCurrency = async (organisationId: string) => {
+  const billing = await OrgBilling.findOne({ orgId: organisationId });
+  return billing?.currency ?? "usd";
+};
 
 /**
  * INPUT TYPES
@@ -280,6 +286,8 @@ export const InventoryService = {
       throw new InventoryServiceError("category is required", 400);
     }
 
+    const currency = await getOrgBillingCurrency(input.organisationId);
+
     // 1. Create item with basic data (onHand will be recomputed if batches)
     const item = await InventoryItemModel.create({
       organisationId: input.organisationId,
@@ -297,7 +305,7 @@ export const InventoryService = {
 
       unitCost: input.unitCost ?? undefined,
       sellingPrice: input.sellingPrice ?? undefined,
-      currency: input.currency ?? "USD",
+      currency,
       reorderLevel: input.reorderLevel ?? undefined,
 
       vendorId: input.vendorId ?? undefined,
@@ -374,7 +382,9 @@ export const InventoryService = {
     if (input.sellingPrice !== undefined)
       item.sellingPrice = input.sellingPrice ?? undefined;
     if (input.currency !== undefined)
-      item.currency = input.currency ?? undefined;
+      item.currency = await getOrgBillingCurrency(
+        item.organisationId.toString(),
+      );
     if (input.reorderLevel !== undefined)
       item.reorderLevel = input.reorderLevel ?? undefined;
 

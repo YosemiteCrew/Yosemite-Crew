@@ -30,6 +30,11 @@ function toStripeAmount(amount: number): number {
   return Math.round(amount * 100);
 }
 
+async function getOrgBillingCurrency(orgId: string) {
+  const billing = await OrgBilling.findOne({ orgId });
+  return billing?.currency ?? "usd";
+}
+
 // --- Billing helpers ---
 async function ensureBillingDocs(orgId: string) {
   const [billing, usage] = await Promise.all([
@@ -316,10 +321,11 @@ export const StripeService = {
       throw new Error("Organisation has no Stripe account");
 
     const amount = toStripeAmount(service.cost);
+    const currency = await getOrgBillingCurrency(appointment.organisationId);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
-      currency: "usd",
+      currency,
       metadata: {
         type: "APPOINTMENT_BOOKING",
         appointmentId,
@@ -339,7 +345,7 @@ export const StripeService = {
       paymentIntentId: paymentIntent.id,
       clientSecret: paymentIntent.client_secret,
       amount: service.cost,
-      currency: "usd",
+      currency,
     };
   },
 
@@ -621,6 +627,7 @@ export const StripeService = {
     await OrgBilling.updateOne(
       { connectAccountId: account.id },
       {
+        currency: account.default_currency,
         connectChargesEnabled: account.charges_enabled,
         connectPayoutsEnabled: account.payouts_enabled,
         canAcceptPayments: canAccept,

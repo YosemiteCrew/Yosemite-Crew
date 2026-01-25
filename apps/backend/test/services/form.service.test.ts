@@ -119,6 +119,10 @@ describe("FormService", () => {
     mockedFromFormRequest.mockImplementation((val: unknown) => val);
     mockedFromSubmission.mockImplementation((resp: any) => resp);
     mockedToFHIR.mockImplementation((val: unknown) => val);
+    mockedVersionModel.findOne.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue(null),
+    });
     mockedUserModel.find.mockReturnValue({
       lean: jest.fn().mockResolvedValue([]),
     });
