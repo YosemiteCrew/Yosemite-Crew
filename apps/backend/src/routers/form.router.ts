@@ -111,15 +111,6 @@ router.post(
   FormSigningController.startSigning,
 );
 
-// Generate submission PDF (PMS)
-router.get(
-  "/form-submissions/:submissionId/pdf",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("forms:view:any"),
-  FormController.getFormSubmissionPDF,
-);
-
 // Get signed document (PMS)
 router.get(
   "/form-submissions/:submissionId/signed-document",
